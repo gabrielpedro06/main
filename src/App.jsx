@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+// 1. Mudei aqui de BrowserRouter para HashRouter
+import { HashRouter, Routes, Route } from "react-router-dom";
 
 // Páginas de Autenticação
 import Login from "./pages/Login";
@@ -24,7 +25,8 @@ import Perfil from "./pages/Perfil";
 
 export default function App() {
   return (
-    <BrowserRouter>
+    /* 2. Mudei aqui a tag de abertura e fecho */
+    <HashRouter>
       <Routes>
         {/* === ROTAS PÚBLICAS === */}
         <Route path="/" element={<Login />} />
@@ -52,6 +54,6 @@ export default function App() {
         </Route>
 
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   );
 }
