@@ -5,7 +5,7 @@ import "./../pages/login.css";
 import logo from "/logo1.png";
 
 export default function SignUp() {
-  const [nome, setNome] = useState(""); // Novo estado para o Nome
+  const [nome, setNome] = useState(""); 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
@@ -18,9 +18,11 @@ export default function SignUp() {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      // ESTA É A PARTE CRUCIAL:
-      // Enviamos o nome dentro de options.data. O Trigger da BD vai ler o 'full_name'
       options: {
+        // --- AQUI ESTÁ A CORREÇÃO ---
+        // O window.location.origin deteta automaticamente se é localhost ou vercel
+        emailRedirectTo: window.location.origin, 
+        
         data: {
           full_name: nome,
         },
@@ -42,7 +44,6 @@ export default function SignUp() {
         <h2>Criar conta</h2>
 
         <form onSubmit={handleSignUp}>
-          {/* NOVO INPUT PARA O NOME */}
           <input
             type="text"
             placeholder="Nome Completo"
