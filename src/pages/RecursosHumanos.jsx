@@ -191,22 +191,6 @@ export default function RecursosHumanos() {
       }
   }
 
-  // --- APAGAR COLABORADOR (NOVO) ---
-  async function handleDeleteUser(id) {
-      if(!window.confirm("⚠️ ATENÇÃO: Tem a certeza que quer apagar este colaborador?\n\nIsto irá apagar todos os dados de férias, assiduidade e perfil desta pessoa permanentemente.")) return;
-      
-      try {
-          const { error } = await supabase.from("profiles").delete().eq("id", id);
-          if (error) throw error;
-
-          showNotification("Colaborador apagado com sucesso!", "success");
-          setSelectedUser(null);
-          fetchColaboradores();
-      } catch (err) {
-          showNotification("Erro ao apagar: " + err.message, "error");
-      }
-  }
-
   async function handleBulkUpdateSA() {
       if(!window.confirm(`Tem a certeza que quer alterar o S.A. de TODOS para ${globalSA}€?`)) return;
       const { error } = await supabase.from("profiles").update({ valor_sa: globalSA }).neq('id', '00000000-0000-0000-0000-000000000000'); 
@@ -284,18 +268,23 @@ export default function RecursosHumanos() {
   };
   const ausentesHoje = getAusentesHoje();
 
-  // --- ANIVERSARIANTES DO MÊS ---
+  // --- NOVA LÓGICA: ANIVERSARIANTES DO MÊS ---
   const getAniversariantesDoMes = () => {
       const mesAtual = currentDate.getMonth();
+      // Filtrar e ordenar por dia
       return colaboradores
           .filter(c => {
               if(!c.data_nascimento) return false;
               const d = new Date(c.data_nascimento);
               return d.getMonth() === mesAtual;
           })
-          .sort((a, b) => new Date(a.data_nascimento).getDate() - new Date(b.data_nascimento).getDate());
+          .sort((a, b) => {
+              return new Date(a.data_nascimento).getDate() - new Date(b.data_nascimento).getDate();
+          });
   };
   const aniversariantes = getAniversariantesDoMes();
+
+  const ficheirosUser = historicoUser.filter(h => h.anexo_url);
 
   const renderCalendar = () => {
       const year = currentDate.getFullYear();
@@ -525,6 +514,7 @@ export default function RecursosHumanos() {
                                                 <div><label style={{fontSize:'0.75rem'}}>Estado Civil</label><select value={tempUserProfile.estado_civil || ''} onChange={e => setTempUserProfile({...tempUserProfile, estado_civil: e.target.value})} style={{width:'100%'}}><option value="">-</option><option value="Solteiro">Solteiro</option><option value="Casado">Casado</option><option value="Divorciado">Divorciado</option><option value="União Facto">União Facto</option></select></div>
                                                 <div><label style={{fontSize:'0.75rem'}}>Data Nasc.</label><input type="date" value={tempUserProfile.data_nascimento || ''} onChange={e => setTempUserProfile({...tempUserProfile, data_nascimento: e.target.value})} style={{width:'100%'}} /></div>
                                                 
+                                                {/* CAMPO DE SEXO ADICIONADO AQUI */}
                                                 <div><label style={{fontSize:'0.75rem'}}>Nacionalidade</label><input type="text" value={tempUserProfile.nacionalidade || ''} onChange={e => setTempUserProfile({...tempUserProfile, nacionalidade: e.target.value})} style={{width:'100%'}} /></div>
                                                 <div>
                                                     <label style={{fontSize:'0.75rem'}}>Sexo</label>
@@ -569,13 +559,6 @@ export default function RecursosHumanos() {
                                                 <button onClick={() => setIsEditingUser(false)} style={{flex:1, padding:'5px', border:'1px solid #ccc', background:'white'}}>Cancelar</button>
                                                 <button onClick={handleUpdateUserProfile} style={{flex:1, padding:'5px', background:'#2563eb', color:'white', border:'none'}}>Gravar</button>
                                             </div>
-                                            
-                                            {/* BOTÃO ELIMINAR COLABORADOR */}
-                                            <div style={{marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #e2e8f0', textAlign: 'center'}}>
-                                                <button onClick={() => handleDeleteUser(selectedUser)} style={{background: '#fee2e2', color: '#ef4444', border: 'none', padding: '8px 12px', borderRadius: '6px', fontSize: '0.8rem', cursor: 'pointer', width: '100%'}}>
-                                                    🗑️ Apagar Colaborador
-                                                </button>
-                                            </div>
                                         </div>
                                     )
                                 )}
@@ -607,7 +590,7 @@ export default function RecursosHumanos() {
                                 }
                             </div>
 
-                            {/* --- SECÇÃO DE ANIVERSÁRIOS --- */}
+                            {/* --- NOVA SECÇÃO DE ANIVERSÁRIOS --- */}
                             <div style={{marginTop: '25px', paddingTop: '15px', borderTop: '2px dashed #f1f5f9'}}>
                                 <h5 style={{margin:'0 0 15px 0', color:'#475569', textTransform:'uppercase', fontSize:'0.75rem'}}>🎂 Aniversariantes de {currentDate.toLocaleDateString('pt-PT', {month:'long'})}:</h5>
                                 {aniversariantes.length === 0 ? (
@@ -648,7 +631,7 @@ export default function RecursosHumanos() {
                             <h3 style={{marginTop:0, fontSize:'1.1rem', color:'#1e293b'}}>📅 Histórico de Ausências</h3>
                             <div className="table-responsive" style={{maxHeight:'300px', overflowY:'auto'}}>
                                 <table className="data-table" style={{fontSize:'0.9rem'}}>
-                                    <thead><tr><th>Tipo</th><th>Período</th><th>Justificativo</th><th>Estado</th><th>Ação</th></tr></thead>
+                                    <thead><tr><th>Tipo</th><th>Período</th><th>Documento</th><th>Estado</th><th>Ação</th></tr></thead>
                                     <tbody>
                                         {historicoUser.map(h => (
                                             <tr key={h.id}>
