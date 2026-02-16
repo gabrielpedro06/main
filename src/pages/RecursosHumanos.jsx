@@ -191,29 +191,86 @@ export default function RecursosHumanos() {
       }
   }
 
+  // --- APAGAR COLABORADOR ---
+  async function handleDeleteUser(id) {
+      if(!window.confirm("⚠️ ATENÇÃO: Tem a certeza que quer apagar este colaborador?\n\nIsto irá apagar todos os dados de férias, assiduidade e perfil desta pessoa permanentemente.")) return;
+      
+      try {
+          const { error } = await supabase.from("profiles").delete().eq("id", id);
+          if (error) throw error;
+
+          showNotification("Colaborador apagado com sucesso!", "success");
+          setSelectedUser(null);
+          fetchColaboradores();
+      } catch (err) {
+          showNotification("Erro ao apagar: " + err.message, "error");
+      }
+  }
+
   async function handleBulkUpdateSA() {
       if(!window.confirm(`Tem a certeza que quer alterar o S.A. de TODOS para ${globalSA}€?`)) return;
       const { error } = await supabase.from("profiles").update({ valor_sa: globalSA }).neq('id', '00000000-0000-0000-0000-000000000000'); 
       if(!error) { fetchColaboradores(); showNotification("S.A. atualizado para todos!", "success"); }
   }
 
+  // --- REGISTAR AUSÊNCIA (CORRIGIDO) ---
   async function handleAddAbsence(e) {
       e.preventDefault();
+      
+      // Validação básica
+      if (!newAbsence.user_id) return showNotification("Selecione um colaborador!", "error");
+      if (!newAbsence.data_inicio || !newAbsence.data_fim) return showNotification("Selecione as datas!", "error");
+
       try {
-          if (newAbsence.tipo.toLowerCase().includes('ferias') || newAbsence.tipo.toLowerCase().includes('férias')) {
+          // 1. Se for Férias, tentar descontar do saldo do utilizador
+          if (newAbsence.tipo.toLowerCase().includes('férias') || newAbsence.tipo.toLowerCase().includes('ferias')) {
              const diasA_Descontar = calcularDiasUteis(newAbsence.data_inicio, newAbsence.data_fim);
-             const { data: userProf } = await supabase.from('profiles').select('dias_ferias').eq('id', newAbsence.user_id).single();
-             await supabase.from('profiles').update({ dias_ferias: (userProf?.dias_ferias ?? 22) - diasA_Descontar }).eq('id', newAbsence.user_id);
+             
+             const { data: userProf, error: fetchError } = await supabase
+                .from('profiles')
+                .select('dias_ferias')
+                .eq('id', newAbsence.user_id)
+                .single();
+             
+             if (fetchError) throw new Error("Erro ao ler saldo de férias: " + fetchError.message);
+
+             const novoSaldo = (userProf?.dias_ferias ?? 22) - diasA_Descontar;
+             
+             const { error: updateError } = await supabase
+                .from('profiles')
+                .update({ dias_ferias: novoSaldo })
+                .eq('id', newAbsence.user_id);
+
+             if (updateError) throw new Error("Erro ao atualizar saldo: " + updateError.message);
           }
-          const { error } = await supabase.from("ferias").insert([{ ...newAbsence, estado: 'aprovado' }]); 
-          if(error) throw error;
+
+          // 2. Inserir o registo na tabela de Férias/Ausências
+          const { error: insertError } = await supabase
+            .from("ferias")
+            .insert([{ 
+                user_id: newAbsence.user_id,
+                tipo: newAbsence.tipo,
+                data_inicio: newAbsence.data_inicio,
+                data_fim: newAbsence.data_fim,
+                motivo: newAbsence.motivo || "", 
+                estado: 'aprovado' 
+            }]);
+          
+          if(insertError) throw new Error("Erro ao gravar ausência: " + insertError.message);
 
           setShowAbsenceModal(false);
+          setNewAbsence({ user_id: "", tipo: "ferias", data_inicio: "", data_fim: "", motivo: "" }); 
+          
           fetchDadosMensais();
           if(selectedUser) fetchHistoricoUser(selectedUser);
           fetchColaboradores(); 
-          showNotification("Ausência registada!", "success"); 
-      } catch(err) { showNotification("Erro: " + err.message, "error"); }
+          
+          showNotification("Ausência registada com sucesso!", "success"); 
+
+      } catch(err) { 
+          console.error(err);
+          showNotification(err.message, "error"); 
+      }
   }
 
   const downloadCSV = () => {
@@ -257,7 +314,6 @@ export default function RecursosHumanos() {
   const stats = getStats();
   const currentUserProfile = colaboradores.find(c => c.id === selectedUser);
 
-  // --- LÓGICA DE AUSENTES HOJE ---
   const getAusentesHoje = () => {
       const today = new Date().toISOString().split('T')[0];
       const lista = ausenciasMes.filter(a => a.data_inicio <= today && a.data_fim >= today);
@@ -268,23 +324,17 @@ export default function RecursosHumanos() {
   };
   const ausentesHoje = getAusentesHoje();
 
-  // --- NOVA LÓGICA: ANIVERSARIANTES DO MÊS ---
   const getAniversariantesDoMes = () => {
       const mesAtual = currentDate.getMonth();
-      // Filtrar e ordenar por dia
       return colaboradores
           .filter(c => {
               if(!c.data_nascimento) return false;
               const d = new Date(c.data_nascimento);
               return d.getMonth() === mesAtual;
           })
-          .sort((a, b) => {
-              return new Date(a.data_nascimento).getDate() - new Date(b.data_nascimento).getDate();
-          });
+          .sort((a, b) => new Date(a.data_nascimento).getDate() - new Date(b.data_nascimento).getDate());
   };
   const aniversariantes = getAniversariantesDoMes();
-
-  const ficheirosUser = historicoUser.filter(h => h.anexo_url);
 
   const renderCalendar = () => {
       const year = currentDate.getFullYear();
@@ -335,10 +385,13 @@ export default function RecursosHumanos() {
 
   const changeMonth = (delta) => setCurrentDate(new Date(currentDate.setMonth(currentDate.getMonth() + delta)));
   
-  // Style for Read-Only Grid
+  // ESTILOS QUE FALTAVAM
   const readOnlyGridStyle = { display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: '20px', rowGap: '10px', fontSize: '0.9rem', color: '#334151' };
   const readOnlyItemStyle = { display: 'flex', flexDirection: 'column', borderBottom: '1px solid #f1f5f9', paddingBottom: '5px' };
   const labelStyle = { color: '#64748b', fontSize: '0.75rem', marginBottom: '2px' };
+  
+  // AQUI ESTÁ A VARIÁVEL QUE FALTAVA! 👇
+  const inputStyle = { padding: '10px', borderRadius: '5px', border: '1px solid #ccc', width: '100%', marginBottom: '10px' };
 
   return (
     <div className="page-container" style={{padding: '20px'}}>
@@ -514,7 +567,6 @@ export default function RecursosHumanos() {
                                                 <div><label style={{fontSize:'0.75rem'}}>Estado Civil</label><select value={tempUserProfile.estado_civil || ''} onChange={e => setTempUserProfile({...tempUserProfile, estado_civil: e.target.value})} style={{width:'100%'}}><option value="">-</option><option value="Solteiro">Solteiro</option><option value="Casado">Casado</option><option value="Divorciado">Divorciado</option><option value="União Facto">União Facto</option></select></div>
                                                 <div><label style={{fontSize:'0.75rem'}}>Data Nasc.</label><input type="date" value={tempUserProfile.data_nascimento || ''} onChange={e => setTempUserProfile({...tempUserProfile, data_nascimento: e.target.value})} style={{width:'100%'}} /></div>
                                                 
-                                                {/* CAMPO DE SEXO ADICIONADO AQUI */}
                                                 <div><label style={{fontSize:'0.75rem'}}>Nacionalidade</label><input type="text" value={tempUserProfile.nacionalidade || ''} onChange={e => setTempUserProfile({...tempUserProfile, nacionalidade: e.target.value})} style={{width:'100%'}} /></div>
                                                 <div>
                                                     <label style={{fontSize:'0.75rem'}}>Sexo</label>
@@ -559,6 +611,13 @@ export default function RecursosHumanos() {
                                                 <button onClick={() => setIsEditingUser(false)} style={{flex:1, padding:'5px', border:'1px solid #ccc', background:'white'}}>Cancelar</button>
                                                 <button onClick={handleUpdateUserProfile} style={{flex:1, padding:'5px', background:'#2563eb', color:'white', border:'none'}}>Gravar</button>
                                             </div>
+                                            
+                                            {/* BOTÃO ELIMINAR COLABORADOR */}
+                                            <div style={{marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #e2e8f0', textAlign: 'center'}}>
+                                                <button onClick={() => handleDeleteUser(selectedUser)} style={{background: '#fee2e2', color: '#ef4444', border: 'none', padding: '8px 12px', borderRadius: '6px', fontSize: '0.8rem', cursor: 'pointer', width: '100%'}}>
+                                                    🗑️ Apagar Colaborador
+                                                </button>
+                                            </div>
                                         </div>
                                     )
                                 )}
@@ -590,7 +649,7 @@ export default function RecursosHumanos() {
                                 }
                             </div>
 
-                            {/* --- NOVA SECÇÃO DE ANIVERSÁRIOS --- */}
+                            {/* --- SECÇÃO DE ANIVERSÁRIOS --- */}
                             <div style={{marginTop: '25px', paddingTop: '15px', borderTop: '2px dashed #f1f5f9'}}>
                                 <h5 style={{margin:'0 0 15px 0', color:'#475569', textTransform:'uppercase', fontSize:'0.75rem'}}>🎂 Aniversariantes de {currentDate.toLocaleDateString('pt-PT', {month:'long'})}:</h5>
                                 {aniversariantes.length === 0 ? (
@@ -631,7 +690,7 @@ export default function RecursosHumanos() {
                             <h3 style={{marginTop:0, fontSize:'1.1rem', color:'#1e293b'}}>📅 Histórico de Ausências</h3>
                             <div className="table-responsive" style={{maxHeight:'300px', overflowY:'auto'}}>
                                 <table className="data-table" style={{fontSize:'0.9rem'}}>
-                                    <thead><tr><th>Tipo</th><th>Período</th><th>Documento</th><th>Estado</th><th>Ação</th></tr></thead>
+                                    <thead><tr><th>Tipo</th><th>Período</th><th>Justificativo</th><th>Estado</th><th>Ação</th></tr></thead>
                                     <tbody>
                                         {historicoUser.map(h => (
                                             <tr key={h.id}>
