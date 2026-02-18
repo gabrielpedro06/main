@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from "react-router-dom";
-import { useAuth } from "../context/AuthContext"; // <-- IMPORTAR O AUTH CONTEXT
+import { useAuth } from "../context/AuthContext";
+import { supabase } from "../services/supabase"; // Importar Supabase
 import "./../styles/dashboard.css";
 
 const logoFull = "/logo4.png"; 
@@ -8,7 +9,40 @@ const logoIcon = "/logo3.png";
 
 export default function Sidebar({ menuOpen, setMenuOpen }) {
   const location = useLocation();
-  const { userProfile } = useAuth(); // <-- PUXAR O ROLE DO UTILIZADOR
+  const { userProfile } = useAuth();
+  
+  // Estado para notificações
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Função para verificar novos posts
+  const checkUnreadPosts = async () => {
+      const lastVisit = localStorage.getItem('lastForumVisit');
+      
+      // Se nunca visitou, mostra 1 para chamar a atenção, senão verifica a data
+      const queryDate = lastVisit || new Date(0).toISOString(); 
+
+      const { count, error } = await supabase
+          .from('forum_posts')
+          .select('*', { count: 'exact', head: true })
+          .gt('created_at', queryDate); // Posts criados DEPOIS da última visita
+
+      if(!error) setUnreadCount(count || 0);
+  };
+
+  useEffect(() => {
+      checkUnreadPosts();
+      
+      // Ouvir evento de clique no forum (disparado pelo Forum.jsx) para limpar badge
+      window.addEventListener('storage', checkUnreadPosts);
+      
+      // Opcional: Polling a cada 60 segundos para ver se há novos posts enquanto trabalhas
+      const interval = setInterval(checkUnreadPosts, 60000);
+
+      return () => {
+          window.removeEventListener('storage', checkUnreadPosts);
+          clearInterval(interval);
+      };
+  }, []);
 
   const isActive = (path) => {
     if (path === '/dashboard' && location.pathname === '/dashboard') return 'active';
@@ -66,13 +100,32 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
             </li>
 
             <li className={isActive('/dashboard/forum')}>
-              <Link to="/dashboard/forum" title="Fórum">
-                <span className="icon">💬</span> 
-                <span className="link-text">Fórum & Avisos</span>
+              <Link to="/dashboard/forum" title="Fórum" onClick={() => {
+                  localStorage.setItem('lastForumVisit', new Date().toISOString());
+                  setUnreadCount(0);
+              }}>
+                <span className="icon" style={{position: 'relative'}}>
+                    💬
+                    {/* BADGE DE NOTIFICAÇÃO 🔴 */}
+                    {unreadCount > 0 && (
+                        <span style={{
+                            position: 'absolute', top: '-5px', right: '-8px',
+                            background: '#ef4444', color: 'white',
+                            fontSize: '0.6rem', fontWeight: 'bold',
+                            padding: '2px 5px', borderRadius: '10px',
+                            border: '1px solid white',
+                            animation: 'pulse 2s infinite' // Efeito piscar
+                        }}>
+                            {unreadCount}
+                        </span>
+                    )}
+                </span> 
+                <span className="link-text">
+                    Fórum & Avisos
+                </span>
               </Link>
             </li>
 
-            {/* 🔒 BLOQUEADO: Só Admin, Gestor conseguem ver */}
             {['admin', 'gestor'].includes(userProfile?.role) && (
               <li className={isActive('/dashboard/rh')}>
                 <Link to="/dashboard/rh" title="Recursos Humanos">
@@ -82,7 +135,6 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
               </li>
             )}
 
-            {/* 🔒 BLOQUEADO: Só Admin, Gestor ou Marketing conseguem ver */}
             {['admin', 'marketing'].includes(userProfile?.role) && (
               <li className={isActive('/dashboard/leads')}>
                 <Link to="/dashboard/leads" title="Marketing">
