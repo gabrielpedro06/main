@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import "./../styles/dashboard.css";
 
 export default function Forum() {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth(); 
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -12,19 +12,16 @@ export default function Forum() {
   const [showNewPostModal, setShowNewPostModal] = useState(false);
   const [selectedPost, setSelectedPost] = useState(null); 
 
-  // Dados para Novo Post
+  // Dados
   const [newPost, setNewPost] = useState({ titulo: "", conteudo: "", categoria: "geral" });
-  
-  // Dados do Post Aberto
   const [comments, setComments] = useState([]);
-  const [reactions, setReactions] = useState([]); // Nova lista de reações
+  const [reactions, setReactions] = useState([]);
   const [newCommentText, setNewCommentText] = useState("");
 
   useEffect(() => {
     fetchPosts();
-    // Atualizar timestamp da ultima visita para limpar notificações da sidebar
     localStorage.setItem('lastForumVisit', new Date().toISOString());
-    window.dispatchEvent(new Event('storage')); // Forçar atualização da sidebar
+    window.dispatchEvent(new Event('storage')); 
   }, []);
 
   async function fetchPosts() {
@@ -61,7 +58,6 @@ export default function Forum() {
   async function handleOpenPost(post) {
     setSelectedPost(post);
     
-    // Buscar Comentários
     const { data: cData } = await supabase
       .from("forum_comments")
       .select(`*, profiles ( nome )`)
@@ -69,7 +65,6 @@ export default function Forum() {
       .order("created_at", { ascending: true });
     setComments(cData || []);
 
-    // Buscar Reações em tempo real para este post
     const { data: rData } = await supabase
         .from("forum_reactions")
         .select("*")
@@ -94,23 +89,40 @@ export default function Forum() {
     if (!error && data) {
         setComments([...comments, data]); 
         setNewCommentText("");
-        // Não precisamos de fetchPosts aqui, poupa recursos
     }
   }
 
-  // --- NOVA FUNÇÃO DE REAÇÕES ---
+  // --- APAGAR COMENTÁRIO ---
+  async function handleDeleteComment(commentId) {
+      if (!window.confirm("⚠️ Tem a certeza que quer apagar este comentário?")) return;
+
+      try {
+          const { error } = await supabase
+              .from("forum_comments")
+              .delete()
+              .eq("id", commentId);
+
+          if (error) throw error;
+          setComments(comments.filter(c => c.id !== commentId));
+      } catch (err) {
+          alert("Erro ao apagar: " + err.message);
+      }
+  }
+
+  const canDelete = (commentUserId) => {
+      const myRole = userProfile?.role || '';
+      return user.id === commentUserId || ['admin', 'gestor'].includes(myRole);
+  };
+
   async function handleReact(type) {
       if(!selectedPost) return;
 
-      // Verificar se já tenho esta reação para remover (toggle)
       const myExistingReaction = reactions.find(r => r.user_id === user.id);
       
       if (myExistingReaction && myExistingReaction.reaction_type === type) {
-          // Remover reação (se clicar na mesma)
           const { error } = await supabase.from("forum_reactions").delete().eq("id", myExistingReaction.id);
           if(!error) setReactions(reactions.filter(r => r.id !== myExistingReaction.id));
       } else {
-          // Adicionar ou Atualizar reação (Upsert)
           const { data, error } = await supabase
             .from("forum_reactions")
             .upsert({ 
@@ -122,15 +134,13 @@ export default function Forum() {
             .single();
             
           if(!error && data) {
-              // Remove a antiga da lista local e adiciona a nova
               const otherReactions = reactions.filter(r => r.user_id !== user.id);
               setReactions([...otherReactions, data]);
           }
       }
-      fetchPosts(); // Atualizar a lista geral para mostrar contagens
+      fetchPosts(); 
   }
 
-  // Agrupar reações para mostrar contagens (ex: 2 ❤️, 1 👍)
   const getReactionCounts = (currentReactions) => {
       const counts = {};
       currentReactions.forEach(r => {
@@ -164,28 +174,57 @@ export default function Forum() {
         <button className="btn-primary" onClick={() => setShowNewPostModal(true)}>+ Novo Post</button>
       </div>
 
-      <div className="forum-grid" style={{display: 'grid', gap: '15px'}}>
-        {posts.length === 0 && !loading && <p style={{color: '#666'}}>Ainda não há publicações. Sê o primeiro!</p>}
+      {/* --- MODO LISTA (FEED) --- */}
+      <div className="forum-feed" style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '20px',
+          maxWidth: '900px', // Limita a largura para ficar elegante
+          margin: '0 auto'   // Centra a lista na página
+      }}>
+        {posts.length === 0 && !loading && <p style={{color: '#666', textAlign: 'center'}}>Ainda não há publicações. Sê o primeiro!</p>}
         
         {posts.map(post => (
-            <div key={post.id} className="card" onClick={() => handleOpenPost(post)} style={{cursor: 'pointer'}}>
-                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
-                    <h3 style={{margin: '0 0 5px 0', color: '#16a34a'}}>{post.titulo}</h3>
+            <div key={post.id} className="card" onClick={() => handleOpenPost(post)} style={{
+                cursor: 'pointer',
+                display: 'flex', 
+                flexDirection: 'column',
+                transition: 'transform 0.2s',
+                width: '100%',
+                boxSizing: 'border-box' // Garante que padding não aumenta largura total
+            }}>
+                {/* Cabeçalho do Card */}
+                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '15px'}}>
+                    <div>
+                        <h3 style={{margin: '0 0 5px 0', color: '#16a34a', fontSize: '1.2rem'}}>{post.titulo}</h3>
+                        <div style={{fontSize: '0.8rem', color: '#94a3b8'}}>
+                            Por <b>{post.profiles?.nome}</b> • {formatDate(post.created_at)}
+                        </div>
+                    </div>
                     {getCategoryBadge(post.categoria)}
                 </div>
                 
-                <p style={{fontSize: '0.9rem', color: '#475569', margin: '10px 0', maxHeight: '60px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>
+                {/* Corpo do Texto - BLINDADO PARA NÃO PASSAR DA BORDA */}
+                <div style={{
+                    fontSize: '0.95rem', 
+                    color: '#334155', 
+                    marginBottom: '15px', 
+                    lineHeight: '1.6',
+                    whiteSpace: 'pre-wrap',       // Respeita parágrafos
+                    overflowWrap: 'break-word',   // Parte palavras longas se necessário
+                    wordBreak: 'break-word'       // Reforço para browsers antigos
+                }}>
                     {post.conteudo}
-                </p>
+                </div>
 
-                <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#94a3b8', marginTop: '10px', borderTop: '1px solid #f1f5f9', paddingTop: '10px'}}>
-                    <div>👤 <b>{post.profiles?.nome}</b></div>
-                    <div style={{display:'flex', gap:'10px'}}>
-                        <span>💬 {post.forum_comments?.[0]?.count || 0}</span>
-                        <span>
-                            {post.forum_reactions?.length > 0 ? `❤️👍 ${post.forum_reactions.length}` : '🤍 0'}
-                        </span>
-                    </div>
+                {/* Rodapé do Card */}
+                <div style={{display: 'flex', gap:'20px', fontSize: '0.9rem', color: '#64748b', borderTop: '1px solid #f1f5f9', paddingTop: '15px'}}>
+                    <span style={{display: 'flex', alignItems: 'center', gap: '5px'}}>
+                        💬 {post.forum_comments?.[0]?.count || 0} Comentários
+                    </span>
+                    <span style={{display: 'flex', alignItems: 'center', gap: '5px'}}>
+                        {post.forum_reactions?.length > 0 ? `❤️ ${post.forum_reactions.length} Reações` : '🤍 0 Reações'}
+                    </span>
                 </div>
             </div>
         ))}
@@ -220,59 +259,76 @@ export default function Forum() {
 
       {selectedPost && (
         <div className="modal-overlay">
-          {/* AQUI ESTÁ A CORREÇÃO DO LAYOUT: Flex Column e Altura Fixa */}
           <div className="modal-content large-modal" style={{height: '90vh', maxHeight: '90vh', display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden'}}>
             
-            {/* 1. HEADER (Fixo) */}
             <div className="modal-header" style={{padding: '20px', borderBottom: '1px solid #eee'}}>
                <h3 style={{margin:0}}>{selectedPost.titulo}</h3>
                <button onClick={() => setSelectedPost(null)} className="close-btn">✖</button>
             </div>
 
-            {/* 2. BODY (Scroll apenas aqui) */}
             <div className="modal-body" style={{flex: 1, overflowY: 'auto', padding: '20px', display:'flex', flexDirection:'column'}}>
                 
-                {/* Conteúdo do Post */}
-                <div style={{background: '#f8fafc', padding: '15px', borderRadius: '8px', marginBottom: '20px'}}>
-                    <div style={{fontSize: '0.8rem', color: '#64748b', marginBottom: '10px'}}>
+                <div style={{background: '#f8fafc', padding: '20px', borderRadius: '8px', marginBottom: '20px'}}>
+                    <div style={{fontSize: '0.85rem', color: '#64748b', marginBottom: '10px'}}>
                         Por <b>{selectedPost.profiles?.nome}</b> em {formatDate(selectedPost.created_at)}
                     </div>
-                    <div style={{whiteSpace: 'pre-wrap', color: '#334151'}}>{selectedPost.conteudo}</div>
                     
-                    {/* ÁREA DE REAÇÕES */}
-                    <div style={{marginTop: '15px', paddingTop: '10px', borderTop: '1px solid #e2e8f0', display:'flex', gap:'5px', alignItems:'center'}}>
+                    {/* TEXTO NO MODAL TAMBÉM BLINDADO */}
+                    <div style={{
+                        whiteSpace: 'pre-wrap', 
+                        color: '#334151', 
+                        lineHeight: '1.6',
+                        overflowWrap: 'break-word',
+                        wordBreak: 'break-word'
+                    }}>
+                        {selectedPost.conteudo}
+                    </div>
+                    
+                    <div style={{marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #e2e8f0', display:'flex', gap:'8px', alignItems:'center'}}>
                         {['👍','❤️','😂','😮','😢'].map(emoji => (
                             <button 
                                 key={emoji} 
                                 onClick={() => handleReact(emoji)}
                                 style={{
                                     background: reactions.find(r => r.user_id === user.id && r.reaction_type === emoji) ? '#dcfce7' : 'white',
-                                    border: '1px solid #cbd5e1', borderRadius: '20px', padding: '5px 10px', cursor: 'pointer', fontSize:'1.2rem', transition: '0.2s'
+                                    border: '1px solid #cbd5e1', borderRadius: '20px', padding: '6px 12px', cursor: 'pointer', fontSize:'1.2rem', transition: '0.2s'
                                 }}
                             >
-                                {emoji} <span style={{fontSize:'0.8rem', fontWeight:'bold'}}>{getReactionCounts(reactions)[emoji] || 0}</span>
+                                {emoji} <span style={{fontSize:'0.85rem', fontWeight:'bold', marginLeft: '5px'}}>{getReactionCounts(reactions)[emoji] || 0}</span>
                             </button>
                         ))}
                     </div>
                 </div>
 
-                <h4 style={{borderBottom: '1px solid #eee', paddingBottom: '5px'}}>Comentários ({comments.length})</h4>
+                <h4 style={{borderBottom: '1px solid #eee', paddingBottom: '10px', color: '#475569'}}>Comentários ({comments.length})</h4>
 
-                {/* Lista de Comentários */}
                 <div style={{flex: 1}}>
                     {comments.map(c => (
-                        <div key={c.id} style={{marginBottom: '15px', borderBottom: '1px solid #f1f5f9', paddingBottom: '10px'}}>
-                            <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem'}}>
-                                <span style={{fontWeight: 'bold', color: '#16a34a'}}>{c.profiles?.nome}</span>
-                                <span style={{color: '#94a3b8'}}>{formatDate(c.created_at)}</span>
+                        <div key={c.id} style={{marginBottom: '15px', borderBottom: '1px solid #f1f5f9', paddingBottom: '15px'}}>
+                            <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '5px'}}>
+                                <div>
+                                    <span style={{fontWeight: 'bold', color: '#16a34a'}}>{c.profiles?.nome}</span>
+                                    <span style={{color: '#94a3b8', marginLeft: '10px'}}>{formatDate(c.created_at)}</span>
+                                </div>
+                                
+                                {canDelete(c.user_id) && (
+                                    <button 
+                                        onClick={() => handleDeleteComment(c.id)}
+                                        style={{background: 'transparent', border: 'none', cursor: 'pointer', opacity: 0.5, fontSize: '0.9rem'}}
+                                        title="Apagar Comentário"
+                                        onMouseOver={(e) => e.target.style.opacity = 1}
+                                        onMouseOut={(e) => e.target.style.opacity = 0.5}
+                                    >
+                                        🗑️
+                                    </button>
+                                )}
                             </div>
-                            <div style={{fontSize: '0.9rem', marginTop: '5px'}}>{c.conteudo}</div>
+                            <div style={{fontSize: '0.95rem', color: '#334155', overflowWrap: 'break-word'}}>{c.conteudo}</div>
                         </div>
                     ))}
                 </div>
             </div>
 
-            {/* 3. FOOTER / INPUT (Fixo em baixo) */}
             <div style={{padding: '20px', borderTop: '1px solid #eee', background: 'white'}}>
                 <form onSubmit={handleSendComment} className="forum-reply-area" style={{display:'flex', gap:'10px'}}>
                     <input 
@@ -280,9 +336,9 @@ export default function Forum() {
                         placeholder="Escreve um comentário..." 
                         value={newCommentText}
                         onChange={e => setNewCommentText(e.target.value)}
-                        style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #ccc' }} 
+                        style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid #ccc' }} 
                     />
-                    <button type="submit" className="btn-primary" style={{padding: '0 20px'}}>Enviar ➤</button>
+                    <button type="submit" className="btn-primary" style={{padding: '0 25px'}}>Enviar ➤</button>
                 </form>
             </div>
 
