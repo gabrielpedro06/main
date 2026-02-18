@@ -12,8 +12,11 @@ export default function GestaoLeads() {
   const [filterSetor, setFilterSetor] = useState("");
   const [searchTerm, setSearchTerm] = useState(""); 
 
-  // Modal Import
+  // Modais
   const [showImportModal, setShowImportModal] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null); // <--- PARA VER DETALHES
+  
+  // Importação
   const [file, setFile] = useState(null);
   const [importing, setImporting] = useState(false);
   const [importSetor, setImportSetor] = useState(""); 
@@ -66,7 +69,6 @@ export default function GestaoLeads() {
       const csv = target.result;
       const lines = csv.split("\n");
       const newData = [];
-
       const regexSplit = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
 
       for (let i = 1; i < lines.length; i++) {
@@ -110,7 +112,10 @@ export default function GestaoLeads() {
     if (!window.confirm("Tem a certeza?")) return;
     const tableName = activeTab === "leads" ? "marketing_leads" : "marketing_prospects";
     const { error } = await supabase.from(tableName).delete().eq("id", id);
-    if (!error) setDataList(dataList.filter((l) => l.id !== id));
+    if (!error) {
+        setDataList(dataList.filter((l) => l.id !== id));
+        if(selectedItem?.id === id) setSelectedItem(null); // Fechar modal se aberto
+    }
   }
 
   async function promoteToLead(prospect) {
@@ -173,48 +178,49 @@ export default function GestaoLeads() {
           </select>
         </div>
 
-        {/* TABELA COM SCROLL HORIZONTAL (EVITA SOBREPOSIÇÃO) */}
-        <div className="table-responsive" style={{overflowX: 'auto'}}>
-            <table className="data-table" style={{ width: "100%", minWidth: '1500px', whiteSpace: 'nowrap' }}>
+        {/* TABELA OTIMIZADA (SEM SCROLL HORIZONTAL) */}
+        <div className="table-responsive">
+            <table className="data-table" style={{ width: "100%", borderCollapse: 'collapse' }}>
             <thead>
-                <tr style={{color: '#64748b', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em'}}>
-                    <th>Empresa</th>
-                    <th>NIF</th>
-                    <th>Localidade</th>
-                    <th>Contacto</th>
-                    <th>Email</th>
-                    <th>Titular</th>
-                    <th>Setor</th>
-                    <th>CAE</th>
-                    {activeTab === "leads" && <th>Estado</th>}
-                    <th style={{textAlign: 'right'}}>Ações</th>
+                <tr style={{color: '#64748b', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em', borderBottom: '2px solid #f1f5f9'}}>
+                    <th style={{padding: '15px', textAlign: 'left'}}>Empresa / Local</th>
+                    <th style={{padding: '15px', textAlign: 'left'}}>Setor</th>
+                    <th style={{padding: '15px', textAlign: 'left'}}>Contactos</th>
+                    {activeTab === "leads" && <th style={{padding: '15px', textAlign: 'left'}}>Estado</th>}
+                    <th style={{padding: '15px', textAlign: 'right'}}>Ações</th>
                 </tr>
             </thead>
 
             <tbody>
                 {filteredList.map((item) => (
-                <tr key={item.id}>
-                    <td><div style={{fontWeight: 'bold', color: '#1e293b'}}>{item.nome}</div></td>
-                    <td><span style={{fontFamily: 'monospace', color: '#64748b', background:'#f1f5f9', padding:'2px 6px', borderRadius:'4px'}}>{item.nif || '-'}</span></td>
-                    
-                    <td>{item.localidade ? <span style={{color: '#475569'}}>📍 {item.localidade}</span> : <span style={{color: '#cbd5e1'}}>-</span>}</td>
-                    
-                    <td>{item.contacto ? <span style={{color: '#64748b'}}>📞 {item.contacto}</span> : <span style={{color: '#cbd5e1'}}>-</span>}</td>
-                    
-                    <td>
-                        {item.email ? (
-                            <a href={`mailto:${item.email}`} style={{color: '#2563eb', textDecoration: 'none', fontWeight: '500'}}>✉️ {item.email}</a>
-                        ) : <span style={{color: '#cbd5e1'}}>-</span>}
+                <tr key={item.id} style={{borderBottom: '1px solid #f1f5f9'}}>
+                    {/* COLUNA 1: NOME + LOCALIDADE */}
+                    <td style={{padding: '15px'}}>
+                        <div style={{fontWeight: 'bold', color: '#1e293b', fontSize: '0.95rem'}}>{item.nome}</div>
+                        {item.localidade && (
+                            <div style={{fontSize: '0.8rem', color: '#64748b', marginTop: '2px'}}>📍 {item.localidade}</div>
+                        )}
                     </td>
 
-                    <td>{item.titular ? <span style={{color: '#334155'}}>👤 {item.titular}</span> : <span style={{color: '#cbd5e1'}}>-</span>}</td>
-
-                    <td>{item.setor ? <span className="badge" style={{background: '#eff6ff', color: '#3b82f6', border: '1px solid #dbeafe'}}>{item.setor}</span> : <span style={{color: '#cbd5e1'}}>-</span>}</td>
+                    {/* COLUNA 2: SETOR */}
+                    <td style={{padding: '15px'}}>
+                        {item.setor ? (
+                            <span className="badge" style={{background: '#eff6ff', color: '#3b82f6', border: '1px solid #dbeafe'}}>{item.setor}</span>
+                        ) : <span style={{color: '#cbd5e1'}}>-</span>}
+                    </td>
                     
-                    <td>{item.cae ? <span style={{color: '#64748b', fontSize:'0.85rem'}}>{item.cae}</span> : <span style={{color: '#cbd5e1'}}>-</span>}</td>
+                    {/* COLUNA 3: CONTACTOS COMBINADOS */}
+                    <td style={{padding: '15px'}}>
+                        <div style={{display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.85rem'}}>
+                            {item.contacto && <span title="Telefone">📞 {item.contacto}</span>}
+                            {item.email && <span title="Email" style={{color: '#2563eb'}}>✉️ {item.email}</span>}
+                            {!item.contacto && !item.email && <span style={{color: '#cbd5e1'}}>-</span>}
+                        </div>
+                    </td>
 
+                    {/* COLUNA 4: ESTADO (SÓ LEADS) */}
                     {activeTab === "leads" && (
-                    <td>
+                    <td style={{padding: '15px'}}>
                         <select
                             value={item.estado}
                             onChange={(e) => updateStatus(item.id, e.target.value)}
@@ -229,12 +235,19 @@ export default function GestaoLeads() {
                     </td>
                     )}
 
-                    <td style={{textAlign: 'right'}}>
+                    {/* COLUNA 5: AÇÕES */}
+                    <td style={{padding: '15px', textAlign: 'right'}}>
                         <div style={{display: 'flex', justifyContent: 'flex-end', gap: '8px'}}>
+                            {/* BOTÃO VER DETALHES */}
+                            <button onClick={() => setSelectedItem(item)} title="Ver Detalhes" style={{background: '#f1f5f9', color: '#475569', border: 'none', padding:'8px', borderRadius: '6px', cursor: 'pointer'}}>
+                                👁️
+                            </button>
+
                             {activeTab === "prospects" && (
-                            <button onClick={() => promoteToLead(item)} title="Promover" style={{background: '#dcfce7', color: '#16a34a', border: 'none', padding:'6px 10px', borderRadius: '6px', cursor: 'pointer'}}>🚀</button>
+                            <button onClick={() => promoteToLead(item)} title="Promover a Lead" style={{background: '#dcfce7', color: '#16a34a', border: 'none', padding:'8px', borderRadius: '6px', cursor: 'pointer'}}>🚀</button>
                             )}
-                            <button onClick={() => deleteItem(item.id)} title="Apagar" style={{background: '#fee2e2', color: '#ef4444', border: 'none', padding:'6px 10px', borderRadius: '6px', cursor: 'pointer'}}>🗑️</button>
+                            
+                            <button onClick={() => deleteItem(item.id)} title="Apagar" style={{background: '#fee2e2', color: '#ef4444', border: 'none', padding:'8px', borderRadius: '6px', cursor: 'pointer'}}>🗑️</button>
                         </div>
                     </td>
                 </tr>
@@ -250,7 +263,58 @@ export default function GestaoLeads() {
         </div>
       </div>
 
-      {/* --- MODAL NOVO E BONITO --- */}
+      {/* --- MODAL DE DETALHES DO LEAD --- */}
+      {selectedItem && (
+          <div className="modal-overlay">
+              <div className="modal-content" style={{width: '500px', padding: '0', borderRadius: '12px', overflow: 'hidden'}}>
+                  <div style={{padding: '20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                      <h3 style={{margin: 0, color: '#1e293b'}}>{selectedItem.nome}</h3>
+                      <button onClick={() => setSelectedItem(null)} className="close-btn">✖</button>
+                  </div>
+                  
+                  <div style={{padding: '25px'}}>
+                      <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px'}}>
+                          <div>
+                              <label style={{fontSize: '0.75rem', color: '#64748b', fontWeight: 'bold'}}>NIF</label>
+                              <div style={{marginTop: '2px', fontFamily: 'monospace', background: '#f1f5f9', padding: '5px', borderRadius: '4px', display:'inline-block'}}>{selectedItem.nif || 'N/A'}</div>
+                          </div>
+                          <div>
+                              <label style={{fontSize: '0.75rem', color: '#64748b', fontWeight: 'bold'}}>CAE</label>
+                              <div style={{marginTop: '2px'}}>{selectedItem.cae || '-'}</div>
+                          </div>
+                          <div>
+                              <label style={{fontSize: '0.75rem', color: '#64748b', fontWeight: 'bold'}}>Titular</label>
+                              <div style={{marginTop: '2px'}}>👤 {selectedItem.titular || '-'}</div>
+                          </div>
+                          <div>
+                              <label style={{fontSize: '0.75rem', color: '#64748b', fontWeight: 'bold'}}>Localidade</label>
+                              <div style={{marginTop: '2px'}}>📍 {selectedItem.localidade || '-'}</div>
+                          </div>
+                      </div>
+
+                      <div style={{paddingTop: '20px', borderTop: '1px solid #f1f5f9'}}>
+                          <h4 style={{margin: '0 0 10px 0', fontSize: '0.9rem', color: '#475569'}}>Contactos</h4>
+                          <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
+                              <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+                                  <span style={{background: '#eff6ff', padding: '8px', borderRadius: '50%'}}>📞</span>
+                                  <span>{selectedItem.contacto || 'Sem telefone'}</span>
+                              </div>
+                              <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+                                  <span style={{background: '#eff6ff', padding: '8px', borderRadius: '50%'}}>✉️</span>
+                                  {selectedItem.email ? <a href={`mailto:${selectedItem.email}`} style={{color: '#2563eb'}}>{selectedItem.email}</a> : <span>Sem email</span>}
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+                  
+                  <div style={{padding: '15px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', textAlign: 'right'}}>
+                      <button onClick={() => setSelectedItem(null)} className="btn-small">Fechar</button>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* --- MODAL IMPORTAR --- */}
       {showImportModal && (
         <div className="modal-overlay">
           <div className="modal-content" style={{width: '500px', padding: '30px', borderRadius: '16px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'}}>

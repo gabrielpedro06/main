@@ -114,14 +114,14 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
                             fontSize: '0.6rem', fontWeight: 'bold',
                             padding: '2px 5px', borderRadius: '10px',
                             border: '1px solid white',
-                            animation: 'pulse 2s infinite' // Efeito piscar
+                            animation: 'pulse 2s infinite'
                         }}>
                             {unreadCount}
                         </span>
                     )}
                 </span> 
                 <span className="link-text">
-                    Fórum & Avisos
+                    Comunicação Interna
                 </span>
               </Link>
             </li>

@@ -8,9 +8,13 @@ export default function Forum() {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Modais
+  // Modais de Conteúdo
   const [showNewPostModal, setShowNewPostModal] = useState(false);
   const [selectedPost, setSelectedPost] = useState(null); 
+
+  // --- NOVOS ESTADOS PARA INTERFACE ---
+  const [notification, setNotification] = useState(null); // { message, type }
+  const [confirmModal, setConfirmModal] = useState({ show: false, id: null, type: null }); // type: 'post' ou 'comment'
 
   // Dados
   const [newPost, setNewPost] = useState({ titulo: "", conteudo: "", categoria: "geral" });
@@ -23,6 +27,12 @@ export default function Forum() {
     localStorage.setItem('lastForumVisit', new Date().toISOString());
     window.dispatchEvent(new Event('storage')); 
   }, []);
+
+  // --- FUNÇÃO AUXILIAR PARA MOSTRAR NOTIFICAÇÕES ---
+  const showToast = (message, type = 'success') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 3000); // Desaparece após 3 segundos
+  };
 
   async function fetchPosts() {
     setLoading(true);
@@ -50,14 +60,43 @@ export default function Forum() {
       setShowNewPostModal(false);
       setNewPost({ titulo: "", conteudo: "", categoria: "geral" });
       fetchPosts();
+      showToast("Post criado com sucesso! 🎉", "success");
     } else {
-      alert("Erro ao criar post: " + error.message);
+      showToast("Erro ao criar post: " + error.message, "error");
     }
+  }
+
+  // --- PREPARAR APAGAR (Abre o Modal) ---
+  function requestDelete(id, type) {
+      setConfirmModal({ show: true, id, type });
+  }
+
+  // --- EXECUTAR APAGAR (Confirmado no Modal) ---
+  async function confirmDelete() {
+      const { id, type } = confirmModal;
+      
+      try {
+          if (type === 'post') {
+              const { error } = await supabase.from("forum_posts").delete().eq("id", id);
+              if (error) throw error;
+              setPosts(posts.filter(p => p.id !== id));
+              showToast("Post apagado.", "success");
+          } 
+          else if (type === 'comment') {
+              const { error } = await supabase.from("forum_comments").delete().eq("id", id);
+              if (error) throw error;
+              setComments(comments.filter(c => c.id !== id));
+              showToast("Comentário removido.", "success");
+          }
+      } catch (err) {
+          showToast("Erro ao apagar: " + err.message, "error");
+      } finally {
+          setConfirmModal({ show: false, id: null, type: null }); // Fechar modal
+      }
   }
 
   async function handleOpenPost(post) {
     setSelectedPost(post);
-    
     const { data: cData } = await supabase
       .from("forum_comments")
       .select(`*, profiles ( nome )`)
@@ -89,29 +128,15 @@ export default function Forum() {
     if (!error && data) {
         setComments([...comments, data]); 
         setNewCommentText("");
+        showToast("Comentário enviado!", "success");
+    } else {
+        showToast("Erro ao comentar.", "error");
     }
   }
 
-  // --- APAGAR COMENTÁRIO ---
-  async function handleDeleteComment(commentId) {
-      if (!window.confirm("⚠️ Tem a certeza que quer apagar este comentário?")) return;
-
-      try {
-          const { error } = await supabase
-              .from("forum_comments")
-              .delete()
-              .eq("id", commentId);
-
-          if (error) throw error;
-          setComments(comments.filter(c => c.id !== commentId));
-      } catch (err) {
-          alert("Erro ao apagar: " + err.message);
-      }
-  }
-
-  const canDelete = (commentUserId) => {
+  const canDelete = (authorId) => {
       const myRole = userProfile?.role || '';
-      return user.id === commentUserId || ['admin', 'gestor'].includes(myRole);
+      return user.id === authorId || ['admin', 'gestor'].includes(myRole);
   };
 
   async function handleReact(type) {
@@ -170,58 +195,50 @@ export default function Forum() {
   return (
     <div className="page-container">
       <div className="page-header">
-        <h1>💬 Fórum & Avisos</h1>
+        <h1>💬 Comunicação Interna </h1>
         <button className="btn-primary" onClick={() => setShowNewPostModal(true)}>+ Novo Post</button>
       </div>
 
       {/* --- MODO LISTA (FEED) --- */}
       <div className="forum-feed" style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '20px',
-          maxWidth: '900px', // Limita a largura para ficar elegante
-          margin: '0 auto'   // Centra a lista na página
+          display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '900px', margin: '0 auto'
       }}>
         {posts.length === 0 && !loading && <p style={{color: '#666', textAlign: 'center'}}>Ainda não há publicações. Sê o primeiro!</p>}
         
         {posts.map(post => (
             <div key={post.id} className="card" onClick={() => handleOpenPost(post)} style={{
-                cursor: 'pointer',
-                display: 'flex', 
-                flexDirection: 'column',
-                transition: 'transform 0.2s',
-                width: '100%',
-                boxSizing: 'border-box' // Garante que padding não aumenta largura total
+                cursor: 'pointer', display: 'flex', flexDirection: 'column', transition: 'transform 0.2s', width: '100%', boxSizing: 'border-box'
             }}>
-                {/* Cabeçalho do Card */}
                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '15px'}}>
                     <div>
                         <h3 style={{margin: '0 0 5px 0', color: '#16a34a', fontSize: '1.2rem'}}>{post.titulo}</h3>
-                        <div style={{fontSize: '0.8rem', color: '#94a3b8'}}>
-                            Por <b>{post.profiles?.nome}</b> • {formatDate(post.created_at)}
-                        </div>
+                        <div style={{fontSize: '0.8rem', color: '#94a3b8'}}>Por <b>{post.profiles?.nome}</b> • {formatDate(post.created_at)}</div>
                     </div>
-                    {getCategoryBadge(post.categoria)}
+                    
+                    <div style={{display: 'flex', gap: '10px', alignItems: 'center'}}>
+                        {getCategoryBadge(post.categoria)}
+                        {/* Botão Apagar chama o Modal agora */}
+                        {canDelete(post.user_id) && (
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); requestDelete(post.id, 'post'); }}
+                                style={{background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1rem', opacity: 0.6, padding: '5px'}}
+                                title="Apagar Post"
+                            >
+                                🗑️
+                            </button>
+                        )}
+                    </div>
                 </div>
                 
-                {/* Corpo do Texto - BLINDADO PARA NÃO PASSAR DA BORDA */}
                 <div style={{
-                    fontSize: '0.95rem', 
-                    color: '#334155', 
-                    marginBottom: '15px', 
-                    lineHeight: '1.6',
-                    whiteSpace: 'pre-wrap',       // Respeita parágrafos
-                    overflowWrap: 'break-word',   // Parte palavras longas se necessário
-                    wordBreak: 'break-word'       // Reforço para browsers antigos
+                    fontSize: '0.95rem', color: '#334155', marginBottom: '15px', lineHeight: '1.6',
+                    whiteSpace: 'pre-wrap', overflowWrap: 'break-word', wordBreak: 'break-word'
                 }}>
                     {post.conteudo}
                 </div>
 
-                {/* Rodapé do Card */}
                 <div style={{display: 'flex', gap:'20px', fontSize: '0.9rem', color: '#64748b', borderTop: '1px solid #f1f5f9', paddingTop: '15px'}}>
-                    <span style={{display: 'flex', alignItems: 'center', gap: '5px'}}>
-                        💬 {post.forum_comments?.[0]?.count || 0} Comentários
-                    </span>
+                    <span style={{display: 'flex', alignItems: 'center', gap: '5px'}}>💬 {post.forum_comments?.[0]?.count || 0} Comentários</span>
                     <span style={{display: 'flex', alignItems: 'center', gap: '5px'}}>
                         {post.forum_reactions?.length > 0 ? `❤️ ${post.forum_reactions.length} Reações` : '🤍 0 Reações'}
                     </span>
@@ -230,6 +247,7 @@ export default function Forum() {
         ))}
       </div>
 
+      {/* --- MODAL NOVO POST --- */}
       {showNewPostModal && (
         <div className="modal-overlay">
           <div className="modal-content">
@@ -257,6 +275,7 @@ export default function Forum() {
         </div>
       )}
 
+      {/* --- MODAL DETALHE DO POST --- */}
       {selectedPost && (
         <div className="modal-overlay">
           <div className="modal-content large-modal" style={{height: '90vh', maxHeight: '90vh', display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden'}}>
@@ -273,27 +292,16 @@ export default function Forum() {
                         Por <b>{selectedPost.profiles?.nome}</b> em {formatDate(selectedPost.created_at)}
                     </div>
                     
-                    {/* TEXTO NO MODAL TAMBÉM BLINDADO */}
-                    <div style={{
-                        whiteSpace: 'pre-wrap', 
-                        color: '#334151', 
-                        lineHeight: '1.6',
-                        overflowWrap: 'break-word',
-                        wordBreak: 'break-word'
-                    }}>
+                    <div style={{whiteSpace: 'pre-wrap', color: '#334151', lineHeight: '1.6', overflowWrap: 'break-word', wordBreak: 'break-word'}}>
                         {selectedPost.conteudo}
                     </div>
                     
                     <div style={{marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #e2e8f0', display:'flex', gap:'8px', alignItems:'center'}}>
                         {['👍','❤️','😂','😮','😢'].map(emoji => (
-                            <button 
-                                key={emoji} 
-                                onClick={() => handleReact(emoji)}
-                                style={{
+                            <button key={emoji} onClick={() => handleReact(emoji)} style={{
                                     background: reactions.find(r => r.user_id === user.id && r.reaction_type === emoji) ? '#dcfce7' : 'white',
                                     border: '1px solid #cbd5e1', borderRadius: '20px', padding: '6px 12px', cursor: 'pointer', fontSize:'1.2rem', transition: '0.2s'
-                                }}
-                            >
+                                }}>
                                 {emoji} <span style={{fontSize:'0.85rem', fontWeight:'bold', marginLeft: '5px'}}>{getReactionCounts(reactions)[emoji] || 0}</span>
                             </button>
                         ))}
@@ -313,11 +321,9 @@ export default function Forum() {
                                 
                                 {canDelete(c.user_id) && (
                                     <button 
-                                        onClick={() => handleDeleteComment(c.id)}
+                                        onClick={() => requestDelete(c.id, 'comment')}
                                         style={{background: 'transparent', border: 'none', cursor: 'pointer', opacity: 0.5, fontSize: '0.9rem'}}
                                         title="Apagar Comentário"
-                                        onMouseOver={(e) => e.target.style.opacity = 1}
-                                        onMouseOut={(e) => e.target.style.opacity = 0.5}
                                     >
                                         🗑️
                                     </button>
@@ -331,13 +337,7 @@ export default function Forum() {
 
             <div style={{padding: '20px', borderTop: '1px solid #eee', background: 'white'}}>
                 <form onSubmit={handleSendComment} className="forum-reply-area" style={{display:'flex', gap:'10px'}}>
-                    <input 
-                        type="text" 
-                        placeholder="Escreve um comentário..." 
-                        value={newCommentText}
-                        onChange={e => setNewCommentText(e.target.value)}
-                        style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid #ccc' }} 
-                    />
+                    <input type="text" placeholder="Escreve um comentário..." value={newCommentText} onChange={e => setNewCommentText(e.target.value)} style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid #ccc' }} />
                     <button type="submit" className="btn-primary" style={{padding: '0 25px'}}>Enviar ➤</button>
                 </form>
             </div>
@@ -345,6 +345,34 @@ export default function Forum() {
           </div>
         </div>
       )}
+
+      {/* --- NOVO COMPONENTE: NOTIFICAÇÃO TOAST --- */}
+      {notification && (
+        <div className={`toast-notification ${notification.type}`}>
+            {notification.type === 'success' ? '✅' : '⚠️'} {notification.message}
+        </div>
+      )}
+
+      {/* --- NOVO COMPONENTE: MODAL DE CONFIRMAÇÃO --- */}
+      {confirmModal.show && (
+        <div className="modal-overlay" style={{zIndex: 9999}}>
+          <div className="confirm-modal-box">
+             <div style={{fontSize: '2rem', marginBottom: '10px'}}>🗑️</div>
+             <h3 style={{margin: '0 0 10px 0'}}>Tem a certeza?</h3>
+             <p style={{color: '#64748b', marginBottom: '20px'}}>
+                {confirmModal.type === 'post' 
+                    ? 'Quer mesmo apagar este post e todos os comentários?' 
+                    : 'Quer apagar este comentário?'}
+                <br/>Esta ação não pode ser desfeita.
+             </p>
+             <div className="confirm-actions">
+                 <button onClick={() => setConfirmModal({ show: false, id: null, type: null })} className="btn-cancel">Cancelar</button>
+                 <button onClick={confirmDelete} className="btn-confirm-delete">Sim, Apagar</button>
+             </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
