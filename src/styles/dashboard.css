@@ -745,3 +745,79 @@ input:focus {
   cursor: pointer;
   font-weight: 600;
 }
+
+/* --- TOGGLE SWITCH (Estilo iOS) --- */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+
+.switch input { 
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: #cbd5e1; /* Cinzento quando desligado */
+  -webkit-transition: .4s;
+  transition: .4s;
+  border-radius: 34px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  -webkit-transition: .4s;
+  transition: .4s;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+input:checked + .slider {
+  background-color: #22c55e; /* Verde quando ligado */
+}
+
+input:checked + .slider:before {
+  -webkit-transform: translateX(20px);
+  -ms-transform: translateX(20px);
+  transform: translateX(20px);
+}
+
+/* --- TOAST NOTIFICATION (Pop-up bonito) --- */
+.toast-container {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #1e293b;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 50px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 9999;
+  animation: slideUpFade 0.3s ease-out;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.toast-container.success { border-left: 4px solid #4ade80; }
+.toast-container.error { border-left: 4px solid #f87171; }
+
+@keyframes slideUpFade {
+  from { opacity: 0; transform: translate(-50%, 20px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
