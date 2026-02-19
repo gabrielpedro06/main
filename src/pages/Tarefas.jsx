@@ -37,12 +37,14 @@ export default function Tarefas() {
   const [editId, setEditId] = useState(null);
   const [isViewOnly, setIsViewOnly] = useState(false);
 
-  // Form
-  const [form, setForm] = useState({
+  // Form (estado inicial)
+  const initialForm = {
     titulo: "", descricao: "", atividade_id: "", responsavel_id: "",
     estado: "pendente", prioridade: "normal",
     data_inicio: new Date().toISOString().split('T')[0], data_limite: ""
-  });
+  };
+  
+  const [form, setForm] = useState(initialForm);
 
   useEffect(() => {
     fetchData();
@@ -144,27 +146,57 @@ export default function Tarefas() {
   // --- MODAL & SUBMIT ---
   function handleNovo() {
     setEditId(null); setIsViewOnly(false);
-    setForm({ titulo: "", descricao: "", atividade_id: atividades.length > 0 ? atividades[0].id : "", responsavel_id: "", estado: "pendente", prioridade: "normal", data_inicio: new Date().toISOString().split('T')[0], data_limite: "" });
+    setForm({ ...initialForm, atividade_id: atividades.length > 0 ? atividades[0].id : "" });
     setShowModal(true);
   }
+
   function handleEdit(tarefa) { setEditId(tarefa.id); setIsViewOnly(false); loadData(tarefa); }
   function handleView(tarefa) { setEditId(tarefa.id); setIsViewOnly(true); loadData(tarefa); }
+  
   function loadData(t) {
-    setForm({ titulo: t.titulo, descricao: t.descricao || "", atividade_id: t.atividade_id, responsavel_id: t.responsavel_id, estado: t.estado, prioridade: t.prioridade || "normal", data_inicio: t.data_inicio || "", data_limite: t.data_limite || "" });
+    setForm({ 
+        titulo: t.titulo || "", 
+        descricao: t.descricao || "", 
+        atividade_id: t.atividade_id || "", 
+        responsavel_id: t.responsavel_id || "", 
+        estado: t.estado || "pendente", 
+        prioridade: t.prioridade || "normal", 
+        data_inicio: t.data_inicio || "", 
+        data_limite: t.data_limite || "" 
+    });
     setShowModal(true);
   }
+
+  // 🛡️ SUBMISSÃO CORRIGIDA
   async function handleSubmit(e) {
     e.preventDefault();
     if (isViewOnly) return;
+    
+    // Fazemos uma cópia do formulário
     const payload = { ...form };
+    
+    // Prevenção do Erro 400 (Tratar os campos vazios)
     if (!payload.responsavel_id) payload.responsavel_id = null;
-    if (!payload.atividade_id) return showToast("Atividade obrigatória!", "error");
+    if (!payload.data_inicio) payload.data_inicio = null;
+    if (!payload.data_limite) payload.data_limite = null;
+
+    if (!payload.atividade_id) return showToast("A Atividade Pai é obrigatória!", "error");
     
     try {
-      if (editId) { await supabase.from("tarefas").update(payload).eq("id", editId); showToast("Tarefa atualizada!"); } 
-      else { await supabase.from("tarefas").insert([payload]); showToast("Tarefa criada!"); }
-      setShowModal(false); fetchData();
-    } catch (error) { showToast("Erro: " + error.message, "error"); }
+      if (editId) { 
+          const { error } = await supabase.from("tarefas").update(payload).eq("id", editId); 
+          if (error) throw error;
+          showToast("Tarefa atualizada com sucesso!"); 
+      } else { 
+          const { error } = await supabase.from("tarefas").insert([payload]); 
+          if (error) throw error;
+          showToast("Tarefa criada com sucesso!"); 
+      }
+      setShowModal(false); 
+      fetchData();
+    } catch (error) { 
+        showToast("Erro: " + error.message, "error"); 
+    }
   }
 
   // Cores
@@ -212,7 +244,7 @@ export default function Tarefas() {
             <tr>
               <th style={{width: '90px', textAlign: 'center'}}>Controlos</th>
               <th>Tarefa</th>
-              <th style={{width: '140px'}}>Deadline</th> {/* NOVA COLUNA DEADLINE */}
+              <th style={{width: '140px'}}>Deadline</th>
               <th>Atividade / Projeto</th>
               <th>Responsável</th>
               <th>Prioridade</th>
@@ -249,7 +281,6 @@ export default function Tarefas() {
                                 <span style={{textDecoration: isCompleted ? 'line-through' : 'none'}}>{t.titulo}</span>
                             </td>
 
-                            {/* DEADLINE VISÍVEL NA TABELA COM CORES */}
                             <td>
                                 {t.data_limite ? (
                                     <div style={{
@@ -289,7 +320,6 @@ export default function Tarefas() {
 
       {notification && <div className={`toast-container ${notification.type}`}>{notification.type === 'success' ? '✅' : '⚠️'} {notification.message}</div>}
 
-      {/* --- NOVO MODAL (DESIGN GRELHA) --- */}
       {showModal && (
         <ModalPortal>
           <div style={modalOverlayStyle} onClick={(e) => { if(e.target === e.currentTarget) setShowModal(false); }}>
@@ -316,7 +346,6 @@ export default function Tarefas() {
                 <form onSubmit={handleSubmit}>
                   <fieldset disabled={isViewOnly} style={{border:'none', padding:0, margin:0}}>
                     
-                    {/* TÍTULO */}
                     <div style={{marginBottom: '20px'}}>
                         <label style={labelStyle}>Título da Tarefa *</label>
                         <input type="text" value={form.titulo} onChange={e => setForm({...form, titulo: e.target.value})} required placeholder="Ex: Criar logótipo para Cliente X..." style={{...inputStyle, fontSize: '1.1rem', padding: '12px'}} />
@@ -324,11 +353,10 @@ export default function Tarefas() {
 
                     <div style={sectionTitleStyle}>📌 Enquadramento</div>
                     
-                    {/* GRELHA 1 */}
                     <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px'}}>
                         <div style={inputGroupStyle}>
                             <label style={labelStyle}>Atividade / Projeto *</label>
-                            <select value={form.activity_id} onChange={e => setForm({...form, activity_id: e.target.value})} required style={inputStyle}>
+                            <select value={form.atividade_id} onChange={e => setForm({...form, atividade_id: e.target.value})} required style={inputStyle}>
                                 <option value="">-- Selecione --</option>
                                 {atividades.map(a => (
                                     <option key={a.id} value={a.id}>{a.titulo} (Proj: {a.projetos?.titulo})</option>
@@ -346,7 +374,6 @@ export default function Tarefas() {
 
                     <div style={sectionTitleStyle}>📅 Planeamento & Estado</div>
 
-                    {/* GRELHA 2 */}
                     <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px'}}>
                         <div style={inputGroupStyle}>
                             <label style={labelStyle}>Data Início</label>
@@ -367,7 +394,6 @@ export default function Tarefas() {
                         </div>
                     </div>
 
-                    {/* ESTADOS VISUAIS */}
                     <div style={{marginBottom: '20px'}}>
                         <label style={labelStyle}>Estado Atual</label>
                         <div style={{display: 'flex', gap: '10px'}}>

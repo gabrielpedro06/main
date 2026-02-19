@@ -15,6 +15,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade() {
   const [timer, setTimer] = useState(0); 
   const [status, setStatus] = useState("stopped"); 
   const [registroId, setRegistroId] = useState(null); 
+  const [activeRecord, setActiveRecord] = useState(null); // Gurada o registo atual para cálculos matemáticos exatos
   const [loading, setLoading] = useState(false);
 
   // Modais
@@ -28,55 +29,101 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade() {
   const [dailySummary, setDailySummary] = useState(""); 
   const [itemToDelete, setItemToDelete] = useState(null);
 
-  // --- 1. VERIFICAR ESTADO ---
+  // --- 1. VERIFICAR ESTADO E AUTO-ENCERRAMENTO ---
   const checkStatus = useCallback(async () => {
     if (!user?.id) return;
     try {
-      const hoje = new Date().toLocaleDateString('en-CA');
+      const hojeStr = new Date().toLocaleDateString('en-CA'); // Ex: 2026-02-19
 
+      // Procura QUALQUER ponto aberto (sem hora de saída), seja de hoje ou de ontem
       const { data: ativo } = await supabase
         .from("assiduidade")
         .select("*")
         .eq("user_id", user.id)
-        .eq("data_registo", hoje)
         .is("hora_saida", null)
+        .order('data_registo', { ascending: false })
+        .limit(1)
         .maybeSingle(); 
 
       if (ativo) {
-        setRegistroId(ativo.id);
-        
-        if (ativo.ultima_pausa_inicio) {
-            setStatus("paused");
-            const entrada = new Date(`${ativo.data_registo}T${ativo.hora_entrada}`).getTime();
-            const inicioPausa = new Date(`${ativo.data_registo}T${ativo.ultima_pausa_inicio}`).getTime();
-            const totalTrabalhado = Math.floor((inicioPausa - entrada) / 1000) - (ativo.tempo_pausa_acumulado || 0);
-            setTimer(totalTrabalhado > 0 ? totalTrabalhado : 0);
+        if (ativo.data_registo < hojeStr) {
+            // =========================================================
+            // 🚨 DETETOU PONTO ABERTO DE DIAS ANTERIORES - AUTO FECHO
+            // =========================================================
+            let accumulated = ativo.tempo_pausa_acumulado || 0;
+            if (ativo.ultima_pausa_inicio) {
+                 const inicioPausa = new Date(`${ativo.data_registo}T${ativo.ultima_pausa_inicio}`).getTime();
+                 const fimDia = new Date(`${ativo.data_registo}T23:59:59`).getTime();
+                 accumulated += Math.floor((fimDia - inicioPausa) / 1000);
+            }
+
+            const notaAuto = "Não picou ponto para sair. Encerrado automaticamente.";
+            const novaObservacao = ativo.observacoes ? ativo.observacoes + "\n" + notaAuto : notaAuto;
+
+            await supabase.from("assiduidade").update({
+              hora_saida: "23:59:59",
+              ultima_pausa_inicio: null,
+              tempo_pausa_acumulado: accumulated,
+              observacoes: novaObservacao
+            }).eq("id", ativo.id);
+
+            // Como era de ontem, garantimos que a UI de hoje fica limpa para recomeçar
+            setStatus("stopped");
+            setTimer(0);
+            setRegistroId(null);
+            setActiveRecord(null);
         } else {
-            setStatus("running");
-            const entrada = new Date(`${ativo.data_registo}T${ativo.hora_entrada}`).getTime();
-            const now = new Date().getTime();
-            const diffSeconds = Math.floor((now - entrada) / 1000) - (ativo.tempo_pausa_acumulado || 0);
-            setTimer(diffSeconds > 0 ? diffSeconds : 0);
+            // =========================================================
+            // ✅ PONTO DE HOJE - COMPORTAMENTO NORMAL
+            // =========================================================
+            setRegistroId(ativo.id);
+            setActiveRecord(ativo);
+            
+            if (ativo.ultima_pausa_inicio) {
+                setStatus("paused");
+                const entrada = new Date(`${ativo.data_registo}T${ativo.hora_entrada}`).getTime();
+                const inicioPausa = new Date(`${ativo.data_registo}T${ativo.ultima_pausa_inicio}`).getTime();
+                const totalTrabalhado = Math.floor((inicioPausa - entrada) / 1000) - (ativo.tempo_pausa_acumulado || 0);
+                setTimer(totalTrabalhado > 0 ? totalTrabalhado : 0);
+            } else {
+                setStatus("running");
+                const entrada = new Date(`${ativo.data_registo}T${ativo.hora_entrada}`).getTime();
+                const now = new Date().getTime();
+                const diffSeconds = Math.floor((now - entrada) / 1000) - (ativo.tempo_pausa_acumulado || 0);
+                setTimer(diffSeconds > 0 ? diffSeconds : 0);
+            }
         }
       } else {
         setStatus("stopped");
         setTimer(0);
         setRegistroId(null);
+        setActiveRecord(null);
       }
     } catch (err) {
       console.error("Erro assiduidade:", err);
     }
   }, [user?.id]);
 
-  useEffect(() => { checkStatus(); }, [checkStatus]); 
+  // Recalcular quando a página entra em Foco (para quem deixa o PC a dormir)
+  useEffect(() => { 
+      checkStatus(); 
+      window.addEventListener('focus', checkStatus);
+      return () => window.removeEventListener('focus', checkStatus);
+  }, [checkStatus]); 
 
+  // O NOVO RELÓGIO INTELIGENTE (Não se atrasa mesmo que a tab adormeça)
   useEffect(() => {
     let interval = null;
-    if (status === "running") {
-      interval = setInterval(() => setTimer((prev) => prev + 1), 1000);
+    if (status === "running" && activeRecord) {
+      interval = setInterval(() => {
+          const entrada = new Date(`${activeRecord.data_registo}T${activeRecord.hora_entrada}`).getTime();
+          const now = Date.now();
+          const diffSeconds = Math.floor((now - entrada) / 1000) - (activeRecord.tempo_pausa_acumulado || 0);
+          setTimer(diffSeconds > 0 ? diffSeconds : 0);
+      }, 1000);
     }
     return () => clearInterval(interval);
-  }, [status]);
+  }, [status, activeRecord]);
 
   // --- 2. AÇÕES DE TEMPO ---
   async function handleStart() {
@@ -93,7 +140,10 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade() {
             .select().single();
 
         if (data && !error) { 
-            setStatus("running"); setRegistroId(data.id); setTimer(0);
+            setActiveRecord(data);
+            setRegistroId(data.id); 
+            setStatus("running"); 
+            setTimer(0);
         }
     } catch (err) { console.error(err); } finally { setLoading(false); }
   }
@@ -103,8 +153,11 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade() {
       setLoading(true);
       try {
         const horaAtual = new Date().toLocaleTimeString('pt-PT', { hour12: false });
-        const { error } = await supabase.from("assiduidade").update({ ultima_pausa_inicio: horaAtual }).eq("id", registroId);
-        if (!error) setStatus("paused");
+        const { data, error } = await supabase.from("assiduidade").update({ ultima_pausa_inicio: horaAtual }).eq("id", registroId).select().single();
+        if (!error) {
+            setActiveRecord(data);
+            setStatus("paused");
+        }
       } catch (err) { console.error(err); } finally { setLoading(false); }
   }
 
@@ -119,11 +172,15 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade() {
             const segundosPausa = Math.floor((now.getTime() - inicioPausa) / 1000);
             const novoAcumulado = (atual.tempo_pausa_acumulado || 0) + segundosPausa;
 
-            const { error } = await supabase.from("assiduidade")
+            const { data: updated, error } = await supabase.from("assiduidade")
                 .update({ tempo_pausa_acumulado: novoAcumulado, ultima_pausa_inicio: null })
-                .eq("id", registroId);
+                .eq("id", registroId)
+                .select().single();
 
-            if (!error) setStatus("running");
+            if (!error) {
+                setActiveRecord(updated);
+                setStatus("running");
+            }
         }
       } catch (err) { console.error(err); } finally { setLoading(false); }
   }
@@ -150,7 +207,13 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade() {
              }
         }
         const { error } = await supabase.from("assiduidade").update(dadosFinais).eq("id", registroId);
-        if (!error) { setStatus("stopped"); setRegistroId(null); setTimer(0); setShowClockOutModal(false); }
+        if (!error) { 
+            setStatus("stopped"); 
+            setRegistroId(null); 
+            setActiveRecord(null);
+            setTimer(0); 
+            setShowClockOutModal(false); 
+        }
       } catch (err) { console.error(err); } finally { setLoading(false); }
   }
 
@@ -170,7 +233,6 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade() {
           ...item,
           tempEntrada: getIsoForInput(item.data_registo, item.hora_entrada),
           tempSaida: item.hora_saida ? getIsoForInput(item.data_registo, item.hora_saida) : "",
-          // Converter segundos para minutos para facilitar a edição
           tempPausaMinutos: item.tempo_pausa_acumulado ? Math.floor(item.tempo_pausa_acumulado / 60) : 0, 
           observacoes: item.observacoes || "",
           motivo_alteracao: item.motivo_alteracao || "" 
@@ -191,14 +253,13 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade() {
     let hEntradaFinal = horaEntrada?.length === 5 ? horaEntrada + ":00" : horaEntrada;
     let hSaidaFinal = horaSaida?.length === 5 ? horaSaida + ":00" : horaSaida;
 
-    // Converter os minutos do input de volta para segundos
     const pausaSegundos = (parseInt(editItem.tempPausaMinutos) || 0) * 60;
 
     const payload = {
         data_registo: dataEntrada, 
         hora_entrada: hEntradaFinal, 
         hora_saida: hSaidaFinal,
-        tempo_pausa_acumulado: pausaSegundos, // Guardar os segundos calculados
+        tempo_pausa_acumulado: pausaSegundos, 
         observacoes: editItem.observacoes, 
         motivo_alteracao: editItem.motivo_alteracao
     };
@@ -224,7 +285,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade() {
     return `${h}:${m}:${sc}`;
   };
 
-  // --- ESTILOS VISUAIS PERSONALIZADOS ---
+  // --- ESTILOS VISUAIS ---
   const modalOverlayStyle = { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, backdropFilter: 'blur(4px)' };
   const modalContainerStyle = { background: '#fff', borderRadius: '16px', width: '95%', maxWidth: '500px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow: 'hidden', display: 'flex', flexDirection: 'column' };
   const modalHeaderStyle = { padding: '20px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff' };
@@ -236,9 +297,16 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade() {
       
       <button onClick={openHistory} style={{position: 'absolute', top: 15, right: 15, background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', opacity: 0.7, zIndex: 10, color: '#64748b'}}>⚙️</button>
 
-      <h3 style={{ marginBottom: '15px', color: '#64748b', fontSize: '1rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+      <h3 style={{ marginBottom: '5px', color: '#64748b', fontSize: '1rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
           {status === 'paused' ? '⏸️ Em Pausa' : (status === 'running' ? '⏱️ A Trabalhar' : 'Registo de Ponto')}
       </h3>
+      
+      {/* NOVO: Hora de início */}
+      {activeRecord && status !== 'stopped' && (
+          <div style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: '500' }}>
+              (Início: {activeRecord.hora_entrada?.slice(0, 5)})
+          </div>
+      )}
       
       <div style={{ fontSize: '3.5rem', fontWeight: '800', fontFamily: 'monospace', color: status === 'paused' ? '#eab308' : (status === 'running' ? '#2563eb' : '#cbd5e1'), margin: '15px 0' }}>
         {formatTime(timer)}
@@ -301,7 +369,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade() {
                                                     </span>
                                                     <span style={{fontWeight:'600', color:'#334151', fontSize:'1.1rem'}}>{h.hora_saida ? h.hora_saida?.slice(0,5) : '--:--'}</span>
                                                 </div>
-                                                {/* Mostrar Tempo de Pausa na Lista */}
+                                                
                                                 {h.tempo_pausa_acumulado > 0 && (
                                                     <div style={{fontSize:'0.8rem', color:'#eab308', marginLeft: '2px', fontWeight: '500'}}>
                                                         ⏸️ Pausa total: {Math.floor(h.tempo_pausa_acumulado/60)} min
@@ -340,7 +408,6 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade() {
                                     </div>
                                 </div>
 
-                                {/* NOVO CAMPO PARA EDITAR A PAUSA */}
                                 <div style={{marginBottom: '20px'}}>
                                     <label style={inputLabelStyle}>Tempo de Pausa (Minutos)</label>
                                     <input 
@@ -399,7 +466,8 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade() {
           <ModalPortal>
               <div style={modalOverlayStyle}>
                   <div style={{...modalContainerStyle, padding: '30px'}}>
-                      <h3 style={{margin: '0 0 10px 0', color: '#1e293b'}}>Terminar Dia</h3>
+                      {/* --- NOVO TEXTO: Terminar Registo --- */}
+                      <h3 style={{margin: '0 0 10px 0', color: '#1e293b'}}>Terminar Registo</h3>
                       <p style={{color: '#64748b', marginBottom: '20px'}}>Resumo das tarefas:</p>
                       <form onSubmit={confirmFinish}>
                           <textarea required rows="4" value={dailySummary} onChange={e => setDailySummary(e.target.value)} style={inputFieldStyle} autoFocus />

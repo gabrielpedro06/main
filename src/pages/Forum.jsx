@@ -192,6 +192,37 @@ export default function Forum() {
       return new Date(dateString).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
   };
 
+  // --- FUNÇÃO MAGICA PARA TRANSFORMAR LINKS EM TEXTO PARA ÂNCORAS CLICÁVEIS ---
+  const renderWithLinks = (text) => {
+      if (!text) return text;
+      
+      // Expressão Regular para detetar links que começam com http ou https
+      const urlRegex = /(https?:\/\/[^\s]+)/g;
+      
+      // Divide o texto onde encontrar o link e cria um array
+      const parts = text.split(urlRegex);
+
+      return parts.map((part, i) => {
+          // Se esta parte for um link, devolve um elemento <a>
+          if (part.match(urlRegex)) {
+              return (
+                  <a 
+                      key={i} 
+                      href={part} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      style={{ color: '#2563eb', textDecoration: 'underline', wordBreak: 'break-all' }}
+                      onClick={(e) => e.stopPropagation()} // Previne que o click no link abra também o modal do post
+                  >
+                      {part}
+                  </a>
+              );
+          }
+          // Se for texto normal, devolve apenas o texto
+          return part;
+      });
+  };
+
   return (
     <div className="page-container">
       <div className="page-header">
@@ -234,7 +265,8 @@ export default function Forum() {
                     fontSize: '0.95rem', color: '#334155', marginBottom: '15px', lineHeight: '1.6',
                     whiteSpace: 'pre-wrap', overflowWrap: 'break-word', wordBreak: 'break-word'
                 }}>
-                    {post.conteudo}
+                    {/* AQUI APLICAMOS A FUNÇÃO AOS POSTS DO FEED */}
+                    {renderWithLinks(post.conteudo)}
                 </div>
 
                 <div style={{display: 'flex', gap:'20px', fontSize: '0.9rem', color: '#64748b', borderTop: '1px solid #f1f5f9', paddingTop: '15px'}}>
@@ -266,7 +298,7 @@ export default function Forum() {
                         <option value="duvida">❓ Dúvida</option>
                         <option value="ideia">💡 Ideia</option>
                     </select>
-                    <label>Conteúdo</label>
+                    <label>Conteúdo (Pode colar links aqui)</label>
                     <textarea rows="5" value={newPost.conteudo} onChange={e => setNewPost({...newPost, conteudo: e.target.value})} required />
                     <button type="submit" className="btn-primary" style={{marginTop: '15px', width: '100%'}}>Publicar</button>
                 </form>
@@ -293,7 +325,8 @@ export default function Forum() {
                     </div>
                     
                     <div style={{whiteSpace: 'pre-wrap', color: '#334151', lineHeight: '1.6', overflowWrap: 'break-word', wordBreak: 'break-word'}}>
-                        {selectedPost.conteudo}
+                        {/* AQUI APLICAMOS A FUNÇÃO AO CONTEÚDO DO POST ABERTO */}
+                        {renderWithLinks(selectedPost.conteudo)}
                     </div>
                     
                     <div style={{marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #e2e8f0', display:'flex', gap:'8px', alignItems:'center'}}>
@@ -329,7 +362,10 @@ export default function Forum() {
                                     </button>
                                 )}
                             </div>
-                            <div style={{fontSize: '0.95rem', color: '#334155', overflowWrap: 'break-word'}}>{c.conteudo}</div>
+                            <div style={{fontSize: '0.95rem', color: '#334155', overflowWrap: 'break-word', whiteSpace: 'pre-wrap'}}>
+                                {/* AQUI APLICAMOS A FUNÇÃO AOS COMENTÁRIOS */}
+                                {renderWithLinks(c.conteudo)}
+                            </div>
                         </div>
                     ))}
                 </div>
@@ -337,7 +373,7 @@ export default function Forum() {
 
             <div style={{padding: '20px', borderTop: '1px solid #eee', background: 'white'}}>
                 <form onSubmit={handleSendComment} className="forum-reply-area" style={{display:'flex', gap:'10px'}}>
-                    <input type="text" placeholder="Escreve um comentário..." value={newCommentText} onChange={e => setNewCommentText(e.target.value)} style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid #ccc' }} />
+                    <input type="text" placeholder="Escreve um comentário ou cola um link..." value={newCommentText} onChange={e => setNewCommentText(e.target.value)} style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid #ccc' }} />
                     <button type="submit" className="btn-primary" style={{padding: '0 25px'}}>Enviar ➤</button>
                 </form>
             </div>

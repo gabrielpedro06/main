@@ -26,6 +26,9 @@ export default function Projetos() {
   const [showModal, setShowModal] = useState(false);
   const [editId, setEditId] = useState(null);
   const [isViewOnly, setIsViewOnly] = useState(false);
+  
+  // NOVO: Estado para as abas do Modal
+  const [activeTab, setActiveTab] = useState("geral");
 
   const initialForm = {
     titulo: "", descricao: "", cliente_id: "", tipo_projeto_id: "",
@@ -98,6 +101,7 @@ export default function Projetos() {
   function handleNovo() {
     setEditId(null); setIsViewOnly(false);
     setForm({ ...initialForm, data_inicio: new Date().toISOString().split('T')[0] });
+    setActiveTab("geral"); // Abre sempre na aba geral
     setShowModal(true);
   }
 
@@ -111,6 +115,7 @@ export default function Projetos() {
         programa: proj.programa || "", aviso: proj.aviso || "",
         codigo_projeto: proj.codigo_projeto || "", investimento: proj.investimento || 0, incentivo: proj.incentivo || 0
     });
+    setActiveTab("geral");
     setShowModal(true);
   }
 
@@ -162,7 +167,7 @@ export default function Projetos() {
             <tr>
               <th style={{width:'90px', textAlign:'center'}}>Timer</th>
               <th>Projeto</th>
-              <th style={{width:'150px'}}>Deadline</th> {/* COLUNA DEADLINE DESTAQUE */}
+              <th style={{width:'150px'}}>Deadline</th>
               <th>Cliente / Tipo</th>
               <th>Responsável</th>
               <th style={{textAlign: 'center'}}>Ações</th>
@@ -190,7 +195,6 @@ export default function Projetos() {
                      <span style={{textDecoration: p.estado === 'concluido' ? 'line-through' : 'none'}}>{p.titulo}</span>
                   </td>
                   
-                  {/* CÉLULA DO DEADLINE VISÍVEL */}
                   <td>
                     {p.data_fim ? (
                         <div style={{
@@ -240,83 +244,115 @@ export default function Projetos() {
                 <button onClick={() => setShowModal(false)} style={{background:'transparent', border:'none', fontSize:'1.2rem', cursor:'pointer', color:'#94a3b8'}}>✕</button>
               </div>
 
+              {/* TABS DE NAVEGAÇÃO */}
+              <div className="tabs" style={{padding: '0 30px', background: '#fff', borderBottom: '1px solid #e2e8f0'}}>
+                <button className={activeTab === 'geral' ? 'active' : ''} onClick={() => setActiveTab('geral')}>🚀 Geral</button>
+                <button className={activeTab === 'investimento' ? 'active' : ''} onClick={() => setActiveTab('investimento')}>💰 Investimento</button>
+                <button className={activeTab === 'notas' ? 'active' : ''} onClick={() => setActiveTab('notas')}>📝 Notas</button>
+              </div>
+
               <div style={{padding:'30px', overflowY:'auto', background:'#f8fafc'}}>
                 <form onSubmit={handleSubmit}>
                   <fieldset disabled={isViewOnly} style={{border:'none', padding:0}}>
                     
-                    <div style={{display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px', marginBottom: '20px'}}>
-                        <div>
-                            <label style={labelStyle}>Título do Projeto *</label>
-                            <input type="text" value={form.titulo} onChange={e => setForm({...form, titulo: e.target.value})} required style={{...inputStyle, fontSize:'1.1rem', padding:'12px'}} />
-                        </div>
-                        <div>
-                            <label style={labelStyle}>Código de Projeto</label>
-                            <input type="text" value={form.codigo_projeto} onChange={e => setForm({...form, codigo_projeto: e.target.value})} placeholder="Ex: P2026-001" style={inputStyle} />
-                        </div>
-                    </div>
-
-                    <div style={sectionTitleStyle}>📌 Enquadramento</div>
-                    <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '20px'}}>
-                        <div>
-                            <label style={labelStyle}>Cliente *</label>
-                            <select value={form.cliente_id} onChange={e => setForm({...form, cliente_id: e.target.value})} required style={inputStyle}>
-                                <option value="">-- Selecione --</option>
-                                {clientes.map(c => <option key={c.id} value={c.id}>{c.marca}</option>)}
-                            </select>
-                        </div>
-                        <div>
-                            <label style={labelStyle}>Tipo de Projeto</label>
-                            <select value={form.tipo_projeto_id} onChange={e => setForm({...form, tipo_projeto_id: e.target.value})} style={inputStyle}>
-                                <option value="">-- Selecione --</option>
-                                {tipos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
-                            </select>
-                        </div>
-                        <div>
-                            <label style={labelStyle}>Responsável Interno</label>
-                            <select value={form.responsavel_id} onChange={e => setForm({...form, responsavel_id: e.target.value})} style={inputStyle}>
-                                <option value="">-- Selecione --</option>
-                                {staff.map(s => <option key={s.id} value={s.id}>{s.nome || s.email}</option>)}
-                            </select>
-                        </div>
-                    </div>
-
-                    <div style={sectionTitleStyle}>📅 Planeamento & Avisos</div>
-                    <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '15px', marginBottom: '20px'}}>
-                        <div><label style={labelStyle}>Data Início</label><input type="date" value={form.data_inicio} onChange={e => setForm({...form, data_inicio: e.target.value})} style={inputStyle} /></div>
-                        <div><label style={labelStyle}>Data Fim (Deadline)</label><input type="date" value={form.data_fim} onChange={e => setForm({...form, data_fim: e.target.value})} style={{...inputStyle, border: form.data_fim ? '1px solid #fca5a5' : '1px solid #cbd5e1'}} /></div>
-                        <div><label style={labelStyle}>Programa</label><input type="text" value={form.programa} onChange={e => setForm({...form, programa: e.target.value})} placeholder="P2030 / PRR" style={inputStyle} /></div>
-                        <div><label style={labelStyle}>Aviso</label><input type="text" value={form.aviso} onChange={e => setForm({...form, aviso: e.target.value})} placeholder="Ex: 01/C16" style={inputStyle} /></div>
-                    </div>
-
-                    <div style={sectionTitleStyle}>💰 Financeiro</div>
-                    <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px'}}>
-                        <div><label style={labelStyle}>Investimento (€)</label><input type="number" step="0.01" value={form.investimento} onChange={e => setForm({...form, investimento: e.target.value})} style={inputStyle} /></div>
-                        <div><label style={labelStyle}>Incentivo (€)</label><input type="number" step="0.01" value={form.incentivo} onChange={e => setForm({...form, incentivo: e.target.value})} style={inputStyle} /></div>
-                    </div>
-
-                    <div style={sectionTitleStyle}>⚙️ Estado do Projeto</div>
-                    <div style={{display: 'flex', gap: '10px', marginBottom: '25px'}}>
-                        {['pendente', 'em_curso', 'concluido', 'cancelado'].map(st => (
-                            <div key={st} onClick={() => !isViewOnly && setForm({...form, estado: st})}
-                                style={{
-                                    flex: 1, textAlign: 'center', padding: '12px', borderRadius: '10px', cursor: isViewOnly ? 'default' : 'pointer',
-                                    fontSize: '0.85rem', fontWeight: '700',
-                                    background: form.estado === st ? '#2563eb' : '#fff',
-                                    color: form.estado === st ? 'white' : '#64748b',
-                                    border: form.estado === st ? '1px solid #2563eb' : '1px solid #cbd5e1',
-                                    transition: 'all 0.2s', textTransform: 'uppercase'
-                                }}
-                            >
-                                {st.replace('_', ' ')}
+                    {/* --- ABA GERAL --- */}
+                    {activeTab === 'geral' && (
+                      <div>
+                        <div style={{display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px', marginBottom: '20px'}}>
+                            <div>
+                                <label style={labelStyle}>Título do Projeto *</label>
+                                <input type="text" value={form.titulo} onChange={e => setForm({...form, titulo: e.target.value})} required style={{...inputStyle, fontSize:'1.1rem', padding:'12px'}} />
                             </div>
-                        ))}
-                    </div>
+                            <div>
+                                <label style={labelStyle}>Código de Projeto</label>
+                                <input type="text" value={form.codigo_projeto} onChange={e => setForm({...form, codigo_projeto: e.target.value})} placeholder="Ex: P2026-001" style={inputStyle} />
+                            </div>
+                        </div>
 
-                    <div style={sectionTitleStyle}>📝 Notas & Observações</div>
-                    <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px'}}>
-                        <div><label style={labelStyle}>Descrição Geral</label><textarea rows="4" value={form.descricao} onChange={e => setForm({...form, descricao: e.target.value})} style={{...inputStyle, resize:'none'}} /></div>
-                        <div><label style={labelStyle}>Observações Internas</label><textarea rows="4" value={form.observacoes} onChange={e => setForm({...form, observacoes: e.target.value})} style={{...inputStyle, resize:'none'}} /></div>
-                    </div>
+                        <div style={sectionTitleStyle}>📌 Enquadramento</div>
+                        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '20px'}}>
+                            <div>
+                                <label style={labelStyle}>Cliente *</label>
+                                <select value={form.cliente_id} onChange={e => setForm({...form, cliente_id: e.target.value})} required style={inputStyle}>
+                                    <option value="">-- Selecione --</option>
+                                    {clientes.map(c => <option key={c.id} value={c.id}>{c.marca}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label style={labelStyle}>Tipo de Projeto</label>
+                                <select value={form.tipo_projeto_id} onChange={e => setForm({...form, tipo_projeto_id: e.target.value})} style={inputStyle}>
+                                    <option value="">-- Selecione --</option>
+                                    {tipos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label style={labelStyle}>Responsável Interno</label>
+                                <select value={form.responsavel_id} onChange={e => setForm({...form, responsavel_id: e.target.value})} style={inputStyle}>
+                                    <option value="">-- Selecione --</option>
+                                    {staff.map(s => <option key={s.id} value={s.id}>{s.nome || s.email}</option>)}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div style={sectionTitleStyle}>📅 Planeamento & Avisos</div>
+                        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '15px', marginBottom: '20px'}}>
+                            <div><label style={labelStyle}>Data Início</label><input type="date" value={form.data_inicio} onChange={e => setForm({...form, data_inicio: e.target.value})} style={inputStyle} /></div>
+                            <div><label style={labelStyle}>Data Fim (Deadline)</label><input type="date" value={form.data_fim} onChange={e => setForm({...form, data_fim: e.target.value})} style={{...inputStyle, border: form.data_fim ? '1px solid #fca5a5' : '1px solid #cbd5e1'}} /></div>
+                            <div><label style={labelStyle}>Programa</label><input type="text" value={form.programa} onChange={e => setForm({...form, programa: e.target.value})} placeholder="P2030 / PRR" style={inputStyle} /></div>
+                            <div><label style={labelStyle}>Aviso</label><input type="text" value={form.aviso} onChange={e => setForm({...form, aviso: e.target.value})} placeholder="Ex: 01/C16" style={inputStyle} /></div>
+                        </div>
+
+                        <div style={sectionTitleStyle}>⚙️ Estado do Projeto</div>
+                        <div style={{display: 'flex', gap: '10px', marginBottom: '25px'}}>
+                            {['pendente', 'em_curso', 'concluido', 'cancelado'].map(st => (
+                                <div key={st} onClick={() => !isViewOnly && setForm({...form, estado: st})}
+                                    style={{
+                                        flex: 1, textAlign: 'center', padding: '12px', borderRadius: '10px', cursor: isViewOnly ? 'default' : 'pointer',
+                                        fontSize: '0.85rem', fontWeight: '700',
+                                        background: form.estado === st ? '#2563eb' : '#fff',
+                                        color: form.estado === st ? 'white' : '#64748b',
+                                        border: form.estado === st ? '1px solid #2563eb' : '1px solid #cbd5e1',
+                                        transition: 'all 0.2s', textTransform: 'uppercase'
+                                    }}
+                                >
+                                    {st.replace('_', ' ')}
+                                </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* --- ABA INVESTIMENTO --- */}
+                    {activeTab === 'investimento' && (
+                      <div style={{background:'white', padding:'30px', borderRadius:'12px', border:'1px solid #cbd5e1'}}>
+                        <h4 style={{marginTop:0, marginBottom:'20px', color:'#1e293b'}}>Valores Aprovados</h4>
+                        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px'}}>
+                            <div>
+                                <label style={labelStyle}>Investimento Elegível (€)</label>
+                                <input type="number" step="0.01" value={form.investimento} onChange={e => setForm({...form, investimento: e.target.value})} style={{...inputStyle, fontSize:'1.2rem', padding:'15px', borderColor:'#2563eb'}} />
+                            </div>
+                            <div>
+                                <label style={labelStyle}>Incentivo Atribuído (€)</label>
+                                <input type="number" step="0.01" value={form.incentivo} onChange={e => setForm({...form, incentivo: e.target.value})} style={{...inputStyle, fontSize:'1.2rem', padding:'15px', borderColor:'#10b981'}} />
+                            </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* --- ABA NOTAS --- */}
+                    {activeTab === 'notas' && (
+                      <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px'}}>
+                          <div>
+                              <label style={labelStyle}>Descrição Geral</label>
+                              <textarea rows="8" value={form.descricao} onChange={e => setForm({...form, descricao: e.target.value})} style={{...inputStyle, resize:'none'}} placeholder="Resumo do projeto..." />
+                          </div>
+                          <div>
+                              <label style={labelStyle}>Observações Internas (Confidencial)</label>
+                              <textarea rows="8" value={form.observacoes} onChange={e => setForm({...form, observacoes: e.target.value})} style={{...inputStyle, resize:'none', background:'#fffbeb', borderColor:'#f59e0b'}} placeholder="Notas importantes para a equipa..." />
+                          </div>
+                      </div>
+                    )}
+
                   </fieldset>
 
                   {!isViewOnly && (
