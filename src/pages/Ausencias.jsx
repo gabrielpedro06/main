@@ -18,11 +18,47 @@ export default function Ferias() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notification, setNotification] = useState({ show: false, message: '', type: 'success' });
 
-  // NOVO: Modal de confirmação para o utilizador cancelar férias
   const [confirmCancel, setConfirmCancel] = useState({ show: false, pedido: null });
 
   const [form, setForm] = useState({ tipo: "Férias", data_inicio: "", data_fim: "", motivo: "" });
   const [file, setFile] = useState(null); 
+  const [diasUteis, setDiasUteis] = useState(0); // NOVO: Guarda os dias reais a descontar
+
+  // --- ALGORITMO DE FERIADOS (Para ignorar nos pedidos) ---
+  const getFeriados = (ano) => {
+      const a = ano % 19; const b = Math.floor(ano / 100); const c = ano % 100;
+      const d = Math.floor(b / 4); const e = b % 4;
+      const f = Math.floor((b + 8) / 25); const g = Math.floor((b - f + 1) / 3);
+      const h = (19 * a + b - d - g + 15) % 30;
+      const i = Math.floor(c / 4); const k = c % 4;
+      const l = (32 + 2 * e + 2 * i - h - k) % 7;
+      const m = Math.floor((a + 11 * h + 22 * l) / 451);
+      const mesPascoa = Math.floor((h + l - 7 * m + 114) / 31) - 1;
+      const diaPascoa = ((h + l - 7 * m + 114) % 31) + 1;
+      
+      const pascoa = new Date(ano, mesPascoa, diaPascoa);
+      const sextaSanta = new Date(pascoa); sextaSanta.setDate(pascoa.getDate() - 2);
+      const carnaval = new Date(pascoa); carnaval.setDate(pascoa.getDate() - 47);
+      const corpoDeus = new Date(pascoa); corpoDeus.setDate(pascoa.getDate() + 60);
+
+      return [
+          { d: 1, m: 0, nome: "Ano Novo" },
+          { d: carnaval.getDate(), m: carnaval.getMonth(), nome: "Carnaval" },
+          { d: sextaSanta.getDate(), m: sextaSanta.getMonth(), nome: "Sexta-feira Santa" },
+          { d: pascoa.getDate(), m: pascoa.getMonth(), nome: "Páscoa" },
+          { d: 25, m: 3, nome: "Dia da Liberdade" },
+          { d: 1, m: 4, nome: "Dia do Trabalhador" },
+          { d: corpoDeus.getDate(), m: corpoDeus.getMonth(), nome: "Corpo de Deus" },
+          { d: 10, m: 5, nome: "Dia de Portugal" },
+          { d: 15, m: 7, nome: "Assunção de N. Senhora" },
+          { d: 7, m: 8, nome: "Feriado de Faro" }, // Faro
+          { d: 5, m: 9, nome: "Implantação da República" },
+          { d: 1, m: 10, nome: "Todos os Santos" },
+          { d: 1, m: 11, nome: "Restauração da Independência" },
+          { d: 8, m: 11, nome: "Imaculada Conceição" },
+          { d: 25, m: 11, nome: "Natal" }
+      ];
+  };
 
   useEffect(() => {
     if (user) {
@@ -30,6 +66,33 @@ export default function Ferias() {
         fetchDiasReais(); 
     }
   }, [user]);
+
+  // NOVO: CALCULAR DIAS ÚTEIS SEMPRE QUE AS DATAS MUDAM
+  useEffect(() => {
+      if (form.data_inicio && form.data_fim) {
+          const inicio = new Date(form.data_inicio);
+          const fim = new Date(form.data_fim);
+          
+          if (inicio <= fim) {
+              let count = 0;
+              for (let d = new Date(inicio); d <= fim; d.setDate(d.getDate() + 1)) {
+                  const dayOfWeek = d.getDay();
+                  // Ignora Sábados (6) e Domingos (0)
+                  if (dayOfWeek !== 0 && dayOfWeek !== 6) { 
+                      const feriados = getFeriados(d.getFullYear());
+                      const isFeriado = feriados.some(f => f.d === d.getDate() && f.m === d.getMonth());
+                      // Ignora Feriados
+                      if (!isFeriado) { count++; }
+                  }
+              }
+              setDiasUteis(count);
+          } else {
+              setDiasUteis(0);
+          }
+      } else {
+          setDiasUteis(0);
+      }
+  }, [form.data_inicio, form.data_fim]);
 
   async function fetchDiasReais() {
       const { data } = await supabase.from('profiles').select('dias_ferias').eq('id', user.id).single();
@@ -45,6 +108,18 @@ export default function Ferias() {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    
+    // PROTEÇÃO ANTI-FERIADOS E FINS DE SEMANA
+    if (diasUteis === 0) {
+        setNotification({ show: true, message: "O período selecionado contém apenas fins de semana ou feriados. Não é necessário submeter um pedido de ausência!", type: "error" });
+        return;
+    }
+
+    if (new Date(form.data_inicio) > new Date(form.data_fim)) {
+        setNotification({ show: true, message: "A data de fim não pode ser anterior à data de início.", type: "error" });
+        return;
+    }
+
     setIsSubmitting(true);
     try {
       let anexo_url = null;
@@ -73,13 +148,10 @@ export default function Ferias() {
     }
   }
 
-  // --- NOVA FUNÇÃO: CANCELAR OU PEDIR CANCELAMENTO ---
   async function executarCancelamento() {
       const { pedido } = confirmCancel;
       try {
-          // Se estava pendente, cancela logo. Se já estava aprovado, pede cancelamento aos RH.
           const novoEstado = pedido.estado === 'pendente' ? 'cancelado' : 'pedido_cancelamento';
-          
           const { error } = await supabase.from("ferias").update({ estado: novoEstado }).eq("id", pedido.id);
           if (error) throw error;
 
@@ -101,11 +173,21 @@ export default function Ferias() {
     }
   };
 
+  // Mapeamento dos estilos com base na tua imagem
   const getTipoEstilo = (tipo) => {
     switch (tipo) {
       case 'Férias': return '🏖️ Férias';
-      case 'Baixa Médica': return '🏥 Baixa Médica';
-      default: return '⚠️ Falta/Outro';
+      case 'Assistência à família': return '👨‍👩‍👧 Assistência à família';
+      case 'Outros - Assuntos pessoais': return '👤 Assuntos pessoais';
+      case 'Ausência sem motivo - injustificada': return '🚨 Faltas Injustificada';
+      case 'Doença, acidente e obrigação legal': return '🏥 Doença/Acidente';
+      case 'Casamento': return '💍 Casamento';
+      case 'Deslocação a estabelecimento de ensino': return '🏫 Estabelecimento de ensino';
+      case 'Licença maternal/paternal': return '👶 Licença parental';
+      case 'Licença sem vencimento': return '🛑 Sem vencimento';
+      case 'Falecimento de familiar': return '🖤 Falecimento';
+      case 'Prestação de provas de avaliação': return '📝 Provas de avaliação';
+      default: return `⚠️ ${tipo}`;
     }
   };
 
@@ -153,7 +235,6 @@ export default function Ferias() {
                   <td style={{maxWidth: '150px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>{p.motivo || '-'}</td>
                   <td>{getStatusBadge(p.estado)}</td>
                   <td style={{textAlign: 'center'}}>
-                      {/* LÓGICA DOS BOTÕES DE CANCELAR */}
                       {p.estado === 'pendente' && (
                           <button onClick={() => setConfirmCancel({ show: true, pedido: p })} className="btn-small" style={{borderColor: '#ef4444', color: '#ef4444'}} title="Cancelar Pedido">
                               🗑️ Cancelar
@@ -179,7 +260,6 @@ export default function Ferias() {
 
       {showModal && (
         <div className="modal-overlay">
-           {/* ... (O teu formulário normal de pedir férias mantém-se igual) ... */}
           <div className="modal-content">
             <div className="modal-header">
                <h3>Novo Pedido de Ausência</h3>
@@ -187,30 +267,54 @@ export default function Ferias() {
             </div>
             <div className="modal-body">
               <form onSubmit={handleSubmit}>
-                <label>Tipo de Pedido</label>
-                <select value={form.tipo} onChange={e => setForm({...form, tipo: e.target.value})} style={{marginBottom: '15px'}}>
+                <label>Motivo da Ausência</label>
+                <select value={form.tipo} onChange={e => setForm({...form, tipo: e.target.value})} style={{marginBottom: '15px'}} required>
+                    {/* LISTA EXATA FORNECIDA NA IMAGEM */}
                     <option value="Férias">Férias</option>
-                    <option value="Falta Justificada">Falta Justificada</option>
-                    <option value="Falta Injustificada">Falta Injustificada</option>
-                    <option value="Baixa Médica">Baixa Médica</option>
-                    <option value="Outro">Outro (Licenças, etc)</option>
+                    <option value="Assistência à família">Assistência à família</option>
+                    <option value="Outros - Assuntos pessoais">Outros - Assuntos pessoais</option>
+                    <option value="Ausência sem motivo - injustificada">Ausência sem motivo - injustificada</option>
+                    <option value="Doença, acidente e obrigação legal">Doença, acidente e obrigação legal</option>
+                    <option value="Casamento">Casamento</option>
+                    <option value="Deslocação a estabelecimento de ensino">Deslocação a estabelecimento de ensino</option>
+                    <option value="Licença maternal/paternal">Licença maternal/paternal</option>
+                    <option value="Licença sem vencimento">Licença sem vencimento</option>
+                    <option value="Falecimento de familiar">Falecimento de familiar</option>
+                    <option value="Prestação de provas de avaliação">Prestação de provas de avaliação</option>
                 </select>
+                
                 <div className="form-row" style={{display: 'flex', gap: '15px', marginBottom: '15px'}}>
                     <div style={{flex: 1}}><label>Data Início</label><input type="date" value={form.data_inicio} onChange={e => setForm({...form, data_inicio: e.target.value})} required /></div>
                     <div style={{flex: 1}}><label>Data Fim</label><input type="date" value={form.data_fim} onChange={e => setForm({...form, data_fim: e.target.value})} required /></div>
                 </div>
-                <label>Motivo / Observações</label>
-                <textarea rows="3" value={form.motivo} onChange={e => setForm({...form, motivo: e.target.value})} placeholder="Descreve o motivo da ausência..." style={{marginBottom: '15px'}} />
-                <label>Anexar Documento (Opcional - Atestados, PDFs)</label>
+
+                {/* ALERTA INTELIGENTE DE DIAS ÚTEIS */}
+                {form.data_inicio && form.data_fim && (
+                    <div style={{background: diasUteis > 0 ? '#eff6ff' : '#fee2e2', color: diasUteis > 0 ? '#1e40af' : '#991b1b', padding: '10px 15px', borderRadius: '8px', marginBottom: '15px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                        <span>{diasUteis > 0 ? 'ℹ️' : '⚠️'}</span>
+                        <span>
+                            {diasUteis > 0 
+                                ? `Este pedido consumirá ${diasUteis} dia(s) útil(eis). Fins de semana e feriados (incluindo Faro) foram descontados automaticamente.` 
+                                : `Atenção: O período selecionado calha num fim de semana ou feriado. Não é necessário marcar.`}
+                        </span>
+                    </div>
+                )}
+
+                <label>Notas / Observações</label>
+                <textarea rows="3" value={form.motivo} onChange={e => setForm({...form, motivo: e.target.value})} placeholder="Mais detalhes (Opcional)..." style={{marginBottom: '15px'}} />
+                
+                <label>Anexar Documento (Atestados, PDFs - Opcional)</label>
                 <input type="file" accept=".pdf, image/*" onChange={e => setFile(e.target.files[0])} style={{marginBottom: '20px', padding: '8px', background: '#f1f5f9'}} />
-                <button type="submit" className="btn-primary" style={{width: '100%'}} disabled={isSubmitting}>{isSubmitting ? "A enviar..." : "Submeter Pedido"}</button>
+                
+                <button type="submit" className="btn-primary" style={{width: '100%'}} disabled={isSubmitting || diasUteis === 0}>
+                    {isSubmitting ? "A enviar..." : "Submeter Pedido"}
+                </button>
               </form>
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL DE CONFIRMAÇÃO DE CANCELAMENTO */}
       {confirmCancel.show && (
           <ModalPortal>
               <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999}}>
@@ -231,13 +335,12 @@ export default function Ferias() {
           </ModalPortal>
       )}
 
-      {/* POPUP DE SUCESSO/ERRO */}
       {notification.show && (
           <ModalPortal>
               <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999}}>
                   <div style={{background:'white', padding:'30px', borderRadius:'16px', width:'350px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'}}>
                       <div style={{fontSize: '3.5rem', marginBottom: '15px'}}>{notification.type === 'success' ? '✅' : '❌'}</div>
-                      <h3 style={{marginTop: 0, color: '#1e293b'}}>{notification.type === 'success' ? 'Sucesso!' : 'Erro'}</h3>
+                      <h3 style={{marginTop: 0, color: '#1e293b'}}>{notification.type === 'success' ? 'Sucesso!' : 'Atenção'}</h3>
                       <p style={{color: '#64748b', marginBottom: '25px', lineHeight: '1.5'}}>{notification.message}</p>
                       <button onClick={() => setNotification({ show: false, message: '', type: 'success' })} className="btn-primary" style={{width: '100%'}}>Fechar</button>
                   </div>
