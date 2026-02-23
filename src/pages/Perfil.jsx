@@ -284,12 +284,12 @@ export default function Perfil() {
 
                       <div style={{display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '15px'}}>
                           <div>
-                              <label style={labelStyle}>Cartão Cidadão (Ex: 12345678 - 9 - ZZ - 0)</label>
+                              <label style={labelStyle}>Cartão Cidadão (Ex: 12345678 / 9ZZ0)</label>
                               <input 
                                   type="text" 
                                   value={formData.ncc} 
                                   onChange={handleCCChange} 
-                                  placeholder="00000000 - 0 - XX - 0"
+                                  placeholder="00000000 - 0XX0"
                                   style={{...inputStyle, letterSpacing: '1px', fontFamily: 'monospace', fontWeight: 'bold', color: '#1e40af', background: '#f8fafc'}} 
                               />
                           </div>
