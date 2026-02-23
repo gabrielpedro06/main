@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom"; // NOVO IMPORT
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
 import "./../styles/dashboard.css";
@@ -11,6 +12,8 @@ const ModalPortal = ({ children }) => {
 
 export default function Projetos() {
   const { user } = useAuth();
+  const navigate = useNavigate(); // INSTANCIAR O NAVEGADOR
+
   const [projetos, setProjetos] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -27,8 +30,11 @@ export default function Projetos() {
   const [editId, setEditId] = useState(null);
   const [isViewOnly, setIsViewOnly] = useState(false);
   
-  // NOVO: Estado para as abas do Modal
   const [activeTab, setActiveTab] = useState("geral");
+
+  // Estado para guardar as atividades/tarefas do projeto aberto no modal
+  const [projetoAtividades, setProjetoAtividades] = useState([]);
+  const [loadingAtividades, setLoadingAtividades] = useState(false);
 
   const initialForm = {
     titulo: "", descricao: "", cliente_id: "", tipo_projeto_id: "",
@@ -44,9 +50,16 @@ export default function Projetos() {
     checkActiveLog();
   }, [user]);
 
+  // Sempre que abrir um projeto existente na aba de atividades, carrega-as
+  useEffect(() => {
+    if (editId && activeTab === 'atividades') {
+        fetchAtividadesDoProjeto(editId);
+    }
+  }, [editId, activeTab]);
+
   const showToast = (message, type = 'success') => {
       setNotification({ message, type });
-      setTimeout(() => setNotification(null), 3000);
+      setTimeout(() => setNotification(null), 3500);
   };
 
   async function fetchData() {
@@ -68,6 +81,24 @@ export default function Projetos() {
     setStaff(staffData || []);
 
     setLoading(false);
+  }
+
+  // --- BUSCAR ATIVIDADES E TAREFAS DO PROJETO SELECIONADO ---
+  async function fetchAtividadesDoProjeto(projetoId) {
+      setLoadingAtividades(true);
+      const { data, error } = await supabase
+          .from("atividades")
+          .select(`
+              id, titulo, estado,
+              tarefas ( id, titulo, estado )
+          `)
+          .eq("projeto_id", projetoId)
+          .order("created_at", { ascending: true });
+          
+      if (!error && data) {
+          setProjetoAtividades(data);
+      }
+      setLoadingAtividades(false);
   }
 
   async function checkActiveLog() {
@@ -101,7 +132,8 @@ export default function Projetos() {
   function handleNovo() {
     setEditId(null); setIsViewOnly(false);
     setForm({ ...initialForm, data_inicio: new Date().toISOString().split('T')[0] });
-    setActiveTab("geral"); // Abre sempre na aba geral
+    setProjetoAtividades([]);
+    setActiveTab("geral"); 
     setShowModal(true);
   }
 
@@ -115,22 +147,83 @@ export default function Projetos() {
         programa: proj.programa || "", aviso: proj.aviso || "",
         codigo_projeto: proj.codigo_projeto || "", investimento: proj.investimento || 0, incentivo: proj.incentivo || 0
     });
+    setProjetoAtividades([]); // Limpa antes de abrir
     setActiveTab("geral");
     setShowModal(true);
   }
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // --- O CORAÇÃO DA MÁQUINA: GUARDAR PROJETO + AUTO-GERAÇÃO ---
   async function handleSubmit(e) {
     e.preventDefault();
+    setIsSubmitting(true);
     const payload = { ...form };
-    if (editId) await supabase.from("projetos").update(payload).eq("id", editId);
-    else await supabase.from("projetos").insert([payload]);
-    setShowModal(false); fetchData();
-    showToast("Sucesso!");
+    
+    try {
+        if (editId) {
+            const { error } = await supabase.from("projetos").update(payload).eq("id", editId);
+            if (error) throw error;
+            showToast("Projeto atualizado!");
+            setShowModal(false); 
+            fetchData();
+        } else {
+            const { data: newProj, error: errProj } = await supabase.from("projetos").insert([payload]).select().single();
+            if (errProj) throw errProj;
+
+            // --- NOVO MOTOR DE AUTO-GERAÇÃO (AGORA COM SUB-TAREFAS) ---
+            if (payload.tipo_projeto_id) {
+                showToast("A gerar estrutura do projeto...", "info");
+                
+                const { data: tAtividades } = await supabase.from("template_atividades").select("*").eq("tipo_projeto_id", payload.tipo_projeto_id);
+                
+                if (tAtividades && tAtividades.length > 0) {
+                    for (const tAtiv of tAtividades) {
+                        const { data: realAtiv } = await supabase.from("atividades").insert([{ projeto_id: newProj.id, titulo: tAtiv.nome, estado: 'pendente' }]).select().single();
+
+                        if (realAtiv) {
+                            const { data: tTarefas } = await supabase.from("template_tarefas").select("*").eq("template_atividade_id", tAtiv.id);
+                            
+                            if (tTarefas && tTarefas.length > 0) {
+                                for (const tTar of tTarefas) {
+                                    // 1. Cria a tarefa real
+                                    const { data: realTar } = await supabase.from("tarefas").insert([{ atividade_id: realAtiv.id, titulo: tTar.nome, estado: 'pendente', responsavel_id: payload.responsavel_id || null }]).select().single();
+                                    
+                                    // 2. Procura as sub-tarefas desse molde e cria as reais!
+                                    if (realTar) {
+                                        const { data: tSubs } = await supabase.from("template_subtarefas").select("*").eq("template_tarefa_id", tTar.id);
+                                        if (tSubs && tSubs.length > 0) {
+                                            const subTarefasParaInserir = tSubs.map(ts => ({ tarefa_id: realTar.id, titulo: ts.nome, estado: 'pendente' }));
+                                            await supabase.from("subtarefas").insert(subTarefasParaInserir);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            showToast("Projeto criado com sucesso! 🎉");
+            setShowModal(false); 
+            navigate(`/dashboard/projetos/${newProj.id}`);
+        }
+    } catch (err) {
+        showToast("Erro: " + err.message, "error");
+    } finally {
+        setIsSubmitting(false);
+    }
+  }
+
+  // --- ALTERAR ESTADO DA TAREFA DIRETO DO MODAL ---
+  async function toggleTarefaStatus(tarefaId, estadoAtual) {
+      const novoEstado = estadoAtual === 'concluido' ? 'pendente' : 'concluido';
+      await supabase.from("tarefas").update({ estado: novoEstado }).eq("id", tarefaId);
+      fetchAtividadesDoProjeto(editId);
   }
 
   const projetosFiltrados = projetos.filter(p => {
     const termo = busca.toLowerCase();
-    const match = p.titulo?.toLowerCase().includes(termo) || p.clientes?.marca?.toLowerCase().includes(termo);
+    const match = p.titulo?.toLowerCase().includes(termo) || p.clientes?.marca?.toLowerCase().includes(termo) || p.codigo_projeto?.toLowerCase().includes(termo);
     const isInactive = p.estado === 'concluido' || p.estado === 'cancelado';
     return mostrarConcluidos ? match : (!isInactive && match);
   });
@@ -177,8 +270,13 @@ export default function Projetos() {
             {projetosFiltrados.map(p => {
               const isExpired = p.data_fim && new Date(p.data_fim) < new Date() && p.estado !== 'concluido';
               return (
-                <tr key={p.id} style={{opacity: (p.estado === 'concluido' || p.estado === 'cancelado') ? 0.6 : 1}}>
-                  <td style={{textAlign:'center'}}>
+                <tr 
+                    key={p.id} 
+                    className="hover-row"
+                    onClick={() => navigate(`/dashboard/projetos/${p.id}`)} 
+                    style={{opacity: (p.estado === 'concluido' || p.estado === 'cancelado') ? 0.6 : 1, cursor: 'pointer', transition: 'background 0.2s'}}
+                >
+                  <td style={{textAlign:'center'}} onClick={e => e.stopPropagation() /* Impede a navegação ao clicar no timer */}>
                     <div style={{display:'flex', gap:'10px', alignItems:'center', justifyContent:'center'}}>
                       {activeLog?.projeto_id === p.id ? 
                         <button onClick={handleStopLog} style={{border:'none', background:'#fee2e2', color:'#ef4444', borderRadius:'50%', width:'30px', height:'30px', cursor:'pointer'}}>⏹</button> :
@@ -218,10 +316,16 @@ export default function Projetos() {
                       <div style={{fontSize: '0.8rem', color: '#666'}}>{p.tipos_projeto?.nome}</div>
                   </td>
                   <td>{p.profiles?.nome || 'N/A'}</td>
-                  <td style={{textAlign: 'center'}}>
+                  
+                  <td style={{textAlign: 'center'}} onClick={e => e.stopPropagation() /* Impede a navegação se clicar nas ações extra */}>
                     <div style={{display:'flex', gap:'5px', justifyContent:'center'}}>
-                      <button className="btn-small" onClick={() => { handleEdit(p); setIsViewOnly(true); }}>👁️</button>
-                      <button className="btn-small" onClick={() => handleEdit(p)}>✏️</button>
+                      {/* Mantém a edição rápida no modal original */}
+                      <button className="btn-small" onClick={() => handleEdit(p)} title="Edição Rápida">✏️</button>
+                      
+                      {/* Botão Bonito para entrar na sala */}
+                      <button className="btn-primary" onClick={() => navigate(`/dashboard/projetos/${p.id}`)} style={{padding: '5px 15px', borderRadius: '20px', fontSize: '0.8rem'}}>
+                          Entrar ➔
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -284,6 +388,7 @@ export default function Projetos() {
                                     <option value="">-- Selecione --</option>
                                     {tipos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
                                 </select>
+                                {!editId && <small style={{color: '#2563eb', fontSize: '0.75rem'}}>Gera tarefas automaticamente.</small>}
                             </div>
                             <div>
                                 <label style={labelStyle}>Responsável Interno</label>
@@ -358,7 +463,9 @@ export default function Projetos() {
                   {!isViewOnly && (
                       <div style={{display:'flex', gap:'15px', marginTop:'30px', paddingTop:'20px', borderTop:'1px solid #e2e8f0'}}>
                           <button type="button" onClick={() => setShowModal(false)} style={{flex:1, padding:'14px', borderRadius:'10px', border:'1px solid #cbd5e1', background:'white', color:'#64748b', fontWeight:'600', cursor:'pointer'}}>Cancelar</button>
-                          <button type="submit" style={{flex:2, padding:'14px', borderRadius:'10px', border:'none', background:'#2563eb', color:'white', fontWeight:'600', cursor:'pointer', boxShadow:'0 4px 6px -1px rgba(37, 99, 235, 0.4)'}}>{editId ? "💾 Guardar Alterações" : "🚀 Criar Projeto"}</button>
+                          <button type="submit" disabled={isSubmitting} style={{flex:2, padding:'14px', borderRadius:'10px', border:'none', background:'#2563eb', color:'white', fontWeight:'600', cursor:'pointer', boxShadow:'0 4px 6px -1px rgba(37, 99, 235, 0.4)'}}>
+                              {isSubmitting ? "A guardar..." : (editId ? "💾 Guardar Alterações" : "🚀 Criar Projeto")}
+                          </button>
                       </div>
                   )}
                 </form>
@@ -369,7 +476,10 @@ export default function Projetos() {
       )}
 
       {notification && <div className={`toast-container ${notification.type}`}>{notification.type === 'success' ? '✅' : '⚠️'} {notification.message}</div>}
-      <style>{`.pulse-dot-white { width: 8px; height: 8px; background-color: white; border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; }`}</style>
+      <style>{`
+          .pulse-dot-white { width: 8px; height: 8px; background-color: white; border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; }
+          .hover-row:hover { background-color: #f8fafc; }
+      `}</style>
     </div>
   );
 }

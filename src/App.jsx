@@ -15,6 +15,7 @@ import Dashboard from "./pages/Dashboard";
 import DashboardHome from "./pages/DashboardHome";
 import Tarefas from "./pages/Tarefas";
 import Projetos from "./pages/Projetos";
+import ProjetoDetalhe from "./pages/ProjetoDetalhe"; // 👈 NOVO: Importar a página de detalhe
 import Clientes from "./pages/Clientes";
 import Atividades from "./pages/Atividades";
 import Forum from "./pages/Forum";
@@ -22,10 +23,10 @@ import RecursosHumanos from "./pages/RecursosHumanos";
 import Ferias from "./pages/Ausencias"; 
 import GestaoLeads from "./pages/GestaoLeads"; 
 import Perfil from "./pages/Perfil";
+import GestaoTemplates from "./components/GestaoTemplates"; 
 
 export default function App() {
   return (
-    /* 2. Mudei aqui a tag de abertura e fecho */
     <HashRouter>
       <Routes>
         {/* === ROTAS PÚBLICAS === */}
@@ -40,16 +41,18 @@ export default function App() {
           <Route index element={<DashboardHome />} />
           
           <Route path="tarefas" element={<Tarefas />} />
+          
           <Route path="projetos" element={<Projetos />} />
+          <Route path="projetos/:id" element={<ProjetoDetalhe />} /> {/* 👈 NOVO: Rota com o ID do projeto */}
+          
           <Route path="clientes" element={<Clientes />} />
           <Route path="atividades" element={<Atividades />} />
           <Route path="forum" element={<Forum />} />
           <Route path="rh" element={<RecursosHumanos />} />
           <Route path="ferias" element={<Ferias />} />
           <Route path="perfil" element={<Perfil />} />
-          
-          {/* 2. ADICIONAR A ROTA AQUI 👇 */}
           <Route path="leads" element={<GestaoLeads />} />
+          <Route path="templates" element={<GestaoTemplates />} />
           
         </Route>
 
