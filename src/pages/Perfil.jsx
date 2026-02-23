@@ -1,13 +1,21 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
 import "./../styles/dashboard.css";
 
+// Portal para os Modais/Pop-ups ficarem sempre por cima de tudo
+const ModalPortal = ({ children }) => {
+  return createPortal(children, document.body);
+};
+
 export default function Perfil() {
   const { user, userProfile, setUserProfile } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [msg, setMsg] = useState({ text: "", type: "" });
   const [uploading, setUploading] = useState(false);
+  
+  // NOVO: Estado para o Pop-up de Notificação
+  const [notification, setNotification] = useState({ show: false, message: '', type: 'success' });
 
   // Estados do Formulário Completo
   const [formData, setFormData] = useState({
@@ -16,20 +24,19 @@ export default function Perfil() {
     data_nascimento: "",
     avatar_url: "",
     
-    // Novos campos
     nome_completo: "",
     telemovel: "",
     morada: "",
     nif: "",
     niss: "",
     ncc: "",
+    validade_cc: "", 
     nr_dependentes: 0,
     estado_civil: "",
     nacionalidade: "Portuguesa",
     sexo: "",
     concelho: "",
     
-    // Apenas leitura (gerido pelos RH)
     empresa_interna: "",
     funcao: "",
     tipo_contrato: ""
@@ -51,6 +58,7 @@ export default function Perfil() {
         nif: userProfile.nif || "",
         niss: userProfile.niss || "",
         ncc: userProfile.ncc || "",
+        validade_cc: userProfile.validade_cc || "", 
         nr_dependentes: userProfile.nr_dependentes || 0,
         estado_civil: userProfile.estado_civil || "",
         nacionalidade: userProfile.nacionalidade || "Portuguesa",
@@ -63,6 +71,26 @@ export default function Perfil() {
       });
     }
   }, [user, userProfile]);
+
+  // --- MÁSCARA AUTOMÁTICA DO CARTÃO DE CIDADÃO (EX: 12345678 - 9 - ZZ - 0) ---
+  const handleCCChange = (e) => {
+      let value = e.target.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+      
+      if (value.length > 12) value = value.slice(0, 12);
+
+      let formattedValue = value;
+      if (value.length > 8) {
+          formattedValue = value.slice(0, 8) + ' - ' + value.slice(8);
+      }
+      if (value.length > 9) {
+          formattedValue = value.slice(0, 8) + ' - ' + value.slice(8, 9) + ' - ' + value.slice(9);
+      }
+      if (value.length > 11) {
+          formattedValue = value.slice(0, 8) + ' - ' + value.slice(8, 9) + ' - ' + value.slice(9, 11) + ' - ' + value.slice(11);
+      }
+
+      setFormData({ ...formData, ncc: formattedValue });
+  };
 
   // --- UPLOAD FOTO ---
   async function handleAvatarUpload(e) {
@@ -81,10 +109,13 @@ export default function Perfil() {
       const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
 
       setFormData(prev => ({ ...prev, avatar_url: publicUrl }));
-      setMsg({ text: "Foto carregada! Clica em 'Guardar Alterações' para finalizar.", type: "success" });
+      
+      // Mostrar Pop-up de Sucesso
+      setNotification({ show: true, message: "Foto carregada! Clica em 'Guardar Alterações' no fundo da página para finalizar.", type: "success" });
 
     } catch (error) {
-      setMsg({ text: "Erro no upload: " + error.message, type: "error" });
+      // Mostrar Pop-up de Erro
+      setNotification({ show: true, message: "Erro no upload: " + error.message, type: "error" });
     } finally {
       setUploading(false);
     }
@@ -94,7 +125,6 @@ export default function Perfil() {
   async function handleSave(e) {
     e.preventDefault();
     setLoading(true);
-    setMsg({ text: "", type: "" });
 
     try {
         const { error } = await supabase
@@ -104,13 +134,13 @@ export default function Perfil() {
                 data_nascimento: formData.data_nascimento,
                 avatar_url: formData.avatar_url,
                 
-                // Novos campos editáveis pelo user
                 nome_completo: formData.nome_completo,
                 telemovel: formData.telemovel,
                 morada: formData.morada,
                 nif: formData.nif,
                 niss: formData.niss,
                 ncc: formData.ncc,
+                validade_cc: formData.validade_cc || null, 
                 nr_dependentes: formData.nr_dependentes,
                 estado_civil: formData.estado_civil,
                 nacionalidade: formData.nacionalidade,
@@ -130,28 +160,22 @@ export default function Perfil() {
         }
 
         setUserProfile(prev => ({ ...prev, ...formData }));
-        setMsg({ text: "Perfil atualizado com sucesso! 🎉", type: "success" });
+        
+        // Mostrar Pop-up de Sucesso
+        setNotification({ show: true, message: "Perfil atualizado com sucesso! 🎉", type: "success" });
         setNewPassword("");
 
     } catch (error) {
-        setMsg({ text: error.message, type: "error" });
+        // Mostrar Pop-up de Erro
+        setNotification({ show: true, message: error.message, type: "error" });
     } finally {
         setLoading(false);
     }
   }
 
-  const sectionTitleStyle = {
-      color: '#1e293b', 
-      fontSize: '1rem', 
-      fontWeight: 'bold', 
-      marginTop: '25px', 
-      marginBottom: '15px', 
-      paddingBottom: '5px', 
-      borderBottom: '1px solid #e2e8f0'
-  };
-
+  const sectionTitleStyle = { color: '#1e293b', fontSize: '1rem', fontWeight: 'bold', marginTop: '25px', marginBottom: '15px', paddingBottom: '5px', borderBottom: '1px solid #e2e8f0' };
   const labelStyle = { fontSize: '0.8rem', color: '#64748b', marginBottom: '4px', display: 'block' };
-  const inputStyle = { width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem', marginBottom: '15px' };
+  const inputStyle = { width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem', marginBottom: '15px', boxSizing: 'border-box' };
 
   return (
     <div className="page-container">
@@ -169,11 +193,6 @@ export default function Perfil() {
           {/* Coluna Principal: Formulário */}
           <div className="main-column">
               <div className="card">
-                  {msg.text && (
-                      <div className={`badge badge-${msg.type === 'error' ? 'danger' : 'success'}`} style={{marginBottom: '20px', display:'block', textAlign:'center', padding:'10px', fontSize:'0.9rem'}}>
-                          {msg.text}
-                      </div>
-                  )}
 
                   <form onSubmit={handleSave}>
                       
@@ -256,11 +275,33 @@ export default function Perfil() {
                           </div>
                       </div>
 
-                      <div style={sectionTitleStyle}>Dados Fiscais (Privado)</div>
-                      <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px'}}>
-                          <div><label style={labelStyle}>NIF</label><input type="text" value={formData.nif} onChange={e => setFormData({...formData, nif: e.target.value})} style={inputStyle} /></div>
-                          <div><label style={labelStyle}>NISS</label><input type="text" value={formData.niss} onChange={e => setFormData({...formData, niss: e.target.value})} style={inputStyle} /></div>
-                          <div><label style={labelStyle}>Cartão Cidadão (NCC)</label><input type="text" value={formData.ncc} onChange={e => setFormData({...formData, ncc: e.target.value})} style={inputStyle} /></div>
+                      <div style={sectionTitleStyle}>Dados Fiscais e Civis (Privado)</div>
+                      
+                      <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
+                          <div><label style={labelStyle}>NIF (Nº de Contribuinte)</label><input type="text" maxLength="9" value={formData.nif} onChange={e => setFormData({...formData, nif: e.target.value})} style={inputStyle} /></div>
+                          <div><label style={labelStyle}>NISS (Segurança Social)</label><input type="text" maxLength="11" value={formData.niss} onChange={e => setFormData({...formData, niss: e.target.value})} style={inputStyle} /></div>
+                      </div>
+
+                      <div style={{display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '15px'}}>
+                          <div>
+                              <label style={labelStyle}>Cartão Cidadão (Ex: 12345678 - 9 - ZZ - 0)</label>
+                              <input 
+                                  type="text" 
+                                  value={formData.ncc} 
+                                  onChange={handleCCChange} 
+                                  placeholder="00000000 - 0 - XX - 0"
+                                  style={{...inputStyle, letterSpacing: '1px', fontFamily: 'monospace', fontWeight: 'bold', color: '#1e40af', background: '#f8fafc'}} 
+                              />
+                          </div>
+                          <div>
+                              <label style={labelStyle}>Data de Validade (CC)</label>
+                              <input 
+                                  type="date" 
+                                  value={formData.validade_cc} 
+                                  onChange={e => setFormData({...formData, validade_cc: e.target.value})} 
+                                  style={inputStyle} 
+                              />
+                          </div>
                       </div>
 
                       <div style={sectionTitleStyle}>Dados da Empresa (Apenas Leitura)</div>
@@ -299,6 +340,21 @@ export default function Perfil() {
               </div>
           </div>
       </div>
+
+      {/* --- POP-UP DE NOTIFICAÇÃO (SUCESSO / ERRO) --- */}
+      {notification.show && (
+          <ModalPortal>
+              <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999}}>
+                  <div style={{background:'white', padding:'30px', borderRadius:'16px', width:'350px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'}}>
+                      <div style={{fontSize: '3.5rem', marginBottom: '15px'}}>{notification.type === 'success' ? '✅' : '❌'}</div>
+                      <h3 style={{marginTop: 0, color: '#1e293b'}}>{notification.type === 'success' ? 'Sucesso!' : 'Atenção'}</h3>
+                      <p style={{color: '#64748b', marginBottom: '25px', lineHeight: '1.5'}}>{notification.message}</p>
+                      <button onClick={() => setNotification({ show: false, message: '', type: 'success' })} className="btn-primary" style={{width: '100%'}}>Fechar</button>
+                  </div>
+              </div>
+          </ModalPortal>
+      )}
+
     </div>
   );
 }
