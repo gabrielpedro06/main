@@ -15,7 +15,13 @@ export default function Clientes() {
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState("");
+  const [mostrarInativos, setMostrarInativos] = useState(false); // NOVO ESTADO
   const [notification, setNotification] = useState(null);
+
+  // --- ESTADOS PARA ORDENAÇÃO E PAGINAÇÃO ---
+  const [sortConfig, setSortConfig] = useState({ key: 'marca', direction: 'asc' });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const [showModal, setShowModal] = useState(false);
   const [editId, setEditId] = useState(null); 
@@ -27,12 +33,12 @@ export default function Clientes() {
   const [showAddCae, setShowAddCae] = useState(false);
   const [showAddAcesso, setShowAddAcesso] = useState(false);
 
-  // FORMULÁRIO GERAL
+  // FORMULÁRIO GERAL (Adicionado 'ativo')
   const initialForm = {
     marca: "", nif: "", entidade: "", website: "",
     objeto_social: "", plano: "Standard",
     certidao_permanente: "", validade_certidao: "",
-    rcbe: "", validade_rcbe: ""
+    rcbe: "", validade_rcbe: "", ativo: true
   };
   const [form, setForm] = useState(initialForm);
 
@@ -61,26 +67,22 @@ export default function Clientes() {
       setTimeout(() => setNotification(null), 3500);
   };
 
-  // --- 🪄 FETCH À PROVA DE BALA ---
   async function fetchClientes() {
     setLoading(true);
     
-    // 1. Vai buscar todos os clientes
     const { data: cliData, error: errCli } = await supabase
         .from("clientes")
         .select("*")
         .order("created_at", { ascending: false });
 
-    // 2. Vai buscar as moradas todas
     const { data: morData } = await supabase
         .from("moradas_cliente")
         .select("cliente_id, localidade, concelho");
 
     if (!errCli && cliData) {
-        // 3. Junta a morada ao cliente correspondente no frontend
         const clientesComMorada = cliData.map(c => {
             const moradas = morData?.filter(m => m.cliente_id === c.id) || [];
-            return { ...c, moradas_cliente: moradas };
+            return { ...c, moradas_cliente: moradas, ativo: c.ativo !== false }; // garante que o null seja true
         });
         setClientes(clientesComMorada);
     }
@@ -157,10 +159,58 @@ export default function Clientes() {
     }
   }
 
-  const clientesFiltrados = clientes.filter((cliente) => {
-    const textoBusca = busca.toLowerCase();
-    return cliente.marca.toLowerCase().includes(textoBusca) || cliente.nif.includes(textoBusca);
+  // ==========================================
+  // LÓGICA DE PROCESSAMENTO DE DADOS DA TABELA
+  // ==========================================
+
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+        direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  let processedClientes = [...clientes];
+
+  // Filtro Ativos / Inativos
+  if (!mostrarInativos) {
+      processedClientes = processedClientes.filter(c => c.ativo === true);
+  }
+
+  // Filtro de Texto
+  if (busca) {
+      const textoBusca = busca.toLowerCase();
+      processedClientes = processedClientes.filter(c =>
+          c.marca?.toLowerCase().includes(textoBusca) || c.nif?.includes(textoBusca)
+      );
+  }
+
+  // Ordenar
+  processedClientes.sort((a, b) => {
+      let valA = '';
+      let valB = '';
+
+      if (sortConfig.key === 'marca') {
+          valA = a.marca?.toLowerCase() || '';
+          valB = b.marca?.toLowerCase() || '';
+      } else if (sortConfig.key === 'concelho') {
+          valA = (a.moradas_cliente?.[0]?.concelho)?.toLowerCase() || '';
+          valB = (b.moradas_cliente?.[0]?.concelho)?.toLowerCase() || '';
+      }
+
+      if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
   });
+
+  // Paginar
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = processedClientes.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(processedClientes.length / itemsPerPage);
+
+  // ==========================================
 
   function handleNovo() {
     setEditId(null); setIsViewOnly(false);
@@ -219,24 +269,29 @@ export default function Clientes() {
     setContactos(cData.data || []); setMoradas(mData.data || []); setAcessos(aData.data || []); setCaes(caeData.data || []);
   }
 
-  async function handleDeleteCliente(id) {
+  // --- NOVA FUNÇÃO: DESATIVAR/REATIVAR CLIENTE (Soft Delete) ---
+  async function handleToggleAtivo(id, estadoAtual) {
     if (isViewOnly) return;
-    if (!window.confirm("ATENÇÃO: Apagar esta empresa vai eliminar TODAS as moradas, acessos, contactos e CAEs associados. Tens a certeza absoluta?")) return;
+    
+    const novoEstado = !estadoAtual;
+    const acaoTexto = novoEstado ? "Reativar" : "Desativar";
+
+    if (!window.confirm(`Tem a certeza que deseja ${acaoTexto.toLowerCase()} esta empresa? \n(Nenhum dado será apagado, apenas ocultado por predefinição).`)) return;
 
     try {
-      await supabase.from("contactos_cliente").delete().eq("cliente_id", id);
-      await supabase.from("moradas_cliente").delete().eq("cliente_id", id);
-      await supabase.from("acessos_cliente").delete().eq("cliente_id", id);
-      await supabase.from("caes_cliente").delete().eq("cliente_id", id);
-
-      const { error } = await supabase.from("clientes").delete().eq("id", id);
+      const { error } = await supabase.from("clientes").update({ ativo: novoEstado }).eq("id", id);
       if (error) throw error;
 
-      setClientes(clientes.filter(c => c.id !== id));
-      showToast("Empresa apagada com sucesso!", "success");
+      // Atualiza a tabela na UI
+      setClientes(clientes.map(c => c.id === id ? { ...c, ativo: novoEstado } : c));
+      
+      // Atualiza o form do modal (se estiver aberto)
+      if (editId === id) setForm({ ...form, ativo: novoEstado });
+
+      showToast(`Empresa ${acaoTexto.toLowerCase()}a com sucesso!`, "success");
       setShowModal(false);
     } catch (error) {
-      showToast("Erro ao apagar empresa: " + error.message, "error");
+      showToast(`Erro ao ${acaoTexto.toLowerCase()} empresa: ` + error.message, "error");
     }
   }
 
@@ -254,7 +309,8 @@ export default function Clientes() {
       certidao_permanente: form.certidao_permanente,
       validade_certidao: form.validade_certidao || null,
       rcbe: form.rcbe,
-      validade_rcbe: form.validade_rcbe || null
+      validade_rcbe: form.validade_rcbe || null,
+      ativo: form.ativo // Mantém o estado ativo
     };
 
     try {
@@ -266,7 +322,7 @@ export default function Clientes() {
       } else {
         const { data, error } = await supabase.from("clientes").insert([dbPayload]).select();
         if (error) throw error;
-        setClientes([data[0], ...clientes]);
+        setClientes([{ ...data[0], ativo: true }, ...clientes]); // Novo cliente é sempre ativo
         setEditId(data[0].id);
         showToast("Empresa criada! Verifica as abas que foram pré-preenchidas.");
       }
@@ -275,7 +331,6 @@ export default function Clientes() {
     }
   }
 
-  // --- GATILHO DE ATUALIZAÇÃO ---
   async function saveSubItem(tabela, dados, stateSetter, listaAtual, resetState, resetValue, closeFormSetter) {
     if (isViewOnly) return;
     if (!editId) {
@@ -296,14 +351,14 @@ export default function Clientes() {
         if (!error) {
             stateSetter(listaAtual.map(i => i.id === id ? data[0] : i));
             showToast("Atualizado com sucesso!");
-            if (tabela === 'moradas_cliente') fetchClientes(); // <-- A MAGIA: Atualiza a tabela principal
+            if (tabela === 'moradas_cliente') fetchClientes(); 
         } else showToast("Erro: " + error.message, "error");
     } else { 
         const { data, error } = await supabase.from(tabela).insert([payload]).select();
         if (!error) {
             stateSetter([...listaAtual, data[0]]);
             showToast("Adicionado com sucesso!");
-            if (tabela === 'moradas_cliente') fetchClientes(); // <-- A MAGIA: Atualiza a tabela principal
+            if (tabela === 'moradas_cliente') fetchClientes(); 
         } else showToast("Erro: " + error.message, "error");
     }
     resetState(resetValue);
@@ -316,7 +371,7 @@ export default function Clientes() {
     if (!error) {
         stateSetter(listaAtual.filter(i => i.id !== id));
         showToast("Apagado com sucesso!");
-        if (tabela === 'moradas_cliente') fetchClientes(); // <-- A MAGIA: Atualiza a tabela principal
+        if (tabela === 'moradas_cliente') fetchClientes(); 
     }
   }
 
@@ -332,42 +387,73 @@ export default function Clientes() {
   return (
     <div className="page-container">
       <div className="page-header">
-        <h1>👥 Clientes & Empresas</h1>
+        <h1>👥 Clientes</h1>
         <button className="btn-primary" onClick={handleNovo}>+ Nova Empresa</button>
       </div>
 
-      <div className="filters-container">
-        <input type="text" placeholder="🔍 Procurar por Empresa ou NIF..." className="search-input" value={busca} onChange={(e) => setBusca(e.target.value)} />
+      <div className="filters-container" style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'center' }}>
+        <input 
+            type="text" 
+            placeholder="🔍 Procurar por Empresa ou NIF..." 
+            className="search-input" 
+            style={{ flex: 1, minWidth: '250px' }}
+            value={busca} 
+            onChange={(e) => {
+                setBusca(e.target.value);
+                setCurrentPage(1); 
+            }} 
+        />
+        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#475569', fontSize: '0.9rem', fontWeight: '600', background: '#f8fafc', padding: '10px 15px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+            <input 
+                type="checkbox" 
+                checked={mostrarInativos} 
+                onChange={e => {setMostrarInativos(e.target.checked); setCurrentPage(1);}} 
+            />
+            Mostrar Inativos
+        </label>
       </div>
 
       <div className="table-responsive">
         <table className="data-table">
           <thead>
             <tr>
-              <th>Empresa</th>
+              <th onClick={() => handleSort('marca')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                  Empresa {sortConfig.key === 'marca' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
+              </th>
               <th>NIF</th>
               <th>Localidade</th>
-              <th>Concelho</th>
+              <th onClick={() => handleSort('concelho')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                  Concelho {sortConfig.key === 'concelho' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
+              </th>
               <th style={{textAlign: 'center'}}>Ações</th>
             </tr>
           </thead>
           <tbody>
-            {clientesFiltrados.length > 0 ? (
-                clientesFiltrados.map((c) => {
-                // Apanha a primeira morada associada ao cliente para mostrar na tabela
+            {currentItems.length > 0 ? (
+                currentItems.map((c) => {
                 const moradaRef = c.moradas_cliente && c.moradas_cliente.length > 0 ? c.moradas_cliente[0] : {};
+                const isInactive = c.ativo === false;
                 
                 return (
-                <tr key={c.id}>
-                    <td style={{ fontWeight: "bold", color: "#334155" }}>{c.marca}</td>
-                    <td><span style={{background: '#f1f5f9', padding: '4px 8px', borderRadius: '6px', fontSize: '0.85rem'}}>{c.nif}</span></td>
-                    <td>{moradaRef.localidade || '-'}</td>
-                    <td>{moradaRef.concelho ? <span className="badge">{moradaRef.concelho}</span> : '-'}</td>
+                <tr key={c.id} style={{ opacity: isInactive ? 0.6 : 1, background: isInactive ? '#f8fafc' : 'transparent' }}>
+                    <td style={{ fontWeight: "bold", color: isInactive ? "#94a3b8" : "#334155" }}>
+                        {c.marca}
+                        {isInactive && <span style={{background: '#e2e8f0', color: '#475569', fontSize: '0.65rem', padding: '2px 6px', borderRadius: '6px', marginLeft: '8px', verticalAlign: 'middle'}}>INATIVO</span>}
+                    </td>
+                    <td><span style={{background: '#f1f5f9', color: isInactive ? '#94a3b8' : 'inherit', padding: '4px 8px', borderRadius: '6px', fontSize: '0.85rem'}}>{c.nif}</span></td>
+                    <td style={{color: isInactive ? '#94a3b8' : 'inherit'}}>{moradaRef.localidade || '-'}</td>
+                    <td>{moradaRef.concelho ? <span className="badge" style={{background: isInactive ? '#f1f5f9' : undefined, color: isInactive ? '#94a3b8' : undefined}}>{moradaRef.concelho}</span> : '-'}</td>
                     <td style={{textAlign: 'center'}}>
                     <div style={{ display: 'flex', gap: '5px', justifyContent: 'center' }}>
-                        <button className="btn-small" onClick={() => handleView(c)}>👁️</button>
-                        <button className="btn-small" onClick={() => handleEdit(c)}>✏️</button>
-                        <button className="btn-small" style={{color: '#ef4444', background: '#fee2e2'}} onClick={() => handleDeleteCliente(c.id)}>🗑</button>
+                        <button className="btn-small" onClick={() => handleView(c)} title="Ver">👁️</button>
+                        <button className="btn-small" onClick={() => handleEdit(c)} title="Editar">✏️</button>
+                        
+                        {/* BOTÃO MÁGICO DE ATIVAR/DESATIVAR */}
+                        {isInactive ? (
+                            <button className="btn-small" style={{color: '#16a34a', background: '#dcfce7'}} onClick={() => handleToggleAtivo(c.id, c.ativo)} title="Reativar Empresa">🔄</button>
+                        ) : (
+                            <button className="btn-small" style={{color: '#ef4444', background: '#fee2e2'}} onClick={() => handleToggleAtivo(c.id, c.ativo)} title="Desativar Empresa">🛑</button>
+                        )}
                     </div>
                     </td>
                 </tr>
@@ -377,6 +463,46 @@ export default function Clientes() {
             )}
           </tbody>
         </table>
+        
+        {/* --- CONTROLOS DE PAGINAÇÃO --- */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '15px', padding: '10px 15px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', flexWrap: 'wrap', gap: '15px' }}>
+            <div>
+                <span style={{ fontSize: '0.85rem', color: '#64748b', marginRight: '8px' }}>Mostrar</span>
+                <select 
+                    value={itemsPerPage} 
+                    onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }} 
+                    style={{ padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none', background: 'white' }}
+                >
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                </select>
+                <span style={{ fontSize: '0.85rem', color: '#64748b', marginLeft: '8px' }}>por página</span>
+            </div>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <button 
+                    disabled={currentPage === 1} 
+                    onClick={() => setCurrentPage(prev => prev - 1)} 
+                    className="btn-small"
+                    style={{ opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? 'not-allowed' : 'pointer', background: 'white', border: '1px solid #cbd5e1' }}
+                >
+                    ◀ Anterior
+                </button>
+                <span style={{ fontSize: '0.85rem', color: '#334155', fontWeight: 'bold' }}>
+                    Pág {currentPage} de {totalPages || 1}
+                </span>
+                <button 
+                    disabled={currentPage === totalPages || totalPages === 0} 
+                    onClick={() => setCurrentPage(prev => prev + 1)} 
+                    className="btn-small"
+                    style={{ opacity: (currentPage === totalPages || totalPages === 0) ? 0.5 : 1, cursor: (currentPage === totalPages || totalPages === 0) ? 'not-allowed' : 'pointer', background: 'white', border: '1px solid #cbd5e1' }}
+                >
+                    Próxima ▶
+                </button>
+            </div>
+        </div>
+
       </div>
 
       {notification && <div className={`toast-container ${notification.type}`}>{notification.type === 'success' ? '✅' : '⚠️'} {notification.message}</div>}
@@ -389,10 +515,25 @@ export default function Clientes() {
               <div style={{padding:'20px 30px', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center', background:'#fff'}}>
                 <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
                     <span style={{background:'#eff6ff', padding:'8px', borderRadius:'8px', fontSize:'1.2rem'}}>🏢</span>
-                    <h3 style={{margin:0, color:'#1e293b', fontSize:'1.25rem'}}>{isViewOnly ? `Ver: ${form.marca}` : (editId ? `Editar: ${form.marca}` : "Nova Empresa")}</h3>
+                    <h3 style={{margin:0, color:'#1e293b', fontSize:'1.25rem'}}>
+                        {isViewOnly ? `Ver: ${form.marca}` : (editId ? `Editar: ${form.marca}` : "Nova Empresa")}
+                    </h3>
+                    {form.ativo === false && <span style={{background: '#e2e8f0', color: '#475569', fontSize: '0.7rem', padding: '4px 8px', borderRadius: '6px', fontWeight: 'bold'}}>INATIVO</span>}
                 </div>
                 <div style={{display:'flex', gap:'10px'}}>
-                    {editId && !isViewOnly && <button onClick={() => handleDeleteCliente(editId)} style={{background:'#fee2e2', color:'#ef4444', border:'none', padding:'6px 12px', borderRadius:'8px', cursor:'pointer', fontWeight:'bold'}}>Apagar Empresa</button>}
+                    {/* BOTÃO DE DESATIVAR NO CABEÇALHO DO MODAL */}
+                    {editId && !isViewOnly && (
+                        <button 
+                            onClick={() => handleToggleAtivo(editId, form.ativo)} 
+                            style={{
+                                background: form.ativo === false ? '#dcfce7' : '#fee2e2', 
+                                color: form.ativo === false ? '#16a34a' : '#ef4444', 
+                                border:'none', padding:'6px 12px', borderRadius:'8px', cursor:'pointer', fontWeight:'bold'
+                            }}
+                        >
+                            {form.ativo === false ? '🔄 Reativar Empresa' : '🛑 Desativar Empresa'}
+                        </button>
+                    )}
                     <button onClick={() => setShowModal(false)} style={{background:'transparent', border:'none', fontSize:'1.2rem', cursor:'pointer', color:'#94a3b8'}}>✕</button>
                 </div>
               </div>
@@ -400,10 +541,10 @@ export default function Clientes() {
               {editId && (
                 <div className="tabs" style={{padding: '0 30px', background: '#fff', borderBottom: '1px solid #e2e8f0'}}>
                   <button className={activeTab === 'geral' ? 'active' : ''} onClick={() => {setActiveTab('geral'); fecharTodosSubForms();}}>Geral</button>
+                  <button className={activeTab === 'moradas' ? 'active' : ''} onClick={() => {setActiveTab('moradas'); fecharTodosSubForms();}}>📍 Moradas</button>
                   <button className={activeTab === 'atividade' ? 'active' : ''} onClick={() => {setActiveTab('atividade'); fecharTodosSubForms();}}>📈 Atividade</button>
                   <button className={activeTab === 'documentos' ? 'active' : ''} onClick={() => {setActiveTab('documentos'); fecharTodosSubForms();}}>📄 Documentos</button>
                   <button className={activeTab === 'contactos' ? 'active' : ''} onClick={() => {setActiveTab('contactos'); fecharTodosSubForms();}}>👤 Pessoas</button>
-                  <button className={activeTab === 'moradas' ? 'active' : ''} onClick={() => {setActiveTab('moradas'); fecharTodosSubForms();}}>📍 Moradas</button>
                   <button className={activeTab === 'plano' ? 'active' : ''} onClick={() => {setActiveTab('plano'); fecharTodosSubForms();}}>💎 Plano</button>
                   {podeVerAcessos && <button className={activeTab === 'acessos' ? 'active' : ''} onClick={() => {setActiveTab('acessos'); fecharTodosSubForms();}}>🔐 Acessos</button>}
                 </div>
@@ -428,7 +569,34 @@ export default function Clientes() {
 
                       <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px', marginTop:'10px'}}>
                         <div><label style={labelStyle}>Entidade Legal</label><input type="text" value={form.entidade} onChange={e => setForm({...form, entidade: e.target.value})} style={inputStyle} /></div>
-                        <div><label style={labelStyle}>Website</label><input type="text" value={form.website} onChange={e => setForm({...form, website: e.target.value})} placeholder="www.empresa.pt" style={inputStyle} /></div>
+                        <div>
+                            <label style={labelStyle}>Website</label>
+                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                <input 
+                                    type="text" 
+                                    value={form.website} 
+                                    onChange={e => setForm({...form, website: e.target.value})} 
+                                    placeholder="www.empresa.pt" 
+                                    style={{ ...inputStyle, marginBottom: 0, flex: 1 }} 
+                                />
+                                {form.website && (
+                                    <a 
+                                        href={form.website.startsWith('http') ? form.website : `https://${form.website}`} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        title="Abrir Website"
+                                        style={{
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            textDecoration: 'none', background: '#eff6ff', color: '#2563eb', 
+                                            padding: '0 15px', height: '42px', borderRadius: '8px', 
+                                            border: '1px solid #bfdbfe', fontSize: '1.2rem', transition: '0.2s'
+                                        }}
+                                    >
+                                        🔗
+                                    </a>
+                                )}
+                            </div>
+                        </div>
                       </div>
 
                       {!isViewOnly && <button type="submit" className="btn-primary" style={{width:'100%', marginTop:'20px'}}>Guardar Dados Base</button>}
@@ -487,17 +655,73 @@ export default function Clientes() {
                 {activeTab === 'documentos' && (
                   <form onSubmit={handleSubmitGeral}>
                      <fieldset disabled={isViewOnly} style={{border:'none', padding:0}}>
+                      
                       <div style={{display:'grid', gridTemplateColumns:'2fr 1fr', gap:'20px'}}>
-                        <div><label style={labelStyle}>Código Certidão Permanente</label><input type="text" value={form.certidao_permanente} onChange={e => setForm({...form, certidao_permanente: e.target.value})} style={inputStyle} /></div>
+                        <div>
+                            <label style={labelStyle}>Código Certidão Permanente</label>
+                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                <input 
+                                    type="text" 
+                                    value={form.certidao_permanente} 
+                                    onChange={e => setForm({...form, certidao_permanente: e.target.value})} 
+                                    style={{ ...inputStyle, marginBottom: 0, flex: 1 }} 
+                                    placeholder="Ex: 1234-5678-9012"
+                                />
+                                <a 
+                                    href="https://www2.gov.pt/espaco-empresa/empresa-online/consultar-a-certidao-permanente" 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    title="Abrir Portal da Certidão Permanente"
+                                    style={{
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        textDecoration: 'none', background: '#eff6ff', color: '#2563eb', 
+                                        padding: '0 15px', height: '42px', borderRadius: '8px', 
+                                        border: '1px solid #bfdbfe', fontSize: '1.2rem', transition: '0.2s'
+                                    }}
+                                >
+                                    🔗
+                                </a>
+                            </div>
+                        </div>
                         <div>
                             <label style={labelStyle}>Data de Validade</label>
                             <input type="date" value={form.validade_certidao || ""} onChange={e => setForm({...form, validade_certidao: e.target.value})} style={inputStyle} />
                         </div>
                       </div>
+
                       <div style={{display:'grid', gridTemplateColumns:'2fr 1fr', gap:'20px', marginTop:'15px'}}>
-                        <div><label style={labelStyle}>Código RCBE</label><input type="text" value={form.rcbe} onChange={e => setForm({...form, rcbe: e.target.value})} style={inputStyle} /></div>
-                        <div><label style={labelStyle}>Data de Validade</label><input type="date" value={form.validade_rcbe || ""} onChange={e => setForm({...form, validade_rcbe: e.target.value})} style={inputStyle} /></div>
+                        <div>
+                            <label style={labelStyle}>Código RCBE</label>
+                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                <input 
+                                    type="text" 
+                                    value={form.rcbe} 
+                                    onChange={e => setForm({...form, rcbe: e.target.value})} 
+                                    style={{ ...inputStyle, marginBottom: 0, flex: 1 }} 
+                                    placeholder="Código de acesso RCBE"
+                                />
+                                <a 
+                                    href="https://rcbe.justica.gov.pt" 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    title="Abrir Portal RCBE"
+                                    style={{
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        textDecoration: 'none', background: '#eff6ff', color: '#2563eb', 
+                                        padding: '0 15px', height: '42px', borderRadius: '8px', 
+                                        border: '1px solid #bfdbfe', fontSize: '1.2rem', transition: '0.2s'
+                                    }}
+                                >
+                                    🔗
+                                </a>
+                            </div>
+                        </div>
+                        <div>
+                            <label style={labelStyle}>Data de Validade</label>
+                            <input type="date" value={form.validade_rcbe || ""} onChange={e => setForm({...form, validade_rcbe: e.target.value})} style={inputStyle} />
+                        </div>
                       </div>
+
                       {!isViewOnly && <button type="submit" className="btn-primary" style={{width:'100%', marginTop:'20px'}}>Guardar Documentos</button>}
                     </fieldset>
                   </form>
@@ -577,11 +801,14 @@ export default function Clientes() {
                             <input type="text" placeholder="Linha 2: Localidade" value={novaMorada.localidade} onChange={e => setNovaMorada({...novaMorada, localidade: e.target.value})} style={inputStyle} />
                         </div>
                         
-                        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'15px'}}>
+                        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'15px'}}>
                             <input type="text" placeholder="Linha 3: Concelho" value={novaMorada.concelho} onChange={e => setNovaMorada({...novaMorada, concelho: e.target.value})} style={inputStyle} />
-                            <input type="text" placeholder="Notas Opcionais (Ex: Sede, Armazém, Faturação)" value={novaMorada.notas} onChange={e => setNovaMorada({...novaMorada, notas: e.target.value})} style={inputStyle} />
+                            <input type="text" placeholder="Linha 3: Distrito" value={novaMorada.distrito} onChange={e => setNovaMorada({...novaMorada, distrito: e.target.value})} style={inputStyle} />
+                            <input type="text" placeholder="Linha 3: Região" value={novaMorada.regiao} onChange={e => setNovaMorada({...novaMorada, regiao: e.target.value})} style={inputStyle} />
                         </div>
 
+                        <input type="text" placeholder="Notas Opcionais (Ex: Sede, Armazém, Faturação)" value={novaMorada.notas} onChange={e => setNovaMorada({...novaMorada, notas: e.target.value})} style={{...inputStyle, marginBottom:0}} />
+                        
                         <div style={{display:'flex', gap:'10px', marginTop:'15px'}}>
                             <button onClick={() => saveSubItem('moradas_cliente', novaMorada, setMoradas, moradas, setNovaMorada, initMorada, setShowAddMorada)} className="btn-primary" style={{padding:'8px 15px'}}>{novaMorada.id ? 'Atualizar' : 'Guardar Morada'}</button>
                             <button onClick={() => {setShowAddMorada(false); setNovaMorada(initMorada);}} style={{background:'none', border:'none', color:'#64748b', cursor:'pointer'}}>Cancelar</button>
@@ -596,7 +823,7 @@ export default function Clientes() {
                             {m.notas && <span style={{display:'inline-block', marginBottom:'5px', textTransform:'uppercase', fontSize: '0.7rem', background:'#e0f2fe', color:'#0369a1', padding:'3px 6px', borderRadius:'4px', fontWeight:'bold'}}>{m.notas}</span>}
                             <div style={{fontWeight:'bold', color:'#334155'}}>{m.morada}</div>
                             <div style={{color:'#64748b', fontSize:'0.9rem'}}>{m.codigo_postal} {m.localidade}</div>
-                            <div style={{color:'#94a3b8', fontSize:'0.8rem', marginTop:'3px'}}>{m.concelho}</div>
+                            <div style={{color:'#94a3b8', fontSize:'0.8rem', marginTop:'3px'}}>{[m.concelho, m.distrito, m.regiao].filter(Boolean).join(' • ')}</div>
                           </div>
                           {!isViewOnly && (
                             <div style={{display:'flex', gap:'10px'}}>

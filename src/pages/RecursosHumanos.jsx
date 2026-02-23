@@ -33,8 +33,8 @@ export default function RecursosHumanos() {
   // Modais e Adição de Ausência por RH
   const [showAbsenceModal, setShowAbsenceModal] = useState(false);
   const [newAbsence, setNewAbsence] = useState({ user_id: "", tipo: "Férias", data_inicio: "", data_fim: "", motivo: "" });
-  const [absenceFile, setAbsenceFile] = useState(null); // NOVO: Para anexos
-  const [diasUteisModal, setDiasUteisModal] = useState(0); // NOVO: Aviso de dias
+  const [absenceFile, setAbsenceFile] = useState(null); 
+  const [diasUteisModal, setDiasUteisModal] = useState(0); 
 
   const [confirmModal, setConfirmModal] = useState({ show: false, pedido: null, acao: null });
   const [notification, setNotification] = useState({ show: false, message: '', type: 'success' });
@@ -94,7 +94,6 @@ export default function RecursosHumanos() {
     }
   }, [selectedUser, currentDate, colaboradores]);
 
-  // NOVO: Cálculo inteligente de dias úteis no Modal de RH
   useEffect(() => {
       if (newAbsence.data_inicio && newAbsence.data_fim) {
           const inicio = new Date(newAbsence.data_inicio);
@@ -215,6 +214,19 @@ export default function RecursosHumanos() {
       }
   }
 
+  // --- MÁSCARA AUTOMÁTICA DO CARTÃO DE CIDADÃO (Para edição dos RH) ---
+  const handleCCChange = (e) => {
+      let value = e.target.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+      if (value.length > 12) value = value.slice(0, 12);
+
+      let formattedValue = value;
+      if (value.length > 8) formattedValue = value.slice(0, 8) + ' - ' + value.slice(8);
+      if (value.length > 9) formattedValue = value.slice(0, 8) + ' - ' + value.slice(8, 9) + ' - ' + value.slice(9);
+      if (value.length > 11) formattedValue = value.slice(0, 8) + ' - ' + value.slice(8, 9) + ' - ' + value.slice(9, 11) + ' - ' + value.slice(11);
+
+      setTempUserProfile({ ...tempUserProfile, ncc: formattedValue });
+  };
+
   async function handleUpdateUserProfile() {
       if(!selectedUser) return;
       try {
@@ -222,7 +234,9 @@ export default function RecursosHumanos() {
               valor_sa: tempUserProfile.valor_sa, dias_ferias: tempUserProfile.dias_ferias,
               empresa_interna: tempUserProfile.empresa_interna, funcao: tempUserProfile.funcao,
               nome_completo: tempUserProfile.nome_completo, nif: tempUserProfile.nif,
-              niss: tempUserProfile.niss, ncc: tempUserProfile.ncc, nr_dependentes: tempUserProfile.nr_dependentes,
+              niss: tempUserProfile.niss, ncc: tempUserProfile.ncc, 
+              validade_cc: tempUserProfile.validade_cc || null, // NOVO CAMPO VALIDADE
+              nr_dependentes: tempUserProfile.nr_dependentes,
               estado_civil: tempUserProfile.estado_civil, morada: tempUserProfile.morada,
               telemovel: tempUserProfile.telemovel, data_nascimento: tempUserProfile.data_nascimento,
               tipo_contrato: tempUserProfile.tipo_contrato, nacionalidade: tempUserProfile.nacionalidade,
@@ -255,7 +269,6 @@ export default function RecursosHumanos() {
       if(!error) { fetchColaboradores(); showNotification("S.A. atualizado para todos!", "success"); }
   }
 
-  // --- REGISTAR AUSÊNCIA PELOS RH (ATUALIZADO) ---
   async function handleAddAbsence(e) {
       e.preventDefault();
       
@@ -266,7 +279,6 @@ export default function RecursosHumanos() {
 
       setIsSubmitting(true);
       try {
-          // Upload de ficheiro (Atestados, etc)
           let anexo_url = null;
           if (absenceFile) {
               const fileExt = absenceFile.name.split('.').pop();
@@ -277,7 +289,6 @@ export default function RecursosHumanos() {
               anexo_url = publicUrl;
           }
 
-          // Desconto automático se for "Férias"
           if (newAbsence.tipo.toLowerCase().includes('férias') || newAbsence.tipo.toLowerCase().includes('ferias')) {
              const { data: userProf, error: fetchError } = await supabase.from('profiles').select('dias_ferias').eq('id', newAbsence.user_id).single();
              if (fetchError) throw new Error("Erro ao ler saldo de férias.");
@@ -294,7 +305,7 @@ export default function RecursosHumanos() {
               data_fim: newAbsence.data_fim,
               motivo: newAbsence.motivo || "", 
               anexo_url: anexo_url,
-              estado: 'aprovado' // Criado por RH, fica logo aprovado
+              estado: 'aprovado' 
           };
 
           const { error: insertError } = await supabase.from("ferias").insert([payload]);
@@ -585,13 +596,19 @@ export default function RecursosHumanos() {
                                             <div style={readOnlyGridStyle}>
                                                 <div style={readOnlyItemStyle}><span style={labelStyle}>Nome Completo</span><b>{currentUserProfile?.nome_completo || '-'}</b></div>
                                                 <div style={readOnlyItemStyle}><span style={labelStyle}>Telemóvel</span><b>{currentUserProfile?.telemovel || '-'}</b></div>
+                                                
                                                 <div style={readOnlyItemStyle}><span style={labelStyle}>NIF</span><b>{currentUserProfile?.nif || '-'}</b></div>
                                                 <div style={readOnlyItemStyle}><span style={labelStyle}>NISS</span><b>{currentUserProfile?.niss || '-'}</b></div>
+                                                
                                                 <div style={readOnlyItemStyle}><span style={labelStyle}>NCC</span><b>{currentUserProfile?.ncc || '-'}</b></div>
-                                                <div style={readOnlyItemStyle}><span style={labelStyle}>Data Nasc.</span><b>{currentUserProfile?.data_nascimento ? new Date(currentUserProfile.data_nascimento).toLocaleDateString() : '-'}</b></div>
+                                                <div style={readOnlyItemStyle}><span style={labelStyle}>Validade CC</span><b>{currentUserProfile?.validade_cc ? new Date(currentUserProfile.validade_cc).toLocaleDateString('pt-PT') : '-'}</b></div>
+                                                
+                                                <div style={readOnlyItemStyle}><span style={labelStyle}>Data Nasc.</span><b>{currentUserProfile?.data_nascimento ? new Date(currentUserProfile.data_nascimento).toLocaleDateString('pt-PT') : '-'}</b></div>
                                                 <div style={readOnlyItemStyle}><span style={labelStyle}>Dependentes</span><b>{currentUserProfile?.nr_dependentes || '0'}</b></div>
+                                                
                                                 <div style={readOnlyItemStyle}><span style={labelStyle}>Estado Civil</span><b>{currentUserProfile?.estado_civil || '-'}</b></div>
                                                 <div style={readOnlyItemStyle}><span style={labelStyle}>Nacionalidade</span><b>{currentUserProfile?.nacionalidade || '-'}</b></div>
+                                                
                                                 <div style={readOnlyItemStyle}><span style={labelStyle}>Sexo</span><b>{currentUserProfile?.sexo || '-'}</b></div>
                                             </div>
                                             <div style={{...readOnlyItemStyle, marginTop:'10px'}}><span style={labelStyle}>Morada</span><b>{currentUserProfile?.morada || '-'}</b></div>
@@ -604,10 +621,22 @@ export default function RecursosHumanos() {
                                         <div style={{background:'#f8fafc', padding:'10px', borderRadius:'8px', maxHeight:'400px', overflowY:'auto'}}>
                                             <label style={{fontSize:'0.75rem'}}>Nome Completo</label>
                                             <input type="text" value={tempUserProfile.nome_completo || ''} onChange={e => setTempUserProfile({...tempUserProfile, nome_completo: e.target.value})} style={{width:'100%', marginBottom:'5px'}} />
+                                            
                                             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'5px'}}>
                                                 <div><label style={{fontSize:'0.75rem'}}>NIF</label><input type="text" value={tempUserProfile.nif || ''} onChange={e => setTempUserProfile({...tempUserProfile, nif: e.target.value})} style={{width:'100%'}} /></div>
                                                 <div><label style={{fontSize:'0.75rem'}}>NISS</label><input type="text" value={tempUserProfile.niss || ''} onChange={e => setTempUserProfile({...tempUserProfile, niss: e.target.value})} style={{width:'100%'}} /></div>
-                                                <div><label style={{fontSize:'0.75rem'}}>CC (NCC)</label><input type="text" value={tempUserProfile.ncc || ''} onChange={e => setTempUserProfile({...tempUserProfile, ncc: e.target.value})} style={{width:'100%'}} /></div>
+                                                
+                                                <div>
+                                                    <label style={{fontSize:'0.75rem'}}>CC (Ex: 12345678 - 9 - ZZ - 0)</label>
+                                                    <input 
+                                                        type="text" 
+                                                        value={tempUserProfile.ncc || ''} 
+                                                        onChange={handleCCChange} 
+                                                        style={{width:'100%', fontFamily: 'monospace', fontSize: '0.8rem'}} 
+                                                    />
+                                                </div>
+                                                <div><label style={{fontSize:'0.75rem'}}>Validade CC</label><input type="date" value={tempUserProfile.validade_cc || ''} onChange={e => setTempUserProfile({...tempUserProfile, validade_cc: e.target.value})} style={{width:'100%'}} /></div>
+                                                
                                                 <div><label style={{fontSize:'0.75rem'}}>Dependentes</label><input type="number" value={tempUserProfile.nr_dependentes || 0} onChange={e => setTempUserProfile({...tempUserProfile, nr_dependentes: e.target.value})} style={{width:'100%'}} /></div>
                                                 <div><label style={{fontSize:'0.75rem'}}>Estado Civil</label><select value={tempUserProfile.estado_civil || ''} onChange={e => setTempUserProfile({...tempUserProfile, estado_civil: e.target.value})} style={{width:'100%'}}><option value="">-</option><option value="Solteiro">Solteiro</option><option value="Casado">Casado</option><option value="Divorciado">Divorciado</option><option value="União Facto">União Facto</option></select></div>
                                                 <div><label style={{fontSize:'0.75rem'}}>Data Nasc.</label><input type="date" value={tempUserProfile.data_nascimento || ''} onChange={e => setTempUserProfile({...tempUserProfile, data_nascimento: e.target.value})} style={{width:'100%'}} /></div>
@@ -622,7 +651,7 @@ export default function RecursosHumanos() {
                                             </div>
                                             <label style={{fontSize:'0.75rem'}}>Empresa</label>
                                             <select value={tempUserProfile.empresa_interna || ''} onChange={e => setTempUserProfile({...tempUserProfile, empresa_interna: e.target.value})} style={{width:'100%', marginBottom:'5px', padding:'8px'}}>
-                                                <option value="">Selecione...</option><option value="Neomarca">Neomarca</option><option value="GeoFlicks">GeoFlicks</option><option value="2 Siglas">2 Siglas</option><option value="Fator Triplo">Fator Triplo</option>
+                                                <option value="">Selecione...</option><option value="Neomarca">Neomarca</option><option value="Geoflicks">Geoflicks</option><option value="2 Siglas">2 Siglas</option><option value="Fator Triplo">Fator Triplo</option>
                                             </select>
                                             <label style={{fontSize:'0.75rem'}}>Contrato</label>
                                             <select value={tempUserProfile.tipo_contrato || ''} onChange={e => setTempUserProfile({...tempUserProfile, tipo_contrato: e.target.value})} style={{width:'100%', marginBottom:'10px', padding:'8px'}}>
