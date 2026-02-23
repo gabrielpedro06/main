@@ -30,9 +30,16 @@ export default function RecursosHumanos() {
   const [isEditingUser, setIsEditingUser] = useState(false);
   const [tempUserProfile, setTempUserProfile] = useState({}); 
 
-  // Modais e Adição de Ausência por RH
+  // Modais de Ausência (Criar e Editar)
   const [showAbsenceModal, setShowAbsenceModal] = useState(false);
-  const [newAbsence, setNewAbsence] = useState({ user_id: "", tipo: "Férias", data_inicio: "", data_fim: "", motivo: "" });
+  const [isEditingAbsence, setIsEditingAbsence] = useState(false);
+  const [editingAbsenceData, setEditingAbsenceData] = useState(null);
+  
+  const [newAbsence, setNewAbsence] = useState({ 
+      user_id: "", tipo: "Férias", data_inicio: "", data_fim: "", 
+      is_parcial: false, hora_inicio: "", hora_fim: "", motivo: "" 
+  });
+  
   const [absenceFile, setAbsenceFile] = useState(null); 
   const [diasUteisModal, setDiasUteisModal] = useState(0); 
 
@@ -67,7 +74,7 @@ export default function RecursosHumanos() {
           { d: corpoDeus.getDate(), m: corpoDeus.getMonth(), nome: "Corpo de Deus" },
           { d: 10, m: 5, nome: "Dia de Portugal" },
           { d: 15, m: 7, nome: "Assunção de N. Senhora" },
-          { d: 7, m: 8, nome: "Feriado de Faro" }, // Faro
+          { d: 7, m: 8, nome: "Feriado de Faro" }, 
           { d: 5, m: 9, nome: "Implantação da República" },
           { d: 1, m: 10, nome: "Todos os Santos" },
           { d: 1, m: 11, nome: "Restauração da Independência" },
@@ -95,7 +102,7 @@ export default function RecursosHumanos() {
   }, [selectedUser, currentDate, colaboradores]);
 
   useEffect(() => {
-      if (newAbsence.data_inicio && newAbsence.data_fim) {
+      if (!newAbsence.is_parcial && newAbsence.data_inicio && newAbsence.data_fim) {
           const inicio = new Date(newAbsence.data_inicio);
           const fim = new Date(newAbsence.data_fim);
           
@@ -107,7 +114,7 @@ export default function RecursosHumanos() {
       } else {
           setDiasUteisModal(0);
       }
-  }, [newAbsence.data_inicio, newAbsence.data_fim]);
+  }, [newAbsence.data_inicio, newAbsence.data_fim, newAbsence.is_parcial]);
 
   const showNotification = (msg, type = 'success') => {
       setNotification({ show: true, message: msg, type });
@@ -183,7 +190,7 @@ export default function RecursosHumanos() {
           let novoEstadoDB = '';
 
           if (acao === 'aprovar') {
-              if (eFerias) {
+              if (eFerias && !pedido.is_parcial) {
                   const { data: userProf } = await supabase.from('profiles').select('dias_ferias').eq('id', pedido.user_id).single();
                   await supabase.from('profiles').update({ dias_ferias: (userProf?.dias_ferias ?? 22) - diasUteis }).eq('id', pedido.user_id);
               }
@@ -191,7 +198,7 @@ export default function RecursosHumanos() {
           } 
           else if (acao === 'rejeitar') novoEstadoDB = 'rejeitado';
           else if (acao === 'aceitar_cancelamento' || acao === 'cancelar_direto') {
-              if (eFerias) {
+              if (eFerias && !pedido.is_parcial) {
                   const { data: userProf } = await supabase.from('profiles').select('dias_ferias').eq('id', pedido.user_id).single();
                   await supabase.from('profiles').update({ dias_ferias: (userProf?.dias_ferias ?? 22) + diasUteis }).eq('id', pedido.user_id);
               }
@@ -214,16 +221,13 @@ export default function RecursosHumanos() {
       }
   }
 
-  // --- MÁSCARA AUTOMÁTICA DO CARTÃO DE CIDADÃO (Para edição dos RH) ---
   const handleCCChange = (e) => {
       let value = e.target.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
       if (value.length > 12) value = value.slice(0, 12);
-
       let formattedValue = value;
       if (value.length > 8) formattedValue = value.slice(0, 8) + ' - ' + value.slice(8);
       if (value.length > 9) formattedValue = value.slice(0, 8) + ' - ' + value.slice(8, 9) + ' - ' + value.slice(9);
       if (value.length > 11) formattedValue = value.slice(0, 8) + ' - ' + value.slice(8, 9) + ' - ' + value.slice(9, 11) + ' - ' + value.slice(11);
-
       setTempUserProfile({ ...tempUserProfile, ncc: formattedValue });
   };
 
@@ -235,7 +239,7 @@ export default function RecursosHumanos() {
               empresa_interna: tempUserProfile.empresa_interna, funcao: tempUserProfile.funcao,
               nome_completo: tempUserProfile.nome_completo, nif: tempUserProfile.nif,
               niss: tempUserProfile.niss, ncc: tempUserProfile.ncc, 
-              validade_cc: tempUserProfile.validade_cc || null, // NOVO CAMPO VALIDADE
+              validade_cc: tempUserProfile.validade_cc || null, 
               nr_dependentes: tempUserProfile.nr_dependentes,
               estado_civil: tempUserProfile.estado_civil, morada: tempUserProfile.morada,
               telemovel: tempUserProfile.telemovel, data_nascimento: tempUserProfile.data_nascimento,
@@ -269,17 +273,46 @@ export default function RecursosHumanos() {
       if(!error) { fetchColaboradores(); showNotification("S.A. atualizado para todos!", "success"); }
   }
 
-  async function handleAddAbsence(e) {
+  // --- FUNÇÕES DE MODAL DE AUSÊNCIA (NOVO / EDITAR) ---
+  const closeAbsenceModal = () => {
+      setShowAbsenceModal(false);
+      setAbsenceFile(null);
+      setIsEditingAbsence(false);
+      setEditingAbsenceData(null);
+      setNewAbsence({ 
+          user_id: selectedUser || "", 
+          tipo: "Férias", data_inicio: "", data_fim: "", 
+          is_parcial: false, hora_inicio: "", hora_fim: "", motivo: "" 
+      });
+  };
+
+  const handleEditClick = (absenceData) => {
+      setIsEditingAbsence(true);
+      setEditingAbsenceData(absenceData);
+      setNewAbsence({
+          user_id: absenceData.user_id,
+          tipo: absenceData.tipo,
+          data_inicio: absenceData.data_inicio,
+          data_fim: absenceData.data_fim,
+          is_parcial: absenceData.is_parcial || false,
+          hora_inicio: absenceData.hora_inicio || "",
+          hora_fim: absenceData.hora_fim || "",
+          motivo: absenceData.motivo || ""
+      });
+      setShowAbsenceModal(true);
+  };
+
+  async function handleSaveAbsence(e) {
       e.preventDefault();
       
       if (!newAbsence.user_id) return showNotification("Selecione um colaborador!", "error");
-      if (!newAbsence.data_inicio || !newAbsence.data_fim) return showNotification("Selecione as datas!", "error");
-      if (diasUteisModal === 0) return showNotification("O período não contém dias úteis.", "error");
-      if (new Date(newAbsence.data_inicio) > new Date(newAbsence.data_fim)) return showNotification("A data de fim é inválida.", "error");
+      if (!newAbsence.data_inicio || (!newAbsence.is_parcial && !newAbsence.data_fim)) return showNotification("Selecione as datas!", "error");
+      if (!newAbsence.is_parcial && diasUteisModal === 0) return showNotification("O período não contém dias úteis.", "error");
+      if (!newAbsence.is_parcial && new Date(newAbsence.data_inicio) > new Date(newAbsence.data_fim)) return showNotification("A data de fim é inválida.", "error");
 
       setIsSubmitting(true);
       try {
-          let anexo_url = null;
+          let anexo_url = isEditingAbsence ? editingAbsenceData.anexo_url : null;
           if (absenceFile) {
               const fileExt = absenceFile.name.split('.').pop();
               const fileName = `${newAbsence.user_id}_RH_${Date.now()}.${fileExt}`;
@@ -289,10 +322,23 @@ export default function RecursosHumanos() {
               anexo_url = publicUrl;
           }
 
-          if (newAbsence.tipo.toLowerCase().includes('férias') || newAbsence.tipo.toLowerCase().includes('ferias')) {
+          const tipoLower = newAbsence.tipo.toLowerCase();
+          const isNewFerias = !newAbsence.is_parcial && (tipoLower.includes('férias') || tipoLower.includes('ferias'));
+          
+          if (isEditingAbsence && editingAbsenceData.estado === 'aprovado') {
+              const oldTipoLower = editingAbsenceData.tipo.toLowerCase();
+              const wasFerias = !editingAbsenceData.is_parcial && (oldTipoLower.includes('férias') || oldTipoLower.includes('ferias'));
+              
+              if (wasFerias) {
+                  const diasAntigos = calcularDiasUteis(editingAbsenceData.data_inicio, editingAbsenceData.data_fim);
+                  const { data: userProf } = await supabase.from('profiles').select('dias_ferias').eq('id', newAbsence.user_id).single();
+                  await supabase.from('profiles').update({ dias_ferias: (userProf?.dias_ferias ?? 22) + diasAntigos }).eq('id', newAbsence.user_id);
+              }
+          }
+
+          if (isNewFerias) {
              const { data: userProf, error: fetchError } = await supabase.from('profiles').select('dias_ferias').eq('id', newAbsence.user_id).single();
              if (fetchError) throw new Error("Erro ao ler saldo de férias.");
-
              const novoSaldo = (userProf?.dias_ferias ?? 22) - diasUteisModal;
              const { error: updateError } = await supabase.from('profiles').update({ dias_ferias: novoSaldo }).eq('id', newAbsence.user_id);
              if (updateError) throw new Error("Erro ao atualizar saldo.");
@@ -302,23 +348,31 @@ export default function RecursosHumanos() {
               user_id: newAbsence.user_id, 
               tipo: newAbsence.tipo,
               data_inicio: newAbsence.data_inicio, 
-              data_fim: newAbsence.data_fim,
+              data_fim: newAbsence.is_parcial ? newAbsence.data_inicio : newAbsence.data_fim,
+              is_parcial: newAbsence.is_parcial,
+              hora_inicio: newAbsence.is_parcial ? newAbsence.hora_inicio : null,
+              hora_fim: newAbsence.is_parcial ? newAbsence.hora_fim || null : null,
               motivo: newAbsence.motivo || "", 
               anexo_url: anexo_url,
               estado: 'aprovado' 
           };
 
-          const { error: insertError } = await supabase.from("ferias").insert([payload]);
-          if(insertError) throw new Error("Erro ao gravar ausência: " + insertError.message);
+          let dbError;
+          if (isEditingAbsence) {
+              const { error } = await supabase.from("ferias").update(payload).eq("id", editingAbsenceData.id);
+              dbError = error;
+          } else {
+              const { error } = await supabase.from("ferias").insert([payload]);
+              dbError = error;
+          }
 
-          setShowAbsenceModal(false);
-          setNewAbsence({ user_id: "", tipo: "Férias", data_inicio: "", data_fim: "", motivo: "" }); 
-          setAbsenceFile(null);
-          
+          if(dbError) throw new Error("Erro ao gravar ausência: " + dbError.message);
+
+          closeAbsenceModal();
           fetchDadosMensais();
           if(selectedUser) fetchHistoricoUser(selectedUser);
           fetchColaboradores(); 
-          showNotification("Ausência registada e aprovada com sucesso!", "success"); 
+          showNotification(isEditingAbsence ? "Ausência atualizada!" : "Ausência registada e aprovada!", "success"); 
 
       } catch(err) { 
           showNotification(err.message, "error"); 
@@ -349,11 +403,13 @@ export default function RecursosHumanos() {
       countTrabalho = diasUnicos;
 
       ausenciasMes.forEach(a => {
-          const dias = calcularDiasUteis(a.data_inicio, a.data_fim);
-          const t = a.tipo.toLowerCase();
-          if (t.includes('férias') || t.includes('ferias')) countFerias += dias;
-          else if (t.includes('falta')) countFaltas += dias;
-          else if (t.includes('baixa')) countBaixas += dias;
+          if (!a.is_parcial) {
+              const dias = calcularDiasUteis(a.data_inicio, a.data_fim);
+              const t = a.tipo.toLowerCase();
+              if (t.includes('férias') || t.includes('ferias')) countFerias += dias;
+              else if (t.includes('falta')) countFaltas += dias;
+              else if (t.includes('baixa')) countBaixas += dias;
+          }
       });
 
       let valorSA = "0.00";
@@ -373,7 +429,8 @@ export default function RecursosHumanos() {
       const lista = ausenciasMes.filter(a => a.data_inicio <= today && a.data_fim >= today);
       return lista.map(a => {
           const user = colaboradores.find(c => c.id === a.user_id);
-          return { ...a, nomeUser: user?.nome || 'Desconhecido' };
+          const infoHora = a.is_parcial ? `(⏰ ${a.hora_inicio?.slice(0,5)})` : '';
+          return { ...a, nomeUser: user?.nome || 'Desconhecido', infoHora };
       });
   };
   const ausentesHoje = getAusentesHoje();
@@ -406,11 +463,7 @@ export default function RecursosHumanos() {
           let cellStyle = { background: '#fff', minHeight: '80px', position: 'relative' }; 
           
           const feriado = feriadosDoMes.find(f => f.d === d);
-          
-          if (feriado) {
-              cellStyle.background = '#fee2e2'; 
-              cellStyle.borderColor = '#fca5a5';
-          }
+          if (feriado) { cellStyle.background = '#fee2e2'; cellStyle.borderColor = '#fca5a5'; }
 
           if (selectedUser) {
               const trabalhou = assiduidadeMes.some(a => a.data_registo === dateStr);
@@ -419,9 +472,9 @@ export default function RecursosHumanos() {
               if (trabalhou) { cellStyle.background = '#f0fdf4'; cellStyle.borderColor = '#bbf7d0'; content = '✅'; } 
               else if (ausencia) {
                   const t = ausencia.tipo.toLowerCase();
-                  if (t.includes('férias') || t.includes('ferias')) { cellStyle.background = '#fefce8'; content = '🏖️'; }
-                  else if (t.includes('falta')) { cellStyle.background = '#fef2f2'; content = '❌'; }
-                  else { cellStyle.background = '#faf5ff'; content = '🏥'; }
+                  if (t.includes('férias') || t.includes('ferias')) { cellStyle.background = '#fefce8'; content = ausencia.is_parcial ? '⏰' : '🏖️'; }
+                  else if (t.includes('falta')) { cellStyle.background = '#fef2f2'; content = ausencia.is_parcial ? '⏰' : '❌'; }
+                  else { cellStyle.background = '#faf5ff'; content = ausencia.is_parcial ? '⏰' : '🏥'; }
               } else if (feriado) {
                   content = <div style={{fontSize: '0.8rem', marginTop: '5px'}}>🇵🇹</div>;
               }
@@ -434,7 +487,8 @@ export default function RecursosHumanos() {
                       let barColor = '#fcd34d'; 
                       if (a.tipo?.toLowerCase().includes('falta')) barColor = '#fca5a5';
                       if (a.tipo?.toLowerCase().includes('baixa')) barColor = '#d8b4fe';
-                      return <div key={i} title={`${user?.nome}: ${a.tipo}`} style={{height: '6px', background: barColor, borderRadius: '3px', width: '100%'}} />;
+                      if (a.is_parcial) barColor = '#94a3b8';
+                      return <div key={i} title={`${user?.nome}: ${a.tipo} ${a.is_parcial ? '(Horas)' : ''}`} style={{height: '6px', background: barColor, borderRadius: '3px', width: '100%'}} />;
                   });
               }
               content = (
@@ -495,11 +549,18 @@ export default function RecursosHumanos() {
                                 <tr key={p.id} style={{background: p.estado === 'pedido_cancelamento' ? '#fefce8' : 'transparent'}}>
                                     <td style={{fontWeight: 'bold', color: '#2563eb'}}>{p.profiles?.nome}</td>
                                     <td>{p.tipo}</td>
-                                    <td>{new Date(p.data_inicio).toLocaleDateString()} a {new Date(p.data_fim).toLocaleDateString()}</td>
-                                    <td>{calcularDiasUteis(p.data_inicio, p.data_fim)} dias</td>
                                     <td>
-                                        {p.estado === 'pendente' ? <span className="badge badge-warning">Novo</span> : <span className="badge" style={{background: '#ca8a04', color: 'white'}}>⚠️ Cancelamento</span>}
+                                      {p.is_parcial ? (
+                                          <>
+                                              <div style={{fontWeight: '500'}}>{new Date(p.data_inicio).toLocaleDateString('pt-PT')}</div>
+                                              <div style={{fontSize: '0.8rem', color: '#64748b'}}>⏰ {p.hora_inicio?.slice(0,5)} às {p.hora_fim?.slice(0,5) || '...'}</div>
+                                          </>
+                                      ) : (
+                                          `${new Date(p.data_inicio).toLocaleDateString('pt-PT')} a ${new Date(p.data_fim).toLocaleDateString('pt-PT')}`
+                                      )}
                                     </td>
+                                    <td>{p.is_parcial ? <span style={{color: '#94a3b8'}}>Horas</span> : `${calcularDiasUteis(p.data_inicio, p.data_fim)} dias`}</td>
+                                    <td>{p.estado === 'pendente' ? <span className="badge badge-warning">Novo</span> : <span className="badge" style={{background: '#ca8a04', color: 'white'}}>⚠️ Cancelamento</span>}</td>
                                     <td style={{textAlign: 'center'}}>
                                         <div style={{display: 'flex', gap: '5px', justifyContent: 'center'}}>
                                             {p.estado === 'pendente' ? (
@@ -537,7 +598,13 @@ export default function RecursosHumanos() {
                         <option value="">🏢 Visão Geral (Todos)</option>
                         {colaboradores.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
                     </select>
-                    <button onClick={() => { setNewAbsence({...newAbsence, user_id: selectedUser || ""}); setAbsenceFile(null); setShowAbsenceModal(true); }} className="btn-primary" style={{padding: '10px 20px'}}>➕ Ausência Manual</button>
+                    <button onClick={() => { 
+                      setIsEditingAbsence(false);
+                      setEditingAbsenceData(null);
+                      setNewAbsence({ user_id: selectedUser || "", tipo: "Férias", data_inicio: "", data_fim: "", is_parcial: false, hora_inicio: "", hora_fim: "", motivo: "" }); 
+                      setAbsenceFile(null); 
+                      setShowAbsenceModal(true); 
+                    }} className="btn-primary" style={{padding: '10px 20px'}}>➕ Ausência Manual</button>
                 </div>
             </div>
 
@@ -691,7 +758,7 @@ export default function RecursosHumanos() {
                             <div style={{marginTop:'25px', paddingTop:'15px', borderTop:'2px dashed #f1f5f9'}}>
                                 <h5 style={{margin:'0 0 15px 0', color:'#475569', textTransform:'uppercase', fontSize:'0.75rem'}}>📅 Ausentes Hoje:</h5>
                                 {ausentesHoje.length === 0 ? <div style={{background:'#f0fdf4', padding:'12px', borderRadius:'8px', color:'#166534', fontWeight:'600'}}>✅ Todos presentes!</div> : 
-                                    ausentesHoje.map(a => <div key={a.id} style={{padding:'8px', border:'1px solid #eee', borderRadius:'6px', marginBottom:'5px'}}>{a.nomeUser} - {a.tipo}</div>)
+                                    ausentesHoje.map(a => <div key={a.id} style={{padding:'8px', border:'1px solid #eee', borderRadius:'6px', marginBottom:'5px'}}>{a.nomeUser} {a.infoHora} - {a.tipo}</div>)
                                 }
                             </div>
                             <div style={{marginTop: '25px', paddingTop: '15px', borderTop: '2px dashed #f1f5f9'}}>
@@ -730,17 +797,32 @@ export default function RecursosHumanos() {
                             <h3 style={{marginTop:0, fontSize:'1.1rem', color:'#1e293b'}}>📅 Histórico de Ausências</h3>
                             <div className="table-responsive" style={{maxHeight:'300px', overflowY:'auto'}}>
                                 <table className="data-table" style={{fontSize:'0.9rem'}}>
-                                    <thead><tr><th>Tipo</th><th>Período</th><th>Justificativo</th><th>Estado</th><th>Ação</th></tr></thead>
+                                    <thead><tr><th>Tipo</th><th>Período</th><th>Justificativo</th><th>Estado</th><th style={{textAlign:'center'}}>Ações</th></tr></thead>
                                     <tbody>
                                         {historicoUser.map(h => (
                                             <tr key={h.id}>
                                                 <td>{h.tipo}</td>
-                                                <td>{new Date(h.data_inicio).toLocaleDateString()} a {new Date(h.data_fim).toLocaleDateString()}</td>
+                                                <td>
+                                                  {h.is_parcial ? (
+                                                      <>
+                                                          <div style={{fontWeight: '500'}}>{new Date(h.data_inicio).toLocaleDateString('pt-PT')}</div>
+                                                          <div style={{fontSize: '0.8rem', color: '#64748b'}}>⏰ {h.hora_inicio?.slice(0,5)} às {h.hora_fim?.slice(0,5) || '...'}</div>
+                                                      </>
+                                                  ) : (
+                                                      `${new Date(h.data_inicio).toLocaleDateString('pt-PT')} a ${new Date(h.data_fim).toLocaleDateString('pt-PT')}`
+                                                  )}
+                                                </td>
                                                 <td style={{textAlign:'center'}}>
                                                     {h.anexo_url ? <a href={h.anexo_url} target="_blank" rel="noreferrer" style={{color:'#2563eb', fontWeight:'bold', textDecoration:'none'}}>📎 Ver</a> : <span style={{color:'#cbd5e1'}}>-</span>}
                                                 </td>
                                                 <td><span className={`badge ${h.estado === 'aprovado' ? 'badge-success' : 'badge-danger'}`}>{h.estado}</span></td>
-                                                <td style={{textAlign: 'center'}}>{h.estado === 'aprovado' && <button className="btn-small" style={{color:'#ef4444', fontSize:'0.75rem'}} onClick={() => abrirModalConfirmacao(h, 'cancelar_direto')}>Cancelar</button>}</td>
+                                                <td style={{textAlign: 'center'}}>
+                                                    <div style={{display:'flex', gap:'5px', justifyContent:'center'}}>
+                                                        {/* BOTÃO DE EDITAR (✏️) */}
+                                                        <button className="btn-small" style={{color:'#3b82f6', borderColor:'#3b82f6', fontSize:'0.75rem'}} onClick={() => handleEditClick(h)} title="Editar Registo">✏️</button>
+                                                        {h.estado === 'aprovado' && <button className="btn-small" style={{color:'#ef4444', fontSize:'0.75rem'}} onClick={() => abrirModalConfirmacao(h, 'cancelar_direto')} title="Cancelar e devolver dias">❌</button>}
+                                                    </div>
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -753,15 +835,16 @@ export default function RecursosHumanos() {
           </>
       )}
 
-      {/* MODAL DE REGISTO DE AUSÊNCIA (COM LISTA COMPLETA, ANEXOS E DIAS ÚTEIS) */}
+      {/* MODAL UNIFICADO: REGISTAR OU EDITAR AUSÊNCIA */}
       {showAbsenceModal && (
           <ModalPortal>
             <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999}}>
                 <div style={{background:'white', padding:'25px', borderRadius:'12px', width:'450px', maxHeight: '90vh', overflowY: 'auto'}}>
-                    <h3 style={{marginTop: 0}}>Registar Ausência</h3>
-                    <form onSubmit={handleAddAbsence}>
+                    <h3 style={{marginTop: 0}}>{isEditingAbsence ? 'Editar Ausência' : 'Registar Ausência'}</h3>
+                    
+                    <form onSubmit={handleSaveAbsence}>
                         <label style={{fontSize: '0.8rem', fontWeight: 'bold'}}>Colaborador</label>
-                        <select required value={newAbsence.user_id} onChange={e => setNewAbsence({...newAbsence, user_id: e.target.value})} style={inputStyle} disabled={!!selectedUser}>
+                        <select required value={newAbsence.user_id} onChange={e => setNewAbsence({...newAbsence, user_id: e.target.value})} style={inputStyle} disabled={isEditingAbsence || !!selectedUser}>
                             <option value="">Selecione Colaborador...</option>
                             {colaboradores.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
                         </select>
@@ -782,25 +865,60 @@ export default function RecursosHumanos() {
                             <option value="Candidato a cargo público">Candidato a cargo público</option>
                         </select>
                         
-                        <div style={{display:'flex', gap:'10px'}}>
-                              <div style={{flex:1}}>
-                                  <label style={{fontSize: '0.8rem', fontWeight: 'bold'}}>Data Início</label>
-                                  <input type="date" required value={newAbsence.data_inicio} onChange={e=>setNewAbsence({...newAbsence, data_inicio: e.target.value})} style={inputStyle}/>
-                              </div>
-                              <div style={{flex:1}}>
-                                  <label style={{fontSize: '0.8rem', fontWeight: 'bold'}}>Data Fim</label>
-                                  <input type="date" required value={newAbsence.data_fim} onChange={e=>setNewAbsence({...newAbsence, data_fim: e.target.value})} style={inputStyle}/>
-                              </div>
-                        </div>
+                        <label style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginBottom: '15px', color: '#475569', fontWeight: 'bold', fontSize: '0.9rem', background: '#f8fafc', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0'}}>
+                            <input 
+                                type="checkbox" 
+                                checked={newAbsence.is_parcial} 
+                                onChange={e => setNewAbsence({...newAbsence, is_parcial: e.target.checked, data_fim: e.target.checked ? newAbsence.data_inicio : newAbsence.data_fim})} 
+                                style={{width: '18px', height: '18px'}} 
+                            />
+                            ⏳ Ausência Parcial (Apenas algumas horas)
+                        </label>
 
-                        {newAbsence.data_inicio && newAbsence.data_fim && (
+                        {!newAbsence.is_parcial ? (
+                            <div style={{display:'flex', gap:'10px'}}>
+                                  <div style={{flex:1}}>
+                                      <label style={{fontSize: '0.8rem', fontWeight: 'bold'}}>Data Início</label>
+                                      <input type="date" required value={newAbsence.data_inicio} onChange={e=>setNewAbsence({...newAbsence, data_inicio: e.target.value})} style={inputStyle}/>
+                                  </div>
+                                  <div style={{flex:1}}>
+                                      <label style={{fontSize: '0.8rem', fontWeight: 'bold'}}>Data Fim</label>
+                                      <input type="date" required value={newAbsence.data_fim} onChange={e=>setNewAbsence({...newAbsence, data_fim: e.target.value})} style={inputStyle}/>
+                                  </div>
+                            </div>
+                        ) : (
+                            <div style={{display: 'flex', gap: '10px'}}>
+                                <div style={{flex: 1.5}}>
+                                    <label style={{fontSize: '0.8rem', fontWeight: 'bold'}}>Data</label>
+                                    <input type="date" value={newAbsence.data_inicio} onChange={e => setNewAbsence({...newAbsence, data_inicio: e.target.value, data_fim: e.target.value})} required style={inputStyle}/>
+                                </div>
+                                <div style={{flex: 1}}>
+                                    <label style={{fontSize: '0.8rem', fontWeight: 'bold'}}>Saída</label>
+                                    <input type="time" value={newAbsence.hora_inicio} onChange={e => setNewAbsence({...newAbsence, hora_inicio: e.target.value})} required style={inputStyle}/>
+                                </div>
+                                <div style={{flex: 1}}>
+                                    <label style={{fontSize: '0.8rem', fontWeight: 'bold'}}>Regresso</label>
+                                    <input type="time" value={newAbsence.hora_fim} onChange={e => setNewAbsence({...newAbsence, hora_fim: e.target.value})} style={inputStyle}/>
+                                </div>
+                            </div>
+                        )}
+
+                        {!newAbsence.is_parcial && newAbsence.data_inicio && newAbsence.data_fim && (
                             <div style={{background: diasUteisModal > 0 ? '#eff6ff' : '#fee2e2', color: diasUteisModal > 0 ? '#1e40af' : '#991b1b', padding: '10px 15px', borderRadius: '8px', marginBottom: '15px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px'}}>
                                 <span>{diasUteisModal > 0 ? 'ℹ️' : '⚠️'}</span>
                                 <span>
                                     {diasUteisModal > 0 
-                                        ? `Este pedido consumirá ${diasUteisModal} dia(s) útil(eis). Fins de semana e feriados (incluindo Faro) foram descontados.` 
+                                        ? (newAbsence.tipo.toLowerCase().includes('férias') 
+                                            ? `Este registo consumirá ${diasUteisModal} dia(s) útil(eis) de férias do colaborador.` 
+                                            : `Registará ${diasUteisModal} dia(s) útil(eis) de ausência. Tratando-se de justificação, não desconta férias.`)
                                         : `Atenção: O período selecionado calha num fim de semana ou feriado.`}
                                 </span>
+                            </div>
+                        )}
+                        {newAbsence.is_parcial && newAbsence.data_inicio && (
+                            <div style={{background: '#eff6ff', color: '#1e40af', padding: '10px 15px', borderRadius: '8px', marginBottom: '15px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                <span>ℹ️</span>
+                                <span>Ausência parcial de horas. <b>Não será deduzido nenhum dia de férias ao colaborador.</b></span>
                             </div>
                         )}
 
@@ -808,12 +926,13 @@ export default function RecursosHumanos() {
                         <input type="text" placeholder="Mais detalhes (Opcional)..." value={newAbsence.motivo} onChange={e=>setNewAbsence({...newAbsence, motivo: e.target.value})} style={inputStyle}/>
                         
                         <label style={{fontSize: '0.8rem', fontWeight: 'bold'}}>Anexar Documento (Atestados, PDFs - Opcional)</label>
+                        {isEditingAbsence && editingAbsenceData?.anexo_url && <div style={{fontSize:'0.8rem', color:'#64748b', marginBottom:'5px'}}>Ficheiro atual: <a href={editingAbsenceData.anexo_url} target="_blank" rel="noreferrer">Ver</a> (Carregue outro para substituir)</div>}
                         <input type="file" accept=".pdf, image/*" onChange={e => setAbsenceFile(e.target.files[0])} style={{...inputStyle, background: '#f8fafc'}} />
                         
-                        <button type="submit" className="btn-primary" style={{width:'100%', marginTop: '10px'}} disabled={isSubmitting || diasUteisModal === 0}>
-                            {isSubmitting ? "A Gravar..." : "Gravar e Aprovar Automaticamente"}
+                        <button type="submit" className="btn-primary" style={{width:'100%', marginTop: '10px'}} disabled={isSubmitting || (!newAbsence.is_parcial && diasUteisModal === 0)}>
+                            {isSubmitting ? "A Gravar..." : (isEditingAbsence ? "Atualizar Registo" : "Gravar e Aprovar Automaticamente")}
                         </button>
-                        <button type="button" onClick={() => {setShowAbsenceModal(false); setAbsenceFile(null);}} style={{width:'100%', marginTop:'10px', background:'none', border:'none', cursor:'pointer', color: '#64748b'}}>Cancelar</button>
+                        <button type="button" onClick={closeAbsenceModal} style={{width:'100%', marginTop:'10px', background:'none', border:'none', cursor:'pointer', color: '#64748b'}}>Cancelar</button>
                     </form>
                 </div>
             </div>
