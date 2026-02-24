@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate } from "react-router-dom"; // NOVO IMPORT
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
 import "./../styles/dashboard.css";
@@ -10,9 +10,17 @@ const ModalPortal = ({ children }) => {
   return createPortal(children, document.body);
 };
 
+// --- HELPER PARA SOMAR DIAS A UMA DATA ---
+const addDays = (dateStr, days) => {
+    if (!dateStr) return null;
+    const d = new Date(dateStr);
+    d.setDate(d.getDate() + (days || 0));
+    return d.toISOString().split('T')[0];
+};
+
 export default function Projetos() {
   const { user } = useAuth();
-  const navigate = useNavigate(); // INSTANCIAR O NAVEGADOR
+  const navigate = useNavigate(); 
 
   const [projetos, setProjetos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -32,9 +40,9 @@ export default function Projetos() {
   
   const [activeTab, setActiveTab] = useState("geral");
 
-  // Estado para guardar as atividades/tarefas do projeto aberto no modal
   const [projetoAtividades, setProjetoAtividades] = useState([]);
   const [loadingAtividades, setLoadingAtividades] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const initialForm = {
     titulo: "", descricao: "", cliente_id: "", tipo_projeto_id: "",
@@ -50,7 +58,6 @@ export default function Projetos() {
     checkActiveLog();
   }, [user]);
 
-  // Sempre que abrir um projeto existente na aba de atividades, carrega-as
   useEffect(() => {
     if (editId && activeTab === 'atividades') {
         fetchAtividadesDoProjeto(editId);
@@ -83,21 +90,15 @@ export default function Projetos() {
     setLoading(false);
   }
 
-  // --- BUSCAR ATIVIDADES E TAREFAS DO PROJETO SELECIONADO ---
   async function fetchAtividadesDoProjeto(projetoId) {
       setLoadingAtividades(true);
       const { data, error } = await supabase
           .from("atividades")
-          .select(`
-              id, titulo, estado,
-              tarefas ( id, titulo, estado )
-          `)
+          .select(`id, titulo, estado, tarefas ( id, titulo, estado )`)
           .eq("projeto_id", projetoId)
           .order("created_at", { ascending: true });
           
-      if (!error && data) {
-          setProjetoAtividades(data);
-      }
+      if (!error && data) setProjetoAtividades(data);
       setLoadingAtividades(false);
   }
 
@@ -147,14 +148,31 @@ export default function Projetos() {
         programa: proj.programa || "", aviso: proj.aviso || "",
         codigo_projeto: proj.codigo_projeto || "", investimento: proj.investimento || 0, incentivo: proj.incentivo || 0
     });
-    setProjetoAtividades([]); // Limpa antes de abrir
+    setProjetoAtividades([]); 
     setActiveTab("geral");
     setShowModal(true);
   }
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  // --- FUNÇÃO PARA APAGAR PROJETO ---
+  async function handleDeleteProjeto() {
+      if(!window.confirm("⚠️ ATENÇÃO: Tens a certeza absoluta que queres apagar este projeto? Esta ação irá apagar todas as atividades, tarefas e tempos associados de forma irreversível.")) return;
+      
+      setIsSubmitting(true);
+      try {
+          const { error } = await supabase.from("projetos").delete().eq("id", editId);
+          if (error) throw error;
+          
+          showToast("Projeto apagado com sucesso!");
+          setShowModal(false);
+          fetchData();
+      } catch (err) {
+          showToast("Erro ao apagar: " + err.message, "error");
+      } finally {
+          setIsSubmitting(false);
+      }
+  }
 
-  // --- O CORAÇÃO DA MÁQUINA: GUARDAR PROJETO + AUTO-GERAÇÃO ---
+  // --- O CORAÇÃO DA MÁQUINA: GERAÇÃO EM CASCATA COM DATAS E HERANÇA DE RESPONSÁVEL ---
   async function handleSubmit(e) {
     e.preventDefault();
     setIsSubmitting(true);
@@ -171,29 +189,73 @@ export default function Projetos() {
             const { data: newProj, error: errProj } = await supabase.from("projetos").insert([payload]).select().single();
             if (errProj) throw errProj;
 
-            // --- NOVO MOTOR DE AUTO-GERAÇÃO (AGORA COM SUB-TAREFAS) ---
             if (payload.tipo_projeto_id) {
-                showToast("A gerar estrutura do projeto...", "info");
+                showToast("A calcular prazos e a montar o projeto...", "info");
                 
-                const { data: tAtividades } = await supabase.from("template_atividades").select("*").eq("tipo_projeto_id", payload.tipo_projeto_id);
+                let projDateStr = payload.data_inicio || new Date().toISOString().split('T')[0];
+                let currentAtivDate = projDateStr;
+
+                const { data: tAtividades } = await supabase.from("template_atividades").select("*").eq("tipo_projeto_id", payload.tipo_projeto_id).order("ordem", { ascending: true });
                 
                 if (tAtividades && tAtividades.length > 0) {
                     for (const tAtiv of tAtividades) {
-                        const { data: realAtiv } = await supabase.from("atividades").insert([{ projeto_id: newProj.id, titulo: tAtiv.nome, estado: 'pendente' }]).select().single();
+                        
+                        const ativStart = currentAtivDate;
+                        const ativEnd = addDays(ativStart, tAtiv.dias_estimados || 0);
+
+                        const { data: realAtiv } = await supabase.from("atividades").insert([{ 
+                            projeto_id: newProj.id, 
+                            titulo: tAtiv.nome, 
+                            estado: 'pendente',
+                            ordem: tAtiv.ordem,
+                            data_inicio: ativStart,
+                            data_fim: ativEnd,
+                            responsavel_id: payload.responsavel_id || null // HERANÇA DO PAI
+                        }]).select().single();
+
+                        currentAtivDate = ativEnd;
 
                         if (realAtiv) {
-                            const { data: tTarefas } = await supabase.from("template_tarefas").select("*").eq("template_atividade_id", tAtiv.id);
+                            const { data: tTarefas } = await supabase.from("template_tarefas").select("*").eq("template_atividade_id", tAtiv.id).order("ordem", { ascending: true });
                             
                             if (tTarefas && tTarefas.length > 0) {
+                                let currentTarDate = ativStart;
+
                                 for (const tTar of tTarefas) {
-                                    // 1. Cria a tarefa real
-                                    const { data: realTar } = await supabase.from("tarefas").insert([{ atividade_id: realAtiv.id, titulo: tTar.nome, estado: 'pendente', responsavel_id: payload.responsavel_id || null }]).select().single();
                                     
-                                    // 2. Procura as sub-tarefas desse molde e cria as reais!
+                                    const tarStart = currentTarDate;
+                                    const tarEnd = addDays(tarStart, tTar.dias_estimados || 0);
+
+                                    const { data: realTar } = await supabase.from("tarefas").insert([{ 
+                                        atividade_id: realAtiv.id, 
+                                        titulo: tTar.nome, 
+                                        estado: 'pendente', 
+                                        responsavel_id: payload.responsavel_id || null, // HERANÇA DO PAI
+                                        ordem: tTar.ordem,
+                                        data_inicio: tarStart,
+                                        data_fim: tarEnd 
+                                    }]).select().single();
+
+                                    currentTarDate = tarEnd;
+                                    
                                     if (realTar) {
-                                        const { data: tSubs } = await supabase.from("template_subtarefas").select("*").eq("template_tarefa_id", tTar.id);
+                                        const { data: tSubs } = await supabase.from("template_subtarefas").select("*").eq("template_tarefa_id", tTar.id).order("ordem", { ascending: true });
+                                        
                                         if (tSubs && tSubs.length > 0) {
-                                            const subTarefasParaInserir = tSubs.map(ts => ({ tarefa_id: realTar.id, titulo: ts.nome, estado: 'pendente' }));
+                                            let currentSubDate = tarStart;
+
+                                            const subTarefasParaInserir = tSubs.map(ts => {
+                                                const subEnd = addDays(currentSubDate, ts.dias_estimados || 0);
+                                                currentSubDate = subEnd; 
+                                                return { 
+                                                    tarefa_id: realTar.id, 
+                                                    titulo: ts.nome, 
+                                                    estado: 'pendente',
+                                                    ordem: ts.ordem,
+                                                    data_fim: subEnd,
+                                                    responsavel_id: payload.responsavel_id || null // HERANÇA DO PAI
+                                                };
+                                            });
                                             await supabase.from("subtarefas").insert(subTarefasParaInserir);
                                         }
                                     }
@@ -201,9 +263,13 @@ export default function Projetos() {
                             }
                         }
                     }
+
+                    if (!payload.data_fim) {
+                        await supabase.from("projetos").update({ data_fim: currentAtivDate }).eq("id", newProj.id);
+                    }
                 }
             }
-            showToast("Projeto criado com sucesso! 🎉");
+            showToast("Projeto gerado com sucesso! 🎉");
             setShowModal(false); 
             navigate(`/dashboard/projetos/${newProj.id}`);
         }
@@ -212,13 +278,6 @@ export default function Projetos() {
     } finally {
         setIsSubmitting(false);
     }
-  }
-
-  // --- ALTERAR ESTADO DA TAREFA DIRETO DO MODAL ---
-  async function toggleTarefaStatus(tarefaId, estadoAtual) {
-      const novoEstado = estadoAtual === 'concluido' ? 'pendente' : 'concluido';
-      await supabase.from("tarefas").update({ estado: novoEstado }).eq("id", tarefaId);
-      fetchAtividadesDoProjeto(editId);
   }
 
   const projetosFiltrados = projetos.filter(p => {
@@ -276,7 +335,7 @@ export default function Projetos() {
                     onClick={() => navigate(`/dashboard/projetos/${p.id}`)} 
                     style={{opacity: (p.estado === 'concluido' || p.estado === 'cancelado') ? 0.6 : 1, cursor: 'pointer', transition: 'background 0.2s'}}
                 >
-                  <td style={{textAlign:'center'}} onClick={e => e.stopPropagation() /* Impede a navegação ao clicar no timer */}>
+                  <td style={{textAlign:'center'}} onClick={e => e.stopPropagation()}>
                     <div style={{display:'flex', gap:'10px', alignItems:'center', justifyContent:'center'}}>
                       {activeLog?.projeto_id === p.id ? 
                         <button onClick={handleStopLog} style={{border:'none', background:'#fee2e2', color:'#ef4444', borderRadius:'50%', width:'30px', height:'30px', cursor:'pointer'}}>⏹</button> :
@@ -319,10 +378,7 @@ export default function Projetos() {
                   
                   <td style={{textAlign: 'center'}} onClick={e => e.stopPropagation() /* Impede a navegação se clicar nas ações extra */}>
                     <div style={{display:'flex', gap:'5px', justifyContent:'center'}}>
-                      {/* Mantém a edição rápida no modal original */}
                       <button className="btn-small" onClick={() => handleEdit(p)} title="Edição Rápida">✏️</button>
-                      
-                      {/* Botão Bonito para entrar na sala */}
                       <button className="btn-primary" onClick={() => navigate(`/dashboard/projetos/${p.id}`)} style={{padding: '5px 15px', borderRadius: '20px', fontSize: '0.8rem'}}>
                           Entrar ➔
                       </button>
@@ -388,21 +444,22 @@ export default function Projetos() {
                                     <option value="">-- Selecione --</option>
                                     {tipos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
                                 </select>
-                                {!editId && <small style={{color: '#2563eb', fontSize: '0.75rem'}}>Gera tarefas automaticamente.</small>}
+                                {!editId && <small style={{color: '#2563eb', fontSize: '0.75rem', display: 'block', marginTop: '4px'}}>Gera a estrutura e os prazos automaticamente.</small>}
                             </div>
                             <div>
-                                <label style={labelStyle}>Responsável Interno</label>
+                                <label style={labelStyle}>Responsável Geral</label>
                                 <select value={form.responsavel_id} onChange={e => setForm({...form, responsavel_id: e.target.value})} style={inputStyle}>
                                     <option value="">-- Selecione --</option>
                                     {staff.map(s => <option key={s.id} value={s.id}>{s.nome || s.email}</option>)}
                                 </select>
+                                {!editId && <small style={{color: '#2563eb', fontSize: '0.75rem', display: 'block', marginTop: '4px'}}>As tarefas serão atribuídas a esta pessoa.</small>}
                             </div>
                         </div>
 
                         <div style={sectionTitleStyle}>📅 Planeamento & Avisos</div>
                         <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '15px', marginBottom: '20px'}}>
-                            <div><label style={labelStyle}>Data Início</label><input type="date" value={form.data_inicio} onChange={e => setForm({...form, data_inicio: e.target.value})} style={inputStyle} /></div>
-                            <div><label style={labelStyle}>Data Fim (Deadline)</label><input type="date" value={form.data_fim} onChange={e => setForm({...form, data_fim: e.target.value})} style={{...inputStyle, border: form.data_fim ? '1px solid #fca5a5' : '1px solid #cbd5e1'}} /></div>
+                            <div><label style={labelStyle}>Data Início Base</label><input type="date" value={form.data_inicio} onChange={e => setForm({...form, data_inicio: e.target.value})} style={inputStyle} required /></div>
+                            <div><label style={labelStyle}>Data Fim Final</label><input type="date" value={form.data_fim} onChange={e => setForm({...form, data_fim: e.target.value})} style={{...inputStyle, border: form.data_fim ? '1px solid #fca5a5' : '1px solid #cbd5e1'}} /></div>
                             <div><label style={labelStyle}>Programa</label><input type="text" value={form.programa} onChange={e => setForm({...form, programa: e.target.value})} placeholder="P2030 / PRR" style={inputStyle} /></div>
                             <div><label style={labelStyle}>Aviso</label><input type="text" value={form.aviso} onChange={e => setForm({...form, aviso: e.target.value})} placeholder="Ex: 01/C16" style={inputStyle} /></div>
                         </div>
@@ -452,20 +509,34 @@ export default function Projetos() {
                               <textarea rows="8" value={form.descricao} onChange={e => setForm({...form, descricao: e.target.value})} style={{...inputStyle, resize:'none'}} placeholder="Resumo do projeto..." />
                           </div>
                           <div>
-                              <label style={labelStyle}>Observações Internas (Confidencial)</label>
-                              <textarea rows="8" value={form.observacoes} onChange={e => setForm({...form, observacoes: e.target.value})} style={{...inputStyle, resize:'none', background:'#fffbeb', borderColor:'#f59e0b'}} placeholder="Notas importantes para a equipa..." />
+                              <label style={labelStyle}>Observações Internas</label>
+                              <textarea rows="8" value={form.observacoes} onChange={e => setForm({...form, observacoes: e.target.value})} style={{...inputStyle, resize:'none', background:'#fffbeb', borderColor:'#f59e0b'}} placeholder="Notas importantes..." />
                           </div>
                       </div>
                     )}
 
                   </fieldset>
 
+                  {/* FOOTER DO MODAL COM O BOTÃO DE APAGAR! */}
                   {!isViewOnly && (
-                      <div style={{display:'flex', gap:'15px', marginTop:'30px', paddingTop:'20px', borderTop:'1px solid #e2e8f0'}}>
-                          <button type="button" onClick={() => setShowModal(false)} style={{flex:1, padding:'14px', borderRadius:'10px', border:'1px solid #cbd5e1', background:'white', color:'#64748b', fontWeight:'600', cursor:'pointer'}}>Cancelar</button>
-                          <button type="submit" disabled={isSubmitting} style={{flex:2, padding:'14px', borderRadius:'10px', border:'none', background:'#2563eb', color:'white', fontWeight:'600', cursor:'pointer', boxShadow:'0 4px 6px -1px rgba(37, 99, 235, 0.4)'}}>
-                              {isSubmitting ? "A guardar..." : (editId ? "💾 Guardar Alterações" : "🚀 Criar Projeto")}
-                          </button>
+                      <div style={{display:'flex', gap:'15px', marginTop:'30px', paddingTop:'20px', borderTop:'1px solid #e2e8f0', justifyContent: 'space-between'}}>
+                          
+                          {/* Lado Esquerdo: Botão de Apagar (Apenas aparece se estivermos a editar) */}
+                          <div>
+                              {editId && (
+                                  <button type="button" onClick={handleDeleteProjeto} style={{padding:'14px 20px', borderRadius:'10px', border:'none', background:'#fee2e2', color:'#ef4444', fontWeight:'600', cursor:'pointer', transition:'0.2s'}}>
+                                      🗑️ Apagar Projeto
+                                  </button>
+                              )}
+                          </div>
+
+                          {/* Lado Direito: Guardar / Cancelar */}
+                          <div style={{display:'flex', gap:'15px'}}>
+                              <button type="button" onClick={() => setShowModal(false)} style={{padding:'14px 20px', borderRadius:'10px', border:'1px solid #cbd5e1', background:'white', color:'#64748b', fontWeight:'600', cursor:'pointer'}}>Cancelar</button>
+                              <button type="submit" disabled={isSubmitting} style={{padding:'14px 30px', borderRadius:'10px', border:'none', background:'#2563eb', color:'white', fontWeight:'600', cursor:'pointer', boxShadow:'0 4px 6px -1px rgba(37, 99, 235, 0.4)'}}>
+                                  {isSubmitting ? "A guardar..." : (editId ? "💾 Guardar" : "🚀 Criar Projeto")}
+                              </button>
+                          </div>
                       </div>
                   )}
                 </form>

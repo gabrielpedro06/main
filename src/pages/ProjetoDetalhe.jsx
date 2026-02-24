@@ -14,12 +14,11 @@ export default function ProjetoDetalhe() {
   
   const [projeto, setProjeto] = useState(null);
   const [atividades, setAtividades] = useState([]);
-  const [logs, setLogs] = useState([]); // Guarda todos os registos de tempo do projeto
+  const [logs, setLogs] = useState([]); 
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("atividades");
   const [notification, setNotification] = useState(null);
   
-  // CRONÓMETRO GLOBAL
   const [activeLog, setActiveLog] = useState(null);
 
   // Estados UI - Visão Geral
@@ -28,13 +27,12 @@ export default function ProjetoDetalhe() {
   const [clientes, setClientes] = useState([]);
   const [staff, setStaff] = useState([]);
 
-  // Estados UI - Atividades e Tarefas
   const [expandedTasks, setExpandedTasks] = useState({});
   const [novaAtividadeNome, setNovaAtividadeNome] = useState("");
   const [novaTarefaNome, setNovaTarefaNome] = useState({ ativId: null, nome: "" });
   const [novaSubtarefaNome, setNovaSubtarefaNome] = useState({ tarId: null, nome: "" });
 
-  // MODAIS AVANÇADOS
+  // MODAIS
   const [atividadeModal, setAtividadeModal] = useState({ show: false, data: null });
   const [tarefaModal, setTarefaModal] = useState({ show: false, data: null, atividadeNome: '' });
   const [subtarefaModal, setSubtarefaModal] = useState({ show: false, data: null, tarefaNome: '' }); 
@@ -70,12 +68,13 @@ export default function ProjetoDetalhe() {
     const { data: ativData, error: ativError } = await supabase
         .from("atividades")
         .select(`
-            id, titulo, estado, responsavel_id, data_inicio, data_fim, investimento, incentivo, descricao, observacoes,
-            tarefas(id, titulo, estado, responsavel_id, data_inicio, data_fim, prioridade, descricao, 
-                subtarefas(id, titulo, estado, data_fim)
+            id, titulo, estado, responsavel_id, data_inicio, data_fim, investimento, incentivo, descricao, observacoes, created_at, ordem,
+            tarefas(id, titulo, estado, responsavel_id, data_inicio, data_fim, prioridade, descricao, created_at, ordem,
+                subtarefas(id, titulo, estado, data_fim, created_at, ordem)
             )
         `)
         .eq("projeto_id", id)
+        .order("ordem", { ascending: true }) 
         .order("created_at", { ascending: true });
 
     if (ativError) {
@@ -84,31 +83,40 @@ export default function ProjetoDetalhe() {
     } else if (ativData) {
         const sortedData = ativData.map(a => ({
             ...a,
-            tarefas: (a.tarefas || []).sort((t1, t2) => new Date(t1.created_at) - new Date(t2.created_at)).map(t => ({
+            tarefas: (a.tarefas || []).sort((t1, t2) => {
+                if (t1.ordem != null && t2.ordem != null && t1.ordem !== t2.ordem) return t1.ordem - t2.ordem;
+                const d1 = new Date(t1.created_at).getTime();
+                const d2 = new Date(t2.created_at).getTime();
+                if (d1 !== d2) return d1 - d2;
+                return t1.id.localeCompare(t2.id);
+            }).map(t => ({
                 ...t,
-                subtarefas: (t.subtarefas || []).sort((s1, s2) => new Date(s1.created_at) - new Date(s2.created_at))
+                subtarefas: (t.subtarefas || []).sort((s1, s2) => {
+                    if (s1.ordem != null && s2.ordem != null && s1.ordem !== s2.ordem) return s1.ordem - s2.ordem;
+                    const d1 = new Date(s1.created_at).getTime();
+                    const d2 = new Date(s2.created_at).getTime();
+                    if (d1 !== d2) return d1 - d2;
+                    return s1.id.localeCompare(s2.id);
+                })
             }))
         }));
         setAtividades(sortedData);
     }
 
-    // BUSCAR TODOS OS TEMPOS DESTE PROJETO PARA FAZER CONTAS
     const { data: logsData } = await supabase.from("task_logs").select("*").eq("projeto_id", id);
     if (logsData) setLogs(logsData);
     
     setLoading(false);
   }
 
-  // --- MATEMÁTICA DOS TEMPOS ---
+  // --- MATEMÁTICA DOS TEMPOS E DATAS INTELIGENTES ---
   const getTaskTime = (taskId) => {
       return logs.filter(l => l.task_id === taskId).reduce((acc, curr) => acc + (curr.duration_minutes || 0), 0);
   };
   const getActivityTime = (ativ) => {
       if (ativ.tarefas?.length > 0) {
-          // Se tem tarefas, soma o tempo das tarefas
           return ativ.tarefas.reduce((acc, t) => acc + getTaskTime(t.id), 0);
       } else {
-          // Se não tem tarefas, conta o tempo direto da atividade
           return logs.filter(l => l.atividade_id === ativ.id).reduce((acc, curr) => acc + (curr.duration_minutes || 0), 0);
       }
   };
@@ -121,23 +129,63 @@ export default function ProjetoDetalhe() {
       return h > 0 ? `${h}h ${m}m` : `${m} min`;
   };
 
-  // --- CRONÓMETRO (NOVO MOTOR PARA TAREFAS E ATIVIDADES) ---
+  // 💡 NOVA FUNÇÃO: BADGE DE DATAS E PRAZOS
+  const renderDeadline = (dateString, isCompleted, isLarge = false) => {
+      if (!dateString) return null;
+      
+      const deadline = new Date(dateString);
+      deadline.setHours(0,0,0,0);
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      
+      const diffTime = deadline.getTime() - today.getTime();
+      const diffDays = Math.round(diffTime / (1000 * 3600 * 24));
+      const dateFormatted = deadline.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
+      
+      let bg = '#f1f5f9';
+      let color = '#64748b';
+      let text = `📅 ${dateFormatted}`;
+      
+      if (isCompleted) {
+          bg = '#f8fafc'; color = '#94a3b8'; text = `✔️ ${dateFormatted}`;
+      } else if (diffDays < 0) {
+          bg = '#fee2e2'; color = '#ef4444'; text = `🔴 ${dateFormatted} (Atraso: ${Math.abs(diffDays)}d)`;
+      } else if (diffDays === 0) {
+          bg = '#fef3c7'; color = '#d97706'; text = `⚠️ HOJE`;
+      } else if (diffDays <= 3) {
+          bg = '#ffedd5'; color = '#ea580c'; text = `⏳ ${dateFormatted} (${diffDays}d)`;
+      } else {
+          text = `📅 ${dateFormatted} (${diffDays}d)`;
+      }
+
+      return (
+          <span style={{
+              fontSize: isLarge ? '0.75rem' : '0.65rem', 
+              background: bg, color: color, 
+              padding: isLarge ? '4px 8px' : '2px 6px', 
+              borderRadius: '6px', fontWeight: 'bold',
+              display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap'
+          }}>
+              {text}
+          </span>
+      );
+  };
+
+  // --- CRONÓMETRO ---
   async function handleToggleTimer(targetId, type) {
       if (activeLog) {
           const isSameTarget = (type === 'task' && activeLog.task_id === targetId) || (type === 'activity' && activeLog.atividade_id === targetId);
           
           if (isSameTarget) {
-              // PARAR
               const diffMins = Math.max(1, Math.floor((new Date() - new Date(activeLog.start_time)) / 60000));
               await supabase.from("task_logs").update({ end_time: new Date().toISOString(), duration_minutes: diffMins }).eq("id", activeLog.id);
               setActiveLog(null);
               showToast(`Tempo guardado: ${diffMins} min.`);
-              fetchProjetoDetails(); // Atualiza os tempos visualmente
+              fetchProjetoDetails(); 
           } else {
               showToast("Já tens um cronómetro ativo noutro local! Pára-o primeiro.", "error");
           }
       } else {
-          // INICIAR
           const payload = { user_id: user.id, projeto_id: id, start_time: new Date().toISOString() };
           if (type === 'task') payload.task_id = targetId;
           else payload.atividade_id = targetId;
@@ -147,21 +195,29 @@ export default function ProjetoDetalhe() {
       }
   }
 
-  // --- ATUALIZAÇÕES DE ESTADO RÁPIDAS ---
+  // --- ATUALIZAÇÕES DE ESTADO (SEM LOADING GLOBAL PARA NÃO PISCAR) ---
   async function toggleAtividadeStatus(ativId, estadoAtual) {
       const novoEstado = estadoAtual === 'concluido' ? 'pendente' : 'concluido';
+      setAtividades(prev => prev.map(a => a.id === ativId ? {...a, estado: novoEstado} : a));
       await supabase.from("atividades").update({ estado: novoEstado }).eq("id", ativId);
-      fetchProjetoDetails(); 
   }
+
   async function toggleTarefaStatus(tarefaId, estadoAtual) {
       const novoEstado = estadoAtual === 'concluido' ? 'pendente' : 'concluido';
+      setAtividades(prev => prev.map(a => ({
+          ...a, tarefas: a.tarefas.map(t => t.id === tarefaId ? {...t, estado: novoEstado} : t)
+      })));
       await supabase.from("tarefas").update({ estado: novoEstado }).eq("id", tarefaId);
-      fetchProjetoDetails(); 
   }
+
   async function toggleSubtarefaStatus(subId, estadoAtual) {
       const novoEstado = estadoAtual === 'concluido' ? 'pendente' : 'concluido';
+      setAtividades(prev => prev.map(a => ({
+          ...a, tarefas: a.tarefas.map(t => ({
+              ...t, subtarefas: t.subtarefas.map(s => s.id === subId ? {...s, estado: novoEstado} : s)
+          }))
+      })));
       await supabase.from("subtarefas").update({ estado: novoEstado }).eq("id", subId);
-      fetchProjetoDetails(); 
   }
 
   // --- ATUALIZAR MODAIS AVANÇADOS ---
@@ -369,7 +425,10 @@ export default function ProjetoDetalhe() {
                                     <h3 style={{margin: 0, color: isAtivDone ? '#94a3b8' : '#0f172a', textDecoration: isAtivDone ? 'line-through' : 'none', fontSize: '1.1rem', fontWeight: '700'}}>
                                         {ativ.titulo}
                                     </h3>
-                                    <button onClick={() => setAtividadeModal({show: true, data: ativ})} style={{background:'none', border:'none', color:'#3b82f6', cursor:'pointer', fontSize:'0.9rem'}} title="Editar Detalhes">✏️</button>
+                                    {/* BADGE DATA INTELIGENTE - ATIVIDADE */}
+                                    {renderDeadline(ativ.data_fim, isAtivDone, true)}
+                                    
+                                    <button onClick={() => setAtividadeModal({show: true, data: ativ})} style={{background:'none', border:'none', color:'#3b82f6', cursor:'pointer', fontSize:'0.9rem'}} title="Editar Atividade">✏️</button>
                                 </div>
                             </div>
 
@@ -416,7 +475,10 @@ export default function ProjetoDetalhe() {
                                                 <div style={{display: 'flex', gap: '6px', marginLeft: '10px'}}>
                                                     {tar.prioridade === 'Alta' || tar.prioridade === 'Urgente' ? <span style={{fontSize: '0.65rem', background: '#fee2e2', color: '#ef4444', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold'}}>{tar.prioridade}</span> : null}
                                                     {respName && <span style={{fontSize: '0.65rem', background: '#eff6ff', color: '#2563eb', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold'}}>{respName.split(' ')[0]}</span>}
-                                                    {tar.data_fim && <span style={{fontSize: '0.65rem', background: new Date(tar.data_fim) < new Date() ? '#fee2e2' : '#f1f5f9', color: new Date(tar.data_fim) < new Date() ? '#ef4444' : '#64748b', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold'}}>{new Date(tar.data_fim).toLocaleDateString('pt-PT').slice(0,5)}</span>}
+                                                    
+                                                    {/* BADGE DATA INTELIGENTE - TAREFA */}
+                                                    {renderDeadline(tar.data_fim, isTarDone)}
+                                                    
                                                     {hasSubs && <span style={{fontSize: '0.65rem', background: subsDone === tar.subtarefas.length ? '#dcfce7' : '#f1f5f9', color: subsDone === tar.subtarefas.length ? '#16a34a' : '#64748b', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold'}}>📋 {subsDone}/{tar.subtarefas.length}</span>}
                                                 </div>
                                             </div>
@@ -435,23 +497,26 @@ export default function ProjetoDetalhe() {
                                         {/* ÁREA EXPANDIDA (CHECKLISTS) */}
                                         {isExpanded && (
                                             <div style={{padding: '0 15px 10px 45px', background: 'white', borderTop: '1px dashed #f1f5f9'}}>
-                                                {tar.subtarefas?.map(sub => (
-                                                    <div key={sub.id} style={{display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 0', opacity: sub.estado === 'concluido' ? 0.5 : 1}}>
-                                                        <input type="checkbox" checked={sub.estado === 'concluido'} onChange={() => toggleSubtarefaStatus(sub.id, sub.estado)} style={{width: '14px', height: '14px', cursor: 'pointer', accentColor: '#3b82f6'}} />
-                                                        
-                                                        <span onClick={() => setSubtarefaModal({show: true, data: sub, tarefaNome: tar.titulo})} style={{fontSize: '0.85rem', color: '#475569', textDecoration: sub.estado === 'concluido' ? 'line-through' : 'none', cursor: 'pointer'}} className="hover-underline" title="Editar Sub-tarefa">
-                                                            {sub.titulo}
-                                                        </span>
+                                                {tar.subtarefas?.map(sub => {
+                                                    const isSubCompleted = sub.estado === 'concluido';
+                                                    
+                                                    return (
+                                                        <div key={sub.id} style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', opacity: sub.estado === 'concluido' ? 0.5 : 1}}>
+                                                            <div style={{display: 'flex', alignItems: 'center', gap: '10px', flex: 1}}>
+                                                                <input type="checkbox" checked={sub.estado === 'concluido'} onChange={() => toggleSubtarefaStatus(sub.id, sub.estado)} style={{width: '14px', height: '14px', cursor: 'pointer', accentColor: '#3b82f6'}} />
+                                                                
+                                                                <span onClick={() => setSubtarefaModal({show: true, data: sub, tarefaNome: tar.titulo})} style={{fontSize: '0.85rem', color: '#475569', textDecoration: sub.estado === 'concluido' ? 'line-through' : 'none', cursor: 'pointer'}} className="hover-underline" title="Editar Sub-tarefa">
+                                                                    {sub.titulo}
+                                                                </span>
 
-                                                        {sub.data_fim && (
-                                                            <span style={{fontSize: '0.6rem', background: new Date(sub.data_fim) < new Date() ? '#fee2e2' : '#f1f5f9', color: new Date(sub.data_fim) < new Date() ? '#ef4444' : '#64748b', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold'}}>
-                                                                {new Date(sub.data_fim).toLocaleDateString('pt-PT').slice(0,5)}
-                                                            </span>
-                                                        )}
+                                                                {/* BADGE DATA INTELIGENTE - SUBTAREFA */}
+                                                                {renderDeadline(sub.data_fim, isSubCompleted)}
+                                                            </div>
 
-                                                        <button onClick={() => handleDeleteItem("subtarefas", sub.id)} style={{background:'none', border:'none', color:'#ef4444', cursor:'pointer', opacity:0.3, marginLeft: 'auto', fontSize:'0.75rem'}} className="hover-red">✕</button>
-                                                    </div>
-                                                ))}
+                                                            <button onClick={() => handleDeleteItem("subtarefas", sub.id)} style={{background:'none', border:'none', color:'#ef4444', cursor:'pointer', opacity:0.3, marginLeft: 'auto', fontSize:'0.75rem'}} className="hover-red">✕</button>
+                                                        </div>
+                                                    )
+                                                })}
                                                 <form onSubmit={(e) => handleAddSubtarefa(e, tar.id)} style={{marginTop: '6px'}}>
                                                     <input type="text" placeholder="+ Sub-tarefa (Enter)" value={novaSubtarefaNome.tarId === tar.id ? novaSubtarefaNome.nome : ""} onChange={e => setNovaSubtarefaNome({ tarId: tar.id, nome: e.target.value })} style={{width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px dashed #cbd5e1', background: '#f8fafc', outline: 'none', fontSize: '0.8rem', color: '#64748b'}}/>
                                                 </form>
@@ -479,7 +544,7 @@ export default function ProjetoDetalhe() {
         )}
 
         {/* =========================================
-            ABA 2: RELATÓRIO DE TEMPOS (NOVIDADE)
+            ABA 2: RELATÓRIO DE TEMPOS
         ========================================= */}
         {activeTab === 'relatorio' && (
             <div style={{background: 'white', padding: '30px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0'}}>
@@ -513,7 +578,7 @@ export default function ProjetoDetalhe() {
                                 </tr>
                                 {ativ.tarefas?.map(tar => {
                                     const time = getTaskTime(tar.id);
-                                    if (time === 0) return null; // Esconde tarefas que não têm tempo registado
+                                    if (time === 0) return null; 
                                     return (
                                         <tr key={tar.id} style={{borderBottom: '1px solid #f1f5f9'}}>
                                             <td style={{padding: '10px 12px 10px 40px', color: '#475569', fontSize: '0.9rem'}}>↳ {tar.titulo}</td>
