@@ -27,7 +27,10 @@ export default function ProjetoDetalhe() {
   const [clientes, setClientes] = useState([]);
   const [staff, setStaff] = useState([]);
 
+  // Estados de Expansão (Minimize/Maximize)
   const [expandedTasks, setExpandedTasks] = useState({});
+  const [collapsedAtivs, setCollapsedAtivs] = useState({}); // 💡 NOVO: Controla as Atividades minimizadas
+
   const [novaAtividadeNome, setNovaAtividadeNome] = useState("");
   const [novaTarefaNome, setNovaTarefaNome] = useState({ ativId: null, nome: "" });
   const [novaSubtarefaNome, setNovaSubtarefaNome] = useState({ tarId: null, nome: "" });
@@ -129,7 +132,6 @@ export default function ProjetoDetalhe() {
       return h > 0 ? `${h}h ${m}m` : `${m} min`;
   };
 
-  // 💡 NOVA FUNÇÃO: BADGE DE DATAS E PRAZOS
   const renderDeadline = (dateString, isCompleted, isLarge = false) => {
       if (!dateString) return null;
       
@@ -171,7 +173,6 @@ export default function ProjetoDetalhe() {
       );
   };
 
-  // --- CRONÓMETRO ---
   async function handleToggleTimer(targetId, type) {
       if (activeLog) {
           const isSameTarget = (type === 'task' && activeLog.task_id === targetId) || (type === 'activity' && activeLog.atividade_id === targetId);
@@ -195,7 +196,6 @@ export default function ProjetoDetalhe() {
       }
   }
 
-  // --- ATUALIZAÇÕES DE ESTADO (SEM LOADING GLOBAL PARA NÃO PISCAR) ---
   async function toggleAtividadeStatus(ativId, estadoAtual) {
       const novoEstado = estadoAtual === 'concluido' ? 'pendente' : 'concluido';
       setAtividades(prev => prev.map(a => a.id === ativId ? {...a, estado: novoEstado} : a));
@@ -220,7 +220,6 @@ export default function ProjetoDetalhe() {
       await supabase.from("subtarefas").update({ estado: novoEstado }).eq("id", subId);
   }
 
-  // --- ATUALIZAR MODAIS AVANÇADOS ---
   async function handleSaveAtividade(e) {
       e.preventDefault();
       const payload = { ...atividadeModal.data };
@@ -260,7 +259,6 @@ export default function ProjetoDetalhe() {
       } else showToast(error.message, "error");
   }
 
-  // --- ATUALIZAR VISÃO GERAL ---
   async function handleUpdateProjeto(e) {
       e.preventDefault();
       try {
@@ -279,7 +277,6 @@ export default function ProjetoDetalhe() {
       } catch (err) { showToast("Erro: " + err.message, "error"); }
   }
 
-  // --- ADIÇÃO RÁPIDA ---
   async function handleAddAtividade(e) {
       e.preventDefault();
       if(!novaAtividadeNome.trim()) return;
@@ -305,13 +302,25 @@ export default function ProjetoDetalhe() {
       fetchProjetoDetails();
   }
 
+  // 💡 FUNÇÕES DE TOGGLE (Expandir/Recolher)
   const toggleExpand = (taskId) => {
       setExpandedTasks(prev => ({ ...prev, [taskId]: !prev[taskId] }));
+  };
+  const toggleCollapseAtiv = (ativId) => {
+      setCollapsedAtivs(prev => ({ ...prev, [ativId]: !prev[ativId] }));
+  };
+
+  const getProjectStatusTheme = (estado) => {
+      if(estado === 'concluido') return { bg: '#dcfce7', text: '#16a34a', border: '#bbf7d0', dot: '#16a34a' };
+      if(estado === 'em_curso') return { bg: '#fef3c7', text: '#d97706', border: '#fde68a', dot: '#d97706' };
+      if(estado === 'cancelado') return { bg: '#f1f5f9', text: '#64748b', border: '#e2e8f0', dot: '#64748b' };
+      return { bg: '#eff6ff', text: '#2563eb', border: '#bfdbfe', dot: '#2563eb' }; 
   };
 
   if (loading) return <div className="page-container" style={{display:'flex', justifyContent:'center', alignItems:'center', height:'80vh'}}><div className="pulse-dot-white" style={{background:'#2563eb'}}></div></div>;
   if (!projeto) return <div className="page-container"><p>Projeto não encontrado.</p><button onClick={() => navigate(-1)}>Voltar</button></div>;
 
+  const statusTheme = getProjectStatusTheme(projeto.estado);
   const labelStyle = { display: 'block', marginBottom: '6px', fontSize: '0.75rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' };
   const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', marginBottom: '15px', transition: 'all 0.2s' };
   const sectionTitleStyle = { fontSize: '0.8rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px', marginBottom: '15px', marginTop: '5px' };
@@ -342,52 +351,102 @@ export default function ProjetoDetalhe() {
     <div className="page-container" style={{maxWidth: '1200px', margin: '0 auto', paddingBottom: '50px'}}>
       
       {/* =========================================
-          CABEÇALHO DO PROJETO 
+          NOVO CABEÇALHO DO PROJETO (ESTILO LINEAR/SAAS)
       ========================================= */}
       <div style={{
-          background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', padding: '30px', borderRadius: '16px', color: 'white', marginBottom: '25px', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3)', border: '1px solid rgba(255,255,255,0.05)'
+          position: 'relative', background: 'white', borderRadius: '24px', border: '1px solid #e2e8f0', 
+          padding: '35px 40px', marginBottom: '35px', boxShadow: '0 10px 30px -10px rgba(0,0,0,0.08)', overflow: 'hidden'
       }}>
-        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px'}}>
-            <button onClick={() => navigate('/dashboard/projetos')} style={{background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', transition: 'all 0.2s', fontWeight: '500'}} className="hover-glass">
-                ◀ Voltar aos Projetos
-            </button>
-            <div style={{display: 'flex', gap: '10px', alignItems: 'center'}}>
-                {projeto.codigo_projeto && <span style={{background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 12px', borderRadius: '6px', fontSize: '0.75rem', fontFamily: 'monospace', color: '#cbd5e1', letterSpacing: '0.05em'}}>{projeto.codigo_projeto}</span>}
-                <span style={{
-                    background: projeto.estado === 'concluido' ? 'rgba(16, 185, 129, 0.2)' : (projeto.estado === 'pendente' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(59, 130, 246, 0.2)'), 
-                    border: `1px solid ${projeto.estado === 'concluido' ? '#10b981' : (projeto.estado === 'pendente' ? '#f59e0b' : '#3b82f6')}`,
-                    color: projeto.estado === 'concluido' ? '#34d399' : (projeto.estado === 'pendente' ? '#fbbf24' : '#60a5fa'),
-                    padding: '6px 14px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px',
-                    boxShadow: `0 0 10px -3px ${projeto.estado === 'concluido' ? '#10b981' : (projeto.estado === 'pendente' ? '#f59e0b' : '#3b82f6')}` 
-                }}>
-                    {projeto.estado.replace('_', ' ')}
-                </span>
-            </div>
-        </div>
+          <div style={{
+              position: 'absolute', top: '-50%', right: '-10%', width: '60%', height: '200%',
+              background: `radial-gradient(ellipse at right, ${statusTheme.bg} 0%, transparent 70%)`,
+              opacity: 0.8, pointerEvents: 'none'
+          }}></div>
 
-        <h1 style={{margin: '0 0 15px 0', fontSize: '2.8rem', fontWeight: '800', letterSpacing: '-0.03em', lineHeight: '1.1', background: 'linear-gradient(to right, #fff, #cbd5e1)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'}}>
-            {projeto.titulo}
-        </h1>
-        
-        <div style={{display: 'flex', gap: '25px', fontSize: '0.9rem', color: '#94a3b8', flexWrap: 'wrap', alignItems: 'center'}}>
-            <div style={{display:'flex', alignItems:'center', gap:'6px', background: 'rgba(255,255,255,0.03)', padding: '4px 10px', borderRadius: '6px'}}>🏢 <span style={{color:'#e2e8f0', fontWeight:'500'}}>{projeto.clientes?.marca}</span></div>
-            <div style={{display:'flex', alignItems:'center', gap:'6px'}}>🏷️ <span style={{color:'#cbd5e1'}}>{projeto.tipos_projeto?.nome || 'Customizado'}</span></div>
-            <div style={{display:'flex', alignItems:'center', gap:'6px'}}>👤 <span style={{color:'#cbd5e1'}}>{projeto.profiles?.nome || 'Sem Responsável'}</span></div>
-            <div style={{display:'flex', alignItems:'center', gap:'6px'}}>🎯 <span style={{color: projeto.data_fim && new Date(projeto.data_fim) < new Date() ? '#fca5a5' : '#cbd5e1', fontWeight: projeto.data_fim && new Date(projeto.data_fim) < new Date() ? 'bold' : 'normal'}}>{projeto.data_fim ? new Date(projeto.data_fim).toLocaleDateString('pt-PT') : 'Sem Prazo'}</span></div>
-        </div>
+          <div style={{position: 'relative', zIndex: 1}}>
+              
+              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px', flexWrap: 'wrap', gap: '15px'}}>
+                  <button onClick={() => navigate('/dashboard/projetos')} style={{background: 'transparent', border: 'none', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', fontWeight: '700', cursor: 'pointer', padding: 0}} className="hover-blue-text">
+                      <span style={{background: '#f1f5f9', borderRadius: '8px', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '0.2s'}}>◀</span> 
+                      Voltar ao Portfólio
+                  </button>
+
+                  <div style={{display: 'flex', gap: '12px', alignItems: 'center'}}>
+                      {projeto.codigo_projeto && (
+                          <span style={{background: 'white', border: '1px solid #cbd5e1', color: '#475569', padding: '6px 12px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '800', letterSpacing: '0.05em', boxShadow: '0 2px 4px rgba(0,0,0,0.02)'}}>
+                              {projeto.codigo_projeto}
+                          </span>
+                      )}
+                      <span style={{
+                          background: statusTheme.bg, color: statusTheme.text, border: `1px solid ${statusTheme.border}`,
+                          padding: '6px 14px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em',
+                          display: 'flex', alignItems: 'center', gap: '6px'
+                      }}>
+                          <span style={{width: '6px', height: '6px', borderRadius: '50%', background: statusTheme.dot}}></span>
+                          {projeto.estado.replace('_', ' ')}
+                      </span>
+                  </div>
+              </div>
+
+              <h1 style={{margin: '0 0 30px 0', fontSize: '2.5rem', fontWeight: '900', color: '#0f172a', letterSpacing: '-0.04em', lineHeight: '1.2', maxWidth: '85%'}}>
+                  {projeto.titulo}
+              </h1>
+
+              <div style={{display: 'flex', gap: '25px', flexWrap: 'wrap', alignItems: 'center'}}>
+                  <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
+                      <div style={{width: '40px', height: '40px', borderRadius: '10px', background: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)'}}>🏢</div>
+                      <div>
+                          <div style={{fontSize: '0.65rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', marginBottom: '2px', letterSpacing: '0.05em'}}>Cliente / Local</div>
+                          <div style={{fontSize: '0.95rem', color: '#1e293b', fontWeight: '700'}}>{projeto.cliente_texto || projeto.clientes?.marca || 'Não Definido'}</div>
+                      </div>
+                  </div>
+
+                  <div style={{width: '1px', height: '35px', background: '#e2e8f0'}}></div>
+
+                  <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
+                      <div style={{width: '40px', height: '40px', borderRadius: '10px', background: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)'}}>🏷️</div>
+                      <div>
+                          <div style={{fontSize: '0.65rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', marginBottom: '2px', letterSpacing: '0.05em'}}>Tipo / Área</div>
+                          <div style={{fontSize: '0.95rem', color: '#1e293b', fontWeight: '700'}}>{projeto.tipos_projeto?.nome || 'Customizado'}</div>
+                      </div>
+                  </div>
+
+                  <div style={{width: '1px', height: '35px', background: '#e2e8f0'}}></div>
+
+                  <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
+                      <div style={{width: '40px', height: '40px', borderRadius: '10px', background: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)'}}>👤</div>
+                      <div>
+                          <div style={{fontSize: '0.65rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', marginBottom: '2px', letterSpacing: '0.05em'}}>Responsável</div>
+                          <div style={{fontSize: '0.95rem', color: '#1e293b', fontWeight: '700'}}>{projeto.profiles?.nome || 'Não Atribuído'}</div>
+                      </div>
+                  </div>
+
+                  <div style={{width: '1px', height: '35px', background: '#e2e8f0'}}></div>
+
+                  <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
+                      <div style={{width: '40px', height: '40px', borderRadius: '10px', background: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)'}}>🎯</div>
+                      <div>
+                          <div style={{fontSize: '0.65rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', marginBottom: '2px', letterSpacing: '0.05em'}}>Deadline Final</div>
+                          <div style={{fontSize: '0.95rem', color: (projeto.data_fim && new Date(projeto.data_fim) < new Date() && projeto.estado !== 'concluido') ? '#ef4444' : '#1e293b', fontWeight: '700'}}>
+                              {projeto.data_fim ? new Date(projeto.data_fim).toLocaleDateString('pt-PT') : 'Sem Prazo'}
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </div>
       </div>
 
       {/* NAVEGAÇÃO INTERNA */}
-      <div style={{display: 'flex', gap: '5px', marginBottom: '20px', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px'}}>
-        <button style={{background: 'none', border: 'none', fontSize: '0.95rem', fontWeight: activeTab === 'atividades' ? '700' : '600', color: activeTab === 'atividades' ? '#2563eb' : '#64748b', cursor: 'pointer', padding: '10px 20px', position: 'relative'}} onClick={() => setActiveTab('atividades')} className="tab-hover">
+      <div style={{display: 'flex', gap: '5px', marginBottom: '25px', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px', overflowX: 'auto', whiteSpace: 'nowrap'}}>
+        <button style={{background: 'none', border: 'none', fontSize: '0.95rem', fontWeight: activeTab === 'atividades' ? '800' : '600', color: activeTab === 'atividades' ? '#2563eb' : '#64748b', cursor: 'pointer', padding: '10px 20px', position: 'relative', transition: '0.2s'}} onClick={() => setActiveTab('atividades')} className="tab-hover">
             📋 Board de Atividades
             {activeTab === 'atividades' && <div style={{position:'absolute', bottom:'-12px', left:0, right:0, height:'3px', background:'#2563eb', borderRadius:'3px 3px 0 0'}} />}
         </button>
-        <button style={{background: 'none', border: 'none', fontSize: '0.95rem', fontWeight: activeTab === 'relatorio' ? '700' : '600', color: activeTab === 'relatorio' ? '#2563eb' : '#64748b', cursor: 'pointer', padding: '10px 20px', position: 'relative'}} onClick={() => setActiveTab('relatorio')} className="tab-hover">
+        <button style={{background: 'none', border: 'none', fontSize: '0.95rem', fontWeight: activeTab === 'relatorio' ? '800' : '600', color: activeTab === 'relatorio' ? '#2563eb' : '#64748b', cursor: 'pointer', padding: '10px 20px', position: 'relative', transition: '0.2s'}} onClick={() => setActiveTab('relatorio')} className="tab-hover">
             ⏱️ Relatório de Tempos
             {activeTab === 'relatorio' && <div style={{position:'absolute', bottom:'-12px', left:0, right:0, height:'3px', background:'#2563eb', borderRadius:'3px 3px 0 0'}} />}
         </button>
-        <button style={{background: 'none', border: 'none', fontSize: '0.95rem', fontWeight: activeTab === 'geral' ? '700' : '600', color: activeTab === 'geral' ? '#2563eb' : '#64748b', cursor: 'pointer', padding: '10px 20px', position: 'relative'}} onClick={() => setActiveTab('geral')} className="tab-hover">
+        <button style={{background: 'none', border: 'none', fontSize: '0.95rem', fontWeight: activeTab === 'geral' ? '800' : '600', color: activeTab === 'geral' ? '#2563eb' : '#64748b', cursor: 'pointer', padding: '10px 20px', position: 'relative', transition: '0.2s'}} onClick={() => setActiveTab('geral')} className="tab-hover">
             ⚙️ Configurações e Dados
             {activeTab === 'geral' && <div style={{position:'absolute', bottom:'-12px', left:0, right:0, height:'3px', background:'#2563eb', borderRadius:'3px 3px 0 0'}} />}
         </button>
@@ -399,7 +458,7 @@ export default function ProjetoDetalhe() {
             ABA 1: BOARD DE ATIVIDADES
         ========================================= */}
         {activeTab === 'atividades' && (
-            <div style={{maxWidth: '950px'}}>
+            <div style={{width: '100%'}}>
                 {atividades.map(ativ => {
                     const isAtivDone = ativ.estado === 'concluido';
                     const progresso = ativ.tarefas?.length > 0 ? Math.round((ativ.tarefas.filter(t => t.estado === 'concluido').length / ativ.tarefas.length) * 100) : 0;
@@ -407,6 +466,9 @@ export default function ProjetoDetalhe() {
                     const hasNoTasks = !ativ.tarefas || ativ.tarefas.length === 0;
                     const isAtivTimerActive = activeLog?.atividade_id === ativ.id;
                     const ativTime = getActivityTime(ativ);
+                    
+                    // 💡 LÓGICA DE MINIMIZAR ATIVIDADE
+                    const isCollapsed = collapsedAtivs[ativ.id];
 
                     return (
                     <div key={ativ.id} style={{background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.02)', overflow: 'hidden', opacity: isAtivDone ? 0.6 : 1, transition: 'opacity 0.3s'}}>
@@ -425,7 +487,6 @@ export default function ProjetoDetalhe() {
                                     <h3 style={{margin: 0, color: isAtivDone ? '#94a3b8' : '#0f172a', textDecoration: isAtivDone ? 'line-through' : 'none', fontSize: '1.1rem', fontWeight: '700'}}>
                                         {ativ.titulo}
                                     </h3>
-                                    {/* BADGE DATA INTELIGENTE - ATIVIDADE */}
                                     {renderDeadline(ativ.data_fim, isAtivDone, true)}
                                     
                                     <button onClick={() => setAtividadeModal({show: true, data: ativ})} style={{background:'none', border:'none', color:'#3b82f6', cursor:'pointer', fontSize:'0.9rem'}} title="Editar Atividade">✏️</button>
@@ -443,12 +504,23 @@ export default function ProjetoDetalhe() {
                                     </button>
                                 )}
 
+                                {/* 💡 BOTÃO PARA RECOLHER/EXPANDIR A ATIVIDADE */}
+                                {!isAtivDone && !hasNoTasks && (
+                                    <button 
+                                        onClick={() => toggleCollapseAtiv(ativ.id)} 
+                                        style={{background: 'transparent', border: '1px solid #cbd5e1', color: '#64748b', padding: '4px 10px', borderRadius: '12px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px', transition: '0.2s'}} 
+                                        className="hover-shadow"
+                                    >
+                                        {isCollapsed ? '▼ Mostrar' : '▲ Recolher'}
+                                    </button>
+                                )}
+
                                 <button onClick={() => handleDeleteItem("atividades", ativ.id)} style={{background:'none', border:'none', color:'#ef4444', cursor:'pointer', opacity:0.3}} className="hover-red">🗑</button>
                             </div>
                         </div>
 
-                        {/* LISTA DE TAREFAS */}
-                        {!isAtivDone && (
+                        {/* LISTA DE TAREFAS (SÓ MOSTRA SE NÃO ESTIVER MINIMIZADO) */}
+                        {!isAtivDone && !isCollapsed && (
                             <div style={{padding: '10px 20px 20px 20px', background: '#f8fafc'}}>
                                 {ativ.tarefas?.map(tar => {
                                     const isTarDone = tar.estado === 'concluido';
@@ -475,10 +547,7 @@ export default function ProjetoDetalhe() {
                                                 <div style={{display: 'flex', gap: '6px', marginLeft: '10px'}}>
                                                     {tar.prioridade === 'Alta' || tar.prioridade === 'Urgente' ? <span style={{fontSize: '0.65rem', background: '#fee2e2', color: '#ef4444', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold'}}>{tar.prioridade}</span> : null}
                                                     {respName && <span style={{fontSize: '0.65rem', background: '#eff6ff', color: '#2563eb', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold'}}>{respName.split(' ')[0]}</span>}
-                                                    
-                                                    {/* BADGE DATA INTELIGENTE - TAREFA */}
                                                     {renderDeadline(tar.data_fim, isTarDone)}
-                                                    
                                                     {hasSubs && <span style={{fontSize: '0.65rem', background: subsDone === tar.subtarefas.length ? '#dcfce7' : '#f1f5f9', color: subsDone === tar.subtarefas.length ? '#16a34a' : '#64748b', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold'}}>📋 {subsDone}/{tar.subtarefas.length}</span>}
                                                 </div>
                                             </div>
@@ -509,7 +578,6 @@ export default function ProjetoDetalhe() {
                                                                     {sub.titulo}
                                                                 </span>
 
-                                                                {/* BADGE DATA INTELIGENTE - SUBTAREFA */}
                                                                 {renderDeadline(sub.data_fim, isSubCompleted)}
                                                             </div>
 
@@ -536,7 +604,7 @@ export default function ProjetoDetalhe() {
 
                 <form onSubmit={handleAddAtividade} style={{marginTop: '25px', background: 'transparent', padding: '0'}}>
                     <div style={{display: 'flex', gap: '10px'}}>
-                        <input type="text" placeholder="+ Nome de uma nova Atividade (Agrupador)..." value={novaAtividadeNome} onChange={e => setNovaAtividadeNome(e.target.value)} style={{flex: 1, padding: '12px 15px', borderRadius: '8px', border: '1px dashed #cbd5e1', background: 'rgba(255,255,255,0.5)', outline: 'none', fontSize: '0.95rem', color: '#1e293b'}} />
+                        <input type="text" placeholder="+ Nome de uma nova Atividade (Agrupador)..." value={novaAtividadeNome} onChange={e => setNovaAtividadeNome(e.target.value)} style={{flex: 1, padding: '12px 15px', borderRadius: '8px', border: '1px dashed #cbd5e1', background: 'white', outline: 'none', fontSize: '0.95rem', color: '#1e293b'}} />
                         <button type="submit" className="btn-primary" style={{borderRadius: '8px', padding: '0 20px', fontSize: '0.9rem', background: '#64748b'}}>Criar Bloco</button>
                     </div>
                 </form>
@@ -618,10 +686,13 @@ export default function ProjetoDetalhe() {
                             <input type="text" value={formGeral.titulo || ''} onChange={e => setFormGeral({...formGeral, titulo: e.target.value})} style={{...inputStyle, fontWeight: 'bold', color: '#0f172a'}} />
                             
                             <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
-                                <div><label style={labelStyle}>Cliente</label>
-                                    <select value={formGeral.cliente_id || ''} onChange={e => setFormGeral({...formGeral, cliente_id: e.target.value})} style={inputStyle}>
-                                        <option value="">- NENHUM -</option>{clientes.map(c => <option key={c.id} value={c.id}>{c.marca}</option>)}
-                                    </select>
+                                <div><label style={labelStyle}>Cliente (Opção Livre ou Registado)</label>
+                                    <div style={{display:'flex', gap:'10px'}}>
+                                        <select value={formGeral.cliente_id || ''} onChange={e => setFormGeral({...formGeral, cliente_id: e.target.value, cliente_texto: ""})} style={{...inputStyle, flex:1}}>
+                                            <option value="">- NENHUM -</option>{clientes.map(c => <option key={c.id} value={c.id}>{c.marca}</option>)}
+                                        </select>
+                                        <input type="text" placeholder="Texto livre" value={formGeral.cliente_texto || ''} onChange={e => setFormGeral({...formGeral, cliente_texto: e.target.value, cliente_id: null})} style={{...inputStyle, flex:1}} />
+                                    </div>
                                 </div>
                                 <div><label style={labelStyle}>Responsável</label>
                                     <select value={formGeral.responsavel_id || ''} onChange={e => setFormGeral({...formGeral, responsavel_id: e.target.value})} style={inputStyle}>
@@ -836,10 +907,14 @@ export default function ProjetoDetalhe() {
       {notification && <div className={`toast-container ${notification.type}`}>{notification.type === 'success' ? '✅' : '⚠️'} {notification.message}</div>}
       
       <style>{`
-          .hover-glass:hover { background: rgba(255,255,255,0.15) !important; border-color: rgba(255,255,255,0.3) !important; }
+          .hover-blue-text:hover { color: #2563eb !important; }
+          .hover-blue-text:hover span { background: #e0f2fe !important; color: #2563eb !important; }
           .tab-hover:hover { color: #0f172a !important; }
           .hover-red:hover { opacity: 1 !important; color: #dc2626 !important; }
           .hover-underline:hover { text-decoration: underline !important; }
+          
+          /* Animação suave para os botões e painéis */
+          .hover-shadow:hover { transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
           
           /* Botões de Ação na Tabela */
           .btn-icon { background: white; border: 1px solid #cbd5e1; border-radius: 6px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #475569; transition: 0.2s; }

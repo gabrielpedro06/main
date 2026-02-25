@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom"; 
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
 import "./../styles/dashboard.css";
@@ -10,18 +11,14 @@ const ModalPortal = ({ children }) => {
 
 export default function Clientes() {
   const { user, userProfile } = useAuth();
-  const [podeVerAcessos, setPodeVerAcessos] = useState(false);
+  const navigate = useNavigate();
 
+  const [podeVerAcessos, setPodeVerAcessos] = useState(false);
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState("");
-  const [mostrarInativos, setMostrarInativos] = useState(false); // NOVO ESTADO
+  const [mostrarInativos, setMostrarInativos] = useState(false); 
   const [notification, setNotification] = useState(null);
-
-  // --- ESTADOS PARA ORDENAÇÃO E PAGINAÇÃO ---
-  const [sortConfig, setSortConfig] = useState({ key: 'marca', direction: 'asc' });
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const [showModal, setShowModal] = useState(false);
   const [editId, setEditId] = useState(null); 
@@ -33,7 +30,7 @@ export default function Clientes() {
   const [showAddCae, setShowAddCae] = useState(false);
   const [showAddAcesso, setShowAddAcesso] = useState(false);
 
-  // FORMULÁRIO GERAL (Adicionado 'ativo')
+  // FORMULÁRIO GERAL 
   const initialForm = {
     marca: "", nif: "", entidade: "", website: "",
     objeto_social: "", plano: "Standard",
@@ -46,6 +43,9 @@ export default function Clientes() {
   const [moradas, setMoradas] = useState([]);
   const [acessos, setAcessos] = useState([]);
   const [caes, setCaes] = useState([]);
+  
+  // Histórico de Projetos do Cliente
+  const [projetosCliente, setProjetosCliente] = useState([]);
 
   // SUB-FORMS INICIAIS
   const initContacto = { nome_contacto: "", email: "", telefone: "", cargo: "" };
@@ -72,7 +72,7 @@ export default function Clientes() {
     
     const { data: cliData, error: errCli } = await supabase
         .from("clientes")
-        .select("*")
+        .select("*, contactos_cliente(nome_contacto, email, telefone)")
         .order("created_at", { ascending: false });
 
     const { data: morData } = await supabase
@@ -82,7 +82,7 @@ export default function Clientes() {
     if (!errCli && cliData) {
         const clientesComMorada = cliData.map(c => {
             const moradas = morData?.filter(m => m.cliente_id === c.id) || [];
-            return { ...c, moradas_cliente: moradas, ativo: c.ativo !== false }; // garante que o null seja true
+            return { ...c, moradas_cliente: moradas, ativo: c.ativo !== false }; 
         });
         setClientes(clientesComMorada);
     }
@@ -159,26 +159,13 @@ export default function Clientes() {
     }
   }
 
-  // ==========================================
-  // LÓGICA DE PROCESSAMENTO DE DADOS DA TABELA
-  // ==========================================
-
-  const handleSort = (key) => {
-    let direction = 'asc';
-    if (sortConfig.key === key && sortConfig.direction === 'asc') {
-        direction = 'desc';
-    }
-    setSortConfig({ key, direction });
-  };
-
+  // --- LÓGICA DE FILTRAGEM DOS CARTÕES ---
   let processedClientes = [...clientes];
 
-  // Filtro Ativos / Inativos
   if (!mostrarInativos) {
       processedClientes = processedClientes.filter(c => c.ativo === true);
   }
 
-  // Filtro de Texto
   if (busca) {
       const textoBusca = busca.toLowerCase();
       processedClientes = processedClientes.filter(c =>
@@ -186,36 +173,13 @@ export default function Clientes() {
       );
   }
 
-  // Ordenar
-  processedClientes.sort((a, b) => {
-      let valA = '';
-      let valB = '';
+  processedClientes.sort((a, b) => (a.marca || "").localeCompare(b.marca || ""));
 
-      if (sortConfig.key === 'marca') {
-          valA = a.marca?.toLowerCase() || '';
-          valB = b.marca?.toLowerCase() || '';
-      } else if (sortConfig.key === 'concelho') {
-          valA = (a.moradas_cliente?.[0]?.concelho)?.toLowerCase() || '';
-          valB = (b.moradas_cliente?.[0]?.concelho)?.toLowerCase() || '';
-      }
-
-      if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
-      if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
-      return 0;
-  });
-
-  // Paginar
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = processedClientes.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(processedClientes.length / itemsPerPage);
-
-  // ==========================================
-
+  // --- ABRIR MODAIS ---
   function handleNovo() {
     setEditId(null); setIsViewOnly(false);
     setForm(initialForm);
-    setContactos([]); setMoradas([]); setAcessos([]); setCaes([]); 
+    setContactos([]); setMoradas([]); setAcessos([]); setCaes([]); setProjetosCliente([]);
     setPodeVerAcessos(true);
     fecharTodosSubForms();
     setActiveTab("geral");
@@ -260,19 +224,22 @@ export default function Clientes() {
   }
 
   async function fetchSubDados(clienteId) {
-    const [cData, mData, aData, caeData] = await Promise.all([
+    const [cData, mData, aData, caeData, pData] = await Promise.all([
         supabase.from("contactos_cliente").select("*").eq("cliente_id", clienteId),
         supabase.from("moradas_cliente").select("*").eq("cliente_id", clienteId),
         supabase.from("acessos_cliente").select("*").eq("cliente_id", clienteId),
-        supabase.from("caes_cliente").select("*").eq("cliente_id", clienteId)
+        supabase.from("caes_cliente").select("*").eq("cliente_id", clienteId),
+        supabase.from("projetos").select("id, titulo, estado, data_fim, codigo_projeto").eq("cliente_id", clienteId).order('created_at', { ascending: false })
     ]);
-    setContactos(cData.data || []); setMoradas(mData.data || []); setAcessos(aData.data || []); setCaes(caeData.data || []);
+    
+    setContactos(cData.data || []); 
+    setMoradas(mData.data || []); 
+    setAcessos(aData.data || []); 
+    setCaes(caeData.data || []);
+    setProjetosCliente(pData.data || []);
   }
 
-  // --- NOVA FUNÇÃO: DESATIVAR/REATIVAR CLIENTE (Soft Delete) ---
   async function handleToggleAtivo(id, estadoAtual) {
-    if (isViewOnly) return;
-    
     const novoEstado = !estadoAtual;
     const acaoTexto = novoEstado ? "Reativar" : "Desativar";
 
@@ -282,10 +249,7 @@ export default function Clientes() {
       const { error } = await supabase.from("clientes").update({ ativo: novoEstado }).eq("id", id);
       if (error) throw error;
 
-      // Atualiza a tabela na UI
       setClientes(clientes.map(c => c.id === id ? { ...c, ativo: novoEstado } : c));
-      
-      // Atualiza o form do modal (se estiver aberto)
       if (editId === id) setForm({ ...form, ativo: novoEstado });
 
       showToast(`Empresa ${acaoTexto.toLowerCase()}a com sucesso!`, "success");
@@ -300,17 +264,7 @@ export default function Clientes() {
     if (isViewOnly) return;
 
     const dbPayload = {
-      nif: form.nif,
-      marca: form.marca,
-      entidade: form.entidade,
-      objeto_social: form.objeto_social,
-      website: form.website,
-      plano: form.plano,
-      certidao_permanente: form.certidao_permanente,
-      validade_certidao: form.validade_certidao || null,
-      rcbe: form.rcbe,
-      validade_rcbe: form.validade_rcbe || null,
-      ativo: form.ativo // Mantém o estado ativo
+      nif: form.nif, marca: form.marca, entidade: form.entidade, objeto_social: form.objeto_social, website: form.website, plano: form.plano, certidao_permanente: form.certidao_permanente, validade_certidao: form.validade_certidao || null, rcbe: form.rcbe, validade_rcbe: form.validade_rcbe || null, ativo: form.ativo 
     };
 
     try {
@@ -322,28 +276,19 @@ export default function Clientes() {
       } else {
         const { data, error } = await supabase.from("clientes").insert([dbPayload]).select();
         if (error) throw error;
-        setClientes([{ ...data[0], ativo: true }, ...clientes]); // Novo cliente é sempre ativo
+        setClientes([{ ...data[0], ativo: true }, ...clientes]); 
         setEditId(data[0].id);
         showToast("Empresa criada! Verifica as abas que foram pré-preenchidas.");
       }
-    } catch (error) { 
-        showToast("Erro: " + error.message, "error"); 
-    }
+    } catch (error) { showToast("Erro: " + error.message, "error"); }
   }
 
   async function saveSubItem(tabela, dados, stateSetter, listaAtual, resetState, resetValue, closeFormSetter) {
     if (isViewOnly) return;
-    if (!editId) {
-        showToast("Guarda primeiro os Dados da Empresa (Aba Geral) no fundo do ecrã.", "warning");
-        return;
-    }
+    if (!editId) return showToast("Guarda primeiro os Dados da Empresa (Aba Geral) no fundo do ecrã.", "warning");
 
     const payload = { ...dados, cliente_id: editId };
-
-    if (tabela === 'moradas_cliente') {
-        delete payload.distrito;
-        delete payload.regiao;
-    }
+    if (tabela === 'moradas_cliente') { delete payload.distrito; delete payload.regiao; }
 
     if (payload.id) { 
         const { id, ...updateData } = payload;
@@ -351,14 +296,14 @@ export default function Clientes() {
         if (!error) {
             stateSetter(listaAtual.map(i => i.id === id ? data[0] : i));
             showToast("Atualizado com sucesso!");
-            if (tabela === 'moradas_cliente') fetchClientes(); 
+            if (tabela === 'moradas_cliente' || tabela === 'contactos_cliente') fetchClientes(); 
         } else showToast("Erro: " + error.message, "error");
     } else { 
         const { data, error } = await supabase.from(tabela).insert([payload]).select();
         if (!error) {
             stateSetter([...listaAtual, data[0]]);
             showToast("Adicionado com sucesso!");
-            if (tabela === 'moradas_cliente') fetchClientes(); 
+            if (tabela === 'moradas_cliente' || tabela === 'contactos_cliente') fetchClientes(); 
         } else showToast("Erro: " + error.message, "error");
     }
     resetState(resetValue);
@@ -371,7 +316,7 @@ export default function Clientes() {
     if (!error) {
         stateSetter(listaAtual.filter(i => i.id !== id));
         showToast("Apagado com sucesso!");
-        if (tabela === 'moradas_cliente') fetchClientes(); 
+        if (tabela === 'moradas_cliente' || tabela === 'contactos_cliente') fetchClientes(); 
     }
   }
 
@@ -380,177 +325,162 @@ export default function Clientes() {
       setShowForm(true);
   }
 
+  const clientColors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#f43f5e', '#14b8a6', '#0ea5e9'];
+  const getColorForClient = (nif) => {
+      if (!nif) return '#94a3b8'; 
+      const hash = String(nif).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+      return clientColors[hash % clientColors.length];
+  };
+
   const sectionTitleStyle = { fontSize: '0.8rem', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '15px', marginTop: '20px', borderBottom: '1px solid #e2e8f0', paddingBottom: '5px' };
   const labelStyle = { display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' };
   const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', marginBottom: '10px' };
 
+  if (loading) return <div className="page-container" style={{display:'flex', justifyContent:'center', alignItems:'center', height:'80vh'}}><div className="pulse-dot-white" style={{background:'#2563eb'}}></div></div>;
+
   return (
-    <div className="page-container">
-      <div className="page-header">
-        <h1>👥 Clientes</h1>
-        <button className="btn-primary" onClick={handleNovo}>+ Nova Empresa</button>
+    <div className="page-container" style={{maxWidth: '1500px', margin: '0 auto'}}>
+      <div className="page-header" style={{background: 'white', padding: '20px 25px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
+        <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>👥 Diretório de Clientes</h1>
+        <button className="btn-glow" onClick={handleNovo}>+ Nova Empresa</button>
       </div>
 
-      <div className="filters-container" style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'center' }}>
-        <input 
-            type="text" 
-            placeholder="🔍 Procurar por Empresa ou NIF..." 
-            className="search-input" 
-            style={{ flex: 1, minWidth: '250px' }}
-            value={busca} 
-            onChange={(e) => {
-                setBusca(e.target.value);
-                setCurrentPage(1); 
-            }} 
-        />
-        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#475569', fontSize: '0.9rem', fontWeight: '600', background: '#f8fafc', padding: '10px 15px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-            <input 
-                type="checkbox" 
-                checked={mostrarInativos} 
-                onChange={e => {setMostrarInativos(e.target.checked); setCurrentPage(1);}} 
-            />
-            Mostrar Inativos
+      <div style={{background: '#f8fafc', padding: '12px 20px', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '25px', display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap'}}>
+        <div style={{flex: 1, minWidth: '250px', position: 'relative'}}>
+            <span style={{position: 'absolute', left: '12px', top: '9px', color: '#94a3b8', fontSize: '0.85rem'}}>🔍</span>
+            <input type="text" placeholder="Procurar por Empresa ou NIF..." value={busca} onChange={(e) => setBusca(e.target.value)} style={{width: '100%', padding: '8px 12px 8px 32px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.85rem', boxSizing: 'border-box'}} />
+        </div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#475569', fontSize: '0.9rem', fontWeight: 'bold' }}>
+            <input type="checkbox" checked={mostrarInativos} onChange={e => setMostrarInativos(e.target.checked)} style={{width:'16px', height:'16px', accentColor: '#10b981'}} /> Mostrar Inativos
         </label>
       </div>
 
-      <div className="table-responsive">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th onClick={() => handleSort('marca')} style={{ cursor: 'pointer', userSelect: 'none' }}>
-                  Empresa {sortConfig.key === 'marca' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
-              </th>
-              <th>NIF</th>
-              <th>Localidade</th>
-              <th onClick={() => handleSort('concelho')} style={{ cursor: 'pointer', userSelect: 'none' }}>
-                  Concelho {sortConfig.key === 'concelho' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
-              </th>
-              <th style={{textAlign: 'center'}}>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {currentItems.length > 0 ? (
-                currentItems.map((c) => {
-                const moradaRef = c.moradas_cliente && c.moradas_cliente.length > 0 ? c.moradas_cliente[0] : {};
-                const isInactive = c.ativo === false;
-                
-                return (
-                <tr key={c.id} style={{ opacity: isInactive ? 0.6 : 1, background: isInactive ? '#f8fafc' : 'transparent' }}>
-                    <td style={{ fontWeight: "bold", color: isInactive ? "#94a3b8" : "#334155" }}>
-                        {c.marca}
-                        {isInactive && <span style={{background: '#e2e8f0', color: '#475569', fontSize: '0.65rem', padding: '2px 6px', borderRadius: '6px', marginLeft: '8px', verticalAlign: 'middle'}}>INATIVO</span>}
-                    </td>
-                    <td><span style={{background: '#f1f5f9', color: isInactive ? '#94a3b8' : 'inherit', padding: '4px 8px', borderRadius: '6px', fontSize: '0.85rem'}}>{c.nif}</span></td>
-                    <td style={{color: isInactive ? '#94a3b8' : 'inherit'}}>{moradaRef.localidade || '-'}</td>
-                    <td>{moradaRef.concelho ? <span className="badge" style={{background: isInactive ? '#f1f5f9' : undefined, color: isInactive ? '#94a3b8' : undefined}}>{moradaRef.concelho}</span> : '-'}</td>
-                    <td style={{textAlign: 'center'}}>
-                    <div style={{ display: 'flex', gap: '5px', justifyContent: 'center' }}>
-                        <button className="btn-small" onClick={() => handleView(c)} title="Ver">👁️</button>
-                        <button className="btn-small" onClick={() => handleEdit(c)} title="Editar">✏️</button>
-                        
-                        {/* BOTÃO MÁGICO DE ATIVAR/DESATIVAR */}
-                        {isInactive ? (
-                            <button className="btn-small" style={{color: '#16a34a', background: '#dcfce7'}} onClick={() => handleToggleAtivo(c.id, c.ativo)} title="Reativar Empresa">🔄</button>
-                        ) : (
-                            <button className="btn-small" style={{color: '#ef4444', background: '#fee2e2'}} onClick={() => handleToggleAtivo(c.id, c.ativo)} title="Desativar Empresa">🛑</button>
-                        )}
-                    </div>
-                    </td>
-                </tr>
-                )})
-            ) : (
-                <tr><td colSpan="5" style={{textAlign: 'center', padding: '20px', color: '#666'}}>Nenhuma empresa encontrada.</td></tr>
-            )}
-          </tbody>
-        </table>
-        
-        {/* --- CONTROLOS DE PAGINAÇÃO --- */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '15px', padding: '10px 15px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', flexWrap: 'wrap', gap: '15px' }}>
-            <div>
-                <span style={{ fontSize: '0.85rem', color: '#64748b', marginRight: '8px' }}>Mostrar</span>
-                <select 
-                    value={itemsPerPage} 
-                    onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }} 
-                    style={{ padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none', background: 'white' }}
-                >
-                    <option value={10}>10</option>
-                    <option value={20}>20</option>
-                    <option value={50}>50</option>
-                    <option value={100}>100</option>
-                </select>
-                <span style={{ fontSize: '0.85rem', color: '#64748b', marginLeft: '8px' }}>por página</span>
-            </div>
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                <button 
-                    disabled={currentPage === 1} 
-                    onClick={() => setCurrentPage(prev => prev - 1)} 
-                    className="btn-small"
-                    style={{ opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? 'not-allowed' : 'pointer', background: 'white', border: '1px solid #cbd5e1' }}
-                >
-                    ◀ Anterior
-                </button>
-                <span style={{ fontSize: '0.85rem', color: '#334155', fontWeight: 'bold' }}>
-                    Pág {currentPage} de {totalPages || 1}
-                </span>
-                <button 
-                    disabled={currentPage === totalPages || totalPages === 0} 
-                    onClick={() => setCurrentPage(prev => prev + 1)} 
-                    className="btn-small"
-                    style={{ opacity: (currentPage === totalPages || totalPages === 0) ? 0.5 : 1, cursor: (currentPage === totalPages || totalPages === 0) ? 'not-allowed' : 'pointer', background: 'white', border: '1px solid #cbd5e1' }}
-                >
-                    Próxima ▶
-                </button>
-            </div>
-        </div>
+      <div className="client-grid">
+          {processedClientes.length > 0 ? processedClientes.map(c => {
+              const isInactive = c.ativo === false;
+              const color = getColorForClient(c.nif);
+              const moradaRef = c.moradas_cliente && c.moradas_cliente.length > 0 ? c.moradas_cliente[0] : null;
+              const contactoRef = c.contactos_cliente && c.contactos_cliente.length > 0 ? c.contactos_cliente[0] : null;
 
+              return (
+                  <div 
+                      key={c.id} 
+                      className="client-card"
+                      style={{
+                          background: isInactive ? '#f8fafc' : 'white', borderRadius: '16px', border: '1px solid #e2e8f0', 
+                          boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', 
+                          opacity: isInactive ? 0.6 : 1, position: 'relative', overflow: 'hidden',
+                          borderTop: `5px solid ${isInactive ? '#94a3b8' : color}`
+                      }}
+                  >
+                      <div style={{padding: '20px', flex: 1}}>
+                          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px'}}>
+                              <span style={{background: '#f1f5f9', color: '#64748b', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', fontFamily: 'monospace'}}>{c.nif || 'S/ NIF'}</span>
+                              {isInactive && <span style={{fontSize: '0.65rem', background: '#fee2e2', color: '#ef4444', padding: '2px 8px', borderRadius: '12px', fontWeight: '800'}}>INATIVO</span>}
+                          </div>
+
+                          <h2 style={{margin: '0 0 10px 0', fontSize: '1.25rem', color: '#1e293b', fontWeight: '800', lineHeight: '1.2'}}>{c.marca}</h2>
+                          
+                          <div style={{display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '15px'}}>
+                              {moradaRef ? (
+                                  <div style={{fontSize: '0.85rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px'}}>
+                                      📍 {moradaRef.concelho ? `${moradaRef.localidade} (${moradaRef.concelho})` : moradaRef.localidade}
+                                  </div>
+                              ) : (
+                                  <div style={{fontSize: '0.85rem', color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '6px'}}>📍 Sem morada registada</div>
+                              )}
+
+                              {contactoRef ? (
+                                  <div style={{fontSize: '0.85rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px'}}>
+                                      👤 {contactoRef.nome_contacto} {contactoRef.telefone && `- ${contactoRef.telefone}`}
+                                  </div>
+                              ) : (
+                                  <div style={{fontSize: '0.85rem', color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '6px'}}>👤 Sem contacto registado</div>
+                              )}
+                          </div>
+                      </div>
+
+                      <div style={{display: 'flex', borderTop: '1px solid #f1f5f9', background: isInactive ? 'transparent' : '#fafaf9'}}>
+                          <button 
+                              onClick={() => handleView(c)} 
+                              style={{flex: 1, padding: '12px', border: 'none', borderRight: '1px solid #f1f5f9', background: 'transparent', color: '#2563eb', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', transition: '0.2s'}}
+                              className="hover-blue-text"
+                          >
+                              Ver Perfil
+                          </button>
+                          
+                          {!isInactive && (
+                              <button 
+                                  onClick={() => handleEdit(c)} 
+                                  style={{padding: '12px 20px', border: 'none', background: 'transparent', color: '#f59e0b', fontSize: '1.1rem', cursor: 'pointer', transition: '0.2s'}}
+                                  className="hover-orange-text"
+                                  title="Edição Rápida"
+                              >
+                                  ✏️
+                              </button>
+                          )}
+                      </div>
+                  </div>
+              );
+          }) : (
+              <div style={{gridColumn: '1 / -1', textAlign: 'center', padding: '60px', background: 'white', borderRadius: '16px', border: '1px dashed #cbd5e1'}}>
+                  <span style={{fontSize: '3rem', display: 'block', marginBottom: '10px'}}>🏜️</span>
+                  <h3 style={{color: '#1e293b', margin: '0 0 5px 0'}}>Vazio por aqui.</h3>
+                  <p style={{color: '#64748b', margin: 0}}>Nenhum cliente encontrado com os filtros atuais.</p>
+              </div>
+          )}
       </div>
 
       {notification && <div className={`toast-container ${notification.type}`}>{notification.type === 'success' ? '✅' : '⚠️'} {notification.message}</div>}
 
+      {/* --- MEGA MODAL 360º DO CLIENTE --- */}
       {showModal && (
         <ModalPortal>
-          <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(15, 23, 42, 0.65)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:99999}} onClick={() => setShowModal(false)}>
-            <div style={{background:'#fff', width:'95%', maxWidth:'900px', borderRadius:'16px', boxShadow:'0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow:'hidden', display:'flex', flexDirection:'column', maxHeight:'92vh'}} onClick={e => e.stopPropagation()}>
+          <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(15, 23, 42, 0.7)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:99999}} onClick={() => setShowModal(false)}>
+            {/* 💡 AQUI AUMENTÁMOS PARA 1200PX E MAX-HEIGHT 96VH */}
+            <div style={{background:'#fff', width:'96%', maxWidth:'1200px', borderRadius:'16px', boxShadow:'0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow:'hidden', display:'flex', flexDirection:'column', maxHeight:'96vh'}} onClick={e => e.stopPropagation()}>
               
-              <div style={{padding:'20px 30px', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center', background:'#fff'}}>
+              {/* CABEÇALHO DO MODAL */}
+              <div style={{padding:'20px 30px', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center', background:'#f8fafc'}}>
                 <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
-                    <span style={{background:'#eff6ff', padding:'8px', borderRadius:'8px', fontSize:'1.2rem'}}>🏢</span>
-                    <h3 style={{margin:0, color:'#1e293b', fontSize:'1.25rem'}}>
-                        {isViewOnly ? `Ver: ${form.marca}` : (editId ? `Editar: ${form.marca}` : "Nova Empresa")}
+                    <span style={{background:'#eff6ff', padding:'10px', borderRadius:'10px', fontSize:'1.4rem'}}>🏢</span>
+                    <h3 style={{margin:0, color:'#1e293b', fontSize:'1.4rem', fontWeight:'800'}}>
+                        {isViewOnly ? `Perfil: ${form.marca}` : (editId ? `Editar: ${form.marca}` : "Nova Empresa")}
                     </h3>
-                    {form.ativo === false && <span style={{background: '#e2e8f0', color: '#475569', fontSize: '0.7rem', padding: '4px 8px', borderRadius: '6px', fontWeight: 'bold'}}>INATIVO</span>}
+                    {form.ativo === false && <span style={{background: '#e2e8f0', color: '#475569', fontSize: '0.75rem', padding: '4px 10px', borderRadius: '6px', fontWeight: 'bold'}}>INATIVO</span>}
                 </div>
-                <div style={{display:'flex', gap:'10px'}}>
-                    {/* BOTÃO DE DESATIVAR NO CABEÇALHO DO MODAL */}
+                <div style={{display:'flex', gap:'15px', alignItems:'center'}}>
                     {editId && !isViewOnly && (
                         <button 
                             onClick={() => handleToggleAtivo(editId, form.ativo)} 
-                            style={{
-                                background: form.ativo === false ? '#dcfce7' : '#fee2e2', 
-                                color: form.ativo === false ? '#16a34a' : '#ef4444', 
-                                border:'none', padding:'6px 12px', borderRadius:'8px', cursor:'pointer', fontWeight:'bold'
-                            }}
+                            style={{ background: form.ativo === false ? '#dcfce7' : '#fee2e2', color: form.ativo === false ? '#16a34a' : '#ef4444', border:'none', padding:'8px 16px', borderRadius:'8px', cursor:'pointer', fontWeight:'bold', transition:'0.2s' }}
+                            className="hover-shadow"
                         >
-                            {form.ativo === false ? '🔄 Reativar Empresa' : '🛑 Desativar Empresa'}
+                            {form.ativo === false ? '🔄 Reativar' : '🛑 Desativar'}
                         </button>
                     )}
-                    <button onClick={() => setShowModal(false)} style={{background:'transparent', border:'none', fontSize:'1.2rem', cursor:'pointer', color:'#94a3b8'}}>✕</button>
+                    <button onClick={() => setShowModal(false)} style={{background:'#e2e8f0', border:'none', width:'36px', height:'36px', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.2rem', cursor:'pointer', color:'#475569', transition:'0.2s'}} className="hover-shadow">✕</button>
                 </div>
               </div>
 
+              {/* TABS DE NAVEGAÇÃO DO MODAL (Agora fazem Wrap se necessário) */}
               {editId && (
-                <div className="tabs" style={{padding: '0 30px', background: '#fff', borderBottom: '1px solid #e2e8f0'}}>
-                  <button className={activeTab === 'geral' ? 'active' : ''} onClick={() => {setActiveTab('geral'); fecharTodosSubForms();}}>Geral</button>
+                <div className="tabs" style={{padding: '15px 30px 0 30px', background: '#fff', borderBottom: '1px solid #e2e8f0', display:'flex', flexWrap:'wrap', gap:'5px'}}>
+                  <button className={activeTab === 'geral' ? 'active' : ''} onClick={() => {setActiveTab('geral'); fecharTodosSubForms();}}>📋 Geral</button>
                   <button className={activeTab === 'moradas' ? 'active' : ''} onClick={() => {setActiveTab('moradas'); fecharTodosSubForms();}}>📍 Moradas</button>
+                  <button className={activeTab === 'contactos' ? 'active' : ''} onClick={() => {setActiveTab('contactos'); fecharTodosSubForms();}}>👤 Pessoas</button>
+                  
+                  {/* ABA DE PROJETOS EM DESTAQUE */}
+                  <button className={activeTab === 'projetos' ? 'active' : ''} onClick={() => {setActiveTab('projetos'); fecharTodosSubForms();}} style={{color: activeTab === 'projetos' ? '#2563eb' : '#3b82f6', fontWeight: '800'}}>🚀 Projetos</button>
+                  
                   <button className={activeTab === 'atividade' ? 'active' : ''} onClick={() => {setActiveTab('atividade'); fecharTodosSubForms();}}>📈 Atividade</button>
                   <button className={activeTab === 'documentos' ? 'active' : ''} onClick={() => {setActiveTab('documentos'); fecharTodosSubForms();}}>📄 Documentos</button>
-                  <button className={activeTab === 'contactos' ? 'active' : ''} onClick={() => {setActiveTab('contactos'); fecharTodosSubForms();}}>👤 Pessoas</button>
                   <button className={activeTab === 'plano' ? 'active' : ''} onClick={() => {setActiveTab('plano'); fecharTodosSubForms();}}>💎 Plano</button>
                   {podeVerAcessos && <button className={activeTab === 'acessos' ? 'active' : ''} onClick={() => {setActiveTab('acessos'); fecharTodosSubForms();}}>🔐 Acessos</button>}
                 </div>
               )}
 
-              <div style={{padding:'30px', overflowY:'auto', background:'#f8fafc', flex:1}}>
+              <div style={{padding:'30px', overflowY:'auto', background:'#f8fafc', flex:1}} className="custom-scrollbar">
                 
                 {/* --- ABA GERAL --- */}
                 {activeTab === 'geral' && (
@@ -572,82 +502,108 @@ export default function Clientes() {
                         <div>
                             <label style={labelStyle}>Website</label>
                             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                <input 
-                                    type="text" 
-                                    value={form.website} 
-                                    onChange={e => setForm({...form, website: e.target.value})} 
-                                    placeholder="www.empresa.pt" 
-                                    style={{ ...inputStyle, marginBottom: 0, flex: 1 }} 
-                                />
+                                <input type="text" value={form.website} onChange={e => setForm({...form, website: e.target.value})} placeholder="www.empresa.pt" style={{ ...inputStyle, marginBottom: 0, flex: 1 }} />
                                 {form.website && (
-                                    <a 
-                                        href={form.website.startsWith('http') ? form.website : `https://${form.website}`} 
-                                        target="_blank" 
-                                        rel="noopener noreferrer"
-                                        title="Abrir Website"
-                                        style={{
-                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                            textDecoration: 'none', background: '#eff6ff', color: '#2563eb', 
-                                            padding: '0 15px', height: '42px', borderRadius: '8px', 
-                                            border: '1px solid #bfdbfe', fontSize: '1.2rem', transition: '0.2s'
-                                        }}
-                                    >
-                                        🔗
-                                    </a>
+                                    <a href={form.website.startsWith('http') ? form.website : `https://${form.website}`} target="_blank" rel="noopener noreferrer" title="Abrir Website" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', background: '#eff6ff', color: '#2563eb', padding: '0 15px', height: '42px', borderRadius: '8px', border: '1px solid #bfdbfe', fontSize: '1.2rem', transition: '0.2s' }}>🔗</a>
                                 )}
                             </div>
                         </div>
                       </div>
 
-                      {!isViewOnly && <button type="submit" className="btn-primary" style={{width:'100%', marginTop:'20px'}}>Guardar Dados Base</button>}
+                      {!isViewOnly && <button type="submit" className="btn-primary" style={{width:'100%', marginTop:'20px', padding:'15px', fontSize:'1.05rem'}}>Guardar Dados Base</button>}
                     </fieldset>
                   </form>
                 )}
 
+                {/* --- ABA DE PROJETOS DO CLIENTE --- */}
+                {activeTab === 'projetos' && (
+                    <div>
+                        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px', background:'white', padding:'20px', borderRadius:'12px', border:'1px solid #e2e8f0'}}>
+                            <div>
+                                <h4 style={{margin:0, fontSize: '1.2rem', color: '#1e293b'}}>Histórico de Projetos</h4>
+                                <p style={{margin:'5px 0 0 0', color:'#64748b', fontSize:'0.9rem'}}>Todos os trabalhos associados a {form.marca}.</p>
+                            </div>
+                            <button onClick={() => navigate('/dashboard/projetos')} className="btn-primary" style={{fontSize: '0.9rem'}}>+ Ir para o Portfólio Global</button>
+                        </div>
+
+                        {projetosCliente.length > 0 ? (
+                            <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: '15px'}}>
+                                {projetosCliente.map(p => {
+                                    const isDone = p.estado === 'concluido';
+                                    return (
+                                        <div key={p.id} onClick={() => navigate(`/dashboard/projetos/${p.id}`)} style={{background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', flexDirection:'column', justifyContent: 'space-between', opacity: isDone ? 0.6 : 1, cursor:'pointer', transition:'0.2s'}} className="hover-shadow">
+                                            <div style={{display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px'}}>
+                                                <span style={{fontSize: '0.7rem', background: isDone ? '#f1f5f9' : '#eff6ff', color: isDone ? '#64748b' : '#2563eb', padding: '4px 10px', borderRadius: '12px', fontWeight: 'bold', textTransform: 'uppercase'}}>{p.estado.replace('_', ' ')}</span>
+                                                {p.codigo_projeto && <span style={{fontSize: '0.75rem', color: '#94a3b8', fontWeight: 'bold'}}>{p.codigo_projeto}</span>}
+                                            </div>
+                                            <h4 style={{margin: '0 0 15px 0', fontSize: '1.1rem', color: '#1e293b', textDecoration: isDone ? 'line-through' : 'none', lineHeight:'1.3'}}>{p.titulo}</h4>
+                                            
+                                            <div style={{display: 'flex', alignItems: 'center', justifyContent:'space-between', borderTop:'1px solid #f1f5f9', paddingTop:'10px'}}>
+                                                {p.data_fim ? <span style={{fontSize: '0.85rem', color: '#64748b', fontWeight: '600'}}>📅 {new Date(p.data_fim).toLocaleDateString('pt-PT')}</span> : <span style={{fontSize: '0.85rem', color: '#cbd5e1'}}>Sem Prazo</span>}
+                                                <span style={{fontSize: '0.85rem', color: '#2563eb', fontWeight: 'bold'}}>Abrir ➔</span>
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        ) : (
+                            <div style={{textAlign: 'center', padding: '60px', background: 'white', borderRadius: '12px', border: '1px dashed #cbd5e1'}}>
+                                <span style={{fontSize: '3rem', display: 'block', marginBottom: '15px'}}>🏜️</span>
+                                <h4 style={{color: '#1e293b', margin: '0 0 5px 0', fontSize:'1.2rem'}}>Este cliente ainda não tem projetos.</h4>
+                                <p style={{color:'#64748b'}}>Cria um projeto no Portfólio e associa-o a este cliente.</p>
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 {/* --- ABA ATIVIDADE --- */}
                 {activeTab === 'atividade' && (
-                  <div>
-                    <label style={labelStyle}>Objeto Social</label>
-                    <textarea disabled={isViewOnly} rows="4" value={form.objeto_social} onChange={e => setForm({...form, objeto_social: e.target.value})} style={{...inputStyle, resize:'vertical'}} />
-                    {!isViewOnly && <button className="btn-primary" onClick={handleSubmitGeral} style={{marginBottom:'30px'}}>Atualizar Objeto Social</button>}
-                    
-                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px', borderTop:'1px solid #e2e8f0', paddingTop:'20px'}}>
-                      <h4 style={{margin:0}}>Lista de CAEs</h4>
-                      {!isViewOnly && !showAddCae && <button className="btn-small-add" onClick={() => {setNovoCae(initCae); setShowAddCae(true)}}>+ Adicionar CAE</button>}
+                  <div style={{display:'flex', flexDirection:'column', gap:'30px'}}>
+                    <div style={{background:'white', padding:'20px', borderRadius:'12px', border:'1px solid #e2e8f0'}}>
+                        <label style={labelStyle}>Objeto Social</label>
+                        <textarea disabled={isViewOnly} rows="5" value={form.objeto_social} onChange={e => setForm({...form, objeto_social: e.target.value})} style={{...inputStyle, resize:'vertical', marginBottom:'15px'}} />
+                        {!isViewOnly && <button className="btn-primary" onClick={handleSubmitGeral}>Atualizar Objeto Social</button>}
                     </div>
-
-                    {showAddCae && (
-                      <div style={{background:'white', padding:'20px', borderRadius:'12px', border:'1px solid #cbd5e1', marginBottom:'20px'}}>
-                        <h5 style={{marginTop:0}}>{novoCae.id ? 'Editar CAE' : 'Novo CAE'}</h5>
-                        <div style={{display:'grid', gridTemplateColumns:'150px 1fr auto', gap:'15px', alignItems:'center'}}>
-                          <input type="text" placeholder="Código (Ex: 62010)" value={novoCae.codigo} onChange={e => setNovoCae({...novoCae, codigo: e.target.value})} style={inputStyle} />
-                          <input type="text" placeholder="Descrição" value={novoCae.descricao} onChange={e => setNovoCae({...novoCae, descricao: e.target.value})} style={inputStyle} />
-                          <label style={{display:'flex', alignItems:'center', gap:'5px', cursor:'pointer'}}><input type="checkbox" checked={novoCae.principal} onChange={e => setNovoCae({...novoCae, principal: e.target.checked})} /> Principal</label>
+                    
+                    <div>
+                        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px'}}>
+                          <h4 style={{margin:0, fontSize:'1.1rem', color:'#1e293b'}}>Lista de CAEs</h4>
+                          {!isViewOnly && !showAddCae && <button className="btn-small-add" onClick={() => {setNovoCae(initCae); setShowAddCae(true)}}>+ Adicionar CAE</button>}
                         </div>
-                        <div style={{display:'flex', gap:'10px', marginTop:'10px'}}>
-                            <button onClick={() => saveSubItem('caes_cliente', novoCae, setCaes, caes, setNovoCae, initCae, setShowAddCae)} className="btn-primary" style={{padding:'8px 15px'}}>{novoCae.id ? 'Atualizar' : 'Guardar CAE'}</button>
-                            <button onClick={() => {setShowAddCae(false); setNovoCae(initCae);}} style={{background:'none', border:'none', color:'#64748b', cursor:'pointer'}}>Cancelar</button>
-                        </div>
-                      </div>
-                    )}
 
-                    <ul style={{listStyle:'none', padding:0}}>
-                      {caes.map(c => (
-                        <li key={c.id} style={{background:'white', padding:'15px', borderRadius:'10px', marginBottom:'10px', display:'flex', justifyContent:'space-between', alignItems:'center', border:'1px solid #e2e8f0'}}>
-                          <div>
-                            <span style={{fontWeight:'bold', fontSize:'1.1rem', color:'#1e293b'}}>{c.codigo}</span>
-                            {c.principal && <span style={{background:'#dcfce7', color:'#166534', padding:'2px 8px', borderRadius:'10px', fontSize:'0.7rem', marginLeft:'10px', fontWeight:'bold'}}>PRINCIPAL</span>}
-                            <div style={{color:'#64748b', fontSize:'0.9rem', marginTop:'4px'}}>{c.descricao || 'Sem descrição'}</div>
-                          </div>
-                          {!isViewOnly && (
-                            <div style={{display:'flex', gap:'10px'}}>
-                               <button onClick={() => abrirEdicaoSubItem(c, setNovoCae, setShowAddCae)} className="btn-small">✏️</button>
-                               <button onClick={() => deleteItem('caes_cliente', c.id, setCaes, caes)} style={{border:'none', background:'#fee2e2', color:'#ef4444', borderRadius:'6px', padding:'6px 10px', cursor:'pointer'}}>🗑</button>
+                        {showAddCae && (
+                          <div style={{background:'white', padding:'20px', borderRadius:'12px', border:'1px solid #cbd5e1', marginBottom:'20px', boxShadow:'0 4px 6px -1px rgba(0,0,0,0.05)'}}>
+                            <h5 style={{marginTop:0}}>{novoCae.id ? 'Editar CAE' : 'Novo CAE'}</h5>
+                            <div style={{display:'grid', gridTemplateColumns:'150px 1fr auto', gap:'15px', alignItems:'center'}}>
+                              <input type="text" placeholder="Código (Ex: 62010)" value={novoCae.codigo} onChange={e => setNovoCae({...novoCae, codigo: e.target.value})} style={inputStyle} />
+                              <input type="text" placeholder="Descrição" value={novoCae.descricao} onChange={e => setNovoCae({...novoCae, descricao: e.target.value})} style={inputStyle} />
+                              <label style={{display:'flex', alignItems:'center', gap:'5px', cursor:'pointer'}}><input type="checkbox" checked={novoCae.principal} onChange={e => setNovoCae({...novoCae, principal: e.target.checked})} /> Principal</label>
                             </div>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
+                            <div style={{display:'flex', gap:'10px', marginTop:'15px'}}>
+                                <button onClick={() => saveSubItem('caes_cliente', novoCae, setCaes, caes, setNovoCae, initCae, setShowAddCae)} className="btn-primary" style={{padding:'8px 15px'}}>{novoCae.id ? 'Atualizar' : 'Guardar CAE'}</button>
+                                <button onClick={() => {setShowAddCae(false); setNovoCae(initCae);}} style={{background:'none', border:'none', color:'#64748b', cursor:'pointer'}}>Cancelar</button>
+                            </div>
+                          </div>
+                        )}
+
+                        <ul style={{listStyle:'none', padding:0, display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(350px, 1fr))', gap:'15px'}}>
+                          {caes.map(c => (
+                            <li key={c.id} style={{background:'white', padding:'20px', borderRadius:'12px', display:'flex', justifyContent:'space-between', alignItems:'center', border:'1px solid #e2e8f0'}}>
+                              <div>
+                                <span style={{fontWeight:'bold', fontSize:'1.1rem', color:'#1e293b'}}>{c.codigo}</span>
+                                {c.principal && <span style={{background:'#dcfce7', color:'#166534', padding:'2px 8px', borderRadius:'10px', fontSize:'0.7rem', marginLeft:'10px', fontWeight:'bold'}}>PRINCIPAL</span>}
+                                <div style={{color:'#64748b', fontSize:'0.9rem', marginTop:'6px'}}>{c.descricao || 'Sem descrição'}</div>
+                              </div>
+                              {!isViewOnly && (
+                                <div style={{display:'flex', flexDirection:'column', gap:'5px'}}>
+                                   <button onClick={() => abrirEdicaoSubItem(c, setNovoCae, setShowAddCae)} className="btn-small">✏️</button>
+                                   <button onClick={() => deleteItem('caes_cliente', c.id, setCaes, caes)} style={{border:'none', background:'#fee2e2', color:'#ef4444', borderRadius:'6px', padding:'6px', cursor:'pointer'}}>🗑</button>
+                                </div>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                    </div>
                   </div>
                 )}
 
@@ -656,125 +612,107 @@ export default function Clientes() {
                   <form onSubmit={handleSubmitGeral}>
                      <fieldset disabled={isViewOnly} style={{border:'none', padding:0}}>
                       
-                      <div style={{display:'grid', gridTemplateColumns:'2fr 1fr', gap:'20px'}}>
-                        <div>
-                            <label style={labelStyle}>Código Certidão Permanente</label>
-                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                <input 
-                                    type="text" 
-                                    value={form.certidao_permanente} 
-                                    onChange={e => setForm({...form, certidao_permanente: e.target.value})} 
-                                    style={{ ...inputStyle, marginBottom: 0, flex: 1 }} 
-                                    placeholder="Ex: 1234-5678-9012"
-                                />
-                                <a 
-                                    href="https://www2.gov.pt/espaco-empresa/empresa-online/consultar-a-certidao-permanente" 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    title="Abrir Portal da Certidão Permanente"
-                                    style={{
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        textDecoration: 'none', background: '#eff6ff', color: '#2563eb', 
-                                        padding: '0 15px', height: '42px', borderRadius: '8px', 
-                                        border: '1px solid #bfdbfe', fontSize: '1.2rem', transition: '0.2s'
-                                    }}
-                                >
-                                    🔗
-                                </a>
+                      <div style={{background:'white', padding:'30px', borderRadius:'12px', border:'1px solid #e2e8f0', marginBottom:'20px'}}>
+                          <div style={{display:'grid', gridTemplateColumns:'2fr 1fr', gap:'20px'}}>
+                            <div>
+                                <label style={labelStyle}>Código Certidão Permanente</label>
+                                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                    <input type="text" value={form.certidao_permanente} onChange={e => setForm({...form, certidao_permanente: e.target.value})} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} placeholder="Ex: 1234-5678-9012" />
+                                    <a href="https://www2.gov.pt/espaco-empresa/empresa-online/consultar-a-certidao-permanente" target="_blank" rel="noopener noreferrer" title="Abrir Portal da Certidão Permanente" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', background: '#eff6ff', color: '#2563eb', padding: '0 15px', height: '42px', borderRadius: '8px', border: '1px solid #bfdbfe', fontSize: '1.2rem', transition: '0.2s' }}>🔗</a>
+                                </div>
                             </div>
-                        </div>
-                        <div>
-                            <label style={labelStyle}>Data de Validade</label>
-                            <input type="date" value={form.validade_certidao || ""} onChange={e => setForm({...form, validade_certidao: e.target.value})} style={inputStyle} />
-                        </div>
+                            <div>
+                                <label style={labelStyle}>Data de Validade</label>
+                                <input type="date" value={form.validade_certidao || ""} onChange={e => setForm({...form, validade_certidao: e.target.value})} style={inputStyle} />
+                            </div>
+                          </div>
                       </div>
 
-                      <div style={{display:'grid', gridTemplateColumns:'2fr 1fr', gap:'20px', marginTop:'15px'}}>
-                        <div>
-                            <label style={labelStyle}>Código RCBE</label>
-                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                <input 
-                                    type="text" 
-                                    value={form.rcbe} 
-                                    onChange={e => setForm({...form, rcbe: e.target.value})} 
-                                    style={{ ...inputStyle, marginBottom: 0, flex: 1 }} 
-                                    placeholder="Código de acesso RCBE"
-                                />
-                                <a 
-                                    href="https://rcbe.justica.gov.pt" 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    title="Abrir Portal RCBE"
-                                    style={{
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        textDecoration: 'none', background: '#eff6ff', color: '#2563eb', 
-                                        padding: '0 15px', height: '42px', borderRadius: '8px', 
-                                        border: '1px solid #bfdbfe', fontSize: '1.2rem', transition: '0.2s'
-                                    }}
-                                >
-                                    🔗
-                                </a>
+                      <div style={{background:'white', padding:'30px', borderRadius:'12px', border:'1px solid #e2e8f0'}}>
+                          <div style={{display:'grid', gridTemplateColumns:'2fr 1fr', gap:'20px'}}>
+                            <div>
+                                <label style={labelStyle}>Código RCBE</label>
+                                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                    <input type="text" value={form.rcbe} onChange={e => setForm({...form, rcbe: e.target.value})} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} placeholder="Código de acesso RCBE" />
+                                    <a href="https://rcbe.justica.gov.pt" target="_blank" rel="noopener noreferrer" title="Abrir Portal RCBE" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', background: '#eff6ff', color: '#2563eb', padding: '0 15px', height: '42px', borderRadius: '8px', border: '1px solid #bfdbfe', fontSize: '1.2rem', transition: '0.2s' }}>🔗</a>
+                                </div>
                             </div>
-                        </div>
-                        <div>
-                            <label style={labelStyle}>Data de Validade</label>
-                            <input type="date" value={form.validade_rcbe || ""} onChange={e => setForm({...form, validade_rcbe: e.target.value})} style={inputStyle} />
-                        </div>
+                            <div>
+                                <label style={labelStyle}>Data de Validade</label>
+                                <input type="date" value={form.validade_rcbe || ""} onChange={e => setForm({...form, validade_rcbe: e.target.value})} style={inputStyle} />
+                            </div>
+                          </div>
                       </div>
 
-                      {!isViewOnly && <button type="submit" className="btn-primary" style={{width:'100%', marginTop:'20px'}}>Guardar Documentos</button>}
+                      {!isViewOnly && <button type="submit" className="btn-primary" style={{width:'100%', marginTop:'20px', padding:'15px', fontSize:'1.05rem'}}>Guardar Documentos</button>}
                     </fieldset>
                   </form>
                 )}
 
                 {/* --- ABA PLANO --- */}
                 {activeTab === 'plano' && (
-                  <div style={{background:'white', padding:'30px', borderRadius:'16px', border:'1px solid #e2e8f0', textAlign:'center'}}>
-                     <h3 style={{marginTop:0, color:'#1e293b'}}>Plano de Subscrição</h3>
-                     <select disabled={isViewOnly} value={form.plano} onChange={e => setForm({...form, plano: e.target.value})} style={{...inputStyle, maxWidth:'300px', fontSize:'1.1rem', margin:'20px auto', display:'block'}}>
+                  <div style={{background:'white', padding:'40px', borderRadius:'16px', border:'1px solid #e2e8f0', textAlign:'center', maxWidth:'500px', margin:'0 auto'}}>
+                     <span style={{fontSize:'3rem', display:'block', marginBottom:'10px'}}>💎</span>
+                     <h3 style={{marginTop:0, color:'#1e293b', fontSize:'1.5rem'}}>Plano de Subscrição</h3>
+                     <select disabled={isViewOnly} value={form.plano} onChange={e => setForm({...form, plano: e.target.value})} style={{...inputStyle, fontSize:'1.2rem', padding:'15px', margin:'20px auto', display:'block'}}>
                         <option value="Standard">Standard</option>
                         <option value="Premium">Premium</option>
                         <option value="Enterprise">Enterprise</option>
                      </select>
-                     {!isViewOnly && <button className="btn-primary" onClick={handleSubmitGeral}>Confirmar Plano</button>}
+                     {!isViewOnly && <button className="btn-primary" onClick={handleSubmitGeral} style={{width:'100%', padding:'15px', fontSize:'1.05rem'}}>Confirmar Plano</button>}
                   </div>
                 )}
 
                 {/* --- ABA PESSOAS --- */}
                 {activeTab === 'contactos' && (
                   <div>
-                    <div style={{display:'flex', justifyContent:'space-between', marginBottom:'15px'}}>
-                      <h4 style={{margin:0}}>Equipa do Cliente</h4>
+                    <div style={{display:'flex', justifyContent:'space-between', marginBottom:'15px', alignItems:'center'}}>
+                      <h4 style={{margin:0, fontSize:'1.1rem', color:'#1e293b'}}>Equipa do Cliente</h4>
                       {!isViewOnly && !showAddContacto && <button className="btn-small-add" onClick={() => {setNovoContacto(initContacto); setShowAddContacto(true)}}>+ Adicionar Pessoa</button>}
                     </div>
                     
                     {showAddContacto && (
-                      <div style={{background:'white', padding:'20px', borderRadius:'12px', border:'1px solid #cbd5e1', marginBottom:'20px'}}>
-                        <h5 style={{marginTop:0}}>{novoContacto.id ? 'Editar Pessoa' : 'Nova Pessoa'}</h5>
-                        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'15px'}}>
-                          <input type="text" placeholder="Nome *" value={novoContacto.nome_contacto} onChange={e => setNovoContacto({...novoContacto, nome_contacto: e.target.value})} style={inputStyle} required />
-                          <input type="text" placeholder="Cargo (Ex: Gerente)" value={novoContacto.cargo} onChange={e => setNovoContacto({...novoContacto, cargo: e.target.value})} style={inputStyle} />
-                          <input type="email" placeholder="Email" value={novoContacto.email} onChange={e => setNovoContacto({...novoContacto, email: e.target.value})} style={inputStyle} />
-                          <input type="text" placeholder="Telefone" value={novoContacto.telefone} onChange={e => setNovoContacto({...novoContacto, telefone: e.target.value})} style={inputStyle} />
+                      <div style={{background:'white', padding:'25px', borderRadius:'12px', border:'1px solid #cbd5e1', marginBottom:'20px', boxShadow:'0 4px 6px -1px rgba(0,0,0,0.05)'}}>
+                        <h5 style={{marginTop:0, fontSize:'1.1rem'}}>{novoContacto.id ? 'Editar Pessoa' : 'Nova Pessoa'}</h5>
+                        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px'}}>
+                          <div>
+                              <label style={labelStyle}>Nome Completo *</label>
+                              <input type="text" placeholder="João Silva" value={novoContacto.nome_contacto} onChange={e => setNovoContacto({...novoContacto, nome_contacto: e.target.value})} style={inputStyle} required />
+                          </div>
+                          <div>
+                              <label style={labelStyle}>Cargo</label>
+                              <input type="text" placeholder="Gerente, Diretor..." value={novoContacto.cargo} onChange={e => setNovoContacto({...novoContacto, cargo: e.target.value})} style={inputStyle} />
+                          </div>
+                          <div>
+                              <label style={labelStyle}>Email</label>
+                              <input type="email" placeholder="joao@empresa.pt" value={novoContacto.email} onChange={e => setNovoContacto({...novoContacto, email: e.target.value})} style={inputStyle} />
+                          </div>
+                          <div>
+                              <label style={labelStyle}>Telefone / Telemóvel</label>
+                              <input type="text" placeholder="+351 900 000 000" value={novoContacto.telefone} onChange={e => setNovoContacto({...novoContacto, telefone: e.target.value})} style={inputStyle} />
+                          </div>
                         </div>
-                        <div style={{display:'flex', gap:'10px'}}>
-                            <button onClick={() => saveSubItem('contactos_cliente', novoContacto, setContactos, contactos, setNovoContacto, initContacto, setShowAddContacto)} className="btn-primary" style={{padding:'8px 15px'}}>{novoContacto.id ? 'Atualizar' : 'Guardar Pessoa'}</button>
-                            <button onClick={() => {setShowAddContacto(false); setNovoContacto(initContacto);}} style={{background:'none', border:'none', color:'#64748b', cursor:'pointer'}}>Cancelar</button>
+                        <div style={{display:'flex', gap:'10px', marginTop:'15px'}}>
+                            <button onClick={() => saveSubItem('contactos_cliente', novoContacto, setContactos, contactos, setNovoContacto, initContacto, setShowAddContacto)} className="btn-primary" style={{padding:'10px 20px'}}>{novoContacto.id ? 'Atualizar' : 'Guardar Pessoa'}</button>
+                            <button onClick={() => {setShowAddContacto(false); setNovoContacto(initContacto);}} style={{background:'none', border:'none', color:'#64748b', cursor:'pointer', fontWeight:'bold'}}>Cancelar</button>
                         </div>
                       </div>
                     )}
 
-                    <ul style={{listStyle:'none', padding:0}}>
+                    <ul style={{listStyle:'none', padding:0, display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(350px, 1fr))', gap:'15px'}}>
                       {contactos.map(c => (
-                        <li key={c.id} style={{background:'white', padding:'15px', borderRadius:'10px', marginBottom:'10px', display:'flex', justifyContent:'space-between', alignItems:'center', border:'1px solid #e2e8f0'}}>
+                        <li key={c.id} style={{background:'white', padding:'20px', borderRadius:'12px', display:'flex', justifyContent:'space-between', alignItems:'center', border:'1px solid #e2e8f0'}}>
                           <div>
-                            <span style={{fontWeight:'bold', color:'#1e293b'}}>{c.nome_contacto}</span> {c.cargo && <span style={{color:'#64748b', fontSize:'0.85rem'}}>({c.cargo})</span>}
-                            <div style={{fontSize:'0.85rem', color:'#475569', marginTop:'5px'}}>📧 {c.email || '-'} | 📞 {c.telefone || '-'}</div>
+                            <span style={{fontWeight:'bold', color:'#1e293b', fontSize:'1.1rem'}}>{c.nome_contacto}</span> {c.cargo && <span style={{color:'#64748b', fontSize:'0.9rem', marginLeft:'5px'}}>({c.cargo})</span>}
+                            <div style={{fontSize:'0.9rem', color:'#475569', marginTop:'8px', display:'flex', flexDirection:'column', gap:'4px'}}>
+                                <span>📧 {c.email || 'Sem email'}</span>
+                                <span>📞 {c.telefone || 'Sem telefone'}</span>
+                            </div>
                           </div>
                           {!isViewOnly && (
-                            <div style={{display:'flex', gap:'10px'}}>
+                            <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
                                <button onClick={() => abrirEdicaoSubItem(c, setNovoContacto, setShowAddContacto)} className="btn-small">✏️</button>
-                               <button onClick={() => deleteItem('contactos_cliente', c.id, setContactos, contactos)} style={{border:'none', background:'#fee2e2', color:'#ef4444', borderRadius:'6px', padding:'6px 10px', cursor:'pointer'}}>🗑</button>
+                               <button onClick={() => deleteItem('contactos_cliente', c.id, setContactos, contactos)} style={{border:'none', background:'#fee2e2', color:'#ef4444', borderRadius:'6px', padding:'8px', cursor:'pointer'}}>🗑</button>
                             </div>
                           )}
                         </li>
@@ -786,49 +724,67 @@ export default function Clientes() {
                 {/* --- ABA MORADAS --- */}
                 {activeTab === 'moradas' && (
                   <div>
-                    <div style={{display:'flex', justifyContent:'space-between', marginBottom:'15px'}}>
-                      <h4 style={{margin:0}}>Moradas Registadas</h4>
+                    <div style={{display:'flex', justifyContent:'space-between', marginBottom:'15px', alignItems:'center'}}>
+                      <h4 style={{margin:0, fontSize:'1.1rem', color:'#1e293b'}}>Moradas Registadas</h4>
                       {!isViewOnly && !showAddMorada && <button className="btn-small-add" onClick={() => {setNovaMorada(initMorada); setShowAddMorada(true)}}>+ Adicionar Morada</button>}
                     </div>
 
                     {showAddMorada && (
-                      <div style={{background:'white', padding:'20px', borderRadius:'12px', border:'1px solid #cbd5e1', marginBottom:'20px'}}>
-                        <h5 style={{marginTop:0}}>{novaMorada.id ? 'Editar Morada' : 'Nova Morada'}</h5>
-                        <input type="text" placeholder="Linha 1: Morada Completa (Rua, Lote, Porta)" value={novaMorada.morada} onChange={e => setNovaMorada({...novaMorada, morada: e.target.value})} style={inputStyle} />
+                      <div style={{background:'white', padding:'25px', borderRadius:'12px', border:'1px solid #cbd5e1', marginBottom:'20px', boxShadow:'0 4px 6px -1px rgba(0,0,0,0.05)'}}>
+                        <h5 style={{marginTop:0, fontSize:'1.1rem'}}>{novaMorada.id ? 'Editar Morada' : 'Nova Morada'}</h5>
                         
-                        <div style={{display:'grid', gridTemplateColumns:'1fr 2fr', gap:'15px'}}>
-                            <input type="text" placeholder="Linha 2: Cód. Postal" value={novaMorada.codigo_postal} onChange={e => setNovaMorada({...novaMorada, codigo_postal: e.target.value})} style={inputStyle} />
-                            <input type="text" placeholder="Linha 2: Localidade" value={novaMorada.localidade} onChange={e => setNovaMorada({...novaMorada, localidade: e.target.value})} style={inputStyle} />
+                        <label style={labelStyle}>Rua / Lote / Porta</label>
+                        <input type="text" placeholder="Ex: Rua Direita, nº 10" value={novaMorada.morada} onChange={e => setNovaMorada({...novaMorada, morada: e.target.value})} style={inputStyle} />
+                        
+                        <div style={{display:'grid', gridTemplateColumns:'1fr 2fr', gap:'20px'}}>
+                            <div>
+                                <label style={labelStyle}>Cód. Postal</label>
+                                <input type="text" placeholder="Ex: 8000-000" value={novaMorada.codigo_postal} onChange={e => setNovaMorada({...novaMorada, codigo_postal: e.target.value})} style={inputStyle} />
+                            </div>
+                            <div>
+                                <label style={labelStyle}>Localidade</label>
+                                <input type="text" placeholder="Ex: Faro" value={novaMorada.localidade} onChange={e => setNovaMorada({...novaMorada, localidade: e.target.value})} style={inputStyle} />
+                            </div>
                         </div>
                         
-                        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'15px'}}>
-                            <input type="text" placeholder="Linha 3: Concelho" value={novaMorada.concelho} onChange={e => setNovaMorada({...novaMorada, concelho: e.target.value})} style={inputStyle} />
-                            <input type="text" placeholder="Linha 3: Distrito" value={novaMorada.distrito} onChange={e => setNovaMorada({...novaMorada, distrito: e.target.value})} style={inputStyle} />
-                            <input type="text" placeholder="Linha 3: Região" value={novaMorada.regiao} onChange={e => setNovaMorada({...novaMorada, regiao: e.target.value})} style={inputStyle} />
+                        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'20px'}}>
+                            <div>
+                                <label style={labelStyle}>Concelho</label>
+                                <input type="text" value={novaMorada.concelho} onChange={e => setNovaMorada({...novaMorada, concelho: e.target.value})} style={inputStyle} />
+                            </div>
+                            <div>
+                                <label style={labelStyle}>Distrito</label>
+                                <input type="text" value={novaMorada.distrito} onChange={e => setNovaMorada({...novaMorada, distrito: e.target.value})} style={inputStyle} />
+                            </div>
+                            <div>
+                                <label style={labelStyle}>Região</label>
+                                <input type="text" value={novaMorada.regiao} onChange={e => setNovaMorada({...novaMorada, regiao: e.target.value})} style={inputStyle} />
+                            </div>
                         </div>
 
-                        <input type="text" placeholder="Notas Opcionais (Ex: Sede, Armazém, Faturação)" value={novaMorada.notas} onChange={e => setNovaMorada({...novaMorada, notas: e.target.value})} style={{...inputStyle, marginBottom:0}} />
+                        <label style={labelStyle}>Tipo / Notas Opcionais</label>
+                        <input type="text" placeholder="Ex: Sede, Armazém, Local de Faturação..." value={novaMorada.notas} onChange={e => setNovaMorada({...novaMorada, notas: e.target.value})} style={{...inputStyle, marginBottom:0}} />
                         
-                        <div style={{display:'flex', gap:'10px', marginTop:'15px'}}>
-                            <button onClick={() => saveSubItem('moradas_cliente', novaMorada, setMoradas, moradas, setNovaMorada, initMorada, setShowAddMorada)} className="btn-primary" style={{padding:'8px 15px'}}>{novaMorada.id ? 'Atualizar' : 'Guardar Morada'}</button>
-                            <button onClick={() => {setShowAddMorada(false); setNovaMorada(initMorada);}} style={{background:'none', border:'none', color:'#64748b', cursor:'pointer'}}>Cancelar</button>
+                        <div style={{display:'flex', gap:'10px', marginTop:'20px'}}>
+                            <button onClick={() => saveSubItem('moradas_cliente', novaMorada, setMoradas, moradas, setNovaMorada, initMorada, setShowAddMorada)} className="btn-primary" style={{padding:'10px 20px'}}>{novaMorada.id ? 'Atualizar' : 'Guardar Morada'}</button>
+                            <button onClick={() => {setShowAddMorada(false); setNovaMorada(initMorada);}} style={{background:'none', border:'none', color:'#64748b', cursor:'pointer', fontWeight:'bold'}}>Cancelar</button>
                         </div>
                       </div>
                     )}
 
-                    <ul style={{listStyle:'none', padding:0}}>
+                    <ul style={{listStyle:'none', padding:0, display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(350px, 1fr))', gap:'15px'}}>
                       {moradas.map(m => (
-                        <li key={m.id} style={{background:'white', padding:'15px', borderRadius:'10px', marginBottom:'10px', display:'flex', justifyContent:'space-between', alignItems:'center', border:'1px solid #e2e8f0'}}>
+                        <li key={m.id} style={{background:'white', padding:'20px', borderRadius:'12px', display:'flex', justifyContent:'space-between', alignItems:'flex-start', border:'1px solid #e2e8f0'}}>
                           <div>
-                            {m.notas && <span style={{display:'inline-block', marginBottom:'5px', textTransform:'uppercase', fontSize: '0.7rem', background:'#e0f2fe', color:'#0369a1', padding:'3px 6px', borderRadius:'4px', fontWeight:'bold'}}>{m.notas}</span>}
-                            <div style={{fontWeight:'bold', color:'#334155'}}>{m.morada}</div>
+                            {m.notas && <span style={{display:'inline-block', marginBottom:'8px', textTransform:'uppercase', fontSize: '0.75rem', background:'#e0f2fe', color:'#0369a1', padding:'4px 8px', borderRadius:'6px', fontWeight:'bold'}}>{m.notas}</span>}
+                            <div style={{fontWeight:'bold', color:'#334155', fontSize:'1.05rem', marginBottom:'4px'}}>{m.morada}</div>
                             <div style={{color:'#64748b', fontSize:'0.9rem'}}>{m.codigo_postal} {m.localidade}</div>
-                            <div style={{color:'#94a3b8', fontSize:'0.8rem', marginTop:'3px'}}>{[m.concelho, m.distrito, m.regiao].filter(Boolean).join(' • ')}</div>
+                            <div style={{color:'#94a3b8', fontSize:'0.85rem', marginTop:'4px'}}>{[m.concelho, m.distrito, m.regiao].filter(Boolean).join(' • ')}</div>
                           </div>
                           {!isViewOnly && (
-                            <div style={{display:'flex', gap:'10px'}}>
+                            <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
                                <button onClick={() => abrirEdicaoSubItem(m, setNovaMorada, setShowAddMorada)} className="btn-small">✏️</button>
-                               <button onClick={() => deleteItem('moradas_cliente', m.id, setMoradas, moradas)} style={{border:'none', background:'#fee2e2', color:'#ef4444', borderRadius:'6px', padding:'6px 10px', cursor:'pointer'}}>🗑</button>
+                               <button onClick={() => deleteItem('moradas_cliente', m.id, setMoradas, moradas)} style={{border:'none', background:'#fee2e2', color:'#ef4444', borderRadius:'6px', padding:'8px', cursor:'pointer'}}>🗑</button>
                             </div>
                           )}
                         </li>
@@ -840,45 +796,58 @@ export default function Clientes() {
                 {/* --- ABA ACESSOS --- */}
                 {activeTab === 'acessos' && podeVerAcessos && (
                   <div>
-                    <div style={{background: '#fffbeb', padding: '15px', borderRadius: '10px', borderLeft: '4px solid #f59e0b', marginBottom: '20px', color:'#b45309', fontWeight:'500'}}>
-                      ⚠️ Acesso Restrito. Não partilhe estas credenciais fora da plataforma.
+                    <div style={{background: '#fffbeb', padding: '20px', borderRadius: '12px', borderLeft: '5px solid #f59e0b', marginBottom: '25px', color:'#b45309', fontWeight:'500', fontSize:'1.05rem'}}>
+                      ⚠️ Acesso Restrito de Administração. Não partilhe estas credenciais fora da plataforma.
                     </div>
                     
-                    <div style={{display:'flex', justifyContent:'space-between', marginBottom:'15px'}}>
-                      <h4 style={{margin:0}}>Credenciais</h4>
+                    <div style={{display:'flex', justifyContent:'space-between', marginBottom:'15px', alignItems:'center'}}>
+                      <h4 style={{margin:0, fontSize:'1.1rem'}}>Credenciais</h4>
                       {!isViewOnly && !showAddAcesso && <button className="btn-small-add" onClick={() => {setNovoAcesso(initAcesso); setShowAddAcesso(true)}}>+ Adicionar Acesso</button>}
                     </div>
 
                     {showAddAcesso && (
-                      <div style={{background:'white', padding:'20px', borderRadius:'12px', border:'1px solid #cbd5e1', marginBottom:'20px'}}>
-                        <h5 style={{marginTop:0}}>{novoAcesso.id ? 'Editar Acesso' : 'Novo Acesso'}</h5>
-                        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'15px'}}>
-                          <input type="text" placeholder="Plataforma (Ex: Portal das Finanças)" value={novoAcesso.organismo} onChange={e => setNovoAcesso({...novoAcesso, organismo: e.target.value})} required style={inputStyle} />
-                          <input type="text" placeholder="Link de Login (Opcional)" value={novoAcesso.url} onChange={e => setNovoAcesso({...novoAcesso, url: e.target.value})} style={inputStyle} />
-                          <input type="text" placeholder="Utilizador / NIF" value={novoAcesso.utilizador} onChange={e => setNovoAcesso({...novoAcesso, utilizador: e.target.value})} required style={inputStyle} />
-                          <input type="text" placeholder="Password" value={novoAcesso.codigo} onChange={e => setNovoAcesso({...novoAcesso, codigo: e.target.value})} required style={inputStyle} />
+                      <div style={{background:'white', padding:'25px', borderRadius:'12px', border:'1px solid #cbd5e1', marginBottom:'20px', boxShadow:'0 4px 6px -1px rgba(0,0,0,0.05)'}}>
+                        <h5 style={{marginTop:0, fontSize:'1.1rem'}}>{novoAcesso.id ? 'Editar Acesso' : 'Novo Acesso'}</h5>
+                        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px'}}>
+                          <div>
+                              <label style={labelStyle}>Plataforma / Organismo *</label>
+                              <input type="text" placeholder="Ex: Portal das Finanças" value={novoAcesso.organismo} onChange={e => setNovoAcesso({...novoAcesso, organismo: e.target.value})} required style={inputStyle} />
+                          </div>
+                          <div>
+                              <label style={labelStyle}>Link de Login (Opcional)</label>
+                              <input type="text" placeholder="https://..." value={novoAcesso.url} onChange={e => setNovoAcesso({...novoAcesso, url: e.target.value})} style={inputStyle} />
+                          </div>
+                          <div>
+                              <label style={labelStyle}>Utilizador / NIF *</label>
+                              <input type="text" value={novoAcesso.utilizador} onChange={e => setNovoAcesso({...novoAcesso, utilizador: e.target.value})} required style={inputStyle} />
+                          </div>
+                          <div>
+                              <label style={labelStyle}>Password *</label>
+                              <input type="text" value={novoAcesso.codigo} onChange={e => setNovoAcesso({...novoAcesso, codigo: e.target.value})} required style={{...inputStyle, fontFamily:'monospace'}} />
+                          </div>
                         </div>
-                        <div style={{display:'flex', gap:'10px', marginTop:'10px'}}>
-                            <button onClick={() => saveSubItem('acessos_cliente', novoAcesso, setAcessos, acessos, setNovoAcesso, initAcesso, setShowAddAcesso)} className="btn-primary" style={{padding:'8px 15px'}}>{novoAcesso.id ? 'Atualizar' : 'Guardar Acesso'}</button>
-                            <button onClick={() => {setShowAddAcesso(false); setNovoAcesso(initAcesso);}} style={{background:'none', border:'none', color:'#64748b', cursor:'pointer'}}>Cancelar</button>
+                        <div style={{display:'flex', gap:'10px', marginTop:'15px'}}>
+                            <button onClick={() => saveSubItem('acessos_cliente', novoAcesso, setAcessos, acessos, setNovoAcesso, initAcesso, setShowAddAcesso)} className="btn-primary" style={{padding:'10px 20px'}}>{novoAcesso.id ? 'Atualizar' : 'Guardar Acesso'}</button>
+                            <button onClick={() => {setShowAddAcesso(false); setNovoAcesso(initAcesso);}} style={{background:'none', border:'none', color:'#64748b', cursor:'pointer', fontWeight:'bold'}}>Cancelar</button>
                         </div>
                       </div>
                     )}
 
-                    <ul style={{listStyle:'none', padding:0}}>
+                    <ul style={{listStyle:'none', padding:0, display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(400px, 1fr))', gap:'15px'}}>
                       {acessos.map(a => (
-                        <li key={a.id} style={{background:'white', padding:'15px', borderRadius:'10px', marginBottom:'10px', display:'flex', justifyContent:'space-between', alignItems:'center', borderLeft:'4px solid #3b82f6', boxShadow:'0 1px 3px rgba(0,0,0,0.05)'}}>
-                          <div>
-                            <span style={{fontWeight:'bold', color:'#1e293b', fontSize:'1.1rem'}}>{a.organismo}</span>
-                            <div style={{fontFamily:'monospace', background:'#f1f5f9', padding:'8px', borderRadius:'6px', marginTop:'8px', color:'#334155'}}>
-                              User: <b>{a.utilizador}</b> &nbsp;&nbsp;|&nbsp;&nbsp; Pass: <b>{a.codigo}</b>
+                        <li key={a.id} style={{background:'white', padding:'20px', borderRadius:'12px', display:'flex', justifyContent:'space-between', alignItems:'center', borderLeft:'5px solid #3b82f6', boxShadow:'0 2px 4px rgba(0,0,0,0.05)'}}>
+                          <div style={{flex: 1, paddingRight:'15px'}}>
+                            <span style={{fontWeight:'800', color:'#1e293b', fontSize:'1.15rem', display:'block', marginBottom:'10px'}}>{a.organismo}</span>
+                            <div style={{fontFamily:'monospace', background:'#f8fafc', border:'1px solid #e2e8f0', padding:'12px', borderRadius:'8px', color:'#334155', fontSize:'0.95rem'}}>
+                              User: <b style={{color:'#2563eb'}}>{a.utilizador}</b> <br/>
+                              Pass: <b style={{color:'#ef4444'}}>{a.codigo}</b>
                             </div>
-                            {a.url && <a href={a.url.startsWith('http') ? a.url : `https://${a.url}`} target="_blank" rel="noreferrer" style={{display:'inline-block', marginTop:'8px', fontSize:'0.8rem', color:'#2563eb', textDecoration:'none', fontWeight:'bold'}}>🔗 Abrir Portal</a>}
+                            {a.url && <a href={a.url.startsWith('http') ? a.url : `https://${a.url}`} target="_blank" rel="noreferrer" style={{display:'inline-block', marginTop:'12px', fontSize:'0.85rem', color:'#2563eb', textDecoration:'none', fontWeight:'bold', background:'#eff6ff', padding:'6px 12px', borderRadius:'6px'}}>🔗 Abrir Portal de Login</a>}
                           </div>
                           {!isViewOnly && (
-                            <div style={{display:'flex', gap:'10px'}}>
+                            <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
                                <button onClick={() => abrirEdicaoSubItem(a, setNovoAcesso, setShowAddAcesso)} className="btn-small">✏️</button>
-                               <button onClick={() => deleteItem('acessos_cliente', a.id, setAcessos, acessos)} style={{border:'none', background:'#fee2e2', color:'#ef4444', borderRadius:'6px', padding:'6px 10px', cursor:'pointer'}}>🗑</button>
+                               <button onClick={() => deleteItem('acessos_cliente', a.id, setAcessos, acessos)} style={{border:'none', background:'#fee2e2', color:'#ef4444', borderRadius:'6px', padding:'8px', cursor:'pointer'}}>🗑</button>
                             </div>
                           )}
                         </li>
@@ -892,6 +861,47 @@ export default function Clientes() {
           </div>
         </ModalPortal>
       )}
+
+      <style>{`
+          /* Grelha de Clientes */
+          .client-grid {
+              display: grid;
+              grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+              gap: 20px;
+          }
+          
+          /* Efeito Interativo no Cartão */
+          .client-card:hover {
+              transform: translateY(-4px);
+              border-color: #cbd5e1 !important;
+              box-shadow: 0 12px 20px -5px rgba(0,0,0,0.1) !important;
+          }
+
+          .hover-shadow:hover { box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); transform: translateY(-1px); }
+          .hover-blue-text:hover { background: #eff6ff !important; color: #1d4ed8 !important; }
+          .hover-orange-text:hover { background: #fff7ed !important; color: #d97706 !important; }
+
+          /* Custom Scrollbar limpa */
+          .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+          .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+          .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
+
+          /* Botão Glow Principal */
+          .btn-glow {
+              position: relative; overflow: hidden; background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 8px;
+              font-weight: bold; font-size: 0.95rem; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.4); transition: all 0.3s ease;
+          }
+          .btn-glow::after {
+              content: ''; position: absolute; top: 0; left: -150%; width: 50%; height: 100%;
+              background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.4) 50%, rgba(255,255,255,0) 100%);
+              transform: skewX(-25deg); transition: left 0.7s ease-in-out;
+          }
+          .btn-glow:hover { background: #059669; transform: translateY(-1px); box-shadow: 0 6px 12px rgba(16, 185, 129, 0.3); }
+          .btn-glow:hover::after { animation: shine-sweep 1.2s infinite alternate ease-in-out; }
+          @keyframes shine-sweep { 0% { left: -150%; } 100% { left: 200%; } }
+          
+          .pulse-dot-white { width: 8px; height: 8px; background-color: white; border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; }
+      `}</style>
     </div>
   );
 }

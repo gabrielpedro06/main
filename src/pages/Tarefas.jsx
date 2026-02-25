@@ -12,41 +12,36 @@ const ModalPortal = ({ children }) => {
 export default function Tarefas() {
   const { user } = useAuth();
   
-  // Dados Principais Separados (Projetos vs Avulsos)
   const [atividadesAgrupadas, setAtividadesAgrupadas] = useState([]); 
-  const [tarefasPessoais, setTarefasPessoais] = useState([]); 
-
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false); 
   const [activeTask, setActiveTask] = useState(null); 
   const [notification, setNotification] = useState(null);
 
-  // Combos
   const [atividadesBase, setAtividadesBase] = useState([]);
   const [staff, setStaff] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [projetosList, setProjetosList] = useState([]); 
 
-  // Filtros
   const [busca, setBusca] = useState("");
   const [filtroCliente, setFiltroCliente] = useState("");
   const [filtroProjeto, setFiltroProjeto] = useState("");
   const [mostrarConcluidos, setMostrarConcluidos] = useState(false);
 
-  // UI State
   const [expandedTasks, setExpandedTasks] = useState({});
   const [novaTarefaNome, setNovaTarefaNome] = useState({ ativId: null, nome: "" });
   const [novaSubtarefaNome, setNovaSubtarefaNome] = useState({ tarId: null, nome: "" });
 
-  // Modais de Criação/Edição
   const [showModal, setShowModal] = useState(false);
   const [editId, setEditId] = useState(null);
   const [editType, setEditType] = useState('tarefa'); 
   const [isViewOnly, setIsViewOnly] = useState(false);
 
-  // Modal de Apagar Bonito
   const [deleteConfirm, setDeleteConfirm] = useState({ show: false, tabela: '', id: null, titulo: '' });
+
+  // Limite de visualização por Projeto (Padrão 5)
+  const [visibleLimits, setVisibleLimits] = useState({}); 
 
   const initialForm = {
     titulo: "", descricao: "", atividade_id: "", responsavel_id: "",
@@ -91,9 +86,17 @@ export default function Tarefas() {
       fetchData(userIsAdmin);
   }
 
-  // 💡 A FÓRMULA DE ORDENAÇÃO INVENCÍVEL (Desempate perfeito)
+  // 💡 FÓRMULA DE ORDENAÇÃO DE FERRO (Ordem Estrita)
   const sortMaster = (a, b, dateKey) => {
-      // 1. Data Limite (Prazos) - Mais urgentes primeiro
+      // 1. OBRIGATÓRIO: Ordem do template convertida para número matemático
+      const ordemA = a.ordem !== null && a.ordem !== undefined ? Number(a.ordem) : 999999;
+      const ordemB = b.ordem !== null && b.ordem !== undefined ? Number(b.ordem) : 999999;
+      
+      if (ordemA !== ordemB) {
+          return ordemA - ordemB; // O menor número ganha (ex: 1 vem antes do 2)
+      }
+
+      // 2. Datas (Prazos mais urgentes) - Só entra em ação se a ordem for igual
       if (a[dateKey] && b[dateKey]) {
           const d1 = new Date(a[dateKey]).getTime();
           const d2 = new Date(b[dateKey]).getTime();
@@ -101,32 +104,28 @@ export default function Tarefas() {
       } else if (a[dateKey] && !b[dateKey]) { return -1; }
         else if (!a[dateKey] && b[dateKey]) { return 1; }
 
-      // 2. Coluna Ordem (Templates)
-      if (a.ordem != null && b.ordem != null && a.ordem !== b.ordem) return a.ordem - b.ordem;
-
-      // 3. Data de Criação (Apoio caso não haja ordem)
+      // 3. Data de criação
       if (a.created_at && b.created_at) {
           const c1 = new Date(a.created_at).getTime();
           const c2 = new Date(b.created_at).getTime();
           if (c1 !== c2) return c1 - c2;
       }
-
-      // 4. Ordem Alfabética Numérica (Garante que "2.1" fica antes de "2.3")
+      
+      // 4. Desempate final (ex: "2.1" vs "2.3")
       return (a.titulo || "").localeCompare(b.titulo || "", undefined, { numeric: true });
   };
 
-  // --- MOTOR DE DADOS ---
   async function fetchData(adminStatus) {
     try {
-        let queryAtivs = supabase.from("atividades").select(`id, titulo, estado, data_fim, projetos(id, titulo, clientes(id, marca))`);
+        let queryAtivs = supabase.from("atividades").select(`id, titulo, estado, data_fim, ordem, created_at, projetos(id, titulo, clientes(id, marca))`).not("projeto_id", "is", null);
         if (!adminStatus) queryAtivs = queryAtivs.eq("responsavel_id", user.id);
         const { data: ativsData } = await queryAtivs;
 
-        let queryTarefas = supabase.from("tarefas").select(`*, atividades(id, titulo, estado, data_fim, projetos(id, titulo, clientes(id, marca))), profiles:responsavel_id(nome, email)`);
+        let queryTarefas = supabase.from("tarefas").select(`*, atividades!inner(id, titulo, estado, data_fim, ordem, created_at, projetos(id, titulo, clientes(id, marca))), profiles:responsavel_id(nome, email)`);
         if (!adminStatus) queryTarefas = queryTarefas.eq("responsavel_id", user.id);
         const { data: tarefasData } = await queryTarefas;
 
-        let querySubtarefas = supabase.from("subtarefas").select(`*, tarefas(id, titulo, prioridade, data_limite, estado, atividades(id, titulo, estado, data_fim, projetos(id, titulo, clientes(id, marca)))), profiles:responsavel_id(nome, email)`);
+        let querySubtarefas = supabase.from("subtarefas").select(`*, tarefas!inner(id, titulo, prioridade, data_limite, estado, atividades!inner(id, titulo, estado, data_fim, ordem, created_at, projetos(id, titulo, clientes(id, marca)))), profiles:responsavel_id(nome, email)`);
         if (!adminStatus) querySubtarefas = querySubtarefas.eq("responsavel_id", user.id);
         const { data: subtarefasData } = await querySubtarefas;
 
@@ -134,13 +133,11 @@ export default function Tarefas() {
         setLogs(logsData || []);
 
         let mapAtividades = new Map();
-        let mapPessoais = new Map();
 
-        // Insere Atividades
         if (ativsData) {
             ativsData.forEach(a => {
                 mapAtividades.set(a.id, {
-                    id: a.id, titulo: a.titulo, estado: a.estado, data_fim: a.data_fim, isStandalone: false,
+                    id: a.id, titulo: a.titulo, estado: a.estado, data_fim: a.data_fim, ordem: a.ordem, created_at: a.created_at,
                     projetoNome: a.projetos?.titulo, projetoId: a.projetos?.id,
                     clienteNome: a.projetos?.clientes?.marca, clienteId: a.projetos?.clientes?.id,
                     searchString: (a.titulo + " " + (a.projetos?.titulo||"")).toLowerCase(),
@@ -149,18 +146,12 @@ export default function Tarefas() {
             });
         }
 
-        // Insere Tarefas
         if (tarefasData) {
             tarefasData.forEach(t => {
                 const ativ = t.atividades;
-                if (!ativ) {
-                    mapPessoais.set(t.id, { ...t, is_readonly_parent: false, searchString: (t.titulo || '').toLowerCase(), subtarefas: [] });
-                    return;
-                }
-                
                 if (!mapAtividades.has(ativ.id)) {
                     mapAtividades.set(ativ.id, {
-                        id: ativ.id, titulo: ativ.titulo, estado: ativ.estado, data_fim: ativ.data_fim,
+                        id: ativ.id, titulo: ativ.titulo, estado: ativ.estado, data_fim: ativ.data_fim, ordem: ativ.ordem, created_at: ativ.created_at,
                         projetoNome: ativ.projetos?.titulo, projetoId: ativ.projetos?.id,
                         clienteNome: ativ.projetos?.clientes?.marca, clienteId: ativ.projetos?.clientes?.id,
                         searchString: (ativ.titulo + " " + (ativ.projetos?.titulo||"")).toLowerCase(),
@@ -171,24 +162,14 @@ export default function Tarefas() {
             });
         }
 
-        // Insere Subtarefas
         if (subtarefasData) {
             subtarefasData.forEach(s => {
                 const tar = s.tarefas;
-                if (!tar) return;
                 const ativ = tar.atividades;
-
-                if (!ativ) {
-                    if (!mapPessoais.has(tar.id)) {
-                        mapPessoais.set(tar.id, { ...tar, is_readonly_parent: true, searchString: (tar.titulo || '').toLowerCase(), subtarefas: [] });
-                    }
-                    mapPessoais.get(tar.id).subtarefas.push({...s, searchString: (s.titulo || '').toLowerCase()});
-                    return;
-                }
 
                 if (!mapAtividades.has(ativ.id)) {
                     mapAtividades.set(ativ.id, {
-                        id: ativ.id, titulo: ativ.titulo, estado: ativ.estado, data_fim: ativ.data_fim,
+                        id: ativ.id, titulo: ativ.titulo, estado: ativ.estado, data_fim: ativ.data_fim, ordem: ativ.ordem, created_at: ativ.created_at,
                         projetoNome: ativ.projetos?.titulo, projetoId: ativ.projetos?.id,
                         clienteNome: ativ.projetos?.clientes?.marca, clienteId: ativ.projetos?.clientes?.id,
                         searchString: (ativ.titulo + " " + (ativ.projetos?.titulo||"")).toLowerCase(),
@@ -203,7 +184,7 @@ export default function Tarefas() {
             });
         }
 
-        // APLICAR A ORDENAÇÃO INVENCÍVEL
+        // APLICAR A ORDENAÇÃO DE FLUXO (Workflow Absoluto)
         let listaAtividades = Array.from(mapAtividades.values()).map(a => {
             const arrTarefas = Array.from(a.tarefasMap.values());
             arrTarefas.sort((t1, t2) => sortMaster(t1, t2, 'data_limite'));
@@ -212,15 +193,9 @@ export default function Tarefas() {
         });
         listaAtividades.sort((a1, a2) => sortMaster(a1, a2, 'data_fim'));
 
-        let listaPessoais = Array.from(mapPessoais.values());
-        listaPessoais.sort((t1, t2) => sortMaster(t1, t2, 'data_limite'));
-        listaPessoais.forEach(t => t.subtarefas.sort((s1, s2) => sortMaster(s1, s2, 'data_fim')));
-
         setAtividadesAgrupadas(listaAtividades);
-        setTarefasPessoais(listaPessoais);
 
-        // Fetch Dropdowns UI
-        const { data: comboAtiv } = await supabase.from("atividades").select("id, titulo, projetos(titulo)").neq("estado", "cancelado");
+        const { data: comboAtiv } = await supabase.from("atividades").select("id, titulo, projetos(titulo)").not("projeto_id", "is", null).neq("estado", "cancelado");
         setAtividadesBase(comboAtiv || []);
         const { data: staffData } = await supabase.from("profiles").select("id, nome, email").order("nome");
         setStaff(staffData || []);
@@ -234,7 +209,6 @@ export default function Tarefas() {
     setLoading(false);
   }
 
-  // --- MATEMÁTICA DE TEMPOS E DATAS ---
   const getTaskTime = (taskId) => logs.filter(l => l.task_id === taskId).reduce((acc, curr) => acc + (curr.duration_minutes || 0), 0);
   const getActivityTime = (ativ) => ativ.tarefas?.reduce((acc, t) => acc + getTaskTime(t.id), 0) || 0;
   
@@ -246,33 +220,36 @@ export default function Tarefas() {
 
   const renderDeadline = (dateString, isCompleted, isLarge = false) => {
       if (!dateString) return null;
-      
       const deadline = new Date(dateString); deadline.setHours(0,0,0,0);
       const today = new Date(); today.setHours(0,0,0,0);
       const diffDays = Math.round((deadline.getTime() - today.getTime()) / (1000 * 3600 * 24));
       const dateFormatted = deadline.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
       
-      let bg = '#f1f5f9', color = '#64748b', border = '#e2e8f0', text = `📅 ${dateFormatted}`;
-      if (isCompleted) { bg = '#f8fafc'; color = '#94a3b8'; text = `✔️ ${dateFormatted}`; } 
-      else if (diffDays < 0) { bg = '#fee2e2'; color = '#ef4444'; border = '#fecaca'; text = `🔴 ${dateFormatted} (Atraso: ${Math.abs(diffDays)}d)`; } 
-      else if (diffDays === 0) { bg = '#fefce8'; color = '#ca8a04'; border = '#fef08a'; text = `⚠️ HOJE`; } 
-      else if (diffDays <= 3) { bg = '#ffedd5'; color = '#ea580c'; border = '#fed7aa'; text = `⏳ ${dateFormatted} (${diffDays}d)`; } 
-      else { text = `📅 ${dateFormatted} (${diffDays}d)`; }
+      let bg = '#f1f5f9', color = '#64748b', text = `📅 ${dateFormatted}`;
+      if (isCompleted) { bg = 'transparent'; color = '#94a3b8'; text = `✔️ ${dateFormatted}`; } 
+      else if (diffDays < 0) { bg = '#fee2e2'; color = '#ef4444'; text = `🔴 ${dateFormatted}`; } 
+      else if (diffDays === 0) { bg = '#fefce8'; color = '#ca8a04'; text = `⚠️ HOJE`; } 
+      else if (diffDays <= 3) { bg = '#ffedd5'; color = '#ea580c'; text = `⏳ ${dateFormatted}`; } 
 
       return (
-          <span style={{ fontSize: isLarge ? '0.75rem' : '0.65rem', background: bg, color: color, padding: isLarge ? '4px 8px' : '2px 6px', borderRadius: '6px', fontWeight: 'bold', border: `1px solid ${border}`, display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: isLarge ? '0.7rem' : '0.6rem', background: bg, color: color, padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', display: 'inline-block', whiteSpace: 'nowrap' }}>
               {text}
           </span>
       );
   };
 
-  // --- TIMERS E AÇÕES ---
+  const projectColors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#f43f5e', '#14b8a6', '#0ea5e9', '#6366f1'];
+  const getColorForProject = (id) => {
+      if (!id) return '#94a3b8'; 
+      const hash = String(id).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+      return projectColors[hash % projectColors.length];
+  };
+
   async function handleStartTask(tarefa) {
       if (activeTask) return showToast("Pára o cronómetro atual antes de iniciares outro.", "error");
-      
       const payload = { user_id: user.id, task_id: tarefa.id, start_time: new Date().toISOString() };
       const ativPai = atividadesAgrupadas.find(a => a.tarefas.some(t => t.id === tarefa.id));
-      if (ativPai && !ativPai.isStandalone) payload.projeto_id = ativPai.projetoId;
+      if (ativPai) payload.projeto_id = ativPai.projetoId;
 
       const { data, error } = await supabase.from("task_logs").insert([payload]).select().single();
       if (!error) {
@@ -299,7 +276,6 @@ export default function Tarefas() {
       if (!error) { fetchData(isAdmin); showToast(novoEstado === 'concluido' ? "Feito! 🎉" : "Reaberto."); }
   }
 
-  // --- NOVO SISTEMA DE ELIMINAR (MODAL BONITO) ---
   function openDeleteConfirm(tabela, id, titulo) {
       setDeleteConfirm({ show: true, tabela, id, titulo });
   }
@@ -308,18 +284,15 @@ export default function Tarefas() {
       const { tabela, id } = deleteConfirm;
       const { error } = await supabase.from(tabela).delete().eq("id", id);
       setDeleteConfirm({ show: false, tabela: '', id: null, titulo: '' });
-      
       if(!error) { showToast("Apagado com sucesso."); fetchData(isAdmin); }
       else { showToast("Erro ao apagar.", "error"); }
   }
 
   const toggleExpand = (taskId) => setExpandedTasks(prev => ({ ...prev, [taskId]: !prev[taskId] }));
 
-  // --- FILTROS ---
   const checkFilters = (t, termo) => {
       const matchBusca = t.searchString.includes(termo) || t.subtarefas.some(s => s.searchString.includes(termo));
       const isInactive = t.estado === 'concluido' || t.estado === 'cancelado';
-      // Mudei aqui: Se quiseres ver as concluídas, as subtarefas tbm aparecem sempre!
       if (!mostrarConcluidos && isInactive) return false;
       return matchBusca;
   }
@@ -337,20 +310,29 @@ export default function Tarefas() {
       return { ...a, tarefas: tarefasFiltered };
   }).filter(Boolean); 
 
-  const pessoaisFiltradas = tarefasPessoais.filter(t => {
-      if (filtroProjeto || filtroCliente) return false; 
-      return checkFilters(t, busca.toLowerCase());
+  // Agrupar atividades por Projeto e ORDENAR OS PROJETOS ALFABETICAMENTE
+  const projetosAgrupadosMap = new Map();
+  atividadesFiltradas.forEach(ativ => {
+      const pId = ativ.projetoId || 'sem-projeto';
+      if (!projetosAgrupadosMap.has(pId)) {
+          projetosAgrupadosMap.set(pId, {
+              id: pId,
+              titulo: ativ.projetoNome || 'Atividades sem Projeto',
+              cliente: ativ.clienteNome || '',
+              color: getColorForProject(pId),
+              atividades: []
+          });
+      }
+      projetosAgrupadosMap.get(pId).atividades.push(ativ);
   });
+  
+  const projetosRenderList = Array.from(projetosAgrupadosMap.values());
+  projetosRenderList.sort((p1, p2) => p1.titulo.localeCompare(p2.titulo));
 
-  // --- MODAIS GERAIS ---
+  // --- MODAIS ---
   function handleNovo() {
     setEditId(null); setIsViewOnly(false); setEditType('tarefa');
     setForm({ ...initialForm, atividade_id: atividadesBase.length > 0 ? atividadesBase[0].id : "" });
-    setShowModal(true);
-  }
-  function handleNovaPessoal() {
-    setEditId(null); setIsViewOnly(false); setEditType('tarefa');
-    setForm({ ...initialForm, atividade_id: "" });
     setShowModal(true);
   }
   function handleEdit(item, tipo) { setEditId(item.id); setIsViewOnly(false); setEditType(tipo); loadData(item, tipo); }
@@ -367,7 +349,6 @@ export default function Tarefas() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    
     let tabela = 'tarefas';
     let finalPayload = {};
 
@@ -376,7 +357,8 @@ export default function Tarefas() {
         finalPayload = { titulo: form.titulo, estado: form.estado, descricao: form.descricao, responsavel_id: form.responsavel_id || null, data_inicio: form.data_inicio || null, data_fim: form.data_limite || null };
     } else if (editType === 'tarefa') {
         tabela = 'tarefas';
-        finalPayload = { titulo: form.titulo, estado: form.estado, descricao: form.descricao, atividade_id: form.atividade_id || null, responsavel_id: form.responsavel_id || null, data_inicio: form.data_inicio || null, data_limite: form.data_limite || null, prioridade: form.prioridade };
+        if (!form.atividade_id) return showToast("A Atividade Pai é obrigatória!", "error");
+        finalPayload = { titulo: form.titulo, estado: form.estado, descricao: form.descricao, atividade_id: form.atividade_id, responsavel_id: form.responsavel_id || null, data_inicio: form.data_inicio || null, data_limite: form.data_limite || null, prioridade: form.prioridade };
     } else {
         tabela = 'subtarefas';
         finalPayload = { titulo: form.titulo, estado: form.estado, responsavel_id: form.responsavel_id || null, data_fim: form.data_limite || null };
@@ -392,7 +374,7 @@ export default function Tarefas() {
   async function handleAddTarefa(e, ativId) {
       e.preventDefault();
       if(!novaTarefaNome.nome?.trim()) return;
-      await supabase.from("tarefas").insert([{ atividade_id: ativId === 'standalone' ? null : ativId, titulo: novaTarefaNome.nome, responsavel_id: user.id, estado: 'pendente' }]);
+      await supabase.from("tarefas").insert([{ atividade_id: ativId, titulo: novaTarefaNome.nome, responsavel_id: user.id, estado: 'pendente' }]);
       setNovaTarefaNome({ ativId: null, nome: "" }); fetchData(isAdmin); showToast("Tarefa adicionada!");
   }
 
@@ -410,7 +392,6 @@ export default function Tarefas() {
       return null; 
   }
 
-  // Estilos Modais 
   const modalOverlayStyle = { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.5)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999 };
   const modalStyle = { background: '#fff', width: '95%', maxWidth: '600px', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', display: 'flex', flexDirection: 'column', maxHeight: '90vh', overflow: 'hidden' };
   const modalHeaderStyle = { padding: '16px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff' };
@@ -425,10 +406,10 @@ export default function Tarefas() {
   return (
     <div className="page-container" style={{maxWidth: '1400px', margin: '0 auto', padding: '15px'}}>
       
-      {/* CABEÇALHO */}
+      {/* CABEÇALHO COM BOTÃO BRILHANTE */}
       <div style={{background: 'white', padding: '20px 25px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.02)'}}>
         <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
-            <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.5rem', fontWeight: '800', letterSpacing: '-0.02em'}}>As Minhas Atividades e Tarefas</h1>
+            <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.5rem', fontWeight: '800', letterSpacing: '-0.02em'}}>Tarefas de Projetos</h1>
             {activeTask && (
                 <div style={{ background: '#fee2e2', border: '1px solid #fecaca', color: '#ef4444', padding: '4px 12px', borderRadius: '8px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
                     <span style={{width: '6px', height: '6px', background: '#ef4444', borderRadius: '50%', display: 'inline-block', animation: 'pulse 1.5s infinite'}}></span> 
@@ -437,17 +418,14 @@ export default function Tarefas() {
                 </div>
             )}
         </div>
-        <div style={{display: 'flex', gap: '10px'}}>
-            <button onClick={handleNovaPessoal} style={{background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1', padding: '8px 16px', borderRadius: '8px', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer'}}>+ Tarefa Pessoal</button>
-            <button onClick={handleNovo} style={{background: '#10b981', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', boxShadow: '0 2px 4px rgba(16, 185, 129, 0.2)'}}>+ Tarefa de Projeto</button>
-        </div>
+        <button onClick={handleNovo} className="btn-shine">+ Nova Tarefa</button>
       </div>
 
       {/* FILTROS */}
       <div style={{background: '#f8fafc', padding: '12px 20px', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '20px', display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap'}}>
         <div style={{flex: 2, minWidth: '200px', position: 'relative'}}>
             <span style={{position: 'absolute', left: '12px', top: '9px', color: '#94a3b8', fontSize: '0.85rem'}}>🔍</span>
-            <input type="text" placeholder="Procurar..." value={busca} onChange={(e) => {setBusca(e.target.value); if(e.target.value){const obj={}; atividadesAgrupadas.forEach(a=>a.tarefas.forEach(t=>obj[t.id]=true)); tarefasPessoais.forEach(t=>obj[t.id]=true); setExpandedTasks(obj);}}} style={{width: '100%', padding: '8px 12px 8px 32px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.85rem', boxSizing: 'border-box'}} />
+            <input type="text" placeholder="Procurar..." value={busca} onChange={(e) => {setBusca(e.target.value); if(e.target.value){const obj={}; atividadesAgrupadas.forEach(a=>a.tarefas.forEach(t=>obj[t.id]=true)); setExpandedTasks(obj);}}} style={{width: '100%', padding: '8px 12px 8px 32px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.85rem', boxSizing: 'border-box'}} />
         </div>
         
         {isAdmin && (
@@ -461,220 +439,153 @@ export default function Tarefas() {
         </label>
       </div>
 
-      {/* LAYOUT DIVIDIDO: ESQUERDA (PROJETOS) | DIREITA (AVULSOS) */}
-      <div className="layout-grid">
-          
-        {/* LADO ESQUERDO: ATIVIDADES DE PROJETO */}
-        <div style={{display: 'flex', flexDirection: 'column', gap: '15px'}}>
-            {atividadesFiltradas.length > 0 ? (
-                atividadesFiltradas.map((ativ) => {
-                    const isAtivCompleted = ativ.estado === 'concluido';
-                    const ativTime = getActivityTime(ativ);
-                    const hasNoTasks = !ativ.tarefas || ativ.tarefas.length === 0;
+      <div>
+        {projetosRenderList.length > 0 ? (
+            projetosRenderList.map(proj => {
+                const limit = visibleLimits[proj.id] || 5;
+                const visibleAtivs = proj.atividades.slice(0, limit);
+                const hasMore = proj.atividades.length > limit;
+                const canCollapse = limit > 5;
 
-                    return (
-                        <div key={ativ.id} style={{background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 2px 5px rgba(0,0,0,0.02)', overflow: 'hidden', opacity: isAtivCompleted ? 0.6 : 1, transition: '0.2s'}}>
-                            
-                            {/* HEADER ATIVIDADE */}
-                            <div style={{padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', borderBottom: '1px solid #e2e8f0'}}>
-                                <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
-                                    <div onClick={() => handleToggleStatus('atividades', ativ.id, ativ.estado)} style={{width: '22px', height: '22px', borderRadius: '4px', border: isAtivCompleted ? 'none' : '2px solid #cbd5e1', background: isAtivCompleted ? '#10b981' : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', cursor: 'pointer', flexShrink: 0, fontSize: '0.85rem'}}>
-                                        {isAtivCompleted && '✓'}
-                                    </div>
-                                    <div>
-                                        <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                                            <h2 style={{margin: 0, fontSize: '0.95rem', fontWeight: '700', color: isAtivCompleted ? '#94a3b8' : '#1e293b', textDecoration: isAtivCompleted ? 'line-through' : 'none'}}>{ativ.titulo}</h2>
-                                            {renderDeadline(ativ.data_fim, isAtivCompleted, true)}
-                                        </div>
-                                        <div style={{fontSize: '0.75rem', color: '#64748b', marginTop: '2px', fontWeight: '500'}}>
-                                            <strong style={{color: '#3b82f6'}}>{ativ.projetoNome}</strong> • {ativ.clienteNome}
-                                        </div>
-                                    </div>
-                                </div>
-                                <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
-                                    <span style={{fontSize: '0.75rem', color: '#64748b', fontWeight: '600', background: 'white', padding: '4px 8px', borderRadius: '6px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '4px'}}>
-                                        ⏱ {formatTime(ativTime)}
-                                    </span>
-                                    <button onClick={() => handleEdit(ativ, 'atividade')} className="icon-btn-orange" title="Editar">✎</button>
-                                    <button onClick={() => openDeleteConfirm("atividades", ativ.id, ativ.titulo)} className="icon-btn-red" title="Apagar">🗑️</button>
-                                </div>
-                            </div>
+                return (
+                    <div key={proj.id} style={{marginBottom: '45px'}}>
+                        <div style={{display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px', paddingBottom: '8px', borderBottom: `2px solid ${proj.color}40`}}>
+                            <div style={{width: '12px', height: '12px', borderRadius: '50%', backgroundColor: proj.color}}></div>
+                            <h2 style={{margin: 0, fontSize: '1.2rem', color: '#1e293b', fontWeight: '800'}}>{proj.titulo}</h2>
+                            {proj.cliente && <span style={{fontSize: '0.8rem', color: '#64748b', background: '#f1f5f9', padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold'}}>{proj.cliente}</span>}
+                        </div>
 
-                            {/* TAREFAS DA ATIVIDADE */}
-                            {!isAtivCompleted && (
-                                <div style={{padding: '8px 16px 16px 16px'}}>
-                                    {hasNoTasks ? (
-                                        <div style={{fontSize: '0.85rem', color: '#94a3b8', padding: '10px', textAlign: 'center', border: '1px dashed #e2e8f0', borderRadius: '8px', marginBottom: '10px'}}>
-                                            Nenhuma tarefa atribuída.
-                                        </div>
-                                    ) : (
-                                        ativ.tarefas.map(tar => {
-                                            const isTarCompleted = tar.estado === 'concluido';
-                                            const isTimerActive = activeTask && activeTask.task_id === tar.id;
-                                            const isExpanded = expandedTasks[tar.id];
-                                            
-                                            // AS SUBTAREFAS APARECEM SEMPRE QUE A TAREFA PAI ESTIVER EXPANDIDA (Fim do Bug Visuais!)
-                                            const subsToRender = tar.subtarefas;
-                                            
-                                            const pBadge = getPriorityBadge(tar.prioridade);
-                                            const taskTime = getTaskTime(tar.id);
+                        <div className="project-grid">
+                            {visibleAtivs.map(ativ => {
+                                const isAtivCompleted = ativ.estado === 'concluido';
+                                const ativTime = getActivityTime(ativ);
 
-                                            return (
-                                                <div key={tar.id} style={{background: isTimerActive ? '#fefce8' : 'white', border: isTimerActive ? '1px solid #eab308' : '1px solid #f1f5f9', borderRadius: '8px', marginTop: '8px', overflow: 'hidden', transition: 'all 0.2s', boxShadow: isTimerActive ? '0 0 0 2px rgba(234, 179, 8, 0.1)' : 'none', opacity: isTarCompleted ? 0.6 : 1}}>
-                                                    
-                                                    <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderBottom: isExpanded ? '1px solid #f1f5f9' : 'none'}}>
-                                                        
-                                                        <div style={{display: 'flex', alignItems: 'center', gap: '10px', flex: 1}}>
-                                                            {!tar.is_readonly_parent ? (
-                                                                <div onClick={() => handleToggleStatus('tarefas', tar.id, tar.estado, tar.id)} style={{ width: '18px', height: '18px', borderRadius: '50%', cursor: 'pointer', border: isTarCompleted ? 'none' : '2px solid #cbd5e1', background: isTarCompleted ? '#10b981' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '0.75rem', flexShrink: 0 }}>
-                                                                    {isTarCompleted && '✓'}
-                                                                </div>
-                                                            ) : (
-                                                                <span style={{fontSize: '1rem', opacity: 0.5}} title="Apenas leitura">🔒</span>
-                                                            )}
-                                                            
-                                                            <span onClick={() => handleEdit(tar, 'tarefa')} style={{textDecoration: isTarCompleted ? 'line-through' : 'none', color: '#334155', fontWeight: '600', cursor: 'pointer', fontSize: '0.85rem'}} className="hover-underline">
-                                                                {tar.titulo}
-                                                            </span>
-                                                            
-                                                            {pBadge && <span style={{fontSize: '0.6rem', background: pBadge.bg, color: pBadge.text, padding: '2px 6px', borderRadius: '4px', fontWeight: '800', textTransform: 'uppercase'}}>{tar.prioridade}</span>}
-                                                            {renderDeadline(tar.data_limite, isTarCompleted)}
-                                                        </div>
-
-                                                        <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
-                                                            <span style={{fontSize: '0.75rem', color: '#94a3b8', fontWeight: '600'}}>{formatTime(taskTime)}</span>
-
-                                                            {!tar.is_readonly_parent && (
-                                                                <button onClick={() => isTimerActive ? handleStopTask() : handleStartTask(tar)} style={{ background: isTimerActive ? '#fee2e2' : '#f1f5f9', color: isTimerActive ? '#ef4444' : '#64748b', border: 'none', padding: '4px 10px', borderRadius: '16px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px', transition: '0.2s'}}>
-                                                                    {isTimerActive ? '⏹ Parar' : '▶ Play'}
-                                                                </button>
-                                                            )}
-
-                                                            {subsToRender.length > 0 && (
-                                                                <button onClick={() => toggleExpand(tar.id)} style={{background: isExpanded ? '#e2e8f0' : 'transparent', border: '1px solid #e2e8f0', color: '#475569', fontSize: '0.75rem', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px'}}>
-                                                                    📋 {tar.subtarefas.filter(s => s.estado === 'concluido').length}/{tar.subtarefas.length} <span style={{color: '#94a3b8'}}>{isExpanded ? '▲' : '▼'}</span>
-                                                                </button>
-                                                            )}
-
-                                                            {!tar.is_readonly_parent && (
-                                                                <div style={{display: 'flex', gap: '4px', marginLeft: '5px'}}>
-                                                                    <button onClick={() => handleEdit(tar, 'tarefa')} className="icon-btn-orange" title="Editar">✎</button>
-                                                                    <button onClick={() => openDeleteConfirm("tarefas", tar.id, tar.titulo)} className="icon-btn-red" title="Apagar">🗑️</button>
-                                                                </div>
-                                                            )}
-                                                        </div>
+                                return (
+                                    <div key={ativ.id} style={{background: 'white', borderRadius: '10px', border: `1px solid ${isAtivCompleted ? '#e2e8f0' : proj.color}60`, borderTop: `4px solid ${isAtivCompleted ? '#cbd5e1' : proj.color}`, boxShadow: '0 2px 5px rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column', opacity: isAtivCompleted ? 0.6 : 1, transition: '0.2s', maxHeight: '400px'}}>
+                                        
+                                        <div style={{padding: '12px 15px', background: isAtivCompleted ? '#f8fafc' : 'white', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
+                                            <div style={{flex: 1, paddingRight: '10px'}}>
+                                                <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px'}}>
+                                                    <div onClick={() => handleToggleStatus('atividades', ativ.id, ativ.estado)} style={{width: '16px', height: '16px', borderRadius: '4px', border: isAtivCompleted ? 'none' : `2px solid ${proj.color}80`, background: isAtivCompleted ? '#10b981' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', cursor: 'pointer', flexShrink: 0, fontSize: '0.7rem'}}>
+                                                        {isAtivCompleted && '✓'}
                                                     </div>
+                                                    <h3 onClick={() => handleEdit(ativ, 'atividade')} style={{margin: 0, fontSize: '0.9rem', fontWeight: '700', color: isAtivCompleted ? '#94a3b8' : '#1e293b', cursor: 'pointer', textDecoration: isAtivCompleted ? 'line-through' : 'none', lineHeight: '1.2'}} className="hover-text-blue">
+                                                        {ativ.titulo}
+                                                    </h3>
+                                                </div>
+                                                <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                                    {renderDeadline(ativ.data_fim, isAtivCompleted)}
+                                                    {ativTime > 0 && <span style={{fontSize: '0.65rem', color: '#94a3b8', fontWeight: 'bold'}}>⏱ {formatTime(ativTime)}</span>}
+                                                </div>
+                                            </div>
+                                            <button onClick={() => openDeleteConfirm("atividades", ativ.id, ativ.titulo)} className="icon-btn-red" style={{fontSize: '0.9rem', padding: '2px'}}>🗑️</button>
+                                        </div>
 
-                                                    {/* SUBTAREFAS */}
-                                                    {isExpanded && (
-                                                        <div style={{background: '#fafaf9', padding: '8px 16px 12px 35px'}}>
-                                                            {subsToRender.map(sub => {
-                                                                const isSubCompleted = sub.estado === 'concluido';
-                                                                return (
-                                                                    <div key={sub.id} style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #f1f5f9', opacity: isSubCompleted ? 0.6 : 1}}>
-                                                                        <div style={{display: 'flex', alignItems: 'center', gap: '10px', flex: 1}}>
-                                                                            <div onClick={() => handleToggleStatus('subtarefas', sub.id, sub.estado, tar.id)} style={{ width: '16px', height: '16px', borderRadius: '50%', cursor: 'pointer', border: isSubCompleted ? 'none' : '2px solid #cbd5e1', background: isSubCompleted ? '#10b981' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '0.6rem', flexShrink: 0 }}>
-                                                                                {isSubCompleted && '✓'}
-                                                                            </div>
-                                                                            <span onClick={() => handleEdit(sub, 'subtarefa')} style={{textDecoration: isSubCompleted ? 'line-through' : 'none', color: '#475569', fontWeight: '500', cursor: 'pointer', fontSize: '0.85rem'}} className="hover-underline">
-                                                                                {sub.titulo}
-                                                                            </span>
-                                                                            {renderDeadline(sub.data_fim, isSubCompleted)}
+                                        {!isAtivCompleted && (
+                                            <div style={{padding: '10px', overflowY: 'auto', flex: 1}} className="custom-scrollbar">
+                                                {(!ativ.tarefas || ativ.tarefas.length === 0) ? (
+                                                    <div style={{fontSize: '0.75rem', color: '#cbd5e1', textAlign: 'center', padding: '10px'}}>Sem tarefas</div>
+                                                ) : (
+                                                    ativ.tarefas.map(tar => {
+                                                        const isTarCompleted = tar.estado === 'concluido';
+                                                        const isTimerActive = activeTask && activeTask.task_id === tar.id;
+                                                        const isExpanded = expandedTasks[tar.id];
+                                                        const subsToRender = tar.subtarefas;
+
+                                                        return (
+                                                            <div key={tar.id} style={{background: isTimerActive ? '#fefce8' : '#f8fafc', border: isTimerActive ? '1px solid #eab308' : '1px solid transparent', borderRadius: '6px', padding: '8px', marginBottom: '6px', opacity: isTarCompleted ? 0.6 : 1, transition: '0.2s'}}>
+                                                                <div style={{display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px'}}>
+                                                                    
+                                                                    <div style={{display: 'flex', alignItems: 'flex-start', gap: '6px', flex: 1}}>
+                                                                        <div onClick={() => handleToggleStatus('tarefas', tar.id, tar.estado, tar.id)} style={{ width: '14px', height: '14px', borderRadius: '50%', cursor: 'pointer', border: isTarCompleted ? 'none' : '2px solid #cbd5e1', background: isTarCompleted ? '#10b981' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '0.6rem', flexShrink: 0, marginTop: '2px' }}>
+                                                                            {isTarCompleted && '✓'}
                                                                         </div>
-
-                                                                        <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
-                                                                            <button onClick={() => handleEdit(sub, 'subtarefa')} className="icon-btn-orange" title="Editar">✎</button>
-                                                                            <button onClick={() => openDeleteConfirm("subtarefas", sub.id, sub.titulo)} className="icon-btn-red" style={{fontSize: '1rem'}} title="Apagar">🗑️</button>
+                                                                        <div style={{flex: 1}}>
+                                                                            <span onClick={() => handleEdit(tar, 'tarefa')} style={{textDecoration: isTarCompleted ? 'line-through' : 'none', color: '#334155', fontWeight: '600', cursor: 'pointer', fontSize: '0.8rem', lineHeight: '1.2', display: 'block', marginBottom: '4px'}} className="hover-underline">
+                                                                                {tar.titulo}
+                                                                            </span>
+                                                                            <div style={{display: 'flex', gap: '4px', flexWrap: 'wrap', alignItems: 'center'}}>
+                                                                                {renderDeadline(tar.data_limite, isTarCompleted)}
+                                                                                {subsToRender.length > 0 && (
+                                                                                    <span onClick={() => toggleExpand(tar.id)} style={{fontSize: '0.6rem', background: '#e2e8f0', color: '#475569', padding: '2px 4px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold'}}>
+                                                                                        📋 {subsToRender.filter(s=>s.estado==='concluido').length}/{subsToRender.length} {isExpanded ? '▲' : '▼'}
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
                                                                         </div>
                                                                     </div>
-                                                                )
-                                                            })}
 
-                                                            <form onSubmit={(e) => handleAddSubtarefa(e, tar.id)} style={{marginTop: '10px', display: 'flex', gap: '8px', alignItems: 'center', paddingLeft: '22px', opacity: 0.8}}>
-                                                                <input type="text" placeholder="+ Adicionar passo (Enter)..." value={novaSubtarefaNome.tarId === tar.id ? novaSubtarefaNome.nome : ""} onChange={e => setNovaSubtarefaNome({ tarId: tar.id, nome: e.target.value })} style={{flex: 1, padding: '6px 0', background: 'transparent', border: 'none', borderBottom: '1px dashed #cbd5e1', outline: 'none', fontSize: '0.8rem', color: '#475569'}} />
-                                                            </form>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            );
-                                        })
-                                    )}
+                                                                    <div style={{display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-end'}}>
+                                                                        {!tar.is_readonly_parent && (
+                                                                            <button onClick={() => isTimerActive ? handleStopTask() : handleStartTask(tar)} style={{ background: isTimerActive ? '#fee2e2' : 'white', color: isTimerActive ? '#ef4444' : '#64748b', border: '1px solid #e2e8f0', padding: '2px 6px', borderRadius: '12px', cursor: 'pointer', fontSize: '0.65rem', fontWeight: 'bold', display: 'flex', alignItems: 'center'}}>
+                                                                                {isTimerActive ? '⏹' : '▶'}
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
 
-                                    <form onSubmit={(e) => handleAddTarefa(e, ativ.id)} style={{marginTop: '10px'}}>
-                                        <input type="text" placeholder="+ Adicionar Tarefa de Projeto (Enter)..." value={novaTarefaNome.ativId === ativ.id ? novaTarefaNome.nome : ""} onChange={e => setNovaTarefaNome({ ativId: ativ.id, nome: e.target.value })} style={{width: '100%', padding: '10px 15px', borderRadius: '8px', border: '1px dashed #cbd5e1', background: 'white', outline: 'none', fontSize: '0.85rem', color: '#64748b', fontWeight: '500'}} />
-                                    </form>
-                                </div>
-                            )}
+                                                                {isExpanded && subsToRender.length > 0 && (
+                                                                    <div style={{marginTop: '8px', paddingTop: '6px', borderTop: '1px dashed #e2e8f0', paddingLeft: '20px'}}>
+                                                                        {subsToRender.map(sub => {
+                                                                            const isSubCompleted = sub.estado === 'concluido';
+                                                                            return (
+                                                                                <div key={sub.id} style={{display: 'flex', alignItems: 'flex-start', gap: '6px', marginBottom: '4px', opacity: isSubCompleted ? 0.6 : 1}}>
+                                                                                    <input type="checkbox" checked={isSubCompleted} onChange={() => handleToggleStatus('subtarefas', sub.id, sub.estado, tar.id)} style={{width: '12px', height: '12px', cursor: 'pointer', accentColor: '#3b82f6', marginTop: '2px'}} />
+                                                                                    <div style={{flex: 1}}>
+                                                                                        <span onClick={() => handleEdit(sub, 'subtarefa')} style={{textDecoration: isSubCompleted ? 'line-through' : 'none', color: '#475569', fontWeight: '500', cursor: 'pointer', fontSize: '0.75rem', lineHeight: '1.2', display: 'block'}} className="hover-underline">
+                                                                                            {sub.titulo}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                </div>
+                                                                            )
+                                                                        })}
+                                                                        <form onSubmit={(e) => handleAddSubtarefa(e, tar.id)} style={{marginTop: '6px'}}>
+                                                                            <input type="text" placeholder="+ Passo..." value={novaSubtarefaNome.tarId === tar.id ? novaSubtarefaNome.nome : ""} onChange={e => setNovaSubtarefaNome({ tarId: tar.id, nome: e.target.value })} style={{width: '100%', padding: '4px', background: 'transparent', border: 'none', borderBottom: '1px solid #cbd5e1', outline: 'none', fontSize: '0.7rem', color: '#475569'}} />
+                                                                        </form>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })
+                                                )}
+                                                
+                                                <form onSubmit={(e) => handleAddTarefa(e, ativ.id)} style={{marginTop: '10px'}}>
+                                                    <input type="text" placeholder="+ Tarefa (Enter)..." value={novaTarefaNome.ativId === ativ.id ? novaTarefaNome.nome : ""} onChange={e => setNovaTarefaNome({ ativId: ativ.id, nome: e.target.value })} style={{width: '100%', padding: '8px', borderRadius: '6px', border: '1px dashed #cbd5e1', background: 'transparent', outline: 'none', fontSize: '0.75rem', color: '#64748b', fontWeight: '500'}} />
+                                                </form>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
                         </div>
-                    );
-                })
-            ) : (
-                <div style={{textAlign: 'center', padding: '50px', background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', color: '#64748b'}}>
-                    <span style={{fontSize: '2rem', display: 'block', marginBottom: '10px'}}>🏖️</span>
-                    <h3 style={{margin: '0 0 5px 0', color: '#1e293b', fontSize: '1.2rem'}}>Tudo limpo!</h3>
-                    <p style={{margin: 0, fontSize: '0.9rem'}}>Não tens tarefas de projeto pendentes com os filtros atuais.</p>
-                </div>
-            )}
-        </div>
-
-        {/* LADO DIREITO: BARRA DE TAREFAS PESSOAIS/AVULSAS */}
-        <div style={{background: '#f8fafc', padding: '20px', borderRadius: '16px', border: '1px solid #e2e8f0', position: 'sticky', top: '20px', maxHeight: '90vh', overflowY: 'auto'}}>
-            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '10px', borderBottom: '1px solid #cbd5e1'}}>
-                <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px'}}>📌 Tarefas Pessoais</h3>
-            </div>
-
-            <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
-                {pessoaisFiltradas.length > 0 ? (
-                    pessoaisFiltradas.map(tar => {
-                        const isTarCompleted = tar.estado === 'concluido';
-                        const isTimerActive = activeTask && activeTask.task_id === tar.id;
-                        const pBadge = getPriorityBadge(tar.prioridade);
-                        const taskTime = getTaskTime(tar.id);
-
-                        return (
-                            <div key={tar.id} style={{background: isTimerActive ? '#fefce8' : 'white', border: isTimerActive ? '1px solid #eab308' : '1px solid #cbd5e1', borderRadius: '8px', padding: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)', opacity: isTarCompleted ? 0.6 : 1, transition: 'all 0.2s'}}>
-                                
-                                <div style={{display: 'flex', alignItems: 'flex-start', gap: '10px', marginBottom: '8px'}}>
-                                    <div onClick={() => handleToggleStatus('tarefas', tar.id, tar.estado, tar.id)} style={{ width: '18px', height: '18px', borderRadius: '50%', cursor: 'pointer', border: isTarCompleted ? 'none' : '2px solid #cbd5e1', background: isTarCompleted ? '#10b981' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '0.75rem', flexShrink: 0, marginTop: '2px' }}>
-                                        {isTarCompleted && '✓'}
-                                    </div>
-                                    <div style={{flex: 1}}>
-                                        <div onClick={() => handleEdit(tar, 'tarefa')} style={{textDecoration: isTarCompleted ? 'line-through' : 'none', color: '#1e293b', fontWeight: '600', cursor: 'pointer', fontSize: '0.9rem', lineHeight: '1.3', marginBottom: '4px'}} className="hover-underline">
-                                            {tar.titulo}
-                                        </div>
-                                        <div style={{display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center'}}>
-                                            {renderDeadline(tar.data_limite, isTarCompleted)}
-                                            {pBadge && <span style={{fontSize: '0.6rem', background: pBadge.bg, color: pBadge.text, padding: '2px 6px', borderRadius: '4px', fontWeight: '800', textTransform: 'uppercase'}}>{tar.prioridade}</span>}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f1f5f9', paddingTop: '8px', marginTop: '4px'}}>
-                                    <span style={{fontSize: '0.75rem', color: '#94a3b8', fontWeight: '600'}}>⏱️ {formatTime(taskTime)}</span>
-                                    
-                                    <div style={{display: 'flex', gap: '6px', alignItems: 'center'}}>
-                                        <button onClick={() => isTimerActive ? handleStopTask() : handleStartTask(tar)} style={{ background: isTimerActive ? '#fee2e2' : '#f1f5f9', color: isTimerActive ? '#ef4444' : '#64748b', border: 'none', padding: '4px 10px', borderRadius: '16px', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}}>
-                                            {isTimerActive ? '⏹ Parar' : '▶ Play'}
-                                        </button>
-                                        <button onClick={() => openDeleteConfirm("tarefas", tar.id, tar.titulo)} className="icon-btn-red" style={{fontSize: '0.8rem'}}>🗑️</button>
-                                    </div>
-                                </div>
+                        
+                        {(hasMore || canCollapse) && (
+                            <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginTop: '15px' }}>
+                                {hasMore && (
+                                    <button onClick={() => setVisibleLimits(prev => ({...prev, [proj.id]: limit + 5}))} style={{ background: 'white', color: proj.color, border: `1px solid ${proj.color}40`, padding: '8px 20px', borderRadius: '20px', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', transition: '0.2s' }} className="hover-shadow">
+                                        ↓ Ver mais ({proj.atividades.length - limit})
+                                    </button>
+                                )}
+                                {canCollapse && (
+                                    <button onClick={() => setVisibleLimits(prev => ({...prev, [proj.id]: 5}))} style={{ background: '#f8fafc', color: '#64748b', border: `1px solid #cbd5e1`, padding: '8px 20px', borderRadius: '20px', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', transition: '0.2s' }} className="hover-shadow">
+                                        ↑ Recolher
+                                    </button>
+                                )}
                             </div>
-                        )
-                    })
-                ) : (
-                    <div style={{fontSize: '0.85rem', color: '#94a3b8', textAlign: 'center', padding: '20px'}}>Nenhuma tarefa pessoal pendente.</div>
-                )}
-                
-                <form onSubmit={(e) => handleAddTarefa(e, 'standalone')} style={{marginTop: '5px'}}>
-                    <input type="text" placeholder="+ Nova Tarefa Pessoal (Enter)..." value={novaTarefaNome.ativId === 'standalone' ? novaTarefaNome.nome : ""} onChange={e => setNovaTarefaNome({ ativId: 'standalone', nome: e.target.value })} style={{width: '100%', padding: '10px', borderRadius: '8px', border: '1px dashed #cbd5e1', background: 'transparent', outline: 'none', fontSize: '0.85rem', color: '#475569', fontWeight: '500'}} />
-                </form>
-            </div>
-        </div>
+                        )}
 
+                    </div>
+                );
+            })
+        ) : (
+            <div style={{textAlign: 'center', padding: '50px', background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', color: '#64748b'}}>
+                <span style={{fontSize: '2rem', display: 'block', marginBottom: '10px'}}>🏖️</span>
+                <h3 style={{margin: '0 0 5px 0', color: '#1e293b', fontSize: '1.2rem'}}>Tudo limpo!</h3>
+                <p style={{margin: 0, fontSize: '0.9rem'}}>Não tens tarefas de projeto pendentes com os filtros atuais.</p>
+            </div>
+        )}
       </div>
 
-      {/* --- MODAL CONFIRMAÇÃO DE ELIMINAÇÃO (NOVO E BONITO) --- */}
       {deleteConfirm.show && (
           <ModalPortal>
               <div style={modalOverlayStyle} onClick={() => setDeleteConfirm({show:false, tabela:'', id:null, titulo:''})}>
@@ -693,7 +604,6 @@ export default function Tarefas() {
           </ModalPortal>
       )}
 
-      {/* MODAL UNIVERSAL PARA EDIÇÃO/CRIAÇÃO */}
       {showModal && (
         <ModalPortal>
           <div style={modalOverlayStyle} onClick={(e) => { if(e.target === e.currentTarget) setShowModal(false); }}>
@@ -722,11 +632,8 @@ export default function Tarefas() {
                     <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
                         {editType === 'tarefa' && (
                             <div style={inputGroupStyle}>
-                                <label style={labelStyle}>Atividade / Projeto Pai (Opcional)</label>
-                                <select value={form.atividade_id} onChange={e => setForm({...form, atividade_id: e.target.value})} style={inputStyle}>
-                                    <option value="">-- Nenhuma (Tarefa Pessoal) --</option>
-                                    {atividadesBase.map(a => <option key={a.id} value={a.id}>{a.titulo} (Proj: {a.projetos?.titulo})</option>)}
-                                </select>
+                                <label style={labelStyle}>Atividade / Projeto Pai *</label>
+                                <select value={form.atividade_id} onChange={e => setForm({...form, atividade_id: e.target.value})} required={editType === 'tarefa'} style={inputStyle}><option value="">-- Selecione --</option>{atividadesBase.map(a => <option key={a.id} value={a.id}>{a.titulo} (Proj: {a.projetos?.titulo})</option>)}</select>
                             </div>
                         )}
                         
@@ -784,16 +691,61 @@ export default function Tarefas() {
       )}
 
       <style>{`
-          .layout-grid { display: grid; grid-template-columns: 1fr 340px; gap: 20px; align-items: start; }
-          @media (max-width: 900px) { .layout-grid { grid-template-columns: 1fr; } }
-          
-          /* Custom Scrollbar para a barra lateral ficar limpa */
-          .layout-grid > div:last-child::-webkit-scrollbar { width: 6px; }
-          .layout-grid > div:last-child::-webkit-scrollbar-track { background: transparent; }
-          .layout-grid > div:last-child::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
+          .project-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; }
+          @media (max-width: 1300px) { .project-grid { grid-template-columns: repeat(4, 1fr); } }
+          @media (max-width: 1000px) { .project-grid { grid-template-columns: repeat(3, 1fr); } }
+          @media (max-width: 768px)  { .project-grid { grid-template-columns: repeat(2, 1fr); } }
+          @media (max-width: 500px)  { .project-grid { grid-template-columns: 1fr; } }
+
+          .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+          .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+          .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
+
+          .hover-shadow:hover { box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); transform: translateY(-1px); }
 
           @keyframes pulse { 0% {box-shadow:0 0 0 0 rgba(239,68,68,0.7)} 70% {box-shadow:0 0 0 6px rgba(239,68,68,0)} 100% {box-shadow:0 0 0 0 rgba(239,68,68,0)}} 
+          
           .hover-underline:hover {text-decoration: underline !important; color: #2563eb !important} 
+          .hover-text-blue:hover { color: #2563eb !important; }
+          
+          /* BOTÃO BRILHANTE / GLOW (Da esquerda para a direita) */
+          .btn-shine {
+              position: relative;
+              overflow: hidden;
+              background: #10b981;
+              color: white;
+              border: none;
+              padding: 8px 16px;
+              border-radius: 8px;
+              font-weight: bold;
+              font-size: 0.85rem;
+              cursor: pointer;
+              box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
+              transition: all 0.3s ease;
+          }
+          .btn-shine::after {
+              content: '';
+              position: absolute;
+              top: 0;
+              left: -150%;
+              width: 50%;
+              height: 100%;
+              background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.4) 50%, rgba(255,255,255,0) 100%);
+              transform: skewX(-25deg);
+              transition: left 0.7s ease-in-out;
+          }
+          .btn-shine:hover {
+              background: #059669;
+              transform: translateY(-1px);
+              box-shadow: 0 4px 6px rgba(16, 185, 129, 0.3);
+          }
+          .btn-shine:hover::after {
+              animation: shine-sweep 1.2s infinite alternate ease-in-out;
+          }
+          @keyframes shine-sweep {
+              0% { left: -150%; }
+              100% { left: 200%; }
+          }
           
           .icon-btn-orange {background: transparent; border: none; cursor: pointer; color: #f97316; font-size: 1.1rem; padding: 2px 6px; border-radius: 4px; transition: 0.2s;}
           .icon-btn-orange:hover {background: #ffedd5; transform: scale(1.1);}

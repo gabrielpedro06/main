@@ -63,10 +63,19 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
               </Link>
             </li>
 
-            <li className={isActive('/dashboard/clientes')}>
-              <Link to="/dashboard/clientes" title="Clientes">
-                <span className="icon">👥</span> 
-                <span className="link-text">Clientes</span>
+            {/* A NOVA ABA DE TAREFAS PESSOAIS (ESTILO ASANA) */}
+            <li className={isActive('/dashboard/minhas-tarefas')}>
+              <Link to="/dashboard/minhas-tarefas" title="Minhas Tarefas">
+                <span className="icon">📌</span> 
+                <span className="link-text">Minhas Tarefas</span>
+              </Link>
+            </li>
+
+            {/* A ANTIGA ABA DE TAREFAS (VISÃO GERAL/PROJETOS) */}
+            <li className={isActive('/dashboard/tarefas')}>
+              <Link to="/dashboard/tarefas" title="Tarefas">
+                <span className="icon">✅</span> 
+                <span className="link-text">Tarefas</span>
               </Link>
             </li>
 
@@ -77,10 +86,10 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
               </Link>
             </li>
 
-            <li className={isActive('/dashboard/tarefas')}>
-              <Link to="/dashboard/tarefas" title="Minhas Tarefas">
-                <span className="icon">✅</span> 
-                <span className="link-text">Minhas Tarefas</span>
+            <li className={isActive('/dashboard/clientes')}>
+              <Link to="/dashboard/clientes" title="Clientes">
+                <span className="icon">👥</span> 
+                <span className="link-text">Clientes</span>
               </Link>
             </li>
 
@@ -112,10 +121,11 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
 
             {['admin', 'gestor'].includes(userProfile?.role) && (
               <>
-                <li className={isActive('/dashboard/templates')}>
-                  <Link to="/dashboard/templates" title="Templates de Projetos">
-                    <span className="icon">🛠️</span> 
-                    <span className="link-text">Templates</span>
+                {/* MUDANÇA DE NOME: TEMPLATES -> MODELOS */}
+                <li className={isActive('/dashboard/modelos')}>
+                  <Link to="/dashboard/modelos" title="Modelos de Projetos">
+                    <span className="icon">📋</span> 
+                    <span className="link-text">Modelos</span>
                   </Link>
                 </li>
 

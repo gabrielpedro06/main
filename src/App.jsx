@@ -1,4 +1,3 @@
-// 1. Mudei aqui de BrowserRouter para HashRouter
 import { HashRouter, Routes, Route } from "react-router-dom";
 
 // Páginas de Autenticação
@@ -13,9 +12,10 @@ import Dashboard from "./pages/Dashboard";
 
 // Páginas do Dashboard
 import DashboardHome from "./pages/DashboardHome";
+import MinhasTarefas from "./pages/MinhasTarefas"; // 👈 NOVO IMPORT
 import Tarefas from "./pages/Tarefas";
 import Projetos from "./pages/Projetos";
-import ProjetoDetalhe from "./pages/ProjetoDetalhe"; // 👈 NOVO: Importar a página de detalhe
+import ProjetoDetalhe from "./pages/ProjetoDetalhe"; 
 import Clientes from "./pages/Clientes";
 import Atividades from "./pages/Atividades";
 import Forum from "./pages/Forum";
@@ -40,10 +40,12 @@ export default function App() {
           
           <Route index element={<DashboardHome />} />
           
+          {/* AS DUAS ROTAS DE TAREFAS */}
+          <Route path="minhas-tarefas" element={<MinhasTarefas />} /> {/* 👈 NOVA ROTA */}
           <Route path="tarefas" element={<Tarefas />} />
           
           <Route path="projetos" element={<Projetos />} />
-          <Route path="projetos/:id" element={<ProjetoDetalhe />} /> {/* 👈 NOVO: Rota com o ID do projeto */}
+          <Route path="projetos/:id" element={<ProjetoDetalhe />} />
           
           <Route path="clientes" element={<Clientes />} />
           <Route path="atividades" element={<Atividades />} />
@@ -52,7 +54,9 @@ export default function App() {
           <Route path="ferias" element={<Ferias />} />
           <Route path="perfil" element={<Perfil />} />
           <Route path="leads" element={<GestaoLeads />} />
-          <Route path="templates" element={<GestaoTemplates />} />
+          
+          {/* MUDAMOS DE /templates PARA /modelos PARA COMBINAR COM O MENU */}
+          <Route path="modelos" element={<GestaoTemplates />} /> 
           
         </Route>
 
