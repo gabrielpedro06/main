@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom"; // IMPORTANTE: Adicionado useLocation
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
 import "./../styles/dashboard.css";
@@ -19,6 +19,7 @@ const addDays = (dateStr, days) => {
 export default function Projetos() {
   const { user } = useAuth();
   const navigate = useNavigate(); 
+  const location = useLocation(); // 💡 NOVO: Para ler dados vindos de outras páginas
 
   const [projetos, setProjetos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -57,6 +58,26 @@ export default function Projetos() {
     fetchData();
     checkActiveLog();
   }, [user]);
+
+  // 💡 NOVO: ESCUTAR COMANDOS DA PÁGINA DE CLIENTES
+  useEffect(() => {
+      // Se chegarmos a esta página com instruções para abrir o modal de um cliente específico...
+      if (location.state?.openNewProjectModal && location.state?.prefillClienteId) {
+          // Preenchemos o formulário com o ID do cliente e a data de hoje
+          setForm({ 
+              ...initialForm, 
+              cliente_id: location.state.prefillClienteId,
+              data_inicio: new Date().toISOString().split('T')[0] 
+          });
+          setEditId(null);
+          setIsViewOnly(false);
+          setActiveTab("geral");
+          setShowModal(true); // Abre o modal na cara do utilizador!
+          
+          // Limpamos o state da rota para não voltar a abrir o modal se o utilizador fizer "Refresh" na página
+          navigate(location.pathname, { replace: true, state: {} });
+      }
+  }, [location.state, navigate]);
 
   const showToast = (message, type = 'success') => {
       setNotification({ message, type });
@@ -165,6 +186,7 @@ export default function Projetos() {
       try {
           const { error } = await supabase.from("projetos").delete().eq("id", deleteConfirm.id);
           if (error) throw error;
+          
           showToast("Projeto apagado com sucesso!");
           setDeleteConfirm({ show: false, id: null, titulo: '' });
           setShowModal(false);
@@ -183,7 +205,6 @@ export default function Projetos() {
     if (payload.responsavel_id === "") payload.responsavel_id = null;
     if (payload.data_fim === "") payload.data_fim = null;
 
-    // Lógica para detetar se é formação no submit (ignorando acentos e maiúsculas)
     const tipoSelecionado = tipos.find(t => String(t.id) === String(payload.tipo_projeto_id));
     const isFormacao = tipoSelecionado?.nome?.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes('forma');
     
@@ -351,7 +372,6 @@ export default function Projetos() {
   const labelStyle = { display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' };
   const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box' };
 
-  // 💡 LÓGICA DE UI EM TEMPO REAL: Verifica se a categoria selecionada AGORA na dropdown é formação
   const tipoSelecionadoUI = tipos.find(t => String(t.id) === String(form.tipo_projeto_id));
   const isFormacaoSelected = tipoSelecionadoUI?.nome?.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes('forma');
 
@@ -541,16 +561,16 @@ export default function Projetos() {
 
       {deleteConfirm.show && (
           <ModalPortal>
-              <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, backdropFilter: 'blur(3px)'}} onClick={() => setDeleteConfirm({show:false, id:null, titulo:''})}>
-                  <div style={{background: 'white', padding: '30px', borderRadius: '16px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'}} onClick={e => e.stopPropagation()}>
-                      <div style={{fontSize: '3rem', marginBottom: '10px'}}>⚠️</div>
-                      <h3 style={{margin: '0 0 10px 0', color: '#1e293b', fontSize: '1.2rem'}}>Apagar Projeto?</h3>
-                      <p style={{color: '#64748b', fontSize: '0.9rem', marginBottom: '25px'}}>
-                          Tens a certeza que queres apagar o projeto <strong>"{deleteConfirm.titulo}"</strong>? Esta ação apagará todas as tarefas e tempos irreversivelmente.
+              <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999}}>
+                  <div style={{background: 'white', padding: '30px', borderRadius: '16px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out'}}>
+                      <div style={{fontSize: '3rem', marginBottom: '15px'}}>{confirmDialog.isDanger ? '⚠️' : '❓'}</div>
+                      <h3 style={{margin: '0 0 10px 0', color: '#1e293b', fontSize: '1.25rem'}}>Confirmação</h3>
+                      <p style={{color: '#64748b', fontSize: '0.95rem', marginBottom: '25px', lineHeight: '1.5', whiteSpace: 'pre-line'}}>
+                          {confirmDialog.message}
                       </p>
                       <div style={{display: 'flex', gap: '10px'}}>
-                          <button onClick={() => setDeleteConfirm({show:false, id:null, titulo:''})} style={{flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', background: 'white', color: '#475569', fontWeight: 'bold', cursor: 'pointer'}}>Cancelar</button>
-                          <button onClick={executeDeleteProjeto} style={{flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: '#ef4444', color: 'white', fontWeight: 'bold', cursor: 'pointer'}} disabled={isSubmitting}>{isSubmitting ? 'A apagar...' : 'Sim, Apagar'}</button>
+                          <button onClick={() => setConfirmDialog({show: false})} style={{flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', background: 'white', color: '#475569', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">Cancelar</button>
+                          <button onClick={() => { confirmDialog.onConfirm(); setConfirmDialog({show: false}); }} style={{flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: confirmDialog.isDanger ? '#ef4444' : '#2563eb', color: 'white', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">{confirmDialog.confirmText}</button>
                       </div>
                   </div>
               </div>

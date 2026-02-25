@@ -23,13 +23,13 @@ export default function DashboardHome() {
   const [userProfile, setUserProfile] = useState(null);
   const [usersOnline, setUsersOnline] = useState([]);
   const [registosMes, setRegistosMes] = useState([]); 
-  const [aniversarios, setAniversarios] = useState([]); // NOVO: Aniversários
+  const [aniversarios, setAniversarios] = useState([]);
 
   // Estados Visuais
   const [showMenu, setShowMenu] = useState(false);
   const [frase, setFrase] = useState("");
   const [horaAtual, setHoraAtual] = useState("");
-  const [showBirthdayPopup, setShowBirthdayPopup] = useState(false); // NOVO: Modal de Parabéns
+  const [showBirthdayPopup, setShowBirthdayPopup] = useState(false); 
 
   // --- ESTADOS DO MODAL DE HISTÓRICO ---
   const [showHistoryModal, setShowHistoryModal] = useState(false);
@@ -52,7 +52,7 @@ export default function DashboardHome() {
       fetchUserProfile();
       loadUsersOnline();
       fetchRegistosMes();
-      fetchAniversarios(); // Busca Aniversários
+      fetchAniversarios(); 
       
       const hoje = new Date();
       const seed = hoje.getFullYear() * 10000 + (hoje.getMonth() + 1) * 100 + hoje.getDate();
@@ -84,7 +84,6 @@ export default function DashboardHome() {
     } catch (error) { console.error("Erro perfil:", error); }
   }
 
-  // --- NOVA FUNÇÃO: BUSCAR E ORDENAR ANIVERSÁRIOS ---
   async function fetchAniversarios() {
       const { data, error } = await supabase
           .from('profiles')
@@ -93,21 +92,17 @@ export default function DashboardHome() {
 
       if (data && !error) {
           const hoje = new Date();
-          hoje.setHours(0, 0, 0, 0); // Reset às horas para comparar só o dia
-          
+          hoje.setHours(0, 0, 0, 0); 
           let myBirthdayIsToday = false;
 
           const lista = data.map(p => {
               const nasc = new Date(p.data_nascimento);
-              // Criar uma data para o aniversário Deste Ano
               let proximoAniversario = new Date(hoje.getFullYear(), nasc.getMonth(), nasc.getDate());
               
-              // Se a data já passou este ano, o próximo é para o ano que vem
               if (proximoAniversario < hoje) {
                   proximoAniversario.setFullYear(hoje.getFullYear() + 1);
               }
               
-              // Verificar se é o meu aniversário (dia e mês iguais a hoje)
               if (p.id === user.id && nasc.getMonth() === hoje.getMonth() && nasc.getDate() === hoje.getDate()) {
                   myBirthdayIsToday = true;
               }
@@ -115,11 +110,9 @@ export default function DashboardHome() {
               return { ...p, proximoAniversario };
           });
 
-          // Ordenar por data mais próxima
           lista.sort((a, b) => a.proximoAniversario - b.proximoAniversario);
-          setAniversarios(lista.slice(0, 5)); // Mostra os próximos 5
+          setAniversarios(lista.slice(0, 5)); 
 
-          // Mostrar Pop-up Surpresa se for o dia do utilizador e ele ainda não o viu hoje!
           if (myBirthdayIsToday && !sessionStorage.getItem('birthdayPopupSeen')) {
               setShowBirthdayPopup(true);
               sessionStorage.setItem('birthdayPopupSeen', 'true');
@@ -140,12 +133,47 @@ export default function DashboardHome() {
       if (!error && data) setRegistosMes(data);
   }
 
+  // 💡 NOVO MOTOR DE TAREFAS (Separa, Ordena e Limita as Tarefas para os Cartões)
   async function fetchTarefasPessoais() {
-    const hoje = new Date().toISOString().split('T')[0];
-    const { data: dataHoje } = await supabase.from("tarefas").select(`*, atividades ( titulo, projetos ( titulo ) )`).eq("responsavel_id", user.id).or(`data_limite.eq.${hoje},data_inicio.eq.${hoje}`);
-    const { data: dataGerais } = await supabase.from("tarefas").select(`*, atividades ( titulo, projetos ( titulo ) )`).eq("responsavel_id", user.id).neq("estado", "concluido").neq("estado", "cancelado").not("data_limite", "eq", hoje).limit(5);
-    setTarefasHoje(dataHoje || []);
-    setTarefasGerais(dataGerais || []);
+      const { data } = await supabase
+          .from("tarefas")
+          .select(`*, atividades ( titulo, projetos ( titulo, codigo_projeto ) )`)
+          .eq("responsavel_id", user.id)
+          .neq("estado", "concluido")
+          .neq("estado", "cancelado");
+
+      const pendingTasks = data || [];
+      
+      const hoje = new Date();
+      hoje.setHours(0,0,0,0);
+
+      const urgentesHoje = [];
+      const outras = [];
+
+      // Separar as atrasadas/hoje das futuras
+      pendingTasks.forEach(t => {
+          if (!t.data_limite) {
+              outras.push(t); // Sem data vai para as outras
+          } else {
+              const d = new Date(t.data_limite);
+              d.setHours(0,0,0,0);
+              if (d <= hoje) urgentesHoje.push(t);
+              else outras.push(t);
+          }
+      });
+
+      // Função para ordenar a data mais próxima primeiro (sem prazo vai pro fim)
+      const sortFn = (a, b) => {
+          if (!a.data_limite) return 1;
+          if (!b.data_limite) return -1;
+          return new Date(a.data_limite) - new Date(b.data_limite);
+      };
+
+      urgentesHoje.sort(sortFn);
+      outras.sort(sortFn);
+
+      setTarefasHoje(urgentesHoje);
+      setTarefasGerais(outras);
   }
 
   async function fetchStats() {
@@ -266,13 +294,6 @@ export default function DashboardHome() {
 
   const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
-  // --- HELPERS DE TEMPO ---
-  const getTaskStatusColor = (s) => { 
-      if(s==='concluido') return {bg: '#dcfce7', text: '#166534', label: 'Terminada'}; 
-      if(s==='em_curso') return {bg: '#dbeafe', text: '#1e40af', label: 'Em Curso'}; 
-      return {bg: '#f3f4f6', text: '#374151', label: 'Pendente'}; 
-  };
-
   const calcularSegundosExatos = (entrada, saida, pausaSegundos) => {
       if (!entrada || !saida) return 0;
       const dEntrada = new Date(`1970-01-01T${entrada}`);
@@ -288,6 +309,18 @@ export default function DashboardHome() {
       const horas = Math.floor(segundos / 3600);
       const minutos = Math.floor((segundos % 3600) / 60);
       return <span style={{fontWeight: 'bold', color: '#2563eb'}}>{horas}h{minutos.toString().padStart(2, '0')}</span>;
+  };
+
+  // 💡 HELPER: Renderizar a Data/Badge das Tarefas
+  const renderTaskDeadline = (dataLimite) => {
+      if (!dataLimite) return <span style={{fontSize: '0.65rem', color: '#94a3b8', background: '#f8fafc', padding: '2px 6px', borderRadius: '4px'}}>Sem Prazo</span>;
+      const d = new Date(dataLimite); d.setHours(0,0,0,0);
+      const t = new Date(); t.setHours(0,0,0,0);
+      const diffDays = Math.round((d - t) / (1000 * 60 * 60 * 24));
+      
+      if (diffDays < 0) return <span style={{background: '#fee2e2', color: '#ef4444', padding: '2px 8px', borderRadius: '12px', fontSize: '0.65rem', fontWeight: 'bold'}}>🔴 Atrasada</span>;
+      if (diffDays === 0) return <span style={{background: '#fef3c7', color: '#d97706', padding: '2px 8px', borderRadius: '12px', fontSize: '0.65rem', fontWeight: 'bold'}}>⚠️ Hoje</span>;
+      return <span style={{background: '#f1f5f9', color: '#64748b', padding: '2px 8px', borderRadius: '12px', fontSize: '0.65rem', fontWeight: 'bold'}}>📅 {d.toLocaleDateString('pt-PT').slice(0,5)}</span>;
   };
 
   const inputEditStyle = { width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.85rem' };
@@ -446,7 +479,6 @@ export default function DashboardHome() {
                 )}
             </div>
 
-            {/* --- NOVO: CARTÃO DE PRÓXIMOS ANIVERSÁRIOS --- */}
             <div className="card" style={{padding: '20px', background: 'white', borderRadius: '16px'}}>
                 <h4 style={{margin: '0 0 15px 0', color: '#1e293b'}}>🎂 Próximos Aniversários</h4>
                 {aniversarios.length > 0 ? (
@@ -475,53 +507,82 @@ export default function DashboardHome() {
 
         </div>
 
-        {/* COLUNA DIREITA: Tarefas & Calendário */}
+        {/* 💡 COLUNA DIREITA: TAREFAS EM GRELHA E CALENDÁRIO */}
         <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
             
-            <div className="card" style={{ textAlign: 'left' }}>
+            {/* 🔥 TAREFAS URGENTES / PARA HOJE */}
+            <div className="card" style={{ padding: '20px', background: 'white', borderRadius: '16px' }}>
                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px'}}>
-                    <h3>⚡ Tarefas de Hoje</h3>
+                    <h4 style={{margin: 0, color: '#1e293b', fontSize: '1.1rem'}}>🔥 Para Hoje / Atrasadas</h4>
+                    {tarefasHoje.length > 6 && (
+                        <button className="btn-small" style={{background: '#eff6ff', color: '#2563eb', fontWeight: 'bold'}} onClick={() => navigate("/dashboard/tarefas")}>
+                            Ver as {tarefasHoje.length} ➔
+                        </button>
+                    )}
                 </div>
+                
                 {tarefasHoje.length === 0 ? (
-                    <div style={{textAlign: 'center', padding: '20px 0', color: '#94a3b8', fontSize: '0.9rem'}}>Sem tarefas agendadas para hoje. 😎</div>
+                    <div style={{textAlign: 'center', padding: '20px 0', color: '#94a3b8', fontSize: '0.9rem', background: '#f8fafc', borderRadius: '12px'}}>
+                        Sem tarefas urgentes! 🎉
+                    </div>
                 ) : (
-                    <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                    {tarefasHoje.map((t) => {
-                        const status = getTaskStatusColor(t.estado);
-                        return (
-                        <li key={t.id} style={{ borderBottom: '1px solid #f1f5f9', padding: '12px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <span style={{ fontWeight: '600', color: t.estado === 'concluido' ? '#94a3b8' : '#334151', fontSize: '0.9rem', textDecoration: t.estado === 'concluido' ? 'line-through' : 'none' }}>{t.titulo}</span>
-                                    <span style={{ fontSize: '0.65rem', padding: '2px 6px', borderRadius: '12px', background: status.bg, color: status.text, fontWeight: 'bold' }}>{status.label}</span>
-                                </div>
-                                <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>{t.atividades?.projetos?.titulo || 'Geral'} › {t.atividades?.titulo}</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+                    {tarefasHoje.slice(0, 6).map((t) => (
+                        <div key={t.id} onClick={() => navigate('/dashboard/tarefas')} className="task-hover-card" style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                <span style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: 'bold', textTransform: 'uppercase', background: '#f8fafc', padding: '2px 6px', borderRadius: '6px' }} title={t.atividades?.projetos?.titulo}>
+                                    {t.atividades?.projetos?.codigo_projeto || (t.atividades?.projetos?.titulo ? t.atividades.projetos.titulo.slice(0,12) + '...' : 'Geral')}
+                                </span>
+                                {renderTaskDeadline(t.data_limite)}
                             </div>
-                            <button className="btn-small" style={{background: '#f1f5f9'}} onClick={() => navigate("/dashboard/tarefas")}>Ação</button>
-                        </li>
-                    )})}
-                    </ul>
+                            
+                            <h4 style={{ margin: '5px 0 0 0', fontSize: '0.9rem', color: '#1e293b', lineHeight: '1.3' }}>{t.titulo}</h4>
+                            
+                            <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '1px solid #f1f5f9' }}>
+                                <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{t.atividades?.titulo || 'Sem Atividade'}</span>
+                                <span style={{ fontSize: '0.9rem', color: '#cbd5e1' }}>➔</span>
+                            </div>
+                        </div>
+                    ))}
+                    </div>
                 )}
             </div>
 
-            <div className="card" style={{ textAlign: 'left' }}>
+            {/* 📋 OUTRAS TAREFAS (FUTURO) */}
+            <div className="card" style={{ padding: '20px', background: 'white', borderRadius: '16px' }}>
                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px'}}>
-                    <h3>📋 Outras Tarefas Pendentes</h3>
-                    <button className="btn-small" onClick={() => navigate("/dashboard/tarefas")}>Ver Todas</button>
+                    <h4 style={{margin: 0, color: '#1e293b', fontSize: '1.1rem'}}>📋 Próximas Tarefas</h4>
+                    {tarefasGerais.length > 6 && (
+                        <button className="btn-small" style={{background: '#f8fafc', color: '#64748b', fontWeight: 'bold'}} onClick={() => navigate("/dashboard/tarefas")}>
+                            Ver as {tarefasGerais.length} ➔
+                        </button>
+                    )}
                 </div>
+                
                 {tarefasGerais.length === 0 ? (
-                    <div style={{textAlign: 'center', padding: '20px 0', color: '#94a3b8', fontSize: '0.9rem'}}>Tudo limpo! 🎉</div>
+                    <div style={{textAlign: 'center', padding: '20px 0', color: '#94a3b8', fontSize: '0.9rem', background: '#f8fafc', borderRadius: '12px'}}>
+                        Não tens mais tarefas pendentes. 😎
+                    </div>
                 ) : (
-                    <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                    {tarefasGerais.map((t) => (
-                        <li key={t.id} style={{ borderBottom: '1px solid #f1f5f9', padding: '12px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div>
-                                <span style={{ fontWeight: '600', color: '#334151', fontSize: '0.9rem' }}>{t.titulo}</span>
-                                <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>{t.data_limite && <span style={{color:'#ef4444'}}>Prazo: {new Date(t.data_limite).toLocaleDateString('pt-PT').slice(0,5)} • </span>}{t.atividades?.projetos?.titulo || 'Geral'}</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+                    {tarefasGerais.slice(0, 6).map((t) => (
+                        <div key={t.id} onClick={() => navigate('/dashboard/tarefas')} className="task-hover-card" style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                <span style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: 'bold', textTransform: 'uppercase', background: '#f8fafc', padding: '2px 6px', borderRadius: '6px' }} title={t.atividades?.projetos?.titulo}>
+                                    {t.atividades?.projetos?.codigo_projeto || (t.atividades?.projetos?.titulo ? t.atividades.projetos.titulo.slice(0,12) + '...' : 'Geral')}
+                                </span>
+                                {renderTaskDeadline(t.data_limite)}
                             </div>
-                        </li>
+                            
+                            <h4 style={{ margin: '5px 0 0 0', fontSize: '0.9rem', color: '#1e293b', lineHeight: '1.3' }}>{t.titulo}</h4>
+                            
+                            <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '1px solid #f1f5f9' }}>
+                                <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{t.atividades?.titulo || 'Sem Atividade'}</span>
+                                <span style={{ fontSize: '0.9rem', color: '#cbd5e1' }}>➔</span>
+                            </div>
+                        </div>
                     ))}
-                    </ul>
+                    </div>
                 )}
             </div>
 
@@ -732,6 +793,10 @@ export default function DashboardHome() {
         .menu-item.logout:hover { background: #fef2f2; color: #b91c1c; }
         .stat-card:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
         .table-row-hover:hover { background-color: #f1f5f9 !important; }
+        
+        /* Estilos dos Cartões de Tarefa */
+        .task-hover-card:hover { border-color: #cbd5e1 !important; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); transform: translateY(-2px); transition: all 0.2s; }
+        
         @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
       `}</style>
     </div>

@@ -239,11 +239,12 @@ export default function Clientes() {
     setProjetosCliente(pData.data || []);
   }
 
+  // 💡 FUNÇÃO DE TOGGLE (Reativar / Desativar)
   async function handleToggleAtivo(id, estadoAtual) {
     const novoEstado = !estadoAtual;
     const acaoTexto = novoEstado ? "Reativar" : "Desativar";
 
-    if (!window.confirm(`Tem a certeza que deseja ${acaoTexto.toLowerCase()} esta empresa? \n(Nenhum dado será apagado, apenas ocultado por predefinição).`)) return;
+    if (!window.confirm(`Tem a certeza que deseja ${acaoTexto.toLowerCase()} esta empresa?`)) return;
 
     try {
       const { error } = await supabase.from("clientes").update({ ativo: novoEstado }).eq("id", id);
@@ -253,7 +254,6 @@ export default function Clientes() {
       if (editId === id) setForm({ ...form, ativo: novoEstado });
 
       showToast(`Empresa ${acaoTexto.toLowerCase()}a com sucesso!`, "success");
-      setShowModal(false);
     } catch (error) {
       showToast(`Erro ao ${acaoTexto.toLowerCase()} empresa: ` + error.message, "error");
     }
@@ -409,7 +409,7 @@ export default function Clientes() {
                               Ver Perfil
                           </button>
                           
-                          {!isInactive && (
+                          {!isInactive ? (
                               <button 
                                   onClick={() => handleEdit(c)} 
                                   style={{padding: '12px 20px', border: 'none', background: 'transparent', color: '#f59e0b', fontSize: '1.1rem', cursor: 'pointer', transition: '0.2s'}}
@@ -417,6 +417,15 @@ export default function Clientes() {
                                   title="Edição Rápida"
                               >
                                   ✏️
+                              </button>
+                          ) : (
+                              <button 
+                                  onClick={() => handleToggleAtivo(c.id, c.ativo)} 
+                                  style={{padding: '12px 20px', border: 'none', background: 'transparent', color: '#16a34a', fontSize: '1.1rem', cursor: 'pointer', transition: '0.2s'}}
+                                  className="hover-green-text"
+                                  title="Reativar Empresa"
+                              >
+                                  🔄
                               </button>
                           )}
                       </div>
@@ -437,7 +446,6 @@ export default function Clientes() {
       {showModal && (
         <ModalPortal>
           <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(15, 23, 42, 0.7)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:99999}} onClick={() => setShowModal(false)}>
-            {/* 💡 AQUI AUMENTÁMOS PARA 1200PX E MAX-HEIGHT 96VH */}
             <div style={{background:'#fff', width:'96%', maxWidth:'1200px', borderRadius:'16px', boxShadow:'0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow:'hidden', display:'flex', flexDirection:'column', maxHeight:'96vh'}} onClick={e => e.stopPropagation()}>
               
               {/* CABEÇALHO DO MODAL */}
@@ -463,16 +471,13 @@ export default function Clientes() {
                 </div>
               </div>
 
-              {/* TABS DE NAVEGAÇÃO DO MODAL (Agora fazem Wrap se necessário) */}
+              {/* TABS DE NAVEGAÇÃO DO MODAL */}
               {editId && (
                 <div className="tabs" style={{padding: '15px 30px 0 30px', background: '#fff', borderBottom: '1px solid #e2e8f0', display:'flex', flexWrap:'wrap', gap:'5px'}}>
                   <button className={activeTab === 'geral' ? 'active' : ''} onClick={() => {setActiveTab('geral'); fecharTodosSubForms();}}>📋 Geral</button>
                   <button className={activeTab === 'moradas' ? 'active' : ''} onClick={() => {setActiveTab('moradas'); fecharTodosSubForms();}}>📍 Moradas</button>
                   <button className={activeTab === 'contactos' ? 'active' : ''} onClick={() => {setActiveTab('contactos'); fecharTodosSubForms();}}>👤 Pessoas</button>
-                  
-                  {/* ABA DE PROJETOS EM DESTAQUE */}
                   <button className={activeTab === 'projetos' ? 'active' : ''} onClick={() => {setActiveTab('projetos'); fecharTodosSubForms();}} style={{color: activeTab === 'projetos' ? '#2563eb' : '#3b82f6', fontWeight: '800'}}>🚀 Projetos</button>
-                  
                   <button className={activeTab === 'atividade' ? 'active' : ''} onClick={() => {setActiveTab('atividade'); fecharTodosSubForms();}}>📈 Atividade</button>
                   <button className={activeTab === 'documentos' ? 'active' : ''} onClick={() => {setActiveTab('documentos'); fecharTodosSubForms();}}>📄 Documentos</button>
                   <button className={activeTab === 'plano' ? 'active' : ''} onClick={() => {setActiveTab('plano'); fecharTodosSubForms();}}>💎 Plano</button>
@@ -523,7 +528,16 @@ export default function Clientes() {
                                 <h4 style={{margin:0, fontSize: '1.2rem', color: '#1e293b'}}>Histórico de Projetos</h4>
                                 <p style={{margin:'5px 0 0 0', color:'#64748b', fontSize:'0.9rem'}}>Todos os trabalhos associados a {form.marca}.</p>
                             </div>
-                            <button onClick={() => navigate('/dashboard/projetos')} className="btn-primary" style={{fontSize: '0.9rem'}}>+ Ir para o Portfólio Global</button>
+                            
+                            {/* 💡 AQUI ESTÁ O NOVO BOTÃO QUE PASSA O ID DO CLIENTE PELO STATE DA ROTA */}
+                            {/* 💡 AQUI ESTÁ O BOTÃO ATUALIZADO */}
+                          <button 
+                              onClick={() => navigate('/dashboard/projetos', { state: { prefillClienteId: editId, openNewProjectModal: true } })} 
+                              className="btn-primary" 
+                              style={{fontSize: '0.9rem'}}
+                          >
+                              + Novo Projeto
+                          </button>
                         </div>
 
                         {projetosCliente.length > 0 ? (
@@ -550,7 +564,7 @@ export default function Clientes() {
                             <div style={{textAlign: 'center', padding: '60px', background: 'white', borderRadius: '12px', border: '1px dashed #cbd5e1'}}>
                                 <span style={{fontSize: '3rem', display: 'block', marginBottom: '15px'}}>🏜️</span>
                                 <h4 style={{color: '#1e293b', margin: '0 0 5px 0', fontSize:'1.2rem'}}>Este cliente ainda não tem projetos.</h4>
-                                <p style={{color:'#64748b'}}>Cria um projeto no Portfólio e associa-o a este cliente.</p>
+                                <p style={{color:'#64748b'}}>Cria um novo projeto e ele aparecerá aqui automaticamente.</p>
                             </div>
                         )}
                     </div>
@@ -880,6 +894,7 @@ export default function Clientes() {
           .hover-shadow:hover { box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); transform: translateY(-1px); }
           .hover-blue-text:hover { background: #eff6ff !important; color: #1d4ed8 !important; }
           .hover-orange-text:hover { background: #fff7ed !important; color: #d97706 !important; }
+          .hover-green-text:hover { background: #dcfce7 !important; color: #16a34a !important; }
 
           /* Custom Scrollbar limpa */
           .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
