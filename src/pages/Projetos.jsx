@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate, useLocation } from "react-router-dom"; // IMPORTANTE: Adicionado useLocation
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
 import "./../styles/dashboard.css";
@@ -19,13 +19,16 @@ const addDays = (dateStr, days) => {
 export default function Projetos() {
   const { user } = useAuth();
   const navigate = useNavigate(); 
-  const location = useLocation(); // 💡 NOVO: Para ler dados vindos de outras páginas
+  const location = useLocation(); 
 
   const [projetos, setProjetos] = useState([]);
   const [loading, setLoading] = useState(true);
   
   const [activeLog, setActiveLog] = useState(null); 
   const [notification, setNotification] = useState(null);
+  
+  // 💡 NOVO: Estado para Confirmação Global
+  const [confirmDialog, setConfirmDialog] = useState({ show: false, message: '', confirmText: 'Confirmar', isDanger: true, onConfirm: null });
   
   // NAVEGAÇÃO E FILTROS
   const [busca, setBusca] = useState("");
@@ -43,7 +46,6 @@ export default function Projetos() {
   const [activeTab, setActiveTab] = useState("geral");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState({ show: false, id: null, titulo: '' });
 
   const initialForm = {
     titulo: "", descricao: "", cliente_id: "", cliente_texto: "", tipo_projeto_id: "",
@@ -59,11 +61,8 @@ export default function Projetos() {
     checkActiveLog();
   }, [user]);
 
-  // 💡 NOVO: ESCUTAR COMANDOS DA PÁGINA DE CLIENTES
   useEffect(() => {
-      // Se chegarmos a esta página com instruções para abrir o modal de um cliente específico...
       if (location.state?.openNewProjectModal && location.state?.prefillClienteId) {
-          // Preenchemos o formulário com o ID do cliente e a data de hoje
           setForm({ 
               ...initialForm, 
               cliente_id: location.state.prefillClienteId,
@@ -72,9 +71,8 @@ export default function Projetos() {
           setEditId(null);
           setIsViewOnly(false);
           setActiveTab("geral");
-          setShowModal(true); // Abre o modal na cara do utilizador!
+          setShowModal(true); 
           
-          // Limpamos o state da rota para não voltar a abrir o modal se o utilizador fizer "Refresh" na página
           navigate(location.pathname, { replace: true, state: {} });
       }
   }, [location.state, navigate]);
@@ -176,23 +174,28 @@ export default function Projetos() {
     setShowModal(true);
   }
 
+  // 💡 LÓGICA DE APAGAR
   function askDeleteProjeto(e, id, titulo) {
       e.stopPropagation();
-      setDeleteConfirm({ show: true, id, titulo });
-  }
-
-  async function executeDeleteProjeto() {
-      setIsSubmitting(true);
-      try {
-          const { error } = await supabase.from("projetos").delete().eq("id", deleteConfirm.id);
-          if (error) throw error;
-          
-          showToast("Projeto apagado com sucesso!");
-          setDeleteConfirm({ show: false, id: null, titulo: '' });
-          setShowModal(false);
-          fetchData();
-      } catch (err) { showToast("Erro ao apagar. Pode haver dependências.", "error"); } 
-      finally { setIsSubmitting(false); }
+      setConfirmDialog({
+          show: true,
+          message: `Tens a certeza que queres apagar o projeto "${titulo}"?\nEsta ação apagará todas as tarefas e tempos irreversivelmente.`,
+          confirmText: "Sim, Apagar",
+          isDanger: true,
+          onConfirm: async () => {
+              // 💡 CORREÇÃO: Esconde o aviso IMEDIATAMENTE mal o utilizador clica no "Sim"
+              setConfirmDialog({ show: false, message: '', confirmText: '', isDanger: true, onConfirm: null });
+              
+              try {
+                  const { error } = await supabase.from("projetos").delete().eq("id", id);
+                  if (error) throw error;
+                  showToast("Projeto apagado com sucesso!");
+                  fetchData();
+              } catch (err) { 
+                  showToast("Erro ao apagar. Pode haver dependências.", "error"); 
+              }
+          }
+      });
   }
 
   async function handleSubmit(e) {
@@ -543,6 +546,8 @@ export default function Projetos() {
                                   {renderDeadline(p.data_fim, p.estado)}
                                   <div style={{display: 'flex', gap: '8px'}}>
                                       <button onClick={(e) => handleEdit(e, p)} style={{background: 'transparent', border: '1px solid #cbd5e1', width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b', transition: '0.2s'}} className="hover-orange-btn" title="Editar Detalhes">✎</button>
+                                      
+                                      {/* 💡 BOTÃO DE APAGAR AGORA USA O MODAL GLOBAL */}
                                       <button onClick={(e) => askDeleteProjeto(e, p.id, p.titulo)} style={{background: 'transparent', border: '1px solid #cbd5e1', width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b', transition: '0.2s'}} className="hover-red-btn" title="Apagar">🗑️</button>
                                   </div>
                               </div>
@@ -559,7 +564,8 @@ export default function Projetos() {
           </div>
       )}
 
-      {deleteConfirm.show && (
+      {/* 💡 MODAL DE CONFIRMAÇÃO GLOBAL */}
+      {confirmDialog.show && (
           <ModalPortal>
               <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999}}>
                   <div style={{background: 'white', padding: '30px', borderRadius: '16px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out'}}>
@@ -570,7 +576,7 @@ export default function Projetos() {
                       </p>
                       <div style={{display: 'flex', gap: '10px'}}>
                           <button onClick={() => setConfirmDialog({show: false})} style={{flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', background: 'white', color: '#475569', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">Cancelar</button>
-                          <button onClick={() => { confirmDialog.onConfirm(); setConfirmDialog({show: false}); }} style={{flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: confirmDialog.isDanger ? '#ef4444' : '#2563eb', color: 'white', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">{confirmDialog.confirmText}</button>
+                          <button onClick={() => { confirmDialog.onConfirm(); }} style={{flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: confirmDialog.isDanger ? '#ef4444' : '#2563eb', color: 'white', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">{confirmDialog.confirmText}</button>
                       </div>
                   </div>
               </div>
