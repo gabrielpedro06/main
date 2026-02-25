@@ -341,7 +341,7 @@ export default function Clientes() {
   return (
     <div className="page-container" style={{maxWidth: '1500px', margin: '0 auto'}}>
       <div className="page-header" style={{background: 'white', padding: '20px 25px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
-        <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>👥 Diretório de Clientes</h1>
+        <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>👥 Clientes</h1>
         <button className="btn-glow" onClick={handleNovo}>+ Nova Empresa</button>
       </div>
 
@@ -530,7 +530,6 @@ export default function Clientes() {
                             </div>
                             
                             {/* 💡 AQUI ESTÁ O NOVO BOTÃO QUE PASSA O ID DO CLIENTE PELO STATE DA ROTA */}
-                            {/* 💡 AQUI ESTÁ O BOTÃO ATUALIZADO */}
                           <button 
                               onClick={() => navigate('/dashboard/projetos', { state: { prefillClienteId: editId, openNewProjectModal: true } })} 
                               className="btn-primary" 

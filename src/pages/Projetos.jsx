@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom"; // IMPORTANTE: Adicionado useLocation
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
 import "./../styles/dashboard.css";
@@ -19,7 +19,7 @@ const addDays = (dateStr, days) => {
 export default function Projetos() {
   const { user } = useAuth();
   const navigate = useNavigate(); 
-  const location = useLocation(); 
+  const location = useLocation(); // 💡 NOVO: Para ler dados vindos de outras páginas
 
   const [projetos, setProjetos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -174,7 +174,6 @@ export default function Projetos() {
     setShowModal(true);
   }
 
-  // 💡 LÓGICA DE APAGAR
   function askDeleteProjeto(e, id, titulo) {
       e.stopPropagation();
       setConfirmDialog({
@@ -183,13 +182,13 @@ export default function Projetos() {
           confirmText: "Sim, Apagar",
           isDanger: true,
           onConfirm: async () => {
-              // 💡 CORREÇÃO: Esconde o aviso IMEDIATAMENTE mal o utilizador clica no "Sim"
               setConfirmDialog({ show: false, message: '', confirmText: '', isDanger: true, onConfirm: null });
               
               try {
                   const { error } = await supabase.from("projetos").delete().eq("id", id);
                   if (error) throw error;
                   showToast("Projeto apagado com sucesso!");
+                  setShowModal(false); 
                   fetchData();
               } catch (err) { 
                   showToast("Erro ao apagar. Pode haver dependências.", "error"); 
@@ -198,11 +197,12 @@ export default function Projetos() {
       });
   }
 
-  async function handleSubmit(e) {
+async function handleSubmit(e) {
     e.preventDefault();
     setIsSubmitting(true);
     const payload = { ...form };
 
+    // Limpezas de segurança
     if (payload.cliente_id === "") payload.cliente_id = null;
     if (payload.tipo_projeto_id === "") payload.tipo_projeto_id = null;
     if (payload.responsavel_id === "") payload.responsavel_id = null;
@@ -216,36 +216,37 @@ export default function Projetos() {
     
     try {
         if (editId) {
+            // EDIÇÃO DE UM PROJETO EXISTENTE
             const { error } = await supabase.from("projetos").update(payload).eq("id", editId);
             if (error) throw error;
             showToast("Projeto atualizado!");
             setShowModal(false); 
-            fetchData();
+            fetchData(); // Aqui sim, damos refresh à lista porque ficamos na mesma página
         } else {
+            // CRIAÇÃO DE UM NOVO PROJETO
             const { data: newProj, error: errProj } = await supabase.from("projetos").insert([payload]).select().single();
             if (errProj) throw errProj;
 
+            // 1. O PROJETO TEM UM MODELO ASSOCIADO?
             if (payload.tipo_projeto_id) {
-                showToast("A estruturar o projeto...", "info");
-                
+                showToast("A preparar o teu projeto...", "info");
                 let projDateStr = payload.data_inicio || new Date().toISOString().split('T')[0];
                 const projEndStr = payload.data_fim || null; 
-                
                 let currentAtivDate = projDateStr;
 
                 const { data: tAtividades } = await supabase.from("template_atividades").select("*").eq("tipo_projeto_id", payload.tipo_projeto_id).order("ordem", { ascending: true });
                 
+                // 2. O MODELO TEM ATIVIDADES LÁ DENTRO?
                 if (tAtividades && tAtividades.length > 0) {
                     for (const tAtiv of tAtividades) {
                         const ativStart = currentAtivDate;
-                        
-                        const ativEnd = (tAtiv.dias_estimados > 0) 
-                            ? addDays(ativStart, tAtiv.dias_estimados) 
-                            : (projEndStr || ativStart);
+                        const ativEnd = (tAtiv.dias_estimados > 0) ? addDays(ativStart, tAtiv.dias_estimados) : (projEndStr || ativStart);
 
+                        // Insere Atividade copiando a descrição do Template
                         const { data: realAtiv } = await supabase.from("atividades").insert([{ 
                             projeto_id: newProj.id, titulo: tAtiv.nome, estado: 'pendente', ordem: tAtiv.ordem,
-                            data_inicio: ativStart, data_fim: ativEnd, responsavel_id: payload.responsavel_id || null
+                            data_inicio: ativStart, data_fim: ativEnd, responsavel_id: payload.responsavel_id || null,
+                            descricao: tAtiv.descricao || null
                         }]).select().single();
 
                         currentAtivDate = addDays(currentAtivDate, tAtiv.dias_estimados || 0);
@@ -257,14 +258,12 @@ export default function Projetos() {
                                 
                                 for (const tTar of tTarefas) {
                                     const tarStart = currentTarDate;
-                                    
-                                    const tarEnd = (tTar.dias_estimados > 0) 
-                                        ? addDays(tarStart, tTar.dias_estimados) 
-                                        : (projEndStr || tarStart);
+                                    const tarEnd = (tTar.dias_estimados > 0) ? addDays(tarStart, tTar.dias_estimados) : (projEndStr || tarStart);
 
+                                    // Insere Tarefa copiando a descrição do Template
                                     const { data: realTar } = await supabase.from("tarefas").insert([{ 
                                         atividade_id: realAtiv.id, titulo: tTar.nome, estado: 'pendente', responsavel_id: payload.responsavel_id || null,
-                                        ordem: tTar.ordem, data_inicio: tarStart, data_fim: tarEnd 
+                                        ordem: tTar.ordem, data_inicio: tarStart, data_fim: tarEnd, descricao: tTar.descricao || null
                                     }]).select().single();
 
                                     currentTarDate = addDays(currentTarDate, tTar.dias_estimados || 0);
@@ -273,12 +272,8 @@ export default function Projetos() {
                                         const { data: tSubs } = await supabase.from("template_subtarefas").select("*").eq("template_tarefa_id", tTar.id).order("ordem", { ascending: true });
                                         if (tSubs && tSubs.length > 0) {
                                             let currentSubDate = tarStart;
-                                            
                                             const subTarefasParaInserir = tSubs.map(ts => {
-                                                const subEnd = (ts.dias_estimados > 0) 
-                                                    ? addDays(currentSubDate, ts.dias_estimados) 
-                                                    : (projEndStr || currentSubDate);
-                                                    
+                                                const subEnd = (ts.dias_estimados > 0) ? addDays(currentSubDate, ts.dias_estimados) : (projEndStr || currentSubDate);
                                                 currentSubDate = addDays(currentSubDate, ts.dias_estimados || 0); 
                                                 
                                                 return { 
@@ -293,15 +288,22 @@ export default function Projetos() {
                             }
                         }
                     }
+                    // Atualiza a data de fim do projeto caso tenha sido gerada automaticamente
                     if (!payload.data_fim) await supabase.from("projetos").update({ data_fim: currentAtivDate }).eq("id", newProj.id);
                 }
             }
-            showToast("Projeto gerado com sucesso! 🎉");
+            
+            // 💡 A MAGIA ACONTECE AQUI:
+            // Quer tenha passado pelo construtor de templates ou não, a app fecha o modal e "teletransporta-te" para o novo projeto.
+            showToast("Projeto criado com sucesso! 🎉");
             setShowModal(false); 
             navigate(`/dashboard/projetos/${newProj.id}`);
         }
-    } catch (err) { showToast("Erro: " + err.message, "error"); } 
-    finally { setIsSubmitting(false); }
+    } catch (err) { 
+        showToast("Erro: " + err.message, "error"); 
+    } finally { 
+        setIsSubmitting(false); 
+    }
   }
 
   const checkUserInvolvement = (p) => {
@@ -546,8 +548,6 @@ export default function Projetos() {
                                   {renderDeadline(p.data_fim, p.estado)}
                                   <div style={{display: 'flex', gap: '8px'}}>
                                       <button onClick={(e) => handleEdit(e, p)} style={{background: 'transparent', border: '1px solid #cbd5e1', width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b', transition: '0.2s'}} className="hover-orange-btn" title="Editar Detalhes">✎</button>
-                                      
-                                      {/* 💡 BOTÃO DE APAGAR AGORA USA O MODAL GLOBAL */}
                                       <button onClick={(e) => askDeleteProjeto(e, p.id, p.titulo)} style={{background: 'transparent', border: '1px solid #cbd5e1', width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b', transition: '0.2s'}} className="hover-red-btn" title="Apagar">🗑️</button>
                                   </div>
                               </div>
