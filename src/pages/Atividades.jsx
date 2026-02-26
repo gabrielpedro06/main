@@ -1,8 +1,25 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
 import "./../styles/dashboard.css";
+
+// --- ÍCONES SVG PROFISSIONAIS ---
+const Icons = {
+  Search: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>,
+  ClipboardList: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4"></path><path d="M12 16h4"></path><path d="M8 11h.01"></path><path d="M8 16h.01"></path></svg>,
+  Play: ({ size = 14 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>,
+  Stop: ({ size = 14 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="6" width="12" height="12" rx="2" ry="2"></rect></svg>,
+  Eye: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>,
+  Edit: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>,
+  Calendar: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>,
+  Folder: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>,
+  Settings: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>,
+  FileText: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>,
+  Save: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>,
+  Plus: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>,
+  Close: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+};
 
 // --- PORTAL PARA O MODAL ---
 const ModalPortal = ({ children }) => {
@@ -89,7 +106,7 @@ export default function Atividades() {
             await supabase.from("atividades").update({ estado: 'em_curso' }).eq('id', ativ.id);
             fetchData();
         }
-        showToast("Cronómetro iniciado! ⏱️");
+        showToast("Cronómetro iniciado!");
     }
   }
 
@@ -116,7 +133,7 @@ export default function Atividades() {
     const { error } = await supabase.from("atividades").update({ estado: novoEstado }).eq("id", ativ.id);
     if (!error) {
         fetchData();
-        showToast(novoEstado === 'concluido' ? "Atividade concluída! 🎉" : "Atividade reaberta.");
+        showToast(novoEstado === 'concluido' ? "Atividade concluída!" : "Atividade reaberta.");
     }
   }
 
@@ -165,195 +182,238 @@ export default function Atividades() {
     } catch (error) { showToast("Erro: " + error.message, "error"); }
   }
 
-  const getStatusColor = (s) => {
-    if(s==='concluido') return {bg: '#dcfce7', text: '#166534'};
-    if(s==='em_curso') return {bg: '#dbeafe', text: '#1e40af'};
-    return {bg: '#f3f4f6', text: '#374151'};
-  };
-
-  const sectionTitleStyle = { fontSize: '0.8rem', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '15px', marginTop: '20px', borderBottom: '1px solid #e2e8f0', paddingBottom: '5px' };
+  const sectionTitleStyle = { display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '15px', marginTop: '20px', borderBottom: '1px solid #e2e8f0', paddingBottom: '5px' };
   const labelStyle = { display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' };
   const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', color: '#1e293b', outline: 'none', boxSizing: 'border-box' };
 
   return (
     <div className="page-container">
-      <div className="page-header">
+      
+      {/* HEADER */}
+      <div className="card" style={{ marginBottom: 20, padding: '25px', display: "flex", justifyContent: "space-between", alignItems: 'center', flexWrap: 'wrap', gap: '15px', background: 'white', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
         <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
-            <h1>📋 Atividades</h1>
+            <div style={{background: '#eff6ff', color: '#2563eb', padding: '10px', borderRadius: '10px', display: 'flex'}}><Icons.ClipboardList /></div>
+            <div>
+                <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>Atividades</h1>
+                <p style={{color: '#64748b', margin: 0, fontWeight: '500', fontSize: '0.9rem'}}>Gestão de blocos de trabalho</p>
+            </div>
+            
             {activeLog && (
-                <div style={{ background: '#2563eb', color: 'white', padding: '8px 16px', borderRadius: '20px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '10px', boxShadow: '0 4px 10px rgba(37, 99, 235, 0.3)' }}>
+                <div style={{ background: '#2563eb', color: 'white', padding: '8px 16px', borderRadius: '20px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '10px', boxShadow: '0 4px 10px rgba(37, 99, 235, 0.3)', marginLeft: '15px' }}>
                     <span className="pulse-dot-white"></span> A contar...
-                    <button onClick={handleStopLog} style={{background: 'white', color:'#2563eb', border:'none', borderRadius:'5px', padding:'2px 8px', cursor:'pointer', fontWeight:'bold'}}>⏹ PARAR</button>
+                    <button onClick={handleStopLog} style={{background: 'white', color:'#2563eb', border:'none', borderRadius:'5px', padding:'4px 8px', cursor:'pointer', fontWeight:'bold', display: 'flex', alignItems: 'center', gap: '4px'}}>
+                        <Icons.Stop size={12} /> Parar
+                    </button>
                 </div>
             )}
         </div>
-        <button className="btn-primary" onClick={handleNovo}>+ Nova Atividade</button>
+        <button className="btn-primary hover-shadow" onClick={handleNovo} style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold'}}>
+            <Icons.Plus /> Nova Atividade
+        </button>
       </div>
 
-      <div className="filters-container">
-        <input type="text" placeholder="🔍 Procurar atividade..." className="search-input" value={busca} onChange={(e) => setBusca(e.target.value)} />
-        <label style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem'}}>
-            <input type="checkbox" checked={mostrarConcluidos} onChange={(e) => setMostrarConcluidos(e.target.checked)} style={{width: '18px', height: '18px'}} /> Mostrar Arquivados
-        </label>
-      </div>
+      <div className="card" style={{ padding: '20px', borderRadius: '12px' }}>
+        
+        {/* FILTROS */}
+        <div style={{ display: "flex", flexWrap: 'wrap', gap: 15, marginBottom: 20, paddingBottom: 20, borderBottom: '1px solid #f1f5f9', alignItems: 'center' }}>
+            <div style={{flex: 1, minWidth: '250px', position: 'relative'}}>
+                <span style={{position: 'absolute', left: '12px', top: '12px', color: '#94a3b8'}}><Icons.Search /></span>
+                <input type="text" placeholder="Procurar atividade ou projeto..." value={busca} onChange={(e) => setBusca(e.target.value)} style={{...inputStyle, width: '100%', paddingLeft: '38px'}} />
+            </div>
+            <label style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold', color: '#475569', background: '#f8fafc', padding: '10px 15px', borderRadius: '8px', border: '1px solid #e2e8f0'}}>
+                <input type="checkbox" checked={mostrarConcluidos} onChange={(e) => setMostrarConcluidos(e.target.checked)} style={{accentColor:'#1e293b', width:'14px', height:'14px'}} /> Mostrar Arquivados
+            </label>
+        </div>
 
-      <div className="table-responsive">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th style={{width: '90px', textAlign: 'center'}}>Timer</th>
-              <th>Atividade</th>
-              <th style={{width: '140px'}}>Deadline</th> {/* NOVA COLUNA DEADLINE */}
-              <th>Projeto Pai</th>
-              <th>Responsável</th>
-              <th style={{textAlign: 'center'}}>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {atividadesFiltradas.length > 0 ? (
-                atividadesFiltradas.map((a) => {
-                    const isRunning = activeLog?.atividade_id === a.id;
-                    const isCompleted = a.estado === 'concluido';
-                    const isExpired = a.data_fim && new Date(a.data_fim) < new Date() && !isCompleted;
+        {/* TABELA */}
+        <div className="table-responsive" style={{overflowX: 'auto'}}>
+            <table className="data-table" style={{ width: "100%", borderCollapse: 'collapse', minWidth: '900px' }}>
+            <thead>
+                <tr style={{color: '#64748b', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em', borderBottom: '2px solid #f1f5f9'}}>
+                <th style={{padding: '15px', width: '90px', textAlign: 'center'}}>Timer</th>
+                <th style={{padding: '15px', textAlign: 'left'}}>Atividade</th>
+                <th style={{padding: '15px', textAlign: 'left', width: '140px'}}>Prazo</th>
+                <th style={{padding: '15px', textAlign: 'left'}}>Projeto Pai</th>
+                <th style={{padding: '15px', textAlign: 'left'}}>Responsável</th>
+                <th style={{padding: '15px', textAlign: 'right'}}>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {atividadesFiltradas.length > 0 ? (
+                    atividadesFiltradas.map((a) => {
+                        const isRunning = activeLog?.atividade_id === a.id;
+                        const isCompleted = a.estado === 'concluido';
+                        const isExpired = a.data_fim && new Date(a.data_fim) < new Date() && !isCompleted;
 
-                    return (
-                        <tr key={a.id} style={{ background: isRunning ? '#eff6ff' : 'transparent', opacity: isCompleted ? 0.6 : 1 }}>
-                            <td style={{textAlign: 'center'}}>
-                                <div style={{display:'flex', alignItems:'center', justifyContent:'center', gap:'12px'}}>
-                                    {isRunning ? (
-                                        <button onClick={handleStopLog} title="Parar" style={{border:'none', background:'#fee2e2', color:'#ef4444', borderRadius:'50%', width:'30px', height:'30px', cursor:'pointer', fontSize:'0.8rem', display:'flex', alignItems:'center', justifyContent:'center'}}>⏹</button>
-                                    ) : (
-                                        <button onClick={() => handleStartAtividade(a)} disabled={isCompleted} title="Iniciar" style={{border:'none', background: isCompleted ? '#f3f4f6' : '#dbeafe', color: isCompleted ? '#ccc' : '#2563eb', borderRadius:'50%', width:'30px', height:'30px', cursor: isCompleted ? 'default' : 'pointer', fontSize:'0.8rem', display:'flex', alignItems:'center', justifyContent:'center'}}>▶</button>
-                                    )}
-                                    <label className="switch" title="Completar">
-                                        <input type="checkbox" checked={isCompleted} onChange={() => handleToggleStatus(a)} />
-                                        <span className="slider"></span>
-                                    </label>
-                                </div>
-                            </td>
-                            <td style={{ fontWeight: "bold", color: isRunning ? "#2563eb" : "#334155" }}>
-                                <span style={{textDecoration: isCompleted ? 'line-through' : 'none'}}>{a.titulo}</span>
-                                {a.investimento > 0 && <div style={{fontSize: '0.75rem', fontWeight:'normal', color: '#64748b'}}>{a.investimento}€</div>}
-                            </td>
-
-                            {/* DEADLINE VISÍVEL NA TABELA */}
-                            <td>
-                                {a.data_fim ? (
-                                    <div style={{
-                                        display: 'flex', alignItems: 'center', gap: '5px', 
-                                        color: isExpired ? '#dc2626' : '#475569',
-                                        fontWeight: isExpired ? '700' : '600',
-                                        fontSize: '0.85rem',
-                                        background: isExpired ? '#fef2f2' : '#f8fafc',
-                                        padding: '4px 8px', borderRadius: '6px', width: 'fit-content',
-                                        border: isExpired ? '1px solid #fecaca' : '1px solid #e2e8f0'
-                                    }}>
-                                        📅 {new Date(a.data_fim).toLocaleDateString('pt-PT')}
+                        return (
+                            <tr key={a.id} style={{ borderBottom: '1px solid #f8fafc', background: isRunning ? '#eff6ff' : (isCompleted ? '#f8fafc' : 'white'), opacity: isCompleted ? 0.6 : 1, transition: '0.2s' }} className={!isCompleted && !isRunning ? "table-row-hover" : ""}>
+                                <td style={{padding: '15px', textAlign: 'center'}}>
+                                    <div style={{display:'flex', alignItems:'center', justifyContent:'center', gap:'12px'}}>
+                                        {isRunning ? (
+                                            <button onClick={handleStopLog} title="Parar Timer" style={{border:'none', background:'#fee2e2', color:'#ef4444', borderRadius:'50%', width:'32px', height:'32px', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', boxShadow: '0 2px 4px rgba(239, 68, 68, 0.2)'}}>
+                                                <Icons.Stop size={14} />
+                                            </button>
+                                        ) : (
+                                            <button onClick={() => handleStartAtividade(a)} disabled={isCompleted} title="Iniciar Timer" style={{border:'none', background: isCompleted ? '#f1f5f9' : '#dbeafe', color: isCompleted ? '#cbd5e1' : '#2563eb', borderRadius:'50%', width:'32px', height:'32px', cursor: isCompleted ? 'default' : 'pointer', display:'flex', alignItems:'center', justifyContent:'center', transition: '0.2s'}} className={!isCompleted ? "hover-shadow" : ""}>
+                                                <Icons.Play size={14} />
+                                            </button>
+                                        )}
+                                        <label className="switch" title={isCompleted ? "Reabrir" : "Marcar como Concluído"}>
+                                            <input type="checkbox" checked={isCompleted} onChange={() => handleToggleStatus(a)} />
+                                            <span className="slider"></span>
+                                        </label>
                                     </div>
-                                ) : (
-                                    <span style={{color: '#cbd5e1', fontSize: '0.8rem'}}>---</span>
-                                )}
-                            </td>
+                                </td>
+                                
+                                <td style={{padding: '15px', fontWeight: "bold", color: isRunning ? "#2563eb" : "#1e293b", fontSize: '0.95rem'}}>
+                                    <span style={{textDecoration: isCompleted ? 'line-through' : 'none'}}>{a.titulo}</span>
+                                    {a.investimento > 0 && <div style={{fontSize: '0.75rem', fontWeight:'600', color: '#64748b', marginTop: '4px'}}>Orçamento: {a.investimento}€</div>}
+                                </td>
 
-                            <td>{a.projetos?.titulo || "Sem Projeto"}<small style={{display:'block', color:'#666'}}>{a.projetos?.codigo_projeto}</small></td>
-                            <td>{a.profiles?.nome || a.profiles?.email || "N/A"}</td>
-                            <td style={{textAlign: 'center'}}>
-                                <div style={{ display: 'flex', gap: '5px', justifyContent: 'center' }}>
-                                    <button className="btn-small" onClick={() => handleView(a)}>👁️</button>
-                                    <button className="btn-small" onClick={() => handleEdit(a)}>✏️</button>
-                                </div>
-                            </td>
-                        </tr>
-                    );
-                })
-            ) : (
-                <tr><td colSpan="6" style={{textAlign: 'center', padding: '20px', color: '#666'}}>Nenhuma atividade encontrada.</td></tr>
-            )}
-          </tbody>
-        </table>
+                                <td style={{padding: '15px'}}>
+                                    {a.data_fim ? (
+                                        <div style={{
+                                            display: 'flex', alignItems: 'center', gap: '6px', 
+                                            color: isExpired ? '#dc2626' : '#475569',
+                                            fontWeight: isExpired ? '700' : '600',
+                                            fontSize: '0.8rem',
+                                            background: isExpired ? '#fef2f2' : '#f1f5f9',
+                                            padding: '4px 8px', borderRadius: '6px', width: 'fit-content',
+                                            border: isExpired ? '1px solid #fecaca' : '1px solid transparent'
+                                        }}>
+                                            <Icons.Calendar /> {new Date(a.data_fim).toLocaleDateString('pt-PT')}
+                                        </div>
+                                    ) : (
+                                        <span style={{color: '#cbd5e1', fontSize: '0.8rem', fontWeight: 'bold'}}>- - -</span>
+                                    )}
+                                </td>
+
+                                <td style={{padding: '15px'}}>
+                                    <div style={{fontWeight: '700', color: '#334155', fontSize: '0.9rem'}}>{a.projetos?.titulo || "Sem Projeto"}</div>
+                                    {a.projetos?.codigo_projeto && <div style={{fontSize: '0.7rem', color: '#64748b', fontFamily: 'monospace', background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px', width: 'fit-content', marginTop: '4px'}}>{a.projetos.codigo_projeto}</div>}
+                                </td>
+                                
+                                <td style={{padding: '15px', color: '#475569', fontSize: '0.9rem', fontWeight: '500'}}>
+                                    {a.profiles?.nome || a.profiles?.email || <span style={{color: '#cbd5e1'}}>-</span>}
+                                </td>
+                                
+                                <td style={{padding: '15px', textAlign: 'right'}}>
+                                    <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                                        <button onClick={() => handleView(a)} title="Ver Detalhes" style={{background: 'white', border: '1px solid #cbd5e1', color: '#475569', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">
+                                            <Icons.Eye />
+                                        </button>
+                                        <button onClick={() => handleEdit(a)} title="Editar" className="action-btn hover-orange-text" style={{background: 'transparent', border: 'none', color: '#475569', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s', opacity: 0.6}}>
+                                            <Icons.Edit />
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        );
+                    })
+                ) : (
+                    <tr><td colSpan="6" style={{textAlign: 'center', padding: '60px', color: '#94a3b8'}}>
+                        <span style={{display: 'block', marginBottom: '10px', opacity: 0.5}}><Icons.Search /></span>
+                        <p style={{margin: 0, fontWeight: '500'}}>Nenhuma atividade encontrada com estes filtros.</p>    
+                    </td></tr>
+                )}
+            </tbody>
+            </table>
+        </div>
       </div>
 
-      {notification && <div className={`toast-container ${notification.type}`}>{notification.type === 'success' ? '✅' : '⚠️'} {notification.message}</div>}
-
+      {/* --- MODAL FORMULÁRIO --- */}
       {showModal && (
         <ModalPortal>
-          <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(15, 23, 42, 0.65)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:99999}} onClick={() => setShowModal(false)}>
-            <div style={{background:'#fff', width:'95%', maxWidth:'800px', borderRadius:'16px', boxShadow:'0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow:'hidden', display:'flex', flexDirection:'column', maxHeight:'92vh'}} onClick={e => e.stopPropagation()}>
-              <div style={{padding:'20px 30px', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center', background:'#fff'}}>
-                <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
-                    <span style={{background: '#eff6ff', padding: '8px', borderRadius: '8px', fontSize: '1.2rem'}}>📋</span>
-                    <div>
-                        <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.2rem'}}>
-                            {isViewOnly ? "Ver Atividade" : (editId ? "Editar Atividade" : "Nova Atividade")}
-                        </h3>
-                    </div>
+          <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(15, 23, 42, 0.7)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:99999}} onClick={() => setShowModal(false)}>
+            <div style={{background:'#fff', width:'95%', maxWidth:'750px', borderRadius:'16px', boxShadow:'0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow:'hidden', display:'flex', flexDirection:'column', maxHeight:'92vh', animation: 'fadeIn 0.2s ease-out'}} onClick={e => e.stopPropagation()}>
+              
+              <div style={{padding:'20px 25px', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center', background:'#f8fafc'}}>
+                <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
+                    <span style={{background: '#eff6ff', color: '#2563eb', padding: '8px', borderRadius: '8px', display: 'flex'}}><Icons.ClipboardList /></span>
+                    <h3 style={{margin: 0, color: '#0f172a', fontSize: '1.25rem', fontWeight: '800'}}>
+                        {isViewOnly ? "Ver Atividade" : (editId ? "Editar Atividade" : "Nova Atividade")}
+                    </h3>
                 </div>
-                <button onClick={() => setShowModal(false)} style={{background:'transparent', border:'none', fontSize:'1.2rem', cursor:'pointer', color:'#94a3b8'}}>✕</button>
+                <button onClick={() => setShowModal(false)} style={{background:'transparent', border:'none', color:'#94a3b8', cursor:'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'}} className="hover-red-text"><Icons.Close /></button>
               </div>
 
-              <div style={{padding: '30px', overflowY: 'auto', background: '#f8fafc'}}>
+              <div style={{padding: '25px', overflowY: 'auto', background: 'white'}}>
                 <form onSubmit={handleSubmit}>
                   <fieldset disabled={isViewOnly} style={{border:'none', padding:0, margin:0}}>
-                    <div style={{marginBottom: '20px'}}>
+                    
+                    <div style={{marginBottom: '25px'}}>
                         <label style={labelStyle}>Título da Atividade *</label>
-                        <input type="text" value={form.titulo} onChange={e => setForm({...form, titulo: e.target.value})} required style={{...inputStyle, fontSize: '1.1rem', padding: '12px'}} />
+                        <input type="text" value={form.titulo} onChange={e => setForm({...form, titulo: e.target.value})} required style={{...inputStyle, fontSize: '1.1rem', padding: '12px', fontWeight: 'bold'}} className="input-focus" placeholder="Ex: Preparar Documentação..." />
                     </div>
 
-                    <div style={sectionTitleStyle}>📌 Projeto & Responsável</div>
-                    <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px'}}>
-                        <div style={{marginBottom: '15px'}}>
+                    <div style={sectionTitleStyle}><Icons.Folder /> Projeto & Responsável</div>
+                    <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '10px'}}>
+                        <div>
                             <label style={labelStyle}>Projeto Pai *</label>
-                            <select value={form.projeto_id} onChange={e => setForm({...form, projeto_id: e.target.value})} required style={inputStyle}>
-                                <option value="">-- Selecione --</option>
+                            <select value={form.projeto_id} onChange={e => setForm({...form, projeto_id: e.target.value})} required style={{...inputStyle, cursor: 'pointer'}} className="input-focus">
+                                <option value="">-- Selecione o Projeto --</option>
                                 {projetos.map(p => <option key={p.id} value={p.id}>{p.titulo}</option>)}
                             </select>
                         </div>
-                        <div style={{marginBottom: '15px'}}>
+                        <div>
                             <label style={labelStyle}>Responsável</label>
-                            <select value={form.responsavel_id} onChange={e => setForm({...form, responsavel_id: e.target.value})} style={inputStyle}>
-                                <option value="">-- Ninguém --</option>
+                            <select value={form.responsavel_id} onChange={e => setForm({...form, responsavel_id: e.target.value})} style={{...inputStyle, cursor: 'pointer'}} className="input-focus">
+                                <option value="">-- Ninguém (Atribuir Depois) --</option>
                                 {staff.map(s => <option key={s.id} value={s.id}>{s.nome || s.email}</option>)}
                             </select>
                         </div>
                     </div>
 
-                    <div style={sectionTitleStyle}>📅 Planeamento & Financeiro</div>
-                    <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '15px'}}>
-                        <div><label style={labelStyle}>Data Início</label><input type="date" value={form.data_inicio} onChange={e => setForm({...form, data_inicio: e.target.value})} style={inputStyle} /></div>
-                        <div><label style={labelStyle}>Data Fim (Deadline)</label><input type="date" value={form.data_fim} onChange={e => setForm({...form, data_fim: e.target.value})} style={{...inputStyle, border: form.data_fim ? '1px solid #fca5a5' : '1px solid #cbd5e1'}} /></div>
-                        <div><label style={labelStyle}>Investimento (€)</label><input type="number" step="0.01" value={form.investimento} onChange={e => setForm({...form, investimento: e.target.value})} style={inputStyle} /></div>
-                        <div><label style={labelStyle}>Incentivo (€)</label><input type="number" step="0.01" value={form.incentivo} onChange={e => setForm({...form, incentivo: e.target.value})} style={inputStyle} /></div>
+                    <div style={sectionTitleStyle}><Icons.Calendar /> Planeamento & Financeiro</div>
+                    <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '15px', marginBottom: '10px'}}>
+                        <div><label style={labelStyle}>Data Início</label><input type="date" value={form.data_inicio} onChange={e => setForm({...form, data_inicio: e.target.value})} style={inputStyle} className="input-focus" /></div>
+                        <div><label style={labelStyle}>Prazo (Fim)</label><input type="date" value={form.data_fim} onChange={e => setForm({...form, data_fim: e.target.value})} style={{...inputStyle, border: form.data_fim ? '1px solid #fca5a5' : '1px solid #cbd5e1'}} className="input-focus" /></div>
+                        <div><label style={labelStyle}>Orçamento (€)</label><input type="number" step="0.01" value={form.investimento} onChange={e => setForm({...form, investimento: e.target.value})} style={inputStyle} className="input-focus" /></div>
+                        <div><label style={labelStyle}>Incentivo (€)</label><input type="number" step="0.01" value={form.incentivo} onChange={e => setForm({...form, incentivo: e.target.value})} style={inputStyle} className="input-focus" /></div>
                     </div>
 
-                    <div style={sectionTitleStyle}>⚙️ Estado</div>
-                    <div style={{display: 'flex', gap: '10px', marginBottom: '20px'}}>
-                        {['pendente', 'em_curso', 'concluido', 'cancelado'].map(st => (
-                            <div key={st} onClick={() => !isViewOnly && setForm({...form, estado: st})}
+                    <div style={sectionTitleStyle}><Icons.Settings /> Estado Atual</div>
+                    <div style={{display: 'flex', gap: '10px', marginBottom: '25px'}}>
+                        {[
+                            {val: 'pendente', label: 'Pendente'}, 
+                            {val: 'em_curso', label: 'Em Curso'}, 
+                            {val: 'concluido', label: 'Concluído'}, 
+                            {val: 'cancelado', label: 'Cancelado'}
+                        ].map(st => (
+                            <div key={st.val} onClick={() => !isViewOnly && setForm({...form, estado: st.val})}
                                 style={{
-                                    flex: 1, textAlign: 'center', padding: '12px', borderRadius: '10px', cursor: isViewOnly ? 'default' : 'pointer',
-                                    fontSize: '0.85rem', fontWeight: '700',
-                                    background: form.estado === st ? '#2563eb' : '#fff',
-                                    color: form.estado === st ? 'white' : '#64748b',
-                                    border: form.estado === st ? '1px solid #2563eb' : '1px solid #cbd5e1',
-                                    transition: 'all 0.2s', textTransform: 'uppercase'
+                                    flex: 1, textAlign: 'center', padding: '10px', borderRadius: '8px', cursor: isViewOnly ? 'default' : 'pointer',
+                                    fontSize: '0.8rem', fontWeight: '700',
+                                    background: form.estado === st.val ? '#2563eb' : '#f8fafc',
+                                    color: form.estado === st.val ? 'white' : '#64748b',
+                                    border: form.estado === st.val ? '1px solid #2563eb' : '1px solid #e2e8f0',
+                                    transition: 'all 0.2s', textTransform: 'uppercase', letterSpacing: '0.05em'
                                 }}
                             >
-                                {st.replace('_', ' ')}
+                                {st.label}
                             </div>
                         ))}
                     </div>
 
-                    <div style={sectionTitleStyle}>📝 Notas</div>
+                    <div style={sectionTitleStyle}><Icons.FileText /> Notas</div>
                     <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px'}}>
-                        <textarea rows="4" value={form.descricao} onChange={e => setForm({...form, descricao: e.target.value})} placeholder="Descrição..." style={{...inputStyle, resize: 'none'}} />
-                        <textarea rows="4" value={form.observacoes} onChange={e => setForm({...form, observacoes: e.target.value})} placeholder="Observações..." style={{...inputStyle, resize: 'none'}} />
+                        <div>
+                            <label style={labelStyle}>Descrição / Procedimento</label>
+                            <textarea rows="4" value={form.descricao} onChange={e => setForm({...form, descricao: e.target.value})} placeholder="Instruções para realizar a atividade..." style={{...inputStyle, resize: 'vertical'}} className="input-focus" />
+                        </div>
+                        <div>
+                            <label style={labelStyle}>Observações</label>
+                            <textarea rows="4" value={form.observacoes} onChange={e => setForm({...form, observacoes: e.target.value})} placeholder="Notas adicionais..." style={{...inputStyle, resize: 'vertical', background: '#fffbeb', borderColor: '#fde68a'}} className="input-focus" />
+                        </div>
                     </div>
                   </fieldset>
 
                   {!isViewOnly && (
-                      <div style={{display:'flex', gap:'15px', marginTop:'30px', paddingTop:'20px', borderTop:'1px solid #e2e8f0'}}>
-                          <button type="button" onClick={() => setShowModal(false)} style={{flex:1, padding:'14px', borderRadius:'10px', border:'1px solid #cbd5e1', background:'white', color:'#64748b', fontWeight:'600', cursor:'pointer'}}>Cancelar</button>
-                          <button type="submit" style={{flex:2, padding:'14px', borderRadius:'10px', border:'none', background:'#2563eb', color:'white', fontWeight:'600', cursor:'pointer', boxShadow:'0 4px 6px -1px rgba(37, 99, 235, 0.4)'}}>{editId ? "💾 Guardar Alterações" : "🚀 Criar Atividade"}</button>
+                      <div style={{display:'flex', gap:'10px', marginTop:'30px', paddingTop:'20px', borderTop:'1px solid #f1f5f9', justifyContent: 'flex-end'}}>
+                          <button type="button" onClick={() => setShowModal(false)} style={{padding:'12px 20px', borderRadius:'8px', border:'1px solid #cbd5e1', background:'white', color:'#64748b', fontWeight:'700', cursor:'pointer', transition: '0.2s'}} className="hover-shadow">Cancelar</button>
+                          <button type="submit" style={{padding:'12px 30px', borderRadius:'8px', border:'none', background:'#2563eb', color:'white', fontWeight:'700', cursor:'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: '0.2s'}} className="hover-shadow">
+                              {editId ? <><Icons.Save /> Guardar Alterações</> : <><Icons.Plus /> Criar Atividade</>}
+                          </button>
                       </div>
                   )}
                 </form>
@@ -362,7 +422,19 @@ export default function Atividades() {
           </div>
         </ModalPortal>
       )}
-      <style>{`.pulse-dot-white { width: 8px; height: 8px; background-color: white; border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; }`}</style>
+      
+      {notification && <div className={`toast-container ${notification.type}`}>{notification.type === 'success' ? '✅' : '⚠️'} {notification.message}</div>}
+
+      <style>{`
+        .table-row-hover:hover { background-color: #f8fafc !important; }
+        .hover-shadow:hover { transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .hover-orange-text:hover { color: #f97316 !important; opacity: 1 !important; }
+        .hover-red-text:hover { color: #ef4444 !important; opacity: 1 !important; }
+        .input-focus:focus { border-color: #3b82f6 !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
+        .pulse-dot-white { width: 8px; height: 8px; background-color: white; border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { transform: scale(0.95); opacity: 0.7; } 70% { transform: scale(1); opacity: 0; } 100% { transform: scale(0.95); opacity: 0; } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+      `}</style>
     </div>
   );
 }

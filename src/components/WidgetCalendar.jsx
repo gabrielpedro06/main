@@ -14,10 +14,14 @@ export default function WidgetCalendar() {
   // Perfis / Aniversários
   const [aniversariosAno, setAniversariosAno] = useState([]);
 
-  // Estados para Adicionar Evento Inline (Vista Diária)
+  // Estados para Adicionar/Editar Evento Inline (Vista Diária)
   const [addingAtHour, setAddingAtHour] = useState(null);
   const [novoEvento, setNovoEvento] = useState({ hora: "", titulo: "" });
   
+  // 💡 NOVO: Estados para Edição e Arrastar
+  const [editingEvent, setEditingEvent] = useState(null);
+  const [draggedEventId, setDraggedEventId] = useState(null);
+
   const timelineRef = useRef(null);
 
   const diaAtual = dataAtual.getDate();
@@ -29,7 +33,6 @@ export default function WidgetCalendar() {
 
   // --- ALGORITMO PARA CALCULAR FERIADOS NACIONAIS + FARO ---
   const getFeriados = (ano) => {
-      // Cálculo da Páscoa (Algoritmo de Meeus/Jones/Butcher)
       const a = ano % 19; const b = Math.floor(ano / 100); const c = ano % 100;
       const d = Math.floor(b / 4); const e = b % 4;
       const f = Math.floor((b + 8) / 25); const g = Math.floor((b - f + 1) / 3);
@@ -41,7 +44,6 @@ export default function WidgetCalendar() {
       const diaPascoa = ((h + l - 7 * m + 114) % 31) + 1;
       
       const pascoa = new Date(ano, mesPascoa, diaPascoa);
-      
       const sextaSanta = new Date(pascoa); sextaSanta.setDate(pascoa.getDate() - 2);
       const carnaval = new Date(pascoa); carnaval.setDate(pascoa.getDate() - 47);
       const corpoDeus = new Date(pascoa); corpoDeus.setDate(pascoa.getDate() + 60);
@@ -56,7 +58,7 @@ export default function WidgetCalendar() {
           { d: corpoDeus.getDate(), m: corpoDeus.getMonth(), nome: "Corpo de Deus" },
           { d: 10, m: 5, nome: "Dia de Portugal" },
           { d: 15, m: 7, nome: "Assunção de N. Senhora" },
-          { d: 7, m: 8, nome: "Feriado de Faro" }, // <-- Feriado Municipal 📍
+          { d: 7, m: 8, nome: "Feriado de Faro" }, 
           { d: 5, m: 9, nome: "Implantação da República" },
           { d: 1, m: 10, nome: "Todos os Santos" },
           { d: 1, m: 11, nome: "Restauração da Independência" },
@@ -90,14 +92,14 @@ export default function WidgetCalendar() {
     const inicioMesStr = new Date(anoAtual, mesAtual, 1).toISOString().split('T')[0];
     const fimMesStr = new Date(anoAtual, mesAtual + 1, 0).toISOString().split('T')[0];
 
-    // 0. Feriados (Automático)
+    // 0. Feriados
     const feriadosDesteAno = getFeriados(anoAtual);
     feriadosDesteAno.forEach(f => {
         if (f.m === mesAtual) {
             listaEventos.push({
                 dia: f.d, tipo: 'feriado', hora: null,
                 displayName: `🇵🇹 ${f.nome}`, 
-                bg: '#fee2e2', txt: '#991b1b', // Vermelho suave
+                bg: '#fee2e2', txt: '#991b1b',
                 fullTitle: `Feriado: ${f.nome}`
             });
         }
@@ -166,8 +168,9 @@ export default function WidgetCalendar() {
     setLoading(false);
   }
 
+  // --- NAVEGAÇÃO DE DATAS ---
   function handlePrev() {
-      setAddingAtHour(null);
+      setAddingAtHour(null); setEditingEvent(null);
       const d = new Date(dataAtual);
       if (viewMode === 'year') d.setFullYear(d.getFullYear() - 1);
       else if (viewMode === 'month') d.setMonth(d.getMonth() - 1);
@@ -176,7 +179,7 @@ export default function WidgetCalendar() {
   }
 
   function handleNext() {
-      setAddingAtHour(null);
+      setAddingAtHour(null); setEditingEvent(null);
       const d = new Date(dataAtual);
       if (viewMode === 'year') d.setFullYear(d.getFullYear() + 1);
       else if (viewMode === 'month') d.setMonth(d.getMonth() + 1);
@@ -185,11 +188,12 @@ export default function WidgetCalendar() {
   }
 
   function goToHoje() {
-      setAddingAtHour(null);
+      setAddingAtHour(null); setEditingEvent(null);
       setDataAtual(new Date());
       setViewMode('month');
   }
 
+  // --- ACÕES DA AGENDA (CRIAR / EDITAR / APAGAR) ---
   async function handleInlineSubmit(e, hour) {
       e.preventDefault();
       if (!novoEvento.titulo) { setAddingAtHour(null); return; }
@@ -199,13 +203,67 @@ export default function WidgetCalendar() {
       if (!error) { setAddingAtHour(null); fetchEventos(); }
   }
 
+  const startEditing = (e, ev) => {
+      e.stopPropagation();
+      setAddingAtHour(null);
+      setEditingEvent({ id: ev.id, titulo: ev.fullTitle, hora: ev.hora });
+  };
+
+  async function handleEditSubmit(e) {
+      e.preventDefault();
+      if (!editingEvent.titulo) return;
+      
+      const { error } = await supabase.from('agenda').update({ 
+          titulo: editingEvent.titulo, 
+          hora: editingEvent.hora 
+      }).eq('id', editingEvent.id);
+      
+      if (!error) {
+          setEditingEvent(null);
+          fetchEventos();
+      }
+  }
+
   async function handleDeleteAgenda(id) {
       await supabase.from('agenda').delete().eq('id', id);
       fetchEventos();
   }
 
+  // --- DRAG AND DROP HANDLERS ---
+  const onDragStartEvent = (e, id) => {
+      e.dataTransfer.setData("eventId", id);
+      setDraggedEventId(id);
+  };
+
+  const onDragOverRow = (e) => {
+      e.preventDefault(); // Necessário para permitir o drop
+  };
+
+  const onDropRow = async (e, targetHourBlock) => {
+      e.preventDefault();
+      const eventId = e.dataTransfer.getData("eventId");
+      setDraggedEventId(null);
+      
+      if (!eventId) return;
+
+      const evtToMove = eventos.find(ev => ev.id == eventId);
+      if (!evtToMove || evtToMove.tipo !== 'agenda') return;
+
+      // Mantém os minutos originais, muda apenas a hora para o bloco alvo
+      const oldMinutes = evtToMove.hora.split(":")[1];
+      const newHourBlock = targetHourBlock.split(":")[0];
+      const exactNewTime = `${newHourBlock}:${oldMinutes}`;
+
+      // Update Optimista (Visual imediato)
+      setEventos(prev => prev.map(ev => ev.id == eventId ? { ...ev, hora: exactNewTime, displayName: `🕒 ${exactNewTime} ${ev.fullTitle}` } : ev).sort((a,b) => (a.hora||'').localeCompare(b.hora||'')));
+
+      // Update Base de Dados
+      await supabase.from('agenda').update({ hora: exactNewTime }).eq('id', eventId);
+  };
+
+
   // ==========================================
-  // RENDERIZADOR: VISTA ANO (Com Feriados)
+  // RENDERIZADOR: VISTA ANO & MÊS (INALTERADOS)
   // ==========================================
   const renderYearView = () => {
       const feriadosAno = getFeriados(anoAtual);
@@ -251,7 +309,6 @@ export default function WidgetCalendar() {
                                           fontWeight: (isToday || isNiver || isFeriado) ? 'bold' : '500', position: 'relative'
                                       }}>
                                           {dia}
-                                          {/* Tooltip Combinado */}
                                           {(isNiver || isFeriado) && (
                                               <div className="tooltip-event">
                                                   {isFeriado && <div>🇵🇹 {feriadoDia.nome}</div>}
@@ -314,6 +371,9 @@ export default function WidgetCalendar() {
       );
   };
 
+  // ==========================================
+  // RENDERIZADOR: VISTA DIÁRIA (Com Edit & Drag and Drop)
+  // ==========================================
   const renderDayView = () => {
       const evtsHoje = eventos.filter(e => e.dia === diaAtual);
       const allDayEvts = evtsHoje.filter(e => !e.hora); 
@@ -340,19 +400,68 @@ export default function WidgetCalendar() {
                           const eventsInThisHour = timedEvts.filter(e => e.hora.startsWith(hourPrefix));
                           
                           return (
-                              <div key={hour} className="timeline-row" style={{position: 'relative', minHeight: '60px', display: 'flex', cursor: 'pointer'}} onClick={() => { if(addingAtHour !== hour) { setAddingAtHour(hour); setNovoEvento({ hora: hour, titulo: "" }); } }}>
+                              <div 
+                                  key={hour} 
+                                  className="timeline-row" 
+                                  style={{position: 'relative', minHeight: '60px', display: 'flex', cursor: 'pointer', background: 'transparent'}} 
+                                  onClick={() => { if(addingAtHour !== hour && !editingEvent) { setAddingAtHour(hour); setNovoEvento({ hora: hour, titulo: "" }); } }}
+                                  onDragOver={onDragOverRow}
+                                  onDrop={(e) => onDropRow(e, hour)}
+                              >
                                   <div style={{width: '45px', textAlign: 'right', paddingRight: '12px', color: '#94a3b8', fontSize: '0.75rem', fontWeight: '500', transform: 'translateY(-8px)'}}>{hour}</div>
                                   <div style={{flex: 1, borderTop: '1px solid #f1f5f9', position: 'relative', paddingBottom: '10px'}}>
                                       <div style={{display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px'}}>
-                                          {eventsInThisHour.map((ev, i) => (
-                                              <div key={i} onClick={(e) => e.stopPropagation()} style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: ev.bg, borderLeft: `4px solid ${ev.txt}`, padding: '8px 12px', borderRadius: '6px', marginRight: '10px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)'}}>
-                                                  <div style={{color: ev.txt, fontSize: '0.85rem', fontWeight: '600'}}>
-                                                      <span style={{opacity: 0.7, marginRight: '8px'}}>{ev.hora}</span> {ev.fullTitle}
+                                          
+                                          {eventsInThisHour.map((ev, i) => {
+                                              
+                                              // SE ESTIVER EM MODO EDIÇÃO
+                                              if (editingEvent?.id === ev.id) {
+                                                  return (
+                                                      <div key={i} onClick={e => e.stopPropagation()} style={{marginRight: '10px', animation: 'fadeIn 0.2s ease'}}>
+                                                          <form onSubmit={handleEditSubmit} style={{display: 'flex', gap: '5px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '4px 8px'}}>
+                                                              <input type="time" value={editingEvent.hora} onChange={e => setEditingEvent({...editingEvent, hora: e.target.value})} style={{border: 'none', background: 'transparent', outline: 'none', color: '#334155', fontWeight: 'bold', fontSize: '0.85rem', width: '70px'}} required />
+                                                              <input autoFocus type="text" value={editingEvent.titulo} onChange={e => setEditingEvent({...editingEvent, titulo: e.target.value})} placeholder="Título do evento..." style={{flex: 1, border: 'none', background: 'transparent', outline: 'none', fontSize: '0.85rem', color: '#1e293b'}} required />
+                                                              <button type="button" onClick={() => setEditingEvent(null)} style={{background: 'transparent', color: '#64748b', border: 'none', cursor: 'pointer', fontSize: '1rem', padding: '0 5px'}}>✕</button>
+                                                              <button type="submit" style={{background: '#2563eb', color: 'white', border: 'none', borderRadius: '4px', padding: '0 10px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold'}}>Gravar</button>
+                                                          </form>
+                                                      </div>
+                                                  )
+                                              }
+
+                                              // RENDERIZAÇÃO NORMAL DO EVENTO
+                                              const isDraggable = ev.tipo === 'agenda';
+
+                                              return (
+                                                  <div 
+                                                      key={i} 
+                                                      draggable={isDraggable}
+                                                      onDragStart={(e) => isDraggable ? onDragStartEvent(e, ev.id) : null}
+                                                      onClick={(e) => e.stopPropagation()} 
+                                                      style={{
+                                                          display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
+                                                          background: ev.bg, borderLeft: `4px solid ${ev.txt}`, padding: '8px 12px', 
+                                                          borderRadius: '6px', marginRight: '10px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                                                          cursor: isDraggable ? 'grab' : 'default',
+                                                          opacity: draggedEventId === ev.id ? 0.5 : 1
+                                                      }}
+                                                      className={isDraggable ? "event-draggable" : ""}
+                                                  >
+                                                      <div style={{color: ev.txt, fontSize: '0.85rem', fontWeight: '600'}}>
+                                                          <span style={{opacity: 0.7, marginRight: '8px'}}>{ev.hora}</span> {ev.fullTitle}
+                                                      </div>
+                                                      
+                                                      {isDraggable && (
+                                                          <div style={{display: 'flex', gap: '6px'}}>
+                                                              <button onClick={(e) => startEditing(e, ev)} style={{background: 'none', border: 'none', color: ev.txt, opacity: 0.6, cursor: 'pointer', fontSize: '1rem', padding: '0'}}>✏️</button>
+                                                              <button onClick={(e) => { e.stopPropagation(); handleDeleteAgenda(ev.id); }} style={{background: 'none', border: 'none', color: ev.txt, opacity: 0.6, cursor: 'pointer', fontSize: '1rem', padding: '0'}}>✕</button>
+                                                          </div>
+                                                      )}
                                                   </div>
-                                                  <button onClick={() => handleDeleteAgenda(ev.id)} style={{background: 'none', border: 'none', color: ev.txt, opacity: 0.5, cursor: 'pointer', fontSize: '1.2rem', padding: '0 5px'}}>✕</button>
-                                              </div>
-                                          ))}
-                                          {addingAtHour === hour && (
+                                              )
+                                          })}
+
+                                          {/* FORMULÁRIO RÁPIDO PARA ADICIONAR NOVO */}
+                                          {addingAtHour === hour && !editingEvent && (
                                               <div onClick={e => e.stopPropagation()} style={{marginRight: '10px', marginTop: eventsInThisHour.length > 0 ? '4px' : '0'}}>
                                                   <form onSubmit={(e) => handleInlineSubmit(e, hour)} style={{display: 'flex', gap: '5px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', padding: '4px 8px'}}>
                                                       <input type="time" value={novoEvento.hora} onChange={e => setNovoEvento({...novoEvento, hora: e.target.value})} style={{border: 'none', background: 'transparent', outline: 'none', color: '#2563eb', fontWeight: 'bold', fontSize: '0.85rem', width: '70px'}} />
@@ -378,9 +487,9 @@ export default function WidgetCalendar() {
     <div className="card" style={{height: '100%', minHeight: '400px', display: 'flex', flexDirection: 'column', boxSizing: 'border-box', padding: '20px'}}>
       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
         <div style={{display: 'flex', background: '#f1f5f9', borderRadius: '8px', padding: '2px'}}>
-            <button onClick={() => { setViewMode('day'); setAddingAtHour(null); }} style={{border: 'none', background: viewMode === 'day' ? 'white' : 'transparent', color: viewMode === 'day' ? '#2563eb' : '#64748b', padding: '4px 10px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer'}}>Dia</button>
-            <button onClick={() => { setViewMode('month'); setAddingAtHour(null); }} style={{border: 'none', background: viewMode === 'month' ? 'white' : 'transparent', color: viewMode === 'month' ? '#2563eb' : '#64748b', padding: '4px 10px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer'}}>Mês</button>
-            <button onClick={() => { setViewMode('year'); setAddingAtHour(null); }} style={{border: 'none', background: viewMode === 'year' ? 'white' : 'transparent', color: viewMode === 'year' ? '#2563eb' : '#64748b', padding: '4px 10px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer'}}>Ano</button>
+            <button onClick={() => { setViewMode('day'); setAddingAtHour(null); setEditingEvent(null); }} style={{border: 'none', background: viewMode === 'day' ? 'white' : 'transparent', color: viewMode === 'day' ? '#2563eb' : '#64748b', padding: '4px 10px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer'}}>Dia</button>
+            <button onClick={() => { setViewMode('month'); setAddingAtHour(null); setEditingEvent(null); }} style={{border: 'none', background: viewMode === 'month' ? 'white' : 'transparent', color: viewMode === 'month' ? '#2563eb' : '#64748b', padding: '4px 10px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer'}}>Mês</button>
+            <button onClick={() => { setViewMode('year'); setAddingAtHour(null); setEditingEvent(null); }} style={{border: 'none', background: viewMode === 'year' ? 'white' : 'transparent', color: viewMode === 'year' ? '#2563eb' : '#64748b', padding: '4px 10px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer'}}>Ano</button>
         </div>
         <button onClick={goToHoje} style={{border: 'none', background: 'transparent', color: '#64748b', textDecoration: 'underline', fontSize: '0.8rem', cursor: 'pointer'}}>Hoje</button>
       </div>
@@ -404,6 +513,11 @@ export default function WidgetCalendar() {
         .year-month-card:hover { border-color: #bfdbfe !important; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.1) !important; transform: translateY(-2px); }
         .year-day-cell:hover:not(.has-event) { background: #f1f5f9 !important; }
         .year-day-cell.has-event:hover { filter: brightness(0.95); }
+
+        .event-draggable:active { transform: scale(0.98); }
+        .event-draggable button:hover { opacity: 1 !important; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
 
         .tooltip-event {
             visibility: hidden;

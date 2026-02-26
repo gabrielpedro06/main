@@ -5,7 +5,7 @@ const AuthContext = createContext()
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
-  const [userProfile, setUserProfile] = useState(null) // 👑 AQUI GUARDAMOS O PERFIL/ROLE
+  const [userProfile, setUserProfile] = useState(null) // AQUI GUARDAMOS O PERFIL/ROLE
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
