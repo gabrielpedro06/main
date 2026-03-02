@@ -8,6 +8,34 @@ import WidgetCalendar from "../components/WidgetCalendar";
 import { frasesMotivacionais } from "../data/frases"; 
 import "./../styles/dashboard.css";
 
+// --- ÍCONES SVG PROFISSIONAIS ---
+const Icons = {
+  Home: ({ size = 20, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>,
+  Clock: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>,
+  User: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>,
+  Sun: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>,
+  LogOut: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>,
+  Rocket: ({ size = 20, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"></path><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"></path><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"></path><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"></path></svg>,
+  Clipboard: ({ size = 20, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path></svg>,
+  Check: ({ size = 20, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>,
+  Users: ({ size = 20, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>,
+  Message: ({ size = 20, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>,
+  Calendar: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>,
+  ChevronLeft: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>,
+  ChevronRight: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>,
+  Edit: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>,
+  Close: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>,
+  Save: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>,
+  AlertTriangle: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>,
+  Gift: ({ size = 48, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 12 20 22 4 22 4 12"></polyline><rect x="2" y="7" width="20" height="5"></rect><line x1="12" y1="22" x2="12" y2="7"></line><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg>,
+  Activity: ({ size = 20, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>,
+  Flame: ({ size = 20, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"></path></svg>,
+  Heart: ({ size = 16, color = "currentColor", fill = "none" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>,
+  Plus: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>,
+  CheckCircle: ({ size = 48, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>,
+  XCircle: ({ size = 48, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+};
+
 const ModalPortal = ({ children }) => {
   return createPortal(children, document.body);
 };
@@ -133,7 +161,6 @@ export default function DashboardHome() {
       if (!error && data) setRegistosMes(data);
   }
 
-  // 💡 NOVO MOTOR DE TAREFAS (Separa, Ordena e Limita as Tarefas para os Cartões)
   async function fetchTarefasPessoais() {
       const { data } = await supabase
           .from("tarefas")
@@ -150,10 +177,9 @@ export default function DashboardHome() {
       const urgentesHoje = [];
       const outras = [];
 
-      // Separar as atrasadas/hoje das futuras
       pendingTasks.forEach(t => {
           if (!t.data_limite) {
-              outras.push(t); // Sem data vai para as outras
+              outras.push(t); 
           } else {
               const d = new Date(t.data_limite);
               d.setHours(0,0,0,0);
@@ -162,7 +188,6 @@ export default function DashboardHome() {
           }
       });
 
-      // Função para ordenar a data mais próxima primeiro (sem prazo vai pro fim)
       const sortFn = (a, b) => {
           if (!a.data_limite) return 1;
           if (!b.data_limite) return -1;
@@ -311,16 +336,22 @@ export default function DashboardHome() {
       return <span style={{fontWeight: 'bold', color: '#2563eb'}}>{horas}h{minutos.toString().padStart(2, '0')}</span>;
   };
 
-  // 💡 HELPER: Renderizar a Data/Badge das Tarefas
   const renderTaskDeadline = (dataLimite) => {
       if (!dataLimite) return <span style={{fontSize: '0.65rem', color: '#94a3b8', background: '#f8fafc', padding: '2px 6px', borderRadius: '4px'}}>Sem Prazo</span>;
       const d = new Date(dataLimite); d.setHours(0,0,0,0);
       const t = new Date(); t.setHours(0,0,0,0);
       const diffDays = Math.round((d - t) / (1000 * 60 * 60 * 24));
       
-      if (diffDays < 0) return <span style={{background: '#fee2e2', color: '#ef4444', padding: '2px 8px', borderRadius: '12px', fontSize: '0.65rem', fontWeight: 'bold'}}>🔴 Atrasada</span>;
-      if (diffDays === 0) return <span style={{background: '#fef3c7', color: '#d97706', padding: '2px 8px', borderRadius: '12px', fontSize: '0.65rem', fontWeight: 'bold'}}>⚠️ Hoje</span>;
-      return <span style={{background: '#f1f5f9', color: '#64748b', padding: '2px 8px', borderRadius: '12px', fontSize: '0.65rem', fontWeight: 'bold'}}>📅 {d.toLocaleDateString('pt-PT').slice(0,5)}</span>;
+      if (diffDays < 0) return <span style={{background: '#fee2e2', color: '#ef4444', padding: '2px 8px', borderRadius: '12px', fontSize: '0.65rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.AlertTriangle size={10} /> Atrasada</span>;
+      if (diffDays === 0) return <span style={{background: '#fef3c7', color: '#d97706', padding: '2px 8px', borderRadius: '12px', fontSize: '0.65rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.Flame size={10} /> Hoje</span>;
+      return <span style={{background: '#f1f5f9', color: '#64748b', padding: '2px 8px', borderRadius: '12px', fontSize: '0.65rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.Calendar size={10} /> {d.toLocaleDateString('pt-PT').slice(0,5)}</span>;
+  };
+
+  const getInitials = (name) => {
+      if (!name) return "?";
+      const parts = name.split(" ");
+      if (parts.length > 1) return (parts[0][0] + parts[parts.length-1][0]).toUpperCase();
+      return name.substring(0, 2).toUpperCase();
   };
 
   const inputEditStyle = { width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.85rem' };
@@ -333,8 +364,8 @@ export default function DashboardHome() {
         <div>
            <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
                <h1 style={{ margin: 0, fontSize: '1.5rem', color: '#1e293b' }}>Olá, {userProfile?.nome?.split(' ')[0] || 'Colaborador'} 👋</h1>
-               <span style={{background: '#f1f5f9', color: '#64748b', padding: '4px 10px', borderRadius: '8px', fontWeight: 'bold', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '5px'}}>
-                   🕒 {horaAtual}
+               <span style={{background: '#f1f5f9', color: '#64748b', padding: '4px 10px', borderRadius: '8px', fontWeight: 'bold', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '6px'}}>
+                   <Icons.Clock /> {horaAtual}
                </span>
            </div>
            <p style={{ margin: '5px 0 0 0', color: '#64748b', fontStyle: 'italic', fontSize: '0.95rem' }}>"{frase}"</p>
@@ -351,17 +382,17 @@ export default function DashboardHome() {
                     {userProfile?.avatar_url ? (
                         <img src={userProfile.avatar_url} alt="User" style={{width:'100%', height:'100%', objectFit:'cover'}} />
                     ) : (
-                        userProfile?.nome ? userProfile.nome.charAt(0).toUpperCase() : 'U'
+                        getInitials(userProfile?.nome)
                     )}
                 </div>
             </div>
 
             {showMenu && (
-              <div style={{ position: 'absolute', top: '110%', right: 0, background: 'white', border: '1px solid #e2e8f0', borderRadius: '10px', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', minWidth: '200px', zIndex: 50, overflow: 'hidden' }}>
+              <div style={{ position: 'absolute', top: '110%', right: 0, background: 'white', border: '1px solid #e2e8f0', borderRadius: '10px', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', minWidth: '220px', zIndex: 50, overflow: 'hidden', animation: 'fadeIn 0.2s ease-out' }}>
                 <div style={{padding: '12px 15px', borderBottom: '1px solid #f1f5f9', background: '#f8fafc'}}><span style={{fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 'bold', letterSpacing: '0.5px'}}>A Minha Conta</span></div>
-                <button className="menu-item" onClick={() => navigate("/dashboard/perfil")}>👤 O Meu Perfil</button>
-                <button className="menu-item" onClick={() => navigate("/dashboard/ferias")}>🏖️ Férias / Ausências</button>
-                <button className="menu-item logout" onClick={handleLogout} style={{borderTop: '1px solid #f1f5f9'}}>🚪 Terminar Sessão</button>
+                <button className="menu-item" onClick={() => navigate("/dashboard/perfil")}><Icons.User /> O Meu Perfil</button>
+                <button className="menu-item" onClick={() => navigate("/dashboard/ferias")}><Icons.Sun /> Férias & Ausências</button>
+                <button className="menu-item logout" onClick={handleLogout} style={{borderTop: '1px solid #f1f5f9'}}><Icons.LogOut /> Terminar Sessão</button>
               </div>
             )}
         </div>
@@ -372,35 +403,35 @@ export default function DashboardHome() {
         <div className="card stat-card" onClick={() => navigate("/dashboard/projetos")} style={{borderLeft: '4px solid #2563eb', cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s'}}>
           <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
               <div><h3 style={{fontSize: '0.9rem', color: '#64748b'}}>Projetos Ativos</h3><p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1e293b', margin: '5px 0' }}>{stats.projetos}</p></div>
-              <span style={{background: '#eff6ff', color: '#2563eb', padding: '5px', borderRadius: '8px'}}>🚀</span>
+              <span style={{background: '#eff6ff', color: '#2563eb', padding: '8px', borderRadius: '10px', display: 'flex'}}><Icons.Rocket /></span>
           </div>
         </div>
 
         <div className="card stat-card" onClick={() => navigate("/dashboard/atividades")} style={{borderLeft: '4px solid #8b5cf6', cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s'}}>
           <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
               <div><h3 style={{fontSize: '0.9rem', color: '#64748b'}}>Atividades Ativas</h3><p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1e293b', margin: '5px 0' }}>{stats.atividades}</p></div>
-              <span style={{background: '#f3e8ff', color: '#8b5cf6', padding: '5px', borderRadius: '8px'}}>📋</span>
+              <span style={{background: '#f3e8ff', color: '#8b5cf6', padding: '8px', borderRadius: '10px', display: 'flex'}}><Icons.Clipboard /></span>
           </div>
         </div>
 
         <div className="card stat-card" onClick={() => navigate("/dashboard/tarefas")} style={{borderLeft: '4px solid #0ea5e9', cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s'}}>
           <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
               <div><h3 style={{fontSize: '0.9rem', color: '#64748b'}}>Minhas Tarefas</h3><p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1e293b', margin: '5px 0' }}>{stats.tarefas}</p></div>
-              <span style={{background: '#e0f2fe', color: '#0ea5e9', padding: '5px', borderRadius: '8px'}}>✅</span>
+              <span style={{background: '#e0f2fe', color: '#0ea5e9', padding: '8px', borderRadius: '10px', display: 'flex'}}><Icons.Check /></span>
           </div>
         </div>
 
         <div className="card stat-card" onClick={() => navigate("/dashboard/clientes")} style={{borderLeft: '4px solid #10b981', cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s'}}>
           <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
               <div><h3 style={{fontSize: '0.9rem', color: '#64748b'}}>Total Clientes</h3><p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1e293b', margin: '5px 0' }}>{stats.clientes}</p></div>
-              <span style={{background: '#dcfce7', color: '#10b981', padding: '5px', borderRadius: '8px'}}>👥</span>
+              <span style={{background: '#dcfce7', color: '#10b981', padding: '8px', borderRadius: '10px', display: 'flex'}}><Icons.Users /></span>
           </div>
         </div>
 
         <div className="card stat-card" onClick={() => navigate("/dashboard/forum")} style={{borderLeft: '4px solid #f59e0b', cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s'}}>
           <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
               <div><h3 style={{fontSize: '0.9rem', color: '#64748b'}}>Comunicação</h3><p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1e293b', margin: '5px 0' }}>{stats.forum}</p></div>
-              <span style={{background: '#fef3c7', color: '#d97706', padding: '5px', borderRadius: '8px'}}>💬</span>
+              <span style={{background: '#fef3c7', color: '#d97706', padding: '8px', borderRadius: '10px', display: 'flex'}}><Icons.Message /></span>
           </div>
         </div>
       </div>
@@ -414,8 +445,8 @@ export default function DashboardHome() {
             
             <div className="card" style={{padding: '20px', background: 'white', borderRadius: '16px'}}>
                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px'}}>
-                    <h4 style={{margin: 0, color: '#1e293b'}}>📅 Últimos Registos (Este Mês)</h4>
-                    <button className="btn-small" style={{background: '#eff6ff', color: '#2563eb', fontWeight: 'bold'}} onClick={() => setShowHistoryModal(true)}>Ver Mais</button>
+                    <h4 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Calendar size={18} color="#2563eb" /> Últimos Registos (Mês)</h4>
+                    <button className="btn-small hover-shadow" style={{background: '#eff6ff', color: '#2563eb', fontWeight: 'bold'}} onClick={() => setShowHistoryModal(true)}>Ver Mais</button>
                 </div>
 
                 {registosMes.length > 0 ? (
@@ -456,16 +487,16 @@ export default function DashboardHome() {
 
             <div className="card" style={{padding: '20px', background: 'white', borderRadius: '16px'}}>
                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px'}}>
-                    <h4 style={{margin: 0, color: '#1e293b'}}>🟢 Equipa Online</h4>
+                    <h4 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Activity size={18} color="#16a34a" /> Equipa Online</h4>
                     <span style={{background: '#dcfce7', color: '#166534', padding: '2px 8px', borderRadius: '10px', fontSize: '0.75rem', fontWeight: 'bold'}}>{usersOnline.length}</span>
                 </div>
                 
                 {usersOnline.length > 0 ? (
-                    <div style={{display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '150px', overflowY: 'auto'}}>
+                    <div style={{display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '150px', overflowY: 'auto'}} className="custom-scrollbar">
                     {usersOnline.map(u => (
                         <div key={u.id} style={{display: 'flex', alignItems: 'center', gap: '10px', paddingBottom: '8px', borderBottom: '1px solid #f8fafc'}}>
                             <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#3b82f6', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.7rem', overflow: 'hidden' }}>
-                                {u.profiles?.avatar_url ? <img src={u.profiles.avatar_url} alt="U" style={{width:'100%', height:'100%', objectFit:'cover'}} /> : (u.profiles?.nome?.charAt(0).toUpperCase() || 'U')}
+                                {u.profiles?.avatar_url ? <img src={u.profiles.avatar_url} alt="U" style={{width:'100%', height:'100%', objectFit:'cover'}} /> : getInitials(u.profiles?.nome)}
                             </div>
                             <div style={{lineHeight: '1.2'}}>
                                 <div style={{fontWeight: '600', color: '#334155', fontSize: '0.85rem'}}>{u.profiles?.nome?.split(' ')[0]}</div>
@@ -475,12 +506,12 @@ export default function DashboardHome() {
                     ))}
                     </div>
                 ) : (
-                    <div style={{textAlign: 'center', padding: '10px', color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic'}}>Ninguém online. 😴</div>
+                    <div style={{textAlign: 'center', padding: '10px', color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic'}}>Ninguém online.</div>
                 )}
             </div>
 
             <div className="card" style={{padding: '20px', background: 'white', borderRadius: '16px'}}>
-                <h4 style={{margin: '0 0 15px 0', color: '#1e293b'}}>🎂 Próximos Aniversários</h4>
+                <h4 style={{margin: '0 0 15px 0', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Heart size={18} color="#f59e0b" fill="#f59e0b" /> Próximos Aniversários</h4>
                 {aniversarios.length > 0 ? (
                     <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
                     {aniversarios.map(a => {
@@ -488,7 +519,7 @@ export default function DashboardHome() {
                         return (
                         <div key={a.id} style={{display: 'flex', alignItems: 'center', gap: '10px', paddingBottom: '8px', borderBottom: '1px solid #f8fafc'}}>
                             <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#f59e0b', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.8rem', overflow: 'hidden' }}>
-                                {a.avatar_url ? <img src={a.avatar_url} alt="U" style={{width:'100%', height:'100%', objectFit:'cover'}} /> : (a.nome?.charAt(0).toUpperCase() || 'U')}
+                                {a.avatar_url ? <img src={a.avatar_url} alt="U" style={{width:'100%', height:'100%', objectFit:'cover'}} /> : getInitials(a.nome)}
                             </div>
                             <div style={{lineHeight: '1.2'}}>
                                 <div style={{fontWeight: '600', color: '#334155', fontSize: '0.85rem'}}>{a.nome.split(' ')[0]}</div>
@@ -507,16 +538,16 @@ export default function DashboardHome() {
 
         </div>
 
-        {/* 💡 COLUNA DIREITA: TAREFAS EM GRELHA E CALENDÁRIO */}
+        {/* COLUNA DIREITA: TAREFAS EM GRELHA E CALENDÁRIO */}
         <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
             
             {/* 🔥 TAREFAS URGENTES / PARA HOJE */}
             <div className="card" style={{ padding: '20px', background: 'white', borderRadius: '16px' }}>
                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px'}}>
-                    <h4 style={{margin: 0, color: '#1e293b', fontSize: '1.1rem'}}>🔥 Para Hoje / Atrasadas</h4>
+                    <h4 style={{margin: 0, color: '#1e293b', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Flame color="#ef4444" /> Para Hoje / Atrasadas</h4>
                     {tarefasHoje.length > 6 && (
-                        <button className="btn-small" style={{background: '#eff6ff', color: '#2563eb', fontWeight: 'bold'}} onClick={() => navigate("/dashboard/tarefas")}>
-                            Ver as {tarefasHoje.length} ➔
+                        <button className="btn-small hover-shadow" style={{background: '#eff6ff', color: '#2563eb', fontWeight: 'bold'}} onClick={() => navigate("/dashboard/tarefas")}>
+                            Ver as {tarefasHoje.length} <Icons.ChevronRight />
                         </button>
                     )}
                 </div>
@@ -540,7 +571,7 @@ export default function DashboardHome() {
                             
                             <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '1px solid #f1f5f9' }}>
                                 <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{t.atividades?.titulo || 'Sem Atividade'}</span>
-                                <span style={{ fontSize: '0.9rem', color: '#cbd5e1' }}>➔</span>
+                                <span style={{ fontSize: '0.9rem', color: '#cbd5e1' }}><Icons.ChevronRight size={16} /></span>
                             </div>
                         </div>
                     ))}
@@ -551,10 +582,10 @@ export default function DashboardHome() {
             {/* 📋 OUTRAS TAREFAS (FUTURO) */}
             <div className="card" style={{ padding: '20px', background: 'white', borderRadius: '16px' }}>
                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px'}}>
-                    <h4 style={{margin: 0, color: '#1e293b', fontSize: '1.1rem'}}>📋 Próximas Tarefas</h4>
+                    <h4 style={{margin: 0, color: '#1e293b', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Clipboard color="#2563eb" /> Próximas Tarefas</h4>
                     {tarefasGerais.length > 6 && (
-                        <button className="btn-small" style={{background: '#f8fafc', color: '#64748b', fontWeight: 'bold'}} onClick={() => navigate("/dashboard/tarefas")}>
-                            Ver as {tarefasGerais.length} ➔
+                        <button className="btn-small hover-shadow" style={{background: '#f8fafc', color: '#64748b', fontWeight: 'bold'}} onClick={() => navigate("/dashboard/tarefas")}>
+                            Ver as {tarefasGerais.length} <Icons.ChevronRight />
                         </button>
                     )}
                 </div>
@@ -578,7 +609,7 @@ export default function DashboardHome() {
                             
                             <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '1px solid #f1f5f9' }}>
                                 <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{t.atividades?.titulo || 'Sem Atividade'}</span>
-                                <span style={{ fontSize: '0.9rem', color: '#cbd5e1' }}>➔</span>
+                                <span style={{ fontSize: '0.9rem', color: '#cbd5e1' }}><Icons.ChevronRight size={16} /></span>
                             </div>
                         </div>
                     ))}
@@ -595,20 +626,20 @@ export default function DashboardHome() {
       {/* ========================================================================= */}
       {showHistoryModal && (
         <ModalPortal>
-            <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999}} onClick={(e) => { if(e.target === e.currentTarget) setShowHistoryModal(false); }}>
-                <div style={{background: '#fff', width: '95%', maxWidth: '900px', borderRadius: '16px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '90vh'}}>
+            <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999}} onClick={(e) => { if(e.target === e.currentTarget) setShowHistoryModal(false); }}>
+                <div style={{background: '#fff', width: '95%', maxWidth: '900px', borderRadius: '16px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '90vh', animation: 'fadeIn 0.2s ease-out'}}>
                     
                     <div style={{padding: '20px 30px', borderBottom: '1px solid #e2e8f0', background: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px'}}>
                         <div style={{display: 'flex', alignItems: 'center', gap: '20px'}}>
-                            <div style={{background: '#eff6ff', padding: '10px', borderRadius: '10px', fontSize: '1.2rem', color: '#2563eb'}}>📅</div>
+                            <div style={{background: '#eff6ff', color: '#2563eb', padding: '10px', borderRadius: '10px', display: 'flex'}}><Icons.Calendar size={24} /></div>
                             <div>
                                 <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.2rem'}}>Histórico de Assiduidade</h3>
                                 <div style={{display: 'flex', alignItems: 'center', gap: '10px', marginTop: '5px'}}>
-                                    <button className="btn-small" onClick={() => { const d = new Date(historyDate); d.setMonth(d.getMonth() - 1); setHistoryDate(d); }}>◀</button>
+                                    <button className="btn-small hover-shadow" onClick={() => { const d = new Date(historyDate); d.setMonth(d.getMonth() - 1); setHistoryDate(d); }}><Icons.ChevronLeft /></button>
                                     <span style={{fontWeight: 'bold', color: '#475569', minWidth: '120px', textAlign: 'center'}}>
                                         {nomesMeses[historyDate.getMonth()]} {historyDate.getFullYear()}
                                     </span>
-                                    <button className="btn-small" onClick={() => { const d = new Date(historyDate); d.setMonth(d.getMonth() + 1); setHistoryDate(d); }}>▶</button>
+                                    <button className="btn-small hover-shadow" onClick={() => { const d = new Date(historyDate); d.setMonth(d.getMonth() + 1); setHistoryDate(d); }}><Icons.ChevronRight /></button>
                                 </div>
                             </div>
                         </div>
@@ -619,13 +650,15 @@ export default function DashboardHome() {
                                 <div style={{fontSize: '1.2rem', fontWeight: 'bold', color: '#2563eb'}}>{totalHorasMes.h}h {totalHorasMes.m}m</div>
                             </div>
                             
-                            <button className="btn-primary" onClick={() => { setIsAdding(true); setEditingRecord(null); }}>+ Inserir Registo</button>
+                            <button className="btn-primary hover-shadow" style={{display: 'flex', alignItems: 'center', gap: '8px'}} onClick={() => { setIsAdding(true); setEditingRecord(null); }}>
+                                <Icons.Plus /> Inserir Registo
+                            </button>
                             
-                            <button onClick={() => setShowHistoryModal(false)} style={{background:'transparent', border:'none', fontSize:'1.5rem', cursor:'pointer', color:'#94a3b8', marginLeft: '10px'}}>✕</button>
+                            <button onClick={() => setShowHistoryModal(false)} style={{background:'transparent', border:'none', cursor:'pointer', color:'#94a3b8', marginLeft: '10px'}} className="hover-red-text"><Icons.Close size={20} /></button>
                         </div>
                     </div>
 
-                    <div style={{padding: '20px 30px', overflowY: 'auto', background: '#f8fafc', flex: 1}}>
+                    <div style={{padding: '20px 30px', overflowY: 'auto', background: '#f8fafc', flex: 1}} className="custom-scrollbar">
                         <table style={{width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem', background: 'white', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)'}}>
                             <thead style={{background: '#f1f5f9'}}>
                                 <tr style={{textAlign: 'left', color: '#475569'}}>
@@ -642,33 +675,33 @@ export default function DashboardHome() {
                                 {isAdding && (
                                     <tr style={{background: '#eff6ff', borderBottom: '2px solid #bfdbfe'}}>
                                         <td colSpan="7" style={{padding: '20px'}}>
-                                            <h4 style={{marginTop:0, color:'#1e40af'}}>➕ Adicionar Registo Manual</h4>
+                                            <h4 style={{marginTop:0, color:'#1e40af', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Plus /> Adicionar Registo Manual</h4>
                                             <form onSubmit={handleSaveNew} style={{display: 'flex', gap: '15px', flexWrap: 'wrap'}}>
                                                 <div style={{flex: 1, minWidth: '130px'}}>
                                                     <label style={{fontSize: '0.75rem', fontWeight: 'bold', color: '#1e40af'}}>Data *</label>
-                                                    <input type="date" value={addForm.data} onChange={e => setAddForm({...addForm, data: e.target.value})} style={inputEditStyle} required />
+                                                    <input type="date" value={addForm.data} onChange={e => setAddForm({...addForm, data: e.target.value})} style={inputEditStyle} className="input-focus" required />
                                                 </div>
                                                 <div style={{flex: 1, minWidth: '100px'}}>
                                                     <label style={{fontSize: '0.75rem', fontWeight: 'bold', color: '#1e40af'}}>Entrada *</label>
-                                                    <input type="time" value={addForm.hora_entrada} onChange={e => setAddForm({...addForm, hora_entrada: e.target.value})} style={inputEditStyle} required />
+                                                    <input type="time" value={addForm.hora_entrada} onChange={e => setAddForm({...addForm, hora_entrada: e.target.value})} style={inputEditStyle} className="input-focus" required />
                                                 </div>
                                                 <div style={{flex: 1, minWidth: '100px'}}>
                                                     <label style={{fontSize: '0.75rem', fontWeight: 'bold', color: '#1e40af'}}>Saída *</label>
-                                                    <input type="time" value={addForm.hora_saida} onChange={e => setAddForm({...addForm, hora_saida: e.target.value})} style={inputEditStyle} required />
+                                                    <input type="time" value={addForm.hora_saida} onChange={e => setAddForm({...addForm, hora_saida: e.target.value})} style={inputEditStyle} className="input-focus" required />
                                                 </div>
                                                 <div style={{flex: 1, minWidth: '100px'}}>
                                                     <label style={{fontSize: '0.75rem', fontWeight: 'bold', color: '#1e40af'}}>Pausa (Min)</label>
-                                                    <input type="number" min="0" value={addForm.tempo_pausa} onChange={e => setAddForm({...addForm, tempo_pausa: e.target.value})} style={inputEditStyle} />
+                                                    <input type="number" min="0" value={addForm.tempo_pausa} onChange={e => setAddForm({...addForm, tempo_pausa: e.target.value})} style={inputEditStyle} className="input-focus" />
                                                 </div>
                                                 
                                                 <div style={{flex: 2, minWidth: '200px'}}>
                                                     <label style={{fontSize: '0.75rem', fontWeight: 'bold', color: '#ea580c'}}>Motivo (Obrigatório) *</label>
-                                                    <input type="text" placeholder="Ex: Fui ao médico e não piquei..." value={addForm.motivo_alteracao} onChange={e => setAddForm({...addForm, motivo_alteracao: e.target.value})} style={{...inputEditStyle, borderColor: '#fdba74', background: '#fff7ed'}} required />
+                                                    <input type="text" placeholder="Ex: Fui ao médico e não piquei..." value={addForm.motivo_alteracao} onChange={e => setAddForm({...addForm, motivo_alteracao: e.target.value})} style={{...inputEditStyle, borderColor: '#fdba74', background: '#fff7ed'}} className="input-focus-alert" required />
                                                 </div>
 
                                                 <div style={{display: 'flex', alignItems: 'flex-end', gap: '10px'}}>
-                                                    <button type="button" onClick={() => setIsAdding(false)} className="btn-small" style={{height: '38px', background: 'white', border: '1px solid #cbd5e1', color: '#64748b'}}>Cancelar</button>
-                                                    <button type="submit" className="btn-primary" style={{padding: '0 20px', height: '38px'}}>💾 Inserir Registo</button>
+                                                    <button type="button" onClick={() => setIsAdding(false)} className="btn-small hover-shadow" style={{height: '38px', background: 'white', border: '1px solid #cbd5e1', color: '#64748b'}}>Cancelar</button>
+                                                    <button type="submit" className="btn-primary hover-shadow" style={{padding: '0 20px', height: '38px', display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.Save /> Inserir Registo</button>
                                                 </div>
                                             </form>
                                         </td>
@@ -676,7 +709,10 @@ export default function DashboardHome() {
                                 )}
 
                                 {fullHistory.length === 0 && !isAdding ? (
-                                    <tr><td colSpan="7" style={{textAlign: 'center', padding: '30px', color: '#94a3b8'}}>Nenhum registo neste mês.</td></tr>
+                                    <tr><td colSpan="7" style={{textAlign: 'center', padding: '40px', color: '#94a3b8'}}>
+                                        <div style={{display: 'flex', justifyContent: 'center', marginBottom: '10px', opacity: 0.5}}><Icons.Calendar size={30} /></div>
+                                        Nenhum registo neste mês.
+                                    </td></tr>
                                 ) : fullHistory.map(r => {
                                     const totalSegundos = calcularSegundosExatos(r.hora_entrada, r.hora_saida, r.tempo_pausa_acumulado);
                                     const isEditing = editingRecord === r.id;
@@ -691,20 +727,20 @@ export default function DashboardHome() {
                                                 <td style={{padding: '12px 15px', color: r.hora_saida ? '#ef4444' : '#94a3b8'}}>
                                                     {r.hora_saida?.slice(0,5) || '---'}
                                                 </td>
-                                                <td style={{padding: '12px 15px', color: '#eab308'}}>
+                                                <td style={{padding: '12px 15px', color: '#eab308', fontWeight: '500'}}>
                                                     {r.tempo_pausa_acumulado ? `${Math.floor(r.tempo_pausa_acumulado / 60)} min` : '-'}
                                                 </td>
                                                 <td style={{padding: '12px 15px'}}>{formatarHoras(totalSegundos)}</td>
                                                 
                                                 <td style={{padding: '12px 15px'}}>
                                                     <div style={{maxWidth: '150px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#64748b', fontSize: '0.8rem'}} title={`Notas: ${r.observacoes || '-'}\nMotivo: ${r.motivo_alteracao || '-'}`}>
-                                                        {r.motivo_alteracao ? <span style={{color: '#ea580c', fontWeight:'bold'}}>⚠️ {r.motivo_alteracao}</span> : r.observacoes || '-'}
+                                                        {r.motivo_alteracao ? <span style={{color: '#ea580c', fontWeight:'bold', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.AlertTriangle size={12} /> {r.motivo_alteracao}</span> : r.observacoes || '-'}
                                                     </div>
                                                 </td>
 
                                                 <td style={{padding: '12px 15px', textAlign: 'center'}}>
-                                                    <button className="btn-small" onClick={() => handleStartEdit(r)} style={{background: isEditing ? '#2563eb' : '#f1f5f9', color: isEditing ? 'white' : '#475569'}}>
-                                                        {isEditing ? 'Cancelar' : '✏️ Editar'}
+                                                    <button className="btn-small hover-shadow" onClick={() => handleStartEdit(r)} style={{background: isEditing ? '#2563eb' : 'white', border: isEditing ? 'none' : '1px solid #cbd5e1', color: isEditing ? 'white' : '#475569', display: 'flex', alignItems: 'center', gap: '6px', margin: '0 auto'}}>
+                                                        {isEditing ? 'Cancelar' : <><Icons.Edit /> Editar</>}
                                                     </button>
                                                 </td>
                                             </tr>
@@ -715,24 +751,24 @@ export default function DashboardHome() {
                                                         <form onSubmit={(e) => handleSaveEdit(e, r.id)} style={{display: 'flex', gap: '15px', flexWrap: 'wrap'}}>
                                                             <div style={{flex: 1, minWidth: '100px'}}>
                                                                 <label style={{fontSize: '0.75rem', fontWeight: 'bold', color: '#1e40af'}}>Hora Entrada</label>
-                                                                <input type="time" value={editForm.hora_entrada} onChange={e => setEditForm({...editForm, hora_entrada: e.target.value})} style={inputEditStyle} required />
+                                                                <input type="time" value={editForm.hora_entrada} onChange={e => setEditForm({...editForm, hora_entrada: e.target.value})} style={inputEditStyle} className="input-focus" required />
                                                             </div>
                                                             <div style={{flex: 1, minWidth: '100px'}}>
                                                                 <label style={{fontSize: '0.75rem', fontWeight: 'bold', color: '#1e40af'}}>Hora Saída</label>
-                                                                <input type="time" value={editForm.hora_saida} onChange={e => setEditForm({...editForm, hora_saida: e.target.value})} style={inputEditStyle} />
+                                                                <input type="time" value={editForm.hora_saida} onChange={e => setEditForm({...editForm, hora_saida: e.target.value})} style={inputEditStyle} className="input-focus" />
                                                             </div>
                                                             <div style={{flex: 1, minWidth: '100px'}}>
                                                                 <label style={{fontSize: '0.75rem', fontWeight: 'bold', color: '#1e40af'}}>Pausa (Minutos)</label>
-                                                                <input type="number" min="0" value={editForm.tempo_pausa} onChange={e => setEditForm({...editForm, tempo_pausa: e.target.value})} style={inputEditStyle} />
+                                                                <input type="number" min="0" value={editForm.tempo_pausa} onChange={e => setEditForm({...editForm, tempo_pausa: e.target.value})} style={inputEditStyle} className="input-focus" />
                                                             </div>
                                                             
                                                             <div style={{flex: 2, minWidth: '200px'}}>
                                                                 <label style={{fontSize: '0.75rem', fontWeight: 'bold', color: '#ea580c'}}>Motivo da Correção *</label>
-                                                                <input type="text" placeholder="Ex: Esqueci de picar saída" value={editForm.motivo_alteracao} onChange={e => setEditForm({...editForm, motivo_alteracao: e.target.value})} style={{...inputEditStyle, borderColor: '#fdba74', background: '#fff7ed'}} required />
+                                                                <input type="text" placeholder="Ex: Esqueci de picar saída" value={editForm.motivo_alteracao} onChange={e => setEditForm({...editForm, motivo_alteracao: e.target.value})} style={{...inputEditStyle, borderColor: '#fdba74', background: '#fff7ed'}} className="input-focus-alert" required />
                                                             </div>
 
                                                             <div style={{display: 'flex', alignItems: 'flex-end'}}>
-                                                                <button type="submit" className="btn-primary" style={{padding: '10px 20px', height: '40px'}}>💾 Guardar</button>
+                                                                <button type="submit" className="btn-primary hover-shadow" style={{padding: '10px 20px', height: '40px', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Save /> Guardar</button>
                                                             </div>
                                                         </form>
                                                     </td>
@@ -754,16 +790,17 @@ export default function DashboardHome() {
         <ModalPortal>
             <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.8)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999}}>
                 <div style={{background: 'linear-gradient(135deg, #ffffff, #fef3c7)', borderRadius: '24px', width: '90%', maxWidth: '400px', padding: '40px 20px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', position: 'relative', overflow: 'hidden'}}>
-                    <div style={{fontSize: '4rem', marginBottom: '10px', animation: 'bounce 2s infinite'}}>🎂</div>
+                    <div style={{display: 'flex', justifyContent: 'center', color: '#f59e0b', marginBottom: '15px', animation: 'bounce 2s infinite'}}><Icons.Gift /></div>
                     <h2 style={{margin: '0 0 10px 0', color: '#b45309', fontSize: '2rem'}}>Parabéns, {userProfile?.nome?.split(' ')[0]}!</h2>
                     <p style={{color: '#92400e', marginBottom: '25px', fontSize: '1.1rem', lineHeight: '1.5'}}>
-                        A equipa deseja-te um dia incrivelmente feliz, cheio de sucesso e alegrias! 🎉🥳
+                        A equipa deseja-te um dia incrivelmente feliz, cheio de sucesso e alegrias!
                     </p>
                     <button 
                         onClick={() => setShowBirthdayPopup(false)} 
                         style={{background: '#f59e0b', color: 'white', border: 'none', padding: '12px 30px', borderRadius: '12px', fontSize: '1rem', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 6px rgba(245, 158, 11, 0.3)'}}
+                        className="hover-shadow"
                     >
-                        Obrigado! ❤️
+                        Obrigado!
                     </button>
                 </div>
             </div>
@@ -775,29 +812,40 @@ export default function DashboardHome() {
           <ModalPortal>
               <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999}}>
                   <div style={{background: '#fff', borderRadius: '16px', width: '90%', maxWidth: '400px', padding: '24px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'}}>
-                      <div style={{fontSize: '3rem', marginBottom: '10px'}}>⚠️</div>
+                      <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px', color: '#ef4444'}}><Icons.AlertTriangle size={48} /></div>
                       <h3 style={{margin: '0 0 10px 0', color: '#1e293b'}}>Atenção</h3>
                       <p style={{color: '#64748b', marginBottom: '25px', fontSize: '0.95rem', lineHeight: '1.5'}}>
                           {alertModal.message}
                       </p>
-                      <button onClick={() => setAlertModal({ show: false, message: "" })} className="btn-primary" style={{width: '100%', padding: '12px'}}>Entendido</button>
+                      <button onClick={() => setAlertModal({ show: false, message: "" })} className="btn-primary hover-shadow" style={{width: '100%', padding: '12px'}}>Entendido</button>
                   </div>
               </div>
           </ModalPortal>
       )}
 
       <style>{`
-        .menu-item { display: block; width: 100%; padding: 12px 15px; text-align: left; background: none; border: none; cursor: pointer; fontSize: 0.9rem; color: #334151; transition: background 0.2s; }
+        .menu-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 15px; text-align: left; background: none; border: none; cursor: pointer; font-size: 0.9rem; color: #334151; transition: background 0.2s; }
         .menu-item:hover { background: #f8fafc; color: #2563eb; }
         .menu-item.logout { color: #dc2626; }
         .menu-item.logout:hover { background: #fef2f2; color: #b91c1c; }
+        
         .stat-card:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
         .table-row-hover:hover { background-color: #f1f5f9 !important; }
+        .hover-shadow:hover { transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .hover-red-text:hover { color: #ef4444 !important; }
         
         /* Estilos dos Cartões de Tarefa */
         .task-hover-card:hover { border-color: #cbd5e1 !important; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); transform: translateY(-2px); transition: all 0.2s; }
         
+        .input-focus:focus { border-color: #3b82f6 !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
+        .input-focus-alert:focus { border-color: #f59e0b !important; box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.1); }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
+
         @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>
     </div>
   );

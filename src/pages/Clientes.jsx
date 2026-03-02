@@ -5,6 +5,35 @@ import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
 import "./../styles/dashboard.css";
 
+// --- ÍCONES SVG PROFISSIONAIS (SaaS Premium) ---
+const Icons = {
+  Search: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>,
+  Users: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>,
+  Building: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><path d="M9 22v-4h6v4"></path><path d="M8 6h.01"></path><path d="M16 6h.01"></path><path d="M12 6h.01"></path><path d="M12 10h.01"></path><path d="M12 14h.01"></path><path d="M16 10h.01"></path><path d="M16 14h.01"></path><path d="M8 10h.01"></path><path d="M8 14h.01"></path></svg>,
+  MapPin: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>,
+  User: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>,
+  ExternalLink: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>,
+  Edit: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>,
+  Trash: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>,
+  Restore: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>,
+  Archive: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>,
+  Eye: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>,
+  Plus: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>,
+  Close: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>,
+  ClipboardList: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4"></path><path d="M12 16h4"></path><path d="M8 11h.01"></path><path d="M8 16h.01"></path></svg>,
+  Activity: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>,
+  FileText: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>,
+  Diamond: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3h12l4 6-10 13L2 9Z"></path><path d="M11 3 8 9l4 13 4-13-3-6"></path><path d="M2 9h20"></path></svg>,
+  Lock: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>,
+  Rocket: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"></path><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"></path><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"></path><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"></path></svg>,
+  Calendar: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>,
+  ArrowRight: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>,
+  Alert: ({ size = 40, color = "#ef4444" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>,
+  Inbox: ({ size = 48, color = "#cbd5e1" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path></svg>,
+  Phone: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>,
+  Mail: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+};
+
 const ModalPortal = ({ children }) => {
   return createPortal(children, document.body);
 };
@@ -46,6 +75,9 @@ export default function Clientes() {
   
   // Histórico de Projetos do Cliente
   const [projetosCliente, setProjetosCliente] = useState([]);
+
+  // Modais Confirmação Global
+  const [confirmDialog, setConfirmDialog] = useState({ show: false, message: '', confirmText: '', onConfirm: null, isDanger: false });
 
   // SUB-FORMS INICIAIS
   const initContacto = { nome_contacto: "", email: "", telefone: "", cargo: "" };
@@ -239,24 +271,30 @@ export default function Clientes() {
     setProjetosCliente(pData.data || []);
   }
 
-  // 💡 FUNÇÃO DE TOGGLE (Reativar / Desativar)
-  async function handleToggleAtivo(id, estadoAtual) {
+  function handleToggleAtivo(id, estadoAtual) {
     const novoEstado = !estadoAtual;
     const acaoTexto = novoEstado ? "Reativar" : "Desativar";
 
-    if (!window.confirm(`Tem a certeza que deseja ${acaoTexto.toLowerCase()} esta empresa?`)) return;
+    setConfirmDialog({
+        show: true,
+        message: `Tem a certeza que deseja ${acaoTexto.toLowerCase()} esta empresa?`,
+        confirmText: `Sim, ${acaoTexto}`,
+        isDanger: !novoEstado,
+        onConfirm: async () => {
+            setConfirmDialog({ show: false });
+            try {
+              const { error } = await supabase.from("clientes").update({ ativo: novoEstado }).eq("id", id);
+              if (error) throw error;
 
-    try {
-      const { error } = await supabase.from("clientes").update({ ativo: novoEstado }).eq("id", id);
-      if (error) throw error;
+              setClientes(clientes.map(c => c.id === id ? { ...c, ativo: novoEstado } : c));
+              if (editId === id) setForm({ ...form, ativo: novoEstado });
 
-      setClientes(clientes.map(c => c.id === id ? { ...c, ativo: novoEstado } : c));
-      if (editId === id) setForm({ ...form, ativo: novoEstado });
-
-      showToast(`Empresa ${acaoTexto.toLowerCase()}a com sucesso!`, "success");
-    } catch (error) {
-      showToast(`Erro ao ${acaoTexto.toLowerCase()} empresa: ` + error.message, "error");
-    }
+              showToast(`Empresa ${acaoTexto.toLowerCase()}a com sucesso!`, "success");
+            } catch (error) {
+              showToast(`Erro ao ${acaoTexto.toLowerCase()} empresa: ` + error.message, "error");
+            }
+        }
+    });
   }
 
   async function handleSubmitGeral(e) {
@@ -310,14 +348,25 @@ export default function Clientes() {
     closeFormSetter(false);
   }
 
-  async function deleteItem(tabela, id, stateSetter, listaAtual) {
-    if (isViewOnly || !window.confirm("Apagar definitivamente este registo?")) return;
-    const { error } = await supabase.from(tabela).delete().eq("id", id);
-    if (!error) {
-        stateSetter(listaAtual.filter(i => i.id !== id));
-        showToast("Apagado com sucesso!");
-        if (tabela === 'moradas_cliente' || tabela === 'contactos_cliente') fetchClientes(); 
-    }
+  function deleteItem(tabela, id, stateSetter, listaAtual) {
+    if (isViewOnly) return;
+    setConfirmDialog({
+        show: true,
+        message: "Tem a certeza? Este registo será apagado permanentemente.",
+        confirmText: "Sim, Apagar",
+        isDanger: true,
+        onConfirm: async () => {
+            setConfirmDialog({ show: false });
+            const { error } = await supabase.from(tabela).delete().eq("id", id);
+            if (!error) {
+                stateSetter(listaAtual.filter(i => i.id !== id));
+                showToast("Apagado com sucesso!");
+                if (tabela === 'moradas_cliente' || tabela === 'contactos_cliente') fetchClientes(); 
+            } else {
+                showToast("Erro ao apagar.", "error");
+            }
+        }
+    });
   }
 
   function abrirEdicaoSubItem(item, setItemState, setShowForm) {
@@ -334,21 +383,29 @@ export default function Clientes() {
 
   const sectionTitleStyle = { fontSize: '0.8rem', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '15px', marginTop: '20px', borderBottom: '1px solid #e2e8f0', paddingBottom: '5px' };
   const labelStyle = { display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' };
-  const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', marginBottom: '10px' };
+  const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', marginBottom: '10px', color: '#1e293b' };
 
   if (loading) return <div className="page-container" style={{display:'flex', justifyContent:'center', alignItems:'center', height:'80vh'}}><div className="pulse-dot-white" style={{background:'#2563eb'}}></div></div>;
 
   return (
     <div className="page-container" style={{maxWidth: '1500px', margin: '0 auto'}}>
       <div className="page-header" style={{background: 'white', padding: '20px 25px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
-        <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>👥 Clientes</h1>
-        <button className="btn-glow" onClick={handleNovo}>+ Nova Empresa</button>
+        <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
+            <div style={{background: '#eff6ff', color: '#2563eb', padding: '12px', borderRadius: '12px', display: 'flex'}}><Icons.Building size={24} /></div>
+            <div>
+                <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>Clientes</h1>
+                <p style={{color: '#64748b', margin: 0, fontWeight: '500', fontSize: '0.9rem'}}>Carteira de Clientes Ativos</p>
+            </div>
+        </div>
+        <button className="btn-glow" onClick={handleNovo} style={{display:'flex', alignItems:'center', gap:'8px'}}>
+            <Icons.Plus /> Nova Empresa
+        </button>
       </div>
 
       <div style={{background: '#f8fafc', padding: '12px 20px', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '25px', display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap'}}>
         <div style={{flex: 1, minWidth: '250px', position: 'relative'}}>
-            <span style={{position: 'absolute', left: '12px', top: '9px', color: '#94a3b8', fontSize: '0.85rem'}}>🔍</span>
-            <input type="text" placeholder="Procurar por Empresa ou NIF..." value={busca} onChange={(e) => setBusca(e.target.value)} style={{width: '100%', padding: '8px 12px 8px 32px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.85rem', boxSizing: 'border-box'}} />
+            <span style={{position: 'absolute', left: '12px', top: '10px', color: '#94a3b8'}}><Icons.Search /></span>
+            <input type="text" placeholder="Procurar por Empresa ou NIF..." value={busca} onChange={(e) => setBusca(e.target.value)} style={{width: '100%', padding: '8px 12px 8px 38px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.85rem', boxSizing: 'border-box'}} />
         </div>
         <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#475569', fontSize: '0.9rem', fontWeight: 'bold' }}>
             <input type="checkbox" checked={mostrarInativos} onChange={e => setMostrarInativos(e.target.checked)} style={{width:'16px', height:'16px', accentColor: '#10b981'}} /> Mostrar Inativos
@@ -365,12 +422,12 @@ export default function Clientes() {
               return (
                   <div 
                       key={c.id} 
-                      className="client-card"
+                      className="client-card hover-shadow"
                       style={{
                           background: isInactive ? '#f8fafc' : 'white', borderRadius: '16px', border: '1px solid #e2e8f0', 
-                          boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', 
+                          display: 'flex', flexDirection: 'column', 
                           opacity: isInactive ? 0.6 : 1, position: 'relative', overflow: 'hidden',
-                          borderTop: `5px solid ${isInactive ? '#94a3b8' : color}`
+                          borderTop: `5px solid ${isInactive ? '#94a3b8' : color}`, transition: 'all 0.2s'
                       }}
                   >
                       <div style={{padding: '20px', flex: 1}}>
@@ -384,18 +441,18 @@ export default function Clientes() {
                           <div style={{display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '15px'}}>
                               {moradaRef ? (
                                   <div style={{fontSize: '0.85rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px'}}>
-                                      📍 {moradaRef.concelho ? `${moradaRef.localidade} (${moradaRef.concelho})` : moradaRef.localidade}
+                                      <Icons.MapPin /> {moradaRef.concelho ? `${moradaRef.localidade} (${moradaRef.concelho})` : moradaRef.localidade}
                                   </div>
                               ) : (
-                                  <div style={{fontSize: '0.85rem', color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '6px'}}>📍 Sem morada registada</div>
+                                  <div style={{fontSize: '0.85rem', color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.MapPin /> Sem morada registada</div>
                               )}
 
                               {contactoRef ? (
                                   <div style={{fontSize: '0.85rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px'}}>
-                                      👤 {contactoRef.nome_contacto} {contactoRef.telefone && `- ${contactoRef.telefone}`}
+                                      <Icons.User /> {contactoRef.nome_contacto} {contactoRef.telefone && `- ${contactoRef.telefone}`}
                                   </div>
                               ) : (
-                                  <div style={{fontSize: '0.85rem', color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '6px'}}>👤 Sem contacto registado</div>
+                                  <div style={{fontSize: '0.85rem', color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.User /> Sem contacto registado</div>
                               )}
                           </div>
                       </div>
@@ -403,29 +460,29 @@ export default function Clientes() {
                       <div style={{display: 'flex', borderTop: '1px solid #f1f5f9', background: isInactive ? 'transparent' : '#fafaf9'}}>
                           <button 
                               onClick={() => handleView(c)} 
-                              style={{flex: 1, padding: '12px', border: 'none', borderRight: '1px solid #f1f5f9', background: 'transparent', color: '#2563eb', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', transition: '0.2s'}}
+                              style={{flex: 1, padding: '12px', border: 'none', borderRight: '1px solid #f1f5f9', background: 'transparent', color: '#2563eb', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', transition: '0.2s', display:'flex', alignItems:'center', justifyContent:'center', gap:'6px'}}
                               className="hover-blue-text"
                           >
-                              Ver Perfil
+                              <Icons.Eye /> Ver Perfil
                           </button>
                           
                           {!isInactive ? (
                               <button 
                                   onClick={() => handleEdit(c)} 
-                                  style={{padding: '12px 20px', border: 'none', background: 'transparent', color: '#f59e0b', fontSize: '1.1rem', cursor: 'pointer', transition: '0.2s'}}
+                                  style={{padding: '12px 20px', border: 'none', background: 'transparent', color: '#f59e0b', cursor: 'pointer', transition: '0.2s'}}
                                   className="hover-orange-text"
                                   title="Edição Rápida"
                               >
-                                  ✏️
+                                  <Icons.Edit />
                               </button>
                           ) : (
                               <button 
                                   onClick={() => handleToggleAtivo(c.id, c.ativo)} 
-                                  style={{padding: '12px 20px', border: 'none', background: 'transparent', color: '#16a34a', fontSize: '1.1rem', cursor: 'pointer', transition: '0.2s'}}
+                                  style={{padding: '12px 20px', border: 'none', background: 'transparent', color: '#16a34a', cursor: 'pointer', transition: '0.2s'}}
                                   className="hover-green-text"
                                   title="Reativar Empresa"
                               >
-                                  🔄
+                                  <Icons.Restore />
                               </button>
                           )}
                       </div>
@@ -433,8 +490,8 @@ export default function Clientes() {
               );
           }) : (
               <div style={{gridColumn: '1 / -1', textAlign: 'center', padding: '60px', background: 'white', borderRadius: '16px', border: '1px dashed #cbd5e1'}}>
-                  <span style={{fontSize: '3rem', display: 'block', marginBottom: '10px'}}>🏜️</span>
-                  <h3 style={{color: '#1e293b', margin: '0 0 5px 0'}}>Vazio por aqui.</h3>
+                  <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px', color: '#cbd5e1'}}><Icons.Inbox size={60} /></div>
+                  <h3 style={{color: '#1e293b', margin: '0 0 5px 0', fontSize: '1.2rem'}}>Vazio por aqui.</h3>
                   <p style={{color: '#64748b', margin: 0}}>Nenhum cliente encontrado com os filtros atuais.</p>
               </div>
           )}
@@ -445,13 +502,13 @@ export default function Clientes() {
       {/* --- MEGA MODAL 360º DO CLIENTE --- */}
       {showModal && (
         <ModalPortal>
-          <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(15, 23, 42, 0.7)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:99999}} onClick={() => setShowModal(false)}>
-            <div style={{background:'#fff', width:'96%', maxWidth:'1200px', borderRadius:'16px', boxShadow:'0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow:'hidden', display:'flex', flexDirection:'column', maxHeight:'96vh'}} onClick={e => e.stopPropagation()}>
+          <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(15, 23, 42, 0.7)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:99999}}>
+            <div style={{background:'#fff', width:'96%', maxWidth:'1200px', borderRadius:'16px', boxShadow:'0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow:'hidden', display:'flex', flexDirection:'column', maxHeight:'96vh', animation: 'fadeIn 0.2s ease-out'}} onClick={e => e.stopPropagation()}>
               
               {/* CABEÇALHO DO MODAL */}
               <div style={{padding:'20px 30px', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center', background:'#f8fafc'}}>
                 <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
-                    <span style={{background:'#eff6ff', padding:'10px', borderRadius:'10px', fontSize:'1.4rem'}}>🏢</span>
+                    <span style={{background:'#eff6ff', color: '#2563eb', padding:'10px', borderRadius:'10px', display: 'flex'}}><Icons.Building size={24} /></span>
                     <h3 style={{margin:0, color:'#1e293b', fontSize:'1.4rem', fontWeight:'800'}}>
                         {isViewOnly ? `Perfil: ${form.marca}` : (editId ? `Editar: ${form.marca}` : "Nova Empresa")}
                     </h3>
@@ -461,27 +518,27 @@ export default function Clientes() {
                     {editId && !isViewOnly && (
                         <button 
                             onClick={() => handleToggleAtivo(editId, form.ativo)} 
-                            style={{ background: form.ativo === false ? '#dcfce7' : '#fee2e2', color: form.ativo === false ? '#16a34a' : '#ef4444', border:'none', padding:'8px 16px', borderRadius:'8px', cursor:'pointer', fontWeight:'bold', transition:'0.2s' }}
+                            style={{ background: form.ativo === false ? '#dcfce7' : '#fee2e2', color: form.ativo === false ? '#16a34a' : '#ef4444', border:'none', padding:'8px 16px', borderRadius:'8px', cursor:'pointer', fontWeight:'bold', transition:'0.2s', display:'flex', alignItems:'center', gap:'6px' }}
                             className="hover-shadow"
                         >
-                            {form.ativo === false ? '🔄 Reativar' : '🛑 Desativar'}
+                            {form.ativo === false ? <><Icons.Restore/> Reativar</> : <><Icons.Archive/> Desativar</>}
                         </button>
                     )}
-                    <button onClick={() => setShowModal(false)} style={{background:'#e2e8f0', border:'none', width:'36px', height:'36px', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.2rem', cursor:'pointer', color:'#475569', transition:'0.2s'}} className="hover-shadow">✕</button>
+                    <button onClick={() => setShowModal(false)} style={{background:'#e2e8f0', border:'none', width:'36px', height:'36px', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#475569', transition:'0.2s'}} className="hover-shadow"><Icons.Close/></button>
                 </div>
               </div>
 
               {/* TABS DE NAVEGAÇÃO DO MODAL */}
               {editId && (
                 <div className="tabs" style={{padding: '15px 30px 0 30px', background: '#fff', borderBottom: '1px solid #e2e8f0', display:'flex', flexWrap:'wrap', gap:'5px'}}>
-                  <button className={activeTab === 'geral' ? 'active' : ''} onClick={() => {setActiveTab('geral'); fecharTodosSubForms();}}>📋 Geral</button>
-                  <button className={activeTab === 'moradas' ? 'active' : ''} onClick={() => {setActiveTab('moradas'); fecharTodosSubForms();}}>📍 Moradas</button>
-                  <button className={activeTab === 'contactos' ? 'active' : ''} onClick={() => {setActiveTab('contactos'); fecharTodosSubForms();}}>👤 Pessoas</button>
-                  <button className={activeTab === 'projetos' ? 'active' : ''} onClick={() => {setActiveTab('projetos'); fecharTodosSubForms();}} style={{color: activeTab === 'projetos' ? '#2563eb' : '#3b82f6', fontWeight: '800'}}>🚀 Projetos</button>
-                  <button className={activeTab === 'atividade' ? 'active' : ''} onClick={() => {setActiveTab('atividade'); fecharTodosSubForms();}}>📈 Atividade</button>
-                  <button className={activeTab === 'documentos' ? 'active' : ''} onClick={() => {setActiveTab('documentos'); fecharTodosSubForms();}}>📄 Documentos</button>
-                  <button className={activeTab === 'plano' ? 'active' : ''} onClick={() => {setActiveTab('plano'); fecharTodosSubForms();}}>💎 Plano</button>
-                  {podeVerAcessos && <button className={activeTab === 'acessos' ? 'active' : ''} onClick={() => {setActiveTab('acessos'); fecharTodosSubForms();}}>🔐 Acessos</button>}
+                  <button className={activeTab === 'geral' ? 'active' : ''} onClick={() => {setActiveTab('geral'); fecharTodosSubForms();}} style={{display:'flex', alignItems:'center', gap:'6px'}}><Icons.ClipboardList /> Geral</button>
+                  <button className={activeTab === 'moradas' ? 'active' : ''} onClick={() => {setActiveTab('moradas'); fecharTodosSubForms();}} style={{display:'flex', alignItems:'center', gap:'6px'}}><Icons.MapPin /> Moradas</button>
+                  <button className={activeTab === 'contactos' ? 'active' : ''} onClick={() => {setActiveTab('contactos'); fecharTodosSubForms();}} style={{display:'flex', alignItems:'center', gap:'6px'}}><Icons.Users /> Pessoas</button>
+                  <button className={activeTab === 'projetos' ? 'active' : ''} onClick={() => {setActiveTab('projetos'); fecharTodosSubForms();}} style={{display:'flex', alignItems:'center', gap:'6px', color: activeTab === 'projetos' ? '#2563eb' : '#3b82f6', fontWeight: '800'}}><Icons.Rocket /> Projetos</button>
+                  <button className={activeTab === 'atividade' ? 'active' : ''} onClick={() => {setActiveTab('atividade'); fecharTodosSubForms();}} style={{display:'flex', alignItems:'center', gap:'6px'}}><Icons.Activity /> Atividade</button>
+                  <button className={activeTab === 'documentos' ? 'active' : ''} onClick={() => {setActiveTab('documentos'); fecharTodosSubForms();}} style={{display:'flex', alignItems:'center', gap:'6px'}}><Icons.FileText /> Documentos</button>
+                  <button className={activeTab === 'plano' ? 'active' : ''} onClick={() => {setActiveTab('plano'); fecharTodosSubForms();}} style={{display:'flex', alignItems:'center', gap:'6px'}}><Icons.Diamond /> Plano</button>
+                  {podeVerAcessos && <button className={activeTab === 'acessos' ? 'active' : ''} onClick={() => {setActiveTab('acessos'); fecharTodosSubForms();}} style={{display:'flex', alignItems:'center', gap:'6px'}}><Icons.Lock /> Acessos</button>}
                 </div>
               )}
 
@@ -490,32 +547,37 @@ export default function Clientes() {
                 {/* --- ABA GERAL --- */}
                 {activeTab === 'geral' && (
                   <form onSubmit={handleSubmitGeral}>
-                     <fieldset disabled={isViewOnly} style={{border: 'none', padding: 0}}>
+                     <fieldset disabled={isViewOnly} style={{border: 'none', padding: 0, margin: 0}}>
                       <div style={{display:'grid', gridTemplateColumns:'1fr 2fr', gap:'20px'}}>
                         <div>
-                            <label style={labelStyle}>NIF * <span style={{fontSize:'0.7rem', color:'#2563eb'}}>(Auto-preenchimento)</span></label>
-                            <input type="text" maxLength="9" value={form.nif} onChange={handleNifChange} required style={{...inputStyle, borderColor: '#2563eb', background: '#eff6ff'}} placeholder="Ex: 500000000" />
+                            <label style={labelStyle}>NIF * <span style={{fontSize:'0.7rem', color:'#2563eb', textTransform: 'none'}}>(Pesquisa Auto)</span></label>
+                            <div style={{position: 'relative'}}>
+                                <input type="text" maxLength="9" value={form.nif} onChange={handleNifChange} required style={{...inputStyle, borderColor: '#2563eb', background: '#eff6ff', paddingLeft: '35px'}} placeholder="Ex: 500000000" className="input-focus" />
+                                <span style={{position: 'absolute', left: '12px', top: '10px', color: '#2563eb'}}><Icons.Search /></span>
+                            </div>
                         </div>
                         <div>
-                            <label style={labelStyle}>Marca / Nome Fantasia *</label>
-                            <input type="text" value={form.marca} onChange={e => setForm({...form, marca: e.target.value})} required style={inputStyle} />
+                            <label style={labelStyle}>Marca / Nome Comercial *</label>
+                            <input type="text" value={form.marca} onChange={e => setForm({...form, marca: e.target.value})} required style={inputStyle} className="input-focus" />
                         </div>
                       </div>
 
                       <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px', marginTop:'10px'}}>
-                        <div><label style={labelStyle}>Entidade Legal</label><input type="text" value={form.entidade} onChange={e => setForm({...form, entidade: e.target.value})} style={inputStyle} /></div>
+                        <div><label style={labelStyle}>Entidade Legal</label><input type="text" value={form.entidade} onChange={e => setForm({...form, entidade: e.target.value})} style={inputStyle} className="input-focus" /></div>
                         <div>
                             <label style={labelStyle}>Website</label>
                             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                <input type="text" value={form.website} onChange={e => setForm({...form, website: e.target.value})} placeholder="www.empresa.pt" style={{ ...inputStyle, marginBottom: 0, flex: 1 }} />
+                                <input type="text" value={form.website} onChange={e => setForm({...form, website: e.target.value})} placeholder="www.empresa.pt" style={{ ...inputStyle, marginBottom: 0, flex: 1 }} className="input-focus" />
                                 {form.website && (
-                                    <a href={form.website.startsWith('http') ? form.website : `https://${form.website}`} target="_blank" rel="noopener noreferrer" title="Abrir Website" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', background: '#eff6ff', color: '#2563eb', padding: '0 15px', height: '42px', borderRadius: '8px', border: '1px solid #bfdbfe', fontSize: '1.2rem', transition: '0.2s' }}>🔗</a>
+                                    <a href={form.website.startsWith('http') ? form.website : `https://${form.website}`} target="_blank" rel="noopener noreferrer" title="Abrir Website" className="btn-icon-link">
+                                        <Icons.ExternalLink />
+                                    </a>
                                 )}
                             </div>
                         </div>
                       </div>
 
-                      {!isViewOnly && <button type="submit" className="btn-primary" style={{width:'100%', marginTop:'20px', padding:'15px', fontSize:'1.05rem'}}>Guardar Dados Base</button>}
+                      {!isViewOnly && <button type="submit" className="btn-primary hover-shadow" style={{width:'100%', marginTop:'20px', padding:'15px', fontSize:'1.05rem', fontWeight: 'bold'}}>Guardar Dados Base</button>}
                     </fieldset>
                   </form>
                 )}
@@ -523,19 +585,18 @@ export default function Clientes() {
                 {/* --- ABA DE PROJETOS DO CLIENTE --- */}
                 {activeTab === 'projetos' && (
                     <div>
-                        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px', background:'white', padding:'20px', borderRadius:'12px', border:'1px solid #e2e8f0'}}>
+                        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px', background:'white', padding:'20px', borderRadius:'12px', border:'1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)'}}>
                             <div>
                                 <h4 style={{margin:0, fontSize: '1.2rem', color: '#1e293b'}}>Histórico de Projetos</h4>
                                 <p style={{margin:'5px 0 0 0', color:'#64748b', fontSize:'0.9rem'}}>Todos os trabalhos associados a {form.marca}.</p>
                             </div>
                             
-                            {/* 💡 AQUI ESTÁ O NOVO BOTÃO QUE PASSA O ID DO CLIENTE PELO STATE DA ROTA */}
                           <button 
                               onClick={() => navigate('/dashboard/projetos', { state: { prefillClienteId: editId, openNewProjectModal: true } })} 
-                              className="btn-primary" 
-                              style={{fontSize: '0.9rem'}}
+                              className="btn-primary hover-shadow" 
+                              style={{fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '6px'}}
                           >
-                              + Novo Projeto
+                              <Icons.Plus /> Novo Projeto
                           </button>
                         </div>
 
@@ -544,7 +605,7 @@ export default function Clientes() {
                                 {projetosCliente.map(p => {
                                     const isDone = p.estado === 'concluido';
                                     return (
-                                        <div key={p.id} onClick={() => navigate(`/dashboard/projetos/${p.id}`)} style={{background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', flexDirection:'column', justifyContent: 'space-between', opacity: isDone ? 0.6 : 1, cursor:'pointer', transition:'0.2s'}} className="hover-shadow">
+                                        <div key={p.id} onClick={() => navigate(`/dashboard/projetos/${p.id}`)} style={{background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', flexDirection:'column', justifyContent: 'space-between', opacity: isDone ? 0.6 : 1, cursor:'pointer', transition:'0.2s'}} className="hover-shadow hover-blue-border">
                                             <div style={{display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px'}}>
                                                 <span style={{fontSize: '0.7rem', background: isDone ? '#f1f5f9' : '#eff6ff', color: isDone ? '#64748b' : '#2563eb', padding: '4px 10px', borderRadius: '12px', fontWeight: 'bold', textTransform: 'uppercase'}}>{p.estado.replace('_', ' ')}</span>
                                                 {p.codigo_projeto && <span style={{fontSize: '0.75rem', color: '#94a3b8', fontWeight: 'bold'}}>{p.codigo_projeto}</span>}
@@ -552,8 +613,8 @@ export default function Clientes() {
                                             <h4 style={{margin: '0 0 15px 0', fontSize: '1.1rem', color: '#1e293b', textDecoration: isDone ? 'line-through' : 'none', lineHeight:'1.3'}}>{p.titulo}</h4>
                                             
                                             <div style={{display: 'flex', alignItems: 'center', justifyContent:'space-between', borderTop:'1px solid #f1f5f9', paddingTop:'10px'}}>
-                                                {p.data_fim ? <span style={{fontSize: '0.85rem', color: '#64748b', fontWeight: '600'}}>📅 {new Date(p.data_fim).toLocaleDateString('pt-PT')}</span> : <span style={{fontSize: '0.85rem', color: '#cbd5e1'}}>Sem Prazo</span>}
-                                                <span style={{fontSize: '0.85rem', color: '#2563eb', fontWeight: 'bold'}}>Abrir ➔</span>
+                                                {p.data_fim ? <span style={{fontSize: '0.85rem', color: '#64748b', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.Calendar /> {new Date(p.data_fim).toLocaleDateString('pt-PT')}</span> : <span style={{fontSize: '0.85rem', color: '#cbd5e1'}}>Sem Prazo</span>}
+                                                <span style={{fontSize: '0.85rem', color: '#2563eb', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}}>Abrir <Icons.ArrowRight /></span>
                                             </div>
                                         </div>
                                     )
@@ -561,7 +622,7 @@ export default function Clientes() {
                             </div>
                         ) : (
                             <div style={{textAlign: 'center', padding: '60px', background: 'white', borderRadius: '12px', border: '1px dashed #cbd5e1'}}>
-                                <span style={{fontSize: '3rem', display: 'block', marginBottom: '15px'}}>🏜️</span>
+                                <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px', color: '#cbd5e1'}}><Icons.Inbox size={48} /></div>
                                 <h4 style={{color: '#1e293b', margin: '0 0 5px 0', fontSize:'1.2rem'}}>Este cliente ainda não tem projetos.</h4>
                                 <p style={{color:'#64748b'}}>Cria um novo projeto e ele aparecerá aqui automaticamente.</p>
                             </div>
@@ -569,39 +630,39 @@ export default function Clientes() {
                     </div>
                 )}
 
-                {/* --- ABA ATIVIDADE --- */}
+                {/* --- ABA ATIVIDADE E CAES --- */}
                 {activeTab === 'atividade' && (
                   <div style={{display:'flex', flexDirection:'column', gap:'30px'}}>
                     <div style={{background:'white', padding:'20px', borderRadius:'12px', border:'1px solid #e2e8f0'}}>
                         <label style={labelStyle}>Objeto Social</label>
-                        <textarea disabled={isViewOnly} rows="5" value={form.objeto_social} onChange={e => setForm({...form, objeto_social: e.target.value})} style={{...inputStyle, resize:'vertical', marginBottom:'15px'}} />
-                        {!isViewOnly && <button className="btn-primary" onClick={handleSubmitGeral}>Atualizar Objeto Social</button>}
+                        <textarea disabled={isViewOnly} rows="5" value={form.objeto_social} onChange={e => setForm({...form, objeto_social: e.target.value})} style={{...inputStyle, resize:'vertical', marginBottom:'15px'}} className="input-focus" />
+                        {!isViewOnly && <button className="btn-primary hover-shadow" onClick={handleSubmitGeral}>Atualizar Objeto Social</button>}
                     </div>
                     
                     <div>
                         <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px'}}>
                           <h4 style={{margin:0, fontSize:'1.1rem', color:'#1e293b'}}>Lista de CAEs</h4>
-                          {!isViewOnly && !showAddCae && <button className="btn-small-add" onClick={() => {setNovoCae(initCae); setShowAddCae(true)}}>+ Adicionar CAE</button>}
+                          {!isViewOnly && !showAddCae && <button className="btn-small-add hover-shadow" onClick={() => {setNovoCae(initCae); setShowAddCae(true)}} style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.Plus /> Adicionar CAE</button>}
                         </div>
 
                         {showAddCae && (
-                          <div style={{background:'white', padding:'20px', borderRadius:'12px', border:'1px solid #cbd5e1', marginBottom:'20px', boxShadow:'0 4px 6px -1px rgba(0,0,0,0.05)'}}>
-                            <h5 style={{marginTop:0}}>{novoCae.id ? 'Editar CAE' : 'Novo CAE'}</h5>
+                          <div style={{background:'white', padding:'25px', borderRadius:'12px', border:'1px solid #cbd5e1', marginBottom:'20px', boxShadow:'0 4px 6px -1px rgba(0,0,0,0.05)'}}>
+                            <h5 style={{marginTop:0, fontSize: '1.1rem'}}>{novoCae.id ? 'Editar CAE' : 'Novo CAE'}</h5>
                             <div style={{display:'grid', gridTemplateColumns:'150px 1fr auto', gap:'15px', alignItems:'center'}}>
-                              <input type="text" placeholder="Código (Ex: 62010)" value={novoCae.codigo} onChange={e => setNovoCae({...novoCae, codigo: e.target.value})} style={inputStyle} />
-                              <input type="text" placeholder="Descrição" value={novoCae.descricao} onChange={e => setNovoCae({...novoCae, descricao: e.target.value})} style={inputStyle} />
-                              <label style={{display:'flex', alignItems:'center', gap:'5px', cursor:'pointer'}}><input type="checkbox" checked={novoCae.principal} onChange={e => setNovoCae({...novoCae, principal: e.target.checked})} /> Principal</label>
+                              <input type="text" placeholder="Código (Ex: 62010)" value={novoCae.codigo} onChange={e => setNovoCae({...novoCae, codigo: e.target.value})} style={inputStyle} className="input-focus" />
+                              <input type="text" placeholder="Descrição" value={novoCae.descricao} onChange={e => setNovoCae({...novoCae, descricao: e.target.value})} style={inputStyle} className="input-focus" />
+                              <label style={{display:'flex', alignItems:'center', gap:'5px', cursor:'pointer', fontWeight: 'bold', color: '#475569'}}><input type="checkbox" checked={novoCae.principal} onChange={e => setNovoCae({...novoCae, principal: e.target.checked})} style={{accentColor: '#2563eb', width: '16px', height: '16px'}} /> Principal</label>
                             </div>
                             <div style={{display:'flex', gap:'10px', marginTop:'15px'}}>
-                                <button onClick={() => saveSubItem('caes_cliente', novoCae, setCaes, caes, setNovoCae, initCae, setShowAddCae)} className="btn-primary" style={{padding:'8px 15px'}}>{novoCae.id ? 'Atualizar' : 'Guardar CAE'}</button>
-                                <button onClick={() => {setShowAddCae(false); setNovoCae(initCae);}} style={{background:'none', border:'none', color:'#64748b', cursor:'pointer'}}>Cancelar</button>
+                                <button onClick={() => saveSubItem('caes_cliente', novoCae, setCaes, caes, setNovoCae, initCae, setShowAddCae)} className="btn-primary hover-shadow" style={{padding:'10px 20px'}}>{novoCae.id ? 'Atualizar' : 'Guardar CAE'}</button>
+                                <button onClick={() => {setShowAddCae(false); setNovoCae(initCae);}} style={{background:'white', border:'1px solid #cbd5e1', borderRadius: '8px', color:'#64748b', cursor:'pointer', padding: '10px 20px', fontWeight: 'bold'}} className="hover-shadow">Cancelar</button>
                             </div>
                           </div>
                         )}
 
                         <ul style={{listStyle:'none', padding:0, display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(350px, 1fr))', gap:'15px'}}>
                           {caes.map(c => (
-                            <li key={c.id} style={{background:'white', padding:'20px', borderRadius:'12px', display:'flex', justifyContent:'space-between', alignItems:'center', border:'1px solid #e2e8f0'}}>
+                            <li key={c.id} style={{background:'white', padding:'20px', borderRadius:'12px', display:'flex', justifyContent:'space-between', alignItems:'center', border:'1px solid #e2e8f0', transition: '0.2s'}} className="hover-shadow">
                               <div>
                                 <span style={{fontWeight:'bold', fontSize:'1.1rem', color:'#1e293b'}}>{c.codigo}</span>
                                 {c.principal && <span style={{background:'#dcfce7', color:'#166534', padding:'2px 8px', borderRadius:'10px', fontSize:'0.7rem', marginLeft:'10px', fontWeight:'bold'}}>PRINCIPAL</span>}
@@ -609,8 +670,8 @@ export default function Clientes() {
                               </div>
                               {!isViewOnly && (
                                 <div style={{display:'flex', flexDirection:'column', gap:'5px'}}>
-                                   <button onClick={() => abrirEdicaoSubItem(c, setNovoCae, setShowAddCae)} className="btn-small">✏️</button>
-                                   <button onClick={() => deleteItem('caes_cliente', c.id, setCaes, caes)} style={{border:'none', background:'#fee2e2', color:'#ef4444', borderRadius:'6px', padding:'6px', cursor:'pointer'}}>🗑</button>
+                                   <button onClick={() => abrirEdicaoSubItem(c, setNovoCae, setShowAddCae)} className="action-btn hover-blue-text"><Icons.Edit /></button>
+                                   <button onClick={() => deleteItem('caes_cliente', c.id, setCaes, caes)} className="action-btn hover-red-text"><Icons.Trash /></button>
                                 </div>
                               )}
                             </li>
@@ -623,20 +684,22 @@ export default function Clientes() {
                 {/* --- ABA DOCUMENTOS --- */}
                 {activeTab === 'documentos' && (
                   <form onSubmit={handleSubmitGeral}>
-                     <fieldset disabled={isViewOnly} style={{border:'none', padding:0}}>
+                     <fieldset disabled={isViewOnly} style={{border:'none', padding:0, margin: 0}}>
                       
                       <div style={{background:'white', padding:'30px', borderRadius:'12px', border:'1px solid #e2e8f0', marginBottom:'20px'}}>
                           <div style={{display:'grid', gridTemplateColumns:'2fr 1fr', gap:'20px'}}>
                             <div>
                                 <label style={labelStyle}>Código Certidão Permanente</label>
                                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                    <input type="text" value={form.certidao_permanente} onChange={e => setForm({...form, certidao_permanente: e.target.value})} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} placeholder="Ex: 1234-5678-9012" />
-                                    <a href="https://www2.gov.pt/espaco-empresa/empresa-online/consultar-a-certidao-permanente" target="_blank" rel="noopener noreferrer" title="Abrir Portal da Certidão Permanente" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', background: '#eff6ff', color: '#2563eb', padding: '0 15px', height: '42px', borderRadius: '8px', border: '1px solid #bfdbfe', fontSize: '1.2rem', transition: '0.2s' }}>🔗</a>
+                                    <input type="text" value={form.certidao_permanente} onChange={e => setForm({...form, certidao_permanente: e.target.value})} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} placeholder="Ex: 1234-5678-9012" className="input-focus" />
+                                    <a href="https://www2.gov.pt/espaco-empresa/empresa-online/consultar-a-certidao-permanente" target="_blank" rel="noopener noreferrer" title="Abrir Portal da Certidão Permanente" className="btn-icon-link">
+                                        <Icons.ExternalLink />
+                                    </a>
                                 </div>
                             </div>
                             <div>
                                 <label style={labelStyle}>Data de Validade</label>
-                                <input type="date" value={form.validade_certidao || ""} onChange={e => setForm({...form, validade_certidao: e.target.value})} style={inputStyle} />
+                                <input type="date" value={form.validade_certidao || ""} onChange={e => setForm({...form, validade_certidao: e.target.value})} style={inputStyle} className="input-focus" />
                             </div>
                           </div>
                       </div>
@@ -646,33 +709,35 @@ export default function Clientes() {
                             <div>
                                 <label style={labelStyle}>Código RCBE</label>
                                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                    <input type="text" value={form.rcbe} onChange={e => setForm({...form, rcbe: e.target.value})} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} placeholder="Código de acesso RCBE" />
-                                    <a href="https://rcbe.justica.gov.pt" target="_blank" rel="noopener noreferrer" title="Abrir Portal RCBE" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', background: '#eff6ff', color: '#2563eb', padding: '0 15px', height: '42px', borderRadius: '8px', border: '1px solid #bfdbfe', fontSize: '1.2rem', transition: '0.2s' }}>🔗</a>
+                                    <input type="text" value={form.rcbe} onChange={e => setForm({...form, rcbe: e.target.value})} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} placeholder="Código de acesso RCBE" className="input-focus" />
+                                    <a href="https://rcbe.justica.gov.pt" target="_blank" rel="noopener noreferrer" title="Abrir Portal RCBE" className="btn-icon-link">
+                                        <Icons.ExternalLink />
+                                    </a>
                                 </div>
                             </div>
                             <div>
                                 <label style={labelStyle}>Data de Validade</label>
-                                <input type="date" value={form.validade_rcbe || ""} onChange={e => setForm({...form, validade_rcbe: e.target.value})} style={inputStyle} />
+                                <input type="date" value={form.validade_rcbe || ""} onChange={e => setForm({...form, validade_rcbe: e.target.value})} style={inputStyle} className="input-focus" />
                             </div>
                           </div>
                       </div>
 
-                      {!isViewOnly && <button type="submit" className="btn-primary" style={{width:'100%', marginTop:'20px', padding:'15px', fontSize:'1.05rem'}}>Guardar Documentos</button>}
+                      {!isViewOnly && <button type="submit" className="btn-primary hover-shadow" style={{width:'100%', marginTop:'20px', padding:'15px', fontSize:'1.05rem', fontWeight: 'bold'}}>Guardar Documentos</button>}
                     </fieldset>
                   </form>
                 )}
 
                 {/* --- ABA PLANO --- */}
                 {activeTab === 'plano' && (
-                  <div style={{background:'white', padding:'40px', borderRadius:'16px', border:'1px solid #e2e8f0', textAlign:'center', maxWidth:'500px', margin:'0 auto'}}>
-                     <span style={{fontSize:'3rem', display:'block', marginBottom:'10px'}}>💎</span>
+                  <div style={{background:'white', padding:'40px', borderRadius:'16px', border:'1px solid #e2e8f0', textAlign:'center', maxWidth:'500px', margin:'0 auto', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
+                     <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px', color: '#3b82f6'}}><Icons.Diamond size={48} /></div>
                      <h3 style={{marginTop:0, color:'#1e293b', fontSize:'1.5rem'}}>Plano de Subscrição</h3>
-                     <select disabled={isViewOnly} value={form.plano} onChange={e => setForm({...form, plano: e.target.value})} style={{...inputStyle, fontSize:'1.2rem', padding:'15px', margin:'20px auto', display:'block'}}>
+                     <select disabled={isViewOnly} value={form.plano} onChange={e => setForm({...form, plano: e.target.value})} style={{...inputStyle, fontSize:'1.1rem', padding:'15px', margin:'20px auto', display:'block', fontWeight: 'bold', color: '#2563eb', background: '#eff6ff', borderColor: '#bfdbfe', cursor: 'pointer'}}>
                         <option value="Standard">Standard</option>
                         <option value="Premium">Premium</option>
                         <option value="Enterprise">Enterprise</option>
                      </select>
-                     {!isViewOnly && <button className="btn-primary" onClick={handleSubmitGeral} style={{width:'100%', padding:'15px', fontSize:'1.05rem'}}>Confirmar Plano</button>}
+                     {!isViewOnly && <button className="btn-primary hover-shadow" onClick={handleSubmitGeral} style={{width:'100%', padding:'15px', fontSize:'1.05rem', fontWeight: 'bold'}}>Confirmar Plano</button>}
                   </div>
                 )}
 
@@ -681,7 +746,7 @@ export default function Clientes() {
                   <div>
                     <div style={{display:'flex', justifyContent:'space-between', marginBottom:'15px', alignItems:'center'}}>
                       <h4 style={{margin:0, fontSize:'1.1rem', color:'#1e293b'}}>Equipa do Cliente</h4>
-                      {!isViewOnly && !showAddContacto && <button className="btn-small-add" onClick={() => {setNovoContacto(initContacto); setShowAddContacto(true)}}>+ Adicionar Pessoa</button>}
+                      {!isViewOnly && !showAddContacto && <button className="btn-small-add hover-shadow" onClick={() => {setNovoContacto(initContacto); setShowAddContacto(true)}} style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.Plus /> Adicionar Pessoa</button>}
                     </div>
                     
                     {showAddContacto && (
@@ -690,42 +755,42 @@ export default function Clientes() {
                         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px'}}>
                           <div>
                               <label style={labelStyle}>Nome Completo *</label>
-                              <input type="text" placeholder="João Silva" value={novoContacto.nome_contacto} onChange={e => setNovoContacto({...novoContacto, nome_contacto: e.target.value})} style={inputStyle} required />
+                              <input type="text" placeholder="João Silva" value={novoContacto.nome_contacto} onChange={e => setNovoContacto({...novoContacto, nome_contacto: e.target.value})} style={inputStyle} className="input-focus" required />
                           </div>
                           <div>
                               <label style={labelStyle}>Cargo</label>
-                              <input type="text" placeholder="Gerente, Diretor..." value={novoContacto.cargo} onChange={e => setNovoContacto({...novoContacto, cargo: e.target.value})} style={inputStyle} />
+                              <input type="text" placeholder="Gerente, Diretor..." value={novoContacto.cargo} onChange={e => setNovoContacto({...novoContacto, cargo: e.target.value})} style={inputStyle} className="input-focus" />
                           </div>
                           <div>
                               <label style={labelStyle}>Email</label>
-                              <input type="email" placeholder="joao@empresa.pt" value={novoContacto.email} onChange={e => setNovoContacto({...novoContacto, email: e.target.value})} style={inputStyle} />
+                              <input type="email" placeholder="joao@empresa.pt" value={novoContacto.email} onChange={e => setNovoContacto({...novoContacto, email: e.target.value})} style={inputStyle} className="input-focus" />
                           </div>
                           <div>
                               <label style={labelStyle}>Telefone / Telemóvel</label>
-                              <input type="text" placeholder="+351 900 000 000" value={novoContacto.telefone} onChange={e => setNovoContacto({...novoContacto, telefone: e.target.value})} style={inputStyle} />
+                              <input type="text" placeholder="+351 900 000 000" value={novoContacto.telefone} onChange={e => setNovoContacto({...novoContacto, telefone: e.target.value})} style={inputStyle} className="input-focus" />
                           </div>
                         </div>
                         <div style={{display:'flex', gap:'10px', marginTop:'15px'}}>
-                            <button onClick={() => saveSubItem('contactos_cliente', novoContacto, setContactos, contactos, setNovoContacto, initContacto, setShowAddContacto)} className="btn-primary" style={{padding:'10px 20px'}}>{novoContacto.id ? 'Atualizar' : 'Guardar Pessoa'}</button>
-                            <button onClick={() => {setShowAddContacto(false); setNovoContacto(initContacto);}} style={{background:'none', border:'none', color:'#64748b', cursor:'pointer', fontWeight:'bold'}}>Cancelar</button>
+                            <button onClick={() => saveSubItem('contactos_cliente', novoContacto, setContactos, contactos, setNovoContacto, initContacto, setShowAddContacto)} className="btn-primary hover-shadow" style={{padding:'10px 20px', fontWeight: 'bold'}}>{novoContacto.id ? 'Atualizar' : 'Guardar Pessoa'}</button>
+                            <button onClick={() => {setShowAddContacto(false); setNovoContacto(initContacto);}} style={{background:'white', border:'1px solid #cbd5e1', borderRadius: '8px', color:'#64748b', cursor:'pointer', padding: '10px 20px', fontWeight: 'bold'}} className="hover-shadow">Cancelar</button>
                         </div>
                       </div>
                     )}
 
                     <ul style={{listStyle:'none', padding:0, display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(350px, 1fr))', gap:'15px'}}>
                       {contactos.map(c => (
-                        <li key={c.id} style={{background:'white', padding:'20px', borderRadius:'12px', display:'flex', justifyContent:'space-between', alignItems:'center', border:'1px solid #e2e8f0'}}>
+                        <li key={c.id} style={{background:'white', padding:'20px', borderRadius:'12px', display:'flex', justifyContent:'space-between', alignItems:'flex-start', border:'1px solid #e2e8f0', transition: '0.2s'}} className="hover-shadow">
                           <div>
                             <span style={{fontWeight:'bold', color:'#1e293b', fontSize:'1.1rem'}}>{c.nome_contacto}</span> {c.cargo && <span style={{color:'#64748b', fontSize:'0.9rem', marginLeft:'5px'}}>({c.cargo})</span>}
-                            <div style={{fontSize:'0.9rem', color:'#475569', marginTop:'8px', display:'flex', flexDirection:'column', gap:'4px'}}>
-                                <span>📧 {c.email || 'Sem email'}</span>
-                                <span>📞 {c.telefone || 'Sem telefone'}</span>
+                            <div style={{fontSize:'0.9rem', color:'#475569', marginTop:'8px', display:'flex', flexDirection:'column', gap:'6px'}}>
+                                {c.email && <span style={{display: 'flex', alignItems: 'center', gap: '6px', color: '#2563eb'}}><Icons.Mail /> <a href={`mailto:${c.email}`} style={{color: 'inherit', textDecoration: 'none'}}>{c.email}</a></span>}
+                                {c.telefone && <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.Phone /> {c.telefone}</span>}
                             </div>
                           </div>
                           {!isViewOnly && (
-                            <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
-                               <button onClick={() => abrirEdicaoSubItem(c, setNovoContacto, setShowAddContacto)} className="btn-small">✏️</button>
-                               <button onClick={() => deleteItem('contactos_cliente', c.id, setContactos, contactos)} style={{border:'none', background:'#fee2e2', color:'#ef4444', borderRadius:'6px', padding:'8px', cursor:'pointer'}}>🗑</button>
+                            <div style={{display:'flex', flexDirection:'column', gap:'6px'}}>
+                               <button onClick={() => abrirEdicaoSubItem(c, setNovoContacto, setShowAddContacto)} className="action-btn hover-blue-text"><Icons.Edit /></button>
+                               <button onClick={() => deleteItem('contactos_cliente', c.id, setContactos, contactos)} className="action-btn hover-red-text"><Icons.Trash /></button>
                             </div>
                           )}
                         </li>
@@ -739,7 +804,7 @@ export default function Clientes() {
                   <div>
                     <div style={{display:'flex', justifyContent:'space-between', marginBottom:'15px', alignItems:'center'}}>
                       <h4 style={{margin:0, fontSize:'1.1rem', color:'#1e293b'}}>Moradas Registadas</h4>
-                      {!isViewOnly && !showAddMorada && <button className="btn-small-add" onClick={() => {setNovaMorada(initMorada); setShowAddMorada(true)}}>+ Adicionar Morada</button>}
+                      {!isViewOnly && !showAddMorada && <button className="btn-small-add hover-shadow" onClick={() => {setNovaMorada(initMorada); setShowAddMorada(true)}} style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.Plus /> Adicionar Morada</button>}
                     </div>
 
                     {showAddMorada && (
@@ -747,47 +812,47 @@ export default function Clientes() {
                         <h5 style={{marginTop:0, fontSize:'1.1rem'}}>{novaMorada.id ? 'Editar Morada' : 'Nova Morada'}</h5>
                         
                         <label style={labelStyle}>Rua / Lote / Porta</label>
-                        <input type="text" placeholder="Ex: Rua Direita, nº 10" value={novaMorada.morada} onChange={e => setNovaMorada({...novaMorada, morada: e.target.value})} style={inputStyle} />
+                        <input type="text" placeholder="Ex: Rua Direita, nº 10" value={novaMorada.morada} onChange={e => setNovaMorada({...novaMorada, morada: e.target.value})} style={inputStyle} className="input-focus" />
                         
                         <div style={{display:'grid', gridTemplateColumns:'1fr 2fr', gap:'20px'}}>
                             <div>
                                 <label style={labelStyle}>Cód. Postal</label>
-                                <input type="text" placeholder="Ex: 8000-000" value={novaMorada.codigo_postal} onChange={e => setNovaMorada({...novaMorada, codigo_postal: e.target.value})} style={inputStyle} />
+                                <input type="text" placeholder="Ex: 8000-000" value={novaMorada.codigo_postal} onChange={e => setNovaMorada({...novaMorada, codigo_postal: e.target.value})} style={inputStyle} className="input-focus" />
                             </div>
                             <div>
                                 <label style={labelStyle}>Localidade</label>
-                                <input type="text" placeholder="Ex: Faro" value={novaMorada.localidade} onChange={e => setNovaMorada({...novaMorada, localidade: e.target.value})} style={inputStyle} />
+                                <input type="text" placeholder="Ex: Faro" value={novaMorada.localidade} onChange={e => setNovaMorada({...novaMorada, localidade: e.target.value})} style={inputStyle} className="input-focus" />
                             </div>
                         </div>
                         
                         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'20px'}}>
                             <div>
                                 <label style={labelStyle}>Concelho</label>
-                                <input type="text" value={novaMorada.concelho} onChange={e => setNovaMorada({...novaMorada, concelho: e.target.value})} style={inputStyle} />
+                                <input type="text" value={novaMorada.concelho} onChange={e => setNovaMorada({...novaMorada, concelho: e.target.value})} style={inputStyle} className="input-focus" />
                             </div>
                             <div>
                                 <label style={labelStyle}>Distrito</label>
-                                <input type="text" value={novaMorada.distrito} onChange={e => setNovaMorada({...novaMorada, distrito: e.target.value})} style={inputStyle} />
+                                <input type="text" value={novaMorada.distrito} onChange={e => setNovaMorada({...novaMorada, distrito: e.target.value})} style={inputStyle} className="input-focus" />
                             </div>
                             <div>
                                 <label style={labelStyle}>Região</label>
-                                <input type="text" value={novaMorada.regiao} onChange={e => setNovaMorada({...novaMorada, regiao: e.target.value})} style={inputStyle} />
+                                <input type="text" value={novaMorada.regiao} onChange={e => setNovaMorada({...novaMorada, regiao: e.target.value})} style={inputStyle} className="input-focus" />
                             </div>
                         </div>
 
                         <label style={labelStyle}>Tipo / Notas Opcionais</label>
-                        <input type="text" placeholder="Ex: Sede, Armazém, Local de Faturação..." value={novaMorada.notas} onChange={e => setNovaMorada({...novaMorada, notas: e.target.value})} style={{...inputStyle, marginBottom:0}} />
+                        <input type="text" placeholder="Ex: Sede, Armazém, Local de Faturação..." value={novaMorada.notas} onChange={e => setNovaMorada({...novaMorada, notas: e.target.value})} style={{...inputStyle, marginBottom:0}} className="input-focus" />
                         
                         <div style={{display:'flex', gap:'10px', marginTop:'20px'}}>
-                            <button onClick={() => saveSubItem('moradas_cliente', novaMorada, setMoradas, moradas, setNovaMorada, initMorada, setShowAddMorada)} className="btn-primary" style={{padding:'10px 20px'}}>{novaMorada.id ? 'Atualizar' : 'Guardar Morada'}</button>
-                            <button onClick={() => {setShowAddMorada(false); setNovaMorada(initMorada);}} style={{background:'none', border:'none', color:'#64748b', cursor:'pointer', fontWeight:'bold'}}>Cancelar</button>
+                            <button onClick={() => saveSubItem('moradas_cliente', novaMorada, setMoradas, moradas, setNovaMorada, initMorada, setShowAddMorada)} className="btn-primary hover-shadow" style={{padding:'10px 20px', fontWeight: 'bold'}}>{novaMorada.id ? 'Atualizar' : 'Guardar Morada'}</button>
+                            <button onClick={() => {setShowAddMorada(false); setNovaMorada(initMorada);}} style={{background:'white', border:'1px solid #cbd5e1', borderRadius: '8px', color:'#64748b', cursor:'pointer', padding: '10px 20px', fontWeight: 'bold'}} className="hover-shadow">Cancelar</button>
                         </div>
                       </div>
                     )}
 
                     <ul style={{listStyle:'none', padding:0, display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(350px, 1fr))', gap:'15px'}}>
                       {moradas.map(m => (
-                        <li key={m.id} style={{background:'white', padding:'20px', borderRadius:'12px', display:'flex', justifyContent:'space-between', alignItems:'flex-start', border:'1px solid #e2e8f0'}}>
+                        <li key={m.id} style={{background:'white', padding:'20px', borderRadius:'12px', display:'flex', justifyContent:'space-between', alignItems:'flex-start', border:'1px solid #e2e8f0', transition: '0.2s'}} className="hover-shadow">
                           <div>
                             {m.notas && <span style={{display:'inline-block', marginBottom:'8px', textTransform:'uppercase', fontSize: '0.75rem', background:'#e0f2fe', color:'#0369a1', padding:'4px 8px', borderRadius:'6px', fontWeight:'bold'}}>{m.notas}</span>}
                             <div style={{fontWeight:'bold', color:'#334155', fontSize:'1.05rem', marginBottom:'4px'}}>{m.morada}</div>
@@ -795,9 +860,9 @@ export default function Clientes() {
                             <div style={{color:'#94a3b8', fontSize:'0.85rem', marginTop:'4px'}}>{[m.concelho, m.distrito, m.regiao].filter(Boolean).join(' • ')}</div>
                           </div>
                           {!isViewOnly && (
-                            <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
-                               <button onClick={() => abrirEdicaoSubItem(m, setNovaMorada, setShowAddMorada)} className="btn-small">✏️</button>
-                               <button onClick={() => deleteItem('moradas_cliente', m.id, setMoradas, moradas)} style={{border:'none', background:'#fee2e2', color:'#ef4444', borderRadius:'6px', padding:'8px', cursor:'pointer'}}>🗑</button>
+                            <div style={{display:'flex', flexDirection:'column', gap:'6px'}}>
+                               <button onClick={() => abrirEdicaoSubItem(m, setNovaMorada, setShowAddMorada)} className="action-btn hover-blue-text"><Icons.Edit /></button>
+                               <button onClick={() => deleteItem('moradas_cliente', m.id, setMoradas, moradas)} className="action-btn hover-red-text"><Icons.Trash /></button>
                             </div>
                           )}
                         </li>
@@ -809,13 +874,13 @@ export default function Clientes() {
                 {/* --- ABA ACESSOS --- */}
                 {activeTab === 'acessos' && podeVerAcessos && (
                   <div>
-                    <div style={{background: '#fffbeb', padding: '20px', borderRadius: '12px', borderLeft: '5px solid #f59e0b', marginBottom: '25px', color:'#b45309', fontWeight:'500', fontSize:'1.05rem'}}>
-                      ⚠️ Acesso Restrito de Administração. Não partilhe estas credenciais fora da plataforma.
+                    <div style={{background: '#fffbeb', padding: '20px', borderRadius: '12px', borderLeft: '5px solid #f59e0b', marginBottom: '25px', color:'#b45309', fontWeight:'600', fontSize:'0.95rem', display: 'flex', alignItems: 'center', gap: '10px'}}>
+                      <Icons.Alert size={20} color="#b45309" /> Acesso Restrito de Administração. Não partilhe estas credenciais fora da plataforma.
                     </div>
                     
                     <div style={{display:'flex', justifyContent:'space-between', marginBottom:'15px', alignItems:'center'}}>
-                      <h4 style={{margin:0, fontSize:'1.1rem'}}>Credenciais</h4>
-                      {!isViewOnly && !showAddAcesso && <button className="btn-small-add" onClick={() => {setNovoAcesso(initAcesso); setShowAddAcesso(true)}}>+ Adicionar Acesso</button>}
+                      <h4 style={{margin:0, fontSize:'1.1rem', color: '#1e293b'}}>Credenciais</h4>
+                      {!isViewOnly && !showAddAcesso && <button className="btn-small-add hover-shadow" onClick={() => {setNovoAcesso(initAcesso); setShowAddAcesso(true)}} style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.Plus /> Adicionar Acesso</button>}
                     </div>
 
                     {showAddAcesso && (
@@ -824,43 +889,43 @@ export default function Clientes() {
                         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px'}}>
                           <div>
                               <label style={labelStyle}>Plataforma / Organismo *</label>
-                              <input type="text" placeholder="Ex: Portal das Finanças" value={novoAcesso.organismo} onChange={e => setNovoAcesso({...novoAcesso, organismo: e.target.value})} required style={inputStyle} />
+                              <input type="text" placeholder="Ex: Portal das Finanças" value={novoAcesso.organismo} onChange={e => setNovoAcesso({...novoAcesso, organismo: e.target.value})} required style={inputStyle} className="input-focus" />
                           </div>
                           <div>
                               <label style={labelStyle}>Link de Login (Opcional)</label>
-                              <input type="text" placeholder="https://..." value={novoAcesso.url} onChange={e => setNovoAcesso({...novoAcesso, url: e.target.value})} style={inputStyle} />
+                              <input type="text" placeholder="https://..." value={novoAcesso.url} onChange={e => setNovoAcesso({...novoAcesso, url: e.target.value})} style={inputStyle} className="input-focus" />
                           </div>
                           <div>
                               <label style={labelStyle}>Utilizador / NIF *</label>
-                              <input type="text" value={novoAcesso.utilizador} onChange={e => setNovoAcesso({...novoAcesso, utilizador: e.target.value})} required style={inputStyle} />
+                              <input type="text" value={novoAcesso.utilizador} onChange={e => setNovoAcesso({...novoAcesso, utilizador: e.target.value})} required style={inputStyle} className="input-focus" />
                           </div>
                           <div>
                               <label style={labelStyle}>Password *</label>
-                              <input type="text" value={novoAcesso.codigo} onChange={e => setNovoAcesso({...novoAcesso, codigo: e.target.value})} required style={{...inputStyle, fontFamily:'monospace'}} />
+                              <input type="text" value={novoAcesso.codigo} onChange={e => setNovoAcesso({...novoAcesso, codigo: e.target.value})} required style={{...inputStyle, fontFamily:'monospace'}} className="input-focus" />
                           </div>
                         </div>
                         <div style={{display:'flex', gap:'10px', marginTop:'15px'}}>
-                            <button onClick={() => saveSubItem('acessos_cliente', novoAcesso, setAcessos, acessos, setNovoAcesso, initAcesso, setShowAddAcesso)} className="btn-primary" style={{padding:'10px 20px'}}>{novoAcesso.id ? 'Atualizar' : 'Guardar Acesso'}</button>
-                            <button onClick={() => {setShowAddAcesso(false); setNovoAcesso(initAcesso);}} style={{background:'none', border:'none', color:'#64748b', cursor:'pointer', fontWeight:'bold'}}>Cancelar</button>
+                            <button onClick={() => saveSubItem('acessos_cliente', novoAcesso, setAcessos, acessos, setNovoAcesso, initAcesso, setShowAddAcesso)} className="btn-primary hover-shadow" style={{padding:'10px 20px', fontWeight: 'bold'}}>{novoAcesso.id ? 'Atualizar' : 'Guardar Acesso'}</button>
+                            <button onClick={() => {setShowAddAcesso(false); setNovoAcesso(initAcesso);}} style={{background:'white', border:'1px solid #cbd5e1', borderRadius: '8px', color:'#64748b', cursor:'pointer', padding: '10px 20px', fontWeight: 'bold'}} className="hover-shadow">Cancelar</button>
                         </div>
                       </div>
                     )}
 
                     <ul style={{listStyle:'none', padding:0, display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(400px, 1fr))', gap:'15px'}}>
                       {acessos.map(a => (
-                        <li key={a.id} style={{background:'white', padding:'20px', borderRadius:'12px', display:'flex', justifyContent:'space-between', alignItems:'center', borderLeft:'5px solid #3b82f6', boxShadow:'0 2px 4px rgba(0,0,0,0.05)'}}>
+                        <li key={a.id} style={{background:'white', padding:'20px', borderRadius:'12px', display:'flex', justifyContent:'space-between', alignItems:'center', borderLeft:'5px solid #3b82f6', boxShadow:'0 2px 4px rgba(0,0,0,0.05)', transition: '0.2s'}} className="hover-shadow">
                           <div style={{flex: 1, paddingRight:'15px'}}>
                             <span style={{fontWeight:'800', color:'#1e293b', fontSize:'1.15rem', display:'block', marginBottom:'10px'}}>{a.organismo}</span>
                             <div style={{fontFamily:'monospace', background:'#f8fafc', border:'1px solid #e2e8f0', padding:'12px', borderRadius:'8px', color:'#334155', fontSize:'0.95rem'}}>
                               User: <b style={{color:'#2563eb'}}>{a.utilizador}</b> <br/>
                               Pass: <b style={{color:'#ef4444'}}>{a.codigo}</b>
                             </div>
-                            {a.url && <a href={a.url.startsWith('http') ? a.url : `https://${a.url}`} target="_blank" rel="noreferrer" style={{display:'inline-block', marginTop:'12px', fontSize:'0.85rem', color:'#2563eb', textDecoration:'none', fontWeight:'bold', background:'#eff6ff', padding:'6px 12px', borderRadius:'6px'}}>🔗 Abrir Portal de Login</a>}
+                            {a.url && <a href={a.url.startsWith('http') ? a.url : `https://${a.url}`} target="_blank" rel="noreferrer" style={{display:'inline-flex', alignItems: 'center', gap: '6px', marginTop:'12px', fontSize:'0.85rem', color:'#2563eb', textDecoration:'none', fontWeight:'bold', background:'#eff6ff', padding:'6px 12px', borderRadius:'6px', border: '1px solid #bfdbfe', transition: '0.2s'}} className="hover-shadow"><Icons.ExternalLink size={14} /> Abrir Portal de Login</a>}
                           </div>
                           {!isViewOnly && (
-                            <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
-                               <button onClick={() => abrirEdicaoSubItem(a, setNovoAcesso, setShowAddAcesso)} className="btn-small">✏️</button>
-                               <button onClick={() => deleteItem('acessos_cliente', a.id, setAcessos, acessos)} style={{border:'none', background:'#fee2e2', color:'#ef4444', borderRadius:'6px', padding:'8px', cursor:'pointer'}}>🗑</button>
+                            <div style={{display:'flex', flexDirection:'column', gap:'6px'}}>
+                               <button onClick={() => abrirEdicaoSubItem(a, setNovoAcesso, setShowAddAcesso)} className="action-btn hover-blue-text"><Icons.Edit /></button>
+                               <button onClick={() => deleteItem('acessos_cliente', a.id, setAcessos, acessos)} className="action-btn hover-red-text"><Icons.Trash /></button>
                             </div>
                           )}
                         </li>
@@ -873,6 +938,23 @@ export default function Clientes() {
             </div>
           </div>
         </ModalPortal>
+      )}
+
+      {/* --- MODAL DE CONFIRMAÇÃO GLOBAL --- */}
+      {confirmDialog.show && (
+          <ModalPortal>
+              <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999}}>
+                  <div style={{background: 'white', padding: '30px', borderRadius: '16px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out'}}>
+                      <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px'}}><Icons.Alert size={48} color={confirmDialog.isDanger ? "#ef4444" : "#3b82f6"} /></div>
+                      <h3 style={{margin: '0 0 10px 0', color: '#1e293b', fontSize: '1.25rem'}}>Confirmação</h3>
+                      <p style={{color: '#64748b', fontSize: '0.95rem', marginBottom: '25px', lineHeight: '1.5', whiteSpace: 'pre-line'}}>{confirmDialog.message}</p>
+                      <div style={{display: 'flex', gap: '10px'}}>
+                          <button onClick={() => setConfirmDialog({show: false})} style={{flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', background: 'white', color: '#475569', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">Cancelar</button>
+                          <button onClick={confirmDialog.onConfirm} style={{flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: confirmDialog.isDanger ? '#ef4444' : '#2563eb', color: 'white', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">{confirmDialog.confirmText}</button>
+                      </div>
+                  </div>
+              </div>
+          </ModalPortal>
       )}
 
       <style>{`
@@ -894,11 +976,30 @@ export default function Clientes() {
           .hover-blue-text:hover { background: #eff6ff !important; color: #1d4ed8 !important; }
           .hover-orange-text:hover { background: #fff7ed !important; color: #d97706 !important; }
           .hover-green-text:hover { background: #dcfce7 !important; color: #16a34a !important; }
+          .hover-red-text:hover { background: #fef2f2 !important; color: #ef4444 !important; }
+
+          /* Focus em Inputs */
+          .input-focus:focus { border-color: #3b82f6 !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
+
+          /* Action Buttons para Sub-itens */
+          .action-btn { background: transparent; border: none; cursor: pointer; opacity: 0.5; transition: 0.2s; display: flex; align-items: center; justify-content: center; padding: 6px; border-radius: 6px; }
+          .action-btn:hover { opacity: 1; transform: scale(1.1); }
+
+          /* Botão External Link inline */
+          .btn-icon-link { display: flex; align-items: center; justify-content: center; text-decoration: none; background: #eff6ff; color: #2563eb; padding: 0 15px; height: 42px; border-radius: 8px; border: 1px solid #bfdbfe; transition: 0.2s; }
+          .btn-icon-link:hover { background: #dbeafe; transform: translateY(-1px); box-shadow: 0 2px 4px rgba(37,99,235,0.1); }
 
           /* Custom Scrollbar limpa */
           .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
           .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
           .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
+
+          /* Botão Add SubItem */
+          .btn-small-add { background: white; border: 1px solid #cbd5e1; color: #475569; padding: 6px 12px; border-radius: 8px; font-weight: bold; font-size: 0.8rem; cursor: pointer; transition: 0.2s; }
+          .btn-small-add:hover { background: #f8fafc; color: #1e293b; border-color: #94a3b8; }
+
+          /* Animação Modal */
+          @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
           /* Botão Glow Principal */
           .btn-glow {
