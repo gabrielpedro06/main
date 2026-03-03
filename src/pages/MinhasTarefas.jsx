@@ -21,7 +21,10 @@ const Icons = {
   Inbox: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path></svg>,
   Save: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>,
   CheckCircle: ({ size = 48, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>,
-  XCircle: ({ size = 48, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+  XCircle: ({ size = 48, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>,
+  Edit: ({ size = 20, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>,
+  History: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v5h5"></path><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"></path><polyline points="12 7 12 12 15 15"></polyline></svg>,
+  Restore: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
 };
 
 const ModalPortal = ({ children }) => createPortal(children, document.body);
@@ -40,6 +43,11 @@ export default function MinhasTarefas() {
   const [novaTarefaNome, setNovaTarefaNome] = useState("");
 
   const [editModal, setEditModal] = useState({ show: false, data: null });
+  
+  // Modais e Estados para o Histórico de Concluídas
+  const [showCompletedModal, setShowCompletedModal] = useState(false);
+  const [completedTasksGroups, setCompletedTasksGroups] = useState({ "Esta Semana": [], "Semana Passada": [], "Mais Antigas": [] });
+  const [activeHistoryTab, setActiveHistoryTab] = useState("Esta Semana"); // 💡 NOVO: Estado para a Tab ativa
 
   // DRAG & DROP STATE
   const [draggedTask, setDraggedTask] = useState(null);
@@ -47,7 +55,7 @@ export default function MinhasTarefas() {
 
   useEffect(() => {
     if (user?.id) carregarTudo();
-  }, [user, mostrarConcluidos]);
+  }, [user]);
 
   const showToast = (message, type = 'success') => {
       setNotification({ message, type });
@@ -65,20 +73,17 @@ export default function MinhasTarefas() {
       setActiveLog(data || null);
   }
 
+  // --- MOTOR DO KANBAN: AGORA SÓ PUXA TAREFAS PENDENTES ---
   async function fetchMyTasks() {
       try {
-          let query = supabase
+          const { data: tData } = await supabase
               .from("tarefas")
               .select(`id, titulo, estado, data_limite, prioridade, descricao`)
               .eq("responsavel_id", user.id)
               .is("atividade_id", null)
+              .neq("estado", "concluido") 
               .order("created_at", { ascending: true }); 
 
-          if (!mostrarConcluidos) {
-              query = query.neq("estado", "concluido");
-          }
-
-          const { data: tData } = await query;
           const { data: logsData } = await supabase.from("task_logs").select("*").eq("user_id", user.id);
           setLogs(logsData || []);
 
@@ -106,6 +111,57 @@ export default function MinhasTarefas() {
       setLoading(false);
   }
 
+  // --- MOTOR DO HISTÓRICO DE CONCLUÍDAS (MODAL) ---
+  async function openCompletedHistory() {
+      const { data } = await supabase
+          .from("tarefas")
+          .select(`id, titulo, estado, data_limite, prioridade, descricao, created_at`)
+          .eq("responsavel_id", user.id)
+          .is("atividade_id", null)
+          .eq("estado", "concluido")
+          .order("created_at", { ascending: false });
+
+      if (data) {
+          const now = new Date();
+          const groups = { "Esta Semana": [], "Semana Passada": [], "Mais Antigas": [] };
+
+          data.forEach(t => {
+              const refDate = new Date(t.data_limite || t.created_at);
+              const diffTime = Math.abs(now - refDate);
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+              if (diffDays <= 7) groups["Esta Semana"].push(t);
+              else if (diffDays <= 14) groups["Semana Passada"].push(t);
+              else groups["Mais Antigas"].push(t);
+          });
+
+          setCompletedTasksGroups(groups);
+          
+          // Define a tab inicial baseada na primeira que tiver dados, ou padrão "Esta Semana"
+          if (groups["Esta Semana"].length > 0) setActiveHistoryTab("Esta Semana");
+          else if (groups["Semana Passada"].length > 0) setActiveHistoryTab("Semana Passada");
+          else if (groups["Mais Antigas"].length > 0) setActiveHistoryTab("Mais Antigas");
+          else setActiveHistoryTab("Esta Semana");
+      }
+      setShowCompletedModal(true);
+  }
+
+  async function handleRestoreTask(task) {
+      await supabase.from("tarefas").update({ estado: 'pendente' }).eq("id", task.id);
+      showToast("Tarefa restaurada para o quadro!");
+      
+      fetchMyTasks();
+      openCompletedHistory(); 
+  }
+
+  async function handlePermanentDelete(taskId) {
+      if(!window.confirm("Apagar esta tarefa permanentemente?")) return;
+      await supabase.from("tarefas").delete().eq("id", taskId);
+      showToast("Tarefa eliminada do arquivo.");
+      openCompletedHistory();
+  }
+
+
   const getTaskTime = (taskId) => logs.filter(l => l.task_id === taskId).reduce((acc, curr) => acc + (curr.duration_minutes || 0), 0);
   const formatTime = (mins) => {
       if (mins === 0) return "0m";
@@ -127,13 +183,12 @@ export default function MinhasTarefas() {
   }
 
   async function handleCompleteTask(task) {
-      const novoEstado = task.estado === 'concluido' ? 'pendente' : 'concluido';
-      await supabase.from("tarefas").update({ estado: novoEstado }).eq("id", task.id);
-      showToast(novoEstado === 'concluido' ? "Boa! Tarefa concluída." : "Tarefa reaberta.");
+      await supabase.from("tarefas").update({ estado: 'concluido' }).eq("id", task.id);
+      showToast("Boa! Tarefa concluída.");
       fetchMyTasks();
   }
 
-  async function handleDeleteTask(taskId) {
+  async function handleDeleteTaskFromKanban(taskId) {
       if(!window.confirm("Apagar esta tarefa permanentemente?")) return;
       await supabase.from("tarefas").delete().eq("id", taskId);
       showToast("Tarefa apagada.");
@@ -230,10 +285,9 @@ export default function MinhasTarefas() {
   const renderCardTarefa = (task) => {
       const isTimerActive = activeLog?.task_id === task.id;
       const timeSpent = getTaskTime(task.id);
-      const isCompleted = task.estado === 'concluido';
       
       let dateColor = '#64748b';
-      if (task.data_limite && !isCompleted) {
+      if (task.data_limite) {
           const d = new Date(task.data_limite); d.setHours(0,0,0,0);
           const t = new Date(); t.setHours(0,0,0,0);
           if (d < t) dateColor = '#ef4444';
@@ -252,7 +306,7 @@ export default function MinhasTarefas() {
                   border: isTimerActive ? '2px solid #3b82f6' : '1px solid #e2e8f0', 
                   boxShadow: isTimerActive ? '0 4px 6px -1px rgba(59, 130, 246, 0.2)' : '0 1px 3px rgba(0,0,0,0.05)', 
                   display: 'flex', gap: '12px', alignItems: 'flex-start', cursor: 'grab', 
-                  opacity: (draggedTask?.id === task.id || isCompleted) ? 0.6 : 1,
+                  opacity: draggedTask?.id === task.id ? 0.6 : 1,
                   transition: 'all 0.2s ease'
               }} 
               className="asana-card hover-shadow"
@@ -262,9 +316,7 @@ export default function MinhasTarefas() {
                 style={{
                     width: '22px', height: '22px', borderRadius: '50%', cursor: 'pointer', marginTop: '2px', transition: '0.2s', flexShrink: 0, 
                     display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                    border: isCompleted ? 'none' : '2px solid #cbd5e1', 
-                    background: isCompleted ? '#10b981' : 'transparent',
-                    color: isCompleted ? 'white' : 'transparent'
+                    border: '2px solid #cbd5e1', background: 'transparent', color: 'transparent'
                 }} 
                 className="hover-check-circle" 
                 title="Marcar como concluído"
@@ -273,24 +325,22 @@ export default function MinhasTarefas() {
               </button>
 
               <div style={{flex: 1, overflow: 'hidden'}}>
-                  <h4 onClick={() => setEditModal({show: true, data: {...task}})} style={{margin: '0 0 6px 0', fontSize: '0.95rem', color: isCompleted ? '#94a3b8' : '#1e293b', textDecoration: isCompleted ? 'line-through' : 'none', cursor: 'pointer', wordBreak: 'break-word', lineHeight: '1.4'}} className="hover-text-blue">
+                  <h4 onClick={() => setEditModal({show: true, data: {...task}})} style={{margin: '0 0 6px 0', fontSize: '0.95rem', color: '#1e293b', cursor: 'pointer', wordBreak: 'break-word', lineHeight: '1.4'}} className="hover-text-blue">
                       {task.titulo}
                   </h4>
                   
                   <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px'}}>
                       <div style={{display: 'flex', gap: '10px', alignItems: 'center'}}>
-                          {task.data_limite && <span style={{fontSize: '0.7rem', color: isCompleted ? '#94a3b8' : dateColor, fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.Calendar /> {new Date(task.data_limite).toLocaleDateString('pt-PT', {day:'2-digit', month:'short'})}</span>}
+                          {task.data_limite && <span style={{fontSize: '0.7rem', color: dateColor, fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.Calendar /> {new Date(task.data_limite).toLocaleDateString('pt-PT', {day:'2-digit', month:'short'})}</span>}
                           {task.descricao && <span style={{color: '#94a3b8'}} title="Tem notas"><Icons.FileText /></span>}
                       </div>
 
                       <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
                           {timeSpent > 0 && <span style={{fontSize: '0.7rem', color: '#94a3b8', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.Clock /> {formatTime(timeSpent)}</span>}
                           
-                          {!isCompleted && (
-                              <button onClick={() => handleToggleTimer(task)} style={{background: isTimerActive ? '#fee2e2' : '#f1f5f9', color: isTimerActive ? '#ef4444' : '#64748b', border: 'none', padding: '6px 12px', borderRadius: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', transition: '0.2s'}} className="hover-icon-btn">
-                                  {isTimerActive ? <Icons.Stop /> : <Icons.Play />}
-                              </button>
-                          )}
+                          <button onClick={() => handleToggleTimer(task)} style={{background: isTimerActive ? '#fee2e2' : '#f1f5f9', color: isTimerActive ? '#ef4444' : '#64748b', border: 'none', padding: '6px 12px', borderRadius: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', transition: '0.2s'}} className="hover-icon-btn">
+                              {isTimerActive ? <Icons.Stop /> : <Icons.Play />}
+                          </button>
                       </div>
                   </div>
               </div>
@@ -359,9 +409,14 @@ export default function MinhasTarefas() {
           </div>
           
           <div style={{display: 'flex', gap: '15px', alignItems: 'center'}}>
-              <label style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: '#475569', fontWeight: '700', background: '#f8fafc', padding: '10px 15px', borderRadius: '10px', border: '1px solid #e2e8f0', transition: '0.2s'}} className="hover-shadow">
-                  <input type="checkbox" checked={mostrarConcluidos} onChange={(e) => setMostrarConcluidos(e.target.checked)} style={{width: '16px', height: '16px', accentColor: '#10b981', cursor: 'pointer'}} /> Mostrar Concluídas
-              </label>
+              
+              <button 
+                  onClick={openCompletedHistory}
+                  style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: '#475569', fontWeight: '700', background: '#f8fafc', padding: '10px 15px', borderRadius: '10px', border: '1px solid #e2e8f0', transition: '0.2s'}} 
+                  className="hover-shadow hover-text-blue"
+              >
+                  <Icons.History /> Histórico / Concluídas
+              </button>
 
               <form onSubmit={handleCreatePessoal} style={{display: 'flex', gap: '10px', background: 'white', padding: '6px', borderRadius: '12px', border: '1px solid #cbd5e1', width: '320px', transition: '0.2s'}} className="input-focus-wrapper hover-shadow">
                   <input type="text" placeholder="Tarefa rápida (Enter)..." value={novaTarefaNome} onChange={e => setNovaTarefaNome(e.target.value)} style={{flex: 1, border: 'none', outline: 'none', background: 'transparent', padding: '8px 12px', fontSize: '0.95rem', color: '#1e293b'}} />
@@ -372,7 +427,7 @@ export default function MinhasTarefas() {
           </div>
       </div>
 
-      {/* QUADRO KANBAN (5 COLUNAS DISTRIBUÍDAS IGUALMENTE MODO GRELHA) */}
+      {/* QUADRO KANBAN LIMPO (SÓ PENDENTES) */}
       <div className="kanban-grid" style={{flex: 1}}>
           {renderKanbanColumn("atrasadas", "Atrasadas", <Icons.AlertTriangle />, "#ef4444", tasks.atrasadas)}
           {renderKanbanColumn("hoje", "Para Hoje", <Icons.Flame />, "#d97706", tasks.hoje)}
@@ -380,6 +435,84 @@ export default function MinhasTarefas() {
           {renderKanbanColumn("depois", "Mais Tarde", <Icons.Calendar />, "#8b5cf6", tasks.depois)}
           {renderKanbanColumn("semData", "Sem Data", <Icons.Inbox />, "#64748b", tasks.semData)}
       </div>
+
+      {/* ============================================================== */}
+      {/* 💡 NOVO MODAL: HISTÓRICO DE TAREFAS CONCLUÍDAS COM TABS */}
+      {/* ============================================================== */}
+      {showCompletedModal && (
+          <ModalPortal>
+              <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, backdropFilter: 'blur(4px)'}} onClick={() => setShowCompletedModal(false)}>
+                  <div style={{background: '#fff', width: '90%', maxWidth: '750px', borderRadius: '16px', padding: '30px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out', maxHeight: '85vh', display: 'flex', flexDirection: 'column'}} onClick={e => e.stopPropagation()}>
+                      
+                      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
+                          <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.25rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '10px'}}>
+                              <Icons.History color="#10b981" size={24} /> Arquivo de Concluídas
+                          </h3>
+                          <button onClick={() => setShowCompletedModal(false)} style={{background:'none', border:'none', cursor:'pointer', color:'#94a3b8', display: 'flex'}} className="hover-red-text"><Icons.Close size={20} /></button>
+                      </div>
+
+                      {/* 💡 NAVEGAÇÃO EM TABS PARA O HISTÓRICO */}
+                      <div style={{ display: 'flex', gap: '10px', borderBottom: '1px solid #e2e8f0', marginBottom: '20px', paddingBottom: '5px' }}>
+                          {Object.keys(completedTasksGroups).map(groupName => {
+                              const isActive = activeHistoryTab === groupName;
+                              const count = completedTasksGroups[groupName].length;
+                              return (
+                                  <button 
+                                      key={groupName}
+                                      onClick={() => setActiveHistoryTab(groupName)}
+                                      style={{
+                                          background: 'none', border: 'none', padding: '10px 15px', cursor: 'pointer',
+                                          fontSize: '0.9rem', fontWeight: isActive ? '800' : '600',
+                                          color: isActive ? '#10b981' : '#64748b',
+                                          position: 'relative', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '8px'
+                                      }}
+                                      className="tab-hover-green"
+                                  >
+                                      {groupName} 
+                                      <span style={{ background: isActive ? '#dcfce7' : '#f1f5f9', color: isActive ? '#16a34a' : '#94a3b8', padding: '2px 8px', borderRadius: '12px', fontSize: '0.7rem' }}>{count}</span>
+                                      {isActive && <div style={{position:'absolute', bottom:'-6px', left:0, right:0, height:'3px', background:'#10b981', borderRadius:'3px 3px 0 0'}} />}
+                                  </button>
+                              );
+                          })}
+                      </div>
+
+                      <div style={{overflowY: 'auto', paddingRight: '10px', flex: 1}} className="custom-scrollbar">
+                          <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
+                              {completedTasksGroups[activeHistoryTab]?.map(t => (
+                                  <div key={t.id} style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'white', padding: '15px', borderRadius: '12px', border: '1px solid #e2e8f0', transition: '0.2s'}} className="hover-shadow">
+                                      <div style={{display: 'flex', alignItems: 'center', gap: '12px', flex: 1, overflow: 'hidden'}}>
+                                          <div style={{width: '24px', height: '24px', borderRadius: '50%', background: '#dcfce7', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0}}>
+                                              <Icons.Check size={14} />
+                                          </div>
+                                          <div style={{display: 'flex', flexDirection: 'column', overflow: 'hidden'}}>
+                                              <span style={{fontSize: '0.95rem', color: '#475569', textDecoration: 'line-through', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: '500'}}>{t.titulo}</span>
+                                              <span style={{fontSize: '0.75rem', color: '#94a3b8'}}>{new Date(t.data_limite || t.created_at).toLocaleDateString('pt-PT')}</span>
+                                          </div>
+                                      </div>
+                                      
+                                      <div style={{display: 'flex', gap: '8px'}}>
+                                          <button onClick={() => handleRestoreTask(t)} style={{background: 'white', border: '1px solid #cbd5e1', color: '#3b82f6', padding: '6px 12px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', transition: '0.2s'}} title="Devolver ao quadro Kanban" className="hover-bg-blue-light">
+                                              <Icons.Restore /> Restaurar
+                                          </button>
+                                          <button onClick={() => handlePermanentDelete(t.id)} style={{background: 'transparent', border: 'none', color: '#ef4444', padding: '6px', cursor: 'pointer', opacity: 0.6, transition: '0.2s'}} title="Eliminar para sempre" className="hover-red">
+                                              <Icons.Trash />
+                                          </button>
+                                      </div>
+                                  </div>
+                              ))}
+                              
+                              {completedTasksGroups[activeHistoryTab]?.length === 0 && (
+                                  <div style={{textAlign: 'center', color: '#94a3b8', padding: '50px 0', fontSize: '0.95rem'}}>
+                                      <div style={{display: 'flex', justifyContent: 'center', marginBottom: '10px', opacity: 0.5}}><Icons.Inbox size={40} /></div>
+                                      Não tens tarefas nesta categoria.
+                                  </div>
+                              )}
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </ModalPortal>
+      )}
 
       {/* MODAL DE EDIÇÃO DE TAREFA */}
       {editModal.show && editModal.data && (
@@ -389,7 +522,7 @@ export default function MinhasTarefas() {
                       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px', borderBottom: '1px solid #f1f5f9', paddingBottom: '15px'}}>
                           <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.25rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Edit color="#2563eb" size={20} /> Detalhes da Tarefa</h3>
                           <div style={{display: 'flex', gap: '15px', alignItems: 'center'}}>
-                              <button onClick={() => { handleDeleteTask(editModal.data.id); setEditModal({show:false, data:null}); }} style={{background:'transparent', border:'none', cursor:'pointer', color:'#ef4444', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 'bold'}} className="hover-red-text" title="Apagar Tarefa">
+                              <button onClick={() => { handleDeleteTaskFromKanban(editModal.data.id); setEditModal({show:false, data:null}); }} style={{background:'transparent', border:'none', cursor:'pointer', color:'#ef4444', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 'bold'}} className="hover-red-text" title="Apagar Tarefa">
                                   <Icons.Trash /> Apagar
                               </button>
                               <div style={{width: '1px', height: '20px', background: '#e2e8f0'}}></div>
@@ -408,11 +541,11 @@ export default function MinhasTarefas() {
                               </div>
                               <div>
                                   <label style={{display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Prioridade</label>
-                                  <select value={editModal.data.prioridade || 'normal'} onChange={e => setEditModal({...editModal, data: {...editModal.data, prioridade: e.target.value}})} style={{width: '100%', padding: '12px 15px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', cursor: 'pointer', transition: '0.2s'}} className="input-focus">
-                                      <option value="baixa">🔵 Baixa</option>
-                                      <option value="normal">🟢 Normal</option>
-                                      <option value="alta">🟠 Alta</option>
-                                      <option value="urgente">🔴 Urgente</option>
+                                  <select value={editModal.data.prioridade || 'normal'} onChange={e => setEditModal({...editModal, data: {...editModal.data, prioridade: e.target.value}})} style={{width: '100%', padding: '12px 15px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', cursor: 'pointer', transition: '0.2s', textTransform: 'capitalize'}} className="input-focus">
+                                      <option value="baixa">Baixa</option>
+                                      <option value="normal">Normal</option>
+                                      <option value="alta">Alta</option>
+                                      <option value="urgente">Urgente</option>
                                   </select>
                               </div>
                           </div>
@@ -467,16 +600,19 @@ export default function MinhasTarefas() {
 
           /* Efeito mágico do botão de Check na tarefa */
           .hover-check-circle { color: transparent; }
-          .hover-check-circle:hover { border-color: #10b981 !important; color: #10b981 !important; background: #dcfce7 !important; }
+          .hover-check-circle:hover { border-color: #10b981 !important; color: white !important; background: #10b981 !important; }
           
-          .hover-text-blue:hover { color: #2563eb !important; }
+          .hover-text-blue:hover { color: #10b981 !important; }
+          .tab-hover-green:hover { color: #10b981 !important; }
           .hover-shadow:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
-          .hover-bg-blue:hover { background: #1d4ed8 !important; }
+          .hover-bg-blue:hover { background: #10b981 !important; color: white !important; }
+          .hover-bg-blue-light:hover { background: #eff6ff !important; border-color: #10b981 !important; }
+          .hover-red:hover { opacity: 1 !important; color: #ef4444 !important; }
           .hover-red-text:hover { color: #ef4444 !important; }
           .hover-icon-btn:hover { opacity: 0.8; transform: scale(1.05); }
 
-          .input-focus:focus { border-color: #3b82f6 !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
-          .input-focus-wrapper:focus-within { border-color: #3b82f6 !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1) !important; }
+          .input-focus:focus { border-color: #10b981 !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
+          .input-focus-wrapper:focus-within { border-color: #10b981 !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1) !important; }
 
           .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 8px; }
           .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
