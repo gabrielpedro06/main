@@ -1,9 +1,36 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate, useLocation } from "react-router-dom"; // IMPORTANTE: Adicionado useLocation
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
 import "./../styles/dashboard.css";
+
+// --- ÍCONES SVG PROFISSIONAIS (SaaS Premium) ---
+const Icons = {
+  Search: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>,
+  User: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>,
+  Globe: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>,
+  Building: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><path d="M9 22v-4h6v4"></path><path d="M8 6h.01"></path><path d="M16 6h.01"></path><path d="M12 6h.01"></path><path d="M12 10h.01"></path><path d="M12 14h.01"></path><path d="M16 10h.01"></path><path d="M16 14h.01"></path><path d="M8 10h.01"></path><path d="M8 14h.01"></path></svg>,
+  Stop: ({ size = 10, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none"><rect x="6" y="6" width="12" height="12" rx="2" ry="2"></rect></svg>,
+  Play: ({ size = 12, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>,
+  Plus: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>,
+  Folder: ({ size = 20, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>,
+  FolderOpen: ({ size = 20, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path><line x1="12" y1="11" x2="12" y2="17"></line><line x1="9" y1="14" x2="15" y2="14"></line></svg>,
+  Calendar: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>,
+  ArrowRight: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>,
+  ArrowLeft: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>,
+  Inbox: ({ size = 48, color = "#cbd5e1" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path></svg>,
+  Edit: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>,
+  Trash: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>,
+  Alert: ({ size = 40, color = "#ef4444" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>,
+  Close: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>,
+  Rocket: ({ size = 20, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"></path><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"></path><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"></path><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"></path></svg>,
+  ClipboardList: ({ size = 20, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path></svg>,
+  FileText: ({ size = 20, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>,
+  Dollar: ({ size = 20, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>,
+  Check: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>,
+  Save: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+};
 
 const ModalPortal = ({ children }) => {
   return createPortal(children, document.body);
@@ -19,7 +46,7 @@ const addDays = (dateStr, days) => {
 export default function Projetos() {
   const { user } = useAuth();
   const navigate = useNavigate(); 
-  const location = useLocation(); // 💡 NOVO: Para ler dados vindos de outras páginas
+  const location = useLocation(); 
 
   const [projetos, setProjetos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -27,10 +54,8 @@ export default function Projetos() {
   const [activeLog, setActiveLog] = useState(null); 
   const [notification, setNotification] = useState(null);
   
-  // 💡 NOVO: Estado para Confirmação Global
   const [confirmDialog, setConfirmDialog] = useState({ show: false, message: '', confirmText: 'Confirmar', isDanger: true, onConfirm: null });
   
-  // NAVEGAÇÃO E FILTROS
   const [busca, setBusca] = useState("");
   const [mostrarConcluidos, setMostrarConcluidos] = useState(false);
   const [showOnlyMine, setShowOnlyMine] = useState(true); 
@@ -126,7 +151,7 @@ export default function Projetos() {
     e.stopPropagation(); 
     if (activeLog) return showToast("Já tens um cronómetro ativo!", "error");
     const { data, error } = await supabase.from("task_logs").insert([{ user_id: user.id, projeto_id: proj.id, start_time: new Date().toISOString() }]).select().single();
-    if (!error) { setActiveLog(data); showToast("Cronómetro iniciado! ⏱️"); }
+    if (!error) { setActiveLog(data); showToast("Cronómetro iniciado!"); }
   }
 
   async function handleStopLog(e) {
@@ -137,14 +162,6 @@ export default function Projetos() {
     setActiveLog(null);
     showToast(`Tempo registado: ${diffMins} min.`);
     fetchData();
-  }
-
-  async function handleToggleStatus(e, proj) {
-    e.stopPropagation();
-    const novoEstado = proj.estado === 'concluido' ? 'em_curso' : 'concluido';
-    await supabase.from("projetos").update({ estado: novoEstado }).eq("id", proj.id);
-    fetchData();
-    showToast("Estado atualizado!");
   }
 
   function handleNovo() {
@@ -178,7 +195,7 @@ export default function Projetos() {
       e.stopPropagation();
       setConfirmDialog({
           show: true,
-          message: `Tens a certeza que queres apagar o projeto "${titulo}"?\nEsta ação apagará todas as tarefas e tempos irreversivelmente.`,
+          message: `Tens a certeza que queres apagar o projeto "${titulo}"?\nEsta ação apagará todas as atividades e tempos associados de forma irreversível.`,
           confirmText: "Sim, Apagar",
           isDanger: true,
           onConfirm: async () => {
@@ -191,18 +208,17 @@ export default function Projetos() {
                   setShowModal(false); 
                   fetchData();
               } catch (err) { 
-                  showToast("Erro ao apagar. Pode haver dependências.", "error"); 
+                  showToast("Erro ao apagar. O projeto tem atividades ativas.", "error"); 
               }
           }
       });
   }
 
-async function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     setIsSubmitting(true);
     const payload = { ...form };
 
-    // Limpezas de segurança
     if (payload.cliente_id === "") payload.cliente_id = null;
     if (payload.tipo_projeto_id === "") payload.tipo_projeto_id = null;
     if (payload.responsavel_id === "") payload.responsavel_id = null;
@@ -216,18 +232,15 @@ async function handleSubmit(e) {
     
     try {
         if (editId) {
-            // EDIÇÃO DE UM PROJETO EXISTENTE
             const { error } = await supabase.from("projetos").update(payload).eq("id", editId);
             if (error) throw error;
             showToast("Projeto atualizado!");
             setShowModal(false); 
-            fetchData(); // Aqui sim, damos refresh à lista porque ficamos na mesma página
+            fetchData(); 
         } else {
-            // CRIAÇÃO DE UM NOVO PROJETO
             const { data: newProj, error: errProj } = await supabase.from("projetos").insert([payload]).select().single();
             if (errProj) throw errProj;
 
-            // 1. O PROJETO TEM UM MODELO ASSOCIADO?
             if (payload.tipo_projeto_id) {
                 showToast("A preparar o teu projeto...", "info");
                 let projDateStr = payload.data_inicio || new Date().toISOString().split('T')[0];
@@ -236,13 +249,11 @@ async function handleSubmit(e) {
 
                 const { data: tAtividades } = await supabase.from("template_atividades").select("*").eq("tipo_projeto_id", payload.tipo_projeto_id).order("ordem", { ascending: true });
                 
-                // 2. O MODELO TEM ATIVIDADES LÁ DENTRO?
                 if (tAtividades && tAtividades.length > 0) {
                     for (const tAtiv of tAtividades) {
                         const ativStart = currentAtivDate;
                         const ativEnd = (tAtiv.dias_estimados > 0) ? addDays(ativStart, tAtiv.dias_estimados) : (projEndStr || ativStart);
 
-                        // Insere Atividade copiando a descrição do Template
                         const { data: realAtiv } = await supabase.from("atividades").insert([{ 
                             projeto_id: newProj.id, titulo: tAtiv.nome, estado: 'pendente', ordem: tAtiv.ordem,
                             data_inicio: ativStart, data_fim: ativEnd, responsavel_id: payload.responsavel_id || null,
@@ -260,7 +271,6 @@ async function handleSubmit(e) {
                                     const tarStart = currentTarDate;
                                     const tarEnd = (tTar.dias_estimados > 0) ? addDays(tarStart, tTar.dias_estimados) : (projEndStr || tarStart);
 
-                                    // Insere Tarefa copiando a descrição do Template
                                     const { data: realTar } = await supabase.from("tarefas").insert([{ 
                                         atividade_id: realAtiv.id, titulo: tTar.nome, estado: 'pendente', responsavel_id: payload.responsavel_id || null,
                                         ordem: tTar.ordem, data_inicio: tarStart, data_fim: tarEnd, descricao: tTar.descricao || null
@@ -288,14 +298,11 @@ async function handleSubmit(e) {
                             }
                         }
                     }
-                    // Atualiza a data de fim do projeto caso tenha sido gerada automaticamente
                     if (!payload.data_fim) await supabase.from("projetos").update({ data_fim: currentAtivDate }).eq("id", newProj.id);
                 }
             }
             
-            // 💡 A MAGIA ACONTECE AQUI:
-            // Quer tenha passado pelo construtor de templates ou não, a app fecha o modal e "teletransporta-te" para o novo projeto.
-            showToast("Projeto criado com sucesso! 🎉");
+            showToast("Projeto criado com sucesso!");
             setShowModal(false); 
             navigate(`/dashboard/projetos/${newProj.id}`);
         }
@@ -358,12 +365,14 @@ async function handleSubmit(e) {
     const diffDays = Math.round((deadline.getTime() - today.getTime()) / (1000 * 3600 * 24));
     
     let color = '#64748b'; let bg = '#f1f5f9'; let text = `⏳ ${new Date(dateString).toLocaleDateString('pt-PT')}`;
-    if (estado === 'concluido') { color = '#94a3b8'; bg = 'transparent'; text = `✔️ Concluído`; } 
-    else if (diffDays < 0) { color = '#ef4444'; bg = '#fee2e2'; text = `🔴 Atrasado (${Math.abs(diffDays)}d)`; } 
-    else if (diffDays === 0) { color = '#d97706'; bg = '#fef3c7'; text = `⚠️ Termina Hoje!`; } 
-    else if (diffDays <= 5) { color = '#ea580c'; bg = '#ffedd5'; text = `⏳ Em ${diffDays} dias`; }
+    let icon = <Icons.Calendar />;
 
-    return <span style={{background: bg, color: color, padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold'}}>{text}</span>;
+    if (estado === 'concluido') { color = '#94a3b8'; bg = 'transparent'; text = `Concluído`; icon = <span style={{fontSize:'0.65rem'}}>✔️</span>; } 
+    else if (diffDays < 0) { color = '#ef4444'; bg = '#fee2e2'; text = `Atrasado (${Math.abs(diffDays)}d)`; icon = <span style={{fontSize:'0.65rem'}}>🔴</span>; } 
+    else if (diffDays === 0) { color = '#d97706'; bg = '#fef3c7'; text = `Termina Hoje!`; icon = <span style={{fontSize:'0.65rem'}}>⚠️</span>; } 
+    else if (diffDays <= 5) { color = '#ea580c'; bg = '#ffedd5'; text = `Em ${diffDays} dias`; icon = <span style={{fontSize:'0.65rem'}}>⏳</span>; }
+
+    return <span style={{background: bg, color: color, padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}}>{icon} {text}</span>;
   };
 
   const projectColors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#f43f5e', '#14b8a6', '#0ea5e9', '#6366f1'];
@@ -373,9 +382,10 @@ async function handleSubmit(e) {
       return projectColors[hash % projectColors.length];
   };
 
-  const sectionTitleStyle = { fontSize: '0.8rem', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '15px', marginTop: '20px', borderBottom: '1px solid #e2e8f0', paddingBottom: '5px' };
+  const sectionTitleStyle = { fontSize: '0.8rem', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '15px', marginTop: '20px', borderBottom: '1px solid #e2e8f0', paddingBottom: '5px', display: 'flex', alignItems: 'center', gap: '6px' };
   const labelStyle = { display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' };
   const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box' };
+  const actionBtnStyle = { background: 'transparent', border: 'none', cursor: 'pointer', padding: '6px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.6, transition: '0.2s' };
 
   const tipoSelecionadoUI = tipos.find(t => String(t.id) === String(form.tipo_projeto_id));
   const isFormacaoSelected = tipoSelecionadoUI?.nome?.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes('forma');
@@ -387,20 +397,21 @@ async function handleSubmit(e) {
       
       <div style={{background: 'white', padding: '20px 25px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', flexWrap: 'wrap', gap: '15px'}}>
         <div style={{display:'flex', alignItems:'center', gap:'20px'}}>
+            <div style={{background: '#eff6ff', color: '#2563eb', padding: '12px', borderRadius: '12px', display: 'flex'}}><Icons.Folder size={24} /></div>
             <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>Portfólio</h1>
             
             <div style={{display: 'flex', background: '#f1f5f9', borderRadius: '8px', padding: '4px', border: '1px solid #e2e8f0'}}>
                 <button 
                     onClick={() => setShowOnlyMine(true)} 
-                    style={{padding: '6px 16px', borderRadius: '6px', border: 'none', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', transition: '0.2s', background: showOnlyMine ? 'white' : 'transparent', color: showOnlyMine ? '#2563eb' : '#64748b', boxShadow: showOnlyMine ? '0 2px 4px rgba(0,0,0,0.05)' : 'none'}}
+                    style={{padding: '6px 16px', borderRadius: '6px', border: 'none', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', transition: '0.2s', background: showOnlyMine ? 'white' : 'transparent', color: showOnlyMine ? '#2563eb' : '#64748b', boxShadow: showOnlyMine ? '0 2px 4px rgba(0,0,0,0.05)' : 'none', display:'flex', alignItems:'center', gap:'6px'}}
                 >
-                    👤 Os Meus
+                    <Icons.User /> Os Meus
                 </button>
                 <button 
                     onClick={() => setShowOnlyMine(false)} 
-                    style={{padding: '6px 16px', borderRadius: '6px', border: 'none', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', transition: '0.2s', background: !showOnlyMine ? 'white' : 'transparent', color: !showOnlyMine ? '#2563eb' : '#64748b', boxShadow: !showOnlyMine ? '0 2px 4px rgba(0,0,0,0.05)' : 'none'}}
+                    style={{padding: '6px 16px', borderRadius: '6px', border: 'none', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', transition: '0.2s', background: !showOnlyMine ? 'white' : 'transparent', color: !showOnlyMine ? '#2563eb' : '#64748b', boxShadow: !showOnlyMine ? '0 2px 4px rgba(0,0,0,0.05)' : 'none', display:'flex', alignItems:'center', gap:'6px'}}
                 >
-                    🌍 Empresa
+                    <Icons.Globe /> Empresa
                 </button>
             </div>
         </div>
@@ -408,18 +419,18 @@ async function handleSubmit(e) {
         <div style={{display: 'flex', gap: '15px', alignItems: 'center'}}>
             {activeLog?.projeto_id && (
                 <div style={{background:'#fee2e2', color:'#ef4444', padding:'6px 12px', borderRadius:'8px', fontSize:'0.8rem', display:'flex', alignItems:'center', gap:'8px', fontWeight: 'bold'}}>
-                <span style={{width: '6px', height: '6px', background: '#ef4444', borderRadius: '50%', display: 'inline-block', animation: 'pulse 1.5s infinite'}}></span> Em curso... 
-                <button onClick={handleStopLog} style={{background:'white', color:'#ef4444', border:'1px solid #fecaca', borderRadius:'4px', padding:'2px 6px', cursor:'pointer', fontWeight:'bold', fontSize:'0.7rem'}}>⏹ PARAR</button>
+                <span className="pulse-dot-red"></span> Em curso... 
+                <button onClick={handleStopLog} style={{background:'white', color:'#ef4444', border:'1px solid #fecaca', borderRadius:'4px', padding:'4px 8px', cursor:'pointer', fontWeight:'bold', display:'flex', alignItems:'center', gap:'4px'}}><Icons.Stop /> Parar</button>
                 </div>
             )}
-            <button className="btn-glow" onClick={handleNovo}>+ Novo Projeto</button>
+            <button className="btn-primary hover-shadow" onClick={handleNovo} style={{display:'flex', alignItems:'center', gap:'8px', fontWeight:'bold'}}><Icons.Plus /> Novo Projeto</button>
         </div>
       </div>
 
       <div style={{background: '#f8fafc', padding: '12px 20px', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '25px', display: 'flex', gap: '15px', alignItems: 'center'}}>
         <div style={{flex: 1, position: 'relative'}}>
-            <span style={{position: 'absolute', left: '12px', top: '9px', color: '#94a3b8', fontSize: '0.85rem'}}>🔍</span>
-            <input type="text" placeholder="Procurar projeto, código ou cliente..." value={busca} onChange={e => setBusca(e.target.value)} style={{width: '100%', padding: '8px 12px 8px 32px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.85rem', boxSizing: 'border-box'}} />
+            <span style={{position: 'absolute', left: '12px', top: '9px', color: '#94a3b8', fontSize: '0.85rem'}}><Icons.Search /></span>
+            <input type="text" placeholder="Procurar projeto, código ou cliente..." value={busca} onChange={e => setBusca(e.target.value)} style={{width: '100%', padding: '8px 12px 8px 36px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.85rem', boxSizing: 'border-box'}} className="input-focus" />
         </div>
         <label style={{display:'flex', alignItems:'center', gap:'6px', cursor:'pointer', fontSize:'0.85rem', color: '#475569', fontWeight: 'bold'}}>
           <input type="checkbox" checked={mostrarConcluidos} onChange={e => setMostrarConcluidos(e.target.checked)} style={{width:'16px', height:'16px', accentColor: '#10b981'}} /> Mostrar Arquivados
@@ -428,7 +439,7 @@ async function handleSubmit(e) {
 
       {!selectedCategoria && (
           <div className="fade-in">
-              <h2 style={{fontSize: '1.2rem', color: '#475569', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px'}}>🗂️ Áreas de Projeto</h2>
+              <h2 style={{fontSize: '1.2rem', color: '#475569', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.FolderOpen /> Áreas de Projeto</h2>
               
               <div className="category-grid">
                   {tipos.map(t => {
@@ -447,7 +458,7 @@ async function handleSubmit(e) {
                                   <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.2rem'}}>{t.nome}</h3>
                                   <span style={{background: `${color}20`, color: color, padding: '4px 12px', borderRadius: '20px', fontWeight: 'bold', fontSize: '0.85rem'}}>{count}</span>
                               </div>
-                              <p style={{margin: '15px 0 0 0', fontSize: '0.85rem', color: '#94a3b8', fontWeight: '600'}}>Abrir portfólio ➔</p>
+                              <p style={{margin: '15px 0 0 0', fontSize: '0.85rem', color: '#94a3b8', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px'}}>Abrir portfólio <Icons.ArrowRight /></p>
                           </div>
                       );
                   })}
@@ -462,16 +473,16 @@ async function handleSubmit(e) {
                               <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.2rem'}}>Projetos Avulsos</h3>
                               <span style={{background: `#f1f5f9`, color: '#64748b', padding: '4px 12px', borderRadius: '20px', fontWeight: 'bold', fontSize: '0.85rem'}}>{countsPerCategory['sem-categoria']}</span>
                           </div>
-                          <p style={{margin: '15px 0 0 0', fontSize: '0.85rem', color: '#94a3b8', fontWeight: '600'}}>Ver projetos sem modelo ➔</p>
+                          <p style={{margin: '15px 0 0 0', fontSize: '0.85rem', color: '#94a3b8', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px'}}>Ver projetos sem modelo <Icons.ArrowRight /></p>
                       </div>
                   )}
               </div>
               
               {Object.keys(countsPerCategory).length === 0 && (
-                  <div style={{textAlign: 'center', padding: '50px', background: 'white', borderRadius: '16px', border: '1px dashed #cbd5e1'}}>
-                      <span style={{fontSize: '3rem', display: 'block', marginBottom: '10px'}}>🏜️</span>
+                  <div style={{textAlign: 'center', padding: '60px', background: 'white', borderRadius: '16px', border: '1px dashed #cbd5e1'}}>
+                      <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px', color: '#cbd5e1'}}><Icons.Inbox /></div>
                       <h3 style={{color: '#1e293b', margin: '0 0 5px 0'}}>Nenhum projeto encontrado.</h3>
-                      <p style={{color: '#64748b', margin: 0}}>Clica em "+ Novo Projeto" para começar a trabalhar.</p>
+                      <p style={{color: '#64748b', margin: 0}}>Clica em "Novo Projeto" para começar a trabalhar.</p>
                   </div>
               )}
           </div>
@@ -485,7 +496,7 @@ async function handleSubmit(e) {
                       style={{background: 'white', border: '1px solid #cbd5e1', padding: '8px 15px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', color: '#475569', display: 'flex', alignItems: 'center', gap: '6px', transition: '0.2s'}}
                       className="hover-shadow"
                   >
-                      ◀ Voltar às Áreas
+                      <Icons.ArrowLeft /> Voltar às Áreas
                   </button>
                   <h2 style={{margin: 0, fontSize: '1.4rem', color: '#1e293b', fontWeight: '800'}}>
                       {selectedCategoria === 'sem-categoria' ? 'Projetos Avulsos' : tipos.find(t => t.id === selectedCategoria)?.nome}
@@ -498,16 +509,16 @@ async function handleSubmit(e) {
                       const isTimerActive = activeLog?.projeto_id === p.id;
                       const catColor = getColorForCategory(p.tipo_projeto_id);
 
-                      const clientDisplay = p.cliente_texto ? `📝 ${p.cliente_texto}` : `🏢 ${p.clientes?.marca || 'Sem Cliente'}`;
+                      const clientDisplay = p.cliente_texto ? p.cliente_texto : (p.clientes?.marca || 'Sem Cliente');
+                      const clientIcon = p.cliente_texto ? <Icons.FileText size={14} /> : <Icons.Building size={14} />;
 
                       return (
                           <div 
                               key={p.id} 
                               onClick={() => navigate(`/dashboard/projetos/${p.id}`)}
-                              className="project-card"
+                              className="project-card hover-shadow"
                               style={{
                                   background: 'white', borderRadius: '16px', border: isTimerActive ? '2px solid #3b82f6' : '1px solid #e2e8f0', 
-                                  boxShadow: isTimerActive ? '0 10px 15px -3px rgba(59, 130, 246, 0.2)' : '0 4px 6px -1px rgba(0,0,0,0.05)', 
                                   padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px', cursor: 'pointer', transition: 'all 0.2s',
                                   opacity: isCompleted ? 0.6 : 1, position: 'relative', overflow: 'hidden'
                               }}
@@ -516,48 +527,50 @@ async function handleSubmit(e) {
 
                               <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
                                   <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '5px'}}>
-                                      {p.codigo_projeto && <span style={{fontSize: '0.65rem', background: '#eff6ff', color: '#2563eb', padding: '2px 8px', borderRadius: '12px', fontWeight: '800', border: '1px solid #bfdbfe'}}>{p.codigo_projeto}</span>}
-                                      <span style={{fontSize: '0.65rem', background: isCompleted ? '#f1f5f9' : '#fefce8', color: isCompleted ? '#64748b' : '#ca8a04', padding: '2px 8px', borderRadius: '12px', fontWeight: '800', border: isCompleted ? '1px solid #e2e8f0' : '1px solid #fef08a', textTransform: 'uppercase'}}>{p.estado.replace('_', ' ')}</span>
+                                      {p.codigo_projeto && <span style={{fontSize: '0.65rem', background: '#eff6ff', color: '#2563eb', padding: '2px 8px', borderRadius: '6px', fontWeight: '800', border: '1px solid #bfdbfe', fontFamily: 'monospace'}}>{p.codigo_projeto}</span>}
+                                      <span style={{fontSize: '0.65rem', background: isCompleted ? '#f1f5f9' : '#f8fafc', color: isCompleted ? '#64748b' : '#475569', padding: '2px 8px', borderRadius: '6px', fontWeight: '800', border: '1px solid #e2e8f0', textTransform: 'uppercase'}}>{(p.estado || '').replace('_', ' ')}</span>
                                   </div>
                                   
                                   {!isCompleted && (
                                       <button 
                                           onClick={(e) => isTimerActive ? handleStopLog(e) : handleStartProjeto(e, p)} 
-                                          style={{ background: isTimerActive ? '#fee2e2' : '#f1f5f9', color: isTimerActive ? '#ef4444' : '#64748b', border: 'none', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s', fontSize: '1rem' }}
+                                          style={{ background: isTimerActive ? '#fee2e2' : '#eff6ff', color: isTimerActive ? '#ef4444' : '#2563eb', border: 'none', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s' }}
                                           title={isTimerActive ? "Parar Timer" : "Iniciar Timer"}
-                                          className={!isTimerActive ? "hover-blue-btn" : ""}
+                                          className={!isTimerActive ? "hover-blue-btn hover-shadow" : "hover-shadow"}
                                       >
-                                          {isTimerActive ? '⏹' : '▶'}
+                                          {isTimerActive ? <Icons.Stop /> : <Icons.Play />}
                                       </button>
                                   )}
                               </div>
 
                               <div>
-                                  <h2 style={{margin: '0 0 5px 0', fontSize: '1.2rem', color: '#0f172a', fontWeight: '800', lineHeight: '1.2'}}>{p.titulo}</h2>
+                                  <h2 style={{margin: '0 0 8px 0', fontSize: '1.2rem', color: '#0f172a', fontWeight: '800', lineHeight: '1.2'}}>{p.titulo}</h2>
                                   <div style={{fontSize: '0.85rem', color: '#475569', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px'}}>
-                                      {clientDisplay}
+                                      {clientIcon} {clientDisplay}
                                   </div>
                               </div>
 
-                              <div style={{background: '#f8fafc', padding: '10px', borderRadius: '8px', border: '1px solid #f1f5f9'}}>
-                                  <div style={{fontSize: '0.65rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '2px'}}>Responsável Global</div>
-                                  <div style={{fontSize: '0.8rem', color: '#334155', fontWeight: '500', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>{p.profiles?.nome || '-'}</div>
+                              <div style={{background: '#f8fafc', padding: '10px 12px', borderRadius: '8px', border: '1px solid #f1f5f9'}}>
+                                  <div style={{fontSize: '0.65rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '4px'}}>Responsável Global</div>
+                                  <div style={{fontSize: '0.85rem', color: '#334155', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>
+                                      <Icons.User /> {p.profiles?.nome || '-'}
+                                  </div>
                               </div>
 
                               <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingTop: '10px', borderTop: '1px solid #f1f5f9'}}>
                                   {renderDeadline(p.data_fim, p.estado)}
-                                  <div style={{display: 'flex', gap: '8px'}}>
-                                      <button onClick={(e) => handleEdit(e, p)} style={{background: 'transparent', border: '1px solid #cbd5e1', width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b', transition: '0.2s'}} className="hover-orange-btn" title="Editar Detalhes">✎</button>
-                                      <button onClick={(e) => askDeleteProjeto(e, p.id, p.titulo)} style={{background: 'transparent', border: '1px solid #cbd5e1', width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b', transition: '0.2s'}} className="hover-red-btn" title="Apagar">🗑️</button>
+                                  <div style={{display: 'flex', gap: '6px'}}>
+                                      <button onClick={(e) => handleEdit(e, p)} style={actionBtnStyle} className="hover-orange-text" title="Editar Projeto"><Icons.Edit /></button>
+                                      <button onClick={(e) => askDeleteProjeto(e, p.id, p.titulo)} style={actionBtnStyle} className="hover-red-text" title="Apagar"><Icons.Trash /></button>
                                   </div>
                               </div>
                           </div>
                       );
                   }) : (
                       <div style={{gridColumn: '1 / -1', textAlign: 'center', padding: '60px', background: 'white', borderRadius: '16px', border: '1px dashed #cbd5e1'}}>
-                          <span style={{fontSize: '3rem', display: 'block', marginBottom: '10px'}}>🏜️</span>
+                          <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px', color: '#cbd5e1'}}><Icons.Inbox /></div>
                           <h3 style={{color: '#1e293b', margin: '0 0 5px 0'}}>Vazio por aqui.</h3>
-                          <p style={{color: '#64748b', margin: 0}}>Não há projetos ativos aqui.</p>
+                          <p style={{color: '#64748b', margin: 0}}>Não há projetos ativos nesta área.</p>
                       </div>
                   )}
               </div>
@@ -569,7 +582,7 @@ async function handleSubmit(e) {
           <ModalPortal>
               <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999}}>
                   <div style={{background: 'white', padding: '30px', borderRadius: '16px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out'}}>
-                      <div style={{fontSize: '3rem', marginBottom: '15px'}}>{confirmDialog.isDanger ? '⚠️' : '❓'}</div>
+                      <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px'}}><Icons.Alert color={confirmDialog.isDanger ? "#ef4444" : "#3b82f6"} /></div>
                       <h3 style={{margin: '0 0 10px 0', color: '#1e293b', fontSize: '1.25rem'}}>Confirmação</h3>
                       <p style={{color: '#64748b', fontSize: '0.95rem', marginBottom: '25px', lineHeight: '1.5', whiteSpace: 'pre-line'}}>
                           {confirmDialog.message}
@@ -583,54 +596,55 @@ async function handleSubmit(e) {
           </ModalPortal>
       )}
 
+      {/* --- MODAL CRIAR/EDITAR PROJETO --- */}
       {showModal && (
         <ModalPortal>
-          <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(15, 23, 42, 0.65)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:99999}} onClick={() => setShowModal(false)}>
-            <div style={{background:'#fff', width:'95%', maxWidth:'850px', borderRadius:'16px', boxShadow:'0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow:'hidden', display:'flex', flexDirection:'column', maxHeight:'92vh'}} onClick={e => e.stopPropagation()}>
+          <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(15, 23, 42, 0.7)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:99999}} onClick={() => setShowModal(false)}>
+            <div style={{background:'#fff', width:'95%', maxWidth:'850px', borderRadius:'16px', boxShadow:'0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow:'hidden', display:'flex', flexDirection:'column', maxHeight:'92vh', animation: 'fadeIn 0.2s ease-out'}} onClick={e => e.stopPropagation()}>
               
-              <div style={{padding:'20px 30px', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center', background:'#fff'}}>
+              <div style={{padding:'20px 25px', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center', background:'#f8fafc'}}>
                 <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
-                    <span style={{background:'#eff6ff', padding:'8px', borderRadius:'8px', fontSize:'1.2rem'}}>🚀</span>
-                    <h3 style={{margin:0, color:'#1e293b', fontSize:'1.25rem'}}>{isViewOnly ? "Ver Projeto" : (editId ? "Editar Projeto" : "Novo Projeto")}</h3>
+                    <span style={{background:'#eff6ff', color: '#2563eb', padding:'10px', borderRadius:'10px', display: 'flex'}}><Icons.Rocket size={24} /></span>
+                    <h3 style={{margin:0, color:'#1e293b', fontSize:'1.25rem', fontWeight: '800'}}>{isViewOnly ? "Ver Projeto" : (editId ? "Editar Projeto" : "Novo Projeto")}</h3>
                 </div>
-                <button onClick={() => setShowModal(false)} style={{background:'transparent', border:'none', fontSize:'1.2rem', cursor:'pointer', color:'#94a3b8'}}>✕</button>
+                <button onClick={() => setShowModal(false)} style={{background:'transparent', border:'none', cursor:'pointer', color:'#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center'}} className="hover-red-text"><Icons.Close size={20} /></button>
               </div>
 
-              <div className="tabs" style={{padding: '0 30px', background: '#fff', borderBottom: '1px solid #e2e8f0'}}>
-                <button className={activeTab === 'geral' ? 'active' : ''} onClick={() => setActiveTab('geral')}>🚀 Geral</button>
-                <button className={activeTab === 'investimento' ? 'active' : ''} onClick={() => setActiveTab('investimento')}>💰 Investimento</button>
-                <button className={activeTab === 'notas' ? 'active' : ''} onClick={() => setActiveTab('notas')}>📝 Notas</button>
+              <div className="tabs" style={{padding: '15px 30px 0 30px', background: '#fff', borderBottom: '1px solid #e2e8f0', display: 'flex', gap: '5px'}}>
+                <button className={activeTab === 'geral' ? 'active' : ''} onClick={() => setActiveTab('geral')} style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.ClipboardList /> Geral</button>
+                <button className={activeTab === 'investimento' ? 'active' : ''} onClick={() => setActiveTab('investimento')} style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.Dollar /> Investimento</button>
+                <button className={activeTab === 'notas' ? 'active' : ''} onClick={() => setActiveTab('notas')} style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.FileText /> Notas</button>
               </div>
 
-              <div style={{padding:'30px', overflowY:'auto', background:'#f8fafc'}}>
+              <div style={{padding:'30px', overflowY:'auto', background:'white', flex: 1}} className="custom-scrollbar">
                 <form onSubmit={handleSubmit}>
-                  <fieldset disabled={isViewOnly} style={{border:'none', padding:0}}>
+                  <fieldset disabled={isViewOnly} style={{border:'none', padding:0, margin: 0}}>
                     
                     {activeTab === 'geral' && (
                       <div>
                         <div style={{display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px', marginBottom: '20px'}}>
                             <div>
                                 <label style={labelStyle}>Título do Projeto *</label>
-                                <input type="text" value={form.titulo} onChange={e => setForm({...form, titulo: e.target.value})} required style={{...inputStyle, fontSize:'1.1rem', padding:'12px'}} />
+                                <input type="text" value={form.titulo} onChange={e => setForm({...form, titulo: e.target.value})} required style={{...inputStyle, fontSize:'1.1rem', padding:'12px', fontWeight: 'bold'}} className="input-focus" />
                             </div>
                             <div>
                                 <label style={labelStyle}>Código de Projeto</label>
-                                <input type="text" value={form.codigo_projeto} onChange={e => setForm({...form, codigo_projeto: e.target.value})} placeholder="Ex: P2026-001" style={inputStyle} />
+                                <input type="text" value={form.codigo_projeto} onChange={e => setForm({...form, codigo_projeto: e.target.value})} placeholder="Ex: P2026-001" style={inputStyle} className="input-focus" />
                             </div>
                         </div>
 
-                        <div style={sectionTitleStyle}>📌 Enquadramento</div>
+                        <div style={sectionTitleStyle}><Icons.Building /> Enquadramento</div>
                         <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '20px'}}>
                             
                             {isFormacaoSelected ? (
                                 <div>
                                     <label style={labelStyle}>Cliente / Local (Livre) *</label>
-                                    <input type="text" value={form.cliente_texto || ''} onChange={e => setForm({...form, cliente_texto: e.target.value})} placeholder="Ex: Cenfim Faro..." required style={inputStyle} />
+                                    <input type="text" value={form.cliente_texto || ''} onChange={e => setForm({...form, cliente_texto: e.target.value})} placeholder="Ex: Cenfim Faro..." required style={inputStyle} className="input-focus" />
                                 </div>
                             ) : (
                                 <div>
                                     <label style={labelStyle}>Cliente *</label>
-                                    <select value={form.cliente_id || ''} onChange={e => setForm({...form, cliente_id: e.target.value})} required style={inputStyle}>
+                                    <select value={form.cliente_id || ''} onChange={e => setForm({...form, cliente_id: e.target.value})} required style={{...inputStyle, cursor: 'pointer'}} className="input-focus">
                                         <option value="">-- Selecione --</option>
                                         {clientes.map(c => <option key={c.id} value={c.id}>{c.marca}</option>)}
                                     </select>
@@ -639,42 +653,47 @@ async function handleSubmit(e) {
 
                             <div>
                                 <label style={labelStyle}>Tipo de Projeto (Modelo)</label>
-                                <select value={form.tipo_projeto_id || ''} onChange={e => setForm({...form, tipo_projeto_id: e.target.value})} style={inputStyle} disabled={!!editId}>
+                                <select value={form.tipo_projeto_id || ''} onChange={e => setForm({...form, tipo_projeto_id: e.target.value})} style={{...inputStyle, cursor: 'pointer'}} disabled={!!editId} className="input-focus">
                                     <option value="">-- Em Branco --</option>
                                     {tipos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
                                 </select>
                             </div>
                             <div>
-                                <label style={labelStyle}>Responsável Geral</label>
-                                <select value={form.responsavel_id || ''} onChange={e => setForm({...form, responsavel_id: e.target.value})} style={inputStyle}>
+                                <label style={labelStyle}>Responsável Global</label>
+                                <select value={form.responsavel_id || ''} onChange={e => setForm({...form, responsavel_id: e.target.value})} style={{...inputStyle, cursor: 'pointer'}} className="input-focus">
                                     <option value="">-- Selecione --</option>
                                     {staff.map(s => <option key={s.id} value={s.id}>{s.nome || s.email}</option>)}
                                 </select>
                             </div>
                         </div>
 
-                        <div style={sectionTitleStyle}>📅 Planeamento & Avisos</div>
+                        <div style={sectionTitleStyle}><Icons.Calendar /> Planeamento & Avisos</div>
                         <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '15px', marginBottom: '20px'}}>
-                            <div><label style={labelStyle}>Data Início Base</label><input type="date" value={form.data_inicio || ''} onChange={e => setForm({...form, data_inicio: e.target.value})} style={inputStyle} required /></div>
-                            <div><label style={labelStyle}>Data Fim Final</label><input type="date" value={form.data_fim || ''} onChange={e => setForm({...form, data_fim: e.target.value})} style={{...inputStyle, border: form.data_fim ? '1px solid #fca5a5' : '1px solid #cbd5e1'}} /></div>
-                            <div><label style={labelStyle}>Programa</label><input type="text" value={form.programa || ''} onChange={e => setForm({...form, programa: e.target.value})} placeholder="P2030 / PRR" style={inputStyle} /></div>
-                            <div><label style={labelStyle}>Aviso</label><input type="text" value={form.aviso || ''} onChange={e => setForm({...form, aviso: e.target.value})} placeholder="Ex: 01/C16" style={inputStyle} /></div>
+                            <div><label style={labelStyle}>Data Início Base</label><input type="date" value={form.data_inicio || ''} onChange={e => setForm({...form, data_inicio: e.target.value})} style={inputStyle} className="input-focus" required /></div>
+                            <div><label style={labelStyle}>Data Fim Final</label><input type="date" value={form.data_fim || ''} onChange={e => setForm({...form, data_fim: e.target.value})} style={{...inputStyle, border: form.data_fim ? '1px solid #fca5a5' : '1px solid #cbd5e1'}} className="input-focus" /></div>
+                            <div><label style={labelStyle}>Programa</label><input type="text" value={form.programa || ''} onChange={e => setForm({...form, programa: e.target.value})} placeholder="P2030 / PRR" style={inputStyle} className="input-focus" /></div>
+                            <div><label style={labelStyle}>Aviso</label><input type="text" value={form.aviso || ''} onChange={e => setForm({...form, aviso: e.target.value})} placeholder="Ex: 01/C16" style={inputStyle} className="input-focus" /></div>
                         </div>
 
-                        <div style={sectionTitleStyle}>⚙️ Estado do Projeto</div>
+                        <div style={sectionTitleStyle}><Icons.Check /> Estado do Projeto</div>
                         <div style={{display: 'flex', gap: '10px', marginBottom: '25px'}}>
-                            {['pendente', 'em_curso', 'concluido', 'cancelado'].map(st => (
-                                <div key={st} onClick={() => !isViewOnly && setForm({...form, estado: st})}
+                            {[
+                                {val: 'pendente', label: 'Pendente'}, 
+                                {val: 'em_curso', label: 'Em Curso'}, 
+                                {val: 'concluido', label: 'Concluído'}, 
+                                {val: 'cancelado', label: 'Cancelado'}
+                            ].map(st => (
+                                <div key={st.val} onClick={() => !isViewOnly && setForm({...form, estado: st.val})}
                                     style={{
-                                        flex: 1, textAlign: 'center', padding: '12px', borderRadius: '10px', cursor: isViewOnly ? 'default' : 'pointer',
-                                        fontSize: '0.85rem', fontWeight: '700',
-                                        background: form.estado === st ? '#2563eb' : '#fff',
-                                        color: form.estado === st ? 'white' : '#64748b',
-                                        border: form.estado === st ? '1px solid #2563eb' : '1px solid #cbd5e1',
-                                        transition: 'all 0.2s', textTransform: 'uppercase'
+                                        flex: 1, textAlign: 'center', padding: '10px', borderRadius: '8px', cursor: isViewOnly ? 'default' : 'pointer',
+                                        fontSize: '0.8rem', fontWeight: '700',
+                                        background: form.estado === st.val ? '#2563eb' : '#f8fafc',
+                                        color: form.estado === st.val ? 'white' : '#64748b',
+                                        border: form.estado === st.val ? '1px solid #2563eb' : '1px solid #e2e8f0',
+                                        transition: 'all 0.2s', textTransform: 'uppercase', letterSpacing: '0.05em'
                                     }}
                                 >
-                                    {st.replace('_', ' ')}
+                                    {st.label}
                                 </div>
                             ))}
                         </div>
@@ -682,16 +701,16 @@ async function handleSubmit(e) {
                     )}
 
                     {activeTab === 'investimento' && (
-                      <div style={{background:'white', padding:'30px', borderRadius:'12px', border:'1px solid #cbd5e1'}}>
-                        <h4 style={{marginTop:0, marginBottom:'20px', color:'#1e293b'}}>Valores Aprovados</h4>
+                      <div style={{background:'#f8fafc', padding:'30px', borderRadius:'12px', border:'1px solid #e2e8f0'}}>
+                        <h4 style={{marginTop:0, marginBottom:'20px', color:'#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Dollar color="#2563eb" /> Valores Aprovados</h4>
                         <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px'}}>
                             <div>
                                 <label style={labelStyle}>Investimento Elegível (€)</label>
-                                <input type="number" step="0.01" value={form.investimento} onChange={e => setForm({...form, investimento: e.target.value})} style={{...inputStyle, fontSize:'1.2rem', padding:'15px', borderColor:'#2563eb'}} />
+                                <input type="number" step="0.01" value={form.investimento} onChange={e => setForm({...form, investimento: e.target.value})} style={{...inputStyle, fontSize:'1.2rem', padding:'15px', borderColor:'#cbd5e1', background: 'white'}} className="input-focus" />
                             </div>
                             <div>
                                 <label style={labelStyle}>Incentivo Atribuído (€)</label>
-                                <input type="number" step="0.01" value={form.incentivo} onChange={e => setForm({...form, incentivo: e.target.value})} style={{...inputStyle, fontSize:'1.2rem', padding:'15px', borderColor:'#10b981'}} />
+                                <input type="number" step="0.01" value={form.incentivo} onChange={e => setForm({...form, incentivo: e.target.value})} style={{...inputStyle, fontSize:'1.2rem', padding:'15px', borderColor:'#cbd5e1', background: 'white'}} className="input-focus" />
                             </div>
                         </div>
                       </div>
@@ -701,11 +720,11 @@ async function handleSubmit(e) {
                       <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px'}}>
                           <div>
                               <label style={labelStyle}>Descrição Geral</label>
-                              <textarea rows="8" value={form.descricao || ''} onChange={e => setForm({...form, descricao: e.target.value})} style={{...inputStyle, resize:'none'}} placeholder="Resumo do projeto..." />
+                              <textarea rows="8" value={form.descricao || ''} onChange={e => setForm({...form, descricao: e.target.value})} style={{...inputStyle, resize:'none'}} placeholder="Resumo do projeto..." className="input-focus" />
                           </div>
                           <div>
                               <label style={labelStyle}>Observações Internas</label>
-                              <textarea rows="8" value={form.observacoes || ''} onChange={e => setForm({...form, observacoes: e.target.value})} style={{...inputStyle, resize:'none', background:'#fffbeb', borderColor:'#f59e0b'}} placeholder="Notas importantes..." />
+                              <textarea rows="8" value={form.observacoes || ''} onChange={e => setForm({...form, observacoes: e.target.value})} style={{...inputStyle, resize:'none', background:'#fffbeb', borderColor:'#fde68a'}} placeholder="Notas importantes..." className="input-focus-alert" />
                           </div>
                       </div>
                     )}
@@ -713,10 +732,10 @@ async function handleSubmit(e) {
                   </fieldset>
 
                   {!isViewOnly && (
-                      <div style={{display:'flex', gap:'15px', marginTop:'30px', paddingTop:'20px', borderTop:'1px solid #e2e8f0', justifyContent: 'flex-end'}}>
-                          <button type="button" onClick={() => setShowModal(false)} style={{padding:'14px 20px', borderRadius:'10px', border:'1px solid #cbd5e1', background:'white', color:'#64748b', fontWeight:'600', cursor:'pointer'}}>Cancelar</button>
-                          <button type="submit" disabled={isSubmitting} style={{padding:'14px 30px', borderRadius:'10px', border:'none', background:'#2563eb', color:'white', fontWeight:'600', cursor:'pointer', boxShadow:'0 4px 6px -1px rgba(37, 99, 235, 0.4)'}}>
-                              {isSubmitting ? "A guardar..." : (editId ? "💾 Guardar Alterações" : "🚀 Criar Projeto")}
+                      <div style={{display:'flex', gap:'15px', marginTop:'30px', paddingTop:'20px', borderTop:'1px solid #f1f5f9', justifyContent: 'flex-end'}}>
+                          <button type="button" onClick={() => setShowModal(false)} style={{padding:'14px 20px', borderRadius:'10px', border:'1px solid #cbd5e1', background:'white', color:'#64748b', fontWeight:'700', cursor:'pointer', transition: '0.2s'}} className="hover-shadow">Cancelar</button>
+                          <button type="submit" disabled={isSubmitting} className="btn-primary hover-shadow" style={{padding:'14px 30px', borderRadius:'10px', border:'none', background:'#2563eb', color:'white', fontWeight:'700', cursor:'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: '0.2s'}}>
+                              {isSubmitting ? "A guardar..." : (editId ? <><Icons.Save /> Guardar Alterações</> : <><Icons.Rocket /> Criar Projeto</>)}
                           </button>
                       </div>
                   )}
@@ -742,17 +761,25 @@ async function handleSubmit(e) {
           .category-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); border-color: #cbd5e1; }
 
           .project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
-          .project-card:hover { transform: translateY(-4px); border-color: #cbd5e1 !important; box-shadow: 0 12px 20px -5px rgba(0,0,0,0.1) !important; }
+          .project-card:hover { border-color: #cbd5e1 !important; box-shadow: 0 12px 20px -5px rgba(0,0,0,0.1) !important; transform: translateY(-2px); }
 
           .hover-shadow:hover { box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); transform: translateY(-1px); }
 
           .hover-blue-btn:hover { background: #dbeafe !important; color: #2563eb !important; border-color: #bfdbfe !important; }
-          .hover-orange-btn:hover { background: #ffedd5 !important; color: #ea580c !important; border-color: #fed7aa !important; }
-          .hover-red-btn:hover { background: #fee2e2 !important; color: #ef4444 !important; border-color: #fecaca !important; }
+          .hover-orange-text:hover { color: #f59e0b !important; opacity: 1 !important; }
+          .hover-red-text:hover { color: #ef4444 !important; opacity: 1 !important; }
+          
+          .input-focus:focus { border-color: #3b82f6 !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
+          .input-focus-alert:focus { border-color: #f59e0b !important; box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.1); }
 
+          /* Action Buttons para Sub-itens */
+          .action-btn { background: transparent; border: none; cursor: pointer; padding: 6px; border-radius: 6px; display: flex; align-items: center; justify-content: center; opacity: 0.6; transition: 0.2s; }
+          .action-btn:hover { opacity: 1; transform: scale(1.1); }
+
+          /* Botão Glow Principal */
           .btn-glow {
               position: relative; overflow: hidden; background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 8px;
-              font-weight: bold; font-size: 0.95rem; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.4); transition: all 0.3s ease;
+              font-weight: bold; font-size: 0.95rem; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.4); transition: all 0.3s ease; display: flex; align-items: center; gap: 8px;
           }
           .btn-glow::after {
               content: ''; position: absolute; top: 0; left: -150%; width: 50%; height: 100%;
@@ -763,8 +790,15 @@ async function handleSubmit(e) {
           .btn-glow:hover::after { animation: shine-sweep 1.2s infinite alternate ease-in-out; }
           @keyframes shine-sweep { 0% { left: -150%; } 100% { left: 200%; } }
           
-          @keyframes pulse { 0% {box-shadow:0 0 0 0 rgba(239,68,68,0.7)} 70% {box-shadow:0 0 0 6px rgba(239,68,68,0)} 100% {box-shadow:0 0 0 0 rgba(239,68,68,0)}} 
+          .pulse-dot-red { width: 8px; height: 8px; background-color: #ef4444; border-radius: 50%; display: inline-block; animation: pulseRed 1.5s infinite; } 
+          @keyframes pulseRed { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+          
           .pulse-dot-white { width: 8px; height: 8px; background-color: white; border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; }
+          @keyframes pulse { 0% { transform: scale(0.95); opacity: 0.7; } 70% { transform: scale(1); opacity: 0; } 100% { transform: scale(0.95); opacity: 0; } }
+          
+          .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+          .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+          .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
       `}</style>
     </div>
   );

@@ -33,7 +33,9 @@ const Icons = {
   Heart: ({ size = 16, color = "currentColor", fill = "none" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>,
   Plus: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>,
   CheckCircle: ({ size = 48, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>,
-  XCircle: ({ size = 48, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+  XCircle: ({ size = 48, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>,
+  Stop: ({ size = 12, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none"><rect x="6" y="6" width="12" height="12" rx="2" ry="2"></rect></svg>,
+  ArrowRight: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
 };
 
 const ModalPortal = ({ children }) => {
@@ -52,6 +54,9 @@ export default function DashboardHome() {
   const [usersOnline, setUsersOnline] = useState([]);
   const [registosMes, setRegistosMes] = useState([]); 
   const [aniversarios, setAniversarios] = useState([]);
+
+  // 💡 ESTADO: O Cronómetro Ativo Global
+  const [activeLog, setActiveLog] = useState(null);
 
   // Estados Visuais
   const [showMenu, setShowMenu] = useState(false);
@@ -81,6 +86,7 @@ export default function DashboardHome() {
       loadUsersOnline();
       fetchRegistosMes();
       fetchAniversarios(); 
+      checkActiveLog(); // 💡 Verifica timer ativo de forma segura
       
       const hoje = new Date();
       const seed = hoje.getFullYear() * 10000 + (hoje.getMonth() + 1) * 100 + hoje.getDate();
@@ -110,6 +116,97 @@ export default function DashboardHome() {
         const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
         setUserProfile(data);
     } catch (error) { console.error("Erro perfil:", error); }
+  }
+
+  // 💡 PROCURA TIMER ATIVO E DESCOBRE A ÁRVORE/HIERARQUIA (Anti-Erros 400)
+  async function checkActiveLog() {
+      try {
+          // Primeiro, vai buscar só o log base
+          const { data, error } = await supabase
+              .from("task_logs")
+              .select("*") 
+              .eq("user_id", user.id)
+              .is("end_time", null)
+              .maybeSingle();
+          
+          if (error) throw error;
+          
+          if (data) {
+              let title = "Tempo a decorrer...";
+              let foundProjectId = data.projeto_id;
+              
+              // O detetive entra em ação: Sobe a hierarquia para descobrir o nome e o Projeto Pai
+              if (data.subtarefa_id) {
+                  const { data: res } = await supabase.from("subtarefas").select("titulo, tarefa_id").eq("id", data.subtarefa_id).maybeSingle();
+                  if (res) {
+                      title = res.titulo;
+                      if (!foundProjectId && res.tarefa_id) {
+                          const { data: tar } = await supabase.from("tarefas").select("atividade_id").eq("id", res.tarefa_id).maybeSingle();
+                          if (tar?.atividade_id) {
+                              const { data: ativ } = await supabase.from("atividades").select("projeto_id").eq("id", tar.atividade_id).maybeSingle();
+                              if (ativ?.projeto_id) foundProjectId = ativ.projeto_id;
+                          }
+                      }
+                  }
+              } else if (data.tarefa_id) {
+                  const { data: res } = await supabase.from("tarefas").select("titulo, atividade_id").eq("id", data.tarefa_id).maybeSingle();
+                  if (res) {
+                      title = res.titulo;
+                      if (!foundProjectId && res.atividade_id) {
+                          const { data: ativ } = await supabase.from("atividades").select("projeto_id").eq("id", res.atividade_id).maybeSingle();
+                          if (ativ?.projeto_id) foundProjectId = ativ.projeto_id;
+                      }
+                  }
+              } else if (data.atividade_id) {
+                  const { data: res } = await supabase.from("atividades").select("titulo, projeto_id").eq("id", data.atividade_id).maybeSingle();
+                  if (res) {
+                      title = res.titulo;
+                      if (!foundProjectId && res.projeto_id) foundProjectId = res.projeto_id;
+                  }
+              } else if (data.projeto_id) {
+                  const { data: res } = await supabase.from("projetos").select("titulo").eq("id", data.projeto_id).maybeSingle();
+                  if (res) title = res.titulo;
+              }
+              
+              // Guarda tudo bonitinho
+              setActiveLog({ ...data, taskTitle: title, resolvedProjectId: foundProjectId });
+          } else {
+              setActiveLog(null);
+          }
+      } catch (err) {
+          console.error("Erro a procurar timer ativo:", err);
+      }
+  }
+
+  // 💡 NAVEGAR DIRETAMENTE PARA A PÁGINA DO PROJETO CORRETO
+  function navigateToActiveTask() {
+      if (!activeLog) return;
+      
+      if (activeLog.resolvedProjectId) {
+          navigate(`/dashboard/projetos/${activeLog.resolvedProjectId}`);
+      } else {
+          // Fallbacks de segurança
+          if (activeLog.subtarefa_id || activeLog.tarefa_id) navigate("/dashboard/tarefas");
+          else if (activeLog.atividade_id) navigate("/dashboard/atividades");
+          else navigate("/dashboard/projetos");
+      }
+  }
+
+  // Helper para mostrar o nome da cena a correr
+  const getActiveTaskName = () => {
+      if (!activeLog) return "";
+      return activeLog.taskTitle || "Tempo a decorrer...";
+  };
+
+  // 💡 PARAR TIMER ATIVO GLOBALMENTE
+  async function handleStopGlobalLog(e) {
+      if(e) e.stopPropagation();
+      if (!activeLog) return;
+      
+      const diffMins = Math.max(1, Math.floor((new Date() - new Date(activeLog.start_time)) / 60000)); 
+      await supabase.from("task_logs").update({ end_time: new Date().toISOString(), duration_minutes: diffMins }).eq("id", activeLog.id);
+      
+      setActiveLog(null);
   }
 
   async function fetchAniversarios() {
@@ -218,7 +315,6 @@ export default function DashboardHome() {
     navigate("/"); 
   }
 
-  // --- LÓGICA DO HISTÓRICO ---
   async function loadFullHistory() {
       const y = historyDate.getFullYear();
       const m = historyDate.getMonth();
@@ -360,7 +456,7 @@ export default function DashboardHome() {
     <div className="dashboard-home">
       
       {/* HEADER E MENU UTILIZADOR */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 2px 5px rgba(0,0,0,0.05)', flexWrap: 'wrap', gap: '15px' }}>
         <div>
            <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
                <h1 style={{ margin: 0, fontSize: '1.5rem', color: '#1e293b' }}>Olá, {userProfile?.nome?.split(' ')[0] || 'Colaborador'} 👋</h1>
@@ -371,30 +467,67 @@ export default function DashboardHome() {
            <p style={{ margin: '5px 0 0 0', color: '#64748b', fontStyle: 'italic', fontSize: '0.95rem' }}>"{frase}"</p>
         </div>
 
-        <div style={{ position: 'relative' }}>
-            <div onClick={() => setShowMenu(!showMenu)} style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', padding: '8px 12px', borderRadius: '8px', background: showMenu ? '#f1f5f9' : 'transparent', transition: 'all 0.2s' }}>
-                <div style={{textAlign: 'right', display: 'flex', flexDirection: 'column'}}>
-                     <span style={{fontWeight: 'bold', fontSize: '0.9rem', color: '#334151'}}>{userProfile?.nome}</span>
-                     <span style={{fontSize: '0.75rem', color: '#2563eb', fontWeight: '500'}}>{userProfile?.empresa_interna || 'Empresa'}</span>
+        <div style={{display: 'flex', alignItems: 'center', gap: '20px'}}>
+            
+            {/* 💡 AVISO GLOBAL DE TEMPO A CORRER (GIGANTE E CLICÁVEL) */}
+            {activeLog && (
+                <div 
+                    onClick={navigateToActiveTask}
+                    className="hover-shadow"
+                    style={{
+                        background: 'linear-gradient(to right, #ef4444, #b91c1c)', color: 'white', padding: '10px 20px', 
+                        borderRadius: '30px', display: 'flex', alignItems: 'center', gap: '15px', 
+                        cursor: 'pointer', boxShadow: '0 4px 10px rgba(239, 68, 68, 0.4)', transition: '0.2s',
+                        border: '2px solid #fecaca'
+                    }}
+                    title="Clica para ir para a Tarefa"
+                >
+                    <div style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', fontSize: '0.95rem'}}>
+                        <span className="pulse-dot-white"></span> 
+                        {getActiveTaskName().length > 25 ? getActiveTaskName().slice(0, 25) + '...' : getActiveTaskName()}
+                    </div>
+                    <div style={{width: '1px', height: '20px', background: 'rgba(255,255,255,0.3)'}}></div>
+                    <button 
+                        onClick={handleStopGlobalLog} 
+                        style={{
+                            background: 'white', color: '#ef4444', border: 'none', borderRadius: '20px', 
+                            padding: '6px 12px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.8rem', 
+                            display: 'flex', alignItems: 'center', gap: '4px', transition: '0.2s'
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.background = '#fef2f2'}
+                        onMouseOut={(e) => e.currentTarget.style.background = 'white'}
+                        title="Parar o tempo"
+                    >
+                        <Icons.Stop /> Parar
+                    </button>
                 </div>
-                
-                <div style={{ width: '42px', height: '42px', borderRadius: '50%', background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.1rem', boxShadow: '0 2px 4px rgba(37, 99, 235, 0.3)', overflow: 'hidden' }}>
-                    {userProfile?.avatar_url ? (
-                        <img src={userProfile.avatar_url} alt="User" style={{width:'100%', height:'100%', objectFit:'cover'}} />
-                    ) : (
-                        getInitials(userProfile?.nome)
-                    )}
-                </div>
-            </div>
-
-            {showMenu && (
-              <div style={{ position: 'absolute', top: '110%', right: 0, background: 'white', border: '1px solid #e2e8f0', borderRadius: '10px', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', minWidth: '220px', zIndex: 50, overflow: 'hidden', animation: 'fadeIn 0.2s ease-out' }}>
-                <div style={{padding: '12px 15px', borderBottom: '1px solid #f1f5f9', background: '#f8fafc'}}><span style={{fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 'bold', letterSpacing: '0.5px'}}>A Minha Conta</span></div>
-                <button className="menu-item" onClick={() => navigate("/dashboard/perfil")}><Icons.User /> O Meu Perfil</button>
-                <button className="menu-item" onClick={() => navigate("/dashboard/ferias")}><Icons.Sun /> Férias & Ausências</button>
-                <button className="menu-item logout" onClick={handleLogout} style={{borderTop: '1px solid #f1f5f9'}}><Icons.LogOut /> Terminar Sessão</button>
-              </div>
             )}
+
+            <div style={{ position: 'relative' }}>
+                <div onClick={() => setShowMenu(!showMenu)} style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', padding: '8px 12px', borderRadius: '8px', background: showMenu ? '#f1f5f9' : 'transparent', transition: 'all 0.2s' }}>
+                    <div style={{textAlign: 'right', display: 'flex', flexDirection: 'column'}}>
+                         <span style={{fontWeight: 'bold', fontSize: '0.9rem', color: '#334151'}}>{userProfile?.nome}</span>
+                         <span style={{fontSize: '0.75rem', color: '#2563eb', fontWeight: '500'}}>{userProfile?.empresa_interna || 'Empresa'}</span>
+                    </div>
+                    
+                    <div style={{ width: '42px', height: '42px', borderRadius: '50%', background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.1rem', boxShadow: '0 2px 4px rgba(37, 99, 235, 0.3)', overflow: 'hidden' }}>
+                        {userProfile?.avatar_url ? (
+                            <img src={userProfile.avatar_url} alt="User" style={{width:'100%', height:'100%', objectFit:'cover'}} />
+                        ) : (
+                            getInitials(userProfile?.nome)
+                        )}
+                    </div>
+                </div>
+
+                {showMenu && (
+                  <div style={{ position: 'absolute', top: '110%', right: 0, background: 'white', border: '1px solid #e2e8f0', borderRadius: '10px', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', minWidth: '220px', zIndex: 50, overflow: 'hidden', animation: 'fadeIn 0.2s ease-out' }}>
+                    <div style={{padding: '12px 15px', borderBottom: '1px solid #f1f5f9', background: '#f8fafc'}}><span style={{fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 'bold', letterSpacing: '0.5px'}}>A Minha Conta</span></div>
+                    <button className="menu-item" onClick={() => navigate("/dashboard/perfil")}><Icons.User /> O Meu Perfil</button>
+                    <button className="menu-item" onClick={() => navigate("/dashboard/ferias")}><Icons.Sun /> Férias & Ausências</button>
+                    <button className="menu-item logout" onClick={handleLogout} style={{borderTop: '1px solid #f1f5f9'}}><Icons.LogOut /> Terminar Sessão</button>
+                  </div>
+                )}
+            </div>
         </div>
       </div>
 
@@ -789,7 +922,7 @@ export default function DashboardHome() {
       {showBirthdayPopup && (
         <ModalPortal>
             <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.8)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999}}>
-                <div style={{background: 'linear-gradient(135deg, #ffffff, #fef3c7)', borderRadius: '24px', width: '90%', maxWidth: '400px', padding: '40px 20px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', position: 'relative', overflow: 'hidden'}}>
+                <div style={{background: 'linear-gradient(135deg, #ffffff, #fef3c7)', borderRadius: '24px', width: '90%', maxWidth: '400px', padding: '40px 20px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', position: 'relative', overflow: 'hidden', animation: 'fadeIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)'}}>
                     <div style={{display: 'flex', justifyContent: 'center', color: '#f59e0b', marginBottom: '15px', animation: 'bounce 2s infinite'}}><Icons.Gift /></div>
                     <h2 style={{margin: '0 0 10px 0', color: '#b45309', fontSize: '2rem'}}>Parabéns, {userProfile?.nome?.split(' ')[0]}!</h2>
                     <p style={{color: '#92400e', marginBottom: '25px', fontSize: '1.1rem', lineHeight: '1.5'}}>
@@ -797,7 +930,7 @@ export default function DashboardHome() {
                     </p>
                     <button 
                         onClick={() => setShowBirthdayPopup(false)} 
-                        style={{background: '#f59e0b', color: 'white', border: 'none', padding: '12px 30px', borderRadius: '12px', fontSize: '1rem', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 6px rgba(245, 158, 11, 0.3)'}}
+                        style={{background: '#f59e0b', color: 'white', border: 'none', padding: '12px 30px', borderRadius: '12px', fontSize: '1rem', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 6px rgba(245, 158, 11, 0.3)', transition: '0.2s'}}
                         className="hover-shadow"
                     >
                         Obrigado!
