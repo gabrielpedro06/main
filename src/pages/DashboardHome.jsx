@@ -4,11 +4,11 @@ import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext"; 
 import WidgetAssiduidade from "../components/WidgetAssiduidade";
-import WidgetCalendar from "../components/WidgetCalendar"; 
+// 🚨 O IMPORT DO WIDGETCALENDAR FOI REMOVIDO DAQUI PARA NÃO DAR TELA BRANCA!
 import { frasesMotivacionais } from "../data/frases"; 
 import "./../styles/dashboard.css";
 
-// --- ÍCONES SVG PROFISSIONAIS ---
+// --- MEGA ÍCONES SVG PROFISSIONAIS ---
 const Icons = {
   Home: ({ size = 20, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>,
   Clock: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>,
@@ -46,31 +46,26 @@ export default function DashboardHome() {
   const { user } = useAuth(); 
   const navigate = useNavigate();
   
-  // Estados de Dados
   const [tarefasHoje, setTarefasHoje] = useState([]);
   const [tarefasGerais, setTarefasGerais] = useState([]);
-  const [stats, setStats] = useState({ projetos: 0, clientes: 0, atividades: 0, forum: 0, tarefas: 0 });
+  const [stats, setStats] = useState({ projetos: 0, clientes: 0, atividades: 0, tarefas: 0, forum: 0 });
   const [userProfile, setUserProfile] = useState(null);
   const [usersOnline, setUsersOnline] = useState([]);
   const [registosMes, setRegistosMes] = useState([]); 
   const [aniversarios, setAniversarios] = useState([]);
 
-  // 💡 ESTADO: O Cronómetro Ativo Global
   const [activeLog, setActiveLog] = useState(null);
 
-  // Estados Visuais
   const [showMenu, setShowMenu] = useState(false);
   const [frase, setFrase] = useState("");
   const [horaAtual, setHoraAtual] = useState("");
   const [showBirthdayPopup, setShowBirthdayPopup] = useState(false); 
 
-  // --- ESTADOS DO MODAL DE HISTÓRICO ---
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [historyDate, setHistoryDate] = useState(new Date()); 
   const [fullHistory, setFullHistory] = useState([]);
   const [totalHorasMes, setTotalHorasMes] = useState({ h: 0, m: 0 });
   
-  // Edição e Adição
   const [editingRecord, setEditingRecord] = useState(null); 
   const [editForm, setEditForm] = useState({}); 
   const [isAdding, setIsAdding] = useState(false);
@@ -86,7 +81,7 @@ export default function DashboardHome() {
       loadUsersOnline();
       fetchRegistosMes();
       fetchAniversarios(); 
-      checkActiveLog(); // 💡 Verifica timer ativo de forma segura
+      checkActiveLog(); 
       
       const hoje = new Date();
       const seed = hoje.getFullYear() * 10000 + (hoje.getMonth() + 1) * 100 + hoje.getDate();
@@ -111,6 +106,25 @@ export default function DashboardHome() {
       if (showHistoryModal && user) loadFullHistory();
   }, [historyDate, showHistoryModal, user]);
 
+  const getSafeFirstName = (nome, email) => {
+      try {
+          if (nome && typeof nome === 'string') return nome.trim().split(' ')[0];
+          if (email && typeof email === 'string') return email.trim().split('@')[0];
+          return "Colaborador";
+      } catch (e) { return "Colaborador"; }
+  };
+
+  const getInitials = (name) => {
+      try {
+          if (!name || typeof name !== 'string') return "?";
+          const cleanName = name.trim();
+          if (!cleanName) return "?";
+          const parts = cleanName.split(" ");
+          if (parts.length > 1) return (parts[0][0] + parts[parts.length-1][0]).toUpperCase();
+          return cleanName.substring(0, 2).toUpperCase();
+      } catch(e) { return "?"; }
+  };
+
   async function fetchUserProfile() {
     try {
         const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
@@ -118,24 +132,15 @@ export default function DashboardHome() {
     } catch (error) { console.error("Erro perfil:", error); }
   }
 
-  // 💡 PROCURA TIMER ATIVO E DESCOBRE A ÁRVORE/HIERARQUIA (Anti-Erros 400)
   async function checkActiveLog() {
       try {
-          // Primeiro, vai buscar só o log base
-          const { data, error } = await supabase
-              .from("task_logs")
-              .select("*") 
-              .eq("user_id", user.id)
-              .is("end_time", null)
-              .maybeSingle();
-          
+          const { data, error } = await supabase.from("task_logs").select("*").eq("user_id", user.id).is("end_time", null).maybeSingle();
           if (error) throw error;
           
           if (data) {
               let title = "Tempo a decorrer...";
               let foundProjectId = data.projeto_id;
               
-              // O detetive entra em ação: Sobe a hierarquia para descobrir o nome e o Projeto Pai
               if (data.subtarefa_id) {
                   const { data: res } = await supabase.from("subtarefas").select("titulo, tarefa_id").eq("id", data.subtarefa_id).maybeSingle();
                   if (res) {
@@ -168,72 +173,57 @@ export default function DashboardHome() {
                   if (res) title = res.titulo;
               }
               
-              // Guarda tudo bonitinho
               setActiveLog({ ...data, taskTitle: title, resolvedProjectId: foundProjectId });
           } else {
               setActiveLog(null);
           }
-      } catch (err) {
-          console.error("Erro a procurar timer ativo:", err);
-      }
+      } catch (err) { console.error("Erro a procurar timer ativo:", err); }
   }
 
-  // 💡 NAVEGAR DIRETAMENTE PARA A PÁGINA DO PROJETO CORRETO
   function navigateToActiveTask() {
       if (!activeLog) return;
-      
       if (activeLog.resolvedProjectId) {
           navigate(`/dashboard/projetos/${activeLog.resolvedProjectId}`);
       } else {
-          // Fallbacks de segurança
           if (activeLog.subtarefa_id || activeLog.tarefa_id) navigate("/dashboard/tarefas");
           else if (activeLog.atividade_id) navigate("/dashboard/atividades");
           else navigate("/dashboard/projetos");
       }
   }
 
-  // Helper para mostrar o nome da cena a correr
   const getActiveTaskName = () => {
       if (!activeLog) return "";
       return activeLog.taskTitle || "Tempo a decorrer...";
   };
 
-  // 💡 PARAR TIMER ATIVO GLOBALMENTE
   async function handleStopGlobalLog(e) {
       if(e) e.stopPropagation();
       if (!activeLog) return;
-      
       const diffMins = Math.max(1, Math.floor((new Date() - new Date(activeLog.start_time)) / 60000)); 
       await supabase.from("task_logs").update({ end_time: new Date().toISOString(), duration_minutes: diffMins }).eq("id", activeLog.id);
-      
       setActiveLog(null);
   }
 
   async function fetchAniversarios() {
-      const { data, error } = await supabase
-          .from('profiles')
-          .select('id, nome, avatar_url, data_nascimento')
-          .not('data_nascimento', 'is', null);
-
+      const { data, error } = await supabase.from('profiles').select('id, nome, avatar_url, data_nascimento').not('data_nascimento', 'is', null);
       if (data && !error) {
           const hoje = new Date();
           hoje.setHours(0, 0, 0, 0); 
           let myBirthdayIsToday = false;
 
           const lista = data.map(p => {
+              if (!p.data_nascimento) return null;
               const nasc = new Date(p.data_nascimento);
+              if (isNaN(nasc.getTime())) return null;
+
               let proximoAniversario = new Date(hoje.getFullYear(), nasc.getMonth(), nasc.getDate());
-              
-              if (proximoAniversario < hoje) {
-                  proximoAniversario.setFullYear(hoje.getFullYear() + 1);
-              }
+              if (proximoAniversario < hoje) proximoAniversario.setFullYear(hoje.getFullYear() + 1);
               
               if (p.id === user.id && nasc.getMonth() === hoje.getMonth() && nasc.getDate() === hoje.getDate()) {
                   myBirthdayIsToday = true;
               }
-
               return { ...p, proximoAniversario };
-          });
+          }).filter(Boolean);
 
           lista.sort((a, b) => a.proximoAniversario - b.proximoAniversario);
           setAniversarios(lista.slice(0, 5)); 
@@ -258,37 +248,106 @@ export default function DashboardHome() {
       if (!error && data) setRegistosMes(data);
   }
 
+  // 💡 MESTRE DAS TAREFAS NO DASHBOARD (INCLUI AVULSAS COMO PEDIDO!)
   async function fetchTarefasPessoais() {
-      const { data } = await supabase
+      // 1. TAREFAS: Puxa TODAS as tarefas (com e sem projeto)
+      const { data: tarefas } = await supabase
           .from("tarefas")
-          .select(`*, atividades ( titulo, projetos ( titulo, codigo_projeto ) )`)
+          .select(`*, atividades ( titulo, data_fim, projetos ( titulo, codigo_projeto, cliente_texto, clientes(marca) ) )`)
           .eq("responsavel_id", user.id)
           .neq("estado", "concluido")
           .neq("estado", "cancelado");
 
-      const pendingTasks = data || [];
-      
+      // 2. ATIVIDADES: Puxa TODAS as atividades
+      const { data: atividades } = await supabase
+          .from("atividades")
+          .select(`*, projetos ( titulo, codigo_projeto, cliente_texto, clientes(marca) )`)
+          .eq("responsavel_id", user.id)
+          .neq("estado", "concluido")
+          .neq("estado", "cancelado");
+
+      let combinedTasks = [];
+
+      if (tarefas) {
+          const formattedTasks = tarefas.map(t => {
+              const ativ = Array.isArray(t.atividades) ? t.atividades[0] : t.atividades;
+              const proj = ativ ? (Array.isArray(ativ.projetos) ? ativ.projetos[0] : ativ.projetos) : null;
+              
+              let clientLabel = "GERAL / AVULSA";
+              let projectName = "Tarefa Pessoal";
+
+              if (proj) {
+                  let brand = proj.clientes?.marca || proj.cliente_texto;
+                  clientLabel = brand ? `${brand} - ${proj.titulo}` : proj.titulo;
+                  projectName = proj.titulo;
+              } else if (ativ) {
+                  clientLabel = "Atividade Sem Projeto";
+              }
+
+              return { 
+                  ...t, 
+                  isActivity: false,
+                  parentTitle: ativ?.titulo || 'Sem Atividade',
+                  clientLabel: clientLabel,
+                  projectName: projectName,
+                  computedDeadline: t.data_fim || t.data_limite || ativ?.data_fim 
+              };
+          });
+          combinedTasks = [...combinedTasks, ...formattedTasks];
+      }
+
+      if (atividades) {
+          const formattedAtivs = atividades.map(a => {
+              const proj = Array.isArray(a.projetos) ? a.projetos[0] : a.projetos;
+              
+              let clientLabel = "GERAL / AVULSA";
+              let projectName = "Atividade Pessoal";
+
+              if (proj) {
+                  let brand = proj.clientes?.marca || proj.cliente_texto;
+                  clientLabel = brand ? `${brand} - ${proj.titulo}` : proj.titulo;
+                  projectName = proj.titulo;
+              }
+              
+              return { 
+                  id: `ativ_${a.id}`, 
+                  real_id: a.id,
+                  titulo: a.titulo, 
+                  estado: a.estado,
+                  isActivity: true,
+                  parentTitle: 'Bloco / Atividade',
+                  clientLabel: clientLabel,
+                  projectName: projectName,
+                  computedDeadline: a.data_fim 
+              };
+          });
+          combinedTasks = [...combinedTasks, ...formattedAtivs];
+      }
+
       const hoje = new Date();
       hoje.setHours(0,0,0,0);
 
       const urgentesHoje = [];
       const outras = [];
 
-      pendingTasks.forEach(t => {
-          if (!t.data_limite) {
+      combinedTasks.forEach(t => {
+          if (!t.computedDeadline) {
               outras.push(t); 
           } else {
-              const d = new Date(t.data_limite);
-              d.setHours(0,0,0,0);
-              if (d <= hoje) urgentesHoje.push(t);
+              const deadlineDate = new Date(t.computedDeadline);
+              deadlineDate.setHours(0,0,0,0);
+              const diffTime = deadlineDate.getTime() - hoje.getTime();
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              
+              if (diffDays <= 0) urgentesHoje.push(t);
               else outras.push(t);
           }
       });
 
       const sortFn = (a, b) => {
-          if (!a.data_limite) return 1;
-          if (!b.data_limite) return -1;
-          return new Date(a.data_limite) - new Date(b.data_limite);
+          if (!a.computedDeadline) return 1;
+          if (!b.computedDeadline) return -1;
+          return new Date(a.computedDeadline) - new Date(b.computedDeadline);
       };
 
       urgentesHoje.sort(sortFn);
@@ -301,13 +360,9 @@ export default function DashboardHome() {
   async function fetchStats() {
     const { count: countProjetos } = await supabase.from("projetos").select("*", { count: 'exact', head: true }).neq("estado", "cancelado").neq("estado", "concluido");
     const { count: countClientes } = await supabase.from("clientes").select("*", { count: 'exact', head: true });
-    const { count: countAtividades } = await supabase.from("atividades").select("*", { count: 'exact', head: true }).neq("estado", "cancelado").neq("estado", "concluido");
     const { count: countForum } = await supabase.from("forum_posts").select("*", { count: 'exact', head: true });
     
-    const { count: countTarefas } = await supabase.from("tarefas").select("*", { count: 'exact', head: true })
-        .eq("responsavel_id", user.id).neq("estado", "cancelado").neq("estado", "concluido");
-
-    setStats({ projetos: countProjetos || 0, clientes: countClientes || 0, atividades: countAtividades || 0, forum: countForum || 0, tarefas: countTarefas || 0 });
+    setStats({ projetos: countProjetos || 0, clientes: countClientes || 0, forum: countForum || 0 });
   }
 
   async function handleLogout() {
@@ -335,8 +390,8 @@ export default function DashboardHome() {
       setIsAdding(false);
       setEditingRecord(record.id);
       setEditForm({
-          hora_entrada: record.hora_entrada?.slice(0,5) || "",
-          hora_saida: record.hora_saida?.slice(0,5) || "",
+          hora_entrada: record.hora_entrada ? record.hora_entrada.slice(0,5) : "",
+          hora_saida: record.hora_saida ? record.hora_saida.slice(0,5) : "",
           tempo_pausa: record.tempo_pausa_acumulado ? Math.floor(record.tempo_pausa_acumulado / 60) : 0,
           observacoes: record.observacoes || "",
           motivo_alteracao: record.motivo_alteracao || ""
@@ -426,40 +481,39 @@ export default function DashboardHome() {
   };
 
   const formatarHoras = (segundos) => {
-      if (segundos === 0) return <span style={{color: '#94a3b8', fontStyle: 'italic'}}>Em curso</span>;
+      if (segundos === 0) return <span style={{color: '#94a3b8', fontStyle: 'italic', fontSize: '0.75rem'}}>Em curso</span>;
       const horas = Math.floor(segundos / 3600);
       const minutos = Math.floor((segundos % 3600) / 60);
       return <span style={{fontWeight: 'bold', color: '#2563eb'}}>{horas}h{minutos.toString().padStart(2, '0')}</span>;
   };
 
-  const renderTaskDeadline = (dataLimite) => {
-      if (!dataLimite) return <span style={{fontSize: '0.65rem', color: '#94a3b8', background: '#f8fafc', padding: '2px 6px', borderRadius: '4px'}}>Sem Prazo</span>;
-      const d = new Date(dataLimite); d.setHours(0,0,0,0);
+  const renderTaskDeadline = (dateString) => {
+      if (!dateString) return null;
+      const d = new Date(dateString); 
+      if (isNaN(d.getTime())) return null;
+      
+      d.setHours(0,0,0,0);
       const t = new Date(); t.setHours(0,0,0,0);
-      const diffDays = Math.round((d - t) / (1000 * 60 * 60 * 24));
+      const diffTime = d.getTime() - t.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      const dateFormatted = d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
       
       if (diffDays < 0) return <span style={{background: '#fee2e2', color: '#ef4444', padding: '2px 8px', borderRadius: '12px', fontSize: '0.65rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.AlertTriangle size={10} /> Atrasada</span>;
-      if (diffDays === 0) return <span style={{background: '#fef3c7', color: '#d97706', padding: '2px 8px', borderRadius: '12px', fontSize: '0.65rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.Flame size={10} /> Hoje</span>;
-      return <span style={{background: '#f1f5f9', color: '#64748b', padding: '2px 8px', borderRadius: '12px', fontSize: '0.65rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.Calendar size={10} /> {d.toLocaleDateString('pt-PT').slice(0,5)}</span>;
-  };
-
-  const getInitials = (name) => {
-      if (!name) return "?";
-      const parts = name.split(" ");
-      if (parts.length > 1) return (parts[0][0] + parts[parts.length-1][0]).toUpperCase();
-      return name.substring(0, 2).toUpperCase();
+      if (diffDays === 0) return <span style={{background: '#fefce8', color: '#d97706', padding: '2px 8px', borderRadius: '12px', fontSize: '0.65rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.Flame size={10} /> Hoje</span>;
+      return <span style={{background: '#f1f5f9', color: '#64748b', padding: '2px 8px', borderRadius: '12px', fontSize: '0.65rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.Calendar size={10} /> {dateFormatted}</span>;
   };
 
   const inputEditStyle = { width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.85rem' };
+  const userFirstName = getSafeFirstName(userProfile?.nome, userProfile?.email);
 
   return (
     <div className="dashboard-home">
       
-      {/* HEADER E MENU UTILIZADOR */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 2px 5px rgba(0,0,0,0.05)', flexWrap: 'wrap', gap: '15px' }}>
+      {/* HEADER ESTÁTICO (Sem bugs no scroll) */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px', background: 'white', padding: '15px 25px', borderRadius: '16px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', flexWrap: 'wrap', gap: '15px' }}>
         <div>
            <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
-               <h1 style={{ margin: 0, fontSize: '1.5rem', color: '#1e293b' }}>Olá, {userProfile?.nome?.split(' ')[0] || 'Colaborador'} 👋</h1>
+               <h1 style={{ margin: 0, fontSize: '1.5rem', color: '#1e293b' }}>Olá, {userFirstName} 👋</h1>
                <span style={{background: '#f1f5f9', color: '#64748b', padding: '4px 10px', borderRadius: '8px', fontWeight: 'bold', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '6px'}}>
                    <Icons.Clock /> {horaAtual}
                </span>
@@ -469,7 +523,6 @@ export default function DashboardHome() {
 
         <div style={{display: 'flex', alignItems: 'center', gap: '20px'}}>
             
-            {/* 💡 AVISO GLOBAL DE TEMPO A CORRER (GIGANTE E CLICÁVEL) */}
             {activeLog && (
                 <div 
                     onClick={navigateToActiveTask}
@@ -506,7 +559,7 @@ export default function DashboardHome() {
             <div style={{ position: 'relative' }}>
                 <div onClick={() => setShowMenu(!showMenu)} style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', padding: '8px 12px', borderRadius: '8px', background: showMenu ? '#f1f5f9' : 'transparent', transition: 'all 0.2s' }}>
                     <div style={{textAlign: 'right', display: 'flex', flexDirection: 'column'}}>
-                         <span style={{fontWeight: 'bold', fontSize: '0.9rem', color: '#334151'}}>{userProfile?.nome}</span>
+                         <span style={{fontWeight: 'bold', fontSize: '0.9rem', color: '#334151'}}>{userFirstName}</span>
                          <span style={{fontSize: '0.75rem', color: '#2563eb', fontWeight: '500'}}>{userProfile?.empresa_interna || 'Empresa'}</span>
                     </div>
                     
@@ -531,55 +584,44 @@ export default function DashboardHome() {
         </div>
       </div>
 
-      {/* --- CARTÕES DE RESUMO INTERATIVOS --- */}
-      <div className="dashboard-cards" style={{ marginBottom: '20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
-        <div className="card stat-card" onClick={() => navigate("/dashboard/projetos")} style={{borderLeft: '4px solid #2563eb', cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s'}}>
-          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
-              <div><h3 style={{fontSize: '0.9rem', color: '#64748b'}}>Projetos Ativos</h3><p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1e293b', margin: '5px 0' }}>{stats.projetos}</p></div>
-              <span style={{background: '#eff6ff', color: '#2563eb', padding: '8px', borderRadius: '10px', display: 'flex'}}><Icons.Rocket /></span>
-          </div>
-        </div>
-
-        <div className="card stat-card" onClick={() => navigate("/dashboard/atividades")} style={{borderLeft: '4px solid #8b5cf6', cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s'}}>
-          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
-              <div><h3 style={{fontSize: '0.9rem', color: '#64748b'}}>Atividades Ativas</h3><p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1e293b', margin: '5px 0' }}>{stats.atividades}</p></div>
-              <span style={{background: '#f3e8ff', color: '#8b5cf6', padding: '8px', borderRadius: '10px', display: 'flex'}}><Icons.Clipboard /></span>
-          </div>
-        </div>
-
-        <div className="card stat-card" onClick={() => navigate("/dashboard/tarefas")} style={{borderLeft: '4px solid #0ea5e9', cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s'}}>
-          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
-              <div><h3 style={{fontSize: '0.9rem', color: '#64748b'}}>Minhas Tarefas</h3><p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1e293b', margin: '5px 0' }}>{stats.tarefas}</p></div>
-              <span style={{background: '#e0f2fe', color: '#0ea5e9', padding: '8px', borderRadius: '10px', display: 'flex'}}><Icons.Check /></span>
-          </div>
-        </div>
-
-        <div className="card stat-card" onClick={() => navigate("/dashboard/clientes")} style={{borderLeft: '4px solid #10b981', cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s'}}>
-          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
-              <div><h3 style={{fontSize: '0.9rem', color: '#64748b'}}>Total Clientes</h3><p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1e293b', margin: '5px 0' }}>{stats.clientes}</p></div>
-              <span style={{background: '#dcfce7', color: '#10b981', padding: '8px', borderRadius: '10px', display: 'flex'}}><Icons.Users /></span>
-          </div>
-        </div>
-
-        <div className="card stat-card" onClick={() => navigate("/dashboard/forum")} style={{borderLeft: '4px solid #f59e0b', cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s'}}>
-          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
-              <div><h3 style={{fontSize: '0.9rem', color: '#64748b'}}>Comunicação</h3><p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1e293b', margin: '5px 0' }}>{stats.forum}</p></div>
-              <span style={{background: '#fef3c7', color: '#d97706', padding: '8px', borderRadius: '10px', display: 'flex'}}><Icons.Message /></span>
-          </div>
-        </div>
-      </div>
-
-      {/* GRID PRINCIPAL */}
-      <div className="dashboard-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', alignItems: 'start' }}>
+      {/* GRID PRINCIPAL (2 COLUNAS 100% FOCADAS E ARRUMADAS) */}
+      <div className="dashboard-grid" style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: '25px', alignItems: 'start' }}>
         
-        {/* COLUNA ESQUERDA: Assiduidade & Histórico & Aniversários */}
+        {/* COLUNA ESQUERDA: Stats, Assiduidade, Histórico, Equipa & Aniversários */}
         <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
+            
+            {/* --- OS 3 CARTÕES DE RESUMO --- */}
+            <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px' }}>
+                <div className="card stat-card" onClick={() => navigate("/dashboard/projetos")} style={{borderLeft: '4px solid #2563eb', cursor: 'pointer', transition: '0.2s', padding: '15px'}}>
+                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
+                        <div><h3 style={{fontSize: '0.8rem', color: '#64748b', margin: '0 0 5px 0'}}>Projetos Ativos</h3><p style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#1e293b', margin: 0 }}>{stats.projetos}</p></div>
+                        <span style={{background: '#eff6ff', color: '#2563eb', padding: '6px', borderRadius: '8px', display: 'flex'}}><Icons.Rocket size={18}/></span>
+                    </div>
+                </div>
+
+                <div className="card stat-card" onClick={() => navigate("/dashboard/clientes")} style={{borderLeft: '4px solid #10b981', cursor: 'pointer', transition: '0.2s', padding: '15px'}}>
+                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
+                        <div><h3 style={{fontSize: '0.8rem', color: '#64748b', margin: '0 0 5px 0'}}>Total Clientes</h3><p style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#1e293b', margin: 0 }}>{stats.clientes}</p></div>
+                        <span style={{background: '#dcfce7', color: '#10b981', padding: '6px', borderRadius: '8px', display: 'flex'}}><Icons.Users size={18}/></span>
+                    </div>
+                </div>
+
+                <div className="card stat-card" onClick={() => navigate("/dashboard/forum")} style={{borderLeft: '4px solid #f59e0b', cursor: 'pointer', transition: '0.2s', padding: '15px'}}>
+                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
+                        <div><h3 style={{fontSize: '0.8rem', color: '#64748b', margin: '0 0 5px 0'}}>Comunicação</h3><p style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#1e293b', margin: 0 }}>{stats.forum}</p></div>
+                        <span style={{background: '#fef3c7', color: '#d97706', padding: '6px', borderRadius: '8px', display: 'flex'}}><Icons.Message size={18}/></span>
+                    </div>
+                </div>
+            </div>
+
+            {/* PONTO / ASSIDUIDADE */}
             <WidgetAssiduidade />
             
-            <div className="card" style={{padding: '20px', background: 'white', borderRadius: '16px'}}>
+            {/* TABELA MENSAL */}
+            <div className="card" style={{padding: '20px', background: 'white', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px'}}>
                     <h4 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Calendar size={18} color="#2563eb" /> Últimos Registos (Mês)</h4>
-                    <button className="btn-small hover-shadow" style={{background: '#eff6ff', color: '#2563eb', fontWeight: 'bold'}} onClick={() => setShowHistoryModal(true)}>Ver Mais</button>
+                    <button className="btn-small hover-shadow" style={{background: '#eff6ff', color: '#2563eb', fontWeight: 'bold', padding: '6px 12px', borderRadius: '8px', border: 'none', cursor: 'pointer'}} onClick={() => setShowHistoryModal(true)}>Ver Mais</button>
                 </div>
 
                 {registosMes.length > 0 ? (
@@ -591,22 +633,30 @@ export default function DashboardHome() {
                                     <th style={{paddingBottom: '8px'}}>Entrada</th>
                                     <th style={{paddingBottom: '8px'}}>Saída</th>
                                     <th style={{paddingBottom: '8px'}}>Total</th>
-                                    <th style={{paddingBottom: '8px', maxWidth: '100px'}}>Notas</th>
+                                    <th style={{paddingBottom: '8px', maxWidth: '150px'}}>Tarefas / Notas</th>
+                                    <th style={{paddingBottom: '8px', textAlign: 'right'}}></th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {registosMes.map(r => {
                                     const totalSegundos = calcularSegundosExatos(r.hora_entrada, r.hora_saida, r.tempo_pausa_acumulado);
+                                    const notasLimpas = r.observacoes ? String(r.observacoes).replace(/✅ TAREFAS REALIZADAS:\n/g, '').replace(/\n/g, ', ') : '-';
+
                                     return (
                                     <tr key={r.id} style={{borderBottom: '1px solid #f8fafc', transition: 'background 0.2s'}} className="table-row-hover">
-                                        <td style={{padding: '8px 0', fontWeight: '500', color: '#334155'}}>{new Date(r.data_registo).toLocaleDateString('pt-PT').slice(0,5)}</td>
-                                        <td style={{padding: '8px 0', color: '#10b981'}}>{r.hora_entrada?.slice(0,5)}</td>
-                                        <td style={{padding: '8px 0', color: r.hora_saida ? '#ef4444' : '#94a3b8'}}>{r.hora_saida?.slice(0,5) || '---'}</td>
-                                        <td style={{padding: '8px 0'}}>{formatarHoras(totalSegundos)}</td>
+                                        <td style={{padding: '10px 0', fontWeight: '600', color: '#334155'}}>{new Date(r.data_registo).toLocaleDateString('pt-PT').slice(0,5)}</td>
+                                        <td style={{padding: '10px 0', color: '#10b981', fontWeight: '500'}}>{r.hora_entrada?.slice(0,5)}</td>
+                                        <td style={{padding: '10px 0', color: r.hora_saida ? '#ef4444' : '#94a3b8', fontWeight: '500'}}>{r.hora_saida?.slice(0,5) || '---'}</td>
+                                        <td style={{padding: '10px 0'}}>{formatarHoras(totalSegundos)}</td>
                                         <td style={{
-                                            padding: '8px 0', color: '#64748b', maxWidth: '100px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: r.observacoes ? 'help' : 'default'
+                                            padding: '10px 0', color: '#64748b', maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: r.observacoes ? 'help' : 'default'
                                         }} title={r.observacoes || ''}>
-                                            {r.observacoes || '-'}
+                                            {notasLimpas}
+                                        </td>
+                                        <td style={{padding: '10px 0', textAlign: 'right'}}>
+                                            <button onClick={() => { setHistoryDate(new Date(r.data_registo)); setShowHistoryModal(true); handleStartEdit(r); }} style={{background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px'}} className="hover-text-blue" title="Editar este registo">
+                                                <Icons.Edit size={14} />
+                                            </button>
                                         </td>
                                     </tr>
                                 )})}
@@ -618,60 +668,67 @@ export default function DashboardHome() {
                 )}
             </div>
 
-            <div className="card" style={{padding: '20px', background: 'white', borderRadius: '16px'}}>
-                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px'}}>
-                    <h4 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Activity size={18} color="#16a34a" /> Equipa Online</h4>
-                    <span style={{background: '#dcfce7', color: '#166534', padding: '2px 8px', borderRadius: '10px', fontSize: '0.75rem', fontWeight: 'bold'}}>{usersOnline.length}</span>
-                </div>
+            {/* 💡 EQUIPA E ANIVERSÁRIOS 50/50 */}
+            <div className="bottom-split-grid" style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px'}}>
                 
-                {usersOnline.length > 0 ? (
-                    <div style={{display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '150px', overflowY: 'auto'}} className="custom-scrollbar">
-                    {usersOnline.map(u => (
-                        <div key={u.id} style={{display: 'flex', alignItems: 'center', gap: '10px', paddingBottom: '8px', borderBottom: '1px solid #f8fafc'}}>
-                            <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#3b82f6', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.7rem', overflow: 'hidden' }}>
-                                {u.profiles?.avatar_url ? <img src={u.profiles.avatar_url} alt="U" style={{width:'100%', height:'100%', objectFit:'cover'}} /> : getInitials(u.profiles?.nome)}
-                            </div>
-                            <div style={{lineHeight: '1.2'}}>
-                                <div style={{fontWeight: '600', color: '#334155', fontSize: '0.85rem'}}>{u.profiles?.nome?.split(' ')[0]}</div>
-                                <div style={{fontSize: '0.7rem', color: '#94a3b8'}}>Entrou às {u.hora_entrada?.slice(0,5)}</div>
-                            </div>
-                        </div>
-                    ))}
+                <div className="card" style={{padding: '20px', background: 'white', borderRadius: '16px'}}>
+                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px'}}>
+                        <h4 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Activity size={18} color="#16a34a" /> Equipa Online</h4>
+                        <span style={{background: '#dcfce7', color: '#166534', padding: '2px 8px', borderRadius: '10px', fontSize: '0.75rem', fontWeight: 'bold'}}>{usersOnline.length}</span>
                     </div>
-                ) : (
-                    <div style={{textAlign: 'center', padding: '10px', color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic'}}>Ninguém online.</div>
-                )}
-            </div>
-
-            <div className="card" style={{padding: '20px', background: 'white', borderRadius: '16px'}}>
-                <h4 style={{margin: '0 0 15px 0', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Heart size={18} color="#f59e0b" fill="#f59e0b" /> Próximos Aniversários</h4>
-                {aniversarios.length > 0 ? (
-                    <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
-                    {aniversarios.map(a => {
-                        const isHoje = a.proximoAniversario.getDate() === new Date().getDate() && a.proximoAniversario.getMonth() === new Date().getMonth();
-                        return (
-                        <div key={a.id} style={{display: 'flex', alignItems: 'center', gap: '10px', paddingBottom: '8px', borderBottom: '1px solid #f8fafc'}}>
-                            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#f59e0b', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.8rem', overflow: 'hidden' }}>
-                                {a.avatar_url ? <img src={a.avatar_url} alt="U" style={{width:'100%', height:'100%', objectFit:'cover'}} /> : getInitials(a.nome)}
-                            </div>
-                            <div style={{lineHeight: '1.2'}}>
-                                <div style={{fontWeight: '600', color: '#334155', fontSize: '0.85rem'}}>{a.nome.split(' ')[0]}</div>
-                                <div style={{fontSize: '0.75rem', color: '#94a3b8'}}>
-                                    {a.proximoAniversario.toLocaleDateString('pt-PT', { day: '2-digit', month: 'long' })}
-                                    {isHoje && <span style={{color: '#ea580c', fontWeight: 'bold', marginLeft: '5px'}}>É HOJE! 🎉</span>}
+                    
+                    {usersOnline.length > 0 ? (
+                        <div style={{display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '180px', overflowY: 'auto'}} className="custom-scrollbar">
+                        {usersOnline.map(u => {
+                            const uNome = getSafeFirstName(u.profiles?.nome, "");
+                            return (
+                            <div key={u.id} style={{display: 'flex', alignItems: 'center', gap: '10px', paddingBottom: '8px', borderBottom: '1px solid #f8fafc'}}>
+                                <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#3b82f6', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.7rem', overflow: 'hidden', flexShrink: 0 }}>
+                                    {u.profiles?.avatar_url ? <img src={u.profiles.avatar_url} alt="U" style={{width:'100%', height:'100%', objectFit:'cover'}} /> : getInitials(u.profiles?.nome)}
+                                </div>
+                                <div style={{lineHeight: '1.2'}}>
+                                    <div style={{fontWeight: '600', color: '#334155', fontSize: '0.85rem'}}>{uNome}</div>
+                                    <div style={{fontSize: '0.7rem', color: '#94a3b8'}}>Entrou às {u.hora_entrada?.slice(0,5)}</div>
                                 </div>
                             </div>
+                        )})}
                         </div>
-                    )})}
-                    </div>
-                ) : (
-                    <div style={{textAlign: 'center', padding: '10px', color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic'}}>Nenhum aniversário registado.</div>
-                )}
-            </div>
+                    ) : (
+                        <div style={{textAlign: 'center', padding: '10px', color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic'}}>Ninguém online.</div>
+                    )}
+                </div>
 
+                <div className="card" style={{padding: '20px', background: 'white', borderRadius: '16px'}}>
+                    <h4 style={{margin: '0 0 15px 0', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Heart size={18} color="#f59e0b" fill="#f59e0b" /> Aniversários</h4>
+                    {aniversarios.length > 0 ? (
+                        <div style={{display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '180px', overflowY: 'auto'}} className="custom-scrollbar">
+                        {aniversarios.map(a => {
+                            const isHoje = a.proximoAniversario.getDate() === new Date().getDate() && a.proximoAniversario.getMonth() === new Date().getMonth();
+                            const aNome = getSafeFirstName(a.nome, "");
+                            return (
+                            <div key={a.id} style={{display: 'flex', alignItems: 'center', gap: '10px', paddingBottom: '8px', borderBottom: '1px solid #f8fafc'}}>
+                                <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#f59e0b', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.7rem', overflow: 'hidden', flexShrink: 0 }}>
+                                    {a.avatar_url ? <img src={a.avatar_url} alt="U" style={{width:'100%', height:'100%', objectFit:'cover'}} /> : getInitials(a.nome)}
+                                </div>
+                                <div style={{lineHeight: '1.2'}}>
+                                    <div style={{fontWeight: '600', color: '#334155', fontSize: '0.85rem'}}>{aNome}</div>
+                                    <div style={{fontSize: '0.75rem', color: '#94a3b8'}}>
+                                        {a.proximoAniversario.toLocaleDateString('pt-PT', { day: '2-digit', month: 'long' })}
+                                        {isHoje && <span style={{color: '#ea580c', fontWeight: 'bold', marginLeft: '5px'}}>HOJE! 🎉</span>}
+                                    </div>
+                                </div>
+                            </div>
+                        )})}
+                        </div>
+                    ) : (
+                        <div style={{textAlign: 'center', padding: '10px', color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic'}}>Nenhum aniversário.</div>
+                    )}
+                </div>
+
+            </div>
         </div>
 
-        {/* COLUNA DIREITA: TAREFAS EM GRELHA E CALENDÁRIO */}
+        {/* COLUNA DIREITA: SÓ TAREFAS */}
         <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
             
             {/* 🔥 TAREFAS URGENTES / PARA HOJE */}
@@ -692,19 +749,24 @@ export default function DashboardHome() {
                 ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
                     {tarefasHoje.slice(0, 6).map((t) => (
-                        <div key={t.id} onClick={() => navigate('/dashboard/tarefas')} className="task-hover-card" style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div key={t.id} onClick={() => navigate(t.isActivity ? '/dashboard/atividades' : '/dashboard/tarefas')} className="task-hover-card" style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                <span style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: 'bold', textTransform: 'uppercase', background: '#f8fafc', padding: '2px 6px', borderRadius: '6px' }} title={t.atividades?.projetos?.titulo}>
-                                    {t.atividades?.projetos?.codigo_projeto || (t.atividades?.projetos?.titulo ? t.atividades.projetos.titulo.slice(0,12) + '...' : 'Geral')}
+                                {/* 💡 LABEL EMPRESA - PROJETO ou GERAL/AVULSA */}
+                                <span style={{ fontSize: '0.65rem', color: '#64748b', textTransform: 'uppercase', background: '#f8fafc', padding: '2px 6px', borderRadius: '6px', maxWidth: '120px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={t.clientLabel}>
+                                    {t.clientLabel === 'GERAL / AVULSA' ? (
+                                        <strong style={{color: '#1e293b', fontWeight: '800'}}>GERAL / AVULSA</strong>
+                                    ) : (
+                                        <>{t.clientLabel}</>
+                                    )}
                                 </span>
-                                {renderTaskDeadline(t.data_limite)}
+                                {renderTaskDeadline(t.computedDeadline)}
                             </div>
                             
                             <h4 style={{ margin: '5px 0 0 0', fontSize: '0.9rem', color: '#1e293b', lineHeight: '1.3' }}>{t.titulo}</h4>
                             
                             <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '1px solid #f1f5f9' }}>
-                                <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{t.atividades?.titulo || 'Sem Atividade'}</span>
-                                <span style={{ fontSize: '0.9rem', color: '#cbd5e1' }}><Icons.ChevronRight size={16} /></span>
+                                <span style={{ fontSize: '0.75rem', color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px' }}>{t.parentTitle}</span>
+                                <span style={{ fontSize: '0.9rem', color: '#cbd5e1' }}><Icons.ChevronRight size={14} /></span>
                             </div>
                         </div>
                     ))}
@@ -712,11 +774,11 @@ export default function DashboardHome() {
                 )}
             </div>
 
-            {/* 📋 OUTRAS TAREFAS (FUTURO) */}
+            {/* 📋 OUTRAS TAREFAS E ATIVIDADES (FUTURO) */}
             <div className="card" style={{ padding: '20px', background: 'white', borderRadius: '16px' }}>
                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px'}}>
-                    <h4 style={{margin: 0, color: '#1e293b', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Clipboard color="#2563eb" /> Próximas Tarefas</h4>
-                    {tarefasGerais.length > 6 && (
+                    <h4 style={{margin: 0, color: '#1e293b', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Clipboard color="#2563eb" /> Próximas Tarefas / Blocos</h4>
+                    {tarefasGerais.length > 10 && (
                         <button className="btn-small hover-shadow" style={{background: '#f8fafc', color: '#64748b', fontWeight: 'bold'}} onClick={() => navigate("/dashboard/tarefas")}>
                             Ver as {tarefasGerais.length} <Icons.ChevronRight />
                         </button>
@@ -729,20 +791,25 @@ export default function DashboardHome() {
                     </div>
                 ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
-                    {tarefasGerais.slice(0, 6).map((t) => (
-                        <div key={t.id} onClick={() => navigate('/dashboard/tarefas')} className="task-hover-card" style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {tarefasGerais.slice(0, 10).map((t) => (
+                        <div key={t.id} onClick={() => navigate(t.isActivity ? '/dashboard/atividades' : '/dashboard/tarefas')} className="task-hover-card" style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                <span style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: 'bold', textTransform: 'uppercase', background: '#f8fafc', padding: '2px 6px', borderRadius: '6px' }} title={t.atividades?.projetos?.titulo}>
-                                    {t.atividades?.projetos?.codigo_projeto || (t.atividades?.projetos?.titulo ? t.atividades.projetos.titulo.slice(0,12) + '...' : 'Geral')}
+                                {/* 💡 LABEL EMPRESA - PROJETO ou GERAL/AVULSA */}
+                                <span style={{ fontSize: '0.65rem', color: '#64748b', textTransform: 'uppercase', background: '#f8fafc', padding: '2px 6px', borderRadius: '6px', maxWidth: '140px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={t.clientLabel}>
+                                    {t.clientLabel === 'GERAL / AVULSA' ? (
+                                        <strong style={{color: '#1e293b', fontWeight: '800'}}>GERAL / AVULSA</strong>
+                                    ) : (
+                                        <>{t.clientLabel}</>
+                                    )}
                                 </span>
-                                {renderTaskDeadline(t.data_limite)}
+                                {renderTaskDeadline(t.computedDeadline)}
                             </div>
                             
                             <h4 style={{ margin: '5px 0 0 0', fontSize: '0.9rem', color: '#1e293b', lineHeight: '1.3' }}>{t.titulo}</h4>
                             
                             <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '1px solid #f1f5f9' }}>
-                                <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{t.atividades?.titulo || 'Sem Atividade'}</span>
-                                <span style={{ fontSize: '0.9rem', color: '#cbd5e1' }}><Icons.ChevronRight size={16} /></span>
+                                <span style={{ fontSize: '0.75rem', color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px' }}>{t.parentTitle}</span>
+                                <span style={{ fontSize: '0.9rem', color: '#cbd5e1' }}><Icons.ChevronRight size={14} /></span>
                             </div>
                         </div>
                     ))}
@@ -750,7 +817,6 @@ export default function DashboardHome() {
                 )}
             </div>
 
-            <WidgetCalendar />
         </div>
       </div>
 
@@ -800,8 +866,8 @@ export default function DashboardHome() {
                                     <th style={{padding: '12px 15px'}}>Saída</th>
                                     <th style={{padding: '12px 15px'}}>Pausa</th>
                                     <th style={{padding: '12px 15px'}}>Total</th>
-                                    <th style={{padding: '12px 15px'}}>Motivo / Notas</th>
-                                    <th style={{padding: '12px 15px', textAlign: 'center'}}>Ações</th>
+                                    <th style={{padding: '12px 15px'}}>Tarefas Realizadas / Resumo do Dia</th>
+                                    <th style={{padding: '12px 15px', textAlign: 'center'}}></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -825,6 +891,11 @@ export default function DashboardHome() {
                                                 <div style={{flex: 1, minWidth: '100px'}}>
                                                     <label style={{fontSize: '0.75rem', fontWeight: 'bold', color: '#1e40af'}}>Pausa (Min)</label>
                                                     <input type="number" min="0" value={addForm.tempo_pausa} onChange={e => setAddForm({...addForm, tempo_pausa: e.target.value})} style={inputEditStyle} className="input-focus" />
+                                                </div>
+                                                
+                                                <div style={{flex: 2, minWidth: '200px'}}>
+                                                    <label style={{fontSize: '0.75rem', fontWeight: 'bold', color: '#1e40af'}}>Tarefas Realizadas / Resumo do Dia</label>
+                                                    <textarea rows="5" value={addForm.observacoes} onChange={e => setAddForm({...addForm, observacoes: e.target.value})} style={{...inputEditStyle, resize:'vertical'}} className="input-focus" />
                                                 </div>
                                                 
                                                 <div style={{flex: 2, minWidth: '200px'}}>
@@ -866,14 +937,15 @@ export default function DashboardHome() {
                                                 <td style={{padding: '12px 15px'}}>{formatarHoras(totalSegundos)}</td>
                                                 
                                                 <td style={{padding: '12px 15px'}}>
-                                                    <div style={{maxWidth: '150px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#64748b', fontSize: '0.8rem'}} title={`Notas: ${r.observacoes || '-'}\nMotivo: ${r.motivo_alteracao || '-'}`}>
-                                                        {r.motivo_alteracao ? <span style={{color: '#ea580c', fontWeight:'bold', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.AlertTriangle size={12} /> {r.motivo_alteracao}</span> : r.observacoes || '-'}
+                                                    <div style={{maxWidth: '250px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#64748b', fontSize: '0.8rem'}} title={r.observacoes || ''}>
+                                                        {r.motivo_alteracao && <span style={{color: '#ea580c', fontWeight:'bold', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px'}}><Icons.AlertTriangle size={12} /> Editado: {r.motivo_alteracao}</span>}
+                                                        {r.observacoes ? String(r.observacoes).replace(/✅ TAREFAS REALIZADAS:\n/g, '').replace(/\n/g, ', ') : '-'}
                                                     </div>
                                                 </td>
 
-                                                <td style={{padding: '12px 15px', textAlign: 'center'}}>
-                                                    <button className="btn-small hover-shadow" onClick={() => handleStartEdit(r)} style={{background: isEditing ? '#2563eb' : 'white', border: isEditing ? 'none' : '1px solid #cbd5e1', color: isEditing ? 'white' : '#475569', display: 'flex', alignItems: 'center', gap: '6px', margin: '0 auto'}}>
-                                                        {isEditing ? 'Cancelar' : <><Icons.Edit /> Editar</>}
+                                                <td style={{padding: '12px 15px', textAlign: 'right'}}>
+                                                    <button onClick={() => handleStartEdit(r)} style={{background: 'transparent', border: 'none', color: '#3b82f6', cursor: 'pointer', padding: '4px'}} className="hover-text-blue" title="Editar este registo">
+                                                        <Icons.Edit size={14} />
                                                     </button>
                                                 </td>
                                             </tr>
@@ -896,12 +968,18 @@ export default function DashboardHome() {
                                                             </div>
                                                             
                                                             <div style={{flex: 2, minWidth: '200px'}}>
+                                                                <label style={{fontSize: '0.75rem', fontWeight: 'bold', color: '#1e40af'}}>Tarefas Realizadas / Resumo do Dia</label>
+                                                                <textarea rows="5" value={editForm.observacoes || ""} onChange={e => setEditForm({...editForm, observacoes: e.target.value})} placeholder="O que foi feito..." style={{...inputEditStyle, resize:'vertical'}} className="input-focus" />
+                                                            </div>
+
+                                                            <div style={{flex: 2, minWidth: '200px'}}>
                                                                 <label style={{fontSize: '0.75rem', fontWeight: 'bold', color: '#ea580c'}}>Motivo da Correção *</label>
                                                                 <input type="text" placeholder="Ex: Esqueci de picar saída" value={editForm.motivo_alteracao} onChange={e => setEditForm({...editForm, motivo_alteracao: e.target.value})} style={{...inputEditStyle, borderColor: '#fdba74', background: '#fff7ed'}} className="input-focus-alert" required />
                                                             </div>
 
-                                                            <div style={{display: 'flex', alignItems: 'flex-end'}}>
-                                                                <button type="submit" className="btn-primary hover-shadow" style={{padding: '10px 20px', height: '40px', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Save /> Guardar</button>
+                                                            <div style={{display: 'flex', alignItems: 'flex-end', gap: '10px'}}>
+                                                                <button type="button" onClick={() => setEditingRecord(null)} className="btn-small hover-shadow" style={{height: '38px', background: 'white', border: '1px solid #cbd5e1', color: '#64748b'}}>Cancelar</button>
+                                                                <button type="submit" className="btn-primary hover-shadow" style={{padding: '0 20px', height: '38px', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Save /> Guardar</button>
                                                             </div>
                                                         </form>
                                                     </td>
@@ -924,7 +1002,7 @@ export default function DashboardHome() {
             <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.8)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999}}>
                 <div style={{background: 'linear-gradient(135deg, #ffffff, #fef3c7)', borderRadius: '24px', width: '90%', maxWidth: '400px', padding: '40px 20px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', position: 'relative', overflow: 'hidden', animation: 'fadeIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)'}}>
                     <div style={{display: 'flex', justifyContent: 'center', color: '#f59e0b', marginBottom: '15px', animation: 'bounce 2s infinite'}}><Icons.Gift /></div>
-                    <h2 style={{margin: '0 0 10px 0', color: '#b45309', fontSize: '2rem'}}>Parabéns, {userProfile?.nome?.split(' ')[0]}!</h2>
+                    <h2 style={{margin: '0 0 10px 0', color: '#b45309', fontSize: '2rem'}}>Parabéns, {userFirstName}!</h2>
                     <p style={{color: '#92400e', marginBottom: '25px', fontSize: '1.1rem', lineHeight: '1.5'}}>
                         A equipa deseja-te um dia incrivelmente feliz, cheio de sucesso e alegrias!
                     </p>
@@ -965,6 +1043,7 @@ export default function DashboardHome() {
         .stat-card:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
         .table-row-hover:hover { background-color: #f1f5f9 !important; }
         .hover-shadow:hover { transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .hover-text-blue:hover { color: #2563eb !important; }
         .hover-red-text:hover { color: #ef4444 !important; }
         
         /* Estilos dos Cartões de Tarefa */
@@ -979,6 +1058,15 @@ export default function DashboardHome() {
 
         @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Responsividade Extrema */
+        @media (max-width: 1200px) {
+            .dashboard-grid { grid-template-columns: 1fr !important; }
+        }
+        @media (max-width: 768px) {
+            .stats-grid { grid-template-columns: 1fr !important; }
+            .bottom-split-grid { grid-template-columns: 1fr !important; }
+        }
       `}</style>
     </div>
   );

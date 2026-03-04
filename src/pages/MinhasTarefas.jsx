@@ -24,7 +24,8 @@ const Icons = {
   XCircle: ({ size = 48, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>,
   Edit: ({ size = 20, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>,
   History: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v5h5"></path><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"></path><polyline points="12 7 12 12 15 15"></polyline></svg>,
-  Restore: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+  Restore: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>,
+  Folder: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
 };
 
 const ModalPortal = ({ children }) => createPortal(children, document.body);
@@ -37,17 +38,21 @@ export default function MinhasTarefas() {
   const [activeLog, setActiveLog] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notification, setNotification] = useState(null);
+  
+  // FILTROS E ESTADOS DE UI
   const [mostrarConcluidos, setMostrarConcluidos] = useState(false);
+  const [selectedProjectFilter, setSelectedProjectFilter] = useState("avulsas"); // 💡 DEFAULT PARA AVULSAS
+  const [availableProjects, setAvailableProjects] = useState([]);
   
   const [newTasks, setNewTasks] = useState({ atrasadas: '', hoje: '', amanha: '', depois: '', semData: '' });
   const [novaTarefaNome, setNovaTarefaNome] = useState("");
 
   const [editModal, setEditModal] = useState({ show: false, data: null });
   
-  // Modais e Estados para o Histórico de Concluídas
+  // Histórico de Concluídas
   const [showCompletedModal, setShowCompletedModal] = useState(false);
   const [completedTasksGroups, setCompletedTasksGroups] = useState({ "Esta Semana": [], "Semana Passada": [], "Mais Antigas": [] });
-  const [activeHistoryTab, setActiveHistoryTab] = useState("Esta Semana"); // 💡 NOVO: Estado para a Tab ativa
+  const [activeHistoryTab, setActiveHistoryTab] = useState("Esta Semana"); 
 
   // DRAG & DROP STATE
   const [draggedTask, setDraggedTask] = useState(null);
@@ -55,7 +60,7 @@ export default function MinhasTarefas() {
 
   useEffect(() => {
     if (user?.id) carregarTudo();
-  }, [user]);
+  }, [user, mostrarConcluidos, selectedProjectFilter]);
 
   const showToast = (message, type = 'success') => {
       setNotification({ message, type });
@@ -73,38 +78,60 @@ export default function MinhasTarefas() {
       setActiveLog(data || null);
   }
 
-  // --- MOTOR DO KANBAN: AGORA SÓ PUXA TAREFAS PENDENTES ---
   async function fetchMyTasks() {
       try {
-          const { data: tData } = await supabase
+          // 💡 Atualizado: Puxa data_limite E data_fim para cruzar tarefas normais e de projetos
+          let query = supabase
               .from("tarefas")
-              .select(`id, titulo, estado, data_limite, prioridade, descricao`)
+              .select(`id, titulo, estado, data_limite, data_fim, prioridade, descricao, created_at, atividades(projetos(id, titulo, codigo_projeto))`)
               .eq("responsavel_id", user.id)
-              .is("atividade_id", null)
-              .neq("estado", "concluido") 
               .order("created_at", { ascending: true }); 
 
+          if (!mostrarConcluidos) {
+              query = query.neq("estado", "concluido");
+          }
+
+          const { data: tData } = await query;
           const { data: logsData } = await supabase.from("task_logs").select("*").eq("user_id", user.id);
           setLogs(logsData || []);
+
+          if (tData) {
+              const pMap = new Map();
+              tData.forEach(task => {
+                  const proj = task.atividades?.projetos;
+                  if (proj) {
+                      pMap.set(proj.id, proj.codigo_projeto ? `[${proj.codigo_projeto}] ${proj.titulo}` : proj.titulo);
+                  }
+              });
+              setAvailableProjects(Array.from(pMap.entries()).map(([id, name]) => ({ id, name })));
+          }
+
+          let dataToProcess = tData || [];
+          if (selectedProjectFilter === "avulsas") {
+              dataToProcess = dataToProcess.filter(t => !t.atividades?.projetos);
+          } else if (selectedProjectFilter !== "todos") {
+              dataToProcess = dataToProcess.filter(t => t.atividades?.projetos?.id === selectedProjectFilter);
+          }
 
           const today = new Date(); today.setHours(0,0,0,0);
           const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
 
           let agrupado = { atrasadas: [], hoje: [], amanha: [], depois: [], semData: [] };
 
-          if (tData) {
-              tData.forEach(task => {
-                  if (!task.data_limite) {
-                      agrupado.semData.push(task);
-                  } else {
-                      const d = new Date(task.data_limite); d.setHours(0,0,0,0);
-                      if (d < today) agrupado.atrasadas.push(task);
-                      else if (d.getTime() === today.getTime()) agrupado.hoje.push(task);
-                      else if (d.getTime() === tomorrow.getTime()) agrupado.amanha.push(task);
-                      else agrupado.depois.push(task);
-                  }
-              });
-          }
+          dataToProcess.forEach(task => {
+              // 💡 Verifica se tem data_fim (Projeto) ou data_limite (Avulsa)
+              const taskDeadline = task.data_fim || task.data_limite;
+
+              if (!taskDeadline) {
+                  agrupado.semData.push(task);
+              } else {
+                  const d = new Date(taskDeadline); d.setHours(0,0,0,0);
+                  if (d < today) agrupado.atrasadas.push(task);
+                  else if (d.getTime() === today.getTime()) agrupado.hoje.push(task);
+                  else if (d.getTime() === tomorrow.getTime()) agrupado.amanha.push(task);
+                  else agrupado.depois.push(task);
+              }
+          });
 
           setTasks(agrupado);
       } catch (err) { console.error(err); }
@@ -113,20 +140,20 @@ export default function MinhasTarefas() {
 
   // --- MOTOR DO HISTÓRICO DE CONCLUÍDAS (MODAL) ---
   async function openCompletedHistory() {
+      // Aqui também puxamos data_fim e data_limite
       const { data } = await supabase
           .from("tarefas")
-          .select(`id, titulo, estado, data_limite, prioridade, descricao, created_at`)
+          .select(`id, titulo, estado, data_limite, data_fim, prioridade, descricao, created_at, data_conclusao, atividades(projetos(id, titulo, codigo_projeto))`)
           .eq("responsavel_id", user.id)
-          .is("atividade_id", null)
           .eq("estado", "concluido")
-          .order("created_at", { ascending: false });
+          .order("data_conclusao", { ascending: false, nullsFirst: false });
 
       if (data) {
           const now = new Date();
           const groups = { "Esta Semana": [], "Semana Passada": [], "Mais Antigas": [] };
 
           data.forEach(t => {
-              const refDate = new Date(t.data_limite || t.created_at);
+              const refDate = new Date(t.data_conclusao || t.created_at);
               const diffTime = Math.abs(now - refDate);
               const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
@@ -137,7 +164,6 @@ export default function MinhasTarefas() {
 
           setCompletedTasksGroups(groups);
           
-          // Define a tab inicial baseada na primeira que tiver dados, ou padrão "Esta Semana"
           if (groups["Esta Semana"].length > 0) setActiveHistoryTab("Esta Semana");
           else if (groups["Semana Passada"].length > 0) setActiveHistoryTab("Semana Passada");
           else if (groups["Mais Antigas"].length > 0) setActiveHistoryTab("Mais Antigas");
@@ -147,9 +173,12 @@ export default function MinhasTarefas() {
   }
 
   async function handleRestoreTask(task) {
-      await supabase.from("tarefas").update({ estado: 'pendente' }).eq("id", task.id);
-      showToast("Tarefa restaurada para o quadro!");
+      await supabase.from("tarefas").update({ 
+          estado: 'pendente',
+          data_conclusao: null
+      }).eq("id", task.id);
       
+      showToast("Tarefa restaurada para o quadro!");
       fetchMyTasks();
       openCompletedHistory(); 
   }
@@ -160,7 +189,6 @@ export default function MinhasTarefas() {
       showToast("Tarefa eliminada do arquivo.");
       openCompletedHistory();
   }
-
 
   const getTaskTime = (taskId) => logs.filter(l => l.task_id === taskId).reduce((acc, curr) => acc + (curr.duration_minutes || 0), 0);
   const formatTime = (mins) => {
@@ -182,9 +210,17 @@ export default function MinhasTarefas() {
       }
   }
 
+  // 💡 Registar a data_conclusao no Supabase
   async function handleCompleteTask(task) {
-      await supabase.from("tarefas").update({ estado: 'concluido' }).eq("id", task.id);
-      showToast("Boa! Tarefa concluída.");
+      const novoEstado = task.estado === 'concluido' ? 'pendente' : 'concluido';
+      const dataConclusao = novoEstado === 'concluido' ? new Date().toISOString() : null;
+
+      await supabase.from("tarefas").update({ 
+          estado: novoEstado,
+          data_conclusao: dataConclusao 
+      }).eq("id", task.id);
+      
+      showToast(novoEstado === 'concluido' ? "Boa! Tarefa concluída." : "Tarefa reaberta.");
       fetchMyTasks();
   }
 
@@ -208,6 +244,11 @@ export default function MinhasTarefas() {
           }]);
           if (error) throw error;
           setNovaTarefaNome(""); 
+          
+          if(selectedProjectFilter !== "avulsas" && selectedProjectFilter !== "todos") {
+              setSelectedProjectFilter("avulsas");
+          }
+          
           showToast("Tarefa rápida adicionada!"); 
           fetchMyTasks();
       } catch (err) { showToast("Erro: " + err.message, "error"); }
@@ -230,22 +271,38 @@ export default function MinhasTarefas() {
               responsavel_id: user.id, 
               estado: 'pendente', 
               atividade_id: null, 
-              data_limite: date,
+              data_limite: date, // Novas avulsas continuam a usar data_limite
               prioridade: 'normal' 
           }]);
           
           if(error) throw error;
           setNewTasks({ ...newTasks, [colId]: "" }); 
+          
+          if(selectedProjectFilter !== "avulsas" && selectedProjectFilter !== "todos") {
+              setSelectedProjectFilter("avulsas");
+          }
+          
           fetchMyTasks();
       } catch (err) { showToast("Erro ao criar: " + err.message, "error"); }
   }
 
   async function handleSaveModal(e) {
       e.preventDefault();
+      
+      const isProjectTask = editModal.data.atividades?.projetos;
+      
       const payload = { 
-          titulo: editModal.data.titulo, data_limite: editModal.data.data_limite || null, 
-          descricao: editModal.data.descricao, prioridade: editModal.data.prioridade
+          titulo: editModal.data.titulo, 
+          descricao: editModal.data.descricao, 
+          prioridade: editModal.data.prioridade
       };
+
+      // Se for tarefa de projeto edita o data_fim. Se for avulsa edita data_limite
+      if (isProjectTask) {
+          payload.data_fim = editModal.data._form_deadline || null;
+      } else {
+          payload.data_limite = editModal.data._form_deadline || null;
+      }
       
       try {
           const { error } = await supabase.from("tarefas").update(payload).eq("id", editModal.data.id);
@@ -272,9 +329,11 @@ export default function MinhasTarefas() {
       if (!draggedTask) return;
 
       const newDate = getDateForColumn(colId);
+      const isProjectTask = draggedTask.atividades?.projetos;
+      const updatePayload = isProjectTask ? { data_fim: newDate } : { data_limite: newDate };
       
       try {
-          await supabase.from('tarefas').update({ data_limite: newDate }).eq("id", draggedTask.id);
+          await supabase.from('tarefas').update(updatePayload).eq("id", draggedTask.id);
           fetchMyTasks(); 
       } catch(err) {
           showToast("Erro ao mover a tarefa.", "error");
@@ -285,14 +344,19 @@ export default function MinhasTarefas() {
   const renderCardTarefa = (task) => {
       const isTimerActive = activeLog?.task_id === task.id;
       const timeSpent = getTaskTime(task.id);
+      const isCompleted = task.estado === 'concluido';
+      const taskDeadline = task.data_fim || task.data_limite;
       
       let dateColor = '#64748b';
-      if (task.data_limite) {
-          const d = new Date(task.data_limite); d.setHours(0,0,0,0);
+      if (taskDeadline && !isCompleted) {
+          const d = new Date(taskDeadline); d.setHours(0,0,0,0);
           const t = new Date(); t.setHours(0,0,0,0);
           if (d < t) dateColor = '#ef4444';
           else if (d.getTime() === t.getTime()) dateColor = '#10b981';
       }
+
+      const proj = task.atividades?.projetos;
+      const contexto = proj ? (proj.codigo_projeto ? `[${proj.codigo_projeto}] ${proj.titulo}` : proj.titulo) : "Avulsa";
 
       return (
           <div 
@@ -306,7 +370,7 @@ export default function MinhasTarefas() {
                   border: isTimerActive ? '2px solid #3b82f6' : '1px solid #e2e8f0', 
                   boxShadow: isTimerActive ? '0 4px 6px -1px rgba(59, 130, 246, 0.2)' : '0 1px 3px rgba(0,0,0,0.05)', 
                   display: 'flex', gap: '12px', alignItems: 'flex-start', cursor: 'grab', 
-                  opacity: draggedTask?.id === task.id ? 0.6 : 1,
+                  opacity: (draggedTask?.id === task.id || isCompleted) ? 0.6 : 1,
                   transition: 'all 0.2s ease'
               }} 
               className="asana-card hover-shadow"
@@ -316,7 +380,9 @@ export default function MinhasTarefas() {
                 style={{
                     width: '22px', height: '22px', borderRadius: '50%', cursor: 'pointer', marginTop: '2px', transition: '0.2s', flexShrink: 0, 
                     display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                    border: '2px solid #cbd5e1', background: 'transparent', color: 'transparent'
+                    border: isCompleted ? 'none' : '2px solid #cbd5e1', 
+                    background: isCompleted ? '#10b981' : 'transparent',
+                    color: isCompleted ? 'white' : 'transparent'
                 }} 
                 className="hover-check-circle" 
                 title="Marcar como concluído"
@@ -325,22 +391,28 @@ export default function MinhasTarefas() {
               </button>
 
               <div style={{flex: 1, overflow: 'hidden'}}>
-                  <h4 onClick={() => setEditModal({show: true, data: {...task}})} style={{margin: '0 0 6px 0', fontSize: '0.95rem', color: '#1e293b', cursor: 'pointer', wordBreak: 'break-word', lineHeight: '1.4'}} className="hover-text-blue">
+                  <h4 onClick={() => setEditModal({show: true, data: {...task, _form_deadline: taskDeadline}})} style={{margin: '0 0 4px 0', fontSize: '0.95rem', color: isCompleted ? '#94a3b8' : '#1e293b', textDecoration: isCompleted ? 'line-through' : 'none', cursor: 'pointer', wordBreak: 'break-word', lineHeight: '1.4'}} className="hover-text-blue">
                       {task.titulo}
                   </h4>
                   
+                  <div style={{fontSize: '0.7rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>
+                      <Icons.Folder size={10} color="#cbd5e1" /> {contexto}
+                  </div>
+                  
                   <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px'}}>
                       <div style={{display: 'flex', gap: '10px', alignItems: 'center'}}>
-                          {task.data_limite && <span style={{fontSize: '0.7rem', color: dateColor, fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.Calendar /> {new Date(task.data_limite).toLocaleDateString('pt-PT', {day:'2-digit', month:'short'})}</span>}
+                          {taskDeadline && <span style={{fontSize: '0.7rem', color: isCompleted ? '#94a3b8' : dateColor, fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.Calendar /> {new Date(taskDeadline).toLocaleDateString('pt-PT', {day:'2-digit', month:'short'})}</span>}
                           {task.descricao && <span style={{color: '#94a3b8'}} title="Tem notas"><Icons.FileText /></span>}
                       </div>
 
                       <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
                           {timeSpent > 0 && <span style={{fontSize: '0.7rem', color: '#94a3b8', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.Clock /> {formatTime(timeSpent)}</span>}
                           
-                          <button onClick={() => handleToggleTimer(task)} style={{background: isTimerActive ? '#fee2e2' : '#f1f5f9', color: isTimerActive ? '#ef4444' : '#64748b', border: 'none', padding: '6px 12px', borderRadius: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', transition: '0.2s'}} className="hover-icon-btn">
-                              {isTimerActive ? <Icons.Stop /> : <Icons.Play />}
-                          </button>
+                          {!isCompleted && (
+                              <button onClick={() => handleToggleTimer(task)} style={{background: isTimerActive ? '#fee2e2' : '#f1f5f9', color: isTimerActive ? '#ef4444' : '#64748b', border: 'none', padding: '6px 12px', borderRadius: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', transition: '0.2s'}} className="hover-icon-btn">
+                                  {isTimerActive ? <Icons.Stop /> : <Icons.Play />}
+                              </button>
+                          )}
                       </div>
                   </div>
               </div>
@@ -374,13 +446,12 @@ export default function MinhasTarefas() {
               <div style={{overflowY: 'auto', flex: 1, paddingRight: '5px'}} className="custom-scrollbar">
                   {tasksList.map(t => renderCardTarefa(t))}
                   
-                  {/* Quick Add Inline */}
                   <form onSubmit={(e) => handleQuickAdd(e, id)} style={{marginTop: '5px'}}>
                       <div style={{position: 'relative'}}>
                           <span style={{position: 'absolute', left: '10px', top: '10px', color: '#94a3b8'}}><Icons.Plus /></span>
                           <input 
                               type="text" 
-                              placeholder="Adicionar tarefa..." 
+                              placeholder="Adicionar avulsa..." 
                               value={newTasks[id] || ''} 
                               onChange={e => setNewTasks({...newTasks, [id]: e.target.value})} 
                               style={{width: '100%', padding: '10px 10px 10px 32px', background: 'white', border: '1px dashed #cbd5e1', borderRadius: '8px', outline: 'none', fontSize: '0.85rem', color: '#475569', transition: '0.2s', boxSizing: 'border-box'}} 
@@ -408,20 +479,48 @@ export default function MinhasTarefas() {
               </div>
           </div>
           
-          <div style={{display: 'flex', gap: '15px', alignItems: 'center'}}>
+          <div style={{display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap'}}>
               
+              <div style={{position: 'relative'}}>
+                  <select 
+                      value={selectedProjectFilter} 
+                      onChange={(e) => setSelectedProjectFilter(e.target.value)}
+                      style={{
+                          padding: '8px 30px 8px 12px', 
+                          borderRadius: '8px', 
+                          border: '1px solid #cbd5e1', 
+                          outline: 'none', 
+                          background: 'white', 
+                          color: '#475569', 
+                          fontSize: '0.85rem', 
+                          fontWeight: '600', 
+                          cursor: 'pointer', 
+                          appearance: 'none',
+                          height: '36px'
+                      }}
+                      className="hover-shadow"
+                  >
+                      <option value="avulsas">⚪ Tarefas Avulsas</option>
+                      <option value="todos">📁 Todos os Projetos</option>
+                      {availableProjects.map(p => (
+                          <option key={p.id} value={p.id}>📁 {p.name}</option>
+                      ))}
+                  </select>
+                  <span style={{position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', fontSize: '0.6rem', color: '#94a3b8'}}>▼</span>
+              </div>
+
               <button 
                   onClick={openCompletedHistory}
-                  style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: '#475569', fontWeight: '700', background: '#f8fafc', padding: '10px 15px', borderRadius: '10px', border: '1px solid #e2e8f0', transition: '0.2s'}} 
+                  style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: '#475569', fontWeight: '700', background: '#f8fafc', padding: '0 15px', height: '36px', borderRadius: '8px', border: '1px solid #e2e8f0', transition: '0.2s'}} 
                   className="hover-shadow hover-text-blue"
               >
-                  <Icons.History /> Histórico / Concluídas
+                  <Icons.History /> Histórico
               </button>
 
-              <form onSubmit={handleCreatePessoal} style={{display: 'flex', gap: '10px', background: 'white', padding: '6px', borderRadius: '12px', border: '1px solid #cbd5e1', width: '320px', transition: '0.2s'}} className="input-focus-wrapper hover-shadow">
-                  <input type="text" placeholder="Tarefa rápida (Enter)..." value={novaTarefaNome} onChange={e => setNovaTarefaNome(e.target.value)} style={{flex: 1, border: 'none', outline: 'none', background: 'transparent', padding: '8px 12px', fontSize: '0.95rem', color: '#1e293b'}} />
-                  <button type="submit" style={{background: '#2563eb', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', gap: '6px'}} className="hover-bg-blue">
-                      <Icons.Plus /> Add
+              <form onSubmit={handleCreatePessoal} style={{display: 'flex', gap: '10px', background: 'white', padding: '4px', borderRadius: '10px', border: '1px solid #cbd5e1', width: '280px', transition: '0.2s'}} className="input-focus-wrapper hover-shadow">
+                  <input type="text" placeholder="Tarefa rápida..." value={novaTarefaNome} onChange={e => setNovaTarefaNome(e.target.value)} style={{flex: 1, border: 'none', outline: 'none', background: 'transparent', padding: '0 8px', fontSize: '0.9rem', color: '#1e293b'}} />
+                  <button type="submit" style={{background: '#2563eb', color: 'white', border: 'none', padding: '0 12px', height: '28px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem'}} className="hover-bg-blue">
+                      <Icons.Plus size={14} /> Add
                   </button>
               </form>
           </div>
@@ -437,7 +536,7 @@ export default function MinhasTarefas() {
       </div>
 
       {/* ============================================================== */}
-      {/* 💡 NOVO MODAL: HISTÓRICO DE TAREFAS CONCLUÍDAS COM TABS */}
+      {/* 💡 MODAL: HISTÓRICO DE TAREFAS CONCLUÍDAS COM TABS E CONTEXTO */}
       {/* ============================================================== */}
       {showCompletedModal && (
           <ModalPortal>
@@ -451,7 +550,6 @@ export default function MinhasTarefas() {
                           <button onClick={() => setShowCompletedModal(false)} style={{background:'none', border:'none', cursor:'pointer', color:'#94a3b8', display: 'flex'}} className="hover-red-text"><Icons.Close size={20} /></button>
                       </div>
 
-                      {/* 💡 NAVEGAÇÃO EM TABS PARA O HISTÓRICO */}
                       <div style={{ display: 'flex', gap: '10px', borderBottom: '1px solid #e2e8f0', marginBottom: '20px', paddingBottom: '5px' }}>
                           {Object.keys(completedTasksGroups).map(groupName => {
                               const isActive = activeHistoryTab === groupName;
@@ -478,28 +576,40 @@ export default function MinhasTarefas() {
 
                       <div style={{overflowY: 'auto', paddingRight: '10px', flex: 1}} className="custom-scrollbar">
                           <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
-                              {completedTasksGroups[activeHistoryTab]?.map(t => (
-                                  <div key={t.id} style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'white', padding: '15px', borderRadius: '12px', border: '1px solid #e2e8f0', transition: '0.2s'}} className="hover-shadow">
-                                      <div style={{display: 'flex', alignItems: 'center', gap: '12px', flex: 1, overflow: 'hidden'}}>
-                                          <div style={{width: '24px', height: '24px', borderRadius: '50%', background: '#dcfce7', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0}}>
-                                              <Icons.Check size={14} />
+                              {completedTasksGroups[activeHistoryTab]?.map(t => {
+                                  let ctx = "Avulsa";
+                                  if (t.atividades?.projetos) {
+                                      const p = t.atividades.projetos;
+                                      ctx = p.codigo_projeto ? `[${p.codigo_projeto}] ${p.titulo}` : p.titulo;
+                                  }
+
+                                  return (
+                                      <div key={t.id} style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'white', padding: '15px', borderRadius: '12px', border: '1px solid #e2e8f0', transition: '0.2s'}} className="hover-shadow">
+                                          <div style={{display: 'flex', alignItems: 'center', gap: '12px', flex: 1, overflow: 'hidden'}}>
+                                              <div style={{width: '24px', height: '24px', borderRadius: '50%', background: '#dcfce7', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0}}>
+                                                  <Icons.Check size={14} />
+                                              </div>
+                                              <div style={{display: 'flex', flexDirection: 'column', overflow: 'hidden'}}>
+                                                  <span style={{fontSize: '0.95rem', color: '#475569', textDecoration: 'line-through', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: '500'}}>{t.titulo}</span>
+                                                  <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px'}}>
+                                                      <span style={{fontSize: '0.75rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.Folder size={10} /> {ctx.length > 40 ? ctx.slice(0,40)+'...' : ctx}</span>
+                                                      <span style={{fontSize: '0.75rem', color: '#cbd5e1'}}>•</span>
+                                                      <span style={{fontSize: '0.75rem', color: '#94a3b8'}}>{new Date(t.data_conclusao || t.created_at).toLocaleDateString('pt-PT')}</span>
+                                                  </div>
+                                              </div>
                                           </div>
-                                          <div style={{display: 'flex', flexDirection: 'column', overflow: 'hidden'}}>
-                                              <span style={{fontSize: '0.95rem', color: '#475569', textDecoration: 'line-through', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: '500'}}>{t.titulo}</span>
-                                              <span style={{fontSize: '0.75rem', color: '#94a3b8'}}>{new Date(t.data_limite || t.created_at).toLocaleDateString('pt-PT')}</span>
+                                          
+                                          <div style={{display: 'flex', gap: '8px'}}>
+                                              <button onClick={() => handleRestoreTask(t)} style={{background: 'white', border: '1px solid #cbd5e1', color: '#3b82f6', padding: '6px 12px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', transition: '0.2s'}} title="Devolver ao quadro Kanban" className="hover-bg-blue-light">
+                                                  <Icons.Restore /> Restaurar
+                                              </button>
+                                              <button onClick={() => handlePermanentDelete(t.id)} style={{background: 'transparent', border: 'none', color: '#ef4444', padding: '6px', cursor: 'pointer', opacity: 0.6, transition: '0.2s'}} title="Eliminar para sempre" className="hover-red">
+                                                  <Icons.Trash />
+                                              </button>
                                           </div>
                                       </div>
-                                      
-                                      <div style={{display: 'flex', gap: '8px'}}>
-                                          <button onClick={() => handleRestoreTask(t)} style={{background: 'white', border: '1px solid #cbd5e1', color: '#3b82f6', padding: '6px 12px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', transition: '0.2s'}} title="Devolver ao quadro Kanban" className="hover-bg-blue-light">
-                                              <Icons.Restore /> Restaurar
-                                          </button>
-                                          <button onClick={() => handlePermanentDelete(t.id)} style={{background: 'transparent', border: 'none', color: '#ef4444', padding: '6px', cursor: 'pointer', opacity: 0.6, transition: '0.2s'}} title="Eliminar para sempre" className="hover-red">
-                                              <Icons.Trash />
-                                          </button>
-                                      </div>
-                                  </div>
-                              ))}
+                                  );
+                              })}
                               
                               {completedTasksGroups[activeHistoryTab]?.length === 0 && (
                                   <div style={{textAlign: 'center', color: '#94a3b8', padding: '50px 0', fontSize: '0.95rem'}}>
@@ -537,7 +647,7 @@ export default function MinhasTarefas() {
                           <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '25px'}}>
                               <div>
                                   <label style={{display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Data Limite</label>
-                                  <input type="date" value={editModal.data.data_limite || ''} onChange={e => setEditModal({...editModal, data: {...editModal.data, data_limite: e.target.value}})} style={{width: '100%', padding: '12px 15px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', transition: '0.2s'}} className="input-focus" />
+                                  <input type="date" value={editModal.data._form_deadline || ''} onChange={e => setEditModal({...editModal, data: {...editModal.data, _form_deadline: e.target.value}})} style={{width: '100%', padding: '12px 15px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', transition: '0.2s'}} className="input-focus" />
                               </div>
                               <div>
                                   <label style={{display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Prioridade</label>
@@ -602,17 +712,17 @@ export default function MinhasTarefas() {
           .hover-check-circle { color: transparent; }
           .hover-check-circle:hover { border-color: #10b981 !important; color: white !important; background: #10b981 !important; }
           
-          .hover-text-blue:hover { color: #10b981 !important; }
+          .hover-text-blue:hover { color: #2563eb !important; }
           .tab-hover-green:hover { color: #10b981 !important; }
           .hover-shadow:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
-          .hover-bg-blue:hover { background: #10b981 !important; color: white !important; }
-          .hover-bg-blue-light:hover { background: #eff6ff !important; border-color: #10b981 !important; }
+          .hover-bg-blue:hover { background: #1d4ed8 !important; color: white !important; }
+          .hover-bg-blue-light:hover { background: #eff6ff !important; border-color: #3b82f6 !important; }
           .hover-red:hover { opacity: 1 !important; color: #ef4444 !important; }
           .hover-red-text:hover { color: #ef4444 !important; }
           .hover-icon-btn:hover { opacity: 0.8; transform: scale(1.05); }
 
-          .input-focus:focus { border-color: #10b981 !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
-          .input-focus-wrapper:focus-within { border-color: #10b981 !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1) !important; }
+          .input-focus:focus { border-color: #3b82f6 !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
+          .input-focus-wrapper:focus-within { border-color: #3b82f6 !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1) !important; }
 
           .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 8px; }
           .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }

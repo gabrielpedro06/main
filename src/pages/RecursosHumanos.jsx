@@ -4,6 +4,32 @@ import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
 import "./../styles/dashboard.css"; 
 
+// --- ÍCONES SVG ESTILO SAAS ---
+const Icons = {
+  Users: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>,
+  Chart: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>,
+  Inbox: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path></svg>,
+  Check: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>,
+  X: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>,
+  Eye: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>,
+  Sun: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>,
+  HeartPulse: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path><path d="M12 5 9.04 9.2a1.2 1.2 0 0 0-1.2.9"></path><path d="M13 10h-2"></path><path d="M12 11v2"></path></svg>,
+  Clock: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>,
+  Flag: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>,
+  Cake: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8"></path><path d="M4 16s.5-1 2-1 2.5 2 4 2 2.5-2 4-2 2.5 2 4 2 2-1 2-1"></path><path d="M2 21h20"></path><path d="M7 8v3"></path><path d="M12 8v3"></path><path d="M17 8v3"></path><path d="M7 4h.01"></path><path d="M12 4h.01"></path><path d="M17 4h.01"></path></svg>,
+  Currency: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path><line x1="12" y1="18" x2="12" y2="6"></line></svg>,
+  User: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>,
+  Edit: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>,
+  Paperclip: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>,
+  Trash: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>,
+  ChevronLeft: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>,
+  ChevronRight: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>,
+  Info: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>,
+  Alert: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>,
+  FileText: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>,
+  Download: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+};
+
 const ModalPortal = ({ children }) => {
   return createPortal(children, document.body);
 };
@@ -30,7 +56,7 @@ export default function RecursosHumanos() {
   const [isEditingUser, setIsEditingUser] = useState(false);
   const [tempUserProfile, setTempUserProfile] = useState({}); 
 
-  // Modais de Ausência (Criar e Editar)
+  // Modais de Ausência
   const [showAbsenceModal, setShowAbsenceModal] = useState(false);
   const [isEditingAbsence, setIsEditingAbsence] = useState(false);
   const [editingAbsenceData, setEditingAbsenceData] = useState(null);
@@ -44,6 +70,7 @@ export default function RecursosHumanos() {
   const [diasUteisModal, setDiasUteisModal] = useState(0); 
 
   const [confirmModal, setConfirmModal] = useState({ show: false, pedido: null, acao: null });
+  const [detailsModal, setDetailsModal] = useState({ show: false, pedido: null }); // NOVO: Modal de Detalhes
   const [notification, setNotification] = useState({ show: false, message: '', type: 'success' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -179,6 +206,11 @@ export default function RecursosHumanos() {
 
   function abrirModalConfirmacao(pedido, acao) {
       setConfirmModal({ show: true, pedido, acao });
+      setDetailsModal({ show: false, pedido: null }); // Fecha o de detalhes se estiver aberto
+  }
+
+  function abrirModalDetalhes(pedido) {
+      setDetailsModal({ show: true, pedido });
   }
 
   async function executarAcaoRH() {
@@ -256,7 +288,7 @@ export default function RecursosHumanos() {
   }
 
   async function handleDeleteUser(id) {
-      if(!window.confirm("⚠️ ATENÇÃO: Tem a certeza que quer apagar este colaborador?\n\nIsto irá apagar todos os dados de férias, assiduidade e perfil desta pessoa permanentemente.")) return;
+      if(!window.confirm("ATENÇÃO: Tem a certeza que quer apagar este colaborador?\n\nIsto irá apagar todos os dados de férias, assiduidade e perfil desta pessoa permanentemente.")) return;
       try {
           const { error } = await supabase.from("profiles").delete().eq("id", id);
           if (error) throw error;
@@ -429,7 +461,7 @@ export default function RecursosHumanos() {
       const lista = ausenciasMes.filter(a => a.data_inicio <= today && a.data_fim >= today);
       return lista.map(a => {
           const user = colaboradores.find(c => c.id === a.user_id);
-          const infoHora = a.is_parcial ? `(⏰ ${a.hora_inicio?.slice(0,5)})` : '';
+          const infoHora = a.is_parcial ? `( ${a.hora_inicio?.slice(0,5)})` : '';
           return { ...a, nomeUser: user?.nome || 'Desconhecido', infoHora };
       });
   };
@@ -469,14 +501,26 @@ export default function RecursosHumanos() {
               const trabalhou = assiduidadeMes.some(a => a.data_registo === dateStr);
               const ausencia = ausenciasMes.find(a => a.data_inicio <= dateStr && a.data_fim >= dateStr);
               
-              if (trabalhou) { cellStyle.background = '#f0fdf4'; cellStyle.borderColor = '#bbf7d0'; content = '✅'; } 
+              if (trabalhou) { 
+                  cellStyle.background = '#f0fdf4'; cellStyle.borderColor = '#bbf7d0'; 
+                  content = <div style={{display:'flex', justifyContent:'center'}}><Icons.Check color="#16a34a" size={20} /></div>; 
+              } 
               else if (ausencia) {
                   const t = ausencia.tipo.toLowerCase();
-                  if (t.includes('férias') || t.includes('ferias')) { cellStyle.background = '#fefce8'; content = ausencia.is_parcial ? '⏰' : '🏖️'; }
-                  else if (t.includes('falta')) { cellStyle.background = '#fef2f2'; content = ausencia.is_parcial ? '⏰' : '❌'; }
-                  else { cellStyle.background = '#faf5ff'; content = ausencia.is_parcial ? '⏰' : '🏥'; }
+                  if (t.includes('férias') || t.includes('ferias')) { 
+                      cellStyle.background = '#fefce8'; 
+                      content = <div style={{display:'flex', justifyContent:'center'}}>{ausencia.is_parcial ? <Icons.Clock color="#ca8a04" size={20}/> : <Icons.Sun color="#ca8a04" size={20}/>}</div>; 
+                  }
+                  else if (t.includes('falta')) { 
+                      cellStyle.background = '#fef2f2'; 
+                      content = <div style={{display:'flex', justifyContent:'center'}}>{ausencia.is_parcial ? <Icons.Clock color="#ef4444" size={20}/> : <Icons.X color="#ef4444" size={20}/>}</div>; 
+                  }
+                  else { 
+                      cellStyle.background = '#faf5ff'; 
+                      content = <div style={{display:'flex', justifyContent:'center'}}>{ausencia.is_parcial ? <Icons.Clock color="#a855f7" size={20}/> : <Icons.HeartPulse color="#a855f7" size={20}/>}</div>; 
+                  }
               } else if (feriado) {
-                  content = <div style={{fontSize: '0.8rem', marginTop: '5px'}}>🇵🇹</div>;
+                  content = <div style={{display:'flex', justifyContent:'center', marginTop:'5px'}}><Icons.Flag color="#991b1b" size={16}/></div>;
               }
           } else {
               const ausentesNoDia = ausenciasMes.filter(a => a.data_inicio <= dateStr && a.data_fim >= dateStr);
@@ -493,7 +537,7 @@ export default function RecursosHumanos() {
               }
               content = (
                   <div style={{display: 'flex', flexDirection: 'column', gap: '2px', width: '100%', marginTop:'5px'}}>
-                      {feriado && <div title={feriado.nome} style={{fontSize: '0.7rem', color: '#991b1b', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>🇵🇹 {feriado.nome}</div>}
+                      {feriado && <div title={feriado.nome} style={{fontSize: '0.7rem', color: '#991b1b', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display:'flex', alignItems:'center', gap:'4px'}}><Icons.Flag size={10} color="#991b1b"/> {feriado.nome}</div>}
                       {bars}
                   </div>
               );
@@ -521,57 +565,88 @@ export default function RecursosHumanos() {
       
       <div style={{marginBottom: '20px', background:'white', padding:'20px', borderRadius:'12px', boxShadow:'0 2px 5px rgba(0,0,0,0.05)'}}>
         <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'20px'}}>
-            <div>
-                <h1 style={{margin:0}}>👥 Gestão de RH</h1>
-                <p style={{margin:'5px 0 0 0', color:'#64748b'}}>Aprovações, salários e dados pessoais.</p>
+            <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
+                <div style={{background:'#eff6ff', padding:'12px', borderRadius:'10px', display:'flex', alignItems:'center', justifyContent:'center'}}>
+                    <Icons.Users size={28} color="#2563eb" />
+                </div>
+                <div>
+                    <h1 style={{margin:0, fontSize:'1.4rem', color:'#1e293b'}}>Gestão de RH</h1>
+                    <p style={{margin:'5px 0 0 0', color:'#64748b', fontSize:'0.9rem'}}>Aprovações, salários e dados pessoais.</p>
+                </div>
             </div>
             <div style={{display: 'flex', gap: '10px'}}>
-                <button className={activeView === 'gestao' ? 'btn-primary' : 'btn-small'} onClick={() => setActiveView('gestao')} style={{padding: '10px 20px'}}>📊 Gestão</button>
-                <button className={activeView === 'pedidos' ? 'btn-primary' : 'btn-small'} onClick={() => setActiveView('pedidos')} style={{padding: '10px 20px', position: 'relative'}}>
-                  📥 Pedidos
-                  {pedidosPendentes.length > 0 && <span style={{position: 'absolute', top: '-8px', right: '-8px', background: '#ef4444', color: 'white', borderRadius: '50%', padding: '2px 8px', fontSize: '0.7rem', fontWeight: 'bold'}}>{pedidosPendentes.length}</span>}
+                <button className={activeView === 'gestao' ? 'btn-primary' : 'btn-small'} onClick={() => setActiveView('gestao')} style={{padding: '10px 20px', display:'flex', alignItems:'center', gap:'8px'}}>
+                    <Icons.Chart size={18} /> Gestão
+                </button>
+                <button className={activeView === 'pedidos' ? 'btn-primary' : 'btn-small'} onClick={() => setActiveView('pedidos')} style={{padding: '10px 20px', position: 'relative', display:'flex', alignItems:'center', gap:'8px'}}>
+                    <Icons.Inbox size={18} /> Pedidos
+                    {pedidosPendentes.length > 0 && <span style={{position: 'absolute', top: '-8px', right: '-8px', background: '#ef4444', color: 'white', borderRadius: '50%', padding: '2px 8px', fontSize: '0.7rem', fontWeight: 'bold'}}>{pedidosPendentes.length}</span>}
                 </button>
             </div>
         </div>
       </div>
 
       {activeView === 'pedidos' && (
-          <div className="card">
-              <h3 style={{marginBottom: '20px', color: '#1e293b'}}>Aprovações Pendentes</h3>
+          <div className="card" style={{padding: '25px', borderRadius: '12px', background: 'white', boxShadow: '0 2px 10px rgba(0,0,0,0.02)'}}>
+              <div style={{display:'flex', alignItems:'center', gap:'10px', marginBottom: '20px'}}>
+                  <Icons.Check size={24} color="#1e293b" />
+                  <h3 style={{margin: 0, color: '#1e293b'}}>Aprovações Pendentes</h3>
+              </div>
               {pedidosPendentes.length > 0 ? (
                   <div className="table-responsive">
-                    <table className="data-table">
+                    <table className="data-table" style={{width: '100%', borderCollapse: 'collapse', textAlign: 'left'}}>
                         <thead>
-                            <tr><th>Colaborador</th><th>Tipo</th><th>Período</th><th>Duração</th><th>Estado</th><th style={{textAlign: 'center'}}>Ação</th></tr>
+                            <tr style={{borderBottom: '2px solid #f1f5f9', color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase'}}>
+                                <th style={{padding: '12px'}}>Colaborador</th>
+                                <th style={{padding: '12px'}}>Tipo</th>
+                                <th style={{padding: '12px'}}>Período</th>
+                                <th style={{padding: '12px'}}>Duração</th>
+                                <th style={{padding: '12px'}}>Estado</th>
+                                <th style={{padding: '12px', textAlign: 'center'}}>Ações</th>
+                            </tr>
                         </thead>
                         <tbody>
                             {pedidosPendentes.map(p => (
-                                <tr key={p.id} style={{background: p.estado === 'pedido_cancelamento' ? '#fefce8' : 'transparent'}}>
-                                    <td style={{fontWeight: 'bold', color: '#2563eb'}}>{p.profiles?.nome}</td>
-                                    <td>{p.tipo}</td>
-                                    <td>
+                                <tr key={p.id} style={{background: p.estado === 'pedido_cancelamento' ? '#fefce8' : 'transparent', borderBottom: '1px solid #f1f5f9'}}>
+                                    <td style={{padding: '12px', fontWeight: 'bold', color: '#2563eb'}}>{p.profiles?.nome}</td>
+                                    <td style={{padding: '12px', color: '#334155'}}>{p.tipo}</td>
+                                    <td style={{padding: '12px', color: '#334155'}}>
                                       {p.is_parcial ? (
                                           <>
                                               <div style={{fontWeight: '500'}}>{new Date(p.data_inicio).toLocaleDateString('pt-PT')}</div>
-                                              <div style={{fontSize: '0.8rem', color: '#64748b'}}>⏰ {p.hora_inicio?.slice(0,5)} às {p.hora_fim?.slice(0,5) || '...'}</div>
+                                              <div style={{fontSize: '0.8rem', color: '#64748b', display:'flex', alignItems:'center', gap:'4px'}}><Icons.Clock size={12}/> {p.hora_inicio?.slice(0,5)} às {p.hora_fim?.slice(0,5) || '...'}</div>
                                           </>
                                       ) : (
                                           `${new Date(p.data_inicio).toLocaleDateString('pt-PT')} a ${new Date(p.data_fim).toLocaleDateString('pt-PT')}`
                                       )}
                                     </td>
-                                    <td>{p.is_parcial ? <span style={{color: '#94a3b8'}}>Horas</span> : `${calcularDiasUteis(p.data_inicio, p.data_fim)} dias`}</td>
-                                    <td>{p.estado === 'pendente' ? <span className="badge badge-warning">Novo</span> : <span className="badge" style={{background: '#ca8a04', color: 'white'}}>⚠️ Cancelamento</span>}</td>
-                                    <td style={{textAlign: 'center'}}>
-                                        <div style={{display: 'flex', gap: '5px', justifyContent: 'center'}}>
+                                    <td style={{padding: '12px'}}>{p.is_parcial ? <span style={{color: '#94a3b8', fontSize:'0.85rem'}}>Horas</span> : <span style={{fontSize:'0.9rem', fontWeight:'500'}}>{calcularDiasUteis(p.data_inicio, p.data_fim)} dias</span>}</td>
+                                    <td style={{padding: '12px'}}>
+                                        {p.estado === 'pendente' ? 
+                                            <span style={{background: '#dbeafe', color: '#2563eb', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold'}}>Novo Pedido</span> : 
+                                            <span style={{background: '#fef08a', color: '#854d0e', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', display:'flex', alignItems:'center', gap:'4px', width:'max-content'}}><Icons.Alert size={12}/> Cancelamento</span>
+                                        }
+                                    </td>
+                                    <td style={{padding: '12px', textAlign: 'center'}}>
+                                        <div style={{display: 'flex', gap: '8px', justifyContent: 'center'}}>
+                                            {/* NOVO: Botão de Ver Detalhes (Olho) */}
+                                            <button className="btn-small" title="Ver Detalhes do Pedido" style={{background: '#f8fafc', borderColor: '#cbd5e1', color: '#475569', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalDetalhes(p)}>
+                                                <Icons.Eye size={16} />
+                                            </button>
+                                            
                                             {p.estado === 'pendente' ? (
                                                 <>
-                                                    <button className="btn-small" style={{borderColor: '#16a34a', color: '#16a34a'}} onClick={() => abrirModalConfirmacao(p, 'aprovar')}>✔️</button>
-                                                    <button className="btn-small" style={{borderColor: '#ef4444', color: '#ef4444'}} onClick={() => abrirModalConfirmacao(p, 'rejeitar')}>✖️</button>
+                                                    <button className="btn-small" title="Aprovar" style={{background: '#f0fdf4', borderColor: '#bbf7d0', color: '#16a34a', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalConfirmacao(p, 'aprovar')}>
+                                                        <Icons.Check size={16} />
+                                                    </button>
+                                                    <button className="btn-small" title="Rejeitar" style={{background: '#fef2f2', borderColor: '#fecaca', color: '#ef4444', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalConfirmacao(p, 'rejeitar')}>
+                                                        <Icons.X size={16} />
+                                                    </button>
                                                 </>
                                             ) : (
                                                 <>
-                                                    <button className="btn-small" style={{borderColor: '#ef4444', color: '#ef4444', fontWeight:'bold'}} onClick={() => abrirModalConfirmacao(p, 'aceitar_cancelamento')}>Aceitar</button>
-                                                    <button className="btn-small" style={{borderColor: '#94a3b8', color: '#94a3b8'}} onClick={() => abrirModalConfirmacao(p, 'recusar_cancelamento')}>Recusar</button>
+                                                    <button className="btn-small" title="Aceitar Cancelamento" style={{background: '#fef2f2', borderColor: '#fecaca', color: '#ef4444', fontWeight:'bold', fontSize:'0.8rem'}} onClick={() => abrirModalConfirmacao(p, 'aceitar_cancelamento')}>Aceitar</button>
+                                                    <button className="btn-small" title="Recusar Cancelamento" style={{background: '#f8fafc', borderColor: '#cbd5e1', color: '#64748b', fontSize:'0.8rem'}} onClick={() => abrirModalConfirmacao(p, 'recusar_cancelamento')}>Recusar</button>
                                                 </>
                                             )}
                                         </div>
@@ -581,21 +656,24 @@ export default function RecursosHumanos() {
                         </tbody>
                     </table>
                   </div>
-              ) : <div style={{textAlign: 'center', padding: '40px', color: '#94a3b8', background: '#f8fafc', borderRadius: '12px'}}>Tudo limpo! 🎉</div>}
+              ) : <div style={{textAlign: 'center', padding: '60px', color: '#94a3b8', background: '#f8fafc', borderRadius: '12px', display:'flex', flexDirection:'column', alignItems:'center', gap:'15px'}}>
+                    <Icons.Check size={48} color="#cbd5e1" />
+                    <span style={{fontSize:'1.1rem', fontWeight:'500'}}>Tudo limpo! Não há pedidos pendentes.</span>
+                </div>}
           </div>
       )}
 
       {activeView === 'gestao' && (
           <>
-            <div style={{marginBottom: '20px', background:'white', padding:'15px 20px', borderRadius:'12px', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'15px', border: '1px solid #e2e8f0'}}>
+            <div style={{marginBottom: '20px', background:'white', padding:'15px 20px', borderRadius:'12px', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'15px', border: '1px solid #e2e8f0', boxShadow: '0 2px 5px rgba(0,0,0,0.02)'}}>
                 <div style={{background:'#f8fafc', padding:'10px 15px', borderRadius:'8px', display:'flex', alignItems:'center', gap:'10px', border:'1px solid #e2e8f0'}}>
                     <span style={{fontSize:'0.8rem', fontWeight:'bold', color:'#475569'}}>S.A. GLOBAL:</span>
-                    <input type="number" step="0.01" value={globalSA} onChange={e => setGlobalSA(e.target.value)} style={{width:'60px', padding:'5px'}}/>
-                    <button onClick={handleBulkUpdateSA} className="btn-small" style={{background:'#3b82f6', color:'white'}}>Aplicar</button>
+                    <input type="number" step="0.01" value={globalSA} onChange={e => setGlobalSA(e.target.value)} style={{width:'60px', padding:'5px', borderRadius:'4px', border:'1px solid #cbd5e1'}}/>
+                    <button onClick={handleBulkUpdateSA} className="btn-small" style={{background:'#2563eb', color:'white', border:'none', padding:'6px 12px', fontWeight:'500'}}>Aplicar</button>
                 </div>
-                <div style={{display:'flex', gap:'15px'}}>
-                    <select value={selectedUser || ""} onChange={(e) => setSelectedUser(e.target.value || null)} style={{padding: '10px 15px', borderRadius: '8px', minWidth: '250px'}}>
-                        <option value="">🏢 Visão Geral (Todos)</option>
+                <div style={{display:'flex', gap:'15px', alignItems:'center'}}>
+                    <select value={selectedUser || ""} onChange={(e) => setSelectedUser(e.target.value || null)} style={{padding: '10px 15px', borderRadius: '8px', minWidth: '250px', border:'1px solid #cbd5e1', color:'#1e293b', fontWeight:'500'}}>
+                        <option value="">Visão Geral Global</option>
                         {colaboradores.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
                     </select>
                     <button onClick={() => { 
@@ -604,7 +682,9 @@ export default function RecursosHumanos() {
                       setNewAbsence({ user_id: selectedUser || "", tipo: "Férias", data_inicio: "", data_fim: "", is_parcial: false, hora_inicio: "", hora_fim: "", motivo: "" }); 
                       setAbsenceFile(null); 
                       setShowAbsenceModal(true); 
-                    }} className="btn-primary" style={{padding: '10px 20px'}}>➕ Ausência Manual</button>
+                    }} className="btn-primary" style={{padding: '10px 20px', display:'flex', alignItems:'center', gap:'8px'}}>
+                        <Icons.Edit size={16} /> Ausência Manual
+                    </button>
                 </div>
             </div>
 
@@ -612,46 +692,61 @@ export default function RecursosHumanos() {
                 <div>
                     {selectedUser ? (
                         <>
-                            <div className="card" style={{marginBottom: '20px', padding:'20px', background:'white', borderRadius:'12px', borderTop:'4px solid #2563eb'}}>
-                                <div style={{display:'flex', justifyContent:'space-between', alignItems:'start', marginBottom:'15px'}}>
-                                    <div>
-                                        <h3 style={{margin:0}}>{currentUserProfile?.nome}</h3>
-                                        <div style={{marginTop:'5px'}}>
-                                            <span style={{fontSize:'0.75rem', background:'#eff6ff', color:'#2563eb', padding:'2px 8px', borderRadius:'10px', marginRight:'5px'}}>
-                                                {currentUserProfile?.empresa_interna || 'Sem Empresa'}
-                                            </span>
+                            <div className="card" style={{marginBottom: '20px', padding:'25px', background:'white', borderRadius:'12px', borderTop:'4px solid #2563eb', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
+                                <div style={{display:'flex', justifyContent:'space-between', alignItems:'start', marginBottom:'20px'}}>
+                                    <div style={{display:'flex', gap:'15px', alignItems:'center'}}>
+                                        <div style={{background:'#eff6ff', width:'45px', height:'45px', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center'}}>
+                                            <Icons.User size={24} color="#2563eb" />
+                                        </div>
+                                        <div>
+                                            <h3 style={{margin:0, color:'#1e293b', fontSize:'1.2rem'}}>{currentUserProfile?.nome}</h3>
+                                            <div style={{marginTop:'5px'}}>
+                                                <span style={{fontSize:'0.75rem', background:'#f1f5f9', color:'#475569', padding:'3px 10px', borderRadius:'12px', fontWeight:'600'}}>
+                                                    {currentUserProfile?.empresa_interna || 'Sem Empresa'}
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
-                                    <button onClick={downloadCSV} className="btn-small">📊 Excel</button>
+                                    <button onClick={downloadCSV} className="btn-small" style={{display:'flex', alignItems:'center', gap:'6px', background:'#f0fdf4', color:'#16a34a', borderColor:'#bbf7d0'}}>
+                                        <Icons.Download size={14} /> Relatório
+                                    </button>
                                 </div>
 
-                                <div className="tabs" style={{marginBottom:'20px'}}>
-                                    <button className={userTab === 'financeiro' ? 'active' : ''} onClick={() => setUserTab('financeiro')} style={{flex:1}}>💰 Financeiro</button>
-                                    <button className={userTab === 'dados' ? 'active' : ''} onClick={() => setUserTab('dados')} style={{flex:1}}>👤 Dados Pessoais</button>
+                                <div className="tabs" style={{marginBottom:'20px', display:'flex', background:'#f8fafc', padding:'4px', borderRadius:'8px'}}>
+                                    <button className={userTab === 'financeiro' ? 'active' : ''} onClick={() => setUserTab('financeiro')} style={{flex:1, borderRadius:'6px', padding:'8px', display:'flex', justifyContent:'center', alignItems:'center', gap:'6px', background: userTab === 'financeiro' ? 'white' : 'transparent', border: userTab === 'financeiro' ? '1px solid #e2e8f0' : 'none', color: userTab === 'financeiro' ? '#2563eb' : '#64748b', fontWeight:'bold', boxShadow: userTab === 'financeiro' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', transition:'0.2s'}}>
+                                        <Icons.Currency size={16} /> Financeiro
+                                    </button>
+                                    <button className={userTab === 'dados' ? 'active' : ''} onClick={() => setUserTab('dados')} style={{flex:1, borderRadius:'6px', padding:'8px', display:'flex', justifyContent:'center', alignItems:'center', gap:'6px', background: userTab === 'dados' ? 'white' : 'transparent', border: userTab === 'dados' ? '1px solid #e2e8f0' : 'none', color: userTab === 'dados' ? '#2563eb' : '#64748b', fontWeight:'bold', boxShadow: userTab === 'dados' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', transition:'0.2s'}}>
+                                        <Icons.FileText size={16} /> Pessoal
+                                    </button>
                                 </div>
 
                                 {userTab === 'financeiro' && (
                                     !isEditingUser ? (
                                         <div>
-                                            <div style={{display:'flex', justifyContent:'space-between', marginBottom:'10px'}}>
-                                                <span style={{color:'#64748b'}}>Valor S.A. / dia:</span>
-                                                <span style={{fontWeight:'bold'}}>{Number(currentUserProfile?.valor_sa || 0).toFixed(2)} €</span>
+                                            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px', padding:'10px', background:'#f8fafc', borderRadius:'8px'}}>
+                                                <span style={{color:'#64748b', fontSize:'0.9rem', display:'flex', alignItems:'center', gap:'6px'}}><Icons.Currency size={16}/> Valor S.A. Diário</span>
+                                                <span style={{fontWeight:'bold', fontSize:'1.1rem'}}>{Number(currentUserProfile?.valor_sa || 0).toFixed(2)} €</span>
                                             </div>
-                                            <div style={{display:'flex', justifyContent:'space-between', marginBottom:'10px'}}>
-                                                <span style={{color:'#64748b'}}>Férias Disponíveis:</span>
-                                                <span style={{fontWeight:'bold', color:'#2563eb'}}>{currentUserProfile?.dias_ferias ?? 22} dias</span>
+                                            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px', padding:'10px', background:'#eff6ff', borderRadius:'8px', border:'1px dashed #bfdbfe'}}>
+                                                <span style={{color:'#1e40af', fontSize:'0.9rem', display:'flex', alignItems:'center', gap:'6px'}}><Icons.Sun size={16}/> Férias Disponíveis</span>
+                                                <span style={{fontWeight:'bold', color:'#2563eb', fontSize:'1.1rem'}}>{currentUserProfile?.dias_ferias ?? 22} dias</span>
                                             </div>
-                                            <button onClick={() => setIsEditingUser(true)} style={{width:'100%', marginTop:'10px', padding:'8px', border:'1px dashed #cbd5e1', background:'white', cursor:'pointer', color:'#64748b'}}>✏️ Editar Dados</button>
+                                            <button onClick={() => setIsEditingUser(true)} style={{width:'100%', marginTop:'10px', padding:'10px', borderRadius:'8px', border:'1px solid #cbd5e1', background:'white', cursor:'pointer', color:'#475569', fontWeight:'600', display:'flex', justifyContent:'center', alignItems:'center', gap:'8px', transition:'0.2s'}} className="hover-bg-gray">
+                                                <Icons.Edit size={16} /> Editar Dados Financeiros
+                                            </button>
                                         </div>
                                     ) : (
-                                        <div style={{background:'#f8fafc', padding:'10px', borderRadius:'8px'}}>
-                                            <label style={{fontSize:'0.8rem'}}>Valor S.A.:</label>
-                                            <input type="number" step="0.01" value={tempUserProfile.valor_sa || 0} onChange={e => setTempUserProfile({...tempUserProfile, valor_sa: e.target.value})} style={{width:'100%', marginBottom:'10px'}} />
-                                            <label style={{fontSize:'0.8rem'}}>Dias Férias:</label>
-                                            <input type="number" value={tempUserProfile.dias_ferias || 0} onChange={e => setTempUserProfile({...tempUserProfile, dias_ferias: e.target.value})} style={{width:'100%', marginBottom:'10px'}} />
-                                            <div style={{display:'flex', gap:'5px'}}>
-                                                <button onClick={() => setIsEditingUser(false)} style={{flex:1, padding:'5px', border:'1px solid #ccc', background:'white'}}>Cancelar</button>
-                                                <button onClick={handleUpdateUserProfile} style={{flex:1, padding:'5px', background:'#2563eb', color:'white', border:'none'}}>Gravar</button>
+                                        <div style={{background:'#f8fafc', padding:'15px', borderRadius:'8px', border:'1px solid #e2e8f0'}}>
+                                            <label style={{fontSize:'0.8rem', fontWeight:'600', color:'#475569'}}>Valor S.A. Diário (€):</label>
+                                            <input type="number" step="0.01" value={tempUserProfile.valor_sa || 0} onChange={e => setTempUserProfile({...tempUserProfile, valor_sa: e.target.value})} style={{...inputStyle, marginTop:'5px', marginBottom:'15px'}} />
+                                            
+                                            <label style={{fontSize:'0.8rem', fontWeight:'600', color:'#475569'}}>Dias de Férias Disponíveis:</label>
+                                            <input type="number" value={tempUserProfile.dias_ferias || 0} onChange={e => setTempUserProfile({...tempUserProfile, dias_ferias: e.target.value})} style={{...inputStyle, marginTop:'5px', marginBottom:'15px'}} />
+                                            
+                                            <div style={{display:'flex', gap:'10px'}}>
+                                                <button onClick={() => setIsEditingUser(false)} style={{flex:1, padding:'10px', border:'1px solid #cbd5e1', borderRadius:'6px', background:'white', color:'#475569', fontWeight:'600'}}>Cancelar</button>
+                                                <button onClick={handleUpdateUserProfile} style={{flex:1, padding:'10px', background:'#2563eb', borderRadius:'6px', color:'white', border:'none', fontWeight:'bold'}}>Guardar</button>
                                             </div>
                                         </div>
                                     )
@@ -679,97 +774,121 @@ export default function RecursosHumanos() {
                                                 <div style={readOnlyItemStyle}><span style={labelStyle}>Sexo</span><b>{currentUserProfile?.sexo || '-'}</b></div>
                                             </div>
                                             <div style={{...readOnlyItemStyle, marginTop:'10px'}}><span style={labelStyle}>Morada</span><b>{currentUserProfile?.morada || '-'}</b></div>
-                                            <div style={{display:'flex', justifyContent:'space-between', marginTop:'10px', fontSize:'0.9rem'}}><span style={labelStyle}>Concelho:</span> <b>{currentUserProfile?.concelho || '-'}</b></div>
-                                            <div style={{display:'flex', justifyContent:'space-between', marginTop:'5px', fontSize:'0.9rem'}}><span style={labelStyle}>Empresa:</span> <b>{currentUserProfile?.empresa_interna || '-'}</b></div>
-                                            <div style={{display:'flex', justifyContent:'space-between', marginTop:'5px', fontSize:'0.9rem'}}><span style={labelStyle}>Contrato:</span> <b>{currentUserProfile?.tipo_contrato || '-'}</b></div>
-                                            <button onClick={() => setIsEditingUser(true)} style={{width:'100%', marginTop:'15px', padding:'8px', border:'1px dashed #cbd5e1', background:'white', cursor:'pointer', color:'#64748b'}}>✏️ Editar Completo</button>
+                                            <div style={{display:'flex', justifyContent:'space-between', marginTop:'15px', paddingBottom:'8px', borderBottom:'1px dashed #e2e8f0', fontSize:'0.9rem'}}><span style={labelStyle}>Concelho:</span> <b style={{color:'#1e293b'}}>{currentUserProfile?.concelho || '-'}</b></div>
+                                            <div style={{display:'flex', justifyContent:'space-between', marginTop:'8px', paddingBottom:'8px', borderBottom:'1px dashed #e2e8f0', fontSize:'0.9rem'}}><span style={labelStyle}>Empresa:</span> <b style={{color:'#1e293b'}}>{currentUserProfile?.empresa_interna || '-'}</b></div>
+                                            <div style={{display:'flex', justifyContent:'space-between', marginTop:'8px', fontSize:'0.9rem'}}><span style={labelStyle}>Contrato:</span> <b style={{color:'#1e293b'}}>{currentUserProfile?.tipo_contrato || '-'}</b></div>
+                                            <button onClick={() => setIsEditingUser(true)} style={{width:'100%', marginTop:'20px', padding:'10px', borderRadius:'8px', border:'1px solid #cbd5e1', background:'white', cursor:'pointer', color:'#475569', fontWeight:'600', display:'flex', justifyContent:'center', alignItems:'center', gap:'8px', transition:'0.2s'}}>
+                                                <Icons.Edit size={16} /> Editar Informações
+                                            </button>
                                         </>
                                     ) : (
-                                        <div style={{background:'#f8fafc', padding:'10px', borderRadius:'8px', maxHeight:'400px', overflowY:'auto'}}>
-                                            <label style={{fontSize:'0.75rem'}}>Nome Completo</label>
-                                            <input type="text" value={tempUserProfile.nome_completo || ''} onChange={e => setTempUserProfile({...tempUserProfile, nome_completo: e.target.value})} style={{width:'100%', marginBottom:'5px'}} />
+                                        <div style={{background:'#f8fafc', padding:'15px', borderRadius:'8px', maxHeight:'450px', overflowY:'auto', border:'1px solid #e2e8f0'}}>
+                                            <label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Nome Completo</label>
+                                            <input type="text" value={tempUserProfile.nome_completo || ''} onChange={e => setTempUserProfile({...tempUserProfile, nome_completo: e.target.value})} style={{width:'100%', marginBottom:'10px', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} />
                                             
-                                            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'5px'}}>
-                                                <div><label style={{fontSize:'0.75rem'}}>NIF</label><input type="text" value={tempUserProfile.nif || ''} onChange={e => setTempUserProfile({...tempUserProfile, nif: e.target.value})} style={{width:'100%'}} /></div>
-                                                <div><label style={{fontSize:'0.75rem'}}>NISS</label><input type="text" value={tempUserProfile.niss || ''} onChange={e => setTempUserProfile({...tempUserProfile, niss: e.target.value})} style={{width:'100%'}} /></div>
+                                            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'10px'}}>
+                                                <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>NIF</label><input type="text" value={tempUserProfile.nif || ''} onChange={e => setTempUserProfile({...tempUserProfile, nif: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
+                                                <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>NISS</label><input type="text" value={tempUserProfile.niss || ''} onChange={e => setTempUserProfile({...tempUserProfile, niss: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
                                                 
-                                                <div>
-                                                    <label style={{fontSize:'0.75rem'}}>CC (Ex: 12345678 - 9 - ZZ - 0)</label>
-                                                    <input 
-                                                        type="text" 
-                                                        value={tempUserProfile.ncc || ''} 
-                                                        onChange={handleCCChange} 
-                                                        style={{width:'100%', fontFamily: 'monospace', fontSize: '0.8rem'}} 
-                                                    />
+                                                <div style={{gridColumn:'1 / -1'}}>
+                                                    <label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>CC (Formato auto)</label>
+                                                    <input type="text" value={tempUserProfile.ncc || ''} onChange={handleCCChange} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px', fontFamily: 'monospace'}} />
                                                 </div>
-                                                <div><label style={{fontSize:'0.75rem'}}>Validade CC</label><input type="date" value={tempUserProfile.validade_cc || ''} onChange={e => setTempUserProfile({...tempUserProfile, validade_cc: e.target.value})} style={{width:'100%'}} /></div>
-                                                
-                                                <div><label style={{fontSize:'0.75rem'}}>Dependentes</label><input type="number" value={tempUserProfile.nr_dependentes || 0} onChange={e => setTempUserProfile({...tempUserProfile, nr_dependentes: e.target.value})} style={{width:'100%'}} /></div>
-                                                <div><label style={{fontSize:'0.75rem'}}>Estado Civil</label><select value={tempUserProfile.estado_civil || ''} onChange={e => setTempUserProfile({...tempUserProfile, estado_civil: e.target.value})} style={{width:'100%'}}><option value="">-</option><option value="Solteiro">Solteiro</option><option value="Casado">Casado</option><option value="Divorciado">Divorciado</option><option value="União Facto">União Facto</option></select></div>
-                                                <div><label style={{fontSize:'0.75rem'}}>Data Nasc.</label><input type="date" value={tempUserProfile.data_nascimento || ''} onChange={e => setTempUserProfile({...tempUserProfile, data_nascimento: e.target.value})} style={{width:'100%'}} /></div>
-                                                <div><label style={{fontSize:'0.75rem'}}>Nacionalidade</label><input type="text" value={tempUserProfile.nacionalidade || ''} onChange={e => setTempUserProfile({...tempUserProfile, nacionalidade: e.target.value})} style={{width:'100%'}} /></div>
-                                                <div><label style={{fontSize:'0.75rem'}}>Sexo</label><select value={tempUserProfile.sexo || ''} onChange={e => setTempUserProfile({...tempUserProfile, sexo: e.target.value})} style={{width:'100%'}}><option value="">-</option><option value="Masculino">Masculino</option><option value="Feminino">Feminino</option><option value="Outro">Outro</option></select></div>
+                                                <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Validade CC</label><input type="date" value={tempUserProfile.validade_cc || ''} onChange={e => setTempUserProfile({...tempUserProfile, validade_cc: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
+                                                <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Dependentes</label><input type="number" value={tempUserProfile.nr_dependentes || 0} onChange={e => setTempUserProfile({...tempUserProfile, nr_dependentes: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
+                                                <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Estado Civil</label><select value={tempUserProfile.estado_civil || ''} onChange={e => setTempUserProfile({...tempUserProfile, estado_civil: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px', background:'white'}}><option value="">-</option><option value="Solteiro">Solteiro</option><option value="Casado">Casado</option><option value="Divorciado">Divorciado</option><option value="União Facto">União Facto</option></select></div>
+                                                <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Data Nasc.</label><input type="date" value={tempUserProfile.data_nascimento || ''} onChange={e => setTempUserProfile({...tempUserProfile, data_nascimento: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
+                                                <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Nacionalidade</label><input type="text" value={tempUserProfile.nacionalidade || ''} onChange={e => setTempUserProfile({...tempUserProfile, nacionalidade: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
+                                                <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Sexo</label><select value={tempUserProfile.sexo || ''} onChange={e => setTempUserProfile({...tempUserProfile, sexo: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px', background:'white'}}><option value="">-</option><option value="Masculino">Masculino</option><option value="Feminino">Feminino</option><option value="Outro">Outro</option></select></div>
                                             </div>
-                                            <label style={{fontSize:'0.75rem', marginTop:'5px'}}>Morada</label>
-                                            <input type="text" value={tempUserProfile.morada || ''} onChange={e => setTempUserProfile({...tempUserProfile, morada: e.target.value})} style={{width:'100%', marginBottom:'5px'}} />
-                                            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'5px'}}>
-                                                <div><label style={{fontSize:'0.75rem'}}>Telemóvel</label><input type="text" value={tempUserProfile.telemovel || ''} onChange={e => setTempUserProfile({...tempUserProfile, telemovel: e.target.value})} style={{width:'100%'}} /></div>
-                                                <div><label style={{fontSize:'0.75rem'}}>Concelho</label><input type="text" value={tempUserProfile.concelho || ''} onChange={e => setTempUserProfile({...tempUserProfile, concelho: e.target.value})} style={{width:'100%'}} /></div>
+                                            <label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Morada</label>
+                                            <input type="text" value={tempUserProfile.morada || ''} onChange={e => setTempUserProfile({...tempUserProfile, morada: e.target.value})} style={{width:'100%', marginBottom:'10px', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} />
+                                            
+                                            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'10px'}}>
+                                                <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Telemóvel</label><input type="text" value={tempUserProfile.telemovel || ''} onChange={e => setTempUserProfile({...tempUserProfile, telemovel: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
+                                                <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Concelho</label><input type="text" value={tempUserProfile.concelho || ''} onChange={e => setTempUserProfile({...tempUserProfile, concelho: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
                                             </div>
-                                            <label style={{fontSize:'0.75rem'}}>Empresa</label>
-                                            <select value={tempUserProfile.empresa_interna || ''} onChange={e => setTempUserProfile({...tempUserProfile, empresa_interna: e.target.value})} style={{width:'100%', marginBottom:'5px', padding:'8px'}}>
+                                            
+                                            <label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Empresa</label>
+                                            <select value={tempUserProfile.empresa_interna || ''} onChange={e => setTempUserProfile({...tempUserProfile, empresa_interna: e.target.value})} style={{width:'100%', marginBottom:'10px', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px', background:'white'}}>
                                                 <option value="">Selecione...</option><option value="Neomarca">Neomarca</option><option value="Geoflicks">Geoflicks</option><option value="2 Siglas">2 Siglas</option><option value="Fator Triplo">Fator Triplo</option>
                                             </select>
-                                            <label style={{fontSize:'0.75rem'}}>Contrato</label>
-                                            <select value={tempUserProfile.tipo_contrato || ''} onChange={e => setTempUserProfile({...tempUserProfile, tipo_contrato: e.target.value})} style={{width:'100%', marginBottom:'10px', padding:'8px'}}>
+                                            
+                                            <label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Contrato</label>
+                                            <select value={tempUserProfile.tipo_contrato || ''} onChange={e => setTempUserProfile({...tempUserProfile, tipo_contrato: e.target.value})} style={{width:'100%', marginBottom:'20px', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px', background:'white'}}>
                                                 <option value="">Selecione...</option><option value="Termo Certo">Termo Certo</option><option value="Sem Termo">Sem Termo</option><option value="Termo Incerto">Termo Incerto</option><option value="Estágio Profissional">Estágio Profissional</option><option value="Estágio Curricular">Estágio Curricular</option><option value="Prestação de Serviços">Prestação de Serviços</option>
                                             </select>
-                                            <div style={{display:'flex', gap:'5px', marginTop:'10px'}}>
-                                                <button onClick={() => setIsEditingUser(false)} style={{flex:1, padding:'5px', border:'1px solid #ccc', background:'white'}}>Cancelar</button>
-                                                <button onClick={handleUpdateUserProfile} style={{flex:1, padding:'5px', background:'#2563eb', color:'white', border:'none'}}>Gravar</button>
+                                            
+                                            <div style={{display:'flex', gap:'10px'}}>
+                                                <button onClick={() => setIsEditingUser(false)} style={{flex:1, padding:'10px', border:'1px solid #cbd5e1', borderRadius:'6px', background:'white', color:'#475569', fontWeight:'600'}}>Cancelar</button>
+                                                <button onClick={handleUpdateUserProfile} style={{flex:1, padding:'10px', background:'#2563eb', color:'white', border:'none', borderRadius:'6px', fontWeight:'bold'}}>Gravar</button>
                                             </div>
-                                            <div style={{marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #e2e8f0', textAlign: 'center'}}>
-                                                <button onClick={() => handleDeleteUser(selectedUser)} style={{background: '#fee2e2', color: '#ef4444', border: 'none', padding: '8px 12px', borderRadius: '6px', fontSize: '0.8rem', cursor: 'pointer', width: '100%'}}>🗑️ Apagar Colaborador</button>
+                                            <div style={{marginTop: '25px', paddingTop: '15px', borderTop: '1px solid #e2e8f0', textAlign: 'center'}}>
+                                                <button onClick={() => handleDeleteUser(selectedUser)} style={{background: '#fee2e2', color: '#ef4444', border: 'none', padding: '10px 15px', borderRadius: '6px', fontSize: '0.85rem', fontWeight:'bold', cursor: 'pointer', width: '100%', display:'flex', alignItems:'center', justifyContent:'center', gap:'8px'}}>
+                                                    <Icons.Trash size={16} /> Apagar Colaborador
+                                                </button>
                                             </div>
                                         </div>
                                     )
                                 )}
                             </div>
 
-                            <div className="card" style={{padding:'20px', background:'white', borderRadius:'12px', marginBottom: '20px'}}>
-                                <h4 style={{margin:'0 0 15px 0', color:'#475569'}}>Processamento {currentDate.toLocaleDateString('pt-PT', {month:'long'})}</h4>
-                                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'8px', fontSize:'0.9rem'}}><span>Dias Trabalhados ({stats.countTrabalho})</span><span>+ {stats.valorSA} €</span></div>
-                                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'8px', fontSize:'0.9rem'}}><span>Férias ({stats.countFerias})</span><span>-</span></div>
-                                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'8px', fontSize:'0.9rem', color:'#ef4444'}}><span>Faltas ({stats.countFaltas})</span><span>-</span></div>
-                                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'8px', fontSize:'0.9rem'}}><span>Baixas ({stats.countBaixas})</span><span>-</span></div>
-                                <div style={{marginTop:'15px', paddingTop:'15px', borderTop:'1px solid #eee', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                                    <span style={{fontWeight:'bold', color:'#1e293b'}}>TOTAL S.A. PAGAR:</span><span style={{fontSize:'1.4rem', fontWeight:'bold', color:'#16a34a'}}>{stats.valorSA} €</span>
+                            <div className="card" style={{padding:'25px', background:'white', borderRadius:'12px', marginBottom: '20px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
+                                <h4 style={{margin:'0 0 20px 0', color:'#1e293b', fontSize:'1.1rem', display:'flex', alignItems:'center', gap:'8px'}}>
+                                    <Icons.Chart size={18} color="#64748b"/>
+                                    Processamento {currentDate.toLocaleDateString('pt-PT', {month:'long'})}
+                                </h4>
+                                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'12px', fontSize:'0.9rem', color:'#334155'}}><span>Dias Trabalhados ({stats.countTrabalho})</span><span style={{fontWeight:'600'}}>+ {stats.valorSA} €</span></div>
+                                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'12px', fontSize:'0.9rem', color:'#334155'}}><span>Férias ({stats.countFerias})</span><span style={{color:'#94a3b8'}}>-</span></div>
+                                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'12px', fontSize:'0.9rem', color:'#ef4444', fontWeight:'500'}}><span>Faltas ({stats.countFaltas})</span><span style={{color:'#fca5a5'}}>-</span></div>
+                                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'12px', fontSize:'0.9rem', color:'#8b5cf6'}}><span>Baixas ({stats.countBaixas})</span><span style={{color:'#c4b5fd'}}>-</span></div>
+                                <div style={{marginTop:'20px', paddingTop:'15px', borderTop:'2px dashed #f1f5f9', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                                    <span style={{fontWeight:'bold', color:'#475569', fontSize:'0.9rem'}}>TOTAL S.A. PAGAR:</span><span style={{fontSize:'1.5rem', fontWeight:'800', color:'#16a34a'}}>{stats.valorSA} €</span>
                                 </div>
                             </div>
                         </>
                     ) : (
-                        <div className="card" style={{padding:'20px', background:'white', borderRadius:'12px', color:'#64748b', textAlign:'center'}}>
-                            <h3 style={{margin:'0', color:'#1e293b'}}>📊 Resumo Global</h3>
-                            <ul style={{listStyle:'none', padding:0, marginTop:'20px'}}>
-                                <li style={{display:'flex', justifyContent:'space-between', padding:'10px 0', borderBottom:'1px solid #f1f5f9'}}><span>🏖️ Férias Marcadas</span> <b>{stats.countFerias} dias</b></li>
-                                <li style={{display:'flex', justifyContent:'space-between', padding:'10px 0', borderBottom:'1px solid #f1f5f9'}}><span>❌ Faltas</span> <b>{stats.countFaltas} dias</b></li>
-                                <li style={{display:'flex', justifyContent:'space-between', padding:'10px 0', borderBottom:'1px solid #f1f5f9'}}><span>🏥 Baixas Médicas</span> <b>{stats.countBaixas} dias</b></li>
+                        <div className="card" style={{padding:'30px', background:'white', borderRadius:'12px', color:'#64748b', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
+                            <h3 style={{margin:'0', color:'#1e293b', display:'flex', alignItems:'center', gap:'10px', fontSize:'1.2rem'}}>
+                                <Icons.Chart size={24} color="#3b82f6"/> 
+                                Resumo Global do Mês
+                            </h3>
+                            <ul style={{listStyle:'none', padding:0, marginTop:'25px'}}>
+                                <li style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 0', borderBottom:'1px solid #f1f5f9'}}>
+                                    <span style={{display:'flex', alignItems:'center', gap:'8px'}}><Icons.Sun size={18} color="#eab308"/> Férias Marcadas</span> 
+                                    <span style={{fontWeight:'bold', color:'#1e293b'}}>{stats.countFerias} dias</span>
+                                </li>
+                                <li style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 0', borderBottom:'1px solid #f1f5f9'}}>
+                                    <span style={{display:'flex', alignItems:'center', gap:'8px'}}><Icons.X size={18} color="#ef4444"/> Faltas</span> 
+                                    <span style={{fontWeight:'bold', color:'#1e293b'}}>{stats.countFaltas} dias</span>
+                                </li>
+                                <li style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 0', borderBottom:'1px solid #f1f5f9'}}>
+                                    <span style={{display:'flex', alignItems:'center', gap:'8px'}}><Icons.HeartPulse size={18} color="#8b5cf6"/> Baixas Médicas</span> 
+                                    <span style={{fontWeight:'bold', color:'#1e293b'}}>{stats.countBaixas} dias</span>
+                                </li>
                             </ul>
-                            <div style={{marginTop:'25px', paddingTop:'15px', borderTop:'2px dashed #f1f5f9'}}>
-                                <h5 style={{margin:'0 0 15px 0', color:'#475569', textTransform:'uppercase', fontSize:'0.75rem'}}>📅 Ausentes Hoje:</h5>
-                                {ausentesHoje.length === 0 ? <div style={{background:'#f0fdf4', padding:'12px', borderRadius:'8px', color:'#166534', fontWeight:'600'}}>✅ Todos presentes!</div> : 
-                                    ausentesHoje.map(a => <div key={a.id} style={{padding:'8px', border:'1px solid #eee', borderRadius:'6px', marginBottom:'5px'}}>{a.nomeUser} {a.infoHora} - {a.tipo}</div>)
+                            
+                            <div style={{marginTop:'30px', paddingTop:'20px', borderTop:'2px solid #f8fafc'}}>
+                                <h5 style={{margin:'0 0 15px 0', color:'#64748b', textTransform:'uppercase', fontSize:'0.75rem', fontWeight:'700', letterSpacing:'0.05em', display:'flex', alignItems:'center', gap:'6px'}}>
+                                    <Icons.Clock size={14}/> Ausentes Hoje
+                                </h5>
+                                {ausentesHoje.length === 0 ? <div style={{background:'#f0fdf4', padding:'12px', borderRadius:'8px', color:'#166534', fontWeight:'600', fontSize:'0.9rem', display:'flex', alignItems:'center', gap:'8px'}}><Icons.Check size={18}/> Todos presentes!</div> : 
+                                    ausentesHoje.map(a => <div key={a.id} style={{padding:'10px', border:'1px solid #e2e8f0', borderRadius:'8px', marginBottom:'8px', fontSize:'0.9rem', color:'#334155'}}><b style={{color:'#1e293b'}}>{a.nomeUser}</b> {a.infoHora} - {a.tipo}</div>)
                                 }
                             </div>
-                            <div style={{marginTop: '25px', paddingTop: '15px', borderTop: '2px dashed #f1f5f9'}}>
-                                <h5 style={{margin:'0 0 15px 0', color:'#475569', textTransform:'uppercase', fontSize:'0.75rem'}}>🎂 Aniversariantes de {currentDate.toLocaleDateString('pt-PT', {month:'long'})}:</h5>
+                            
+                            <div style={{marginTop: '30px', paddingTop: '20px', borderTop: '2px solid #f8fafc'}}>
+                                <h5 style={{margin:'0 0 15px 0', color:'#64748b', textTransform:'uppercase', fontSize:'0.75rem', fontWeight:'700', letterSpacing:'0.05em', display:'flex', alignItems:'center', gap:'6px'}}>
+                                    <Icons.Cake size={14}/> Aniversariantes de {currentDate.toLocaleDateString('pt-PT', {month:'long'})}
+                                </h5>
                                 {aniversariantes.length === 0 ? (
-                                    <div style={{padding:'12px', borderRadius:'8px', color:'#94a3b8', fontSize:'0.9rem', fontStyle:'italic'}}>Ninguém faz anos este mês.</div>
+                                    <div style={{padding:'12px', borderRadius:'8px', color:'#94a3b8', fontSize:'0.9rem', fontStyle:'italic', background:'#f8fafc'}}>Ninguém faz anos este mês.</div>
                                 ) : (
                                     <ul style={{listStyle:'none', padding:0}}>
                                         {aniversariantes.map(c => (
-                                            <li key={c.id} style={{display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid #f1f5f9', fontSize:'0.9rem'}}>
-                                                <span>{c.nome}</span><span style={{fontWeight:'bold', color:'#eab308'}}>Dia {new Date(c.data_nascimento).getDate()}</span>
+                                            <li key={c.id} style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 0', borderBottom:'1px solid #f1f5f9', fontSize:'0.9rem'}}>
+                                                <span style={{color:'#1e293b', fontWeight:'500'}}>{c.nome}</span>
+                                                <span style={{fontWeight:'bold', color:'#eab308', background:'#fefce8', padding:'4px 8px', borderRadius:'6px'}}>Dia {new Date(c.data_nascimento).getDate()}</span>
                                             </li>
                                         ))}
                                     </ul>
@@ -780,47 +899,70 @@ export default function RecursosHumanos() {
                 </div>
 
                 <div style={{display:'flex', flexDirection:'column', gap:'20px'}}>
-                    <div className="card" style={{padding:'20px', background:'white', borderRadius:'12px'}}>
-                        <div style={{display:'flex', justifyContent:'space-between', marginBottom:'20px'}}>
-                            <button onClick={() => changeMonth(-1)} className="btn-small">◀</button>
-                            <h2 style={{margin:0}}>{currentDate.toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' })}</h2>
-                            <button onClick={() => changeMonth(1)} className="btn-small">▶</button>
+                    <div className="card" style={{padding:'25px', background:'white', borderRadius:'12px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
+                        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'25px'}}>
+                            <button onClick={() => changeMonth(-1)} className="btn-small" style={{display:'flex', alignItems:'center', justifyContent:'center', padding:'8px', borderRadius:'50%'}}>
+                                <Icons.ChevronLeft size={18} color="#475569"/>
+                            </button>
+                            <h2 style={{margin:0, fontSize:'1.2rem', color:'#1e293b', textTransform:'capitalize'}}>{currentDate.toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' })}</h2>
+                            <button onClick={() => changeMonth(1)} className="btn-small" style={{display:'flex', alignItems:'center', justifyContent:'center', padding:'8px', borderRadius:'50%'}}>
+                                <Icons.ChevronRight size={18} color="#475569"/>
+                            </button>
                         </div>
-                        <div style={{display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '5px'}}>
-                            {['D','S','T','Q','Q','S','S'].map(d => <div key={d} style={{textAlign:'center', fontWeight:'bold', color:'#94a3b8', fontSize:'0.8rem'}}>{d}</div>)}
+                        <div style={{display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px'}}>
+                            {['D','S','T','Q','Q','S','S'].map(d => <div key={d} style={{textAlign:'center', fontWeight:'800', color:'#94a3b8', fontSize:'0.8rem', paddingBottom:'10px'}}>{d}</div>)}
                             {renderCalendar()}
                         </div>
                     </div>
 
                     {selectedUser && historicoUser.length > 0 && (
-                        <div className="card" style={{padding:'20px', background:'white', borderRadius:'12px'}}>
-                            <h3 style={{marginTop:0, fontSize:'1.1rem', color:'#1e293b'}}>📅 Histórico de Ausências</h3>
-                            <div className="table-responsive" style={{maxHeight:'300px', overflowY:'auto'}}>
-                                <table className="data-table" style={{fontSize:'0.9rem'}}>
-                                    <thead><tr><th>Tipo</th><th>Período</th><th>Justificativo</th><th>Estado</th><th style={{textAlign:'center'}}>Ações</th></tr></thead>
+                        <div className="card" style={{padding:'25px', background:'white', borderRadius:'12px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
+                            <h3 style={{marginTop:0, marginBottom:'20px', fontSize:'1.1rem', color:'#1e293b', display:'flex', alignItems:'center', gap:'8px'}}>
+                                <Icons.Clock size={18} color="#64748b"/> Histórico de Ausências
+                            </h3>
+                            <div className="table-responsive" style={{maxHeight:'350px', overflowY:'auto'}}>
+                                <table className="data-table" style={{fontSize:'0.9rem', width:'100%', borderCollapse:'collapse'}}>
+                                    <thead>
+                                        <tr style={{borderBottom:'2px solid #f1f5f9', color:'#64748b'}}>
+                                            <th style={{padding:'10px', textAlign:'left'}}>Tipo</th>
+                                            <th style={{padding:'10px', textAlign:'left'}}>Período</th>
+                                            <th style={{padding:'10px', textAlign:'center'}}>Anexo</th>
+                                            <th style={{padding:'10px', textAlign:'center'}}>Estado</th>
+                                            <th style={{padding:'10px', textAlign:'center'}}>Ações</th>
+                                        </tr>
+                                    </thead>
                                     <tbody>
                                         {historicoUser.map(h => (
-                                            <tr key={h.id}>
-                                                <td>{h.tipo}</td>
-                                                <td>
+                                            <tr key={h.id} style={{borderBottom:'1px solid #f8fafc'}}>
+                                                <td style={{padding:'10px', color:'#334155', fontWeight:'500'}}>{h.tipo}</td>
+                                                <td style={{padding:'10px', color:'#475569'}}>
                                                   {h.is_parcial ? (
                                                       <>
-                                                          <div style={{fontWeight: '500'}}>{new Date(h.data_inicio).toLocaleDateString('pt-PT')}</div>
-                                                          <div style={{fontSize: '0.8rem', color: '#64748b'}}>⏰ {h.hora_inicio?.slice(0,5)} às {h.hora_fim?.slice(0,5) || '...'}</div>
+                                                          <div>{new Date(h.data_inicio).toLocaleDateString('pt-PT')}</div>
+                                                          <div style={{fontSize: '0.8rem', color: '#94a3b8', display:'flex', alignItems:'center', gap:'4px'}}><Icons.Clock size={12}/> {h.hora_inicio?.slice(0,5)} às {h.hora_fim?.slice(0,5) || '...'}</div>
                                                       </>
                                                   ) : (
                                                       `${new Date(h.data_inicio).toLocaleDateString('pt-PT')} a ${new Date(h.data_fim).toLocaleDateString('pt-PT')}`
                                                   )}
                                                 </td>
-                                                <td style={{textAlign:'center'}}>
-                                                    {h.anexo_url ? <a href={h.anexo_url} target="_blank" rel="noreferrer" style={{color:'#2563eb', fontWeight:'bold', textDecoration:'none'}}>📎 Ver</a> : <span style={{color:'#cbd5e1'}}>-</span>}
+                                                <td style={{padding:'10px', textAlign:'center'}}>
+                                                    {h.anexo_url ? <a href={h.anexo_url} target="_blank" rel="noreferrer" style={{color:'#2563eb', display:'inline-flex', alignItems:'center', gap:'4px', background:'#eff6ff', padding:'4px 8px', borderRadius:'6px', textDecoration:'none', fontSize:'0.8rem', fontWeight:'600'}}><Icons.Paperclip size={14}/> Ver</a> : <span style={{color:'#cbd5e1'}}>-</span>}
                                                 </td>
-                                                <td><span className={`badge ${h.estado === 'aprovado' ? 'badge-success' : 'badge-danger'}`}>{h.estado}</span></td>
-                                                <td style={{textAlign: 'center'}}>
+                                                <td style={{padding:'10px', textAlign:'center'}}>
+                                                    <span style={{background: h.estado === 'aprovado' ? '#dcfce7' : '#fee2e2', color: h.estado === 'aprovado' ? '#166534' : '#991b1b', padding:'4px 8px', borderRadius:'6px', fontSize:'0.75rem', fontWeight:'700', textTransform:'uppercase'}}>
+                                                        {h.estado}
+                                                    </span>
+                                                </td>
+                                                <td style={{padding:'10px', textAlign: 'center'}}>
                                                     <div style={{display:'flex', gap:'5px', justifyContent:'center'}}>
-                                                        {/* BOTÃO DE EDITAR (✏️) */}
-                                                        <button className="btn-small" style={{color:'#3b82f6', borderColor:'#3b82f6', fontSize:'0.75rem'}} onClick={() => handleEditClick(h)} title="Editar Registo">✏️</button>
-                                                        {h.estado === 'aprovado' && <button className="btn-small" style={{color:'#ef4444', fontSize:'0.75rem'}} onClick={() => abrirModalConfirmacao(h, 'cancelar_direto')} title="Cancelar e devolver dias">❌</button>}
+                                                        <button className="btn-small" style={{color:'#3b82f6', background:'#eff6ff', borderColor:'#bfdbfe', padding:'6px'}} onClick={() => handleEditClick(h)} title="Editar Registo">
+                                                            <Icons.Edit size={14} />
+                                                        </button>
+                                                        {h.estado === 'aprovado' && (
+                                                            <button className="btn-small" style={{color:'#ef4444', background:'#fef2f2', borderColor:'#fecaca', padding:'6px'}} onClick={() => abrirModalConfirmacao(h, 'cancelar_direto')} title="Cancelar e devolver dias">
+                                                                <Icons.Trash size={14} />
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </td>
                                             </tr>
@@ -835,21 +977,134 @@ export default function RecursosHumanos() {
           </>
       )}
 
-      {/* MODAL UNIFICADO: REGISTAR OU EDITAR AUSÊNCIA */}
+      {/* --- MODAIS EXISTENTES E NOVO MODAL DE DETALHES ABAIXO --- */}
+
+      {/* NOVO MODAL: DETALHES DO PEDIDO (Ver Detalhes) */}
+      {detailsModal.show && detailsModal.pedido && (
+          <ModalPortal>
+              <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999}}>
+                  <div style={{background:'white', padding:'30px', borderRadius:'16px', width:'500px', maxWidth:'90%', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', maxHeight:'90vh', overflowY:'auto'}}>
+                      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px', borderBottom:'1px solid #f1f5f9', paddingBottom:'15px'}}>
+                          <h3 style={{margin: 0, color: '#1e293b', display:'flex', alignItems:'center', gap:'8px'}}>
+                              <Icons.FileText size={20} color="#3b82f6" />
+                              Detalhes do Pedido
+                          </h3>
+                          <button onClick={() => setDetailsModal({show: false, pedido: null})} style={{background:'transparent', border:'none', cursor:'pointer', color:'#94a3b8'}}><Icons.X size={20}/></button>
+                      </div>
+                      
+                      <div style={{display:'flex', flexDirection:'column', gap:'15px', marginBottom:'25px'}}>
+                          <div style={{background:'#f8fafc', padding:'15px', borderRadius:'8px', border:'1px solid #e2e8f0'}}>
+                              <div style={{fontSize:'0.8rem', color:'#64748b', fontWeight:'600', textTransform:'uppercase'}}>Colaborador</div>
+                              <div style={{fontSize:'1.1rem', fontWeight:'bold', color:'#1e293b'}}>{detailsModal.pedido.profiles?.nome}</div>
+                          </div>
+                          
+                          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'15px'}}>
+                              <div>
+                                  <div style={{fontSize:'0.8rem', color:'#64748b', fontWeight:'600'}}>Tipo de Ausência</div>
+                                  <div style={{fontWeight:'500', color:'#334155', marginTop:'2px'}}>{detailsModal.pedido.tipo}</div>
+                              </div>
+                              <div>
+                                  <div style={{fontSize:'0.8rem', color:'#64748b', fontWeight:'600'}}>Estado Atual</div>
+                                  <div style={{marginTop:'2px'}}>
+                                      <span style={{background: detailsModal.pedido.estado === 'pendente' ? '#dbeafe' : (detailsModal.pedido.estado === 'pedido_cancelamento' ? '#fef08a' : '#f1f5f9'), color: detailsModal.pedido.estado === 'pendente' ? '#1e40af' : (detailsModal.pedido.estado === 'pedido_cancelamento' ? '#854d0e' : '#475569'), padding:'2px 8px', borderRadius:'6px', fontSize:'0.8rem', fontWeight:'700'}}>
+                                          {detailsModal.pedido.estado.replace('_', ' ')}
+                                      </span>
+                                  </div>
+                              </div>
+                          </div>
+
+                          <div style={{background:'#eff6ff', padding:'15px', borderRadius:'8px', border:'1px solid #bfdbfe', display:'flex', gap:'15px'}}>
+                              <div style={{flex:1}}>
+                                  <div style={{fontSize:'0.8rem', color:'#1e40af', fontWeight:'600'}}>Período</div>
+                                  <div style={{fontWeight:'bold', color:'#1e3a8a', marginTop:'4px'}}>
+                                      {detailsModal.pedido.is_parcial 
+                                        ? new Date(detailsModal.pedido.data_inicio).toLocaleDateString('pt-PT')
+                                        : `${new Date(detailsModal.pedido.data_inicio).toLocaleDateString('pt-PT')} a ${new Date(detailsModal.pedido.data_fim).toLocaleDateString('pt-PT')}`
+                                      }
+                                  </div>
+                                  {detailsModal.pedido.is_parcial && (
+                                      <div style={{fontSize:'0.85rem', color:'#3b82f6', marginTop:'4px', display:'flex', alignItems:'center', gap:'4px'}}>
+                                          <Icons.Clock size={14}/> {detailsModal.pedido.hora_inicio?.slice(0,5)} às {detailsModal.pedido.hora_fim?.slice(0,5) || '?'}
+                                      </div>
+                                  )}
+                              </div>
+                              <div style={{borderLeft:'1px solid #93c5fd', paddingLeft:'15px', display:'flex', flexDirection:'column', justifyContent:'center'}}>
+                                  <div style={{fontSize:'0.8rem', color:'#1e40af', fontWeight:'600'}}>Duração</div>
+                                  <div style={{fontWeight:'bold', color:'#1e3a8a', fontSize:'1.1rem'}}>
+                                      {detailsModal.pedido.is_parcial ? 'Horas' : `${calcularDiasUteis(detailsModal.pedido.data_inicio, detailsModal.pedido.data_fim)} dias úteis`}
+                                  </div>
+                              </div>
+                          </div>
+
+                          {detailsModal.pedido.motivo && (
+                              <div>
+                                  <div style={{fontSize:'0.8rem', color:'#64748b', fontWeight:'600'}}>Observações / Motivo</div>
+                                  <div style={{background:'#f8fafc', padding:'10px', borderRadius:'6px', border:'1px solid #e2e8f0', marginTop:'4px', fontSize:'0.9rem', color:'#334155', fontStyle:'italic'}}>
+                                      "{detailsModal.pedido.motivo}"
+                                  </div>
+                              </div>
+                          )}
+
+                          {detailsModal.pedido.anexo_url && (
+                              <div>
+                                  <div style={{fontSize:'0.8rem', color:'#64748b', fontWeight:'600'}}>Documento Anexo</div>
+                                  <a href={detailsModal.pedido.anexo_url} target="_blank" rel="noreferrer" style={{display:'inline-flex', alignItems:'center', gap:'6px', background:'#f0fdf4', color:'#16a34a', padding:'8px 12px', borderRadius:'6px', border:'1px solid #bbf7d0', textDecoration:'none', marginTop:'4px', fontSize:'0.9rem', fontWeight:'600'}}>
+                                      <Icons.Paperclip size={16}/> Abrir Documento
+                                  </a>
+                              </div>
+                          )}
+                          
+                          <div style={{fontSize:'0.75rem', color:'#94a3b8', textAlign:'right', marginTop:'10px'}}>
+                              Pedido efetuado a {new Date(detailsModal.pedido.created_at).toLocaleString('pt-PT')}
+                          </div>
+                      </div>
+
+                      {/* Botões de Ação Rápidos dentro do Modal */}
+                      {detailsModal.pedido.estado === 'pendente' || detailsModal.pedido.estado === 'pedido_cancelamento' ? (
+                          <div style={{display: 'flex', gap: '10px', paddingTop:'15px', borderTop:'1px solid #f1f5f9'}}>
+                              {detailsModal.pedido.estado === 'pendente' ? (
+                                  <>
+                                      <button onClick={() => abrirModalConfirmacao(detailsModal.pedido, 'rejeitar')} style={{padding: '12px', borderRadius: '8px', border: '1px solid #fecaca', background: '#fef2f2', color:'#ef4444', fontWeight:'bold', flex: 1, display:'flex', justifyContent:'center', alignItems:'center', gap:'8px', cursor:'pointer'}}>
+                                          <Icons.X size={18}/> Rejeitar
+                                      </button>
+                                      <button onClick={() => abrirModalConfirmacao(detailsModal.pedido, 'aprovar')} style={{padding: '12px', borderRadius: '8px', border: 'none', background: '#16a34a', color: 'white', fontWeight:'bold', flex: 2, display:'flex', justifyContent:'center', alignItems:'center', gap:'8px', cursor:'pointer'}}>
+                                          <Icons.Check size={18}/> Aprovar Ausência
+                                      </button>
+                                  </>
+                              ) : (
+                                  <>
+                                      <button onClick={() => abrirModalConfirmacao(detailsModal.pedido, 'recusar_cancelamento')} style={{padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', color:'#475569', fontWeight:'bold', flex: 1, cursor:'pointer'}}>Manter Férias</button>
+                                      <button onClick={() => abrirModalConfirmacao(detailsModal.pedido, 'aceitar_cancelamento')} style={{padding: '12px', borderRadius: '8px', border: 'none', background: '#ef4444', color: 'white', fontWeight:'bold', flex: 1, cursor:'pointer'}}>Aceitar Cancelamento</button>
+                                  </>
+                              )}
+                          </div>
+                      ) : null}
+                  </div>
+              </div>
+          </ModalPortal>
+      )}
+
+      {/* Modal de Criar/Editar Ausência */}
       {showAbsenceModal && (
           <ModalPortal>
-            <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999}}>
-                <div style={{background:'white', padding:'25px', borderRadius:'12px', width:'450px', maxHeight: '90vh', overflowY: 'auto'}}>
-                    <h3 style={{marginTop: 0}}>{isEditingAbsence ? 'Editar Ausência' : 'Registar Ausência'}</h3>
+            <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999}}>
+                <div style={{background:'white', padding:'30px', borderRadius:'16px', width:'500px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'}}>
+                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px'}}>
+                        <h3 style={{margin: 0, display:'flex', alignItems:'center', gap:'8px', color:'#1e293b'}}>
+                            {isEditingAbsence ? <Icons.Edit size={20} color="#3b82f6"/> : <Icons.Sun size={20} color="#3b82f6"/>}
+                            {isEditingAbsence ? 'Editar Ausência' : 'Registar Ausência'}
+                        </h3>
+                        <button type="button" onClick={closeAbsenceModal} style={{background:'none', border:'none', cursor:'pointer', color: '#94a3b8'}}><Icons.X size={20}/></button>
+                    </div>
                     
                     <form onSubmit={handleSaveAbsence}>
-                        <label style={{fontSize: '0.8rem', fontWeight: 'bold'}}>Colaborador</label>
-                        <select required value={newAbsence.user_id} onChange={e => setNewAbsence({...newAbsence, user_id: e.target.value})} style={inputStyle} disabled={isEditingAbsence || !!selectedUser}>
+                        <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Colaborador</label>
+                        <select required value={newAbsence.user_id} onChange={e => setNewAbsence({...newAbsence, user_id: e.target.value})} style={{...inputStyle, background: isEditingAbsence || !!selectedUser ? '#f8fafc' : 'white'}} disabled={isEditingAbsence || !!selectedUser}>
                             <option value="">Selecione Colaborador...</option>
                             {colaboradores.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
                         </select>
                         
-                        <label style={{fontSize: '0.8rem', fontWeight: 'bold'}}>Motivo da Ausência</label>
+                        <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Motivo da Ausência</label>
                         <select value={newAbsence.tipo} onChange={e => setNewAbsence({...newAbsence, tipo: e.target.value})} style={inputStyle} required>
                             <option value="Férias">Férias</option>
                             <option value="Assistência à família">Assistência à família</option>
@@ -865,111 +1120,133 @@ export default function RecursosHumanos() {
                             <option value="Candidato a cargo público">Candidato a cargo público</option>
                         </select>
                         
-                        <label style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginBottom: '15px', color: '#475569', fontWeight: 'bold', fontSize: '0.9rem', background: '#f8fafc', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0'}}>
+                        <label style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginBottom: '15px', color: '#1e293b', fontWeight: '600', fontSize: '0.9rem', background: newAbsence.is_parcial ? '#eff6ff' : '#f8fafc', padding: '12px', borderRadius: '8px', border: newAbsence.is_parcial ? '1px solid #bfdbfe' : '1px solid #e2e8f0', transition:'0.2s'}}>
                             <input 
                                 type="checkbox" 
                                 checked={newAbsence.is_parcial} 
                                 onChange={e => setNewAbsence({...newAbsence, is_parcial: e.target.checked, data_fim: e.target.checked ? newAbsence.data_inicio : newAbsence.data_fim})} 
-                                style={{width: '18px', height: '18px'}} 
+                                style={{width: '18px', height: '18px', accentColor:'#2563eb'}} 
                             />
-                            ⏳ Ausência Parcial (Apenas algumas horas)
+                            <Icons.Clock size={18} color={newAbsence.is_parcial ? '#2563eb' : '#64748b'}/> 
+                            Ausência Parcial (Apenas algumas horas)
                         </label>
 
                         {!newAbsence.is_parcial ? (
-                            <div style={{display:'flex', gap:'10px'}}>
+                            <div style={{display:'flex', gap:'15px'}}>
                                   <div style={{flex:1}}>
-                                      <label style={{fontSize: '0.8rem', fontWeight: 'bold'}}>Data Início</label>
+                                      <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Data Início</label>
                                       <input type="date" required value={newAbsence.data_inicio} onChange={e=>setNewAbsence({...newAbsence, data_inicio: e.target.value})} style={inputStyle}/>
                                   </div>
                                   <div style={{flex:1}}>
-                                      <label style={{fontSize: '0.8rem', fontWeight: 'bold'}}>Data Fim</label>
+                                      <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Data Fim</label>
                                       <input type="date" required value={newAbsence.data_fim} onChange={e=>setNewAbsence({...newAbsence, data_fim: e.target.value})} style={inputStyle}/>
                                   </div>
                             </div>
                         ) : (
-                            <div style={{display: 'flex', gap: '10px'}}>
+                            <div style={{display: 'flex', gap: '15px'}}>
                                 <div style={{flex: 1.5}}>
-                                    <label style={{fontSize: '0.8rem', fontWeight: 'bold'}}>Data</label>
+                                    <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Data</label>
                                     <input type="date" value={newAbsence.data_inicio} onChange={e => setNewAbsence({...newAbsence, data_inicio: e.target.value, data_fim: e.target.value})} required style={inputStyle}/>
                                 </div>
                                 <div style={{flex: 1}}>
-                                    <label style={{fontSize: '0.8rem', fontWeight: 'bold'}}>Saída</label>
+                                    <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Saída</label>
                                     <input type="time" value={newAbsence.hora_inicio} onChange={e => setNewAbsence({...newAbsence, hora_inicio: e.target.value})} required style={inputStyle}/>
                                 </div>
                                 <div style={{flex: 1}}>
-                                    <label style={{fontSize: '0.8rem', fontWeight: 'bold'}}>Regresso</label>
+                                    <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Regresso</label>
                                     <input type="time" value={newAbsence.hora_fim} onChange={e => setNewAbsence({...newAbsence, hora_fim: e.target.value})} style={inputStyle}/>
                                 </div>
                             </div>
                         )}
 
                         {!newAbsence.is_parcial && newAbsence.data_inicio && newAbsence.data_fim && (
-                            <div style={{background: diasUteisModal > 0 ? '#eff6ff' : '#fee2e2', color: diasUteisModal > 0 ? '#1e40af' : '#991b1b', padding: '10px 15px', borderRadius: '8px', marginBottom: '15px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px'}}>
-                                <span>{diasUteisModal > 0 ? 'ℹ️' : '⚠️'}</span>
+                            <div style={{background: diasUteisModal > 0 ? '#eff6ff' : '#fee2e2', color: diasUteisModal > 0 ? '#1e40af' : '#991b1b', padding: '12px 15px', borderRadius: '8px', marginBottom: '15px', fontSize: '0.85rem', display: 'flex', gap: '10px', border: diasUteisModal > 0 ? '1px solid #bfdbfe' : '1px solid #fecaca'}}>
+                                <span style={{marginTop:'2px'}}>{diasUteisModal > 0 ? <Icons.Info size={16}/> : <Icons.Alert size={16}/>}</span>
                                 <span>
                                     {diasUteisModal > 0 
                                         ? (newAbsence.tipo.toLowerCase().includes('férias') 
-                                            ? `Este registo consumirá ${diasUteisModal} dia(s) útil(eis) de férias do colaborador.` 
-                                            : `Registará ${diasUteisModal} dia(s) útil(eis) de ausência. Tratando-se de justificação, não desconta férias.`)
-                                        : `Atenção: O período selecionado calha num fim de semana ou feriado.`}
+                                            ? <span>Este registo consumirá <b>{diasUteisModal} dia(s) útil(eis)</b> de férias do colaborador.</span> 
+                                            : <span>Registará <b>{diasUteisModal} dia(s) útil(eis)</b> de ausência. Tratando-se de justificação, não desconta férias.</span>)
+                                        : <span>Atenção: O período selecionado calha num fim de semana ou feriado. Não há dias úteis a contabilizar.</span>}
                                 </span>
                             </div>
                         )}
                         {newAbsence.is_parcial && newAbsence.data_inicio && (
-                            <div style={{background: '#eff6ff', color: '#1e40af', padding: '10px 15px', borderRadius: '8px', marginBottom: '15px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px'}}>
-                                <span>ℹ️</span>
+                            <div style={{background: '#eff6ff', color: '#1e40af', padding: '12px 15px', borderRadius: '8px', marginBottom: '15px', fontSize: '0.85rem', display: 'flex', gap: '10px', border:'1px solid #bfdbfe'}}>
+                                <span style={{marginTop:'2px'}}><Icons.Info size={16}/></span>
                                 <span>Ausência parcial de horas. <b>Não será deduzido nenhum dia de férias ao colaborador.</b></span>
                             </div>
                         )}
 
-                        <label style={{fontSize: '0.8rem', fontWeight: 'bold'}}>Notas / Observações</label>
+                        <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Notas / Observações</label>
                         <input type="text" placeholder="Mais detalhes (Opcional)..." value={newAbsence.motivo} onChange={e=>setNewAbsence({...newAbsence, motivo: e.target.value})} style={inputStyle}/>
                         
-                        <label style={{fontSize: '0.8rem', fontWeight: 'bold'}}>Anexar Documento (Atestados, PDFs - Opcional)</label>
-                        {isEditingAbsence && editingAbsenceData?.anexo_url && <div style={{fontSize:'0.8rem', color:'#64748b', marginBottom:'5px'}}>Ficheiro atual: <a href={editingAbsenceData.anexo_url} target="_blank" rel="noreferrer">Ver</a> (Carregue outro para substituir)</div>}
+                        <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Anexar Documento (Atestados, PDFs - Opcional)</label>
+                        {isEditingAbsence && editingAbsenceData?.anexo_url && <div style={{fontSize:'0.8rem', color:'#64748b', marginBottom:'8px', display:'flex', alignItems:'center', gap:'6px'}}><Icons.Paperclip size={14}/> Ficheiro atual: <a href={editingAbsenceData.anexo_url} target="_blank" rel="noreferrer" style={{color:'#2563eb'}}>Ver documento</a></div>}
                         <input type="file" accept=".pdf, image/*" onChange={e => setAbsenceFile(e.target.files[0])} style={{...inputStyle, background: '#f8fafc'}} />
                         
-                        <button type="submit" className="btn-primary" style={{width:'100%', marginTop: '10px'}} disabled={isSubmitting || (!newAbsence.is_parcial && diasUteisModal === 0)}>
-                            {isSubmitting ? "A Gravar..." : (isEditingAbsence ? "Atualizar Registo" : "Gravar e Aprovar Automaticamente")}
-                        </button>
-                        <button type="button" onClick={closeAbsenceModal} style={{width:'100%', marginTop:'10px', background:'none', border:'none', cursor:'pointer', color: '#64748b'}}>Cancelar</button>
+                        <div style={{display:'flex', gap:'10px', marginTop:'15px', paddingTop:'15px', borderTop:'1px solid #e2e8f0'}}>
+                            <button type="button" onClick={closeAbsenceModal} style={{flex:1, padding:'12px', background:'white', border:'1px solid #cbd5e1', borderRadius:'8px', cursor:'pointer', color: '#475569', fontWeight:'bold'}}>Cancelar</button>
+                            <button type="submit" style={{flex:2, padding:'12px', background:'#2563eb', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'bold', opacity: isSubmitting || (!newAbsence.is_parcial && diasUteisModal === 0) ? 0.7 : 1}} disabled={isSubmitting || (!newAbsence.is_parcial && diasUteisModal === 0)}>
+                                {isSubmitting ? "A Gravar..." : (isEditingAbsence ? "Atualizar Registo" : "Gravar e Aprovar Automaticamente")}
+                            </button>
+                        </div>
                     </form>
                 </div>
             </div>
           </ModalPortal>
       )}
 
+      {/* Modal Confirmação (Ações) */}
       {confirmModal.show && (
           <ModalPortal>
               <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999}}>
                   <div style={{background:'white', padding:'30px', borderRadius:'16px', width:'400px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'}}>
-                      <div style={{fontSize: '3rem', marginBottom: '10px'}}>{['aprovar', 'aceitar_cancelamento', 'cancelar_direto'].includes(confirmModal.acao) ? '✅' : '❌'}</div>
+                      <div style={{display:'flex', justifyContent:'center', marginBottom: '15px'}}>
+                          {['aprovar', 'aceitar_cancelamento', 'cancelar_direto'].includes(confirmModal.acao) 
+                              ? <div style={{background:'#dcfce7', padding:'15px', borderRadius:'50%', color:'#16a34a'}}><Icons.Check size={32}/></div> 
+                              : <div style={{background:'#fee2e2', padding:'15px', borderRadius:'50%', color:'#ef4444'}}><Icons.X size={32}/></div>}
+                      </div>
                       <h3 style={{marginTop: 0, color: '#1e293b'}}>Confirmar Ação</h3>
-                      <p style={{color: '#64748b', marginBottom: '25px', lineHeight: '1.5'}}>
-                          {confirmModal.acao === 'aprovar' && <span>Aprovar <b>{confirmModal.pedido?.tipo}</b>?</span>}
-                          {confirmModal.acao === 'rejeitar' && <span>Rejeitar pedido?</span>}
-                          {(confirmModal.acao === 'aceitar_cancelamento' || confirmModal.acao === 'cancelar_direto') && <span>Cancelar e devolver dias (se férias)?</span>}
+                      <p style={{color: '#64748b', marginBottom: '25px', lineHeight: '1.5', fontSize:'0.95rem'}}>
+                          {confirmModal.acao === 'aprovar' && <span>Tens a certeza que queres aprovar o pedido de <b>{confirmModal.pedido?.tipo}</b>?</span>}
+                          {confirmModal.acao === 'rejeitar' && <span>Tens a certeza que queres rejeitar este pedido?</span>}
+                          {(confirmModal.acao === 'aceitar_cancelamento' || confirmModal.acao === 'cancelar_direto') && <span>Tens a certeza que queres cancelar e devolver os dias ao colaborador (se férias)?</span>}
+                          {confirmModal.acao === 'recusar_cancelamento' && <span>Queres recusar o pedido de cancelamento e manter o registo aprovado?</span>}
                       </p>
                       <div style={{display: 'flex', gap: '10px', justifyContent: 'center'}}>
-                          <button onClick={() => setConfirmModal({ show: false, pedido: null, acao: null })} style={{padding: '12px', borderRadius: '10px', border: '1px solid #ccc', background: 'white', flex: 1}}>Voltar</button>
-                          <button onClick={executarAcaoRH} style={{padding: '12px', borderRadius: '10px', border: 'none', flex: 1, color: 'white', background: '#16a34a'}}>Confirmar</button>
+                          <button onClick={() => setConfirmModal({ show: false, pedido: null, acao: null })} style={{padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white', color:'#475569', fontWeight:'bold', flex: 1, cursor:'pointer'}}>Voltar</button>
+                          <button onClick={executarAcaoRH} style={{padding: '12px', borderRadius: '8px', border: 'none', flex: 1, color: 'white', background: ['aprovar', 'recusar_cancelamento'].includes(confirmModal.acao) ? '#16a34a' : '#ef4444', fontWeight:'bold', cursor:'pointer'}}>
+                              Confirmar
+                          </button>
                       </div>
                   </div>
               </div>
           </ModalPortal>
       )}
 
+      {/* Modal de Notificação */}
       {notification.show && (
           <ModalPortal>
-              <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.6)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999}}>
-                  <div style={{background:'white', padding:'30px', borderRadius:'16px', width:'350px', textAlign: 'center'}}>
-                      <h3 style={{marginTop: 0}}>{notification.type === 'success' ? 'Sucesso!' : 'Erro'}</h3>
-                      <p>{notification.message}</p>
-                      <button onClick={() => setNotification({ show: false, message: '', type: 'success' })} className="btn-primary" style={{width: '100%'}}>Fechar</button>
+              <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999}}>
+                  <div style={{background:'white', padding:'30px', borderRadius:'16px', width:'350px', textAlign: 'center', boxShadow:'0 20px 25px -5px rgba(0,0,0,0.1)'}}>
+                      <div style={{display:'flex', justifyContent:'center', marginBottom: '15px'}}>
+                          {notification.type === 'success' 
+                              ? <div style={{background:'#dcfce7', padding:'15px', borderRadius:'50%', color:'#16a34a'}}><Icons.Check size={32}/></div> 
+                              : <div style={{background:'#fee2e2', padding:'15px', borderRadius:'50%', color:'#ef4444'}}><Icons.Alert size={32}/></div>}
+                      </div>
+                      <h3 style={{marginTop: 0, color:'#1e293b'}}>{notification.type === 'success' ? 'Sucesso!' : 'Erro'}</h3>
+                      <p style={{color:'#475569', fontSize:'0.95rem', marginBottom:'25px'}}>{notification.message}</p>
+                      <button onClick={() => setNotification({ show: false, message: '', type: 'success' })} style={{width: '100%', padding:'12px', background:'#2563eb', color:'white', border:'none', borderRadius:'8px', fontWeight:'bold', cursor:'pointer'}}>Fechar</button>
                   </div>
               </div>
           </ModalPortal>
       )}
+
+      <style>{`
+          .btn-small:hover { opacity: 0.8; transform: translateY(-1px); }
+          .hover-bg-gray:hover { background: #f8fafc !important; }
+      `}</style>
     </div>
   );
 }
