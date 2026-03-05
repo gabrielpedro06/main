@@ -1,15 +1,19 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
 import "./../styles/dashboard.css";
 
-// --- ÍCONES SVG PROFISSIONAIS (SaaS Premium) ---
+// 💡 IMPORTAÇÃO CORRIGIDA (SEM CHAVETAS):
+import gerarRelatorioProjeto from "../components/pdfGenerator"; 
+
+// --- ÍCONES SVG PROFISSIONAIS COMPLETOS ---
 const Icons = {
   Building: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><path d="M9 22v-4h6v4"></path><path d="M8 6h.01"></path><path d="M16 6h.01"></path><path d="M12 6h.01"></path><path d="M12 10h.01"></path><path d="M12 14h.01"></path><path d="M16 10h.01"></path><path d="M16 14h.01"></path><path d="M8 10h.01"></path><path d="M8 14h.01"></path></svg>,
   Tag: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>,
   User: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>,
+  Users: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>,
   Target: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>,
   ArrowLeft: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>,
   ClipboardList: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4"></path><path d="M12 16h4"></path><path d="M8 11h.01"></path><path d="M8 16h.01"></path></svg>,
@@ -26,7 +30,6 @@ const Icons = {
   Folder: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>,
   Calendar: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>,
   AlertTriangle: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>,
-  Alert: ({ size = 40, color = "#ef4444" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>,
   Flame: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"></path></svg>,
   Close: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>,
   Save: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>,
@@ -35,8 +38,13 @@ const Icons = {
   FileText: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>,
   Layers: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 12 12 17 22 12"></polyline><polyline points="2 17 12 22 22 17"></polyline></svg>,
   Activity: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>,
+  Download: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>,
+  GripVertical: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="19" r="1"></circle></svg>,
+  Plus: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>,
   Rocket: ({ size = 20, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"></path><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"></path><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"></path><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"></path></svg>,
-  Plus: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+  Search: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>,
+  Globe: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>,
+  ListTree: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
 };
 
 const ModalPortal = ({ children }) => createPortal(children, document.body);
@@ -61,7 +69,7 @@ export default function ProjetoDetalhe() {
   const [clientes, setClientes] = useState([]);
   const [staff, setStaff] = useState([]);
 
-  // Estados de Expansão (Minimize/Maximize)
+  // Estados de Expansão
   const [expandedTasks, setExpandedTasks] = useState({});
   const [collapsedAtivs, setCollapsedAtivs] = useState({}); 
 
@@ -73,6 +81,13 @@ export default function ProjetoDetalhe() {
   const [atividadeModal, setAtividadeModal] = useState({ show: false, data: null });
   const [tarefaModal, setTarefaModal] = useState({ show: false, data: null, atividadeNome: '' });
   const [subtarefaModal, setSubtarefaModal] = useState({ show: false, data: null, tarefaNome: '' }); 
+
+  // --- REFS PARA DRAG & DROP NATIVO ---
+  const dragAtivItem = useRef();
+  const dragAtivOverItem = useRef();
+  
+  const dragTarItem = useRef();
+  const dragTarOverItem = useRef();
 
   useEffect(() => {
     fetchProjetoDetails();
@@ -145,6 +160,82 @@ export default function ProjetoDetalhe() {
     
     setLoading(false);
   }
+
+  // --- LÓGICA DE DRAG & DROP (NATIVO HTML5) ---
+  const handleDragStartAtiv = (e, index) => {
+      dragAtivItem.current = index;
+      e.dataTransfer.effectAllowed = "move";
+      e.currentTarget.style.opacity = '0.5';
+  };
+
+  const handleDragEnterAtiv = (e, index) => {
+      e.preventDefault();
+      dragAtivOverItem.current = index;
+  };
+
+  const handleDropAtiv = async (e) => {
+      e.preventDefault();
+      const draggedElement = e.currentTarget;
+      draggedElement.style.opacity = '1';
+
+      if (dragAtivItem.current === null || dragAtivOverItem.current === null || dragAtivItem.current === dragAtivOverItem.current) return;
+
+      const copyList = [...atividades];
+      const draggedContent = copyList[dragAtivItem.current];
+      copyList.splice(dragAtivItem.current, 1);
+      copyList.splice(dragAtivOverItem.current, 0, draggedContent);
+      
+      dragAtivItem.current = null;
+      dragAtivOverItem.current = null;
+      
+      setAtividades(copyList); // UI Update instantâneo
+
+      // Gravar na DB (em background)
+      const updates = copyList.map((a, index) => ({ id: a.id, ordem: index }));
+      await Promise.all(updates.map(u => supabase.from("atividades").update({ ordem: u.ordem }).eq("id", u.id)));
+  };
+
+  const handleDragStartTar = (e, ativIndex, tarIndex) => {
+      e.stopPropagation();
+      dragTarItem.current = { ativIndex, tarIndex };
+      e.dataTransfer.effectAllowed = "move";
+      e.currentTarget.style.opacity = '0.5';
+  };
+
+  const handleDragEnterTar = (e, ativIndex, tarIndex) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (dragTarItem.current?.ativIndex === ativIndex) { // Só permite reordenar dentro da mesma atividade
+          dragTarOverItem.current = { ativIndex, tarIndex };
+      }
+  };
+
+  const handleDropTar = async (e, ativIndex) => {
+      e.preventDefault();
+      e.stopPropagation();
+      e.currentTarget.style.opacity = '1';
+
+      if (!dragTarItem.current || !dragTarOverItem.current) return;
+      if (dragTarItem.current.ativIndex !== ativIndex || dragTarOverItem.current.ativIndex !== ativIndex) return;
+      if (dragTarItem.current.tarIndex === dragTarOverItem.current.tarIndex) return;
+
+      const copyAtivs = [...atividades];
+      const copyTarefas = [...copyAtivs[ativIndex].tarefas];
+      
+      const draggedContent = copyTarefas[dragTarItem.current.tarIndex];
+      copyTarefas.splice(dragTarItem.current.tarIndex, 1);
+      copyTarefas.splice(dragTarOverItem.current.tarIndex, 0, draggedContent);
+      
+      copyAtivs[ativIndex].tarefas = copyTarefas;
+      setAtividades(copyAtivs);
+
+      dragTarItem.current = null;
+      dragTarOverItem.current = null;
+
+      // Update DB
+      const updates = copyTarefas.map((t, idx) => ({ id: t.id, ordem: idx }));
+      await Promise.all(updates.map(u => supabase.from("tarefas").update({ ordem: u.ordem }).eq("id", u.id)));
+  };
 
   // --- MATEMÁTICA DOS TEMPOS E DATAS INTELIGENTES ---
   const getTaskTime = (taskId) => {
@@ -313,13 +404,14 @@ export default function ProjetoDetalhe() {
   async function handleAddAtividade(e) {
       e.preventDefault();
       if(!novaAtividadeNome.trim()) return;
-      await supabase.from("atividades").insert([{ projeto_id: id, titulo: novaAtividadeNome, estado: 'pendente' }]);
+      await supabase.from("atividades").insert([{ projeto_id: id, titulo: novaAtividadeNome, estado: 'pendente', ordem: atividades.length }]);
       setNovaAtividadeNome(""); fetchProjetoDetails();
   }
   async function handleAddTarefa(e, ativId) {
       e.preventDefault();
       if(!novaTarefaNome.nome.trim()) return;
-      await supabase.from("tarefas").insert([{ atividade_id: ativId, titulo: novaTarefaNome.nome, responsavel_id: projeto.responsavel_id, estado: 'pendente' }]);
+      const tOrdem = atividades.find(a=>a.id===ativId)?.tarefas?.length || 0;
+      await supabase.from("tarefas").insert([{ atividade_id: ativId, titulo: novaTarefaNome.nome, responsavel_id: projeto.responsavel_id, estado: 'pendente', ordem: tOrdem }]);
       setNovaTarefaNome({ ativId: null, nome: "" }); fetchProjetoDetails();
   }
   async function handleAddSubtarefa(e, tarId) {
@@ -384,7 +476,7 @@ export default function ProjetoDetalhe() {
     <div className="page-container" style={{maxWidth: '1200px', margin: '0 auto', paddingBottom: '50px'}}>
       
       {/* =========================================
-          CABEÇALHO DO PROJETO (ESTILO LINEAR/SAAS)
+          CABEÇALHO DO PROJETO 
       ========================================= */}
       <div style={{
           position: 'relative', background: 'white', borderRadius: '24px', border: '1px solid #e2e8f0', 
@@ -407,6 +499,10 @@ export default function ProjetoDetalhe() {
                   </button>
 
                   <div style={{display: 'flex', gap: '12px', alignItems: 'center'}}>
+                      <button onClick={() => gerarRelatorioProjeto(projeto, atividades, logs, staff)} className="btn-small hover-shadow" style={{display:'flex', alignItems:'center', gap:'6px', background:'white', color:'#1e40af', border:'1px solid #bfdbfe'}}>
+                          <Icons.Download size={14}/> Gerar PDF
+                      </button>
+                      
                       {(projeto?.codigo_projeto) && (
                           <span style={{background: 'white', border: '1px solid #cbd5e1', color: '#475569', padding: '6px 12px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '800', letterSpacing: '0.05em', boxShadow: '0 2px 4px rgba(0,0,0,0.02)'}}>
                               {projeto.codigo_projeto}
@@ -498,11 +594,11 @@ export default function ProjetoDetalhe() {
       <div style={{minHeight: '50vh'}}>
         
         {/* =========================================
-            ABA 1: BOARD DE ATIVIDADES
+            ABA 1: BOARD DE ATIVIDADES (C/ DRAG & DROP)
         ========================================= */}
         {activeTab === 'atividades' && (
             <div style={{width: '100%'}}>
-                {atividades.map(ativ => {
+                {atividades.map((ativ, aIndex) => {
                     const isAtivDone = ativ.estado === 'concluido';
                     const progresso = ativ.tarefas?.length > 0 ? Math.round((ativ.tarefas.filter(t => t.estado === 'concluido').length / ativ.tarefas.length) * 100) : 0;
                     
@@ -513,7 +609,15 @@ export default function ProjetoDetalhe() {
                     const isCollapsed = collapsedAtivs[ativ.id];
 
                     return (
-                    <div key={ativ.id} style={{background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.02)', overflow: 'hidden', opacity: isAtivDone ? 0.6 : 1, transition: 'opacity 0.3s'}}>
+                    <div 
+                        key={ativ.id} 
+                        draggable={!isCollapsed} 
+                        onDragStart={(e) => handleDragStartAtiv(e, aIndex)}
+                        onDragEnter={(e) => handleDragEnterAtiv(e, aIndex)}
+                        onDragEnd={handleDropAtiv}
+                        onDragOver={(e) => e.preventDefault()}
+                        style={{background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.02)', overflow: 'hidden', opacity: isAtivDone ? 0.6 : 1, transition: 'opacity 0.3s'}}
+                    >
                         
                         {/* CABEÇALHO DA ATIVIDADE */}
                         <div style={{padding: '15px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: isAtivDone ? '#f8fafc' : 'white', position: 'relative'}}>
@@ -522,6 +626,7 @@ export default function ProjetoDetalhe() {
                             </div>
                             
                             <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
+                                <div style={{cursor: 'grab', color: '#cbd5e1', display:'flex'}} title="Arraste para reordenar" className="hover-blue-text"><Icons.GripVertical /></div>
                                 <div onClick={() => toggleAtividadeStatus(ativ.id, ativ.estado)} style={{width: '26px', height: '26px', borderRadius: '8px', cursor: 'pointer', background: isAtivDone ? '#10b981' : '#f8fafc', border: isAtivDone ? 'none' : '2px solid #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', transition: 'all 0.2s'}}>
                                     {isAtivDone && <Icons.Check size={16} />}
                                 </div>
@@ -570,7 +675,7 @@ export default function ProjetoDetalhe() {
                         {/* LISTA DE TAREFAS */}
                         {!isAtivDone && !isCollapsed && (
                             <div style={{padding: '10px 20px 20px 20px', background: '#f8fafc'}}>
-                                {ativ.tarefas?.map(tar => {
+                                {ativ.tarefas?.map((tar, tIndex) => {
                                     const isTarDone = tar.estado === 'concluido';
                                     const hasSubs = tar.subtarefas?.length > 0;
                                     const subsDone = hasSubs ? tar.subtarefas.filter(s => s.estado === 'concluido').length : 0;
@@ -581,9 +686,18 @@ export default function ProjetoDetalhe() {
                                     const respName = staff.find(s => s.id === tar.responsavel_id)?.nome;
 
                                     return (
-                                    <div key={tar.id} style={{background: 'white', border: isTimerActive ? '1px solid #3b82f6' : '1px solid #e2e8f0', borderRadius: '8px', marginBottom: '8px', overflow: 'hidden', boxShadow: isTimerActive ? '0 0 0 2px rgba(59, 130, 246, 0.2)' : 'none', transition: 'all 0.2s'}}>
+                                    <div 
+                                        key={tar.id} 
+                                        draggable
+                                        onDragStart={(e) => handleDragStartTar(e, aIndex, tIndex)}
+                                        onDragEnter={(e) => handleDragEnterTar(e, aIndex, tIndex)}
+                                        onDragEnd={(e) => handleDropTar(e, aIndex)}
+                                        onDragOver={(e) => e.preventDefault()}
+                                        style={{background: 'white', border: isTimerActive ? '1px solid #3b82f6' : '1px solid #e2e8f0', borderRadius: '8px', marginBottom: '8px', overflow: 'hidden', boxShadow: isTimerActive ? '0 0 0 2px rgba(59, 130, 246, 0.2)' : 'none', transition: 'all 0.2s'}}
+                                    >
                                         <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 15px', opacity: tar.estado === 'concluido' ? 0.6 : 1}}>
                                             <div style={{display: 'flex', alignItems: 'center', gap: '12px', flex: 1}}>
+                                                <div style={{cursor: 'grab', color: '#cbd5e1', display:'flex'}} title="Arraste para reordenar"><Icons.GripVertical /></div>
                                                 <div onClick={() => toggleTarefaStatus(tar.id, tar.estado)} style={{ width: '20px', height: '20px', borderRadius: '50%', cursor: 'pointer', border: tar.estado === 'concluido' ? 'none' : '2px solid #cbd5e1', background: tar.estado === 'concluido' ? '#10b981' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0 }}>
                                                     {tar.estado === 'concluido' && <Icons.Check size={12} />}
                                                 </div>

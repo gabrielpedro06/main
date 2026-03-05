@@ -9,6 +9,8 @@ import "./../styles/dashboard.css";
 const Icons = {
   Search: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>,
   User: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>,
+  Users: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>,
+  Handshake: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m11 17 2 2a1 1 0 1 0 3-3"></path><path d="m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06 7.06l-4.28 4.28a1 1 0 0 1-1.42 0l-3-3a1 1 0 0 1-1.42 0l-3 3a1 1 0 0 1 1.42 0l3 3a1 1 0 0 1 0 1.42l-3 3a1 1 0 0 1-1.42 0l-2.5-2.5a1 1 0 1 1 3-3l3.88-3.88a3 3 0 0 1 4.24 0z"></path></svg>,
   Globe: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>,
   Building: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><path d="M9 22v-4h6v4"></path><path d="M8 6h.01"></path><path d="M16 6h.01"></path><path d="M12 6h.01"></path><path d="M12 10h.01"></path><path d="M12 14h.01"></path><path d="M16 10h.01"></path><path d="M16 14h.01"></path><path d="M8 10h.01"></path><path d="M8 14h.01"></path></svg>,
   Stop: ({ size = 10, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none"><rect x="6" y="6" width="12" height="12" rx="2" ry="2"></rect></svg>,
@@ -29,7 +31,8 @@ const Icons = {
   FileText: ({ size = 20, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>,
   Dollar: ({ size = 20, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>,
   Check: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>,
-  Save: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+  Save: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>,
+  ListTree: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
 };
 
 const ModalPortal = ({ children }) => {
@@ -72,9 +75,17 @@ export default function Projetos() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // States para a Preview de Atividades
+  const [templateTree, setTemplateTree] = useState([]);
+  const [templateSelection, setTemplateSelection] = useState({});
+
   const initialForm = {
-    titulo: "", descricao: "", cliente_id: "", cliente_texto: "", tipo_projeto_id: "",
-    responsavel_id: "", estado: "pendente", data_inicio: "", data_fim: "",
+    titulo: "", descricao: "", 
+    cliente_id: "", cliente_texto: "", 
+    is_parceria: false, parceiros_ids: [],
+    tipo_projeto_id: "",
+    responsavel_id: "", colaboradores: [],
+    estado: "pendente", data_inicio: "", data_fim: "",
     observacoes: "", programa: "", aviso: "", codigo_projeto: "",
     investimento: 0, incentivo: 0
   };
@@ -85,6 +96,16 @@ export default function Projetos() {
     fetchData();
     checkActiveLog();
   }, [user]);
+
+  // Efeito para carregar a árvore de atividades quando selecionamos um Tipo de Projeto
+  useEffect(() => {
+      if (!editId && form.tipo_projeto_id) {
+          loadTemplateData(form.tipo_projeto_id);
+      } else {
+          setTemplateTree([]);
+          setTemplateSelection({});
+      }
+  }, [form.tipo_projeto_id, editId]);
 
   useEffect(() => {
       if (location.state?.openNewProjectModal && location.state?.prefillClienteId) {
@@ -105,6 +126,47 @@ export default function Projetos() {
   const showToast = (message, type = 'success') => {
       setNotification({ message, type });
       setTimeout(() => setNotification(null), 3500);
+  };
+
+  async function loadTemplateData(tipoId) {
+      try {
+          const { data: ativs } = await supabase.from("template_atividades").select("*").eq("tipo_projeto_id", tipoId).order("ordem");
+          if (!ativs || ativs.length === 0) {
+              setTemplateTree([]); return;
+          }
+
+          const { data: tars } = await supabase.from("template_tarefas").select("*").in("template_atividade_id", ativs.map(a => a.id)).order("ordem");
+          
+          let subs = [];
+          if (tars && tars.length > 0) {
+             const res = await supabase.from("template_subtarefas").select("*").in("template_tarefa_id", tars.map(t => t.id)).order("ordem");
+             subs = res.data || [];
+          }
+
+          const tree = ativs.map(a => ({
+              ...a,
+              tarefas: (tars || []).filter(t => t.template_atividade_id === a.id).map(t => ({
+                  ...t,
+                  subtarefas: (subs || []).filter(s => s.template_tarefa_id === t.id)
+              }))
+          }));
+          
+          setTemplateTree(tree);
+
+          // By default, select everything
+          const sel = {};
+          ativs.forEach(a => sel[`a_${a.id}`] = true);
+          (tars || []).forEach(t => sel[`t_${t.id}`] = true);
+          (subs || []).forEach(s => sel[`s_${s.id}`] = true);
+          setTemplateSelection(sel);
+
+      } catch (err) {
+          console.error("Erro ao carregar templates", err);
+      }
+  }
+
+  const toggleTemplateSelection = (type, id) => {
+      setTemplateSelection(prev => ({ ...prev, [`${type}_${id}`]: !prev[`${type}_${id}`] }));
   };
 
   async function fetchData() {
@@ -181,7 +243,9 @@ export default function Projetos() {
     setForm({
         titulo: proj.titulo || "", descricao: proj.descricao || "", 
         cliente_id: proj.cliente_id || "", cliente_texto: proj.cliente_texto || "",
-        tipo_projeto_id: proj.tipo_projeto_id || "", responsavel_id: proj.responsavel_id || "",
+        is_parceria: proj.is_parceria || false, parceiros_ids: proj.parceiros_ids || [],
+        tipo_projeto_id: proj.tipo_projeto_id || "", 
+        responsavel_id: proj.responsavel_id || "", colaboradores: proj.colaboradores || [],
         estado: proj.estado || "pendente", data_inicio: proj.data_inicio || "",
         data_fim: proj.data_fim || "", observacoes: proj.observacoes || "",
         programa: proj.programa || "", aviso: proj.aviso || "",
@@ -214,6 +278,25 @@ export default function Projetos() {
       });
   }
 
+  // Toggles de Pills UI
+  const handleToggleParceiro = (cId) => {
+      setForm(prev => ({
+          ...prev, 
+          parceiros_ids: prev.parceiros_ids.includes(cId) 
+              ? prev.parceiros_ids.filter(id => id !== cId) 
+              : [...prev.parceiros_ids, cId]
+      }));
+  };
+
+  const handleToggleColaborador = (sId) => {
+      setForm(prev => ({
+          ...prev, 
+          colaboradores: prev.colaboradores.includes(sId) 
+              ? prev.colaboradores.filter(id => id !== sId) 
+              : [...prev.colaboradores, sId]
+      }));
+  };
+
   async function handleSubmit(e) {
     e.preventDefault();
     setIsSubmitting(true);
@@ -224,10 +307,12 @@ export default function Projetos() {
     if (payload.responsavel_id === "") payload.responsavel_id = null;
     if (payload.data_fim === "") payload.data_fim = null;
 
+    if (!payload.is_parceria) payload.parceiros_ids = [];
+
     const tipoSelecionado = tipos.find(t => String(t.id) === String(payload.tipo_projeto_id));
     const isFormacao = tipoSelecionado?.nome?.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes('forma');
     
-    if (isFormacao) payload.cliente_id = null;
+    if (isFormacao) { payload.cliente_id = null; payload.is_parceria = false; }
     else payload.cliente_texto = "";
     
     try {
@@ -241,65 +326,70 @@ export default function Projetos() {
             const { data: newProj, error: errProj } = await supabase.from("projetos").insert([payload]).select().single();
             if (errProj) throw errProj;
 
-            if (payload.tipo_projeto_id) {
-                showToast("A preparar o teu projeto...", "info");
+            // Gerar Árvore de Atividades
+            if (payload.tipo_projeto_id && templateTree.length > 0) {
+                showToast("A preparar as atividades do projeto...", "info");
                 let projDateStr = payload.data_inicio || new Date().toISOString().split('T')[0];
                 const projEndStr = payload.data_fim || null; 
                 let currentAtivDate = projDateStr;
 
-                const { data: tAtividades } = await supabase.from("template_atividades").select("*").eq("tipo_projeto_id", payload.tipo_projeto_id).order("ordem", { ascending: true });
-                
-                if (tAtividades && tAtividades.length > 0) {
-                    for (const tAtiv of tAtividades) {
-                        const ativStart = currentAtivDate;
-                        const ativEnd = (tAtiv.dias_estimados > 0) ? addDays(ativStart, tAtiv.dias_estimados) : (projEndStr || ativStart);
+                for (const tAtiv of templateTree) {
+                    if (!templateSelection[`a_${tAtiv.id}`]) continue; 
 
-                        const { data: realAtiv } = await supabase.from("atividades").insert([{ 
-                            projeto_id: newProj.id, titulo: tAtiv.nome, estado: 'pendente', ordem: tAtiv.ordem,
-                            data_inicio: ativStart, data_fim: ativEnd, responsavel_id: payload.responsavel_id || null,
-                            descricao: tAtiv.descricao || null
-                        }]).select().single();
+                    const ativStart = currentAtivDate;
+                    const ativEnd = (tAtiv.dias_estimados > 0) ? addDays(ativStart, tAtiv.dias_estimados) : (projEndStr || ativStart);
 
-                        currentAtivDate = addDays(currentAtivDate, tAtiv.dias_estimados || 0);
+                    const { data: realAtiv } = await supabase.from("atividades").insert([{ 
+                        projeto_id: newProj.id, titulo: tAtiv.nome, estado: 'pendente', ordem: tAtiv.ordem,
+                        data_inicio: ativStart, data_fim: ativEnd, 
+                        responsavel_id: payload.responsavel_id || null, colaboradores: payload.colaboradores,
+                        descricao: tAtiv.descricao || null
+                    }]).select().single();
 
-                        if (realAtiv) {
-                            const { data: tTarefas } = await supabase.from("template_tarefas").select("*").eq("template_atividade_id", tAtiv.id).order("ordem", { ascending: true });
-                            if (tTarefas && tTarefas.length > 0) {
-                                let currentTarDate = ativStart;
-                                
-                                for (const tTar of tTarefas) {
-                                    const tarStart = currentTarDate;
-                                    const tarEnd = (tTar.dias_estimados > 0) ? addDays(tarStart, tTar.dias_estimados) : (projEndStr || tarStart);
+                    currentAtivDate = addDays(currentAtivDate, tAtiv.dias_estimados || 0);
 
-                                    const { data: realTar } = await supabase.from("tarefas").insert([{ 
-                                        atividade_id: realAtiv.id, titulo: tTar.nome, estado: 'pendente', responsavel_id: payload.responsavel_id || null,
-                                        ordem: tTar.ordem, data_inicio: tarStart, data_fim: tarEnd, descricao: tTar.descricao || null
-                                    }]).select().single();
+                    if (realAtiv && tAtiv.tarefas) {
+                        let currentTarDate = ativStart;
+                        
+                        for (const tTar of tAtiv.tarefas) {
+                            if (!templateSelection[`t_${tTar.id}`]) continue;
 
-                                    currentTarDate = addDays(currentTarDate, tTar.dias_estimados || 0);
+                            const tarStart = currentTarDate;
+                            const tarEnd = (tTar.dias_estimados > 0) ? addDays(tarStart, tTar.dias_estimados) : (projEndStr || tarStart);
+
+                            const { data: realTar } = await supabase.from("tarefas").insert([{ 
+                                atividade_id: realAtiv.id, titulo: tTar.nome, estado: 'pendente', 
+                                responsavel_id: payload.responsavel_id || null, colaboradores: payload.colaboradores,
+                                ordem: tTar.ordem, data_inicio: tarStart, data_fim: tarEnd, descricao: tTar.descricao || null
+                            }]).select().single();
+
+                            currentTarDate = addDays(currentTarDate, tTar.dias_estimados || 0);
+                            
+                            if (realTar && tTar.subtarefas) {
+                                let currentSubDate = tarStart;
+                                const subTarefasParaInserir = [];
+
+                                for (const ts of tTar.subtarefas) {
+                                    if (!templateSelection[`s_${ts.id}`]) continue;
+
+                                    const subEnd = (ts.dias_estimados > 0) ? addDays(currentSubDate, ts.dias_estimados) : (projEndStr || currentSubDate);
+                                    currentSubDate = addDays(currentSubDate, ts.dias_estimados || 0); 
                                     
-                                    if (realTar) {
-                                        const { data: tSubs } = await supabase.from("template_subtarefas").select("*").eq("template_tarefa_id", tTar.id).order("ordem", { ascending: true });
-                                        if (tSubs && tSubs.length > 0) {
-                                            let currentSubDate = tarStart;
-                                            const subTarefasParaInserir = tSubs.map(ts => {
-                                                const subEnd = (ts.dias_estimados > 0) ? addDays(currentSubDate, ts.dias_estimados) : (projEndStr || currentSubDate);
-                                                currentSubDate = addDays(currentSubDate, ts.dias_estimados || 0); 
-                                                
-                                                return { 
-                                                    tarefa_id: realTar.id, titulo: ts.nome, estado: 'pendente',
-                                                    ordem: ts.ordem, data_fim: subEnd, responsavel_id: payload.responsavel_id || null
-                                                };
-                                            });
-                                            await supabase.from("subtarefas").insert(subTarefasParaInserir);
-                                        }
-                                    }
+                                    subTarefasParaInserir.push({ 
+                                        tarefa_id: realTar.id, titulo: ts.nome, estado: 'pendente',
+                                        ordem: ts.ordem, data_fim: subEnd, 
+                                        responsavel_id: payload.responsavel_id || null, colaboradores: payload.colaboradores
+                                    });
+                                }
+                                
+                                if (subTarefasParaInserir.length > 0) {
+                                    await supabase.from("subtarefas").insert(subTarefasParaInserir);
                                 }
                             }
                         }
                     }
-                    if (!payload.data_fim) await supabase.from("projetos").update({ data_fim: currentAtivDate }).eq("id", newProj.id);
                 }
+                if (!payload.data_fim) await supabase.from("projetos").update({ data_fim: currentAtivDate }).eq("id", newProj.id);
             }
             
             showToast("Projeto criado com sucesso!");
@@ -316,6 +406,8 @@ export default function Projetos() {
   const checkUserInvolvement = (p) => {
       if (!showOnlyMine) return true; 
       if (p.responsavel_id === user.id) return true; 
+      if (p.colaboradores?.includes(user.id)) return true;
+      
       if (p.atividades && p.atividades.some(a => {
           if (a.responsavel_id === user.id) return true;
           if (a.tarefas && a.tarefas.some(t => {
@@ -509,8 +601,15 @@ export default function Projetos() {
                       const isTimerActive = activeLog?.projeto_id === p.id;
                       const catColor = getColorForCategory(p.tipo_projeto_id);
 
-                      const clientDisplay = p.cliente_texto ? p.cliente_texto : (p.clientes?.marca || 'Sem Cliente');
-                      const clientIcon = p.cliente_texto ? <Icons.FileText size={14} /> : <Icons.Building size={14} />;
+                      // Lógica Display Cliente/Parceria
+                      let clientDisplay = p.cliente_texto ? p.cliente_texto : (p.clientes?.marca || 'Sem Cliente');
+                      let clientIcon = p.cliente_texto ? <Icons.FileText size={14} /> : <Icons.Building size={14} />;
+                      
+                      if (p.is_parceria && p.parceiros_ids?.length > 0) {
+                          const parceirosNomes = p.parceiros_ids.map(id => clientes.find(c => c.id === id)?.marca).filter(Boolean).join(', ');
+                          clientDisplay = `Parceria: ${parceirosNomes}`;
+                          clientIcon = <Icons.Handshake size={14} />;
+                      }
 
                       return (
                           <div 
@@ -545,7 +644,7 @@ export default function Projetos() {
 
                               <div>
                                   <h2 style={{margin: '0 0 8px 0', fontSize: '1.2rem', color: '#0f172a', fontWeight: '800', lineHeight: '1.2'}}>{p.titulo}</h2>
-                                  <div style={{fontSize: '0.85rem', color: '#475569', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px'}}>
+                                  <div style={{fontSize: '0.85rem', color: p.is_parceria ? '#8b5cf6' : '#475569', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>
                                       {clientIcon} {clientDisplay}
                                   </div>
                               </div>
@@ -611,7 +710,7 @@ export default function Projetos() {
               </div>
 
               <div className="tabs" style={{padding: '15px 30px 0 30px', background: '#fff', borderBottom: '1px solid #e2e8f0', display: 'flex', gap: '5px'}}>
-                <button className={activeTab === 'geral' ? 'active' : ''} onClick={() => setActiveTab('geral')} style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.ClipboardList /> Geral</button>
+                <button className={activeTab === 'geral' ? 'active' : ''} onClick={() => setActiveTab('geral')} style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.ClipboardList /> Geral & Atividades</button>
                 <button className={activeTab === 'investimento' ? 'active' : ''} onClick={() => setActiveTab('investimento')} style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.Dollar /> Investimento</button>
                 <button className={activeTab === 'notas' ? 'active' : ''} onClick={() => setActiveTab('notas')} style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.FileText /> Notas</button>
               </div>
@@ -622,7 +721,113 @@ export default function Projetos() {
                     
                     {activeTab === 'geral' && (
                       <div>
-                        <div style={{display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px', marginBottom: '20px'}}>
+                        {/* 1. ENQUADRAMENTO MOVEU-SE PARA O TOPO */}
+                        <div style={{...sectionTitleStyle, marginTop: 0}}><Icons.Building /> Enquadramento</div>
+                        
+                        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '20px'}}>
+                            <div>
+                                <label style={labelStyle}>Tipo de Entidade</label>
+                                <select value={form.is_parceria ? 'parceria' : 'unico'} onChange={e => {
+                                    const isParc = e.target.value === 'parceria';
+                                    setForm({...form, is_parceria: isParc, cliente_id: isParc ? '' : form.cliente_id, parceiros_ids: isParc ? form.parceiros_ids : []});
+                                }} style={{...inputStyle, cursor: 'pointer'}} className="input-focus">
+                                    <option value="unico">👤 Cliente Único</option>
+                                    <option value="parceria">🤝 Parceria (Vários)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style={labelStyle}>Tipo de Projeto (Modelo)</label>
+                                <select value={form.tipo_projeto_id || ''} onChange={e => setForm({...form, tipo_projeto_id: e.target.value})} style={{...inputStyle, cursor: 'pointer'}} disabled={!!editId} className="input-focus">
+                                    <option value="">-- Em Branco --</option>
+                                    {tipos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label style={labelStyle}>Responsável Global</label>
+                                <select 
+                                    value={form.responsavel_id || ''} 
+                                    onChange={e => {
+                                        const newResp = e.target.value;
+                                        setForm(prev => ({
+                                            ...prev, 
+                                            responsavel_id: newResp,
+                                            // Se o novo responsável estava na lista de colaboradores extras, removemo-lo
+                                            colaboradores: prev.colaboradores.filter(id => id !== newResp) 
+                                        }));
+                                    }} 
+                                    style={{...inputStyle, cursor: 'pointer'}} 
+                                    className="input-focus"
+                                >
+                                    <option value="">-- Selecione --</option>
+                                    {staff.map(s => <option key={s.id} value={s.id}>{s.nome || s.email}</option>)}
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* ROW: Cliente ou Parceiros */}
+                        <div style={{marginBottom: '20px'}}>
+                            {isFormacaoSelected ? (
+                                <div>
+                                    <label style={labelStyle}>Cliente / Local (Livre) *</label>
+                                    <input type="text" value={form.cliente_texto || ''} onChange={e => setForm({...form, cliente_texto: e.target.value})} placeholder="Ex: Cenfim Faro..." required style={inputStyle} className="input-focus" />
+                                </div>
+                            ) : form.is_parceria ? (
+                                <div>
+                                    <label style={labelStyle}>Parceiros / Clientes (Seleciona vários)</label>
+                                    <div className="pill-container">
+                                        {clientes.map(c => {
+                                            const isSelected = form.parceiros_ids.includes(c.id);
+                                            return (
+                                                <div 
+                                                    key={c.id} 
+                                                    onClick={() => !isViewOnly && handleToggleParceiro(c.id)}
+                                                    className={`pill-checkbox ${isSelected ? 'selected' : ''}`}
+                                                >
+                                                    {c.marca}
+                                                </div>
+                                            )
+                                        })}
+                                        {clientes.length === 0 && <span style={{color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic'}}>Sem clientes disponíveis.</span>}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div>
+                                    <label style={labelStyle}>Cliente Principal *</label>
+                                    <select value={form.cliente_id || ''} onChange={e => setForm({...form, cliente_id: e.target.value})} required style={{...inputStyle, cursor: 'pointer'}} className="input-focus">
+                                        <option value="">-- Selecione o Cliente --</option>
+                                        {clientes.map(c => <option key={c.id} value={c.id}>{c.marca}</option>)}
+                                    </select>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* ROW: Colaboradores em formato PILL com filtro do Responsável */}
+                        <div style={{marginBottom: '30px'}}>
+                            <label style={labelStyle}>Outros Colaboradores Envolvidos</label>
+                            <div className="pill-container">
+                                {staff
+                                    .filter(s => s.id !== form.responsavel_id) // 💡 Responsável Global NÃO aparece aqui!
+                                    .map(s => {
+                                        const isSelected = form.colaboradores.includes(s.id);
+                                        return (
+                                            <div 
+                                                key={s.id} 
+                                                onClick={() => !isViewOnly && handleToggleColaborador(s.id)}
+                                                className={`pill-checkbox ${isSelected ? 'selected' : ''}`}
+                                            >
+                                                {s.nome || s.email}
+                                            </div>
+                                        )
+                                })}
+                                {staff.filter(s => s.id !== form.responsavel_id).length === 0 && (
+                                    <span style={{color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic'}}>Sem colaboradores adicionais disponíveis.</span>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* 2. TÍTULO E CÓDIGO */}
+                        <div style={sectionTitleStyle}><Icons.FileText /> Identificação</div>
+                        <div style={{display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px', marginBottom: '30px'}}>
                             <div>
                                 <label style={labelStyle}>Título do Projeto *</label>
                                 <input type="text" value={form.titulo} onChange={e => setForm({...form, titulo: e.target.value})} required style={{...inputStyle, fontSize:'1.1rem', padding:'12px', fontWeight: 'bold'}} className="input-focus" />
@@ -633,47 +838,82 @@ export default function Projetos() {
                             </div>
                         </div>
 
-                        <div style={sectionTitleStyle}><Icons.Building /> Enquadramento</div>
-                        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '20px'}}>
-                            
-                            {isFormacaoSelected ? (
-                                <div>
-                                    <label style={labelStyle}>Cliente / Local (Livre) *</label>
-                                    <input type="text" value={form.cliente_texto || ''} onChange={e => setForm({...form, cliente_texto: e.target.value})} placeholder="Ex: Cenfim Faro..." required style={inputStyle} className="input-focus" />
-                                </div>
-                            ) : (
-                                <div>
-                                    <label style={labelStyle}>Cliente *</label>
-                                    <select value={form.cliente_id || ''} onChange={e => setForm({...form, cliente_id: e.target.value})} required style={{...inputStyle, cursor: 'pointer'}} className="input-focus">
-                                        <option value="">-- Selecione --</option>
-                                        {clientes.map(c => <option key={c.id} value={c.id}>{c.marca}</option>)}
-                                    </select>
-                                </div>
-                            )}
-
-                            <div>
-                                <label style={labelStyle}>Tipo de Projeto (Modelo)</label>
-                                <select value={form.tipo_projeto_id || ''} onChange={e => setForm({...form, tipo_projeto_id: e.target.value})} style={{...inputStyle, cursor: 'pointer'}} disabled={!!editId} className="input-focus">
-                                    <option value="">-- Em Branco --</option>
-                                    {tipos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
-                                </select>
-                            </div>
-                            <div>
-                                <label style={labelStyle}>Responsável Global</label>
-                                <select value={form.responsavel_id || ''} onChange={e => setForm({...form, responsavel_id: e.target.value})} style={{...inputStyle, cursor: 'pointer'}} className="input-focus">
-                                    <option value="">-- Selecione --</option>
-                                    {staff.map(s => <option key={s.id} value={s.id}>{s.nome || s.email}</option>)}
-                                </select>
-                            </div>
-                        </div>
-
+                        {/* 3. PLANEAMENTO */}
                         <div style={sectionTitleStyle}><Icons.Calendar /> Planeamento & Avisos</div>
-                        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '15px', marginBottom: '20px'}}>
+                        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '15px', marginBottom: '30px'}}>
                             <div><label style={labelStyle}>Data Início Base</label><input type="date" value={form.data_inicio || ''} onChange={e => setForm({...form, data_inicio: e.target.value})} style={inputStyle} className="input-focus" required /></div>
                             <div><label style={labelStyle}>Data Fim Final</label><input type="date" value={form.data_fim || ''} onChange={e => setForm({...form, data_fim: e.target.value})} style={{...inputStyle, border: form.data_fim ? '1px solid #fca5a5' : '1px solid #cbd5e1'}} className="input-focus" /></div>
                             <div><label style={labelStyle}>Programa</label><input type="text" value={form.programa || ''} onChange={e => setForm({...form, programa: e.target.value})} placeholder="P2030 / PRR" style={inputStyle} className="input-focus" /></div>
                             <div><label style={labelStyle}>Aviso</label><input type="text" value={form.aviso || ''} onChange={e => setForm({...form, aviso: e.target.value})} placeholder="Ex: 01/C16" style={inputStyle} className="input-focus" /></div>
                         </div>
+
+                        {/* 4. PREVIEW DAS ATIVIDADES (APENAS CRIAÇÃO E SE HOUVER MODELO) */}
+                        {!editId && templateTree.length > 0 && (
+                            <>
+                                <div style={sectionTitleStyle}><Icons.ListTree /> Pré-visualização de Atividades Geradas</div>
+                                <div style={{background: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '30px'}}>
+                                    <p style={{fontSize: '0.85rem', color: '#64748b', margin: '0 0 15px 0'}}>
+                                        O modelo escolhido inclui a seguinte estrutura. Desmarca os itens que não precisas gerar para este projeto em específico. O responsável global e os colaboradores selecionados acima serão automaticamente atribuídos.
+                                    </p>
+                                    
+                                    {/* Árvore Estilo Acordeão/Cards */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                        {templateTree.map(ativ => {
+                                            const isSelected = templateSelection[`a_${ativ.id}`];
+                                            return (
+                                                <div key={`a_${ativ.id}`} style={{ background: 'white', borderRadius: '10px', border: `1px solid ${isSelected ? '#bfdbfe' : '#e2e8f0'}`, overflow: 'hidden', transition: 'all 0.2s', boxShadow: isSelected ? '0 2px 8px rgba(59,130,246,0.05)' : 'none' }}>
+                                                    
+                                                    {/* Activity Header */}
+                                                    <div 
+                                                        onClick={() => toggleTemplateSelection('a', ativ.id)}
+                                                        style={{ background: isSelected ? '#eff6ff' : '#f8fafc', padding: '14px 18px', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', borderBottom: isSelected && ativ.tarefas?.length ? '1px solid #e2e8f0' : 'none' }}
+                                                    >
+                                                        <input type="checkbox" checked={isSelected} readOnly style={{ accentColor: '#3b82f6', width: '18px', height: '18px', pointerEvents: 'none' }} />
+                                                        <span style={{ fontWeight: '700', fontSize: '1rem', color: isSelected ? '#1e3a8a' : '#64748b' }}>{ativ.nome}</span>
+                                                    </div>
+
+                                                    {/* Tasks Container */}
+                                                    {isSelected && ativ.tarefas?.length > 0 && (
+                                                        <div style={{ padding: '15px 18px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                                                            {ativ.tarefas.map(tar => {
+                                                                const isTarSelected = templateSelection[`t_${tar.id}`];
+                                                                return (
+                                                                    <div key={`t_${tar.id}`} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                                            <Icons.ArrowRight size={14} color={isTarSelected ? "#3b82f6" : "#cbd5e1"} />
+                                                                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: isTarSelected ? '700' : '500', color: isTarSelected ? '#334155' : '#94a3b8', fontSize: '0.95rem' }}>
+                                                                                <input type="checkbox" checked={isTarSelected} onChange={() => toggleTemplateSelection('t', tar.id)} style={{ accentColor: '#3b82f6', width: '16px', height: '16px', cursor: 'pointer' }} />
+                                                                                {tar.nome}
+                                                                            </label>
+                                                                        </div>
+                                                                        
+                                                                        {/* Subtasks Container */}
+                                                                        {isTarSelected && tar.subtarefas?.length > 0 && (
+                                                                            <div style={{ paddingLeft: '32px', display: 'flex', flexDirection: 'column', gap: '8px', borderLeft: '2px solid #f1f5f9', marginLeft: '7px' }}>
+                                                                                {tar.subtarefas.map(sub => {
+                                                                                    const isSubSelected = templateSelection[`s_${sub.id}`];
+                                                                                    return (
+                                                                                        <label key={`s_${sub.id}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: isSubSelected ? '#475569' : '#94a3b8', fontSize: '0.85rem', fontWeight: isSubSelected ? '600' : '400' }}>
+                                                                                            <input type="checkbox" checked={isSubSelected} onChange={() => toggleTemplateSelection('s', sub.id)} style={{ accentColor: '#3b82f6', width: '14px', height: '14px', cursor: 'pointer' }} />
+                                                                                            {sub.nome}
+                                                                                        </label>
+                                                                                    );
+                                                                                })}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+
+                                </div>
+                            </>
+                        )}
 
                         <div style={sectionTitleStyle}><Icons.Check /> Estado do Projeto</div>
                         <div style={{display: 'flex', gap: '10px', marginBottom: '25px'}}>
@@ -775,6 +1015,39 @@ export default function Projetos() {
           /* Action Buttons para Sub-itens */
           .action-btn { background: transparent; border: none; cursor: pointer; padding: 6px; border-radius: 6px; display: flex; align-items: center; justify-content: center; opacity: 0.6; transition: 0.2s; }
           .action-btn:hover { opacity: 1; transform: scale(1.1); }
+
+          /* PILL CONTAINER & CHECKBOX (Para Parceiros e Colaboradores) */
+          .pill-container {
+              display: flex;
+              flex-wrap: wrap;
+              gap: 8px;
+              padding: 15px;
+              background: #ffffff;
+              border-radius: 8px;
+              border: 1px solid #cbd5e1;
+          }
+          .pill-checkbox {
+              padding: 8px 18px;
+              border-radius: 20px;
+              font-size: 0.85rem;
+              font-weight: 600;
+              cursor: pointer;
+              transition: all 0.2s ease;
+              border: 1px solid #e2e8f0;
+              background: #f8fafc;
+              color: #64748b;
+              user-select: none;
+          }
+          .pill-checkbox:hover {
+              border-color: #cbd5e1;
+              background: #f1f5f9;
+          }
+          .pill-checkbox.selected {
+              background: #eff6ff;
+              border-color: #3b82f6;
+              color: #2563eb;
+              box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1);
+          }
 
           /* Botão Glow Principal */
           .btn-glow {

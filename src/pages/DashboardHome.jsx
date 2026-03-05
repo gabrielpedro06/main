@@ -4,7 +4,6 @@ import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext"; 
 import WidgetAssiduidade from "../components/WidgetAssiduidade";
-// 🚨 O IMPORT DO WIDGETCALENDAR FOI REMOVIDO DAQUI PARA NÃO DAR TELA BRANCA!
 import { frasesMotivacionais } from "../data/frases"; 
 import "./../styles/dashboard.css";
 
@@ -48,7 +47,7 @@ export default function DashboardHome() {
   
   const [tarefasHoje, setTarefasHoje] = useState([]);
   const [tarefasGerais, setTarefasGerais] = useState([]);
-  const [stats, setStats] = useState({ projetos: 0, clientes: 0, atividades: 0, tarefas: 0, forum: 0 });
+  const [stats, setStats] = useState({ projetos: 0, clientes: 0, forum: 0 });
   const [userProfile, setUserProfile] = useState(null);
   const [usersOnline, setUsersOnline] = useState([]);
   const [registosMes, setRegistosMes] = useState([]); 
@@ -132,6 +131,7 @@ export default function DashboardHome() {
     } catch (error) { console.error("Erro perfil:", error); }
   }
 
+  // 💡 O CÉREBRO DO CRONÓMETRO: Descobre as hierarquias e Clientes para formatar "Empresa - Projeto (Tarefa)"
   async function checkActiveLog() {
       try {
           const { data, error } = await supabase.from("task_logs").select("*").eq("user_id", user.id).is("end_time", null).maybeSingle();
@@ -140,54 +140,76 @@ export default function DashboardHome() {
           if (data) {
               let title = "Tempo a decorrer...";
               let foundProjectId = data.projeto_id;
+              let projName = "";
+              let brandName = "";
               
               if (data.subtarefa_id) {
-                  const { data: res } = await supabase.from("subtarefas").select("titulo, tarefa_id").eq("id", data.subtarefa_id).maybeSingle();
+                  const { data: res } = await supabase.from("subtarefas").select("titulo, tarefas(atividades(projeto_id, projetos(titulo, clientes(marca))))").eq("id", data.subtarefa_id).maybeSingle();
                   if (res) {
                       title = res.titulo;
-                      if (!foundProjectId && res.tarefa_id) {
-                          const { data: tar } = await supabase.from("tarefas").select("atividade_id").eq("id", res.tarefa_id).maybeSingle();
-                          if (tar?.atividade_id) {
-                              const { data: ativ } = await supabase.from("atividades").select("projeto_id").eq("id", tar.atividade_id).maybeSingle();
-                              if (ativ?.projeto_id) foundProjectId = ativ.projeto_id;
-                          }
+                      const ativ = Array.isArray(res.tarefas?.atividades) ? res.tarefas.atividades[0] : res.tarefas?.atividades;
+                      const proj = Array.isArray(ativ?.projetos) ? ativ.projetos[0] : ativ?.projetos;
+                      if (proj) {
+                          foundProjectId = proj.id || ativ.projeto_id;
+                          projName = proj.titulo;
+                          brandName = proj.clientes?.marca || "";
                       }
                   }
               } else if (data.tarefa_id) {
-                  const { data: res } = await supabase.from("tarefas").select("titulo, atividade_id").eq("id", data.tarefa_id).maybeSingle();
+                  const { data: res } = await supabase.from("tarefas").select("titulo, atividades(projeto_id, projetos(titulo, clientes(marca)))").eq("id", data.tarefa_id).maybeSingle();
                   if (res) {
                       title = res.titulo;
-                      if (!foundProjectId && res.atividade_id) {
-                          const { data: ativ } = await supabase.from("atividades").select("projeto_id").eq("id", res.atividade_id).maybeSingle();
-                          if (ativ?.projeto_id) foundProjectId = ativ.projeto_id;
+                      const ativ = Array.isArray(res.atividades) ? res.atividades[0] : res.atividades;
+                      const proj = Array.isArray(ativ?.projetos) ? ativ.projetos[0] : ativ?.projetos;
+                      if (proj) {
+                          foundProjectId = proj.id || ativ.projeto_id;
+                          projName = proj.titulo;
+                          brandName = proj.clientes?.marca || "";
                       }
                   }
               } else if (data.atividade_id) {
-                  const { data: res } = await supabase.from("atividades").select("titulo, projeto_id").eq("id", data.atividade_id).maybeSingle();
+                  const { data: res } = await supabase.from("atividades").select("titulo, projeto_id, projetos(titulo, clientes(marca))").eq("id", data.atividade_id).maybeSingle();
                   if (res) {
                       title = res.titulo;
-                      if (!foundProjectId && res.projeto_id) foundProjectId = res.projeto_id;
+                      const proj = Array.isArray(res.projetos) ? res.projetos[0] : res.projetos;
+                      if (proj) {
+                          foundProjectId = res.projeto_id;
+                          projName = proj.titulo;
+                          brandName = proj.clientes?.marca || "";
+                      }
                   }
               } else if (data.projeto_id) {
-                  const { data: res } = await supabase.from("projetos").select("titulo").eq("id", data.projeto_id).maybeSingle();
-                  if (res) title = res.titulo;
+                  const { data: res } = await supabase.from("projetos").select("titulo, clientes(marca)").eq("id", data.projeto_id).maybeSingle();
+                  if (res) {
+                      title = res.titulo;
+                      projName = res.titulo;
+                      brandName = res.clientes?.marca || "";
+                  }
               }
               
-              setActiveLog({ ...data, taskTitle: title, resolvedProjectId: foundProjectId });
+              // Constrói o texto do botão do Timer
+              let finalDisplay = title;
+              if (projName) {
+                  finalDisplay = brandName ? `${brandName} - ${projName} (${title})` : `${projName} (${title})`;
+              } else {
+                  finalDisplay = `Avulsa (${title})`;
+              }
+
+              setActiveLog({ ...data, taskTitle: finalDisplay, resolvedProjectId: foundProjectId });
           } else {
               setActiveLog(null);
           }
       } catch (err) { console.error("Erro a procurar timer ativo:", err); }
   }
 
+  // 💡 NAVEGAÇÃO DO CRONÓMETRO (Encaminha as avulsas para Minhas Tarefas)
   function navigateToActiveTask() {
       if (!activeLog) return;
       if (activeLog.resolvedProjectId) {
           navigate(`/dashboard/projetos/${activeLog.resolvedProjectId}`);
       } else {
-          if (activeLog.subtarefa_id || activeLog.tarefa_id) navigate("/dashboard/tarefas");
-          else if (activeLog.atividade_id) navigate("/dashboard/atividades");
-          else navigate("/dashboard/projetos");
+          // Se não tem projeto, é avulsa!
+          navigate("/dashboard/minhas-tarefas");
       }
   }
 
@@ -248,9 +270,7 @@ export default function DashboardHome() {
       if (!error && data) setRegistosMes(data);
   }
 
-  // 💡 MESTRE DAS TAREFAS NO DASHBOARD (INCLUI AVULSAS COMO PEDIDO!)
   async function fetchTarefasPessoais() {
-      // 1. TAREFAS: Puxa TODAS as tarefas (com e sem projeto)
       const { data: tarefas } = await supabase
           .from("tarefas")
           .select(`*, atividades ( titulo, data_fim, projetos ( titulo, codigo_projeto, cliente_texto, clientes(marca) ) )`)
@@ -258,7 +278,6 @@ export default function DashboardHome() {
           .neq("estado", "concluido")
           .neq("estado", "cancelado");
 
-      // 2. ATIVIDADES: Puxa TODAS as atividades
       const { data: atividades } = await supabase
           .from("atividades")
           .select(`*, projetos ( titulo, codigo_projeto, cliente_texto, clientes(marca) )`)
@@ -488,19 +507,18 @@ export default function DashboardHome() {
   };
 
   const renderTaskDeadline = (dateString) => {
-      if (!dateString) return null;
+      if (!dateString) return <span style={{fontSize: '0.65rem', color: '#94a3b8', background: '#f8fafc', padding: '2px 6px', borderRadius: '4px'}}>Sem Prazo</span>;
       const d = new Date(dateString); 
-      if (isNaN(d.getTime())) return null;
+      if (isNaN(d.getTime())) return <span style={{fontSize: '0.65rem', color: '#94a3b8', background: '#f8fafc', padding: '2px 6px', borderRadius: '4px'}}>Sem Prazo</span>;
       
       d.setHours(0,0,0,0);
       const t = new Date(); t.setHours(0,0,0,0);
       const diffTime = d.getTime() - t.getTime();
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      const dateFormatted = d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
       
       if (diffDays < 0) return <span style={{background: '#fee2e2', color: '#ef4444', padding: '2px 8px', borderRadius: '12px', fontSize: '0.65rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.AlertTriangle size={10} /> Atrasada</span>;
       if (diffDays === 0) return <span style={{background: '#fefce8', color: '#d97706', padding: '2px 8px', borderRadius: '12px', fontSize: '0.65rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.Flame size={10} /> Hoje</span>;
-      return <span style={{background: '#f1f5f9', color: '#64748b', padding: '2px 8px', borderRadius: '12px', fontSize: '0.65rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.Calendar size={10} /> {dateFormatted}</span>;
+      return <span style={{background: '#f1f5f9', color: '#64748b', padding: '2px 8px', borderRadius: '12px', fontSize: '0.65rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.Calendar size={10} /> {d.toLocaleDateString('pt-PT').slice(0,5)}</span>;
   };
 
   const inputEditStyle = { width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.85rem' };
@@ -537,7 +555,7 @@ export default function DashboardHome() {
                 >
                     <div style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', fontSize: '0.95rem'}}>
                         <span className="pulse-dot-white"></span> 
-                        {getActiveTaskName().length > 25 ? getActiveTaskName().slice(0, 25) + '...' : getActiveTaskName()}
+                        {getActiveTaskName().length > 30 ? getActiveTaskName().slice(0, 30) + '...' : getActiveTaskName()}
                     </div>
                     <div style={{width: '1px', height: '20px', background: 'rgba(255,255,255,0.3)'}}></div>
                     <button 
@@ -749,7 +767,7 @@ export default function DashboardHome() {
                 ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
                     {tarefasHoje.slice(0, 6).map((t) => (
-                        <div key={t.id} onClick={() => navigate(t.isActivity ? '/dashboard/atividades' : '/dashboard/tarefas')} className="task-hover-card" style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div key={t.id} onClick={() => navigate(t.clientLabel === 'GERAL / AVULSA' ? '/dashboard/minhas-tarefas' : (t.isActivity ? '/dashboard/atividades' : '/dashboard/tarefas'))} className="task-hover-card" style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                 {/* 💡 LABEL EMPRESA - PROJETO ou GERAL/AVULSA */}
                                 <span style={{ fontSize: '0.65rem', color: '#64748b', textTransform: 'uppercase', background: '#f8fafc', padding: '2px 6px', borderRadius: '6px', maxWidth: '120px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={t.clientLabel}>
@@ -792,7 +810,7 @@ export default function DashboardHome() {
                 ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
                     {tarefasGerais.slice(0, 10).map((t) => (
-                        <div key={t.id} onClick={() => navigate(t.isActivity ? '/dashboard/atividades' : '/dashboard/tarefas')} className="task-hover-card" style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div key={t.id} onClick={() => navigate(t.clientLabel === 'GERAL / AVULSA' ? '/dashboard/minhas-tarefas' : (t.isActivity ? '/dashboard/atividades' : '/dashboard/tarefas'))} className="task-hover-card" style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                 {/* 💡 LABEL EMPRESA - PROJETO ou GERAL/AVULSA */}
                                 <span style={{ fontSize: '0.65rem', color: '#64748b', textTransform: 'uppercase', background: '#f8fafc', padding: '2px 6px', borderRadius: '6px', maxWidth: '140px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={t.clientLabel}>
@@ -945,7 +963,7 @@ export default function DashboardHome() {
 
                                                 <td style={{padding: '12px 15px', textAlign: 'right'}}>
                                                     <button onClick={() => handleStartEdit(r)} style={{background: 'transparent', border: 'none', color: '#3b82f6', cursor: 'pointer', padding: '4px'}} className="hover-text-blue" title="Editar este registo">
-                                                        <Icons.Edit size={14} />
+                                                        <Icons.Edit size={16} />
                                                     </button>
                                                 </td>
                                             </tr>
