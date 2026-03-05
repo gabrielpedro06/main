@@ -1,7 +1,8 @@
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable'; 
+import autoTable from 'jspdf-autotable'; // 👈 Correção do plugin de tabela
 
-const gerarRelatorioProjeto = (projeto, atividades, logs, staff) => {
+// 💡 ADICIONADO: O argumento 'clientes' agora é recebido aqui na função
+const gerarRelatorioProjeto = (projeto, atividades, logs, staff, clientes) => {
     
     // Inicia o Documento
     const doc = new jsPDF('p', 'mm', 'a4');
@@ -46,7 +47,7 @@ const gerarRelatorioProjeto = (projeto, atividades, logs, staff) => {
     doc.setFontSize(22);
     doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "bold");
-    doc.text('Relatorio de Execucao', 14, 20); // Removido acentos para evitar conflitos de fonte base
+    doc.text('Relatorio de Execucao', 14, 20);
 
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
@@ -75,9 +76,10 @@ const gerarRelatorioProjeto = (projeto, atividades, logs, staff) => {
     let boxY = currentY + 8;
     const lineSpace = 7;
 
+    // 💡 CORRIGIDO: Usa a lista "clientes" que passaste agora
     let clienteName = projeto.cliente_texto || projeto.clientes?.marca || 'Nao definido';
     if (projeto.is_parceria && projeto.parceiros_ids?.length > 0) {
-        clienteName = `Parceria: ` + projeto.parceiros_ids.map(id => staff.find(c => c.id === id)?.marca || '').join(', ');
+        clienteName = `Parceria: ` + projeto.parceiros_ids.map(id => clientes.find(c => c.id === id)?.marca || '').join(', ');
     }
 
     doc.text(`Cliente/Local:`, leftColX, boxY); 
@@ -148,7 +150,7 @@ const gerarRelatorioProjeto = (projeto, atividades, logs, staff) => {
     currentY += 35;
 
     // ==========================================
-    // TABELA DE ATIVIDADES E TAREFAS (Sem Emojis!)
+    // TABELA DE ATIVIDADES E TAREFAS
     // ==========================================
     doc.setFontSize(12);
     doc.setTextColor(...darkColor);
@@ -161,7 +163,6 @@ const gerarRelatorioProjeto = (projeto, atividades, logs, staff) => {
     atividades.forEach(ativ => {
         const ativTime = getActivityTime(ativ);
         
-        // 1. Linha Principal (Atividade) - Sem emoji, tudo em maiúsculas
         tableData.push([
             { content: ativ.titulo.toUpperCase(), styles: { fontStyle: 'bold', fillColor: [241, 245, 249], textColor: [15, 23, 42] } },
             { content: (ativ.estado || '').toUpperCase().replace('_', ' '), styles: { fontStyle: 'bold', fillColor: [241, 245, 249] } },
@@ -173,7 +174,6 @@ const gerarRelatorioProjeto = (projeto, atividades, logs, staff) => {
             ativ.tarefas.forEach(tar => {
                 const taskTime = getTaskTime(tar.id);
                 
-                // 2. Linha Secundária (Tarefa) - Sem emoji, usa sinal de MAIOR ">"
                 tableData.push([
                     { content: `   > ${tar.titulo}`, styles: { textColor: [51, 65, 85], fontStyle: 'bold' } },
                     (tar.estado || '').toUpperCase().replace('_', ' '),
@@ -181,7 +181,6 @@ const gerarRelatorioProjeto = (projeto, atividades, logs, staff) => {
                     { content: formatTime(taskTime), styles: { halign: 'right', fontStyle: 'bold' } }
                 ]);
 
-                // 3. Linha Terciária (Subtarefas) - Caixas de texto simples [X] e [ ]
                 if (tar.subtarefas && tar.subtarefas.length > 0) {
                     tar.subtarefas.forEach(sub => {
                         const checkIcon = sub.estado === 'concluido' ? '[X]' : '[  ]';
@@ -197,6 +196,7 @@ const gerarRelatorioProjeto = (projeto, atividades, logs, staff) => {
         }
     });
 
+    // 💡 CORRIGIDO: Sintaxe do autoTable
     autoTable(doc, {
         startY: currentY,
         head: [['Atividade / Tarefa / Passo', 'Estado', 'Equipa Associada', 'Tempo Gasto']],

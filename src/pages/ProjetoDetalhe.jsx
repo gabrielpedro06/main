@@ -44,7 +44,8 @@ const Icons = {
   Rocket: ({ size = 20, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"></path><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"></path><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"></path><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"></path></svg>,
   Search: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>,
   Globe: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>,
-  ListTree: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+  ListTree: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>,
+  Handshake: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m11 17 2 2a1 1 0 1 0 3-3"></path><path d="m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06 7.06l-4.28 4.28a1 1 0 0 1-1.42 0l-3-3a1 1 0 0 1-1.42 0l-3 3a1 1 0 0 1 1.42 0l3 3a1 1 0 0 1 0 1.42l-3 3a1 1 0 0 1-1.42 0l-2.5-2.5a1 1 0 1 1 3-3l3.88-3.88a3 3 0 0 1 4.24 0z"></path></svg>
 };
 
 const ModalPortal = ({ children }) => createPortal(children, document.body);
@@ -383,11 +384,32 @@ export default function ProjetoDetalhe() {
       } else showToast(error.message, "error");
   }
 
+  // --- TOGGLES DE COLABORADORES E PARCEIROS NO EDIT ---
+  const handleToggleParceiro = (cId) => {
+      setFormGeral(prev => ({
+          ...prev, 
+          parceiros_ids: (prev.parceiros_ids || []).includes(cId) 
+              ? prev.parceiros_ids.filter(id => id !== cId) 
+              : [...(prev.parceiros_ids || []), cId]
+      }));
+  };
+
+  const handleToggleColaborador = (sId) => {
+      setFormGeral(prev => ({
+          ...prev, 
+          colaboradores: (prev.colaboradores || []).includes(sId) 
+              ? prev.colaboradores.filter(id => id !== sId) 
+              : [...(prev.colaboradores || []), sId]
+      }));
+  };
+
   async function handleUpdateProjeto(e) {
       e.preventDefault();
       try {
           const payload = {
               titulo: formGeral.titulo, cliente_id: formGeral.cliente_id, responsavel_id: formGeral.responsavel_id,
+              is_parceria: formGeral.is_parceria, parceiros_ids: formGeral.parceiros_ids,
+              colaboradores: formGeral.colaboradores,
               estado: formGeral.estado, data_inicio: formGeral.data_inicio, data_fim: formGeral.data_fim,
               programa: formGeral.programa, aviso: formGeral.aviso, codigo_projeto: formGeral.codigo_projeto,
               descricao: formGeral.descricao, observacoes: formGeral.observacoes,
@@ -427,7 +449,6 @@ export default function ProjetoDetalhe() {
       fetchProjetoDetails();
   }
 
-  // 💡 FUNÇÕES DE TOGGLE (Expandir/Recolher)
   const toggleExpand = (taskId) => {
       setExpandedTasks(prev => ({ ...prev, [taskId]: !prev[taskId] }));
   };
@@ -472,6 +493,13 @@ export default function ProjetoDetalhe() {
       );
   };
 
+  // LÓGICA DO NOME DO CLIENTE / PARCERIA NO CABEÇALHO
+  let clientDisplay = projeto.cliente_texto || projeto.clientes?.marca || 'Não Definido';
+  if (projeto.is_parceria && projeto.parceiros_ids?.length > 0) {
+      const parceirosNomes = projeto.parceiros_ids.map(id => clientes.find(c => c.id === id)?.marca).filter(Boolean).join(', ');
+      clientDisplay = `🤝 Parceria: ${parceirosNomes}`;
+  }
+
   return (
     <div className="page-container" style={{maxWidth: '1200px', margin: '0 auto', paddingBottom: '50px'}}>
       
@@ -499,7 +527,7 @@ export default function ProjetoDetalhe() {
                   </button>
 
                   <div style={{display: 'flex', gap: '12px', alignItems: 'center'}}>
-                      <button onClick={() => gerarRelatorioProjeto(projeto, atividades, logs, staff)} className="btn-small hover-shadow" style={{display:'flex', alignItems:'center', gap:'6px', background:'white', color:'#1e40af', border:'1px solid #bfdbfe'}}>
+                      <button onClick={() => gerarRelatorioProjeto(projeto, atividades, logs, staff, clientes)} className="btn-small hover-shadow" style={{display:'flex', alignItems:'center', gap:'6px', background:'white', color:'#1e40af', border:'1px solid #bfdbfe'}}>
                           <Icons.Download size={14}/> Gerar PDF
                       </button>
                       
@@ -530,7 +558,7 @@ export default function ProjetoDetalhe() {
                       </div>
                       <div>
                           <div style={{fontSize: '0.65rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', marginBottom: '2px', letterSpacing: '0.05em'}}>Cliente / Local</div>
-                          <div style={{fontSize: '0.95rem', color: '#1e293b', fontWeight: '700'}}>{projeto?.cliente_texto || projeto?.clientes?.marca || 'Não Definido'}</div>
+                          <div style={{fontSize: '0.95rem', color: '#1e293b', fontWeight: '700'}}>{clientDisplay}</div>
                       </div>
                   </div>
 
@@ -848,27 +876,98 @@ export default function ProjetoDetalhe() {
                 </div>
 
                 <fieldset disabled={!isEditingGeral} style={{border: 'none', padding: 0, margin: 0, opacity: !isEditingGeral ? 0.8 : 1, transition: 'opacity 0.3s'}}>
+                    
+                    {/* ENQUADRAMENTO (Com Parcerias e Colaboradores em formato Pill) */}
+                    <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '20px'}}>
+                        <div>
+                            <label style={labelStyle}>Tipo de Entidade</label>
+                            <select value={formGeral.is_parceria ? 'parceria' : 'unico'} onChange={e => {
+                                const isParc = e.target.value === 'parceria';
+                                setFormGeral({...formGeral, is_parceria: isParc, cliente_id: isParc ? null : formGeral.cliente_id, parceiros_ids: isParc ? (formGeral.parceiros_ids || []) : []});
+                            }} style={{...inputStyle, cursor: 'pointer'}} className="input-focus">
+                                <option value="unico">👤 Cliente Único</option>
+                                <option value="parceria">🤝 Parceria (Vários)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style={labelStyle}>Responsável Global</label>
+                            <select value={formGeral.responsavel_id || ''} onChange={e => {
+                                const newResp = e.target.value;
+                                setFormGeral(prev => ({
+                                    ...prev, 
+                                    responsavel_id: newResp,
+                                    colaboradores: (prev.colaboradores || []).filter(id => id !== newResp) 
+                                }));
+                            }} style={{...inputStyle, cursor: 'pointer'}} className="input-focus">
+                                <option value="">- Ninguém -</option>
+                                {staff.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style={{marginBottom: '20px'}}>
+                        {formGeral.is_parceria ? (
+                            <div>
+                                <label style={labelStyle}>Parceiros / Clientes (Seleciona vários)</label>
+                                <div className="pill-container">
+                                    {clientes.map(c => {
+                                        const isSelected = (formGeral.parceiros_ids || []).includes(c.id);
+                                        return (
+                                            <div 
+                                                key={c.id} 
+                                                onClick={() => isEditingGeral && handleToggleParceiro(c.id)}
+                                                className={`pill-checkbox ${isSelected ? 'selected' : ''}`}
+                                            >
+                                                {c.marca}
+                                            </div>
+                                        )
+                                    })}
+                                    {clientes.length === 0 && <span style={{color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic'}}>Sem clientes disponíveis.</span>}
+                                </div>
+                            </div>
+                        ) : (
+                            <div style={{display: 'flex', gap: '15px'}}>
+                                <div style={{flex: 1}}>
+                                    <label style={labelStyle}>Cliente Principal</label>
+                                    <select value={formGeral.cliente_id || ''} onChange={e => setFormGeral({...formGeral, cliente_id: e.target.value, cliente_texto: ""})} style={{...inputStyle, cursor: 'pointer'}} className="input-focus">
+                                        <option value="">- Selecione -</option>
+                                        {clientes.map(c => <option key={c.id} value={c.id}>{c.marca}</option>)}
+                                    </select>
+                                </div>
+                                <div style={{flex: 1}}>
+                                    <label style={labelStyle}>Ou Texto Livre (Ex: Formação Cenfim)</label>
+                                    <input type="text" value={formGeral.cliente_texto || ''} onChange={e => setFormGeral({...formGeral, cliente_texto: e.target.value, cliente_id: null})} style={inputStyle} className="input-focus" />
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <div style={{marginBottom: '30px'}}>
+                        <label style={labelStyle}>Outros Colaboradores Envolvidos</label>
+                        <div className="pill-container">
+                            {staff.filter(s => s.id !== formGeral.responsavel_id).map(s => {
+                                const isSelected = (formGeral.colaboradores || []).includes(s.id);
+                                return (
+                                    <div 
+                                        key={s.id} 
+                                        onClick={() => isEditingGeral && handleToggleColaborador(s.id)}
+                                        className={`pill-checkbox ${isSelected ? 'selected' : ''}`}
+                                    >
+                                        {s.nome || s.email}
+                                    </div>
+                                )
+                            })}
+                            {staff.filter(s => s.id !== formGeral.responsavel_id).length === 0 && (
+                                <span style={{color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic'}}>Sem colaboradores adicionais disponíveis.</span>
+                            )}
+                        </div>
+                    </div>
+
                     <div style={{display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '40px'}}>
                         <div>
                             <label style={labelStyle}>Nome do Projeto</label>
                             <input type="text" value={formGeral.titulo || ''} onChange={e => setFormGeral({...formGeral, titulo: e.target.value})} style={{...inputStyle, fontWeight: 'bold', color: '#0f172a'}} className="input-focus" />
                             
-                            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
-                                <div><label style={labelStyle}>Cliente (Opção Livre ou Registado)</label>
-                                    <div style={{display:'flex', gap:'10px'}}>
-                                        <select value={formGeral.cliente_id || ''} onChange={e => setFormGeral({...formGeral, cliente_id: e.target.value, cliente_texto: ""})} style={{...inputStyle, flex:1}} className="input-focus">
-                                            <option value="">- NENHUM -</option>{clientes.map(c => <option key={c.id} value={c.id}>{c.marca}</option>)}
-                                        </select>
-                                        <input type="text" placeholder="Texto livre" value={formGeral.cliente_texto || ''} onChange={e => setFormGeral({...formGeral, cliente_texto: e.target.value, cliente_id: null})} style={{...inputStyle, flex:1}} className="input-focus" />
-                                    </div>
-                                </div>
-                                <div><label style={labelStyle}>Responsável</label>
-                                    <select value={formGeral.responsavel_id || ''} onChange={e => setFormGeral({...formGeral, responsavel_id: e.target.value})} style={inputStyle} className="input-focus">
-                                        <option value="">- NENHUM -</option>{staff.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
-                                    </select>
-                                </div>
-                            </div>
-
                             <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px'}}>
                                 <div><label style={labelStyle}>Código</label><input type="text" value={formGeral.codigo_projeto || ''} onChange={e => setFormGeral({...formGeral, codigo_projeto: e.target.value})} style={inputStyle} className="input-focus" /></div>
                                 <div><label style={labelStyle}>Programa</label><input type="text" value={formGeral.programa || ''} onChange={e => setFormGeral({...formGeral, programa: e.target.value})} style={inputStyle} className="input-focus" /></div>
@@ -1087,6 +1186,12 @@ export default function ProjetoDetalhe() {
           
           .input-focus:focus { border-color: #3b82f6 !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
           .input-focus-alert:focus { border-color: #f59e0b !important; box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.1); }
+
+          /* PILL CONTAINER & CHECKBOX (Para Parceiros e Colaboradores) */
+          .pill-container { display: flex; flex-wrap: wrap; gap: 8px; padding: 15px; background: #ffffff; border-radius: 8px; border: 1px solid #cbd5e1; }
+          .pill-checkbox { padding: 8px 18px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease; border: 1px solid #e2e8f0; background: #f8fafc; color: #64748b; user-select: none; }
+          .pill-checkbox:hover { border-color: #cbd5e1; background: #f1f5f9; }
+          .pill-checkbox.selected { background: #eff6ff; border-color: #3b82f6; color: #2563eb; box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1); }
 
           /* Scrollbar Limpa */
           .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
