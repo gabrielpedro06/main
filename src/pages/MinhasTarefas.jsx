@@ -55,13 +55,14 @@ export default function MinhasTarefas() {
 
   const [editModal, setEditModal] = useState({ show: false, data: null });
   const [isUploading, setIsUploading] = useState(false);
+  const [isDraggingFile, setIsDraggingFile] = useState(false); // NOVO ESTADO DRAG & DROP
   
   // Histórico de Concluídas
   const [showCompletedModal, setShowCompletedModal] = useState(false);
   const [completedTasksGroups, setCompletedTasksGroups] = useState({ "Esta Semana": [], "Semana Passada": [], "Mais Antigas": [] });
   const [activeHistoryTab, setActiveHistoryTab] = useState("Esta Semana"); 
 
-  // DRAG & DROP STATE
+  // DRAG & DROP STATE (Kanban)
   const [draggedTask, setDraggedTask] = useState(null);
   const [dragOverCol, setDragOverCol] = useState(null);
 
@@ -186,6 +187,13 @@ export default function MinhasTarefas() {
       if(!window.confirm("Apagar esta tarefa permanentemente?")) return;
       await supabase.from("tarefas").delete().eq("id", taskId);
       showToast("Tarefa eliminada do arquivo."); openCompletedHistory();
+  }
+  
+  // Função auxiliar de delete do Modal
+  async function handleDeleteTaskFromKanban(taskId) {
+      if(!window.confirm("Apagar esta tarefa do quadro?")) return;
+      await supabase.from("tarefas").delete().eq("id", taskId);
+      showToast("Tarefa apagada."); fetchMyTasks();
   }
 
   const getTaskTime = (taskId) => logs.filter(l => l.task_id === taskId).reduce((acc, curr) => acc + (curr.duration_minutes || 0), 0);
@@ -317,11 +325,68 @@ export default function MinhasTarefas() {
   const handleFileSelect = (e, id) => {
       const file = e.target.files[0];
       if (!file) return;
-      // Ao selecionar ficheiro, guardamos o objeto file no state e limpamos a URL atual para forçar visualização de "pendente de upload"
       updateAnexo(id, 'file', file);
       updateAnexo(id, 'url', '');
       if(!editModal.data.anexos.find(a=>a.id === id).nome) {
-          updateAnexo(id, 'nome', file.name.split('.')[0]); // auto-preenche o nome
+          updateAnexo(id, 'nome', file.name.split('.')[0]); 
+      }
+  };
+
+  // --- DRAG & DROP DE FICHEIROS NO MODAL ---
+  const handleFileDragOver = (e) => {
+      e.preventDefault(); 
+      e.stopPropagation();
+      setIsDraggingFile(true);
+  };
+
+  const handleFileDragLeave = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDraggingFile(false);
+  };
+
+  // Drop global (Cria novos slots automaticamente)
+  const handleFileDropGeneral = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDraggingFile(false);
+
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          const files = Array.from(e.dataTransfer.files);
+          
+          setEditModal(prev => {
+              const novosAnexos = files.map(file => ({
+                  id: 'new_drop_' + Date.now() + Math.random(),
+                  nome: file.name.split('.')[0], // Preenche o nome auto
+                  data_limite: '',
+                  url: '',
+                  file: file
+              }));
+
+              return {
+                  ...prev,
+                  data: {
+                      ...prev.data,
+                      anexos: [...(prev.data.anexos || []), ...novosAnexos]
+                  }
+              };
+          });
+      }
+  };
+
+  // Drop num slot específico (Substitui o ficheiro desse slot)
+  const handleFileDropSpecific = (e, id) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDraggingFile(false);
+
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          const file = e.dataTransfer.files[0];
+          updateAnexo(id, 'file', file);
+          updateAnexo(id, 'url', '');
+          if(!editModal.data.anexos.find(a=>a.id === id).nome) {
+              updateAnexo(id, 'nome', file.name.split('.')[0]);
+          }
       }
   };
 
@@ -330,7 +395,6 @@ export default function MinhasTarefas() {
       setIsUploading(true);
       const isProjectTask = editModal.data.atividades?.projetos;
 
-      // Fazer upload sequencial dos novos ficheiros
       const finalAnexos = [];
       for (let anexo of editModal.data.anexos) {
           let finalUrl = anexo.url;
@@ -349,7 +413,7 @@ export default function MinhasTarefas() {
           }
           
           finalAnexos.push({
-              id: anexo.id.startsWith('new_') ? 'doc_' + Date.now() + Math.random() : anexo.id, // normaliza IDs
+              id: anexo.id.startsWith('new_') ? 'doc_' + Date.now() + Math.random() : anexo.id, 
               nome: anexo.nome || 'Documento S/ Nome',
               data_limite: anexo.data_limite,
               url: finalUrl
@@ -362,7 +426,7 @@ export default function MinhasTarefas() {
           prioridade: editModal.data.prioridade,
           responsavel_id: editModal.data.responsavel_id,
           colaboradores_extra: editModal.data.colaboradores_extra,
-          anexos: finalAnexos // 💡 Guarda a array atualizada na BD
+          anexos: finalAnexos 
       };
 
       if (isProjectTask) payload.data_fim = editModal.data._form_deadline || null;
@@ -379,7 +443,7 @@ export default function MinhasTarefas() {
       setIsUploading(false);
   }
 
-  // --- DRAG AND DROP ---
+  // --- DRAG AND DROP (Kanban) ---
   const getDateForColumn = (colId) => {
       const d = new Date();
       if (colId === 'hoje') return d.toISOString().split('T')[0];
@@ -660,7 +724,7 @@ export default function MinhasTarefas() {
           </ModalPortal>
       )}
 
-      {/* 💡 MODAL DE EDIÇÃO DE TAREFA (COM MÚLTIPLOS DOCUMENTOS) */}
+      {/* 💡 MODAL DE EDIÇÃO DE TAREFA (COM MÚLTIPLOS DOCUMENTOS E DRAG & DROP) */}
       {editModal.show && editModal.data && (
           <ModalPortal>
               <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, backdropFilter: 'blur(4px)'}} onClick={() => setEditModal({show: false, data: null})}>
@@ -720,8 +784,21 @@ export default function MinhasTarefas() {
                               </div>
                           </div>
 
-                          {/* 💡 LISTA DE MÚLTIPLOS DOCUMENTOS E ENTREGÁVEIS */}
-                          <div style={{background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '20px', marginBottom: '20px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)'}}>
+                          {/* 💡 LISTA DE MÚLTIPLOS DOCUMENTOS E ENTREGÁVEIS (COM DRAG & DROP) */}
+                          <div 
+                              onDragOver={handleFileDragOver}
+                              onDragLeave={handleFileDragLeave}
+                              onDrop={handleFileDropGeneral}
+                              style={{
+                                  background: isDraggingFile ? '#f0f9ff' : '#fff', 
+                                  border: isDraggingFile ? '2px dashed #3b82f6' : '1px solid #e2e8f0', 
+                                  borderRadius: '8px', 
+                                  padding: '20px', 
+                                  marginBottom: '20px', 
+                                  boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
+                                  transition: 'all 0.2s ease'
+                              }}
+                          >
                               <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px'}}>
                                   <label style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '800', color: '#1e293b', fontSize: '0.95rem'}}>
                                       <Icons.FileText size={18} color="#2563eb" /> Documentos & Entregáveis
@@ -729,10 +806,15 @@ export default function MinhasTarefas() {
                                   <span style={{background: '#e0f2fe', color: '#2563eb', padding: '2px 8px', borderRadius: '12px', fontSize: '0.7rem', fontWeight: 'bold'}}>{editModal.data.anexos?.length || 0} Itens</span>
                               </div>
                               
-                              {editModal.data.anexos?.length > 0 ? (
+                              {editModal.data.anexos?.length > 0 && (
                                   <div style={{display: 'flex', flexDirection: 'column', gap: '15px'}}>
                                       {editModal.data.anexos.map((anexo) => (
-                                          <div key={anexo.id} style={{background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '10px', padding: '15px'}}>
+                                          <div 
+                                              key={anexo.id} 
+                                              onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }} // Permite dropar neste slot
+                                              onDrop={(e) => handleFileDropSpecific(e, anexo.id)}
+                                              style={{background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '10px', padding: '15px'}}
+                                          >
                                               <div style={{display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '10px', marginBottom: '10px'}}>
                                                   <div>
                                                       <label style={{display: 'block', marginBottom: '4px', fontSize: '0.7rem', fontWeight: '700', color: '#64748b'}}>Nome do Documento</label>
@@ -752,7 +834,7 @@ export default function MinhasTarefas() {
                                                   ) : anexo.file ? (
                                                       <span style={{fontSize: '0.8rem', color: '#10b981', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.UploadCloud size={14}/> Pronto a guardar: {anexo.file.name}</span>
                                                   ) : (
-                                                      <span style={{fontSize: '0.8rem', color: '#94a3b8', fontStyle: 'italic'}}>Nenhum ficheiro anexado</span>
+                                                      <span style={{fontSize: '0.8rem', color: '#94a3b8', fontStyle: 'italic'}}>Arrasta ficheiro para aqui ou anexa</span>
                                                   )}
 
                                                   <div style={{display: 'flex', gap: '10px', alignItems: 'center'}}>
@@ -768,13 +850,32 @@ export default function MinhasTarefas() {
                                           </div>
                                       ))}
                                   </div>
-                              ) : (
-                                  <div style={{textAlign: 'center', padding: '15px', color: '#94a3b8', fontSize: '0.85rem'}}>Sem documentos anexados.</div>
                               )}
 
-                              <button type="button" onClick={addAnexoSlot} style={{width: '100%', marginTop: '15px', padding: '10px', background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: '8px', color: '#3b82f6', fontWeight: 'bold', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', transition: '0.2s'}} className="hover-border-blue hover-shadow">
-                                  <Icons.Plus size={14} /> Adicionar Documento
-                              </button>
+                              {/* Área de Drop / Botão Adicionar */}
+                              <div 
+                                  onClick={addAnexoSlot}
+                                  style={{
+                                      width: '100%', marginTop: '15px', padding: isDraggingFile ? '25px 10px' : '15px 10px', 
+                                      background: isDraggingFile ? '#e0f2fe' : '#f8fafc', 
+                                      border: isDraggingFile ? '2px dashed #2563eb' : '1px dashed #cbd5e1', 
+                                      borderRadius: '8px', color: isDraggingFile ? '#2563eb' : '#3b82f6', 
+                                      fontWeight: 'bold', cursor: 'pointer', display: 'flex', flexDirection: 'column', 
+                                      justifyContent: 'center', alignItems: 'center', gap: '6px', transition: '0.2s'
+                                  }} 
+                                  className="hover-border-blue hover-shadow"
+                              >
+                                  {isDraggingFile ? (
+                                      <>
+                                          <Icons.UploadCloud size={24} />
+                                          <span>Larga os ficheiros aqui para anexar</span>
+                                      </>
+                                  ) : (
+                                      <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
+                                          <Icons.Plus size={14} /> Adicionar Espaço ou Arrastar Ficheiros
+                                      </div>
+                                  )}
+                              </div>
                           </div>
 
                           <label style={{display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Notas / Descrição</label>
