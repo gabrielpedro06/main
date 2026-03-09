@@ -101,10 +101,11 @@ export default function MinhasTarefas() {
 
   async function fetchMyTasks() {
       try {
+          // 💡 Adicionado "criado_por" e "profiles:criado_por(nome)" para saber quem enviou a tarefa
           let query = supabase
               .from("tarefas")
-              .select(`id, titulo, estado, data_limite, data_fim, prioridade, descricao, created_at, atividades(projetos(id, titulo, codigo_projeto)), colaboradores_extra, tem_entregavel, nome_entregavel, data_entregavel, arquivo_url`)
-              .eq("responsavel_id", user.id)
+              .select(`id, titulo, estado, responsavel_id, criado_por, data_limite, data_fim, prioridade, descricao, created_at, atividades(projetos(id, titulo, codigo_projeto)), colaboradores_extra, tem_entregavel, nome_entregavel, data_entregavel, arquivo_url, profiles:criado_por(nome)`)
+              .or(`responsavel_id.eq.${user.id},colaboradores_extra.cs.{${user.id}}`)
               .order("created_at", { ascending: true }); 
 
           if (!mostrarConcluidos) {
@@ -160,8 +161,8 @@ export default function MinhasTarefas() {
   async function openCompletedHistory() {
       const { data } = await supabase
           .from("tarefas")
-          .select(`id, titulo, estado, data_limite, data_fim, prioridade, descricao, created_at, data_conclusao, atividades(projetos(id, titulo, codigo_projeto))`)
-          .eq("responsavel_id", user.id)
+          .select(`id, titulo, estado, responsavel_id, criado_por, data_limite, data_fim, prioridade, descricao, created_at, data_conclusao, atividades(projetos(id, titulo, codigo_projeto)), profiles:criado_por(nome)`)
+          .or(`responsavel_id.eq.${user.id},colaboradores_extra.cs.{${user.id}}`)
           .eq("estado", "concluido")
           .order("data_conclusao", { ascending: false, nullsFirst: false });
 
@@ -244,7 +245,7 @@ export default function MinhasTarefas() {
       if (!novaTarefaNome.trim()) return;
       try {
           const { error } = await supabase.from("tarefas").insert([{ 
-              titulo: novaTarefaNome, responsavel_id: user.id, estado: 'pendente', atividade_id: null, prioridade: 'normal'
+              titulo: novaTarefaNome, responsavel_id: user.id, estado: 'pendente', atividade_id: null, prioridade: 'normal', criado_por: user.id
           }]);
           if (error) throw error;
           setNovaTarefaNome(""); 
@@ -267,7 +268,7 @@ export default function MinhasTarefas() {
 
       try {
           const { error } = await supabase.from("tarefas").insert([{ 
-              titulo: text.trim(), responsavel_id: user.id, estado: 'pendente', atividade_id: null, data_limite: date, prioridade: 'normal' 
+              titulo: text.trim(), responsavel_id: user.id, estado: 'pendente', atividade_id: null, data_limite: date, prioridade: 'normal', criado_por: user.id 
           }]);
           if(error) throw error;
           setNewTasks({ ...newTasks, [colId]: "" }); 
@@ -276,6 +277,7 @@ export default function MinhasTarefas() {
       } catch (err) { showToast("Erro ao criar: " + err.message, "error"); }
   }
 
+  // 💡 Lógica Anti-Conflito nos Colaboradores
   const toggleColaboradorExtra = (colabId) => {
       setEditModal(prev => {
           const arr = Array.isArray(prev.data.colaboradores_extra) ? prev.data.colaboradores_extra : [];
@@ -312,6 +314,7 @@ export default function MinhasTarefas() {
           titulo: editModal.data.titulo, 
           descricao: editModal.data.descricao, 
           prioridade: editModal.data.prioridade,
+          responsavel_id: editModal.data.responsavel_id, // 💡 Guarda o novo responsável se for alterado
           colaboradores_extra: editModal.data.colaboradores_extra,
           tem_entregavel: editModal.data.tem_entregavel,
           nome_entregavel: editModal.data.nome_entregavel,
@@ -377,6 +380,10 @@ export default function MinhasTarefas() {
       const contexto = proj ? (proj.codigo_projeto ? `[${proj.codigo_projeto}] ${proj.titulo}` : proj.titulo) : "Avulsa";
       
       const hasExtraColabs = task.colaboradores_extra && task.colaboradores_extra.length > 0;
+      
+      // 💡 Identifica quem mandou a tarefa (se for delegado)
+      const showDelegated = task.criado_por && task.criado_por !== task.responsavel_id;
+      const creatorName = task.profiles ? getSafeFirstName(task.profiles.nome) : null;
 
       return (
           <div 
@@ -420,7 +427,12 @@ export default function MinhasTarefas() {
                   </div>
                   
                   <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px'}}>
-                      <div style={{display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap'}}>
+                      <div style={{display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap'}}>
+                          {showDelegated && creatorName && (
+                              <span style={{fontSize: '0.65rem', background: '#f1f5f9', border: '1px solid #e2e8f0', color: '#64748b', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold'}} title="Atribuído por">
+                                  🙋 De: {creatorName}
+                              </span>
+                          )}
                           {taskDeadline && <span style={{fontSize: '0.7rem', color: isCompleted ? '#94a3b8' : dateColor, fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.Calendar /> {new Date(taskDeadline).toLocaleDateString('pt-PT', {day:'2-digit', month:'short'})}</span>}
                           {task.descricao && <span style={{color: '#94a3b8'}} title="Tem notas"><Icons.FileText /></span>}
                           {task.tem_entregavel && <span style={{color: '#3b82f6', display: 'flex', alignItems: 'center', gap: '2px'}} title="Documento Associado"><Icons.FileText size={12} /> Doc</span>}
@@ -666,8 +678,29 @@ export default function MinhasTarefas() {
 
                           <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px'}}>
                               <div>
-                                  <label style={{display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Data Limite</label>
-                                  <input type="date" value={editModal.data._form_deadline || ''} onChange={e => setEditModal({...editModal, data: {...editModal.data, _form_deadline: e.target.value}})} style={{width: '100%', padding: '12px 15px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', transition: '0.2s'}} className="input-focus" />
+                                  <label style={{display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Responsável</label>
+                                  <select 
+                                      value={editModal.data.responsavel_id || ''} 
+                                      onChange={e => {
+                                          const newResp = e.target.value;
+                                          setEditModal(prev => {
+                                              const extras = Array.isArray(prev.data.colaboradores_extra) ? prev.data.colaboradores_extra : [];
+                                              return {
+                                                  ...prev, 
+                                                  data: { 
+                                                      ...prev.data, 
+                                                      responsavel_id: newResp,
+                                                      colaboradores_extra: extras.filter(id => id !== newResp) // 💡 Remove o novo responsável dos extras!
+                                                  }
+                                              }
+                                          })
+                                      }} 
+                                      style={{width: '100%', padding: '12px 15px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', cursor: 'pointer', transition: '0.2s'}} 
+                                      className="input-focus"
+                                  >
+                                      <option value="">- Ninguém -</option>
+                                      {staff.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
+                                  </select>
                               </div>
                               <div>
                                   <label style={{display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Prioridade</label>
@@ -680,12 +713,17 @@ export default function MinhasTarefas() {
                               </div>
                           </div>
 
-                          {/* 💡 COLABORADORES EXTRA */}
                           <div style={{marginBottom: '20px'}}>
-                              <label style={{display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Outros Colaboradores Envolvidos</label>
+                              <label style={{display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Data Limite</label>
+                              <input type="date" value={editModal.data._form_deadline || ''} onChange={e => setEditModal({...editModal, data: {...editModal.data, _form_deadline: e.target.value}})} style={{width: '100%', padding: '12px 15px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', transition: '0.2s'}} className="input-focus" />
+                          </div>
+
+                          {/* 💡 COLABORADORES EXTRA - Filtra quem já é o responsável principal */}
+                          <div style={{marginBottom: '20px'}}>
+                              <label style={{display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Partilhar com mais alguém?</label>
                               <div style={{background: 'white', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '12px', maxHeight: '120px', overflowY: 'auto'}} className="custom-scrollbar input-focus">
                                   <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap'}}>
-                                      {staff.filter(s => s.id !== user.id).map(s => {
+                                      {staff.filter(s => s.id !== editModal.data.responsavel_id).map(s => {
                                           const isChecked = Array.isArray(editModal.data.colaboradores_extra) && editModal.data.colaboradores_extra.includes(s.id);
                                           const sNome = getSafeFirstName(s.nome, s.email);
                                           
@@ -774,7 +812,7 @@ export default function MinhasTarefas() {
       {notification && <div className={`toast-container ${notification.type}`}>{notification.type === 'success' ? '✅' : '⚠️'} {notification.message}</div>}
       
       <style>{`
-          /* 💡 A GRELHA PERFEITA PARA O KANBAN QUE TINHA DESAPARECIDO */
+          /* A GRELHA PERFEITA PARA O KANBAN */
           .kanban-grid {
               display: grid;
               grid-template-columns: repeat(5, 1fr);
