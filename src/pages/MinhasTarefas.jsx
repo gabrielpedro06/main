@@ -29,7 +29,8 @@ const Icons = {
   Users: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>,
   UploadCloud: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 16 12 12 8 16"></polyline><line x1="12" y1="12" x2="12" y2="21"></line><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"></path><polyline points="16 16 12 12 8 16"></polyline></svg>,
   ExternalLink: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>,
-  Grip: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+  Grip: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>,
+  Refresh: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
 };
 
 const ModalPortal = ({ children }) => createPortal(children, document.body);
@@ -53,9 +54,6 @@ export default function MinhasTarefas() {
   const [novaTarefaNome, setNovaTarefaNome] = useState("");
 
   const [editModal, setEditModal] = useState({ show: false, data: null });
-  
-  // ESTADOS DO UPLOAD
-  const [fileToUpload, setFileToUpload] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   
   // Histórico de Concluídas
@@ -86,10 +84,8 @@ export default function MinhasTarefas() {
 
   async function carregarTudo() {
       setLoading(true);
-      
       const { data: staffData } = await supabase.from("profiles").select("id, nome, email").order("nome");
       setStaff(staffData || []);
-      
       await checkActiveLog();
       await fetchMyTasks();
   }
@@ -101,16 +97,14 @@ export default function MinhasTarefas() {
 
   async function fetchMyTasks() {
       try {
-          // 💡 Adicionado "criado_por" e "profiles:criado_por(nome)" para saber quem enviou a tarefa
+          // 💡 Atualizado: Puxamos a nova coluna anexos (JSONB)
           let query = supabase
               .from("tarefas")
-              .select(`id, titulo, estado, responsavel_id, criado_por, data_limite, data_fim, prioridade, descricao, created_at, atividades(projetos(id, titulo, codigo_projeto)), colaboradores_extra, tem_entregavel, nome_entregavel, data_entregavel, arquivo_url, profiles:criado_por(nome)`)
+              .select(`id, titulo, estado, responsavel_id, criado_por, data_limite, data_fim, prioridade, descricao, created_at, atividades(projetos(id, titulo, codigo_projeto)), colaboradores_extra, anexos, arquivo_url, nome_entregavel, data_entregavel, profiles:criado_por(nome)`)
               .or(`responsavel_id.eq.${user.id},colaboradores_extra.cs.{${user.id}}`)
               .order("created_at", { ascending: true }); 
 
-          if (!mostrarConcluidos) {
-              query = query.neq("estado", "concluido");
-          }
+          if (!mostrarConcluidos) query = query.neq("estado", "concluido");
 
           const { data: tData } = await query;
           const { data: logsData } = await supabase.from("task_logs").select("*").eq("user_id", user.id);
@@ -120,19 +114,14 @@ export default function MinhasTarefas() {
               const pMap = new Map();
               tData.forEach(task => {
                   const proj = task.atividades?.projetos;
-                  if (proj) {
-                      pMap.set(proj.id, proj.codigo_projeto ? `[${proj.codigo_projeto}] ${proj.titulo}` : proj.titulo);
-                  }
+                  if (proj) pMap.set(proj.id, proj.codigo_projeto ? `[${proj.codigo_projeto}] ${proj.titulo}` : proj.titulo);
               });
               setAvailableProjects(Array.from(pMap.entries()).map(([id, name]) => ({ id, name })));
           }
 
           let dataToProcess = tData || [];
-          if (selectedProjectFilter === "avulsas") {
-              dataToProcess = dataToProcess.filter(t => !t.atividades?.projetos);
-          } else if (selectedProjectFilter !== "todos") {
-              dataToProcess = dataToProcess.filter(t => t.atividades?.projetos?.id === selectedProjectFilter);
-          }
+          if (selectedProjectFilter === "avulsas") dataToProcess = dataToProcess.filter(t => !t.atividades?.projetos);
+          else if (selectedProjectFilter !== "todos") dataToProcess = dataToProcess.filter(t => t.atividades?.projetos?.id === selectedProjectFilter);
 
           const today = new Date(); today.setHours(0,0,0,0);
           const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
@@ -141,7 +130,6 @@ export default function MinhasTarefas() {
 
           dataToProcess.forEach(task => {
               const taskDeadline = task.data_fim || task.data_limite;
-
               if (!taskDeadline) {
                   agrupado.semData.push(task);
               } else {
@@ -181,7 +169,6 @@ export default function MinhasTarefas() {
           });
 
           setCompletedTasksGroups(groups);
-          
           if (groups["Esta Semana"].length > 0) setActiveHistoryTab("Esta Semana");
           else if (groups["Semana Passada"].length > 0) setActiveHistoryTab("Semana Passada");
           else if (groups["Mais Antigas"].length > 0) setActiveHistoryTab("Mais Antigas");
@@ -192,16 +179,13 @@ export default function MinhasTarefas() {
 
   async function handleRestoreTask(task) {
       await supabase.from("tarefas").update({ estado: 'pendente', data_conclusao: null }).eq("id", task.id);
-      showToast("Tarefa restaurada para o quadro!");
-      fetchMyTasks();
-      openCompletedHistory(); 
+      showToast("Tarefa restaurada para o quadro!"); fetchMyTasks(); openCompletedHistory(); 
   }
 
   async function handlePermanentDelete(taskId) {
       if(!window.confirm("Apagar esta tarefa permanentemente?")) return;
       await supabase.from("tarefas").delete().eq("id", taskId);
-      showToast("Tarefa eliminada do arquivo.");
-      openCompletedHistory();
+      showToast("Tarefa eliminada do arquivo."); openCompletedHistory();
   }
 
   const getTaskTime = (taskId) => logs.filter(l => l.task_id === taskId).reduce((acc, curr) => acc + (curr.duration_minutes || 0), 0);
@@ -215,8 +199,7 @@ export default function MinhasTarefas() {
       if (activeLog && activeLog.task_id === task.id) {
           const diffMins = Math.max(1, Math.floor((new Date() - new Date(activeLog.start_time)) / 60000));
           await supabase.from("task_logs").update({ end_time: new Date().toISOString(), duration_minutes: diffMins }).eq("id", activeLog.id);
-          setActiveLog(null); showToast(`Tempo guardado: ${diffMins} min.`);
-          carregarTudo();
+          setActiveLog(null); showToast(`Tempo guardado: ${diffMins} min.`); carregarTudo();
       } else {
           if (activeLog) return showToast("Já tens um cronómetro ativo. Pára-o primeiro!", "error");
           const { data, error } = await supabase.from("task_logs").insert([{ user_id: user.id, task_id: task.id, start_time: new Date().toISOString() }]).select().single();
@@ -233,13 +216,6 @@ export default function MinhasTarefas() {
       fetchMyTasks();
   }
 
-  async function handleDeleteTaskFromKanban(taskId) {
-      if(!window.confirm("Apagar esta tarefa permanentemente?")) return;
-      await supabase.from("tarefas").delete().eq("id", taskId);
-      showToast("Tarefa apagada.");
-      fetchMyTasks();
-  }
-
   async function handleCreatePessoal(e) {
       e.preventDefault();
       if (!novaTarefaNome.trim()) return;
@@ -250,8 +226,7 @@ export default function MinhasTarefas() {
           if (error) throw error;
           setNovaTarefaNome(""); 
           if(selectedProjectFilter !== "avulsas" && selectedProjectFilter !== "todos") setSelectedProjectFilter("avulsas");
-          showToast("Tarefa rápida adicionada!"); 
-          fetchMyTasks();
+          showToast("Tarefa rápida adicionada!"); fetchMyTasks();
       } catch (err) { showToast("Erro: " + err.message, "error"); }
   }
 
@@ -277,7 +252,33 @@ export default function MinhasTarefas() {
       } catch (err) { showToast("Erro ao criar: " + err.message, "error"); }
   }
 
-  // 💡 Lógica Anti-Conflito nos Colaboradores
+  // --- LÓGICA DE EDIÇÃO E MÚLTIPLOS DOCUMENTOS ---
+  function openEditModal(task) {
+      const taskDeadline = task.data_fim || task.data_limite;
+      
+      // 💡 Migração automática do sistema antigo para a array "anexos"
+      let arrAnexos = Array.isArray(task.anexos) ? [...task.anexos] : [];
+      if (arrAnexos.length === 0 && task.arquivo_url) {
+          arrAnexos.push({
+              id: 'doc_' + Date.now(),
+              nome: task.nome_entregavel || 'Documento Anexado',
+              data_limite: task.data_entregavel || '',
+              url: task.arquivo_url,
+              file: null
+          });
+      }
+
+      setEditModal({
+          show: true,
+          data: {
+              ...task,
+              _form_deadline: taskDeadline ? taskDeadline.split('T')[0] : "",
+              colaboradores_extra: Array.isArray(task.colaboradores_extra) ? task.colaboradores_extra : [],
+              anexos: arrAnexos
+          }
+      });
+  }
+
   const toggleColaboradorExtra = (colabId) => {
       setEditModal(prev => {
           const arr = Array.isArray(prev.data.colaboradores_extra) ? prev.data.colaboradores_extra : [];
@@ -286,40 +287,82 @@ export default function MinhasTarefas() {
       });
   };
 
+  const addAnexoSlot = () => {
+      setEditModal(prev => ({
+          ...prev, data: {
+              ...prev.data,
+              anexos: [...prev.data.anexos, { id: 'new_' + Date.now(), nome: '', data_limite: '', url: '', file: null }]
+          }
+      }));
+  };
+
+  const removeAnexoSlot = (id) => {
+      setEditModal(prev => ({
+          ...prev, data: {
+              ...prev.data,
+              anexos: prev.data.anexos.filter(a => a.id !== id)
+          }
+      }));
+  };
+
+  const updateAnexo = (id, field, value) => {
+      setEditModal(prev => ({
+          ...prev, data: {
+              ...prev.data,
+              anexos: prev.data.anexos.map(a => a.id === id ? { ...a, [field]: value } : a)
+          }
+      }));
+  };
+
+  const handleFileSelect = (e, id) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      // Ao selecionar ficheiro, guardamos o objeto file no state e limpamos a URL atual para forçar visualização de "pendente de upload"
+      updateAnexo(id, 'file', file);
+      updateAnexo(id, 'url', '');
+      if(!editModal.data.anexos.find(a=>a.id === id).nome) {
+          updateAnexo(id, 'nome', file.name.split('.')[0]); // auto-preenche o nome
+      }
+  };
+
   async function handleSaveModal(e) {
       e.preventDefault();
+      setIsUploading(true);
       const isProjectTask = editModal.data.atividades?.projetos;
-      let finalArquivoUrl = editModal.data.arquivo_url;
 
-      if (fileToUpload) {
-          setIsUploading(true);
-          const fileExt = fileToUpload.name.split('.').pop();
-          const fileName = `${Math.random()}.${fileExt}`;
-          const filePath = `${user.id}/${fileName}`;
-
-          const { error: uploadError } = await supabase.storage.from('documentos').upload(filePath, fileToUpload);
-
-          if (uploadError) {
-              showToast("Erro ao fazer upload do documento.", "error");
-              setIsUploading(false);
-              return; 
+      // Fazer upload sequencial dos novos ficheiros
+      const finalAnexos = [];
+      for (let anexo of editModal.data.anexos) {
+          let finalUrl = anexo.url;
+          if (anexo.file) {
+              const fileExt = anexo.file.name.split('.').pop();
+              const fileName = `${Math.random()}.${fileExt}`;
+              const filePath = `${user.id}/${fileName}`;
+              const { error: uploadError } = await supabase.storage.from('documentos').upload(filePath, anexo.file);
+              
+              if (!uploadError) {
+                  const { data: publicUrlData } = supabase.storage.from('documentos').getPublicUrl(filePath);
+                  finalUrl = publicUrlData.publicUrl;
+              } else {
+                  showToast(`Erro ao carregar o ficheiro: ${anexo.file.name}`, "error");
+              }
           }
-
-          const { data: publicUrlData } = supabase.storage.from('documentos').getPublicUrl(filePath);
-          finalArquivoUrl = publicUrlData.publicUrl;
-          setIsUploading(false);
+          
+          finalAnexos.push({
+              id: anexo.id.startsWith('new_') ? 'doc_' + Date.now() + Math.random() : anexo.id, // normaliza IDs
+              nome: anexo.nome || 'Documento S/ Nome',
+              data_limite: anexo.data_limite,
+              url: finalUrl
+          });
       }
 
       const payload = { 
           titulo: editModal.data.titulo, 
           descricao: editModal.data.descricao, 
           prioridade: editModal.data.prioridade,
-          responsavel_id: editModal.data.responsavel_id, // 💡 Guarda o novo responsável se for alterado
+          responsavel_id: editModal.data.responsavel_id,
           colaboradores_extra: editModal.data.colaboradores_extra,
-          tem_entregavel: editModal.data.tem_entregavel,
-          nome_entregavel: editModal.data.nome_entregavel,
-          data_entregavel: editModal.data.data_entregavel || null,
-          arquivo_url: finalArquivoUrl
+          anexos: finalAnexos // 💡 Guarda a array atualizada na BD
       };
 
       if (isProjectTask) payload.data_fim = editModal.data._form_deadline || null;
@@ -329,12 +372,14 @@ export default function MinhasTarefas() {
           const { error } = await supabase.from("tarefas").update(payload).eq("id", editModal.data.id);
           if (error) throw error;
           setEditModal({show: false, data: null});
-          setFileToUpload(null); 
-          showToast("Alterações guardadas!"); 
+          showToast("Tarefa atualizada com sucesso!"); 
           fetchMyTasks();
-      } catch (err) { showToast("Erro ao guardar: " + err.message, "error"); setIsUploading(false); }
+      } catch (err) { showToast("Erro ao guardar: " + err.message, "error"); }
+      
+      setIsUploading(false);
   }
 
+  // --- DRAG AND DROP ---
   const getDateForColumn = (colId) => {
       const d = new Date();
       if (colId === 'hoje') return d.toISOString().split('T')[0];
@@ -380,8 +425,8 @@ export default function MinhasTarefas() {
       const contexto = proj ? (proj.codigo_projeto ? `[${proj.codigo_projeto}] ${proj.titulo}` : proj.titulo) : "Avulsa";
       
       const hasExtraColabs = task.colaboradores_extra && task.colaboradores_extra.length > 0;
+      const totalDocs = Array.isArray(task.anexos) ? task.anexos.length : (task.arquivo_url ? 1 : 0);
       
-      // 💡 Identifica quem mandou a tarefa (se for delegado)
       const showDelegated = task.criado_por && task.criado_por !== task.responsavel_id;
       const creatorName = task.profiles ? getSafeFirstName(task.profiles.nome) : null;
 
@@ -418,7 +463,7 @@ export default function MinhasTarefas() {
               </button>
 
               <div style={{flex: 1, overflow: 'hidden'}}>
-                  <h4 onClick={() => { setEditModal({show: true, data: {...task, _form_deadline: taskDeadline}}); setFileToUpload(null); }} style={{margin: '0 0 4px 0', fontSize: '0.95rem', color: isCompleted ? '#94a3b8' : '#1e293b', textDecoration: isCompleted ? 'line-through' : 'none', cursor: 'pointer', wordBreak: 'break-word', lineHeight: '1.4'}} className="hover-text-blue">
+                  <h4 onClick={() => openEditModal(task)} style={{margin: '0 0 4px 0', fontSize: '0.95rem', color: isCompleted ? '#94a3b8' : '#1e293b', textDecoration: isCompleted ? 'line-through' : 'none', cursor: 'pointer', wordBreak: 'break-word', lineHeight: '1.4'}} className="hover-text-blue">
                       {task.titulo}
                   </h4>
                   
@@ -435,8 +480,8 @@ export default function MinhasTarefas() {
                           )}
                           {taskDeadline && <span style={{fontSize: '0.7rem', color: isCompleted ? '#94a3b8' : dateColor, fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.Calendar /> {new Date(taskDeadline).toLocaleDateString('pt-PT', {day:'2-digit', month:'short'})}</span>}
                           {task.descricao && <span style={{color: '#94a3b8'}} title="Tem notas"><Icons.FileText /></span>}
-                          {task.tem_entregavel && <span style={{color: '#3b82f6', display: 'flex', alignItems: 'center', gap: '2px'}} title="Documento Associado"><Icons.FileText size={12} /> Doc</span>}
-                          {hasExtraColabs && <span style={{color: '#8b5cf6', display: 'flex', alignItems: 'center', gap: '2px', fontSize: '0.65rem', fontWeight: 'bold'}} title="Colaboradores partilhados"><Icons.Users size={12} /> +{task.colaboradores_extra.length}</span>}
+                          {totalDocs > 0 && <span style={{color: '#3b82f6', display: 'flex', alignItems: 'center', gap: '2px', fontSize: '0.7rem', fontWeight: 'bold'}} title="Documentos em Anexo"><Icons.FileText size={12} /> {totalDocs}</span>}
+                          {hasExtraColabs && <span style={{color: '#8b5cf6', display: 'flex', alignItems: 'center', gap: '2px', fontSize: '0.7rem', fontWeight: 'bold'}} title="Colaboradores partilhados"><Icons.Users size={12} /> +{task.colaboradores_extra.length}</span>}
                       </div>
 
                       <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
@@ -514,24 +559,11 @@ export default function MinhasTarefas() {
           </div>
           
           <div style={{display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap'}}>
-              
               <div style={{position: 'relative'}}>
                   <select 
                       value={selectedProjectFilter} 
                       onChange={(e) => setSelectedProjectFilter(e.target.value)}
-                      style={{
-                          padding: '8px 30px 8px 12px', 
-                          borderRadius: '8px', 
-                          border: '1px solid #cbd5e1', 
-                          outline: 'none', 
-                          background: 'white', 
-                          color: '#475569', 
-                          fontSize: '0.85rem', 
-                          fontWeight: '600', 
-                          cursor: 'pointer', 
-                          appearance: 'none',
-                          height: '36px'
-                      }}
+                      style={{ padding: '8px 30px 8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', background: 'white', color: '#475569', fontSize: '0.85rem', fontWeight: '600', cursor: 'pointer', appearance: 'none', height: '36px' }}
                       className="hover-shadow"
                   >
                       <option value="avulsas">⚪ Tarefas Avulsas</option>
@@ -543,11 +575,7 @@ export default function MinhasTarefas() {
                   <span style={{position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', fontSize: '0.6rem', color: '#94a3b8'}}>▼</span>
               </div>
 
-              <button 
-                  onClick={openCompletedHistory}
-                  style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: '#475569', fontWeight: '700', background: '#f8fafc', padding: '0 15px', height: '36px', borderRadius: '8px', border: '1px solid #e2e8f0', transition: '0.2s'}} 
-                  className="hover-shadow hover-text-blue"
-              >
+              <button onClick={openCompletedHistory} style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: '#475569', fontWeight: '700', background: '#f8fafc', padding: '0 15px', height: '36px', borderRadius: '8px', border: '1px solid #e2e8f0', transition: '0.2s'}} className="hover-shadow hover-text-blue">
                   <Icons.History /> Histórico
               </button>
 
@@ -569,12 +597,11 @@ export default function MinhasTarefas() {
           {renderKanbanColumn("semData", "Sem Data", <Icons.Inbox />, "#64748b", tasks.semData)}
       </div>
 
-      {/* MODAL: HISTÓRICO DE TAREFAS CONCLUÍDAS COM TABS E CONTEXTO */}
+      {/* MODAL GIGANTE DE TAREFAS CONCLUÍDAS */}
       {showCompletedModal && (
           <ModalPortal>
               <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, backdropFilter: 'blur(4px)'}} onClick={() => setShowCompletedModal(false)}>
                   <div style={{background: '#fff', width: '90%', maxWidth: '750px', borderRadius: '16px', padding: '30px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out', maxHeight: '85vh', display: 'flex', flexDirection: 'column'}} onClick={e => e.stopPropagation()}>
-                      
                       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
                           <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.25rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '10px'}}>
                               <Icons.History color="#10b981" size={24} /> Arquivo de Concluídas
@@ -585,21 +612,9 @@ export default function MinhasTarefas() {
                       <div style={{ display: 'flex', gap: '10px', borderBottom: '1px solid #e2e8f0', marginBottom: '20px', paddingBottom: '5px' }}>
                           {Object.keys(completedTasksGroups).map(groupName => {
                               const isActive = activeHistoryTab === groupName;
-                              const count = completedTasksGroups[groupName].length;
                               return (
-                                  <button 
-                                      key={groupName}
-                                      onClick={() => setActiveHistoryTab(groupName)}
-                                      style={{
-                                          background: 'none', border: 'none', padding: '10px 15px', cursor: 'pointer',
-                                          fontSize: '0.9rem', fontWeight: isActive ? '800' : '600',
-                                          color: isActive ? '#10b981' : '#64748b',
-                                          position: 'relative', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '8px'
-                                      }}
-                                      className="tab-hover-green"
-                                  >
-                                      {groupName} 
-                                      <span style={{ background: isActive ? '#dcfce7' : '#f1f5f9', color: isActive ? '#16a34a' : '#94a3b8', padding: '2px 8px', borderRadius: '12px', fontSize: '0.7rem' }}>{count}</span>
+                                  <button key={groupName} onClick={() => setActiveHistoryTab(groupName)} style={{ background: 'none', border: 'none', padding: '10px 15px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: isActive ? '800' : '600', color: isActive ? '#10b981' : '#64748b', position: 'relative', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '8px' }} className="tab-hover-green">
+                                      {groupName} <span style={{ background: isActive ? '#dcfce7' : '#f1f5f9', color: isActive ? '#16a34a' : '#94a3b8', padding: '2px 8px', borderRadius: '12px', fontSize: '0.7rem' }}>{completedTasksGroups[groupName].length}</span>
                                       {isActive && <div style={{position:'absolute', bottom:'-6px', left:0, right:0, height:'3px', background:'#10b981', borderRadius:'3px 3px 0 0'}} />}
                                   </button>
                               );
@@ -618,9 +633,7 @@ export default function MinhasTarefas() {
                                   return (
                                       <div key={t.id} style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'white', padding: '15px', borderRadius: '12px', border: '1px solid #e2e8f0', transition: '0.2s'}} className="hover-shadow">
                                           <div style={{display: 'flex', alignItems: 'center', gap: '12px', flex: 1, overflow: 'hidden'}}>
-                                              <div style={{width: '24px', height: '24px', borderRadius: '50%', background: '#dcfce7', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0}}>
-                                                  <Icons.Check size={14} />
-                                              </div>
+                                              <div style={{width: '24px', height: '24px', borderRadius: '50%', background: '#dcfce7', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0}}><Icons.Check size={14} /></div>
                                               <div style={{display: 'flex', flexDirection: 'column', overflow: 'hidden'}}>
                                                   <span style={{fontSize: '0.95rem', color: '#475569', textDecoration: 'line-through', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: '500'}}>{t.titulo}</span>
                                                   <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px'}}>
@@ -630,24 +643,15 @@ export default function MinhasTarefas() {
                                                   </div>
                                               </div>
                                           </div>
-                                          
                                           <div style={{display: 'flex', gap: '8px'}}>
-                                              <button onClick={() => handleRestoreTask(t)} style={{background: 'white', border: '1px solid #cbd5e1', color: '#3b82f6', padding: '6px 12px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', transition: '0.2s'}} title="Devolver ao quadro Kanban" className="hover-bg-blue-light">
-                                                  <Icons.Restore /> Restaurar
-                                              </button>
-                                              <button onClick={() => handlePermanentDelete(t.id)} style={{background: 'transparent', border: 'none', color: '#ef4444', padding: '6px', cursor: 'pointer', opacity: 0.6, transition: '0.2s'}} title="Eliminar para sempre" className="hover-red">
-                                                  <Icons.Trash />
-                                              </button>
+                                              <button onClick={() => handleRestoreTask(t)} style={{background: 'white', border: '1px solid #cbd5e1', color: '#3b82f6', padding: '6px 12px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', transition: '0.2s'}} className="hover-bg-blue-light"><Icons.Restore /> Restaurar</button>
+                                              <button onClick={() => handlePermanentDelete(t.id)} style={{background: 'transparent', border: 'none', color: '#ef4444', padding: '6px', cursor: 'pointer', opacity: 0.6, transition: '0.2s'}} className="hover-red"><Icons.Trash /></button>
                                           </div>
                                       </div>
                                   );
                               })}
-                              
                               {completedTasksGroups[activeHistoryTab]?.length === 0 && (
-                                  <div style={{textAlign: 'center', color: '#94a3b8', padding: '50px 0', fontSize: '0.95rem'}}>
-                                      <div style={{display: 'flex', justifyContent: 'center', marginBottom: '10px', opacity: 0.5}}><Icons.Inbox size={40} /></div>
-                                      Não tens tarefas nesta categoria.
-                                  </div>
+                                  <div style={{textAlign: 'center', color: '#94a3b8', padding: '50px 0', fontSize: '0.95rem'}}><div style={{display: 'flex', justifyContent: 'center', marginBottom: '10px', opacity: 0.5}}><Icons.Inbox size={40} /></div>Não tens tarefas nesta categoria.</div>
                               )}
                           </div>
                       </div>
@@ -656,11 +660,11 @@ export default function MinhasTarefas() {
           </ModalPortal>
       )}
 
-      {/* MODAL DE EDIÇÃO DE TAREFA (COM COLABORADORES E DOCUMENTOS) */}
+      {/* 💡 MODAL DE EDIÇÃO DE TAREFA (COM MÚLTIPLOS DOCUMENTOS) */}
       {editModal.show && editModal.data && (
           <ModalPortal>
               <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, backdropFilter: 'blur(4px)'}} onClick={() => setEditModal({show: false, data: null})}>
-                  <div style={{background: '#fff', width: '90%', maxWidth: '600px', borderRadius: '16px', padding: '30px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out', maxHeight: '90vh', overflowY: 'auto'}} onClick={e => e.stopPropagation()} className="custom-scrollbar">
+                  <div style={{background: '#fff', width: '90%', maxWidth: '650px', borderRadius: '16px', padding: '30px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out', maxHeight: '90vh', overflowY: 'auto'}} onClick={e => e.stopPropagation()} className="custom-scrollbar">
                       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px', borderBottom: '1px solid #f1f5f9', paddingBottom: '15px'}}>
                           <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.25rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Edit color="#2563eb" size={20} /> Detalhes da Tarefa</h3>
                           <div style={{display: 'flex', gap: '15px', alignItems: 'center'}}>
@@ -685,40 +689,20 @@ export default function MinhasTarefas() {
                                           const newResp = e.target.value;
                                           setEditModal(prev => {
                                               const extras = Array.isArray(prev.data.colaboradores_extra) ? prev.data.colaboradores_extra : [];
-                                              return {
-                                                  ...prev, 
-                                                  data: { 
-                                                      ...prev.data, 
-                                                      responsavel_id: newResp,
-                                                      colaboradores_extra: extras.filter(id => id !== newResp) // 💡 Remove o novo responsável dos extras!
-                                                  }
-                                              }
+                                              return { ...prev, data: { ...prev.data, responsavel_id: newResp, colaboradores_extra: extras.filter(id => id !== newResp) } }
                                           })
                                       }} 
-                                      style={{width: '100%', padding: '12px 15px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', cursor: 'pointer', transition: '0.2s'}} 
-                                      className="input-focus"
+                                      style={{width: '100%', padding: '12px 15px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', cursor: 'pointer', transition: '0.2s'}} className="input-focus"
                                   >
-                                      <option value="">- Ninguém -</option>
                                       {staff.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
                                   </select>
                               </div>
                               <div>
-                                  <label style={{display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Prioridade</label>
-                                  <select value={editModal.data.prioridade || 'normal'} onChange={e => setEditModal({...editModal, data: {...editModal.data, prioridade: e.target.value}})} style={{width: '100%', padding: '12px 15px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', cursor: 'pointer', transition: '0.2s', textTransform: 'capitalize'}} className="input-focus">
-                                      <option value="baixa">Baixa</option>
-                                      <option value="normal">Normal</option>
-                                      <option value="alta">Alta</option>
-                                      <option value="urgente">Urgente</option>
-                                  </select>
+                                  <label style={{display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Data Limite</label>
+                                  <input type="date" value={editModal.data._form_deadline || ''} onChange={e => setEditModal({...editModal, data: {...editModal.data, _form_deadline: e.target.value}})} style={{width: '100%', padding: '12px 15px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', transition: '0.2s'}} className="input-focus" />
                               </div>
                           </div>
 
-                          <div style={{marginBottom: '20px'}}>
-                              <label style={{display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Data Limite</label>
-                              <input type="date" value={editModal.data._form_deadline || ''} onChange={e => setEditModal({...editModal, data: {...editModal.data, _form_deadline: e.target.value}})} style={{width: '100%', padding: '12px 15px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', transition: '0.2s'}} className="input-focus" />
-                          </div>
-
-                          {/* 💡 COLABORADORES EXTRA - Filtra quem já é o responsável principal */}
                           <div style={{marginBottom: '20px'}}>
                               <label style={{display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Partilhar com mais alguém?</label>
                               <div style={{background: 'white', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '12px', maxHeight: '120px', overflowY: 'auto'}} className="custom-scrollbar input-focus">
@@ -726,19 +710,8 @@ export default function MinhasTarefas() {
                                       {staff.filter(s => s.id !== editModal.data.responsavel_id).map(s => {
                                           const isChecked = Array.isArray(editModal.data.colaboradores_extra) && editModal.data.colaboradores_extra.includes(s.id);
                                           const sNome = getSafeFirstName(s.nome, s.email);
-                                          
                                           return (
-                                              <div 
-                                                  key={s.id} 
-                                                  onClick={() => toggleColaboradorExtra(s.id)}
-                                                  style={{
-                                                      background: isChecked ? '#eff6ff' : '#f8fafc',
-                                                      color: isChecked ? '#2563eb' : '#64748b',
-                                                      border: `1px solid ${isChecked ? '#3b82f6' : '#e2e8f0'}`,
-                                                      padding: '6px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', gap: '6px'
-                                                  }}
-                                                  className="hover-shadow"
-                                              >
+                                              <div key={s.id} onClick={() => toggleColaboradorExtra(s.id)} style={{ background: isChecked ? '#eff6ff' : '#f8fafc', color: isChecked ? '#2563eb' : '#64748b', border: `1px solid ${isChecked ? '#3b82f6' : '#e2e8f0'}`, padding: '6px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', gap: '6px' }} className="hover-shadow">
                                                   {isChecked && '✓'} {sNome}
                                               </div>
                                           )
@@ -747,59 +720,73 @@ export default function MinhasTarefas() {
                               </div>
                           </div>
 
-                          {/* 💡 ENTREGÁVEIS / DOCUMENTOS */}
-                          <div style={{background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '15px', marginBottom: '20px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)'}}>
-                              <label style={{display: 'flex', alignItems: 'center', gap: '10px', fontWeight: '800', color: '#1e293b', cursor: 'pointer', fontSize: '0.95rem'}}>
-                                  <input type="checkbox" checked={editModal.data.tem_entregavel || false} onChange={e => setEditModal({...editModal, data: {...editModal.data, tem_entregavel: e.target.checked}})} style={{accentColor: '#2563eb', width: '18px', height: '18px'}} />
-                                  Requer Documento Entregável / Assinatura?
-                              </label>
+                          {/* 💡 LISTA DE MÚLTIPLOS DOCUMENTOS E ENTREGÁVEIS */}
+                          <div style={{background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '20px', marginBottom: '20px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)'}}>
+                              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px'}}>
+                                  <label style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '800', color: '#1e293b', fontSize: '0.95rem'}}>
+                                      <Icons.FileText size={18} color="#2563eb" /> Documentos & Entregáveis
+                                  </label>
+                                  <span style={{background: '#e0f2fe', color: '#2563eb', padding: '2px 8px', borderRadius: '12px', fontSize: '0.7rem', fontWeight: 'bold'}}>{editModal.data.anexos?.length || 0} Itens</span>
+                              </div>
                               
-                              {editModal.data.tem_entregavel && (
-                                  <div style={{marginTop: '20px', animation: 'fadeIn 0.3s'}}>
-                                      <div style={{display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '15px', marginBottom: '20px'}}>
-                                          <div>
-                                              <label style={{display: 'block', marginBottom: '6px', fontSize: '0.75rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase'}}>Nome do Documento</label>
-                                              <input type="text" placeholder="Ex: Contrato de Renovação" value={editModal.data.nome_entregavel || ''} onChange={e => setEditModal({...editModal, data: {...editModal.data, nome_entregavel: e.target.value}})} style={{width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box'}} className="input-focus" />
-                                          </div>
-                                          <div>
-                                              <label style={{display: 'block', marginBottom: '6px', fontSize: '0.75rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase'}}>Data p/ Entrega</label>
-                                              <input type="date" value={editModal.data.data_entregavel || ''} onChange={e => setEditModal({...editModal, data: {...editModal.data, data_entregavel: e.target.value}})} style={{width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box'}} className="input-focus" />
-                                          </div>
-                                      </div>
-                                      
-                                      <div style={{background: '#f8fafc', border: '2px dashed #cbd5e1', padding: '20px', borderRadius: '10px', textAlign: 'center', transition: '0.3s'}} className={!editModal.data.arquivo_url ? "hover-border-blue" : ""}>
-                                          {editModal.data.arquivo_url ? (
-                                              <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px'}}>
-                                                  <a href={editModal.data.arquivo_url} target="_blank" rel="noopener noreferrer" style={{display: 'flex', alignItems: 'center', gap: '8px', color: '#2563eb', fontWeight: '800', textDecoration: 'none', fontSize: '0.9rem', background: '#eff6ff', padding: '8px 16px', borderRadius: '8px'}}>
-                                                      <Icons.ExternalLink /> Ver Documento Atual
-                                                  </a>
-                                                  <button type="button" onClick={() => { setEditModal({...editModal, data: {...editModal.data, arquivo_url: ""}}); setFileToUpload(null); }} style={{background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold'}} className="hover-red-text">
-                                                      Remover Ficheiro
-                                                  </button>
+                              {editModal.data.anexos?.length > 0 ? (
+                                  <div style={{display: 'flex', flexDirection: 'column', gap: '15px'}}>
+                                      {editModal.data.anexos.map((anexo) => (
+                                          <div key={anexo.id} style={{background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '10px', padding: '15px'}}>
+                                              <div style={{display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '10px', marginBottom: '10px'}}>
+                                                  <div>
+                                                      <label style={{display: 'block', marginBottom: '4px', fontSize: '0.7rem', fontWeight: '700', color: '#64748b'}}>Nome do Documento</label>
+                                                      <input type="text" placeholder="Ex: Contrato Assinado" value={anexo.nome} onChange={e => updateAnexo(anexo.id, 'nome', e.target.value)} style={{width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box', fontSize: '0.85rem'}} className="input-focus" />
+                                                  </div>
+                                                  <div>
+                                                      <label style={{display: 'block', marginBottom: '4px', fontSize: '0.7rem', fontWeight: '700', color: '#64748b'}}>Data Limite</label>
+                                                      <input type="date" value={anexo.data_limite} onChange={e => updateAnexo(anexo.id, 'data_limite', e.target.value)} style={{width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box', fontSize: '0.85rem'}} className="input-focus" />
+                                                  </div>
                                               </div>
-                                          ) : (
-                                              <div>
-                                                  <label style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', cursor: 'pointer'}}>
-                                                      <Icons.UploadCloud size={32} color={fileToUpload ? "#10b981" : "#94a3b8"} />
-                                                      <span style={{fontSize: '0.9rem', color: fileToUpload ? '#10b981' : '#64748b', fontWeight: 'bold'}}>
-                                                          {fileToUpload ? fileToUpload.name : "Clique para anexar um documento (PDF, Imagens, etc)"}
-                                                      </span>
-                                                      <input type="file" onChange={(e) => setFileToUpload(e.target.files[0])} style={{display: 'none'}} />
-                                                  </label>
+
+                                              <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'white', padding: '10px', borderRadius: '6px', border: '1px dashed #cbd5e1'}}>
+                                                  {anexo.url ? (
+                                                      <a href={anexo.url} target="_blank" rel="noopener noreferrer" style={{display: 'flex', alignItems: 'center', gap: '6px', color: '#2563eb', fontWeight: 'bold', textDecoration: 'none', fontSize: '0.8rem'}}>
+                                                          <Icons.ExternalLink size={14} /> Abrir Ficheiro Atual
+                                                      </a>
+                                                  ) : anexo.file ? (
+                                                      <span style={{fontSize: '0.8rem', color: '#10b981', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.UploadCloud size={14}/> Pronto a guardar: {anexo.file.name}</span>
+                                                  ) : (
+                                                      <span style={{fontSize: '0.8rem', color: '#94a3b8', fontStyle: 'italic'}}>Nenhum ficheiro anexado</span>
+                                                  )}
+
+                                                  <div style={{display: 'flex', gap: '10px', alignItems: 'center'}}>
+                                                      <label style={{background: '#f1f5f9', color: '#475569', padding: '6px 12px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer', border: '1px solid #e2e8f0'}} className="hover-shadow">
+                                                          Anexar/Substituir
+                                                          <input type="file" style={{display: 'none'}} onChange={(e) => handleFileSelect(e, anexo.id)} />
+                                                      </label>
+                                                      <button type="button" onClick={() => removeAnexoSlot(anexo.id)} style={{background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px'}} className="hover-red-text" title="Apagar">
+                                                          <Icons.Trash size={14} />
+                                                      </button>
+                                                  </div>
                                               </div>
-                                          )}
-                                      </div>
+                                          </div>
+                                      ))}
                                   </div>
+                              ) : (
+                                  <div style={{textAlign: 'center', padding: '15px', color: '#94a3b8', fontSize: '0.85rem'}}>Sem documentos anexados.</div>
                               )}
+
+                              <button type="button" onClick={addAnexoSlot} style={{width: '100%', marginTop: '15px', padding: '10px', background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: '8px', color: '#3b82f6', fontWeight: 'bold', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', transition: '0.2s'}} className="hover-border-blue hover-shadow">
+                                  <Icons.Plus size={14} /> Adicionar Documento
+                              </button>
                           </div>
 
                           <label style={{display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Notas / Descrição</label>
-                          <textarea rows="5" value={editModal.data.descricao || ''} onChange={e => setEditModal({...editModal, data: {...editModal.data, descricao: e.target.value}})} placeholder="Ex: Link do drive, apontamentos da reunião..." style={{width: '100%', padding: '15px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#fffbeb', fontSize: '0.95rem', marginBottom: '30px', outline: 'none', boxSizing: 'border-box', resize: 'vertical', transition: '0.2s'}} className="input-focus" />
+                          <textarea rows="4" value={editModal.data.descricao || ''} onChange={e => setEditModal({...editModal, data: {...editModal.data, descricao: e.target.value}})} placeholder="Ex: Link do drive, apontamentos da reunião..." style={{width: '100%', padding: '15px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#fffbeb', fontSize: '0.95rem', marginBottom: '30px', outline: 'none', boxSizing: 'border-box', resize: 'vertical', transition: '0.2s'}} className="input-focus" />
 
-                          <div style={{display: 'flex', gap: '10px'}}>
-                              <button type="button" onClick={() => setEditModal({show: false, data: null})} style={{flex: 1, background: 'white', color: '#64748b', border: '1px solid #cbd5e1', padding: '14px', borderRadius: '10px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">Cancelar</button>
-                              <button type="submit" disabled={isUploading} style={{flex: 2, background: '#2563eb', color: 'white', border: 'none', padding: '14px', borderRadius: '10px', fontWeight: 'bold', fontSize: '1rem', cursor: isUploading ? 'wait' : 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: isUploading ? 0.7 : 1}} className="hover-shadow hover-bg-blue">
-                                  {isUploading ? "A carregar..." : <><Icons.Save /> Guardar Alterações</>}
+                          <div style={{display: 'flex', gap: '10px', marginTop: '10px', paddingTop: '20px', borderTop: '1px solid #e2e8f0', alignItems: 'center'}}>
+                              <div style={{flex: 1, fontSize: '0.7rem', color: '#94a3b8', fontStyle: 'italic'}}>
+                                  {editModal.data.created_at ? `Criado por: ${getSafeFirstName(editModal.data.criado_por_nome)} em ${new Date(editModal.data.created_at).toLocaleDateString('pt-PT')}` : ''}
+                              </div>
+                              <button type="button" onClick={() => setEditModal({show: false, data: null})} style={{padding: '12px 20px', background: 'white', color: '#64748b', border: '1px solid #cbd5e1', borderRadius: '10px', fontWeight: 'bold', fontSize: '0.9rem', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">Cancelar</button>
+                              <button type="submit" disabled={isUploading} style={{padding: '12px 20px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '0.9rem', cursor: isUploading ? 'wait' : 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', gap: '8px', opacity: isUploading ? 0.7 : 1}} className="hover-shadow hover-bg-blue">
+                                  {isUploading ? "A carregar PDFs..." : <><Icons.Save size={16}/> Guardar Alterações</>}
                               </button>
                           </div>
                       </form>
@@ -812,26 +799,8 @@ export default function MinhasTarefas() {
       {notification && <div className={`toast-container ${notification.type}`}>{notification.type === 'success' ? '✅' : '⚠️'} {notification.message}</div>}
       
       <style>{`
-          /* A GRELHA PERFEITA PARA O KANBAN */
-          .kanban-grid {
-              display: grid;
-              grid-template-columns: repeat(5, 1fr);
-              gap: 20px;
-              align-items: stretch;
-          }
-
-          /* Em ecrãs pequenos vira scroll horizontal */
-          @media (max-width: 1100px) {
-              .kanban-grid {
-                  display: flex;
-                  overflow-x: auto;
-                  padding-bottom: 15px;
-              }
-              .kanban-grid > div {
-                  min-width: 300px;
-                  flex: 1;
-              }
-          }
+          .kanban-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px; align-items: stretch; }
+          @media (max-width: 1100px) { .kanban-grid { display: flex; overflow-x: auto; padding-bottom: 15px; } .kanban-grid > div { min-width: 300px; flex: 1; } }
 
           .hover-blue-text:hover { color: #2563eb !important; }
           .hover-blue-text:hover span { background: #e0f2fe !important; color: #2563eb !important; }
@@ -840,20 +809,18 @@ export default function MinhasTarefas() {
           .hover-red-text:hover { color: #ef4444 !important; }
           .hover-underline:hover { text-decoration: underline !important; }
           
-          /* Animação suave para os botões e painéis */
           .hover-shadow:hover { transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
           .hover-border-blue:hover { border-color: #3b82f6 !important; background-color: #eff6ff !important; }
+          .hover-bg-blue-light:hover { background: #eff6ff !important; border-color: #3b82f6 !important; }
           
           .input-focus:focus { border-color: #3b82f6 !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
           .input-focus-wrapper:focus-within { border-color: #3b82f6 !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1) !important; }
 
-          /* Scrollbar Limpa */
           .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
           .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
           .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
 
           @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-          
           @keyframes pulse { 0% {box-shadow:0 0 0 0 rgba(239,68,68,0.7)} 70% {box-shadow:0 0 0 6px rgba(239,68,68,0)} 100% {box-shadow:0 0 0 0 rgba(239,68,68,0)}} 
           .pulse-dot-white { width: 8px; height: 8px; background-color: white; border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; }
       `}</style>
