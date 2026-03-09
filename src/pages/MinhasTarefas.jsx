@@ -25,7 +25,11 @@ const Icons = {
   Edit: ({ size = 20, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>,
   History: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v5h5"></path><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"></path><polyline points="12 7 12 12 15 15"></polyline></svg>,
   Restore: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>,
-  Folder: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+  Folder: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>,
+  Users: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>,
+  UploadCloud: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 16 12 12 8 16"></polyline><line x1="12" y1="12" x2="12" y2="21"></line><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"></path><polyline points="16 16 12 12 8 16"></polyline></svg>,
+  ExternalLink: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>,
+  Grip: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
 };
 
 const ModalPortal = ({ children }) => createPortal(children, document.body);
@@ -38,16 +42,21 @@ export default function MinhasTarefas() {
   const [activeLog, setActiveLog] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notification, setNotification] = useState(null);
+  const [staff, setStaff] = useState([]); 
   
   // FILTROS E ESTADOS DE UI
   const [mostrarConcluidos, setMostrarConcluidos] = useState(false);
-  const [selectedProjectFilter, setSelectedProjectFilter] = useState("avulsas"); // 💡 DEFAULT PARA AVULSAS
+  const [selectedProjectFilter, setSelectedProjectFilter] = useState("avulsas"); 
   const [availableProjects, setAvailableProjects] = useState([]);
   
   const [newTasks, setNewTasks] = useState({ atrasadas: '', hoje: '', amanha: '', depois: '', semData: '' });
   const [novaTarefaNome, setNovaTarefaNome] = useState("");
 
   const [editModal, setEditModal] = useState({ show: false, data: null });
+  
+  // ESTADOS DO UPLOAD
+  const [fileToUpload, setFileToUpload] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
   
   // Histórico de Concluídas
   const [showCompletedModal, setShowCompletedModal] = useState(false);
@@ -67,8 +76,20 @@ export default function MinhasTarefas() {
       setTimeout(() => setNotification(null), 3000);
   };
 
+  const getSafeFirstName = (nome, email) => {
+      try {
+          if (nome && typeof nome === 'string') return nome.trim().split(' ')[0];
+          if (email && typeof email === 'string') return email.trim().split('@')[0];
+          return "Colab";
+      } catch (e) { return "Colab"; }
+  };
+
   async function carregarTudo() {
       setLoading(true);
+      
+      const { data: staffData } = await supabase.from("profiles").select("id, nome, email").order("nome");
+      setStaff(staffData || []);
+      
       await checkActiveLog();
       await fetchMyTasks();
   }
@@ -80,10 +101,9 @@ export default function MinhasTarefas() {
 
   async function fetchMyTasks() {
       try {
-          // 💡 Atualizado: Puxa data_limite E data_fim para cruzar tarefas normais e de projetos
           let query = supabase
               .from("tarefas")
-              .select(`id, titulo, estado, data_limite, data_fim, prioridade, descricao, created_at, atividades(projetos(id, titulo, codigo_projeto))`)
+              .select(`id, titulo, estado, data_limite, data_fim, prioridade, descricao, created_at, atividades(projetos(id, titulo, codigo_projeto)), colaboradores_extra, tem_entregavel, nome_entregavel, data_entregavel, arquivo_url`)
               .eq("responsavel_id", user.id)
               .order("created_at", { ascending: true }); 
 
@@ -119,7 +139,6 @@ export default function MinhasTarefas() {
           let agrupado = { atrasadas: [], hoje: [], amanha: [], depois: [], semData: [] };
 
           dataToProcess.forEach(task => {
-              // 💡 Verifica se tem data_fim (Projeto) ou data_limite (Avulsa)
               const taskDeadline = task.data_fim || task.data_limite;
 
               if (!taskDeadline) {
@@ -138,9 +157,7 @@ export default function MinhasTarefas() {
       setLoading(false);
   }
 
-  // --- MOTOR DO HISTÓRICO DE CONCLUÍDAS (MODAL) ---
   async function openCompletedHistory() {
-      // Aqui também puxamos data_fim e data_limite
       const { data } = await supabase
           .from("tarefas")
           .select(`id, titulo, estado, data_limite, data_fim, prioridade, descricao, created_at, data_conclusao, atividades(projetos(id, titulo, codigo_projeto))`)
@@ -173,11 +190,7 @@ export default function MinhasTarefas() {
   }
 
   async function handleRestoreTask(task) {
-      await supabase.from("tarefas").update({ 
-          estado: 'pendente',
-          data_conclusao: null
-      }).eq("id", task.id);
-      
+      await supabase.from("tarefas").update({ estado: 'pendente', data_conclusao: null }).eq("id", task.id);
       showToast("Tarefa restaurada para o quadro!");
       fetchMyTasks();
       openCompletedHistory(); 
@@ -210,16 +223,11 @@ export default function MinhasTarefas() {
       }
   }
 
-  // 💡 Registar a data_conclusao no Supabase
   async function handleCompleteTask(task) {
       const novoEstado = task.estado === 'concluido' ? 'pendente' : 'concluido';
       const dataConclusao = novoEstado === 'concluido' ? new Date().toISOString() : null;
 
-      await supabase.from("tarefas").update({ 
-          estado: novoEstado,
-          data_conclusao: dataConclusao 
-      }).eq("id", task.id);
-      
+      await supabase.from("tarefas").update({ estado: novoEstado, data_conclusao: dataConclusao }).eq("id", task.id);
       showToast(novoEstado === 'concluido' ? "Boa! Tarefa concluída." : "Tarefa reaberta.");
       fetchMyTasks();
   }
@@ -236,19 +244,11 @@ export default function MinhasTarefas() {
       if (!novaTarefaNome.trim()) return;
       try {
           const { error } = await supabase.from("tarefas").insert([{ 
-              titulo: novaTarefaNome, 
-              responsavel_id: user.id, 
-              estado: 'pendente', 
-              atividade_id: null,
-              prioridade: 'normal'
+              titulo: novaTarefaNome, responsavel_id: user.id, estado: 'pendente', atividade_id: null, prioridade: 'normal'
           }]);
           if (error) throw error;
           setNovaTarefaNome(""); 
-          
-          if(selectedProjectFilter !== "avulsas" && selectedProjectFilter !== "todos") {
-              setSelectedProjectFilter("avulsas");
-          }
-          
+          if(selectedProjectFilter !== "avulsas" && selectedProjectFilter !== "todos") setSelectedProjectFilter("avulsas");
           showToast("Tarefa rápida adicionada!"); 
           fetchMyTasks();
       } catch (err) { showToast("Erro: " + err.message, "error"); }
@@ -267,53 +267,71 @@ export default function MinhasTarefas() {
 
       try {
           const { error } = await supabase.from("tarefas").insert([{ 
-              titulo: text.trim(), 
-              responsavel_id: user.id, 
-              estado: 'pendente', 
-              atividade_id: null, 
-              data_limite: date, // Novas avulsas continuam a usar data_limite
-              prioridade: 'normal' 
+              titulo: text.trim(), responsavel_id: user.id, estado: 'pendente', atividade_id: null, data_limite: date, prioridade: 'normal' 
           }]);
-          
           if(error) throw error;
           setNewTasks({ ...newTasks, [colId]: "" }); 
-          
-          if(selectedProjectFilter !== "avulsas" && selectedProjectFilter !== "todos") {
-              setSelectedProjectFilter("avulsas");
-          }
-          
+          if(selectedProjectFilter !== "avulsas" && selectedProjectFilter !== "todos") setSelectedProjectFilter("avulsas");
           fetchMyTasks();
       } catch (err) { showToast("Erro ao criar: " + err.message, "error"); }
   }
 
+  const toggleColaboradorExtra = (colabId) => {
+      setEditModal(prev => {
+          const arr = Array.isArray(prev.data.colaboradores_extra) ? prev.data.colaboradores_extra : [];
+          if (arr.includes(colabId)) return { ...prev, data: { ...prev.data, colaboradores_extra: arr.filter(id => id !== colabId) } };
+          return { ...prev, data: { ...prev.data, colaboradores_extra: [...arr, colabId] } };
+      });
+  };
+
   async function handleSaveModal(e) {
       e.preventDefault();
-      
       const isProjectTask = editModal.data.atividades?.projetos;
-      
+      let finalArquivoUrl = editModal.data.arquivo_url;
+
+      if (fileToUpload) {
+          setIsUploading(true);
+          const fileExt = fileToUpload.name.split('.').pop();
+          const fileName = `${Math.random()}.${fileExt}`;
+          const filePath = `${user.id}/${fileName}`;
+
+          const { error: uploadError } = await supabase.storage.from('documentos').upload(filePath, fileToUpload);
+
+          if (uploadError) {
+              showToast("Erro ao fazer upload do documento.", "error");
+              setIsUploading(false);
+              return; 
+          }
+
+          const { data: publicUrlData } = supabase.storage.from('documentos').getPublicUrl(filePath);
+          finalArquivoUrl = publicUrlData.publicUrl;
+          setIsUploading(false);
+      }
+
       const payload = { 
           titulo: editModal.data.titulo, 
           descricao: editModal.data.descricao, 
-          prioridade: editModal.data.prioridade
+          prioridade: editModal.data.prioridade,
+          colaboradores_extra: editModal.data.colaboradores_extra,
+          tem_entregavel: editModal.data.tem_entregavel,
+          nome_entregavel: editModal.data.nome_entregavel,
+          data_entregavel: editModal.data.data_entregavel || null,
+          arquivo_url: finalArquivoUrl
       };
 
-      // Se for tarefa de projeto edita o data_fim. Se for avulsa edita data_limite
-      if (isProjectTask) {
-          payload.data_fim = editModal.data._form_deadline || null;
-      } else {
-          payload.data_limite = editModal.data._form_deadline || null;
-      }
+      if (isProjectTask) payload.data_fim = editModal.data._form_deadline || null;
+      else payload.data_limite = editModal.data._form_deadline || null;
       
       try {
           const { error } = await supabase.from("tarefas").update(payload).eq("id", editModal.data.id);
           if (error) throw error;
           setEditModal({show: false, data: null});
+          setFileToUpload(null); 
           showToast("Alterações guardadas!"); 
           fetchMyTasks();
-      } catch (err) { showToast("Erro ao guardar: " + err.message, "error"); }
+      } catch (err) { showToast("Erro ao guardar: " + err.message, "error"); setIsUploading(false); }
   }
 
-  // --- DRAG & DROP ---
   const getDateForColumn = (colId) => {
       const d = new Date();
       if (colId === 'hoje') return d.toISOString().split('T')[0];
@@ -357,6 +375,8 @@ export default function MinhasTarefas() {
 
       const proj = task.atividades?.projetos;
       const contexto = proj ? (proj.codigo_projeto ? `[${proj.codigo_projeto}] ${proj.titulo}` : proj.titulo) : "Avulsa";
+      
+      const hasExtraColabs = task.colaboradores_extra && task.colaboradores_extra.length > 0;
 
       return (
           <div 
@@ -391,7 +411,7 @@ export default function MinhasTarefas() {
               </button>
 
               <div style={{flex: 1, overflow: 'hidden'}}>
-                  <h4 onClick={() => setEditModal({show: true, data: {...task, _form_deadline: taskDeadline}})} style={{margin: '0 0 4px 0', fontSize: '0.95rem', color: isCompleted ? '#94a3b8' : '#1e293b', textDecoration: isCompleted ? 'line-through' : 'none', cursor: 'pointer', wordBreak: 'break-word', lineHeight: '1.4'}} className="hover-text-blue">
+                  <h4 onClick={() => { setEditModal({show: true, data: {...task, _form_deadline: taskDeadline}}); setFileToUpload(null); }} style={{margin: '0 0 4px 0', fontSize: '0.95rem', color: isCompleted ? '#94a3b8' : '#1e293b', textDecoration: isCompleted ? 'line-through' : 'none', cursor: 'pointer', wordBreak: 'break-word', lineHeight: '1.4'}} className="hover-text-blue">
                       {task.titulo}
                   </h4>
                   
@@ -400,9 +420,11 @@ export default function MinhasTarefas() {
                   </div>
                   
                   <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px'}}>
-                      <div style={{display: 'flex', gap: '10px', alignItems: 'center'}}>
+                      <div style={{display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap'}}>
                           {taskDeadline && <span style={{fontSize: '0.7rem', color: isCompleted ? '#94a3b8' : dateColor, fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.Calendar /> {new Date(taskDeadline).toLocaleDateString('pt-PT', {day:'2-digit', month:'short'})}</span>}
                           {task.descricao && <span style={{color: '#94a3b8'}} title="Tem notas"><Icons.FileText /></span>}
+                          {task.tem_entregavel && <span style={{color: '#3b82f6', display: 'flex', alignItems: 'center', gap: '2px'}} title="Documento Associado"><Icons.FileText size={12} /> Doc</span>}
+                          {hasExtraColabs && <span style={{color: '#8b5cf6', display: 'flex', alignItems: 'center', gap: '2px', fontSize: '0.65rem', fontWeight: 'bold'}} title="Colaboradores partilhados"><Icons.Users size={12} /> +{task.colaboradores_extra.length}</span>}
                       </div>
 
                       <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
@@ -526,7 +548,7 @@ export default function MinhasTarefas() {
           </div>
       </div>
 
-      {/* QUADRO KANBAN LIMPO (SÓ PENDENTES) */}
+      {/* QUADRO KANBAN LIMPO COM A GRELHA ATIVADA */}
       <div className="kanban-grid" style={{flex: 1}}>
           {renderKanbanColumn("atrasadas", "Atrasadas", <Icons.AlertTriangle />, "#ef4444", tasks.atrasadas)}
           {renderKanbanColumn("hoje", "Para Hoje", <Icons.Flame />, "#d97706", tasks.hoje)}
@@ -535,9 +557,7 @@ export default function MinhasTarefas() {
           {renderKanbanColumn("semData", "Sem Data", <Icons.Inbox />, "#64748b", tasks.semData)}
       </div>
 
-      {/* ============================================================== */}
-      {/* 💡 MODAL: HISTÓRICO DE TAREFAS CONCLUÍDAS COM TABS E CONTEXTO */}
-      {/* ============================================================== */}
+      {/* MODAL: HISTÓRICO DE TAREFAS CONCLUÍDAS COM TABS E CONTEXTO */}
       {showCompletedModal && (
           <ModalPortal>
               <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, backdropFilter: 'blur(4px)'}} onClick={() => setShowCompletedModal(false)}>
@@ -624,11 +644,11 @@ export default function MinhasTarefas() {
           </ModalPortal>
       )}
 
-      {/* MODAL DE EDIÇÃO DE TAREFA */}
+      {/* MODAL DE EDIÇÃO DE TAREFA (COM COLABORADORES E DOCUMENTOS) */}
       {editModal.show && editModal.data && (
           <ModalPortal>
               <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, backdropFilter: 'blur(4px)'}} onClick={() => setEditModal({show: false, data: null})}>
-                  <div style={{background: '#fff', width: '90%', maxWidth: '550px', borderRadius: '16px', padding: '30px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out'}} onClick={e => e.stopPropagation()}>
+                  <div style={{background: '#fff', width: '90%', maxWidth: '600px', borderRadius: '16px', padding: '30px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out', maxHeight: '90vh', overflowY: 'auto'}} onClick={e => e.stopPropagation()} className="custom-scrollbar">
                       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px', borderBottom: '1px solid #f1f5f9', paddingBottom: '15px'}}>
                           <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.25rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Edit color="#2563eb" size={20} /> Detalhes da Tarefa</h3>
                           <div style={{display: 'flex', gap: '15px', alignItems: 'center'}}>
@@ -644,7 +664,7 @@ export default function MinhasTarefas() {
                           <label style={{display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em'}}>O que é para fazer?</label>
                           <input type="text" value={editModal.data.titulo} onChange={e => setEditModal({...editModal, data: {...editModal.data, titulo: e.target.value}})} required style={{width: '100%', padding: '15px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#f8fafc', fontSize: '1.05rem', marginBottom: '20px', outline: 'none', boxSizing: 'border-box', fontWeight: 'bold', color: '#0f172a', transition: '0.2s'}} className="input-focus" />
 
-                          <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '25px'}}>
+                          <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px'}}>
                               <div>
                                   <label style={{display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Data Limite</label>
                                   <input type="date" value={editModal.data._form_deadline || ''} onChange={e => setEditModal({...editModal, data: {...editModal.data, _form_deadline: e.target.value}})} style={{width: '100%', padding: '12px 15px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', transition: '0.2s'}} className="input-focus" />
@@ -660,12 +680,89 @@ export default function MinhasTarefas() {
                               </div>
                           </div>
 
-                          <label style={{display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Notas / Documentos de Apoio</label>
+                          {/* 💡 COLABORADORES EXTRA */}
+                          <div style={{marginBottom: '20px'}}>
+                              <label style={{display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Outros Colaboradores Envolvidos</label>
+                              <div style={{background: 'white', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '12px', maxHeight: '120px', overflowY: 'auto'}} className="custom-scrollbar input-focus">
+                                  <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap'}}>
+                                      {staff.filter(s => s.id !== user.id).map(s => {
+                                          const isChecked = Array.isArray(editModal.data.colaboradores_extra) && editModal.data.colaboradores_extra.includes(s.id);
+                                          const sNome = getSafeFirstName(s.nome, s.email);
+                                          
+                                          return (
+                                              <div 
+                                                  key={s.id} 
+                                                  onClick={() => toggleColaboradorExtra(s.id)}
+                                                  style={{
+                                                      background: isChecked ? '#eff6ff' : '#f8fafc',
+                                                      color: isChecked ? '#2563eb' : '#64748b',
+                                                      border: `1px solid ${isChecked ? '#3b82f6' : '#e2e8f0'}`,
+                                                      padding: '6px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', gap: '6px'
+                                                  }}
+                                                  className="hover-shadow"
+                                              >
+                                                  {isChecked && '✓'} {sNome}
+                                              </div>
+                                          )
+                                      })}
+                                  </div>
+                              </div>
+                          </div>
+
+                          {/* 💡 ENTREGÁVEIS / DOCUMENTOS */}
+                          <div style={{background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '15px', marginBottom: '20px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)'}}>
+                              <label style={{display: 'flex', alignItems: 'center', gap: '10px', fontWeight: '800', color: '#1e293b', cursor: 'pointer', fontSize: '0.95rem'}}>
+                                  <input type="checkbox" checked={editModal.data.tem_entregavel || false} onChange={e => setEditModal({...editModal, data: {...editModal.data, tem_entregavel: e.target.checked}})} style={{accentColor: '#2563eb', width: '18px', height: '18px'}} />
+                                  Requer Documento Entregável / Assinatura?
+                              </label>
+                              
+                              {editModal.data.tem_entregavel && (
+                                  <div style={{marginTop: '20px', animation: 'fadeIn 0.3s'}}>
+                                      <div style={{display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '15px', marginBottom: '20px'}}>
+                                          <div>
+                                              <label style={{display: 'block', marginBottom: '6px', fontSize: '0.75rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase'}}>Nome do Documento</label>
+                                              <input type="text" placeholder="Ex: Contrato de Renovação" value={editModal.data.nome_entregavel || ''} onChange={e => setEditModal({...editModal, data: {...editModal.data, nome_entregavel: e.target.value}})} style={{width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box'}} className="input-focus" />
+                                          </div>
+                                          <div>
+                                              <label style={{display: 'block', marginBottom: '6px', fontSize: '0.75rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase'}}>Data p/ Entrega</label>
+                                              <input type="date" value={editModal.data.data_entregavel || ''} onChange={e => setEditModal({...editModal, data: {...editModal.data, data_entregavel: e.target.value}})} style={{width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box'}} className="input-focus" />
+                                          </div>
+                                      </div>
+                                      
+                                      <div style={{background: '#f8fafc', border: '2px dashed #cbd5e1', padding: '20px', borderRadius: '10px', textAlign: 'center', transition: '0.3s'}} className={!editModal.data.arquivo_url ? "hover-border-blue" : ""}>
+                                          {editModal.data.arquivo_url ? (
+                                              <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px'}}>
+                                                  <a href={editModal.data.arquivo_url} target="_blank" rel="noopener noreferrer" style={{display: 'flex', alignItems: 'center', gap: '8px', color: '#2563eb', fontWeight: '800', textDecoration: 'none', fontSize: '0.9rem', background: '#eff6ff', padding: '8px 16px', borderRadius: '8px'}}>
+                                                      <Icons.ExternalLink /> Ver Documento Atual
+                                                  </a>
+                                                  <button type="button" onClick={() => { setEditModal({...editModal, data: {...editModal.data, arquivo_url: ""}}); setFileToUpload(null); }} style={{background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold'}} className="hover-red-text">
+                                                      Remover Ficheiro
+                                                  </button>
+                                              </div>
+                                          ) : (
+                                              <div>
+                                                  <label style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', cursor: 'pointer'}}>
+                                                      <Icons.UploadCloud size={32} color={fileToUpload ? "#10b981" : "#94a3b8"} />
+                                                      <span style={{fontSize: '0.9rem', color: fileToUpload ? '#10b981' : '#64748b', fontWeight: 'bold'}}>
+                                                          {fileToUpload ? fileToUpload.name : "Clique para anexar um documento (PDF, Imagens, etc)"}
+                                                      </span>
+                                                      <input type="file" onChange={(e) => setFileToUpload(e.target.files[0])} style={{display: 'none'}} />
+                                                  </label>
+                                              </div>
+                                          )}
+                                      </div>
+                                  </div>
+                              )}
+                          </div>
+
+                          <label style={{display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Notas / Descrição</label>
                           <textarea rows="5" value={editModal.data.descricao || ''} onChange={e => setEditModal({...editModal, data: {...editModal.data, descricao: e.target.value}})} placeholder="Ex: Link do drive, apontamentos da reunião..." style={{width: '100%', padding: '15px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#fffbeb', fontSize: '0.95rem', marginBottom: '30px', outline: 'none', boxSizing: 'border-box', resize: 'vertical', transition: '0.2s'}} className="input-focus" />
 
                           <div style={{display: 'flex', gap: '10px'}}>
                               <button type="button" onClick={() => setEditModal({show: false, data: null})} style={{flex: 1, background: 'white', color: '#64748b', border: '1px solid #cbd5e1', padding: '14px', borderRadius: '10px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">Cancelar</button>
-                              <button type="submit" style={{flex: 2, background: '#2563eb', color: 'white', border: 'none', padding: '14px', borderRadius: '10px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'}} className="hover-shadow hover-bg-blue"><Icons.Save /> Guardar Alterações</button>
+                              <button type="submit" disabled={isUploading} style={{flex: 2, background: '#2563eb', color: 'white', border: 'none', padding: '14px', borderRadius: '10px', fontWeight: 'bold', fontSize: '1rem', cursor: isUploading ? 'wait' : 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: isUploading ? 0.7 : 1}} className="hover-shadow hover-bg-blue">
+                                  {isUploading ? "A carregar..." : <><Icons.Save /> Guardar Alterações</>}
+                              </button>
                           </div>
                       </form>
                   </div>
@@ -673,27 +770,16 @@ export default function MinhasTarefas() {
           </ModalPortal>
       )}
 
-      {/* --- NOTIFICAÇÃO GLOBAL --- */}
-      {notification && (
-          <ModalPortal>
-              <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.5)', backdropFilter: 'blur(2px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:999999}}>
-                  <div style={{background:'white', padding:'30px', borderRadius:'16px', width:'90%', maxWidth: '350px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', animation: 'fadeIn 0.2s ease-out'}}>
-                      <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px'}}>
-                          {notification.type === 'success' ? <Icons.CheckCircle color="#10b981" /> : <Icons.XCircle color="#ef4444" />}
-                      </div>
-                      <h3 style={{margin: '0 0 10px 0', color: '#1e293b', fontSize: '1.25rem'}}>{notification.type === 'success' ? 'Sucesso!' : 'Atenção'}</h3>
-                      <p style={{color: '#64748b', margin: 0, lineHeight: '1.5', fontSize: '0.95rem'}}>{notification.message}</p>
-                  </div>
-              </div>
-          </ModalPortal>
-      )}
-
+      {/* NOTIFICAÇÃO (TOAST) */}
+      {notification && <div className={`toast-container ${notification.type}`}>{notification.type === 'success' ? '✅' : '⚠️'} {notification.message}</div>}
+      
       <style>{`
-          /* A GRELHA PERFEITA PARA O KANBAN */
+          /* 💡 A GRELHA PERFEITA PARA O KANBAN QUE TINHA DESAPARECIDO */
           .kanban-grid {
               display: grid;
               grid-template-columns: repeat(5, 1fr);
               gap: 20px;
+              align-items: stretch;
           }
 
           /* Em ecrãs pequenos vira scroll horizontal */
@@ -701,34 +787,37 @@ export default function MinhasTarefas() {
               .kanban-grid {
                   display: flex;
                   overflow-x: auto;
-                  padding-bottom: 10px;
+                  padding-bottom: 15px;
               }
               .kanban-grid > div {
-                  min-width: 280px;
+                  min-width: 300px;
+                  flex: 1;
               }
           }
 
-          /* Efeito mágico do botão de Check na tarefa */
-          .hover-check-circle { color: transparent; }
-          .hover-check-circle:hover { border-color: #10b981 !important; color: white !important; background: #10b981 !important; }
-          
-          .hover-text-blue:hover { color: #2563eb !important; }
-          .tab-hover-green:hover { color: #10b981 !important; }
-          .hover-shadow:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
-          .hover-bg-blue:hover { background: #1d4ed8 !important; color: white !important; }
-          .hover-bg-blue-light:hover { background: #eff6ff !important; border-color: #3b82f6 !important; }
-          .hover-red:hover { opacity: 1 !important; color: #ef4444 !important; }
+          .hover-blue-text:hover { color: #2563eb !important; }
+          .hover-blue-text:hover span { background: #e0f2fe !important; color: #2563eb !important; }
+          .tab-hover:hover { color: #0f172a !important; }
+          .hover-red:hover { opacity: 1 !important; color: #dc2626 !important; }
           .hover-red-text:hover { color: #ef4444 !important; }
-          .hover-icon-btn:hover { opacity: 0.8; transform: scale(1.05); }
-
+          .hover-underline:hover { text-decoration: underline !important; }
+          
+          /* Animação suave para os botões e painéis */
+          .hover-shadow:hover { transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+          .hover-border-blue:hover { border-color: #3b82f6 !important; background-color: #eff6ff !important; }
+          
           .input-focus:focus { border-color: #3b82f6 !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
           .input-focus-wrapper:focus-within { border-color: #3b82f6 !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1) !important; }
 
-          .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 8px; }
+          /* Scrollbar Limpa */
+          .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
           .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
           .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
 
           @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+          
+          @keyframes pulse { 0% {box-shadow:0 0 0 0 rgba(239,68,68,0.7)} 70% {box-shadow:0 0 0 6px rgba(239,68,68,0)} 100% {box-shadow:0 0 0 0 rgba(239,68,68,0)}} 
+          .pulse-dot-white { width: 8px; height: 8px; background-color: white; border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; }
       `}</style>
     </div>
   );
