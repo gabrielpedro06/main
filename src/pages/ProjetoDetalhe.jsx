@@ -73,6 +73,7 @@ export default function ProjetoDetalhe() {
   // Estados de Expansão
   const [expandedTasks, setExpandedTasks] = useState({});
   const [collapsedAtivs, setCollapsedAtivs] = useState({}); 
+    const [activeSubtarefaComposer, setActiveSubtarefaComposer] = useState(null);
 
   const [novaAtividadeNome, setNovaAtividadeNome] = useState("");
   const [novaTarefaNome, setNovaTarefaNome] = useState({ ativId: null, nome: "" });
@@ -122,7 +123,8 @@ export default function ProjetoDetalhe() {
         .from("atividades")
         .select(`
             id, titulo, estado, responsavel_id, data_inicio, data_fim, investimento, incentivo, descricao, observacoes, created_at, ordem,
-            tarefas(id, titulo, estado, responsavel_id, data_inicio, data_fim, prioridade, descricao, created_at, ordem,
+            colaboradores_extra,
+            tarefas(id, titulo, estado, responsavel_id, colaboradores_extra, data_inicio, data_fim, prioridade, descricao, created_at, ordem,
                 subtarefas(id, titulo, estado, data_fim, created_at, ordem)
             )
         `)
@@ -258,6 +260,21 @@ export default function ProjetoDetalhe() {
       return h > 0 ? `${h}h ${m}m` : `${m} min`;
   };
 
+  const getStaffNames = (responsavelId, extraIds = []) => {
+      const names = [];
+      const responsavelNome = staff.find(s => s.id === responsavelId)?.nome;
+      if (responsavelNome) names.push(responsavelNome);
+
+      const extras = Array.isArray(extraIds) ? extraIds : [];
+      extras.forEach(extraId => {
+          if (extraId === responsavelId) return;
+          const extraNome = staff.find(s => s.id === extraId)?.nome;
+          if (extraNome && !names.includes(extraNome)) names.push(extraNome);
+      });
+
+      return names.length > 0 ? names.join(", ") : "-";
+  };
+
   const renderDeadline = (dateString, isCompleted, isLarge = false) => {
       if (!dateString) return null;
       
@@ -347,7 +364,11 @@ export default function ProjetoDetalhe() {
 
   async function handleSaveAtividade(e) {
       e.preventDefault();
-      const payload = { ...atividadeModal.data };
+      const payload = {
+          ...atividadeModal.data,
+          colaboradores_extra: (Array.isArray(atividadeModal.data.colaboradores_extra) ? atividadeModal.data.colaboradores_extra : [])
+              .filter(id => id !== atividadeModal.data.responsavel_id)
+      };
       delete payload.tarefas; 
       const { error } = await supabase.from("atividades").update(payload).eq("id", payload.id);
       if (!error) {
@@ -359,7 +380,11 @@ export default function ProjetoDetalhe() {
 
   async function handleSaveTarefa(e) {
       e.preventDefault();
-      const payload = { ...tarefaModal.data };
+      const payload = {
+          ...tarefaModal.data,
+          colaboradores_extra: (Array.isArray(tarefaModal.data.colaboradores_extra) ? tarefaModal.data.colaboradores_extra : [])
+              .filter(id => id !== tarefaModal.data.responsavel_id)
+      };
       delete payload.subtarefas; 
       const { error } = await supabase.from("tarefas").update(payload).eq("id", payload.id);
       if (!error) {
@@ -403,6 +428,40 @@ export default function ProjetoDetalhe() {
       }));
   };
 
+  const handleToggleTarefaColaborador = (sId) => {
+      setTarefaModal(prev => {
+          const arr = Array.isArray(prev?.data?.colaboradores_extra) ? prev.data.colaboradores_extra : [];
+          const novosColaboradores = arr.includes(sId)
+              ? arr.filter(id => id !== sId)
+              : [...arr, sId];
+
+          return {
+              ...prev,
+              data: {
+                  ...prev.data,
+                  colaboradores_extra: novosColaboradores
+              }
+          };
+      });
+  };
+
+  const handleToggleAtividadeColaborador = (sId) => {
+      setAtividadeModal(prev => {
+          const arr = Array.isArray(prev?.data?.colaboradores_extra) ? prev.data.colaboradores_extra : [];
+          const novosColaboradores = arr.includes(sId)
+              ? arr.filter(id => id !== sId)
+              : [...arr, sId];
+
+          return {
+              ...prev,
+              data: {
+                  ...prev.data,
+                  colaboradores_extra: novosColaboradores
+              }
+          };
+      });
+  };
+
   async function handleUpdateProjeto(e) {
       e.preventDefault();
       try {
@@ -426,21 +485,23 @@ export default function ProjetoDetalhe() {
   async function handleAddAtividade(e) {
       e.preventDefault();
       if(!novaAtividadeNome.trim()) return;
-      await supabase.from("atividades").insert([{ projeto_id: id, titulo: novaAtividadeNome, estado: 'pendente', ordem: atividades.length }]);
+      await supabase.from("atividades").insert([{ projeto_id: id, titulo: novaAtividadeNome, colaboradores_extra: [], estado: 'pendente', ordem: atividades.length }]);
       setNovaAtividadeNome(""); fetchProjetoDetails();
   }
   async function handleAddTarefa(e, ativId) {
       e.preventDefault();
       if(!novaTarefaNome.nome.trim()) return;
       const tOrdem = atividades.find(a=>a.id===ativId)?.tarefas?.length || 0;
-      await supabase.from("tarefas").insert([{ atividade_id: ativId, titulo: novaTarefaNome.nome, responsavel_id: projeto.responsavel_id, estado: 'pendente', ordem: tOrdem }]);
+      await supabase.from("tarefas").insert([{ atividade_id: ativId, titulo: novaTarefaNome.nome, responsavel_id: projeto.responsavel_id, colaboradores_extra: [], estado: 'pendente', ordem: tOrdem }]);
       setNovaTarefaNome({ ativId: null, nome: "" }); fetchProjetoDetails();
   }
   async function handleAddSubtarefa(e, tarId) {
       e.preventDefault();
       if(!novaSubtarefaNome.nome.trim()) return;
       await supabase.from("subtarefas").insert([{ tarefa_id: tarId, titulo: novaSubtarefaNome.nome, estado: 'pendente' }]);
-      setNovaSubtarefaNome({ tarId: null, nome: "" }); fetchProjetoDetails();
+      setNovaSubtarefaNome({ tarId: tarId, nome: "" });
+      setActiveSubtarefaComposer(tarId);
+      fetchProjetoDetails();
   }
 
   async function handleDeleteItem(tabela, itemId) {
@@ -450,7 +511,21 @@ export default function ProjetoDetalhe() {
   }
 
   const toggleExpand = (taskId) => {
-      setExpandedTasks(prev => ({ ...prev, [taskId]: !prev[taskId] }));
+      setExpandedTasks(prev => {
+          const nextExpanded = !prev[taskId];
+          if (!nextExpanded && activeSubtarefaComposer === taskId) {
+              setActiveSubtarefaComposer(null);
+              setNovaSubtarefaNome({ tarId: null, nome: "" });
+          }
+          return { ...prev, [taskId]: nextExpanded };
+      });
+  };
+
+  const toggleSubtarefaComposer = (taskId) => {
+      const isOpening = activeSubtarefaComposer !== taskId;
+      setExpandedTasks(prev => ({ ...prev, [taskId]: true }));
+      setActiveSubtarefaComposer(isOpening ? taskId : null);
+      setNovaSubtarefaNome(isOpening ? { tarId: taskId, nome: "" } : { tarId: null, nome: "" });
   };
   const toggleCollapseAtiv = (ativId) => {
       setCollapsedAtivs(prev => ({ ...prev, [ativId]: !prev[ativId] }));
@@ -664,7 +739,7 @@ export default function ProjetoDetalhe() {
                                     </h3>
                                     {renderDeadline(ativ.data_fim, isAtivDone, true)}
                                     
-                                    <button onClick={() => setAtividadeModal({show: true, data: ativ})} style={{background:'none', border:'none', color:'#3b82f6', cursor:'pointer'}} title="Editar Atividade" className="hover-shadow">
+                                    <button onClick={() => setAtividadeModal({show: true, data: { ...ativ, colaboradores_extra: Array.isArray(ativ.colaboradores_extra) ? ativ.colaboradores_extra : [] }})} style={{background:'none', border:'none', color:'#3b82f6', cursor:'pointer'}} title="Editar Atividade" className="hover-shadow">
                                         <Icons.Edit size={16} />
                                     </button>
                                 </div>
@@ -712,6 +787,10 @@ export default function ProjetoDetalhe() {
                                     const isTimerActive = activeLog?.task_id === tar.id;
                                     const taskTime = getTaskTime(tar.id);
                                     const respName = staff.find(s => s.id === tar.responsavel_id)?.nome;
+                                    const extraColabsIds = (Array.isArray(tar.colaboradores_extra) ? tar.colaboradores_extra : []).filter(cid => cid !== tar.responsavel_id);
+                                    const extraColabsCount = extraColabsIds.length;
+                                    const extraColabsNames = extraColabsIds.map(cid => staff.find(s => s.id === cid)?.nome).filter(Boolean).join(', ');
+                                    const isComposerOpen = activeSubtarefaComposer === tar.id;
 
                                     return (
                                     <div 
@@ -730,13 +809,14 @@ export default function ProjetoDetalhe() {
                                                     {tar.estado === 'concluido' && <Icons.Check size={12} />}
                                                 </div>
                                                 
-                                                <span onClick={() => setTarefaModal({ show: true, data: tar, atividadeNome: ativ.titulo })} style={{textDecoration: tar.estado === 'concluido' ? 'line-through' : 'none', color: '#334155', fontWeight: '600', cursor: 'pointer', fontSize: '0.95rem'}} className="hover-underline" title="Clique para editar detalhes">
+                                                <span onClick={() => setTarefaModal({ show: true, data: { ...tar, colaboradores_extra: Array.isArray(tar.colaboradores_extra) ? tar.colaboradores_extra : [] }, atividadeNome: ativ.titulo })} style={{textDecoration: tar.estado === 'concluido' ? 'line-through' : 'none', color: '#334155', fontWeight: '600', cursor: 'pointer', fontSize: '0.95rem'}} className="hover-underline" title="Clique para editar detalhes">
                                                     {tar.titulo}
                                                 </span>
                                                 
                                                 <div style={{display: 'flex', gap: '6px', marginLeft: '10px'}}>
                                                     {tar.prioridade === 'Alta' || tar.prioridade === 'Urgente' ? <span style={{fontSize: '0.65rem', background: '#fee2e2', color: '#ef4444', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold'}}>{tar.prioridade}</span> : null}
                                                     {respName && <span style={{fontSize: '0.65rem', background: '#eff6ff', color: '#2563eb', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold'}}>{respName.split(' ')[0]}</span>}
+                                                    {extraColabsCount > 0 && <span style={{fontSize: '0.65rem', background: '#f3e8ff', color: '#7e22ce', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}} title={extraColabsNames}><Icons.Users size={10} /> +{extraColabsCount}</span>}
                                                     {renderDeadline(tar.data_fim, isTarDone)}
                                                     {hasSubs && <span style={{fontSize: '0.65rem', background: subsDone === tar.subtarefas.length ? '#dcfce7' : '#f1f5f9', color: subsDone === tar.subtarefas.length ? '#16a34a' : '#64748b', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.ClipboardList size={10} /> {subsDone}/{tar.subtarefas.length}</span>}
                                                 </div>
@@ -748,6 +828,11 @@ export default function ProjetoDetalhe() {
                                                 <button onClick={() => handleToggleTimer(tar.id, 'task')} style={{ background: isTimerActive ? '#fee2e2' : '#f1f5f9', color: isTimerActive ? '#ef4444' : '#64748b', border: 'none', padding: '4px 10px', borderRadius: '20px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', animation: isTimerActive ? 'pulse 1.5s infinite' : 'none'}} className="hover-shadow">
                                                     {isTimerActive ? <><Icons.Stop /> Parar</> : <><Icons.Play /> Play</>}
                                                 </button>
+                                                {!isTarDone && (
+                                                    <button onClick={() => toggleSubtarefaComposer(tar.id)} style={{background:'none', border:'none', color: isComposerOpen ? '#2563eb' : '#94a3b8', cursor:'pointer', display: 'flex'}} className="hover-blue-text" title={isComposerOpen ? 'Fechar novo passo' : 'Adicionar novo passo'}>
+                                                        {isComposerOpen ? <Icons.Close size={14} /> : <Icons.Plus size={14} />}
+                                                    </button>
+                                                )}
                                                 {hasSubs && <button onClick={() => toggleExpand(tar.id)} style={{background:'none', border:'none', color:'#94a3b8', cursor:'pointer', display: 'flex'}} className="hover-blue-text">{isExpanded ? <Icons.ChevronUp /> : <Icons.ChevronDown />}</button>}
                                                 <button onClick={() => handleDeleteItem("tarefas", tar.id)} style={{background:'none', border:'none', color:'#ef4444', cursor:'pointer', opacity:0.4}} className="hover-red"><Icons.Close size={16} /></button>
                                             </div>
@@ -775,9 +860,17 @@ export default function ProjetoDetalhe() {
                                                         </div>
                                                     )
                                                 })}
-                                                <form onSubmit={(e) => handleAddSubtarefa(e, tar.id)} style={{marginTop: '6px'}}>
-                                                    <input type="text" placeholder="+ Novo passo (Enter)" value={novaSubtarefaNome.tarId === tar.id ? novaSubtarefaNome.nome : ""} onChange={e => setNovaSubtarefaNome({ tarId: tar.id, nome: e.target.value })} style={{width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px dashed #cbd5e1', background: '#f8fafc', outline: 'none', fontSize: '0.8rem', color: '#64748b'}} className="input-focus" />
-                                                </form>
+                                                {!isTarDone && (
+                                                    isComposerOpen ? (
+                                                        <form onSubmit={(e) => handleAddSubtarefa(e, tar.id)} style={{marginTop: '8px'}}>
+                                                            <input autoFocus type="text" placeholder="+ Novo passo (Enter)" value={novaSubtarefaNome.tarId === tar.id ? novaSubtarefaNome.nome : ""} onChange={e => setNovaSubtarefaNome({ tarId: tar.id, nome: e.target.value })} style={{width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px dashed #cbd5e1', background: '#f8fafc', outline: 'none', fontSize: '0.8rem', color: '#64748b'}} className="input-focus" />
+                                                        </form>
+                                                    ) : (
+                                                        <button type="button" onClick={() => toggleSubtarefaComposer(tar.id)} style={{marginTop: '8px', background: 'transparent', border: '1px dashed #cbd5e1', color: '#64748b', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '6px'}} className="hover-shadow">
+                                                            <Icons.Plus size={12} /> Novo passo
+                                                        </button>
+                                                    )
+                                                )}
                                             </div>
                                         )}
                                     </div>
@@ -833,7 +926,7 @@ export default function ProjetoDetalhe() {
                             <React.Fragment key={ativ.id}>
                                 <tr style={{background: '#f1f5f9', borderBottom: '1px solid #e2e8f0'}}>
                                     <td style={{padding: '12px', fontWeight: 'bold', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Folder size={16} /> {ativ.titulo}</td>
-                                    <td style={{padding: '12px', color: '#64748b', fontSize: '0.85rem'}}>{staff.find(s => s.id === ativ.responsavel_id)?.nome || '-'}</td>
+                                    <td style={{padding: '12px', color: '#64748b', fontSize: '0.85rem'}}>{getStaffNames(ativ.responsavel_id, ativ.colaboradores_extra)}</td>
                                     <td style={{padding: '12px', textAlign: 'right', fontWeight: 'bold', color: '#3b82f6'}}>{formatTime(getActivityTime(ativ))}</td>
                                 </tr>
                                 {ativ.tarefas?.map(tar => {
@@ -842,7 +935,7 @@ export default function ProjetoDetalhe() {
                                     return (
                                         <tr key={tar.id} style={{borderBottom: '1px solid #f1f5f9'}}>
                                             <td style={{padding: '10px 12px 10px 40px', color: '#475569', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.CornerDownRight size={14} /> {tar.titulo}</td>
-                                            <td style={{padding: '10px 12px', color: '#64748b', fontSize: '0.85rem'}}>{staff.find(s => s.id === tar.responsavel_id)?.nome || '-'}</td>
+                                            <td style={{padding: '10px 12px', color: '#64748b', fontSize: '0.85rem'}}>{getStaffNames(tar.responsavel_id, tar.colaboradores_extra)}</td>
                                             <td style={{padding: '10px 12px', textAlign: 'right', color: '#475569', fontSize: '0.9rem'}}>{formatTime(time)}</td>
                                         </tr>
                                     )
@@ -1014,7 +1107,7 @@ export default function ProjetoDetalhe() {
       {atividadeModal.show && atividadeModal.data && (
           <ModalPortal>
               <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999}}>
-                  <div style={{background: 'white', padding: '30px', borderRadius: '16px', width: '600px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'}}>
+                  <div className="custom-scrollbar" style={{background: 'white', padding: '24px', borderRadius: '16px', width: 'min(600px, 92vw)', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'}}>
                       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
                           <h3 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.ClipboardList size={20} color="#2563eb" /> Editar Atividade</h3>
                           <button onClick={() => setAtividadeModal({show:false, data:null})} style={{background:'none', border:'none', fontSize:'1.2rem', color:'#94a3b8', cursor:'pointer'}}>✕</button>
@@ -1032,10 +1125,33 @@ export default function ProjetoDetalhe() {
                               </div>
                               <div>
                                   <label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight: 'bold'}}>Responsável</label>
-                                  <select value={atividadeModal.data.responsavel_id || ''} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, responsavel_id: e.target.value}})} style={{...inputStyle, marginBottom: 0}} className="input-focus">
+                                  <select value={atividadeModal.data.responsavel_id || ''} onChange={e => {
+                                      const newResp = e.target.value;
+                                      const extras = Array.isArray(atividadeModal.data.colaboradores_extra) ? atividadeModal.data.colaboradores_extra : [];
+                                      setAtividadeModal({show: true, data: {...atividadeModal.data, responsavel_id: newResp, colaboradores_extra: extras.filter(id => id !== newResp)}})
+                                  }} style={{...inputStyle, marginBottom: 0}} className="input-focus">
                                       <option value="">- Ninguém -</option>
                                       {staff.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
                                   </select>
+                              </div>
+                          </div>
+
+                          <div style={{marginBottom: '15px'}}>
+                              <label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '6px', display:'block', fontWeight:'bold'}}>Outros Colaboradores Envolvidos</label>
+                              <div className="pill-container custom-scrollbar" style={{padding: '8px', maxHeight: '88px', overflowY: 'auto'}}>
+                                  {staff.filter(s => s.id !== atividadeModal.data.responsavel_id).map(s => {
+                                      const isSelected = Array.isArray(atividadeModal.data.colaboradores_extra) && atividadeModal.data.colaboradores_extra.includes(s.id);
+                                      return (
+                                          <div
+                                              key={s.id}
+                                              onClick={() => handleToggleAtividadeColaborador(s.id)}
+                                              className={`pill-checkbox ${isSelected ? 'selected' : ''}`}
+                                              style={{fontSize: '0.72rem', padding: '5px 10px'}}
+                                          >
+                                              {s.nome || s.email}
+                                          </div>
+                                      )
+                                  })}
                               </div>
                           </div>
 
@@ -1070,7 +1186,7 @@ export default function ProjetoDetalhe() {
       {tarefaModal.show && tarefaModal.data && (
           <ModalPortal>
               <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999}}>
-                  <div style={{background: 'white', padding: '30px', borderRadius: '16px', width: '500px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out'}}>
+                  <div className="custom-scrollbar" style={{background: 'white', padding: '24px', borderRadius: '16px', width: 'min(500px, 92vw)', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out'}}>
                       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
                           <h3 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Eye size={20} color="#2563eb" /> Detalhes da Tarefa</h3>
                           <button onClick={() => setTarefaModal({show:false, data:null, atividadeNome:''})} style={{background:'none', border:'none', cursor:'pointer'}} className="hover-red-text"><Icons.Close size={20} /></button>
@@ -1088,10 +1204,33 @@ export default function ProjetoDetalhe() {
                               </div>
                               <div>
                                   <label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight:'bold'}}>Responsável</label>
-                                  <select value={tarefaModal.data.responsavel_id || ''} onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, responsavel_id: e.target.value}})} style={{...inputStyle, marginBottom: 0}} className="input-focus">
+                                  <select value={tarefaModal.data.responsavel_id || ''} onChange={e => {
+                                      const newResp = e.target.value;
+                                      const extras = Array.isArray(tarefaModal.data.colaboradores_extra) ? tarefaModal.data.colaboradores_extra : [];
+                                      setTarefaModal({...tarefaModal, data: {...tarefaModal.data, responsavel_id: newResp, colaboradores_extra: extras.filter(id => id !== newResp)}})
+                                  }} style={{...inputStyle, marginBottom: 0}} className="input-focus">
                                       <option value="">- Ninguém -</option>
                                       {staff.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
                                   </select>
+                              </div>
+                          </div>
+
+                          <div style={{marginBottom: '15px'}}>
+                              <label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '6px', display:'block', fontWeight:'bold'}}>Outros Colaboradores Envolvidos</label>
+                              <div className="pill-container custom-scrollbar" style={{padding: '8px', maxHeight: '88px', overflowY: 'auto'}}>
+                                  {staff.filter(s => s.id !== tarefaModal.data.responsavel_id).map(s => {
+                                      const isSelected = Array.isArray(tarefaModal.data.colaboradores_extra) && tarefaModal.data.colaboradores_extra.includes(s.id);
+                                      return (
+                                          <div
+                                              key={s.id}
+                                              onClick={() => handleToggleTarefaColaborador(s.id)}
+                                              className={`pill-checkbox ${isSelected ? 'selected' : ''}`}
+                                              style={{fontSize: '0.72rem', padding: '5px 10px'}}
+                                          >
+                                              {s.nome || s.email}
+                                          </div>
+                                      )
+                                  })}
                               </div>
                           </div>
 
