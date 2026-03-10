@@ -88,6 +88,34 @@ export default function Clientes() {
   const [novoContacto, setNovoContacto] = useState(initContacto);
   const [novaMorada, setNovaMorada] = useState(initMorada);
   const [novoAcesso, setNovoAcesso] = useState(initAcesso);
+
+  const normalizeParceirosIds = (rawParceiros) => {
+    if (Array.isArray(rawParceiros)) return rawParceiros.map(id => String(id));
+
+    if (typeof rawParceiros === "string") {
+      const raw = rawParceiros.trim();
+      if (!raw) return [];
+
+      // Handles Postgres array literal format: {id1,id2}
+      if (raw.startsWith("{") && raw.endsWith("}")) {
+        return raw
+          .slice(1, -1)
+          .split(",")
+          .map(item => item.replace(/^"|"$/g, "").trim())
+          .filter(Boolean);
+      }
+
+      // Handles JSON string format: ["id1","id2"]
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed.map(id => String(id));
+      } catch (err) {
+        return [];
+      }
+    }
+
+    return [];
+  };
   const [novoCae, setNovoCae] = useState(initCae);
 
   useEffect(() => {
@@ -250,25 +278,84 @@ export default function Clientes() {
   async function verificarPermissaoAcessos(clienteId) {
     if (['admin', 'gestor'].includes(userProfile?.role)) { setPodeVerAcessos(true); return; }
     try {
-        const { data } = await supabase.from('equipa_projeto').select('projetos!inner(cliente_id)').eq('user_id', user.id).eq('projetos.cliente_id', clienteId);
-        setPodeVerAcessos(data && data.length > 0);
+      const { data: equipaData, error: equipaError } = await supabase
+        .from('equipa_projeto')
+        .select('projeto_id')
+        .eq('user_id', user.id);
+
+      if (equipaError || !equipaData || equipaData.length === 0) {
+        setPodeVerAcessos(false);
+        return;
+      }
+
+      const projetoIds = equipaData.map(item => item.projeto_id).filter(Boolean);
+      if (projetoIds.length === 0) {
+        setPodeVerAcessos(false);
+        return;
+      }
+
+      const { data: projetosData, error: projetosError } = await supabase
+        .from('projetos')
+        .select('id, cliente_id, parceiros_ids')
+        .in('id', projetoIds);
+
+      if (projetosError || !projetosData) {
+        setPodeVerAcessos(false);
+        return;
+      }
+
+      const hasAccess = projetosData.some(proj => {
+        const isMainClient = String(proj.cliente_id || '') === String(clienteId);
+        const parceiros = normalizeParceirosIds(proj.parceiros_ids);
+        const isPartner = parceiros.some(parceiroId => String(parceiroId) === String(clienteId));
+        return isMainClient || isPartner;
+      });
+
+      setPodeVerAcessos(hasAccess);
     } catch (err) { setPodeVerAcessos(false); }
   }
 
   async function fetchSubDados(clienteId) {
+    const projectFields = "id, titulo, estado, data_fim, codigo_projeto, cliente_id, parceiros_ids, created_at";
+
     const [cData, mData, aData, caeData, pData] = await Promise.all([
         supabase.from("contactos_cliente").select("*").eq("cliente_id", clienteId),
         supabase.from("moradas_cliente").select("*").eq("cliente_id", clienteId),
         supabase.from("acessos_cliente").select("*").eq("cliente_id", clienteId),
         supabase.from("caes_cliente").select("*").eq("cliente_id", clienteId),
-        supabase.from("projetos").select("id, titulo, estado, data_fim, codigo_projeto").eq("cliente_id", clienteId).order('created_at', { ascending: false })
+        supabase.from("projetos").select(projectFields).order("created_at", { ascending: false })
     ]);
+
+    const clienteIdStr = String(clienteId);
+    const projetosAssociados = (pData.data || [])
+      .filter(proj => {
+        const isMainClient = String(proj.cliente_id || "") === clienteIdStr;
+        const parceiros = normalizeParceirosIds(proj.parceiros_ids);
+        const isPartner = parceiros.includes(clienteIdStr);
+        return isMainClient || isPartner;
+      })
+      .map(proj => {
+        const isMainClient = String(proj.cliente_id || "") === clienteIdStr;
+        const parceiros = normalizeParceirosIds(proj.parceiros_ids);
+        const isPartner = parceiros.includes(clienteIdStr);
+
+        let relacao_cliente = "cliente_unico";
+        if (isMainClient && isPartner) relacao_cliente = "cliente_unico_e_parceiro";
+        else if (isPartner) relacao_cliente = "parceiro";
+
+        return { ...proj, relacao_cliente };
+      })
+      .sort((a, b) => {
+        const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return bTime - aTime;
+      });
     
     setContactos(cData.data || []); 
     setMoradas(mData.data || []); 
     setAcessos(aData.data || []); 
     setCaes(caeData.data || []);
-    setProjetosCliente(pData.data || []);
+    setProjetosCliente(projetosAssociados);
   }
 
   function handleToggleAtivo(id, estadoAtual) {
@@ -604,10 +691,17 @@ export default function Clientes() {
                             <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: '15px'}}>
                                 {projetosCliente.map(p => {
                                     const isDone = p.estado === 'concluido';
+                                    const relacaoInfo = p.relacao_cliente === 'parceiro'
+                                        ? { label: 'Parceiro', bg: '#f3e8ff', color: '#7e22ce' }
+                                        : p.relacao_cliente === 'cliente_unico_e_parceiro'
+                                            ? { label: 'Cliente + Parceiro', bg: '#ede9fe', color: '#5b21b6' }
+                                            : { label: 'Cliente Único', bg: '#dbeafe', color: '#1d4ed8' };
+
                                     return (
                                         <div key={p.id} onClick={() => navigate(`/dashboard/projetos/${p.id}`)} style={{background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', flexDirection:'column', justifyContent: 'space-between', opacity: isDone ? 0.6 : 1, cursor:'pointer', transition:'0.2s'}} className="hover-shadow hover-blue-border">
                                             <div style={{display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px'}}>
                                                 <span style={{fontSize: '0.7rem', background: isDone ? '#f1f5f9' : '#eff6ff', color: isDone ? '#64748b' : '#2563eb', padding: '4px 10px', borderRadius: '12px', fontWeight: 'bold', textTransform: 'uppercase'}}>{p.estado.replace('_', ' ')}</span>
+                                              <span style={{fontSize: '0.68rem', background: relacaoInfo.bg, color: relacaoInfo.color, padding: '4px 10px', borderRadius: '12px', fontWeight: 'bold'}}>{relacaoInfo.label}</span>
                                                 {p.codigo_projeto && <span style={{fontSize: '0.75rem', color: '#94a3b8', fontWeight: 'bold'}}>{p.codigo_projeto}</span>}
                                             </div>
                                             <h4 style={{margin: '0 0 15px 0', fontSize: '1.1rem', color: '#1e293b', textDecoration: isDone ? 'line-through' : 'none', lineHeight:'1.3'}}>{p.titulo}</h4>
