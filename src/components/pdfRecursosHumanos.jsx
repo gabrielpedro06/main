@@ -286,6 +286,7 @@ export const generateRecursosHumanosPDF = async ({
 			let faltasJustificadas = 0;
 			let faltasInjustificadas = 0;
 			let ferias = 0;
+			let kmsTotais = 0;
 
 			userAusencias.forEach((ausencia) => {
 				const start = ausencia.data_inicio;
@@ -296,6 +297,11 @@ export const generateRecursosHumanosPDF = async ({
 				const rangeEnd = end > monthEnd ? monthEnd : end;
 				const dias = ausencia.is_parcial ? 0 : calcBusinessDaysInRange(rangeStart, rangeEnd, feriadosSet);
 				const tipo = normalize(ausencia.tipo);
+
+				if (tipo.includes("pedido de km")) {
+					kmsTotais += Number(ausencia.km_total) || 0;
+					return;
+				}
 
 				if (tipo.includes("ferias") || tipo.includes("férias")) {
 					ferias += dias;
@@ -317,6 +323,7 @@ export const generateRecursosHumanosPDF = async ({
 				String(faltasJustificadas),
 				String(faltasInjustificadas),
 				String(ferias),
+				`${kmsTotais.toFixed(1)} km`,
 				String(workedDays),
 				`${subsidioAlimentacao.toFixed(2)} €`,
 				formatHours(totalSeconds),
@@ -334,6 +341,7 @@ export const generateRecursosHumanosPDF = async ({
 				"Faltas Just.",
 				"Faltas Injust.",
 				"Férias",
+				"Pedidos Km's",
 				"Dias Úteis Trabalhados",
 				"Subsídio Alimentação",
 				"Total Horas",
@@ -365,12 +373,13 @@ export const generateRecursosHumanosPDF = async ({
 			},
 			columnStyles: {
 				0: { cellWidth: "auto" },
-				1: { halign: "center", cellWidth: 22 },
-				2: { halign: "center", cellWidth: 24 },
-				3: { halign: "center", cellWidth: 16 },
-				4: { halign: "center", cellWidth: 30 },
-				5: { halign: "right", cellWidth: 30 },
-				6: { halign: "right", cellWidth: 26 },
+				1: { halign: "center", cellWidth: 18 },
+				2: { halign: "center", cellWidth: 20 },
+				3: { halign: "center", cellWidth: 14 },
+				4: { halign: "center", cellWidth: 18 },
+				5: { halign: "center", cellWidth: 22 },
+				6: { halign: "right", cellWidth: 24 },
+				7: { halign: "right", cellWidth: 20 },
 			},
 			didParseCell: (data) => {
 				const lineWidth = { top: 0.12, right: 0.12, bottom: 0.12, left: 0.12 };
@@ -378,7 +387,7 @@ export const generateRecursosHumanosPDF = async ({
 				if (data.row.section === "head") {
 					lineWidth.top = 0;
 					if (data.column.index === 0) lineWidth.left = 0;
-					if (data.column.index === 6) lineWidth.right = 0;
+					if (data.column.index === 7) lineWidth.right = 0;
 				}
 
 				if (data.row.section === "body" && data.row.index === rows.length - 1) {
@@ -389,7 +398,7 @@ export const generateRecursosHumanosPDF = async ({
 					lineWidth.left = 0;
 				}
 
-				if (data.column.index === 6) {
+				if (data.column.index === 7) {
 					lineWidth.right = 0;
 				}
 

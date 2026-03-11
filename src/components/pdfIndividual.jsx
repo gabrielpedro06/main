@@ -154,16 +154,22 @@ export const generateIndividualRHPDF = async ({
 	let faltasInjustificadas = 0;
 	let feriasDias = 0;
 	let baixasDias = 0;
+	let kmsTotais = 0;
 
 	(ausencias || []).forEach((ausencia) => {
 		const start = ausencia.data_inicio;
 		const end = ausencia.data_fim || ausencia.data_inicio;
 		if (!overlapsMonth(start, end, monthStart, monthEnd)) return;
 
+		const tipo = normalize(ausencia.tipo);
+		if (tipo.includes("pedido de km")) {
+			kmsTotais += Number(ausencia.km_total) || 0;
+			return;
+		}
+
 		const rangeStart = start < monthStart ? monthStart : start;
 		const rangeEnd = end > monthEnd ? monthEnd : end;
 		const dias = ausencia.is_parcial ? 0 : calcBusinessDaysInRange(rangeStart, rangeEnd, feriadosSet);
-		const tipo = normalize(ausencia.tipo);
 
 		if (tipo.includes("ferias") || tipo.includes("férias")) {
 			feriasDias += dias;
@@ -255,6 +261,7 @@ export const generateIndividualRHPDF = async ({
 		"Total de Horas",
 		"Subsídio Alimentação",
 		"Férias (dias)",
+		"Km's",
 		"Faltas Just.",
 		"Faltas Injust.",
 		"Baixas",
@@ -264,6 +271,7 @@ export const generateIndividualRHPDF = async ({
 		formatHours(totalSeconds),
 		`${subsidioTotal.toFixed(2)} €`,
 		String(feriasDias),
+		`${kmsTotais.toFixed(1)} km`,
 		String(faltasJustificadas),
 		String(faltasInjustificadas),
 		String(baixasDias),
@@ -314,6 +322,7 @@ export const generateIndividualRHPDF = async ({
 	const linhasAusencias = (ausencias || [])
 		.slice()
 		.sort((a, b) => (a.data_inicio || "").localeCompare(b.data_inicio || ""))
+		.filter((a) => !normalize(a.tipo).includes("pedido de km"))
 		.map((a) => {
 			const inicio = a.data_inicio || "-";
 			const fim = a.data_fim || a.data_inicio || "-";
@@ -326,6 +335,18 @@ export const generateIndividualRHPDF = async ({
 				a.motivo || "-",
 			];
 		});
+
+	const linhasKms = (ausencias || [])
+		.slice()
+		.sort((a, b) => (a.data_inicio || "").localeCompare(b.data_inicio || ""))
+		.filter((a) => normalize(a.tipo).includes("pedido de km"))
+		.map((a) => [
+			a.data_inicio || "-",
+			a.km_origem || "-",
+			a.km_destino || "-",
+			`${Number(a.km_total) || 0}`,
+			a.motivo || "-",
+		]);
 
 	autoTable(doc, {
 		startY: doc.lastAutoTable.finalY + 8,
@@ -379,6 +400,34 @@ export const generateIndividualRHPDF = async ({
 			1: { cellWidth: 22, halign: "center" },
 			2: { cellWidth: 22, halign: "center" },
 			3: { cellWidth: 16, halign: "center" },
+			4: { cellWidth: "auto" },
+		},
+	});
+
+	autoTable(doc, {
+		startY: doc.lastAutoTable.finalY + 8,
+		head: [["Pedido Km's", "De", "Para", "Km total", "Notas"]],
+		body: linhasKms.length > 0 ? linhasKms : [["Sem pedidos de Km's no período", "-", "-", "-", "-"]],
+		margin: { left: marginX, right: marginX, bottom: 28 },
+		theme: "grid",
+		headStyles: {
+			fillColor: COLORS.brand,
+			textColor: COLORS.white,
+			fontStyle: "bold",
+			fontSize: 8,
+		},
+		styles: {
+			fontSize: 8,
+			textColor: COLORS.ink,
+			lineColor: COLORS.border,
+			lineWidth: 0.12,
+			cellPadding: 2.2,
+		},
+		columnStyles: {
+			0: { cellWidth: 24, halign: "center" },
+			1: { cellWidth: 30 },
+			2: { cellWidth: 30 },
+			3: { cellWidth: 20, halign: "center" },
 			4: { cellWidth: "auto" },
 		},
 	});

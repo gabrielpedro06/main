@@ -4,6 +4,7 @@ import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
 import gerarRelatorioRecursosHumanos from "../components/pdfRecursosHumanos";
 import gerarRelatorioIndividual from "../components/pdfIndividual";
+import CalendarioColaborador from "../components/CalendarioColaborador";
 import "./../styles/dashboard.css"; 
 
 // --- ÍCONES SVG ESTILO SAAS ---
@@ -17,6 +18,7 @@ const Icons = {
   Sun: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>,
   HeartPulse: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path><path d="M12 5 9.04 9.2a1.2 1.2 0 0 0-1.2.9"></path><path d="M13 10h-2"></path><path d="M12 11v2"></path></svg>,
   Clock: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>,
+    Calendar: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>,
   Flag: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>,
   Cake: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8"></path><path d="M4 16s.5-1 2-1 2.5 2 4 2 2.5-2 4-2 2.5 2 4 2 2-1 2-1"></path><path d="M2 21h20"></path><path d="M7 8v3"></path><path d="M12 8v3"></path><path d="M17 8v3"></path><path d="M7 4h.01"></path><path d="M12 4h.01"></path><path d="M17 4h.01"></path></svg>,
   Currency: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path><line x1="12" y1="18" x2="12" y2="6"></line></svg>,
@@ -63,6 +65,8 @@ const isMissingTableError = (error) => {
 };
 
 export default function RecursosHumanos() {
+    const KM_REQUEST_TYPE = "Pedido de Km's";
+
   const { user } = useAuth();
   
   const [colaboradores, setColaboradores] = useState([]);
@@ -70,6 +74,7 @@ export default function RecursosHumanos() {
   
   // Dados
   const [pedidosPendentes, setPedidosPendentes] = useState([]); 
+  const [pedidosKmPendentes, setPedidosKmPendentes] = useState([]); 
   const [assiduidadeMes, setAssiduidadeMes] = useState([]);
   const [ausenciasMes, setAusenciasMes] = useState([]);
   const [historicoUser, setHistoricoUser] = useState([]); 
@@ -93,7 +98,8 @@ export default function RecursosHumanos() {
   
   const [newAbsence, setNewAbsence] = useState({ 
       user_id: "", tipo: "Férias", data_inicio: "", data_fim: "", 
-      is_parcial: false, hora_inicio: "", hora_fim: "", motivo: "" 
+      is_parcial: false, hora_inicio: "", hora_fim: "", motivo: "",
+      km_origem: "", km_destino: "", km_total: ""
   });
   
   const [absenceFile, setAbsenceFile] = useState(null); 
@@ -149,7 +155,8 @@ export default function RecursosHumanos() {
 
   useEffect(() => {
     fetchColaboradores();
-    fetchPedidosPendentes(); 
+    fetchPedidosPendentes();
+    fetchPedidosKmPendentes(); 
   }, []);
 
   useEffect(() => {
@@ -230,8 +237,19 @@ export default function RecursosHumanos() {
         .from("ferias")
         .select("*, profiles(nome, empresa_interna)")
         .in("estado", ["pendente", "pedido_cancelamento"]) 
+        .neq("tipo", KM_REQUEST_TYPE)
         .order("created_at", { ascending: false });
     if(!error && data) setPedidosPendentes(data);
+  }
+
+  async function fetchPedidosKmPendentes() {
+    const { data, error } = await supabase
+        .from("ferias")
+        .select("*, profiles(nome, empresa_interna)")
+        .in("estado", ["pendente", "pedido_cancelamento"]) 
+        .eq("tipo", KM_REQUEST_TYPE)
+        .order("created_at", { ascending: false });
+    if(!error && data) setPedidosKmPendentes(data);
   }
 
   async function fetchHistoricoUser(userId) {
@@ -255,7 +273,7 @@ export default function RecursosHumanos() {
         const { data: dAssiduidade } = await qAssiduidade;
         setAssiduidadeMes(dAssiduidade || []);
 
-        let qFerias = supabase.from("ferias").select("*").gte("data_inicio", startOfMonth).lte("data_inicio", endOfMonth).eq('estado', 'aprovado'); 
+        let qFerias = supabase.from("ferias").select("*").gte("data_inicio", startOfMonth).lte("data_inicio", endOfMonth).neq('estado', 'rejeitado').neq('estado', 'cancelado'); 
         if (selectedUser) qFerias = qFerias.eq("user_id", selectedUser);
         const { data: dFerias } = await qFerias;
         setAusenciasMes(dFerias || []);
@@ -314,7 +332,12 @@ export default function RecursosHumanos() {
           const { error } = await supabase.from("ferias").update({ estado: novoEstadoDB }).eq("id", pedido.id);
           if(error) throw error;
           
-          setPedidosPendentes(pedidosPendentes.filter(p => p.id !== pedido.id));
+          const isKmRequest = pedido.tipo === KM_REQUEST_TYPE;
+          if (isKmRequest) {
+              setPedidosKmPendentes(pedidosKmPendentes.filter(p => p.id !== pedido.id));
+          } else {
+              setPedidosPendentes(pedidosPendentes.filter(p => p.id !== pedido.id));
+          }
           if (selectedUser) fetchHistoricoUser(selectedUser);
           fetchDadosMensais();
           fetchColaboradores();
@@ -423,7 +446,8 @@ export default function RecursosHumanos() {
       setNewAbsence({ 
           user_id: selectedUser || "", 
           tipo: "Férias", data_inicio: "", data_fim: "", 
-          is_parcial: false, hora_inicio: "", hora_fim: "", motivo: "" 
+          is_parcial: false, hora_inicio: "", hora_fim: "", motivo: "",
+          km_origem: "", km_destino: "", km_total: ""
       });
   };
 
@@ -438,18 +462,27 @@ export default function RecursosHumanos() {
           is_parcial: absenceData.is_parcial || false,
           hora_inicio: absenceData.hora_inicio || "",
           hora_fim: absenceData.hora_fim || "",
-          motivo: absenceData.motivo || ""
+          motivo: absenceData.motivo || "",
+          km_origem: absenceData.km_origem || "",
+          km_destino: absenceData.km_destino || "",
+          km_total: absenceData.km_total ?? ""
       });
       setShowAbsenceModal(true);
   };
 
   async function handleSaveAbsence(e) {
       e.preventDefault();
+      const isKmRequest = newAbsence.tipo === KM_REQUEST_TYPE;
       
       if (!newAbsence.user_id) return showNotification("Selecione um colaborador!", "error");
-      if (!newAbsence.data_inicio || (!newAbsence.is_parcial && !newAbsence.data_fim)) return showNotification("Selecione as datas!", "error");
-      if (!newAbsence.is_parcial && diasUteisModal === 0) return showNotification("O período não contém dias úteis.", "error");
-      if (!newAbsence.is_parcial && new Date(newAbsence.data_inicio) > new Date(newAbsence.data_fim)) return showNotification("A data de fim é inválida.", "error");
+      if (!newAbsence.data_inicio || (!isKmRequest && !newAbsence.is_parcial && !newAbsence.data_fim)) return showNotification("Selecione as datas!", "error");
+      if (!isKmRequest && !newAbsence.is_parcial && diasUteisModal === 0) return showNotification("O período não contém dias úteis.", "error");
+      if (!isKmRequest && !newAbsence.is_parcial && new Date(newAbsence.data_inicio) > new Date(newAbsence.data_fim)) return showNotification("A data de fim é inválida.", "error");
+      if (isKmRequest) {
+          const kmTotal = Number(newAbsence.km_total);
+          if (!newAbsence.km_origem.trim() || !newAbsence.km_destino.trim()) return showNotification("Preencha os campos De e Para.", "error");
+          if (!Number.isFinite(kmTotal) || kmTotal <= 0) return showNotification("Introduza um Km total válido.", "error");
+      }
 
       setIsSubmitting(true);
       try {
@@ -489,12 +522,15 @@ export default function RecursosHumanos() {
               user_id: newAbsence.user_id, 
               tipo: newAbsence.tipo,
               data_inicio: newAbsence.data_inicio, 
-              data_fim: newAbsence.is_parcial ? newAbsence.data_inicio : newAbsence.data_fim,
-              is_parcial: newAbsence.is_parcial,
-              hora_inicio: newAbsence.is_parcial ? newAbsence.hora_inicio : null,
-              hora_fim: newAbsence.is_parcial ? newAbsence.hora_fim || null : null,
+              data_fim: isKmRequest ? newAbsence.data_inicio : (newAbsence.is_parcial ? newAbsence.data_inicio : newAbsence.data_fim),
+              is_parcial: isKmRequest ? false : newAbsence.is_parcial,
+              hora_inicio: isKmRequest ? null : (newAbsence.is_parcial ? newAbsence.hora_inicio : null),
+              hora_fim: isKmRequest ? null : (newAbsence.is_parcial ? newAbsence.hora_fim || null : null),
               motivo: newAbsence.motivo || "", 
               anexo_url: anexo_url,
+              km_origem: isKmRequest ? newAbsence.km_origem.trim() : null,
+              km_destino: isKmRequest ? newAbsence.km_destino.trim() : null,
+              km_total: isKmRequest ? Number(newAbsence.km_total) : null,
               estado: 'aprovado' 
           };
 
@@ -537,10 +573,15 @@ export default function RecursosHumanos() {
               .filter((f) => f.m === currentDate.getMonth())
               .map((f) => `${year}-${String(f.m + 1).padStart(2, '0')}-${String(f.d).padStart(2, '0')}`);
 
+          const ausenciasComFaltasAuto = [
+              ...(ausenciasMes || []),
+              ...faltasInjustificadasAutomaticas,
+          ];
+
           await gerarRelatorioIndividual({
               colaborador: user,
               assiduidade: assiduidadeMes,
-              ausencias: ausenciasMes,
+              ausencias: ausenciasComFaltasAuto,
               ano: year,
               mes: month,
               feriados: feriadosDoMes,
@@ -616,6 +657,8 @@ export default function RecursosHumanos() {
           }
       });
 
+      countFaltas += faltasInjustificadasAutomaticas.length;
+
       let valorSA = "0.00";
       if (selectedUser) {
           const profile = colaboradores.find(c => c.id === selectedUser);
@@ -625,12 +668,65 @@ export default function RecursosHumanos() {
       return { countTrabalho, countFerias, countFaltas, countBaixas, valorSA };
   };
 
+  const gerarFaltasInjustificadasAutomaticas = () => {
+      if (!selectedUser) return [];
+
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const hojeStr = new Date().toISOString().split('T')[0];
+      const feriadosSet = new Set(
+          getFeriados(year)
+              .filter(f => f.m === month)
+              .map(f => `${year}-${String(f.m + 1).padStart(2, '0')}-${String(f.d).padStart(2, '0')}`)
+      );
+
+      const datasComAssiduidade = new Set((assiduidadeMes || []).map(a => a.data_registo));
+
+      const temJustificacaoNoDia = (dateStr) => {
+          return (ausenciasMes || []).some((a) => {
+              if (a.tipo === KM_REQUEST_TYPE) return false;
+              const estado = (a.estado || '').toLowerCase();
+              if (estado === 'rejeitado' || estado === 'cancelado') return false;
+              return a.data_inicio <= dateStr && a.data_fim >= dateStr;
+          });
+      };
+
+      const faltas = [];
+      for (let d = 1; d <= daysInMonth; d++) {
+          const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+          const dayOfWeek = new Date(year, month, d).getDay();
+          const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+          const isHoliday = feriadosSet.has(dateStr);
+          const isPastOrToday = dateStr <= hojeStr;
+
+          if (!isPastOrToday || isWeekend || isHoliday) continue;
+          if (datasComAssiduidade.has(dateStr)) continue;
+          if (temJustificacaoNoDia(dateStr)) continue;
+
+          faltas.push({
+              id: `auto-falta-${dateStr}`,
+              user_id: selectedUser,
+              tipo: 'Falta injustificada (automática)',
+              data_inicio: dateStr,
+              data_fim: dateStr,
+              is_parcial: false,
+              estado: 'aprovado',
+              motivo: 'Gerado automaticamente por ausência sem assiduidade e sem justificação.'
+          });
+      }
+
+      return faltas;
+  };
+
+  const faltasInjustificadasAutomaticas = gerarFaltasInjustificadasAutomaticas();
+
   const stats = getStats();
   const currentUserProfile = colaboradores.find(c => c.id === selectedUser);
 
   const getAusentesHoje = () => {
       const today = new Date().toISOString().split('T')[0];
-      const lista = ausenciasMes.filter(a => a.data_inicio <= today && a.data_fim >= today);
+      const lista = ausenciasMes.filter(a => a.tipo !== KM_REQUEST_TYPE && a.data_inicio <= today && a.data_fim >= today);
       return lista.map(a => {
           const user = colaboradores.find(c => c.id === a.user_id);
           const infoHora = a.is_parcial ? `( ${a.hora_inicio?.slice(0,5)})` : '';
@@ -671,7 +767,7 @@ export default function RecursosHumanos() {
 
           if (selectedUser) {
               const trabalhou = assiduidadeMes.some(a => a.data_registo === dateStr);
-              const ausencia = ausenciasMes.find(a => a.data_inicio <= dateStr && a.data_fim >= dateStr);
+              const ausencia = ausenciasMes.find(a => a.tipo !== KM_REQUEST_TYPE && a.data_inicio <= dateStr && a.data_fim >= dateStr);
               
               if (trabalhou) { 
                   cellStyle.background = '#f0fdf4'; cellStyle.borderColor = '#bbf7d0'; 
@@ -695,7 +791,7 @@ export default function RecursosHumanos() {
                   content = <div style={{display:'flex', justifyContent:'center', marginTop:'5px'}}><Icons.Flag color="#991b1b" size={16}/></div>;
               }
           } else {
-              const ausentesNoDia = ausenciasMes.filter(a => a.data_inicio <= dateStr && a.data_fim >= dateStr);
+              const ausentesNoDia = ausenciasMes.filter(a => a.tipo !== KM_REQUEST_TYPE && a.data_inicio <= dateStr && a.data_fim >= dateStr);
               let bars = [];
               if (ausentesNoDia.length > 0) {
                   bars = ausentesNoDia.map((a, i) => {
@@ -752,86 +848,156 @@ export default function RecursosHumanos() {
                 </button>
                 <button className={activeView === 'pedidos' ? 'btn-primary' : 'btn-small'} onClick={() => setActiveView('pedidos')} style={{padding: '10px 20px', position: 'relative', display:'flex', alignItems:'center', gap:'8px'}}>
                     <Icons.Inbox size={18} /> Pedidos
-                    {pedidosPendentes.length > 0 && <span style={{position: 'absolute', top: '-8px', right: '-8px', background: '#ef4444', color: 'white', borderRadius: '50%', padding: '2px 8px', fontSize: '0.7rem', fontWeight: 'bold'}}>{pedidosPendentes.length}</span>}
+                    {(pedidosPendentes.length + pedidosKmPendentes.length) > 0 && <span style={{position: 'absolute', top: '-8px', right: '-8px', background: '#ef4444', color: 'white', borderRadius: '50%', padding: '2px 8px', fontSize: '0.7rem', fontWeight: 'bold'}}>{pedidosPendentes.length + pedidosKmPendentes.length}</span>}
                 </button>
             </div>
         </div>
       </div>
 
       {activeView === 'pedidos' && (
-          <div className="card" style={{padding: '25px', borderRadius: '12px', background: 'white', boxShadow: '0 2px 10px rgba(0,0,0,0.02)'}}>
-              <div style={{display:'flex', alignItems:'center', gap:'10px', marginBottom: '20px'}}>
-                  <Icons.Check size={24} color="#1e293b" />
-                  <h3 style={{margin: 0, color: '#1e293b'}}>Aprovações Pendentes</h3>
-              </div>
-              {pedidosPendentes.length > 0 ? (
-                  <div className="table-responsive">
-                    <table className="data-table" style={{width: '100%', borderCollapse: 'collapse', textAlign: 'left'}}>
-                        <thead>
-                            <tr style={{borderBottom: '2px solid #f1f5f9', color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase'}}>
-                                <th style={{padding: '12px'}}>Colaborador</th>
-                                <th style={{padding: '12px'}}>Tipo</th>
-                                <th style={{padding: '12px'}}>Período</th>
-                                <th style={{padding: '12px'}}>Duração</th>
-                                <th style={{padding: '12px'}}>Estado</th>
-                                <th style={{padding: '12px', textAlign: 'center'}}>Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {pedidosPendentes.map(p => (
-                                <tr key={p.id} style={{background: p.estado === 'pedido_cancelamento' ? '#fefce8' : 'transparent', borderBottom: '1px solid #f1f5f9'}}>
-                                    <td style={{padding: '12px', fontWeight: 'bold', color: '#2563eb'}}>{p.profiles?.nome}</td>
-                                    <td style={{padding: '12px', color: '#334155'}}>{p.tipo}</td>
-                                    <td style={{padding: '12px', color: '#334155'}}>
-                                      {p.is_parcial ? (
-                                          <>
-                                              <div style={{fontWeight: '500'}}>{new Date(p.data_inicio).toLocaleDateString('pt-PT')}</div>
-                                              <div style={{fontSize: '0.8rem', color: '#64748b', display:'flex', alignItems:'center', gap:'4px'}}><Icons.Clock size={12}/> {p.hora_inicio?.slice(0,5)} às {p.hora_fim?.slice(0,5) || '...'}</div>
-                                          </>
-                                      ) : (
-                                          `${new Date(p.data_inicio).toLocaleDateString('pt-PT')} a ${new Date(p.data_fim).toLocaleDateString('pt-PT')}`
-                                      )}
-                                    </td>
-                                    <td style={{padding: '12px'}}>{p.is_parcial ? <span style={{color: '#94a3b8', fontSize:'0.85rem'}}>Horas</span> : <span style={{fontSize:'0.9rem', fontWeight:'500'}}>{calcularDiasUteis(p.data_inicio, p.data_fim)} dias</span>}</td>
-                                    <td style={{padding: '12px'}}>
-                                        {p.estado === 'pendente' ? 
-                                            <span style={{background: '#dbeafe', color: '#2563eb', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold'}}>Novo Pedido</span> : 
-                                            <span style={{background: '#fef08a', color: '#854d0e', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', display:'flex', alignItems:'center', gap:'4px', width:'max-content'}}><Icons.Alert size={12}/> Cancelamento</span>
-                                        }
-                                    </td>
-                                    <td style={{padding: '12px', textAlign: 'center'}}>
-                                        <div style={{display: 'flex', gap: '8px', justifyContent: 'center'}}>
-                                            {/* NOVO: Botão de Ver Detalhes (Olho) */}
-                                            <button className="btn-small" title="Ver Detalhes do Pedido" style={{background: '#f8fafc', borderColor: '#cbd5e1', color: '#475569', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalDetalhes(p)}>
-                                                <Icons.Eye size={16} />
-                                            </button>
-                                            
-                                            {p.estado === 'pendente' ? (
-                                                <>
-                                                    <button className="btn-small" title="Aprovar" style={{background: '#f0fdf4', borderColor: '#bbf7d0', color: '#16a34a', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalConfirmacao(p, 'aprovar')}>
-                                                        <Icons.Check size={16} />
-                                                    </button>
-                                                    <button className="btn-small" title="Rejeitar" style={{background: '#fef2f2', borderColor: '#fecaca', color: '#ef4444', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalConfirmacao(p, 'rejeitar')}>
-                                                        <Icons.X size={16} />
-                                                    </button>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <button className="btn-small" title="Aceitar Cancelamento" style={{background: '#fef2f2', borderColor: '#fecaca', color: '#ef4444', fontWeight:'bold', fontSize:'0.8rem'}} onClick={() => abrirModalConfirmacao(p, 'aceitar_cancelamento')}>Aceitar</button>
-                                                    <button className="btn-small" title="Recusar Cancelamento" style={{background: '#f8fafc', borderColor: '#cbd5e1', color: '#64748b', fontSize:'0.8rem'}} onClick={() => abrirModalConfirmacao(p, 'recusar_cancelamento')}>Recusar</button>
-                                                </>
-                                            )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+          <div style={{display: 'flex', flexDirection: 'column', gap: '30px'}}>
+              {/* TABELA DE AUSÊNCIAS (Férias, Baixas, etc.) */}
+              <div className="card" style={{padding: '25px', borderRadius: '12px', background: 'white', boxShadow: '0 2px 10px rgba(0,0,0,0.02)'}}>
+                  <div style={{display:'flex', alignItems:'center', gap:'10px', marginBottom: '20px'}}>
+                      <Icons.Flag size={24} color="#1e293b" />
+                      <h3 style={{margin: 0, color: '#1e293b'}}>Ausências Pendentes</h3>
                   </div>
-              ) : <div style={{textAlign: 'center', padding: '60px', color: '#94a3b8', background: '#f8fafc', borderRadius: '12px', display:'flex', flexDirection:'column', alignItems:'center', gap:'15px'}}>
-                    <Icons.Check size={48} color="#cbd5e1" />
-                    <span style={{fontSize:'1.1rem', fontWeight:'500'}}>Tudo limpo! Não há pedidos pendentes.</span>
-                </div>}
+                  {pedidosPendentes.length > 0 ? (
+                      <div className="table-responsive">
+                        <table className="data-table" style={{width: '100%', borderCollapse: 'collapse', textAlign: 'left'}}>
+                            <thead>
+                                <tr style={{borderBottom: '2px solid #f1f5f9', color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase'}}>
+                                    <th style={{padding: '12px'}}>Colaborador</th>
+                                    <th style={{padding: '12px'}}>Tipo</th>
+                                    <th style={{padding: '12px'}}>Período</th>
+                                    <th style={{padding: '12px'}}>Duração</th>
+                                    <th style={{padding: '12px'}}>Estado</th>
+                                    <th style={{padding: '12px', textAlign: 'center'}}>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {pedidosPendentes.map(p => (
+                                    <tr key={p.id} style={{background: p.estado === 'pedido_cancelamento' ? '#fefce8' : 'transparent', borderBottom: '1px solid #f1f5f9'}}>
+                                        <td style={{padding: '12px', fontWeight: 'bold', color: '#2563eb'}}>{p.profiles?.nome}</td>
+                                        <td style={{padding: '12px', color: '#334155'}}>{p.tipo}</td>
+                                        <td style={{padding: '12px', color: '#334155'}}>
+                                          {p.is_parcial ? (
+                                              <>
+                                                  <div style={{fontWeight: '500'}}>{new Date(p.data_inicio).toLocaleDateString('pt-PT')}</div>
+                                                  <div style={{fontSize: '0.8rem', color: '#64748b', display:'flex', alignItems:'center', gap:'4px'}}><Icons.Clock size={12}/> {p.hora_inicio?.slice(0,5)} às {p.hora_fim?.slice(0,5) || '...'}</div>
+                                              </>
+                                          ) : (
+                                              `${new Date(p.data_inicio).toLocaleDateString('pt-PT')} a ${new Date(p.data_fim).toLocaleDateString('pt-PT')}`
+                                          )}
+                                        </td>
+                                        <td style={{padding: '12px'}}>{p.is_parcial ? <span style={{color: '#94a3b8', fontSize:'0.85rem'}}>Horas</span> : <span style={{fontSize:'0.9rem', fontWeight:'500'}}>{calcularDiasUteis(p.data_inicio, p.data_fim)} dias</span>}</td>
+                                        <td style={{padding: '12px'}}>
+                                            {p.estado === 'pendente' ? 
+                                                <span style={{background: '#dbeafe', color: '#2563eb', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold'}}>Novo Pedido</span> : 
+                                                <span style={{background: '#fef08a', color: '#854d0e', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', display:'flex', alignItems:'center', gap:'4px', width:'max-content'}}><Icons.Alert size={12}/> Cancelamento</span>
+                                            }
+                                        </td>
+                                        <td style={{padding: '12px', textAlign: 'center'}}>
+                                            <div style={{display: 'flex', gap: '8px', justifyContent: 'center'}}>
+                                                <button className="btn-small" title="Ver Detalhes do Pedido" style={{background: '#f8fafc', borderColor: '#cbd5e1', color: '#475569', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalDetalhes(p)}>
+                                                    <Icons.Eye size={16} />
+                                                </button>
+                                                
+                                                {p.estado === 'pendente' ? (
+                                                    <>
+                                                        <button className="btn-small" title="Aprovar" style={{background: '#f0fdf4', borderColor: '#bbf7d0', color: '#16a34a', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalConfirmacao(p, 'aprovar')}>
+                                                            <Icons.Check size={16} />
+                                                        </button>
+                                                        <button className="btn-small" title="Rejeitar" style={{background: '#fef2f2', borderColor: '#fecaca', color: '#ef4444', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalConfirmacao(p, 'rejeitar')}>
+                                                            <Icons.X size={16} />
+                                                        </button>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <button className="btn-small" title="Aceitar Cancelamento" style={{background: '#fef2f2', borderColor: '#fecaca', color: '#ef4444', fontWeight:'bold', fontSize:'0.8rem'}} onClick={() => abrirModalConfirmacao(p, 'aceitar_cancelamento')}>Aceitar</button>
+                                                        <button className="btn-small" title="Recusar Cancelamento" style={{background: '#f8fafc', borderColor: '#cbd5e1', color: '#64748b', fontSize:'0.8rem'}} onClick={() => abrirModalConfirmacao(p, 'recusar_cancelamento')}>Recusar</button>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                      </div>
+                  ) : <div style={{textAlign: 'center', padding: '40px', color: '#94a3b8', background: '#f8fafc', borderRadius: '12px', display:'flex', flexDirection:'column', alignItems:'center', gap:'10px'}}>
+                        <Icons.Flag size={40} color="#cbd5e1" />
+                        <span style={{fontSize:'0.95rem'}}>Não há ausências pendentes.</span>
+                    </div>}
+              </div>
+
+              {/* TABELA DE PEDIDOS DE KM's */}
+              <div className="card" style={{padding: '25px', borderRadius: '12px', background: 'white', boxShadow: '0 2px 10px rgba(0,0,0,0.02)'}}>
+                  <div style={{display:'flex', alignItems:'center', gap:'10px', marginBottom: '20px'}}>
+                      <Icons.Inbox size={24} color="#1e293b" />
+                      <h3 style={{margin: 0, color: '#1e293b'}}>Deslocações Pendentes</h3>
+                  </div>
+                  {pedidosKmPendentes.length > 0 ? (
+                      <div className="table-responsive">
+                        <table className="data-table" style={{width: '100%', borderCollapse: 'collapse', textAlign: 'left'}}>
+                            <thead>
+                                <tr style={{borderBottom: '2px solid #f1f5f9', color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase'}}>
+                                    <th style={{padding: '12px'}}>Colaborador</th>
+                                    <th style={{padding: '12px'}}>Origem</th>
+                                    <th style={{padding: '12px'}}>Destino</th>
+                                    <th style={{padding: '12px'}}>Distância</th>
+                                    <th style={{padding: '12px'}}>Data</th>
+                                    <th style={{padding: '12px'}}>Estado</th>
+                                    <th style={{padding: '12px', textAlign: 'center'}}>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {pedidosKmPendentes.map(p => (
+                                    <tr key={p.id} style={{background: p.estado === 'pedido_cancelamento' ? '#fefce8' : 'transparent', borderBottom: '1px solid #f1f5f9'}}>
+                                        <td style={{padding: '12px', fontWeight: 'bold', color: '#2563eb'}}>{p.profiles?.nome}</td>
+                                        <td style={{padding: '12px', color: '#334155', fontWeight: '500'}}>{p.km_origem || '-'}</td>
+                                        <td style={{padding: '12px', color: '#334155', fontWeight: '500'}}>{p.km_destino || '-'}</td>
+                                        <td style={{padding: '12px'}}><span style={{fontSize:'0.95rem', fontWeight:'600', color: '#16a34a'}}>{p.km_total ?? 0} km</span></td>
+                                        <td style={{padding: '12px', color: '#334155'}}>{new Date(p.data_inicio).toLocaleDateString('pt-PT')}</td>
+                                        <td style={{padding: '12px'}}>
+                                            {p.estado === 'pendente' ? 
+                                                <span style={{background: '#dbeafe', color: '#2563eb', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold'}}>Novo Pedido</span> : 
+                                                <span style={{background: '#fef08a', color: '#854d0e', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', display:'flex', alignItems:'center', gap:'4px', width:'max-content'}}><Icons.Alert size={12}/> Cancelamento</span>
+                                            }
+                                        </td>
+                                        <td style={{padding: '12px', textAlign: 'center'}}>
+                                            <div style={{display: 'flex', gap: '8px', justifyContent: 'center'}}>
+                                                <button className="btn-small" title="Ver Detalhes do Pedido" style={{background: '#f8fafc', borderColor: '#cbd5e1', color: '#475569', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalDetalhes(p)}>
+                                                    <Icons.Eye size={16} />
+                                                </button>
+                                                
+                                                {p.estado === 'pendente' ? (
+                                                    <>
+                                                        <button className="btn-small" title="Aprovar" style={{background: '#f0fdf4', borderColor: '#bbf7d0', color: '#16a34a', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalConfirmacao(p, 'aprovar')}>
+                                                            <Icons.Check size={16} />
+                                                        </button>
+                                                        <button className="btn-small" title="Rejeitar" style={{background: '#fef2f2', borderColor: '#fecaca', color: '#ef4444', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalConfirmacao(p, 'rejeitar')}>
+                                                            <Icons.X size={16} />
+                                                        </button>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <button className="btn-small" title="Aceitar Cancelamento" style={{background: '#fef2f2', borderColor: '#fecaca', color: '#ef4444', fontWeight:'bold', fontSize:'0.8rem'}} onClick={() => abrirModalConfirmacao(p, 'aceitar_cancelamento')}>Aceitar</button>
+                                                        <button className="btn-small" title="Recusar Cancelamento" style={{background: '#f8fafc', borderColor: '#cbd5e1', color: '#64748b', fontSize:'0.8rem'}} onClick={() => abrirModalConfirmacao(p, 'recusar_cancelamento')}>Recusar</button>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                      </div>
+                  ) : <div style={{textAlign: 'center', padding: '40px', color: '#94a3b8', background: '#f8fafc', borderRadius: '12px', display:'flex', flexDirection:'column', alignItems:'center', gap:'10px'}}>
+                        <Icons.Inbox size={40} color="#cbd5e1" />
+                        <span style={{fontSize:'0.95rem'}}>Não há deslocações pendentes.</span>
+                    </div>}
+              </div>
           </div>
       )}
 
@@ -869,7 +1035,7 @@ export default function RecursosHumanos() {
                     <button onClick={() => { 
                       setIsEditingAbsence(false);
                       setEditingAbsenceData(null);
-                      setNewAbsence({ user_id: selectedUser || "", tipo: "Férias", data_inicio: "", data_fim: "", is_parcial: false, hora_inicio: "", hora_fim: "", motivo: "" }); 
+                                            setNewAbsence({ user_id: selectedUser || "", tipo: "Férias", data_inicio: "", data_fim: "", is_parcial: false, hora_inicio: "", hora_fim: "", motivo: "", km_origem: "", km_destino: "", km_total: "" }); 
                       setAbsenceFile(null); 
                       setShowAbsenceModal(true); 
                     }} className="btn-primary" style={{padding: '10px 20px', display:'flex', alignItems:'center', gap:'8px'}}>
@@ -1119,21 +1285,25 @@ export default function RecursosHumanos() {
                 </div>
 
                 <div style={{display:'flex', flexDirection:'column', gap:'20px'}}>
-                    <div className="card" style={{padding:'25px', background:'white', borderRadius:'12px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
-                        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'25px'}}>
-                            <button onClick={() => changeMonth(-1)} className="btn-small" style={{display:'flex', alignItems:'center', justifyContent:'center', padding:'8px', borderRadius:'50%'}}>
-                                <Icons.ChevronLeft size={18} color="#475569"/>
-                            </button>
-                            <h2 style={{margin:0, fontSize:'1.2rem', color:'#1e293b', textTransform:'capitalize'}}>{currentDate.toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' })}</h2>
-                            <button onClick={() => changeMonth(1)} className="btn-small" style={{display:'flex', alignItems:'center', justifyContent:'center', padding:'8px', borderRadius:'50%'}}>
-                                <Icons.ChevronRight size={18} color="#475569"/>
-                            </button>
+                    {selectedUser ? (
+                        <CalendarioColaborador userId={selectedUser} userName={currentUserProfile?.nome || 'Colaborador'} />
+                    ) : (
+                        <div className="card" style={{padding:'25px', background:'white', borderRadius:'12px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
+                            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'25px'}}>
+                                <button onClick={() => changeMonth(-1)} className="btn-small" style={{display:'flex', alignItems:'center', justifyContent:'center', padding:'8px', borderRadius:'50%'}}>
+                                    <Icons.ChevronLeft size={18} color="#475569"/>
+                                </button>
+                                <h2 style={{margin:0, fontSize:'1.2rem', color:'#1e293b', textTransform:'capitalize'}}>{currentDate.toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' })}</h2>
+                                <button onClick={() => changeMonth(1)} className="btn-small" style={{display:'flex', alignItems:'center', justifyContent:'center', padding:'8px', borderRadius:'50%'}}>
+                                    <Icons.ChevronRight size={18} color="#475569"/>
+                                </button>
+                            </div>
+                            <div style={{display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px'}}>
+                                {['D','S','T','Q','Q','S','S'].map((d, i) => <div key={`wd-${i}`} style={{textAlign:'center', fontWeight:'800', color:'#94a3b8', fontSize:'0.8rem', paddingBottom:'10px'}}>{d}</div>)}
+                                {renderCalendar()}
+                            </div>
                         </div>
-                        <div style={{display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px'}}>
-                            {['D','S','T','Q','Q','S','S'].map(d => <div key={d} style={{textAlign:'center', fontWeight:'800', color:'#94a3b8', fontSize:'0.8rem', paddingBottom:'10px'}}>{d}</div>)}
-                            {renderCalendar()}
-                        </div>
-                    </div>
+                    )}
 
                     {selectedUser && historicoUser.length > 0 && (
                         <div className="card" style={{padding:'25px', background:'white', borderRadius:'12px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
@@ -1156,7 +1326,12 @@ export default function RecursosHumanos() {
                                             <tr key={h.id} style={{borderBottom:'1px solid #f8fafc'}}>
                                                 <td style={{padding:'10px', color:'#334155', fontWeight:'500'}}>{h.tipo}</td>
                                                 <td style={{padding:'10px', color:'#475569'}}>
-                                                  {h.is_parcial ? (
+                                                  {h.tipo === KM_REQUEST_TYPE ? (
+                                                      <>
+                                                          <div>{new Date(h.data_inicio).toLocaleDateString('pt-PT')}</div>
+                                                          <div style={{fontSize: '0.8rem', color: '#94a3b8'}}>De {h.km_origem || '-'} para {h.km_destino || '-'} ({h.km_total ?? '-'} km)</div>
+                                                      </>
+                                                  ) : h.is_parcial ? (
                                                       <>
                                                           <div>{new Date(h.data_inicio).toLocaleDateString('pt-PT')}</div>
                                                           <div style={{fontSize: '0.8rem', color: '#94a3b8', display:'flex', alignItems:'center', gap:'4px'}}><Icons.Clock size={12}/> {h.hora_inicio?.slice(0,5)} às {h.hora_fim?.slice(0,5) || '...'}</div>
@@ -1220,7 +1395,7 @@ export default function RecursosHumanos() {
                           
                           <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'15px'}}>
                               <div>
-                                  <div style={{fontSize:'0.8rem', color:'#64748b', fontWeight:'600'}}>Tipo de Ausência</div>
+                                  <div style={{fontSize:'0.8rem', color:'#64748b', fontWeight:'600'}}>{detailsModal.pedido.tipo === KM_REQUEST_TYPE ? 'Tipo de Pedido' : 'Tipo de Ausência'}</div>
                                   <div style={{fontWeight:'500', color:'#334155', marginTop:'2px'}}>{detailsModal.pedido.tipo}</div>
                               </div>
                               <div>
@@ -1251,10 +1426,17 @@ export default function RecursosHumanos() {
                               <div style={{borderLeft:'1px solid #93c5fd', paddingLeft:'15px', display:'flex', flexDirection:'column', justifyContent:'center'}}>
                                   <div style={{fontSize:'0.8rem', color:'#1e40af', fontWeight:'600'}}>Duração</div>
                                   <div style={{fontWeight:'bold', color:'#1e3a8a', fontSize:'1.1rem'}}>
-                                      {detailsModal.pedido.is_parcial ? 'Horas' : `${calcularDiasUteis(detailsModal.pedido.data_inicio, detailsModal.pedido.data_fim)} dias úteis`}
+                                      {detailsModal.pedido.tipo === KM_REQUEST_TYPE ? `${detailsModal.pedido.km_total ?? 0} km` : (detailsModal.pedido.is_parcial ? 'Horas' : `${calcularDiasUteis(detailsModal.pedido.data_inicio, detailsModal.pedido.data_fim)} dias úteis`)}
                                   </div>
                               </div>
                           </div>
+
+                          {detailsModal.pedido.tipo === KM_REQUEST_TYPE && (
+                              <div style={{background:'#f8fafc', padding:'12px', borderRadius:'8px', border:'1px solid #e2e8f0'}}>
+                                  <div style={{fontSize:'0.8rem', color:'#64748b', fontWeight:'600', marginBottom:'4px'}}>Detalhe da Deslocação</div>
+                                  <div style={{fontSize:'0.9rem', color:'#334155'}}>De <b>{detailsModal.pedido.km_origem || '-'}</b> para <b>{detailsModal.pedido.km_destino || '-'}</b></div>
+                              </div>
+                          )}
 
                           {detailsModal.pedido.motivo && (
                               <div>
@@ -1288,7 +1470,7 @@ export default function RecursosHumanos() {
                                           <Icons.X size={18}/> Rejeitar
                                       </button>
                                       <button onClick={() => abrirModalConfirmacao(detailsModal.pedido, 'aprovar')} style={{padding: '12px', borderRadius: '8px', border: 'none', background: '#16a34a', color: 'white', fontWeight:'bold', flex: 2, display:'flex', justifyContent:'center', alignItems:'center', gap:'8px', cursor:'pointer'}}>
-                                          <Icons.Check size={18}/> Aprovar Ausência
+                                          <Icons.Check size={18}/> {detailsModal.pedido.tipo === KM_REQUEST_TYPE ? 'Aprovar Deslocação' : 'Aprovar Ausência'}
                                       </button>
                                   </>
                               ) : (
@@ -1327,6 +1509,7 @@ export default function RecursosHumanos() {
                         <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Motivo da Ausência</label>
                         <select value={newAbsence.tipo} onChange={e => setNewAbsence({...newAbsence, tipo: e.target.value})} style={inputStyle} required>
                             <option value="Férias">Férias</option>
+                            <option value={KM_REQUEST_TYPE}>{KM_REQUEST_TYPE}</option>
                             <option value="Assistência à família">Assistência à família</option>
                             <option value="Outros - Assuntos pessoais">Outros - Assuntos pessoais</option>
                             <option value="Ausência sem motivo - injustificada">Ausência sem motivo - injustificada</option>
@@ -1340,6 +1523,7 @@ export default function RecursosHumanos() {
                             <option value="Candidato a cargo público">Candidato a cargo público</option>
                         </select>
                         
+                        {newAbsence.tipo !== KM_REQUEST_TYPE && (
                         <label style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginBottom: '15px', color: '#1e293b', fontWeight: '600', fontSize: '0.9rem', background: newAbsence.is_parcial ? '#eff6ff' : '#f8fafc', padding: '12px', borderRadius: '8px', border: newAbsence.is_parcial ? '1px solid #bfdbfe' : '1px solid #e2e8f0', transition:'0.2s'}}>
                             <input 
                                 type="checkbox" 
@@ -1350,8 +1534,28 @@ export default function RecursosHumanos() {
                             <Icons.Clock size={18} color={newAbsence.is_parcial ? '#2563eb' : '#64748b'}/> 
                             Ausência Parcial (Apenas algumas horas)
                         </label>
+                        )}
 
-                        {!newAbsence.is_parcial ? (
+                        {newAbsence.tipo === KM_REQUEST_TYPE ? (
+                            <>
+                                <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Data da Deslocação</label>
+                                <input type="date" required value={newAbsence.data_inicio} onChange={e=>setNewAbsence({...newAbsence, data_inicio: e.target.value, data_fim: e.target.value})} style={inputStyle}/>
+
+                                <div style={{display:'flex', gap:'15px'}}>
+                                      <div style={{flex:1}}>
+                                          <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>De</label>
+                                          <input type="text" required value={newAbsence.km_origem} onChange={e=>setNewAbsence({...newAbsence, km_origem: e.target.value})} style={inputStyle} placeholder="Ex: Portimão"/>
+                                      </div>
+                                      <div style={{flex:1}}>
+                                          <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Para</label>
+                                          <input type="text" required value={newAbsence.km_destino} onChange={e=>setNewAbsence({...newAbsence, km_destino: e.target.value})} style={inputStyle} placeholder="Ex: Faro"/>
+                                      </div>
+                                </div>
+
+                                <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Km total</label>
+                                <input type="number" min="0" step="0.1" required value={newAbsence.km_total} onChange={e=>setNewAbsence({...newAbsence, km_total: e.target.value})} style={inputStyle} placeholder="Ex: 72"/>
+                            </>
+                        ) : !newAbsence.is_parcial ? (
                             <div style={{display:'flex', gap:'15px'}}>
                                   <div style={{flex:1}}>
                                       <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Data Início</label>
@@ -1379,7 +1583,7 @@ export default function RecursosHumanos() {
                             </div>
                         )}
 
-                        {!newAbsence.is_parcial && newAbsence.data_inicio && newAbsence.data_fim && (
+                        {newAbsence.tipo !== KM_REQUEST_TYPE && !newAbsence.is_parcial && newAbsence.data_inicio && newAbsence.data_fim && (
                             <div style={{background: diasUteisModal > 0 ? '#eff6ff' : '#fee2e2', color: diasUteisModal > 0 ? '#1e40af' : '#991b1b', padding: '12px 15px', borderRadius: '8px', marginBottom: '15px', fontSize: '0.85rem', display: 'flex', gap: '10px', border: diasUteisModal > 0 ? '1px solid #bfdbfe' : '1px solid #fecaca'}}>
                                 <span style={{marginTop:'2px'}}>{diasUteisModal > 0 ? <Icons.Info size={16}/> : <Icons.Alert size={16}/>}</span>
                                 <span>
@@ -1391,10 +1595,17 @@ export default function RecursosHumanos() {
                                 </span>
                             </div>
                         )}
-                        {newAbsence.is_parcial && newAbsence.data_inicio && (
+                        {newAbsence.tipo !== KM_REQUEST_TYPE && newAbsence.is_parcial && newAbsence.data_inicio && (
                             <div style={{background: '#eff6ff', color: '#1e40af', padding: '12px 15px', borderRadius: '8px', marginBottom: '15px', fontSize: '0.85rem', display: 'flex', gap: '10px', border:'1px solid #bfdbfe'}}>
                                 <span style={{marginTop:'2px'}}><Icons.Info size={16}/></span>
                                 <span>Ausência parcial de horas. <b>Não será deduzido nenhum dia de férias ao colaborador.</b></span>
+                            </div>
+                        )}
+
+                        {newAbsence.tipo === KM_REQUEST_TYPE && (
+                            <div style={{background: '#eff6ff', color: '#1e40af', padding: '12px 15px', borderRadius: '8px', marginBottom: '15px', fontSize: '0.85rem', display: 'flex', gap: '10px', border:'1px solid #bfdbfe'}}>
+                                <span style={{marginTop:'2px'}}><Icons.Info size={16}/></span>
+                                <span>Este pedido de Km's entra no fluxo de aprovação e no relatório mensal.</span>
                             </div>
                         )}
 
@@ -1407,7 +1618,7 @@ export default function RecursosHumanos() {
                         
                         <div style={{display:'flex', gap:'10px', marginTop:'15px', paddingTop:'15px', borderTop:'1px solid #e2e8f0'}}>
                             <button type="button" onClick={closeAbsenceModal} style={{flex:1, padding:'12px', background:'white', border:'1px solid #cbd5e1', borderRadius:'8px', cursor:'pointer', color: '#475569', fontWeight:'bold'}}>Cancelar</button>
-                            <button type="submit" style={{flex:2, padding:'12px', background:'#2563eb', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'bold', opacity: isSubmitting || (!newAbsence.is_parcial && diasUteisModal === 0) ? 0.7 : 1}} disabled={isSubmitting || (!newAbsence.is_parcial && diasUteisModal === 0)}>
+                            <button type="submit" style={{flex:2, padding:'12px', background:'#2563eb', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'bold', opacity: isSubmitting || (newAbsence.tipo !== KM_REQUEST_TYPE && !newAbsence.is_parcial && diasUteisModal === 0) ? 0.7 : 1}} disabled={isSubmitting || (newAbsence.tipo !== KM_REQUEST_TYPE && !newAbsence.is_parcial && diasUteisModal === 0)}>
                                 {isSubmitting ? "A Gravar..." : (isEditingAbsence ? "Atualizar Registo" : "Gravar e Aprovar Automaticamente")}
                             </button>
                         </div>

@@ -24,6 +24,7 @@ import Atividades from "./pages/Atividades";
 import Forum from "./pages/Forum";
 import RecursosHumanos from "./pages/RecursosHumanos"; 
 import Ferias from "./pages/Ausencias"; 
+import PedidoKm from "./pages/PedidoKm";
 import GestaoLeads from "./pages/GestaoLeads"; 
 import Perfil from "./pages/Perfil";
 import GestaoTemplates from "./components/GestaoTemplates"; 
@@ -57,6 +58,7 @@ export default function App() {
             <Route path="forum" element={<Forum />} />
             <Route path="rh" element={<RecursosHumanos />} />
             <Route path="ferias" element={<Ferias />} />
+            <Route path="pedido-km" element={<PedidoKm />} />
             <Route path="perfil" element={<Perfil />} />
             <Route path="leads" element={<GestaoLeads />} />
             

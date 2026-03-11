@@ -35,7 +35,10 @@ const ModalPortal = ({ children }) => {
   return createPortal(children, document.body);
 };
 
-export default function Ferias() {
+export default function Ferias({ forcedType = null }) {
+    const KM_REQUEST_TYPE = "Pedido de Km's";
+    const isKmOnlyMode = forcedType === KM_REQUEST_TYPE;
+
   const { user } = useAuth(); 
   const [pedidos, setPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -56,13 +59,16 @@ export default function Ferias() {
   const [isUploadingDoc, setIsUploadingDoc] = useState(false);
 
   const [form, setForm] = useState({ 
-      tipo: "Férias", 
+      tipo: forcedType || "Férias", 
       data_inicio: "", 
       data_fim: "", 
       is_parcial: false, 
       hora_inicio: "", 
       hora_fim: "", 
-      motivo: "" 
+      motivo: "",
+      km_origem: "",
+      km_destino: "",
+      km_total: ""
   });
   const [file, setFile] = useState(null); 
   const [diasUteis, setDiasUteis] = useState(0); 
@@ -137,7 +143,13 @@ export default function Ferias() {
 
   async function fetchPedidos() {
     setLoading(true);
-    const { data, error } = await supabase.from("ferias").select("*").eq("user_id", user.id).order("created_at", { ascending: false });
+        let query = supabase.from("ferias").select("*").eq("user_id", user.id);
+        if (forcedType) {
+            query = query.eq("tipo", forcedType);
+        } else {
+            query = query.neq("tipo", KM_REQUEST_TYPE);
+        }
+        const { data, error } = await query.order("created_at", { ascending: false });
     if (!error) setPedidos(data || []);
     setLoading(false);
   }
@@ -152,7 +164,10 @@ export default function Ferias() {
           is_parcial: pedido.is_parcial || false,
           hora_inicio: pedido.hora_inicio || "",
           hora_fim: pedido.hora_fim || "",
-          motivo: pedido.motivo || ""
+          motivo: pedido.motivo || "",
+          km_origem: pedido.km_origem || "",
+          km_destino: pedido.km_destino || "",
+          km_total: pedido.km_total ?? ""
       });
       setShowModal(true);
   };
@@ -162,16 +177,35 @@ export default function Ferias() {
       setIsEditing(false);
       setEditingId(null);
       setFile(null);
-      setForm({ tipo: "Férias", data_inicio: "", data_fim: "", is_parcial: false, hora_inicio: "", hora_fim: "", motivo: "" });
+      setForm({ tipo: forcedType || "Férias", data_inicio: "", data_fim: "", is_parcial: false, hora_inicio: "", hora_fim: "", motivo: "", km_origem: "", km_destino: "", km_total: "" });
   };
 
   async function handleSubmit(e) {
     e.preventDefault();
+    const isKmRequest = form.tipo === KM_REQUEST_TYPE;
+
+    if (isKmRequest) {
+        const kmTotal = Number(form.km_total);
+        if (!form.data_inicio) {
+            setNotification({ show: true, message: "Selecione a data da deslocação.", type: "error" });
+            return;
+        }
+        if (!form.km_origem.trim() || !form.km_destino.trim()) {
+            setNotification({ show: true, message: "Preencha os campos De e Para.", type: "error" });
+            return;
+        }
+        if (!Number.isFinite(kmTotal) || kmTotal <= 0) {
+            setNotification({ show: true, message: "Introduza um Km total válido.", type: "error" });
+            return;
+        }
+    }
+
     if (!form.is_parcial && diasUteis === 0) {
+        if (isKmRequest) return;
         setNotification({ show: true, message: "O período selecionado contém apenas fins de semana ou feriados.", type: "error" });
         return;
     }
-    if (!form.is_parcial && new Date(form.data_inicio) > new Date(form.data_fim)) {
+    if (!isKmRequest && !form.is_parcial && new Date(form.data_inicio) > new Date(form.data_fim)) {
         setNotification({ show: true, message: "A data de fim não pode ser anterior à data de início.", type: "error" });
         return;
     }
@@ -195,11 +229,14 @@ export default function Ferias() {
           user_id: user.id, 
           tipo: form.tipo,
           data_inicio: form.data_inicio,
-          data_fim: form.is_parcial ? form.data_inicio : form.data_fim, 
-          is_parcial: form.is_parcial,
-          hora_inicio: form.is_parcial ? form.hora_inicio : null,
-          hora_fim: form.is_parcial ? form.hora_fim || null : null,
-          motivo: form.motivo
+          data_fim: isKmRequest ? form.data_inicio : (form.is_parcial ? form.data_inicio : form.data_fim), 
+          is_parcial: isKmRequest ? false : form.is_parcial,
+          hora_inicio: isKmRequest ? null : (form.is_parcial ? form.hora_inicio : null),
+          hora_fim: isKmRequest ? null : (form.is_parcial ? form.hora_fim || null : null),
+          motivo: form.motivo,
+          km_origem: isKmRequest ? form.km_origem.trim() : null,
+          km_destino: isKmRequest ? form.km_destino.trim() : null,
+          km_total: isKmRequest ? Number(form.km_total) : null
       };
 
       if (anexo_url) payload.anexo_url = anexo_url;
@@ -284,6 +321,7 @@ export default function Ferias() {
   const getTipoEstilo = (tipo) => {
     let icon, color;
     switch (tipo) {
+            case KM_REQUEST_TYPE: icon = <Icons.Briefcase color="#0ea5e9" />; color = "#0369a1"; break;
       case 'Férias': icon = <Icons.Sun color="#d97706" />; color = "#b45309"; break;
       case 'Assistência à família': icon = <Icons.Users color="#2563eb" />; color = "#1d4ed8"; break;
       case 'Outros - Assuntos pessoais': icon = <Icons.User color="#475569" />; color = "#334155"; break;
@@ -321,16 +359,17 @@ export default function Ferias() {
         <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
             <div style={{background: '#eff6ff', color: '#2563eb', padding: '12px', borderRadius: '12px', display: 'flex'}}><Icons.Sun size={24} /></div>
             <div>
-                <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>Férias & Ausências</h1>
-                <p style={{color: '#64748b', margin: 0, fontWeight: '500', fontSize: '0.9rem'}}>Gestão pessoal de tempo e calendário</p>
+                <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>{isKmOnlyMode ? "Pedido de Km's" : "Férias & Ausências"}</h1>
+                <p style={{color: '#64748b', margin: 0, fontWeight: '500', fontSize: '0.9rem'}}>{isKmOnlyMode ? 'Registo de deslocações extra para aprovação dos RH' : 'Gestão pessoal de tempo e calendário'}</p>
             </div>
         </div>
         <button className="btn-primary hover-shadow" onClick={() => { setIsEditing(false); setEditingId(null); setShowModal(true); }} style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', padding: '12px 24px'}}>
-            <Icons.Plus /> Novo Pedido
+            <Icons.Plus /> {isKmOnlyMode ? "Novo Pedido de Km's" : 'Novo Pedido'}
         </button>
       </div>
 
       <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '25px'}}>
+        {!isKmOnlyMode && (
         <div className="card" style={{padding: '25px', display: 'flex', alignItems: 'center', gap: '20px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)'}}>
             <div style={{background: '#eff6ff', color: '#2563eb', padding: '15px', borderRadius: '50%'}}><Icons.Sun size={24} /></div>
             <div>
@@ -338,6 +377,7 @@ export default function Ferias() {
                 <p style={{margin: 0, color: '#1e293b', fontSize: '1.8rem', fontWeight: '900'}}>{diasFerias ?? '--'}</p>
             </div>
         </div>
+        )}
         <div className="card" style={{padding: '25px', display: 'flex', alignItems: 'center', gap: '20px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)'}}>
             <div style={{background: '#fefce8', color: '#d97706', padding: '15px', borderRadius: '50%'}}><Icons.Clock size={24} color="#d97706" /></div>
             <div>
@@ -376,6 +416,10 @@ export default function Ferias() {
                                 <Icons.Clock size={12} /> {p.hora_inicio.slice(0,5)} {p.hora_fim ? `às ${p.hora_fim.slice(0,5)}` : '(Saída)'}
                             </div>
                         </>
+                    ) : p.tipo === KM_REQUEST_TYPE ? (
+                        <div style={{fontWeight: '600', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px'}}>
+                            <Icons.Calendar size={14} /> {formatDate(p.data_inicio)}
+                        </div>
                     ) : (
                         <div style={{fontWeight: '600', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px'}}>
                             <Icons.Calendar size={14} /> {formatDate(p.data_inicio)} <span style={{color: '#cbd5e1', fontWeight: 'normal'}}>até</span> {formatDate(p.data_fim)}
@@ -384,7 +428,9 @@ export default function Ferias() {
                   </td>
 
                   <td style={{padding: '15px', maxWidth: '150px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#64748b', fontSize: '0.9rem'}} title={p.motivo}>
-                      {p.motivo || '-'}
+                                            {p.tipo === KM_REQUEST_TYPE
+                                                ? `De: ${p.km_origem || '-'} | Para: ${p.km_destino || '-'} | Km: ${p.km_total ?? '-'}${p.motivo ? ` | ${p.motivo}` : ''}`
+                                                : (p.motivo || '-')}
                   </td>
                   
                   <td style={{padding: '15px', textAlign: 'center'}}>
@@ -426,7 +472,7 @@ export default function Ferias() {
               )) : (
                 <tr><td colSpan="6" style={{textAlign: 'center', padding: '50px', color: '#94a3b8'}}>
                     <Icons.Calendar size={40} color="#cbd5e1" />
-                    <p style={{marginTop: '10px', fontWeight: '500'}}>Ainda não fizeste nenhum pedido.</p>
+                    <p style={{marginTop: '10px', fontWeight: '500'}}>{isKmOnlyMode ? "Ainda não fizeste nenhum pedido de Km's." : 'Ainda não fizeste nenhum pedido.'}</p>
                 </td></tr>
               )}
             </tbody>
@@ -443,39 +489,70 @@ export default function Ferias() {
                     <div style={{padding:'20px 25px', background:'#f8fafc', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
                         <h3 style={{margin:0, color:'#1e293b', fontSize:'1.25rem', fontWeight:'800', display: 'flex', alignItems: 'center', gap: '10px'}}>
                             <span style={{color: '#2563eb'}}><Icons.Calendar size={22} /></span>
-                            {isEditing ? 'Editar Pedido de Ausência' : 'Novo Pedido de Ausência'}
+                            {isEditing ? (isKmOnlyMode ? "Editar Pedido de Km's" : 'Editar Pedido de Ausência') : (isKmOnlyMode ? "Novo Pedido de Km's" : 'Novo Pedido de Ausência')}
                         </h3>
                         <button onClick={handleCloseModal} style={{background:'transparent', border:'none', cursor:'pointer', color:'#94a3b8'}} className="hover-red-text"><Icons.Close size={20} /></button>
                     </div>
 
                     <div style={{padding: '25px', overflowY: 'auto', maxHeight: '75vh'}}>
                         <form onSubmit={handleSubmit}>
+                            {(() => {
+                                const isKmRequest = form.tipo === KM_REQUEST_TYPE;
+                                return (
+                                    <>
                             
                             <div style={{marginBottom: '20px'}}>
-                                <label style={labelStyle}>Motivo da Ausência *</label>
-                                <select value={form.tipo} onChange={e => setForm({...form, tipo: e.target.value})} style={{...inputStyle, cursor: 'pointer'}} className="input-focus" required>
-                                    <option value="Férias">Férias</option>
-                                    <option value="Assistência à família">Assistência à família</option>
-                                    <option value="Outros - Assuntos pessoais">Outros - Assuntos pessoais</option>
-                                    <option value="Ausência sem motivo - injustificada">Ausência sem motivo - injustificada</option>
-                                    <option value="Doença, acidente e obrigação legal">Doença, acidente e obrigação legal</option>
-                                    <option value="Casamento">Casamento</option>
-                                    <option value="Deslocação a estabelecimento de ensino">Deslocação a estabelecimento de ensino</option>
-                                    <option value="Licença maternal/paternal">Licença maternal/paternal</option>
-                                    <option value="Licença sem vencimento">Licença sem vencimento</option>
-                                    <option value="Falecimento de familiar">Falecimento de familiar</option>
-                                    <option value="Prestação de provas de avaliação">Prestação de provas de avaliação</option>
-                                    <option value="Candidato a cargo público">Candidato a cargo público</option>
-                                </select>
+                                <label style={labelStyle}>{isKmOnlyMode ? 'Tipo de Pedido' : 'Motivo da Ausência *'}</label>
+                                {isKmOnlyMode ? (
+                                    <input type="text" value={KM_REQUEST_TYPE} readOnly style={{...inputStyle, background: '#f8fafc', color: '#334155', fontWeight: '700'}} />
+                                ) : (
+                                    <select value={form.tipo} onChange={e => setForm({...form, tipo: e.target.value})} style={{...inputStyle, cursor: 'pointer'}} className="input-focus" required>
+                                        <option value="Férias">Férias</option>
+                                        <option value="Assistência à família">Assistência à família</option>
+                                        <option value="Outros - Assuntos pessoais">Outros - Assuntos pessoais</option>
+                                        <option value="Ausência sem motivo - injustificada">Ausência sem motivo - injustificada</option>
+                                        <option value="Doença, acidente e obrigação legal">Doença, acidente e obrigação legal</option>
+                                        <option value="Casamento">Casamento</option>
+                                        <option value="Deslocação a estabelecimento de ensino">Deslocação a estabelecimento de ensino</option>
+                                        <option value="Licença maternal/paternal">Licença maternal/paternal</option>
+                                        <option value="Licença sem vencimento">Licença sem vencimento</option>
+                                        <option value="Falecimento de familiar">Falecimento de familiar</option>
+                                        <option value="Prestação de provas de avaliação">Prestação de provas de avaliação</option>
+                                        <option value="Candidato a cargo público">Candidato a cargo público</option>
+                                    </select>
+                                )}
                             </div>
                             
+                            {!isKmRequest && (
                             <label style={{display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', marginBottom: '20px', color: '#1e40af', fontWeight: 'bold', fontSize: '0.9rem', background: '#eff6ff', padding: '15px', borderRadius: '10px', border: '1px solid #bfdbfe', transition: '0.2s'}}>
                                 <input type="checkbox" checked={form.is_parcial} onChange={e => setForm({...form, is_parcial: e.target.checked, data_fim: e.target.checked ? form.data_inicio : form.data_fim})} style={{width: '18px', height: '18px', accentColor: '#2563eb'}} />
                                 <Icons.Clock size={18} /> Ausência Parcial (Apenas algumas horas no próprio dia)
                             </label>
+                            )}
 
                             <div style={{background: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px'}}>
-                                {!form.is_parcial ? (
+                                {isKmRequest ? (
+                                    <div>
+                                        <div style={{marginBottom: '15px'}}>
+                                            <label style={labelStyle}>Data da Deslocação *</label>
+                                            <input type="date" value={form.data_inicio} onChange={e => setForm({...form, data_inicio: e.target.value, data_fim: e.target.value})} style={inputStyle} className="input-focus" required />
+                                        </div>
+                                        <div style={{display: 'flex', gap: '15px', marginBottom: '15px'}}>
+                                            <div style={{flex: 1}}>
+                                                <label style={labelStyle}>De *</label>
+                                                <input type="text" value={form.km_origem} onChange={e => setForm({...form, km_origem: e.target.value})} placeholder="Ex: Portimão" style={inputStyle} className="input-focus" required />
+                                            </div>
+                                            <div style={{flex: 1}}>
+                                                <label style={labelStyle}>Para *</label>
+                                                <input type="text" value={form.km_destino} onChange={e => setForm({...form, km_destino: e.target.value})} placeholder="Ex: Faro" style={inputStyle} className="input-focus" required />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label style={labelStyle}>Km total *</label>
+                                            <input type="number" min="0" step="0.1" value={form.km_total} onChange={e => setForm({...form, km_total: e.target.value})} placeholder="Ex: 72" style={inputStyle} className="input-focus" required />
+                                        </div>
+                                    </div>
+                                ) : !form.is_parcial ? (
                                     <div style={{display: 'flex', gap: '20px'}}>
                                         <div style={{flex: 1}}>
                                             <label style={labelStyle}>Data Início *</label>
@@ -504,16 +581,22 @@ export default function Ferias() {
                                 )}
                             </div>
 
-                            {form.data_inicio && form.data_fim && !form.is_parcial && (
+                            {!isKmRequest && form.data_inicio && form.data_fim && !form.is_parcial && (
                                 <div style={{background: diasUteis > 0 ? '#eff6ff' : '#fef2f2', color: diasUteis > 0 ? '#1e40af' : '#b91c1c', border: `1px solid ${diasUteis > 0 ? '#bfdbfe' : '#fecaca'}`, padding: '12px 15px', borderRadius: '8px', marginBottom: '20px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '10px', fontWeight: '500'}}>
                                     {diasUteis > 0 ? <Icons.Info size={18} /> : <Icons.AlertTriangle size={18} />}
                                     <span>{diasUteis > 0 ? (form.tipo === 'Férias' ? `Este pedido consumirá ${diasUteis} dia(s) útil(eis) do seu saldo de férias.` : `Este pedido corresponde a ${diasUteis} dia(s) útil(eis). Tratando-se de justificação legal, não desconta férias.`) : `Atenção: O período selecionado calha num fim de semana ou feriado. Não é necessário marcar.`}</span>
                                 </div>
                             )}
                             
-                            {form.data_inicio && form.is_parcial && (
+                            {!isKmRequest && form.data_inicio && form.is_parcial && (
                                 <div style={{background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af', padding: '12px 15px', borderRadius: '8px', marginBottom: '20px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '10px', fontWeight: '500'}}>
                                     <Icons.Info size={18} /> <span>Ausência parcial de algumas horas. <b>Este registo não consome saldo de férias.</b></span>
+                                </div>
+                            )}
+
+                            {isKmRequest && (
+                                <div style={{background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af', padding: '12px 15px', borderRadius: '8px', marginBottom: '20px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '10px', fontWeight: '500'}}>
+                                    <Icons.Info size={18} /> <span>Este pedido de Km's será enviado para aprovação dos Recursos Humanos e ficará refletido nos relatórios mensal individual e geral.</span>
                                 </div>
                             )}
 
@@ -530,10 +613,13 @@ export default function Ferias() {
                             
                             <div style={{display: 'flex', gap: '15px', borderTop: '1px solid #e2e8f0', paddingTop: '20px'}}>
                                 <button type="button" onClick={handleCloseModal} style={{flex: 1, padding: '14px', borderRadius: '10px', border: '1px solid #cbd5e1', background: 'white', color: '#64748b', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">Cancelar</button>
-                                <button type="submit" disabled={isSubmitting || (!form.is_parcial && diasUteis === 0)} className="btn-primary hover-shadow" style={{flex: 2, padding: '14px', borderRadius: '10px', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: (!form.is_parcial && diasUteis === 0) ? 0.5 : 1}}>
+                                <button type="submit" disabled={isSubmitting || (!isKmRequest && !form.is_parcial && diasUteis === 0)} className="btn-primary hover-shadow" style={{flex: 2, padding: '14px', borderRadius: '10px', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: (!isKmRequest && !form.is_parcial && diasUteis === 0) ? 0.5 : 1}}>
                                     {isSubmitting ? "A Guardar..." : (isEditing ? <><Icons.Edit size={18}/> Guardar Alterações</> : <><Icons.Plus size={18}/> Submeter Pedido</>)}
                                 </button>
                             </div>
+                                    </>
+                                );
+                            })()}
                         </form>
                     </div>
                 </div>
