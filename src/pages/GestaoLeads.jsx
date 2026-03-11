@@ -22,7 +22,7 @@ const Icons = {
   Copy: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>,
   Close: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>,
   Alert: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>,
-  Doc: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg> // <-- 💡 O ÍCONE QUE FALTAVA
+  Doc: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
 };
 
 const ModalPortal = ({ children }) => createPortal(children, document.body);
@@ -56,7 +56,6 @@ export default function GestaoLeads() {
 
   const initialForm = { nome: "", nif: "", localidade: "", contacto: "", email: "", titular: "", cae: "", setor: "", estado: "novo", ativo: true };
 
-  // Emojis removidos dos labels
   const statusOptions = [
     { value: "novo", label: "Novo", color: "#3b82f6", bg: "#eff6ff", border: "#bfdbfe" },
     { value: "contactado", label: "Contactado", color: "#eab308", bg: "#fefce8", border: "#fef08a" },
@@ -208,7 +207,7 @@ export default function GestaoLeads() {
       showToast(`${emails.length} emails copiados!`);
   }
 
-  // 💡 LÓGICA DE IMPORTAÇÃO CORRIGIDA: À prova de falhas com NIFs vazios!
+  // 💡 LÓGICA DE IMPORTAÇÃO CORRIGIDA (LIMITES DE URL E DELIMITADOR DE PONTO E VÍRGULA)
   async function handleFileUpload(e) {
     e.preventDefault();
     if (!file) return showToast("Escolhe um ficheiro CSV primeiro.", "warning");
@@ -220,7 +219,9 @@ export default function GestaoLeads() {
       try {
           const lines = target.result.split("\n");
           const rawData = [];
-          const regexSplit = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
+          
+          // 💡 AGORA SEPARA POR PONTO E VÍRGULA (;) NO LUGAR DA VÍRGULA (,)
+          const regexSplit = /;(?=(?:(?:[^"]*"){2})*[^"]*$)/;
 
           for (let i = 1; i < lines.length; i++) {
             const line = lines[i].trim();
@@ -245,24 +246,28 @@ export default function GestaoLeads() {
           }
 
           if (rawData.length > 0) {
-            // Filtrar apenas NIFs que existam realmente (remover nulos e vazios)
             const nifsToCheck = rawData.map(item => item.nif).filter(nif => nif && nif.trim() !== "");
-            
             let existingNifs = new Set();
 
-            // Só fazemos a query ao Supabase se houver efetivamente NIFs para verificar!
+            // 💡 VERIFICAÇÃO EM LOTES (CHUNKS DE 100) PARA NÃO REBENTAR O URL LIMIT DO BROWSER
             if (nifsToCheck.length > 0) {
-                const { data: existingRecords, error: checkError } = await supabase
-                    .from(tableName)
-                    .select('nif')
-                    .in('nif', nifsToCheck);
+                const chunkSize = 100;
+                for (let i = 0; i < nifsToCheck.length; i += chunkSize) {
+                    const chunk = nifsToCheck.slice(i, i + chunkSize);
                     
-                if (checkError) throw checkError;
-                existingNifs = new Set(existingRecords?.map(r => r.nif) || []);
+                    const { data: existingRecords, error: checkError } = await supabase
+                        .from(tableName)
+                        .select('nif')
+                        .in('nif', chunk);
+                        
+                    if (checkError) throw checkError;
+                    
+                    if (existingRecords) {
+                        existingRecords.forEach(r => existingNifs.add(r.nif));
+                    }
+                }
             }
 
-            // Filtrar rawData para inserir APENAS os que não existem.
-            // Se o item não tem NIF (é null ou ""), ele PASSA e é inserido (não é duplicado por NIF).
             const newRecords = rawData.filter(item => {
                 if (!item.nif || item.nif.trim() === "") return true; 
                 return !existingNifs.has(item.nif);
@@ -271,14 +276,17 @@ export default function GestaoLeads() {
             const duplicateCount = rawData.length - newRecords.length;
 
             if (newRecords.length > 0) {
-                const { error } = await supabase.from(tableName).insert(newRecords);
-                if (error) {
-                    showToast("Erro ao gravar: " + error.message, "error");
-                } else {
-                    showToast(`${newRecords.length} importados. ${duplicateCount > 0 ? `(${duplicateCount} ignorados repetidos)` : ''}`);
-                    setShowImportModal(false); 
-                    fetchData();
+                // 💡 INSERÇÃO EM LOTES (CHUNKS DE 200) PARA EVITAR LIMITES DE PAYLOAD
+                const insertChunkSize = 200;
+                for (let i = 0; i < newRecords.length; i += insertChunkSize) {
+                    const insertChunk = newRecords.slice(i, i + insertChunkSize);
+                    const { error } = await supabase.from(tableName).insert(insertChunk);
+                    if (error) throw error;
                 }
+                
+                showToast(`${newRecords.length} importados. ${duplicateCount > 0 ? `(${duplicateCount} ignorados repetidos)` : ''}`);
+                setShowImportModal(false); 
+                fetchData();
             } else {
                 showToast("Todos os registos do CSV já existem no sistema.", "warning");
             }
@@ -286,7 +294,7 @@ export default function GestaoLeads() {
             showToast("O ficheiro CSV parece estar vazio.", "warning");
           }
       } catch (err) {
-          showToast("Erro inesperado a ler o ficheiro: " + err.message, "error");
+          showToast("Erro inesperado a processar ficheiro: " + err.message, "error");
       } finally {
           setImporting(false); 
           setFile(null);
@@ -758,7 +766,7 @@ export default function GestaoLeads() {
       {notification && <div className={`toast-container ${notification.type}`}>{notification.type === 'success' ? '✅' : '⚠️'} {notification.message}</div>}
 
       <style>{`
-        .table-row-hover:hover { background-color: #f8faf     c !important; }
+        .table-row-hover:hover { background-color: #f8fafc !important; }
         .hover-shadow:hover { transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
         .hover-orange-text:hover { color: #f97316 !important; opacity: 1 !important; }
         .hover-blue-text:hover { color: #3b82f6 !important; opacity: 1 !important; }
