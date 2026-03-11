@@ -142,22 +142,20 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
               </a>
             </li>
 
-            {['admin', 'gestor'].includes(userProfile?.role) && (
-              <>
-                <li className={isActive('/dashboard/modelos')}>
-                  <Link to="/dashboard/modelos" title="Modelos de Projetos">
-                    <span className="icon"><Icons.Clipboard /></span> 
-                    <span className="link-text">Modelos</span>
-                  </Link>
-                </li>
+            <li className={isActive('/dashboard/modelos')}>
+              <Link to="/dashboard/modelos" title="Modelos de Projetos">
+                <span className="icon"><Icons.Clipboard /></span> 
+                <span className="link-text">Modelos</span>
+              </Link>
+            </li>
 
-                <li className={isActive('/dashboard/rh')}>
-                  <Link to="/dashboard/rh" title="Recursos Humanos">
-                    <span className="icon"><Icons.Briefcase /></span> 
-                    <span className="link-text">Recursos Humanos</span>
-                  </Link>
-                </li>
-              </>
+            {['admin', 'gestor'].includes(userProfile?.role) && (
+              <li className={isActive('/dashboard/rh')}>
+                <Link to="/dashboard/rh" title="Recursos Humanos">
+                  <span className="icon"><Icons.Briefcase /></span> 
+                  <span className="link-text">Recursos Humanos</span>
+                </Link>
+              </li>
             )}
 
             {['admin', 'marketing'].includes(userProfile?.role) && (

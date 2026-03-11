@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
+import gerarRelatorioRecursosHumanos from "../components/pdfRecursosHumanos";
+import gerarRelatorioIndividual from "../components/pdfIndividual";
 import "./../styles/dashboard.css"; 
 
 // --- ÍCONES SVG ESTILO SAAS ---
@@ -34,6 +36,32 @@ const ModalPortal = ({ children }) => {
   return createPortal(children, document.body);
 };
 
+const EMPRESAS_INTERNAS = ["Neomarca", "Geoflicks", "2 Siglas", "Fator Triplo"];
+
+const toUniqueCompanies = (values = []) => [...new Set((values || []).filter(Boolean))];
+
+const getProfileCompanies = (profile) => {
+    if (Array.isArray(profile?.empresas_internas) && profile.empresas_internas.length > 0) {
+            return toUniqueCompanies(profile.empresas_internas);
+    }
+
+    if (profile?.empresa_interna) {
+            return [profile.empresa_interna];
+    }
+
+    return [];
+};
+
+const formatCompaniesLabel = (profile) => {
+    const companies = getProfileCompanies(profile);
+    return companies.length > 0 ? companies.join(" • ") : "Sem Empresa";
+};
+
+const isMissingTableError = (error) => {
+    if (!error) return false;
+    return error.code === "42P01" || /does not exist|relation .* does not exist/i.test(error.message || "");
+};
+
 export default function RecursosHumanos() {
   const { user } = useAuth();
   
@@ -50,6 +78,8 @@ export default function RecursosHumanos() {
   const [activeView, setActiveView] = useState("gestao"); 
   const [globalSA, setGlobalSA] = useState(10.20); 
   const [currentDate, setCurrentDate] = useState(new Date());
+    const [isGeneratingRhPdf, setIsGeneratingRhPdf] = useState(false);
+    const [isGeneratingIndividualPdf, setIsGeneratingIndividualPdf] = useState(false);
   
   // UI Abas do Colaborador
   const [userTab, setUserTab] = useState("financeiro"); 
@@ -110,6 +140,13 @@ export default function RecursosHumanos() {
       ];
   };
 
+  const toLocalDateString = (date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+  };
+
   useEffect(() => {
     fetchColaboradores();
     fetchPedidosPendentes(); 
@@ -120,7 +157,10 @@ export default function RecursosHumanos() {
       fetchDadosMensais();
       if(selectedUser) {
           const u = colaboradores.find(c => c.id === selectedUser);
-          setTempUserProfile(u || {});
+          setTempUserProfile(u ? {
+              ...u,
+              empresas_internas: getProfileCompanies(u)
+          } : {});
           fetchHistoricoUser(selectedUser);
       } else {
           setHistoricoUser([]);
@@ -148,8 +188,41 @@ export default function RecursosHumanos() {
   };
 
   async function fetchColaboradores() {
-    const { data } = await supabase.from("profiles").select("*").order("nome");
-    setColaboradores(data || []);
+    try {
+        const { data: profilesData, error: profilesError } = await supabase.from("profiles").select("*").order("nome");
+        if (profilesError) throw profilesError;
+
+        const { data: relData, error: relError } = await supabase
+            .from("profile_empresas")
+            .select("user_id, empresa");
+
+        const hasRelationTable = !relError;
+        const relationByUser = new Map();
+
+        if (hasRelationTable) {
+            (relData || []).forEach((row) => {
+                if (!relationByUser.has(row.user_id)) relationByUser.set(row.user_id, []);
+                relationByUser.get(row.user_id).push(row.empresa);
+            });
+        }
+
+        const mappedProfiles = (profilesData || []).map((profile) => {
+            const relationCompanies = hasRelationTable ? toUniqueCompanies(relationByUser.get(profile.id) || []) : [];
+            const fallbackCompanies = getProfileCompanies(profile);
+            const empresasInternas = relationCompanies.length > 0 ? relationCompanies : fallbackCompanies;
+
+            return {
+                ...profile,
+                empresas_internas: empresasInternas,
+                empresa_interna: empresasInternas[0] || profile.empresa_interna || ""
+            };
+        });
+
+        setColaboradores(mappedProfiles);
+    } catch (error) {
+        console.error(error);
+        showNotification("Erro ao carregar colaboradores.", "error");
+    }
   }
 
   async function fetchPedidosPendentes() {
@@ -175,7 +248,7 @@ export default function RecursosHumanos() {
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth() + 1;
         const startOfMonth = `${year}-${String(month).padStart(2, '0')}-01`;
-        const endOfMonth = new Date(year, month, 0).toISOString().split('T')[0];
+                const endOfMonth = toLocalDateString(new Date(year, month, 0));
 
         let qAssiduidade = supabase.from("assiduidade").select("*").gte("data_registo", startOfMonth).lte("data_registo", endOfMonth);
         if (selectedUser) qAssiduidade = qAssiduidade.eq("user_id", selectedUser);
@@ -263,12 +336,30 @@ export default function RecursosHumanos() {
       setTempUserProfile({ ...tempUserProfile, ncc: formattedValue });
   };
 
+  const handleToggleEmpresaInterna = (empresa) => {
+      setTempUserProfile((prev) => {
+          const selected = toUniqueCompanies(prev.empresas_internas || []);
+          const nextCompanies = selected.includes(empresa)
+              ? selected.filter((item) => item !== empresa)
+              : [...selected, empresa];
+
+          return {
+              ...prev,
+              empresas_internas: nextCompanies,
+              empresa_interna: nextCompanies[0] || ""
+          };
+      });
+  };
+
   async function handleUpdateUserProfile() {
       if(!selectedUser) return;
       try {
+          const empresasSelecionadas = toUniqueCompanies(tempUserProfile.empresas_internas || []);
+          const empresaPrincipal = empresasSelecionadas[0] || null;
+
           const { error } = await supabase.from("profiles").update({
               valor_sa: tempUserProfile.valor_sa, dias_ferias: tempUserProfile.dias_ferias,
-              empresa_interna: tempUserProfile.empresa_interna, funcao: tempUserProfile.funcao,
+              empresa_interna: empresaPrincipal, funcao: tempUserProfile.funcao,
               nome_completo: tempUserProfile.nome_completo, nif: tempUserProfile.nif,
               niss: tempUserProfile.niss, ncc: tempUserProfile.ncc, 
               validade_cc: tempUserProfile.validade_cc || null, 
@@ -281,9 +372,27 @@ export default function RecursosHumanos() {
 
           if(error) throw error;
 
+          const { error: deleteRelError } = await supabase
+              .from("profile_empresas")
+              .delete()
+              .eq("user_id", selectedUser);
+
+          const relationTableMissing = isMissingTableError(deleteRelError);
+          if (deleteRelError && !relationTableMissing) throw deleteRelError;
+
+          if (!relationTableMissing && empresasSelecionadas.length > 0) {
+              const payload = empresasSelecionadas.map((empresa) => ({ user_id: selectedUser, empresa }));
+              const { error: insertRelError } = await supabase.from("profile_empresas").insert(payload);
+              if (insertRelError) throw insertRelError;
+          }
+
           setIsEditingUser(false);
           fetchColaboradores();
-          showNotification("Dados atualizados com sucesso!", "success"); 
+          if (relationTableMissing && empresasSelecionadas.length > 1) {
+              showNotification("Dados guardados. Para multiempresa completo, falta aplicar a migration profile_empresas.", "error");
+          } else {
+              showNotification("Dados atualizados com sucesso!", "success");
+          }
       } catch (err) { showNotification("Erro ao atualizar: " + err.message, "error"); }
   }
 
@@ -413,20 +522,83 @@ export default function RecursosHumanos() {
       }
   }
 
-  const downloadCSV = () => {
-      if(!selectedUser) return alert("Selecione um colaborador.");
-      const user = colaboradores.find(c => c.id === selectedUser);
-      const rows = [["Data", "Entrada", "Saida", "Observacoes", "Tipo"]];
-      assiduidadeMes.forEach(a => rows.push([a.data_registo, a.hora_entrada, a.hora_saida || "--:--", `"${a.observacoes || ''}"`, "Trabalho"]));
-      ausenciasMes.forEach(a => rows.push([a.data_inicio + " a " + a.data_fim, "--:--", "--:--", a.motivo || "", a.tipo.toUpperCase()]));
-      let csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
-      const encodedUri = encodeURI(csvContent);
-      const link = document.createElement("a");
-      link.setAttribute("href", encodedUri);
-      link.setAttribute("download", `Relatorio_${user.nome}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+  const downloadIndividualPDF = async () => {
+      if (!selectedUser || isGeneratingIndividualPdf) return;
+
+      try {
+          setIsGeneratingIndividualPdf(true);
+
+          const user = colaboradores.find((c) => c.id === selectedUser);
+          if (!user) throw new Error("Colaborador não encontrado.");
+
+          const year = currentDate.getFullYear();
+          const month = currentDate.getMonth() + 1;
+          const feriadosDoMes = getFeriados(year)
+              .filter((f) => f.m === currentDate.getMonth())
+              .map((f) => `${year}-${String(f.m + 1).padStart(2, '0')}-${String(f.d).padStart(2, '0')}`);
+
+          await gerarRelatorioIndividual({
+              colaborador: user,
+              assiduidade: assiduidadeMes,
+              ausencias: ausenciasMes,
+              ano: year,
+              mes: month,
+              feriados: feriadosDoMes,
+          });
+      } catch (err) {
+          showNotification("Erro ao gerar relatório individual: " + err.message, "error");
+      } finally {
+          setIsGeneratingIndividualPdf(false);
+      }
+  };
+
+  const downloadRHGeneralPDF = async () => {
+      if (isGeneratingRhPdf) return;
+
+      try {
+          setIsGeneratingRhPdf(true);
+
+          const year = currentDate.getFullYear();
+          const month = currentDate.getMonth() + 1;
+          const startOfMonth = `${year}-${String(month).padStart(2, '0')}-01`;
+          const endOfMonth = toLocalDateString(new Date(year, month, 0));
+
+          const [{ data: assiduidadeData, error: assiduidadeError }, { data: ausenciasData, error: ausenciasError }] = await Promise.all([
+              supabase
+                  .from("assiduidade")
+                  .select("*")
+                  .gte("data_registo", startOfMonth)
+                  .lte("data_registo", endOfMonth),
+              supabase
+                  .from("ferias")
+                  .select("*")
+                  .eq("estado", "aprovado")
+                  .or(`data_inicio.lte.${endOfMonth},data_fim.gte.${startOfMonth}`),
+          ]);
+
+          if (assiduidadeError) throw assiduidadeError;
+          if (ausenciasError) throw ausenciasError;
+
+          const feriadosDoMes = getFeriados(year)
+              .filter((f) => f.m === currentDate.getMonth())
+              .map((f) => `${year}-${String(f.m + 1).padStart(2, '0')}-${String(f.d).padStart(2, '0')}`);
+
+          const diasUteisMes = calcularDiasUteis(startOfMonth, endOfMonth);
+
+          await gerarRelatorioRecursosHumanos({
+              colaboradores,
+              assiduidade: assiduidadeData || [],
+              ausencias: ausenciasData || [],
+              ano: year,
+              mes: month,
+              diasUteisMes,
+              feriados: feriadosDoMes,
+          });
+      } catch (err) {
+          showNotification("Erro ao gerar PDF de RH: " + err.message, "error");
+      } finally {
+          setIsGeneratingRhPdf(false);
+      }
   };
 
   const getStats = () => {
@@ -676,6 +848,24 @@ export default function RecursosHumanos() {
                         <option value="">Visão Geral Global</option>
                         {colaboradores.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
                     </select>
+                                        <button
+                                            onClick={downloadRHGeneralPDF}
+                                            disabled={isGeneratingRhPdf || colaboradores.length === 0}
+                                            className="btn-small"
+                                            style={{
+                                                padding: '10px 14px',
+                                                display:'flex',
+                                                alignItems:'center',
+                                                gap:'8px',
+                                                background:'#eff6ff',
+                                                color:'#1d4ed8',
+                                                borderColor:'#bfdbfe',
+                                                opacity: isGeneratingRhPdf ? 0.7 : 1,
+                                                cursor: isGeneratingRhPdf ? 'wait' : 'pointer'
+                                            }}
+                                        >
+                                                <Icons.Download size={16} /> {isGeneratingRhPdf ? 'A gerar PDF...' : 'Exportar PDF RH'}
+                                        </button>
                     <button onClick={() => { 
                       setIsEditingAbsence(false);
                       setEditingAbsenceData(null);
@@ -702,13 +892,18 @@ export default function RecursosHumanos() {
                                             <h3 style={{margin:0, color:'#1e293b', fontSize:'1.2rem'}}>{currentUserProfile?.nome}</h3>
                                             <div style={{marginTop:'5px'}}>
                                                 <span style={{fontSize:'0.75rem', background:'#f1f5f9', color:'#475569', padding:'3px 10px', borderRadius:'12px', fontWeight:'600'}}>
-                                                    {currentUserProfile?.empresa_interna || 'Sem Empresa'}
+                                                    {formatCompaniesLabel(currentUserProfile)}
                                                 </span>
                                             </div>
                                         </div>
                                     </div>
-                                    <button onClick={downloadCSV} className="btn-small" style={{display:'flex', alignItems:'center', gap:'6px', background:'#f0fdf4', color:'#16a34a', borderColor:'#bbf7d0'}}>
-                                        <Icons.Download size={14} /> Relatório
+                                    <button
+                                        onClick={downloadIndividualPDF}
+                                        disabled={isGeneratingIndividualPdf}
+                                        className="btn-small"
+                                        style={{display:'flex', alignItems:'center', gap:'6px', background:'#f0fdf4', color:'#16a34a', borderColor:'#bbf7d0', opacity: isGeneratingIndividualPdf ? 0.7 : 1, cursor: isGeneratingIndividualPdf ? 'wait' : 'pointer'}}
+                                    >
+                                        <Icons.Download size={14} /> {isGeneratingIndividualPdf ? 'A gerar PDF...' : 'Relatório PDF'}
                                     </button>
                                 </div>
 
@@ -775,7 +970,7 @@ export default function RecursosHumanos() {
                                             </div>
                                             <div style={{...readOnlyItemStyle, marginTop:'10px'}}><span style={labelStyle}>Morada</span><b>{currentUserProfile?.morada || '-'}</b></div>
                                             <div style={{display:'flex', justifyContent:'space-between', marginTop:'15px', paddingBottom:'8px', borderBottom:'1px dashed #e2e8f0', fontSize:'0.9rem'}}><span style={labelStyle}>Concelho:</span> <b style={{color:'#1e293b'}}>{currentUserProfile?.concelho || '-'}</b></div>
-                                            <div style={{display:'flex', justifyContent:'space-between', marginTop:'8px', paddingBottom:'8px', borderBottom:'1px dashed #e2e8f0', fontSize:'0.9rem'}}><span style={labelStyle}>Empresa:</span> <b style={{color:'#1e293b'}}>{currentUserProfile?.empresa_interna || '-'}</b></div>
+                                            <div style={{display:'flex', justifyContent:'space-between', marginTop:'8px', paddingBottom:'8px', borderBottom:'1px dashed #e2e8f0', fontSize:'0.9rem'}}><span style={labelStyle}>Empresas:</span> <b style={{color:'#1e293b'}}>{formatCompaniesLabel(currentUserProfile)}</b></div>
                                             <div style={{display:'flex', justifyContent:'space-between', marginTop:'8px', fontSize:'0.9rem'}}><span style={labelStyle}>Contrato:</span> <b style={{color:'#1e293b'}}>{currentUserProfile?.tipo_contrato || '-'}</b></div>
                                             <button onClick={() => setIsEditingUser(true)} style={{width:'100%', marginTop:'20px', padding:'10px', borderRadius:'8px', border:'1px solid #cbd5e1', background:'white', cursor:'pointer', color:'#475569', fontWeight:'600', display:'flex', justifyContent:'center', alignItems:'center', gap:'8px', transition:'0.2s'}}>
                                                 <Icons.Edit size={16} /> Editar Informações
@@ -809,14 +1004,39 @@ export default function RecursosHumanos() {
                                                 <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Concelho</label><input type="text" value={tempUserProfile.concelho || ''} onChange={e => setTempUserProfile({...tempUserProfile, concelho: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
                                             </div>
                                             
-                                            <label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Empresa</label>
-                                            <select value={tempUserProfile.empresa_interna || ''} onChange={e => setTempUserProfile({...tempUserProfile, empresa_interna: e.target.value})} style={{width:'100%', marginBottom:'10px', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px', background:'white'}}>
-                                                <option value="">Selecione...</option><option value="Neomarca">Neomarca</option><option value="Geoflicks">Geoflicks</option><option value="2 Siglas">2 Siglas</option><option value="Fator Triplo">Fator Triplo</option>
-                                            </select>
+                                            <label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Empresas Internas</label>
+                                            <div style={{display:'flex', flexWrap:'wrap', gap:'8px', marginBottom:'14px', padding:'10px', background:'#ffffff', border:'1px solid #cbd5e1', borderRadius:'8px'}}>
+                                                {EMPRESAS_INTERNAS.map((empresa) => {
+                                                    const isSelected = (tempUserProfile.empresas_internas || []).includes(empresa);
+                                                    return (
+                                                        <div
+                                                            key={empresa}
+                                                            onClick={() => handleToggleEmpresaInterna(empresa)}
+                                                            style={{
+                                                                padding:'7px 14px',
+                                                                borderRadius:'20px',
+                                                                fontSize:'0.8rem',
+                                                                fontWeight:'600',
+                                                                cursor:'pointer',
+                                                                transition:'all 0.2s ease',
+                                                                border: isSelected ? '1px solid #3b82f6' : '1px solid #e2e8f0',
+                                                                background: isSelected ? '#eff6ff' : '#f8fafc',
+                                                                color: isSelected ? '#2563eb' : '#64748b',
+                                                                userSelect:'none'
+                                                            }}
+                                                        >
+                                                            {empresa}
+                                                        </div>
+                                                    );
+                                                })}
+                                                {(tempUserProfile.empresas_internas || []).length === 0 && (
+                                                    <span style={{color:'#94a3b8', fontSize:'0.82rem', fontStyle:'italic'}}>Selecione pelo menos uma empresa.</span>
+                                                )}
+                                            </div>
                                             
                                             <label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Contrato</label>
                                             <select value={tempUserProfile.tipo_contrato || ''} onChange={e => setTempUserProfile({...tempUserProfile, tipo_contrato: e.target.value})} style={{width:'100%', marginBottom:'20px', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px', background:'white'}}>
-                                                <option value="">Selecione...</option><option value="Termo Certo">Termo Certo</option><option value="Sem Termo">Sem Termo</option><option value="Termo Incerto">Termo Incerto</option><option value="Estágio Profissional">Estágio Profissional</option><option value="Estágio Curricular">Estágio Curricular</option><option value="Prestação de Serviços">Prestação de Serviços</option>
+                                                <option value="">Selecione...</option><option value="Termo Certo">Termo Certo</option><option value="Sem Termo">Sem Termo</option><option value="Termo Incerto">Termo Incerto</option><option value="Estágio Profissional">Estágio Profissional</option><option value="Estágio Curricular">Estágio Curricular</option><option value="Prestação de Serviços">Prestação de Serviços</option><option value="N/a">N/a</option>
                                             </select>
                                             
                                             <div style={{display:'flex', gap:'10px'}}>

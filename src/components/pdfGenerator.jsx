@@ -257,7 +257,7 @@ export const generateProjectPDF = async (
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
-    const leftPrimaryLines = toWrappedLines(doc, `Cliente: ${getClientDisplay()}`, infoColWidth);
+    const leftPrimaryLines = toWrappedLines(doc, `Entidade: ${getClientDisplay()}`, infoColWidth);
     const leftSecondaryLines = toWrappedLines(doc, `Responsável: ${getTeamLabel(projeto.responsavel_id, projeto.colaboradores || [])}`, infoColWidth);
     const rightPrimaryLines = toWrappedLines(doc, `Programa: ${projeto.programa || '-'}`, infoColWidth);
     const rightSecondaryLines = toWrappedLines(
@@ -393,7 +393,7 @@ export const generateProjectPDF = async (
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(12);
     doc.setTextColor(...COLORS.brandDark);
-    doc.text('Detalhamento Operacional', marginX, currentY);
+    doc.text('Detalhes Operacionais', marginX, currentY);
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8.5);
