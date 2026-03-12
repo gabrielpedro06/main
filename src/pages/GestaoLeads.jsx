@@ -82,8 +82,25 @@ export default function GestaoLeads() {
   async function fetchData() {
     setLoading(true);
     const tableName = activeTab === "leads" ? "marketing_leads" : "marketing_prospects";
-    const { data, error } = await supabase.from(tableName).select("*").order("created_at", { ascending: false });
-    if (!error) setDataList(data || []);
+    const batchSize = 1000;
+    let allData = [];
+    let from = 0;
+
+    while (true) {
+      const { data, error } = await supabase
+        .from(tableName)
+        .select("*")
+        .order("created_at", { ascending: false })
+        .range(from, from + batchSize - 1);
+
+      if (error) break;
+      if (!data || data.length === 0) break;
+      allData = [...allData, ...data];
+      if (data.length < batchSize) break;
+      from += batchSize;
+    }
+
+    setDataList(allData);
     setLoading(false);
   }
 
@@ -306,7 +323,7 @@ export default function GestaoLeads() {
   const filteredList = dataList.filter((item) => {
     if (!mostrarInativos && item.ativo === false) return false;
     const matchLocalidade = filterLocalidade ? item.localidade?.toLowerCase().includes(filterLocalidade.toLowerCase()) : true;
-    const matchSetor = filterSetor ? item.setor === filterSetor : true;
+    const matchSetor = filterSetor ? item.setor?.toLowerCase() === filterSetor.toLowerCase() : true;
     const matchCae = filterCae ? item.cae?.toLowerCase().includes(filterCae.toLowerCase()) : true;
     const matchSearch = searchTerm ? item.nome?.toLowerCase().includes(searchTerm.toLowerCase()) || item.nif?.includes(searchTerm) : true;
     return matchLocalidade && matchSetor && matchCae && matchSearch;
