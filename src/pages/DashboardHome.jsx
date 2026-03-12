@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext"; 
@@ -34,7 +34,11 @@ const Icons = {
   CheckCircle: ({ size = 48, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>,
   XCircle: ({ size = 48, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>,
   Stop: ({ size = 12, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none"><rect x="6" y="6" width="12" height="12" rx="2" ry="2"></rect></svg>,
-  ArrowRight: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+  ArrowRight: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>,
+  Phone: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.74a16 16 0 0 0 6 6l1.27-.93a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>,
+  Mail: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"></rect><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path></svg>,
+  Cake: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8"></path><path d="M4 16s.5-1 2-1 2.5 2 4 2 2.5-2 4-2 2 1 2 1"></path><path d="M2 21h20"></path><path d="M7 8v3"></path><path d="M12 8v3"></path><path d="M17 8v3"></path><path d="M7 4h.01"></path><path d="M12 4h.01"></path><path d="M17 4h.01"></path></svg>,
+  CircleDot: ({ size = 10, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none"><circle cx="12" cy="12" r="12"></circle></svg>
 };
 
 const ModalPortal = ({ children }) => {
@@ -50,8 +54,10 @@ export default function DashboardHome() {
   const [stats, setStats] = useState({ projetos: 0, clientes: 0, forum: 0 });
   const [userProfile, setUserProfile] = useState(null);
   const [usersOnline, setUsersOnline] = useState([]);
-  const [registosMes, setRegistosMes] = useState([]); 
+  const [selectedOnlineUser, setSelectedOnlineUser] = useState(null);
+  const [registosMes, setRegistosMes] = useState([]); // kept for history modal compat
   const [aniversarios, setAniversarios] = useState([]);
+    const proximosAniversarios = aniversarios.slice(0, 3);
 
   const [activeLog, setActiveLog] = useState(null);
 
@@ -71,6 +77,20 @@ export default function DashboardHome() {
   const [addForm, setAddForm] = useState({ data: "", hora_entrada: "", hora_saida: "", tempo_pausa: 0, observacoes: "", motivo_alteracao: "" });
 
   const [alertModal, setAlertModal] = useState({ show: false, message: "" });
+    const onlineCardRef = useRef(null);
+
+    function formatBirthdayDate(proximoAniversario) {
+        if (!(proximoAniversario instanceof Date) || isNaN(proximoAniversario.getTime())) return "";
+
+        const currentYear = new Date().getFullYear();
+        const formatOptions = {
+            day: "2-digit",
+            month: "long",
+            ...(proximoAniversario.getFullYear() > currentYear ? { year: "numeric" } : {}),
+        };
+
+        return proximoAniversario.toLocaleDateString("pt-PT", formatOptions);
+    }
 
   useEffect(() => {
     if (user) {
@@ -78,7 +98,6 @@ export default function DashboardHome() {
       fetchStats();
       fetchUserProfile();
       loadUsersOnline();
-      fetchRegistosMes();
       fetchAniversarios(); 
       checkActiveLog(); 
       
@@ -100,6 +119,8 @@ export default function DashboardHome() {
       };
     }
   }, [user]);
+
+
 
   useEffect(() => {
       if (showHistoryModal && user) loadFullHistory();
@@ -248,7 +269,7 @@ export default function DashboardHome() {
           }).filter(Boolean);
 
           lista.sort((a, b) => a.proximoAniversario - b.proximoAniversario);
-          setAniversarios(lista.slice(0, 5)); 
+          setAniversarios(lista);
 
           if (myBirthdayIsToday && !sessionStorage.getItem('birthdayPopupSeen')) {
               setShowBirthdayPopup(true);
@@ -259,7 +280,12 @@ export default function DashboardHome() {
 
   async function loadUsersOnline() {
     const hoje = new Date().toISOString().split('T')[0];
-    const { data, error } = await supabase.from("assiduidade").select("*, profiles(nome, avatar_url)").eq("data_registo", hoje).is("hora_saida", null); 
+        const { data, error } = await supabase
+            .from("assiduidade")
+            .select("*, profiles(nome, avatar_url, funcao, empresa_interna, telemovel, email, data_nascimento)")
+            .eq("data_registo", hoje)
+            .is("hora_saida", null)
+            .order("hora_entrada", { ascending: true }); 
     if (!error && data) setUsersOnline(data);
   }
 
@@ -439,7 +465,6 @@ export default function DashboardHome() {
       if (!error) {
           setEditingRecord(null);
           loadFullHistory();
-          fetchRegistosMes(); 
       } else { 
           setAlertModal({ show: true, message: "Erro ao guardar alteração." });
       }
@@ -481,7 +506,6 @@ export default function DashboardHome() {
           } else {
               loadFullHistory();
           }
-          fetchRegistosMes();
       } else {
           setAlertModal({ show: true, message: "Erro ao criar registo: " + error.message });
       }
@@ -525,18 +549,18 @@ export default function DashboardHome() {
   const userFirstName = getSafeFirstName(userProfile?.nome, userProfile?.email);
 
   return (
-    <div className="dashboard-home">
+    <div className="dashboard-home modern-boom factorial-like">
       
       {/* HEADER ESTÁTICO (Sem bugs no scroll) */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px', background: 'white', padding: '15px 25px', borderRadius: '16px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', flexWrap: 'wrap', gap: '15px' }}>
+    <div className="dashboard-hero boom-reveal" style={{ '--d': '20ms', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', background: 'white', padding: '18px 24px', borderRadius: '16px', boxShadow: '0 2px 10px rgba(15,23,42,0.04)', border: '1px solid #ebe7df', flexWrap: 'wrap', gap: '16px' }}>
         <div>
            <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
-               <h1 style={{ margin: 0, fontSize: '1.5rem', color: '#1e293b' }}>Olá, {userFirstName} 👋</h1>
-               <span style={{background: '#f1f5f9', color: '#64748b', padding: '4px 10px', borderRadius: '8px', fontWeight: 'bold', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '6px'}}>
+               <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: '800', letterSpacing: '-0.02em', color: '#22242a' }}>Bom Dia, {userFirstName}</h1>
+               <span style={{background: '#f7f4ee', color: '#6b7280', padding: '4px 10px', borderRadius: '10px', fontWeight: '700', fontSize: '0.84rem', display: 'flex', alignItems: 'center', gap: '6px', border: '1px solid #ebe7df'}}>
                    <Icons.Clock /> {horaAtual}
                </span>
            </div>
-           <p style={{ margin: '5px 0 0 0', color: '#64748b', fontStyle: 'italic', fontSize: '0.95rem' }}>"{frase}"</p>
+           <p style={{ margin: '7px 0 0 0', color: '#6b7280', fontStyle: 'italic', fontSize: '0.92rem', lineHeight: 1.45, maxWidth: '760px' }}>"{frase}"</p>
         </div>
 
         <div style={{display: 'flex', alignItems: 'center', gap: '20px'}}>
@@ -604,28 +628,28 @@ export default function DashboardHome() {
       </div>
 
       {/* GRID PRINCIPAL (2 COLUNAS 100% FOCADAS E ARRUMADAS) */}
-      <div className="dashboard-grid" style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: '25px', alignItems: 'start' }}>
+    <div className="dashboard-grid" style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: '28px', alignItems: 'start' }}>
         
         {/* COLUNA ESQUERDA: Stats, Assiduidade, Histórico, Equipa & Aniversários */}
-        <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
+        <div style={{display: 'flex', flexDirection: 'column', gap: '24px'}}>
             
             {/* --- OS 3 CARTÕES DE RESUMO --- */}
-            <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px' }}>
-                <div className="card stat-card" onClick={() => navigate("/dashboard/projetos")} style={{borderLeft: '4px solid #2563eb', cursor: 'pointer', transition: '0.2s', padding: '15px'}}>
+            <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+                <div className="card stat-card neo-stat boom-reveal" onClick={() => navigate("/dashboard/projetos")} style={{ '--d': '90ms', borderLeft: '3px solid #a8b7d1', cursor: 'pointer', transition: '0.2s', padding: '16px' }}>
                     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
                         <div><h3 style={{fontSize: '0.8rem', color: '#64748b', margin: '0 0 5px 0'}}>Projetos Ativos</h3><p style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#1e293b', margin: 0 }}>{stats.projetos}</p></div>
                         <span style={{background: '#eff6ff', color: '#2563eb', padding: '6px', borderRadius: '8px', display: 'flex'}}><Icons.Rocket size={18}/></span>
                     </div>
                 </div>
 
-                <div className="card stat-card" onClick={() => navigate("/dashboard/clientes")} style={{borderLeft: '4px solid #10b981', cursor: 'pointer', transition: '0.2s', padding: '15px'}}>
+                <div className="card stat-card neo-stat boom-reveal" onClick={() => navigate("/dashboard/clientes")} style={{ '--d': '140ms', borderLeft: '3px solid #9ec5b2', cursor: 'pointer', transition: '0.2s', padding: '16px' }}>
                     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
                         <div><h3 style={{fontSize: '0.8rem', color: '#64748b', margin: '0 0 5px 0'}}>Total Clientes</h3><p style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#1e293b', margin: 0 }}>{stats.clientes}</p></div>
                         <span style={{background: '#dcfce7', color: '#10b981', padding: '6px', borderRadius: '8px', display: 'flex'}}><Icons.Users size={18}/></span>
                     </div>
                 </div>
 
-                <div className="card stat-card" onClick={() => navigate("/dashboard/forum")} style={{borderLeft: '4px solid #f59e0b', cursor: 'pointer', transition: '0.2s', padding: '15px'}}>
+                <div className="card stat-card neo-stat boom-reveal" onClick={() => navigate("/dashboard/forum")} style={{ '--d': '190ms', borderLeft: '3px solid #d4b48f', cursor: 'pointer', transition: '0.2s', padding: '16px' }}>
                     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
                         <div><h3 style={{fontSize: '0.8rem', color: '#64748b', margin: '0 0 5px 0'}}>Comunicação</h3><p style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#1e293b', margin: 0 }}>{stats.forum}</p></div>
                         <span style={{background: '#fef3c7', color: '#d97706', padding: '6px', borderRadius: '8px', display: 'flex'}}><Icons.Message size={18}/></span>
@@ -634,113 +658,86 @@ export default function DashboardHome() {
             </div>
 
             {/* PONTO / ASSIDUIDADE */}
-            <WidgetAssiduidade />
-            
-            {/* TABELA MENSAL */}
-            <div className="card" style={{padding: '20px', background: 'white', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
-                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px'}}>
-                    <h4 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Calendar size={18} color="#2563eb" /> Últimos Registos (Mês)</h4>
-                    <button className="btn-small hover-shadow" style={{background: '#eff6ff', color: '#2563eb', fontWeight: 'bold', padding: '6px 12px', borderRadius: '8px', border: 'none', cursor: 'pointer'}} onClick={() => setShowHistoryModal(true)}>Ver Mais</button>
-                </div>
+                        <div className="boom-reveal" style={{ '--d': '230ms' }}>
+                            <WidgetAssiduidade onViewHistory={() => setShowHistoryModal(true)} />
+                        </div>
 
-                {registosMes.length > 0 ? (
-                    <div style={{overflowX: 'auto'}}>
-                        <table style={{width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem'}}>
-                            <thead>
-                                <tr style={{borderBottom: '2px solid #f1f5f9', textAlign: 'left', color: '#64748b'}}>
-                                    <th style={{paddingBottom: '8px'}}>Data</th>
-                                    <th style={{paddingBottom: '8px'}}>Entrada</th>
-                                    <th style={{paddingBottom: '8px'}}>Saída</th>
-                                    <th style={{paddingBottom: '8px'}}>Total</th>
-                                    <th style={{paddingBottom: '8px', maxWidth: '150px'}}>Tarefas / Notas</th>
-                                    <th style={{paddingBottom: '8px', textAlign: 'right'}}></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {registosMes.map(r => {
-                                    const totalSegundos = calcularSegundosExatos(r.hora_entrada, r.hora_saida, r.tempo_pausa_acumulado);
-                                    const notasLimpas = r.observacoes ? String(r.observacoes).replace(/✅ TAREFAS REALIZADAS:\n/g, '').replace(/\n/g, ', ') : '-';
-
-                                    return (
-                                    <tr key={r.id} style={{borderBottom: '1px solid #f8fafc', transition: 'background 0.2s'}} className="table-row-hover">
-                                        <td style={{padding: '10px 0', fontWeight: '600', color: '#334155'}}>{new Date(r.data_registo).toLocaleDateString('pt-PT').slice(0,5)}</td>
-                                        <td style={{padding: '10px 0', color: '#10b981', fontWeight: '500'}}>{r.hora_entrada?.slice(0,5)}</td>
-                                        <td style={{padding: '10px 0', color: r.hora_saida ? '#ef4444' : '#94a3b8', fontWeight: '500'}}>{r.hora_saida?.slice(0,5) || '---'}</td>
-                                        <td style={{padding: '10px 0'}}>{formatarHoras(totalSegundos)}</td>
-                                        <td style={{
-                                            padding: '10px 0', color: '#64748b', maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: r.observacoes ? 'help' : 'default'
-                                        }} title={r.observacoes || ''}>
-                                            {notasLimpas}
-                                        </td>
-                                        <td style={{padding: '10px 0', textAlign: 'right'}}>
-                                            <button onClick={() => { setHistoryDate(new Date(r.data_registo)); setShowHistoryModal(true); handleStartEdit(r); }} style={{background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px'}} className="hover-text-blue" title="Editar este registo">
-                                                <Icons.Edit size={14} />
-                                            </button>
-                                        </td>
-                                    </tr>
-                                )})}
-                            </tbody>
-                        </table>
-                    </div>
-                ) : (
-                    <div style={{textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem', padding: '10px 0'}}>Nenhum registo efetuado.</div>
-                )}
-            </div>
-
-            {/* 💡 EQUIPA E ANIVERSÁRIOS 50/50 */}
-            <div className="bottom-split-grid" style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px'}}>
+            {/* 💡 EQUIPA E ANIVERSÁRIOS EM STACK VERTICAL */}
+            <div className="bottom-split-grid" style={{display: 'flex', flexDirection: 'column', gap: '18px'}}>
                 
-                <div className="card" style={{padding: '20px', background: 'white', borderRadius: '16px'}}>
-                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px'}}>
+                {/* ── EQUIPA ONLINE ── */}
+                <div ref={onlineCardRef} className="card online-showcase boom-reveal" style={{ '--d': '280ms', padding: '20px', background: '#ffffff', borderRadius: '16px', display: 'flex', flexDirection: 'column', border: '1px solid #ebe7df', boxShadow: '0 4px 16px rgba(15, 23, 42, 0.04)'}}>
+                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px'}}>
                         <h4 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Activity size={18} color="#16a34a" /> Equipa Online</h4>
-                        <span style={{background: '#dcfce7', color: '#166534', padding: '2px 8px', borderRadius: '10px', fontSize: '0.75rem', fontWeight: 'bold'}}>{usersOnline.length}</span>
+                        <span style={{background: '#f7f4ee', color: '#6b7280', padding: '3px 10px', borderRadius: '999px', fontSize: '0.72rem', fontWeight: '700', border: '1px solid #ebe7df'}}>{usersOnline.length} online</span>
                     </div>
                     
                     {usersOnline.length > 0 ? (
-                        <div style={{display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '180px', overflowY: 'auto'}} className="custom-scrollbar">
+                        <div style={{display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px'}}>
                         {usersOnline.map(u => {
                             const uNome = getSafeFirstName(u.profiles?.nome, "");
                             return (
-                            <div key={u.id} style={{display: 'flex', alignItems: 'center', gap: '10px', paddingBottom: '8px', borderBottom: '1px solid #f8fafc'}}>
-                                <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#3b82f6', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.7rem', overflow: 'hidden', flexShrink: 0 }}>
-                                    {u.profiles?.avatar_url ? <img src={u.profiles.avatar_url} alt="U" style={{width:'100%', height:'100%', objectFit:'cover'}} /> : getInitials(u.profiles?.nome)}
+                            <div key={u.id} onClick={() => setSelectedOnlineUser(u)}
+                                title={`${u.profiles?.nome || ''} · entrou às ${u.hora_entrada?.slice(0,5)}`}
+                                style={{display:'flex', flexDirection:'column', alignItems:'center', gap:'4px', cursor:'pointer', padding:'8px 4px', borderRadius:'14px', transition:'all 0.2s ease', background:'rgba(255,255,255,0.7)', boxShadow:'0 2px 8px rgba(15,23,42,0.05)'}}
+                                onMouseEnter={e => { e.currentTarget.style.background='rgba(255,255,255,0.95)'; e.currentTarget.style.boxShadow='0 4px 12px rgba(15,23,42,0.1)'; e.currentTarget.style.transform='translateY(-1px)'; }}
+                                onMouseLeave={e => { e.currentTarget.style.background='rgba(255,255,255,0.7)'; e.currentTarget.style.boxShadow='0 2px 8px rgba(15,23,42,0.05)'; e.currentTarget.style.transform='translateY(0)'; }}>
+                                <div style={{position:'relative'}}>
+                                    <div style={{width:'38px', height:'38px', borderRadius:'50%', background:'#3b82f6', color:'white', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:'700', fontSize:'0.7rem', overflow:'hidden', border:'2px solid #ffffff', boxShadow:'0 2px 6px rgba(59,130,246,0.15)'}}>
+                                        {u.profiles?.avatar_url
+                                            ? <img src={u.profiles.avatar_url} alt="U" style={{width:'100%', height:'100%', objectFit:'cover', objectPosition:'center', display:'block'}} />
+                                            : getInitials(u.profiles?.nome)}
+                                    </div>
+                                    <span style={{position:'absolute', bottom:'0px', right:'0px', width:'8px', height:'8px', background:'#16a34a', borderRadius:'50%', border:'1.5px solid white', display:'block'}}></span>
                                 </div>
-                                <div style={{lineHeight: '1.2'}}>
-                                    <div style={{fontWeight: '600', color: '#334155', fontSize: '0.85rem'}}>{uNome}</div>
-                                    <div style={{fontSize: '0.7rem', color: '#94a3b8'}}>Entrou às {u.hora_entrada?.slice(0,5)}</div>
-                                </div>
+                                <span style={{fontSize:'0.65rem', fontWeight:'600', color:'#334155', textAlign:'center', width:'100%', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{uNome}</span>
+                                <span style={{fontSize:'0.6rem', color:'#94a3b8'}}>{u.hora_entrada?.slice(0,5)}</span>
                             </div>
                         )})}
                         </div>
                     ) : (
-                        <div style={{textAlign: 'center', padding: '10px', color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic'}}>Ninguém online.</div>
+                        <div style={{textAlign: 'center', padding: '20px', color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic', flex:1, display:'flex', alignItems:'center', justifyContent:'center'}}>Ninguém online.</div>
                     )}
                 </div>
 
-                <div className="card" style={{padding: '20px', background: 'white', borderRadius: '16px'}}>
-                    <h4 style={{margin: '0 0 15px 0', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Heart size={18} color="#f59e0b" fill="#f59e0b" /> Aniversários</h4>
-                    {aniversarios.length > 0 ? (
-                        <div style={{display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '180px', overflowY: 'auto'}} className="custom-scrollbar">
-                        {aniversarios.map(a => {
+                {/* ── ANIVERSÁRIOS ── */}
+                <div className="card birthday-showcase boom-reveal" style={{ '--d': '330ms', padding: '20px', background: '#ffffff', borderRadius: '16px', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid #ebe7df', boxShadow: '0 4px 16px rgba(15, 23, 42, 0.04)'}}>
+                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px'}}>
+                        <h4 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Cake size={18} color="#f59e0b" /> Aniversários</h4>
+                    </div>
+                    {proximosAniversarios.length > 0 ? (
+                        <div style={{display: 'grid', gridTemplateColumns: `repeat(${proximosAniversarios.length}, 1fr)`, gap: '12px'}}>
+                        {proximosAniversarios.map(a => {
                             const isHoje = a.proximoAniversario.getDate() === new Date().getDate() && a.proximoAniversario.getMonth() === new Date().getMonth();
                             const aNome = getSafeFirstName(a.nome, "");
+                            const day = String(a.proximoAniversario.getDate()).padStart(2, '0');
+                            const monthShort = a.proximoAniversario.toLocaleDateString('pt-PT', { month: 'short' }).replace('.', '').toUpperCase();
                             return (
-                            <div key={a.id} style={{display: 'flex', alignItems: 'center', gap: '10px', paddingBottom: '8px', borderBottom: '1px solid #f8fafc'}}>
-                                <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#f59e0b', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.7rem', overflow: 'hidden', flexShrink: 0 }}>
-                                    {a.avatar_url ? <img src={a.avatar_url} alt="U" style={{width:'100%', height:'100%', objectFit:'cover'}} /> : getInitials(a.nome)}
+                            <div key={a.id} style={{display:'flex', flexDirection:'column', alignItems:'center', gap:'8px', padding:'16px 12px', borderRadius:'16px', background: isHoje ? 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)' : '#fcfcfb', border: isHoje ? '1px solid #fdba74' : '1px solid #e7e5e4', boxShadow: isHoje ? '0 10px 22px rgba(251,146,60,0.18)' : '0 4px 12px rgba(15,23,42,0.05)', textAlign:'center', position:'relative'}}>
+                                {/* Avatar */}
+                                <div style={{width:'72px', height:'72px', borderRadius:'50%', background: isHoje ? '#f97316' : '#f59e0b', color:'white', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:'700', fontSize:'1rem', overflow:'hidden', flexShrink:0, border:'3px solid #fff', boxShadow:'0 4px 12px rgba(0,0,0,0.12)'}}>
+                                    {a.avatar_url
+                                        ? <img src={a.avatar_url} alt="U" style={{width:'100%', height:'100%', objectFit:'cover', objectPosition:'center', display:'block'}} />
+                                        : getInitials(a.nome)}
                                 </div>
-                                <div style={{lineHeight: '1.2'}}>
-                                    <div style={{fontWeight: '600', color: '#334155', fontSize: '0.85rem'}}>{aNome}</div>
-                                    <div style={{fontSize: '0.75rem', color: '#94a3b8'}}>
-                                        {a.proximoAniversario.toLocaleDateString('pt-PT', { day: '2-digit', month: 'long' })}
-                                        {isHoje && <span style={{color: '#ea580c', fontWeight: 'bold', marginLeft: '5px'}}>HOJE! 🎉</span>}
-                                    </div>
+                                {/* Nome */}
+                                <div style={{fontWeight:'700', color:'#1e293b', fontSize:'0.9rem', lineHeight:1.2}}>{aNome}</div>
+                                {/* Tipo */}
+                                <div style={{fontSize:'0.75rem', color: isHoje ? '#c2410c' : '#64748b', fontWeight:'600', display:'flex', alignItems:'center', gap:'4px'}}>
+                                    {isHoje
+                                        ? <><Icons.Gift size={14} color="#c2410c" /> Hoje!</>
+                                        : <><Icons.Cake size={14} color="#64748b" /> Aniversário</>}
+                                </div>
+                                {/* Badge da data */}
+                                <div style={{display:'flex', flexDirection:'column', alignItems:'center', background: isHoje ? '#fb923c' : '#f1f5f9', borderRadius:'10px', padding:'5px 14px', marginTop:'2px'}}>
+                                    <span style={{fontSize:'0.6rem', fontWeight:'800', color: isHoje ? 'rgba(255,255,255,0.85)' : '#94a3b8', letterSpacing:'0.08em'}}>{monthShort}</span>
+                                    <span style={{fontSize:'1.1rem', fontWeight:'800', color: isHoje ? '#fff' : '#334155', lineHeight:1}}>{day}</span>
                                 </div>
                             </div>
                         )})}
                         </div>
                     ) : (
-                        <div style={{textAlign: 'center', padding: '10px', color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic'}}>Nenhum aniversário.</div>
+                        <div style={{textAlign: 'center', padding: '20px', color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>Nenhum aniversário.</div>
                     )}
                 </div>
 
@@ -748,10 +745,10 @@ export default function DashboardHome() {
         </div>
 
         {/* COLUNA DIREITA: SÓ TAREFAS */}
-        <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
+        <div style={{display: 'flex', flexDirection: 'column', gap: '24px'}}>
             
             {/* 🔥 TAREFAS URGENTES / PARA HOJE */}
-            <div className="card" style={{ padding: '20px', background: 'white', borderRadius: '16px' }}>
+            <div className="card boom-reveal" style={{ '--d': '280ms', padding: '20px', background: 'white', borderRadius: '16px' }}>
                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px'}}>
                     <h4 style={{margin: 0, color: '#1e293b', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Flame color="#ef4444" /> Para Hoje / Atrasadas</h4>
                     {tarefasHoje.length > 6 && (
@@ -794,7 +791,7 @@ export default function DashboardHome() {
             </div>
 
             {/* 📋 OUTRAS TAREFAS E ATIVIDADES (FUTURO) */}
-            <div className="card" style={{ padding: '20px', background: 'white', borderRadius: '16px' }}>
+            <div className="card boom-reveal" style={{ '--d': '330ms', padding: '20px', background: 'white', borderRadius: '16px' }}>
                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px'}}>
                     <h4 style={{margin: 0, color: '#1e293b', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Clipboard color="#2563eb" /> Próximas Tarefas / Blocos</h4>
                     {tarefasGerais.length > 10 && (
@@ -1054,19 +1051,77 @@ export default function DashboardHome() {
       )}
 
       <style>{`
+                .dashboard-home {
+                    background: linear-gradient(180deg, #f7efe2 0%, #f4ede2 100%);
+                    border-radius: 20px;
+                    padding: 14px;
+                    font-family: "Manrope", "Sora", "Segoe UI", sans-serif;
+                }
+
+                .dashboard-home .card {
+                    border: 1px solid #ebe7df;
+                    box-shadow: 0 6px 18px rgba(17, 24, 39, 0.04);
+                    backdrop-filter: blur(8px);
+                }
+
+                .dashboard-hero {
+                    background: linear-gradient(120deg, rgba(255,255,255,0.95), rgba(255,255,255,0.82)) !important;
+                    border: 1px solid #ebe7df !important;
+                    box-shadow: 0 12px 28px rgba(17, 24, 39, 0.05) !important;
+                    backdrop-filter: blur(12px);
+                }
+
+                .neo-stat {
+                    background: linear-gradient(180deg, #ffffff 0%, #fcfbf8 100%);
+                    box-shadow: 0 6px 14px rgba(15, 23, 42, 0.04);
+                }
+
+                .online-showcase,
+                .birthday-showcase {
+                    position: relative;
+                    overflow: hidden;
+                }
+
+                .boom-reveal {
+                    opacity: 0;
+                    transform: translateY(10px) scale(0.995);
+                    animation: boomIn 560ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+                    animation-delay: var(--d, 0ms);
+                    will-change: transform, opacity;
+                }
+
+                .online-showcase::before,
+                .birthday-showcase::before {
+                    content: "";
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    height: 3px;
+                    opacity: 0.95;
+                }
+
+                .online-showcase::before {
+                    background: linear-gradient(90deg, #c2cde0, #b9cde7);
+                }
+
+                .birthday-showcase::before {
+                    background: linear-gradient(90deg, #e2cfb5, #d7bfa0);
+                }
+
         .menu-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 15px; text-align: left; background: none; border: none; cursor: pointer; font-size: 0.9rem; color: #334151; transition: background 0.2s; }
         .menu-item:hover { background: #f8fafc; color: #2563eb; }
         .menu-item.logout { color: #dc2626; }
         .menu-item.logout:hover { background: #fef2f2; color: #b91c1c; }
         
-        .stat-card:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 12px 24px -14px rgba(15,23,42,0.25); }
         .table-row-hover:hover { background-color: #f1f5f9 !important; }
-        .hover-shadow:hover { transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .hover-shadow:hover { transform: translateY(-1px); box-shadow: 0 8px 14px -10px rgba(15,23,42,0.28); }
         .hover-text-blue:hover { color: #2563eb !important; }
         .hover-red-text:hover { color: #ef4444 !important; }
         
         /* Estilos dos Cartões de Tarefa */
-        .task-hover-card:hover { border-color: #cbd5e1 !important; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); transform: translateY(-2px); transition: all 0.2s; }
+        .task-hover-card:hover { border-color: #ddd6c8 !important; box-shadow: 0 14px 24px -18px rgba(15,23,42,0.35); transform: translateY(-2px); transition: all 0.2s; }
         
         .input-focus:focus { border-color: #3b82f6 !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
         .input-focus-alert:focus { border-color: #f59e0b !important; box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.1); }
@@ -1077,6 +1132,11 @@ export default function DashboardHome() {
 
         @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+                @keyframes boomIn { from { opacity: 0; transform: translateY(10px) scale(0.995); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+                @media (prefers-reduced-motion: reduce) {
+                    .boom-reveal { animation: none !important; opacity: 1 !important; transform: none !important; }
+                }
 
         /* Responsividade Extrema */
         @media (max-width: 1200px) {
@@ -1087,6 +1147,49 @@ export default function DashboardHome() {
             .bottom-split-grid { grid-template-columns: 1fr !important; }
         }
       `}</style>
+
+      {/* 👤 POPOVER EQUIPA ONLINE */}
+      {selectedOnlineUser && (
+        <div onClick={() => setSelectedOnlineUser(null)} style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center'}}>
+          <div onClick={e => e.stopPropagation()} style={{background:'white', borderRadius:'20px', padding:'36px 32px', width:'360px', maxWidth:'90vw', boxShadow:'0 20px 60px rgba(0,0,0,0.25)', display:'flex', flexDirection:'column', alignItems:'center', gap:'14px', position:'relative'}}>
+            <button onClick={() => setSelectedOnlineUser(null)} style={{position:'absolute', top:'12px', right:'14px', background:'none', border:'none', fontSize:'1.2rem', cursor:'pointer', color:'#94a3b8', lineHeight:1}}>✕</button>
+            <div style={{width:'140px', height:'140px', borderRadius:'50%', overflow:'hidden', background:'#3b82f6', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:'bold', fontSize:'2.4rem', color:'white', flexShrink:0, border:'4px solid #dcfce7', boxShadow:'0 6px 20px rgba(59,130,246,0.25)'}}>
+              {selectedOnlineUser.profiles?.avatar_url
+                ? <img src={selectedOnlineUser.profiles.avatar_url} alt="avatar" style={{width:'100%', height:'100%', objectFit:'cover', objectPosition:'center', display:'block'}} />
+                : getInitials(selectedOnlineUser.profiles?.nome)}
+            </div>
+            <div style={{textAlign:'center'}}>
+              <div style={{fontWeight:'700', fontSize:'1.1rem', color:'#1e293b'}}>{selectedOnlineUser.profiles?.nome || '—'}</div>
+              {selectedOnlineUser.profiles?.funcao && <div style={{fontSize:'0.85rem', color:'#64748b', marginTop:'2px'}}>{selectedOnlineUser.profiles.funcao}</div>}
+              {selectedOnlineUser.profiles?.empresa_interna && <div style={{fontSize:'0.78rem', color:'#94a3b8', marginTop:'2px'}}>{selectedOnlineUser.profiles.empresa_interna}</div>}
+            </div>
+            <div style={{display:'flex', flexDirection:'column', gap:'8px', width:'100%', marginTop:'4px'}}>
+              <div style={{display:'flex', alignItems:'center', gap:'8px', background:'#f0fdf4', borderRadius:'10px', padding:'8px 12px'}}>
+                <Icons.CircleDot size={10} color="#16a34a" />
+                <span style={{fontSize:'0.82rem', color:'#166534', fontWeight:'600'}}>Online agora · entrou às {selectedOnlineUser.hora_entrada?.slice(0,5)}</span>
+              </div>
+              {selectedOnlineUser.profiles?.telemovel && (
+                <div style={{display:'flex', alignItems:'center', gap:'8px', background:'#f8fafc', borderRadius:'10px', padding:'8px 12px'}}>
+                  <Icons.Phone size={15} color="#64748b" />
+                  <span style={{fontSize:'0.82rem', color:'#334155'}}>{selectedOnlineUser.profiles.telemovel}</span>
+                </div>
+              )}
+              {selectedOnlineUser.profiles?.email && (
+                <div style={{display:'flex', alignItems:'center', gap:'8px', background:'#f8fafc', borderRadius:'10px', padding:'8px 12px'}}>
+                  <Icons.Mail size={15} color="#64748b" />
+                  <span style={{fontSize:'0.82rem', color:'#334155', wordBreak:'break-all'}}>{selectedOnlineUser.profiles.email}</span>
+                </div>
+              )}
+              {selectedOnlineUser.profiles?.data_nascimento && (
+                <div style={{display:'flex', alignItems:'center', gap:'8px', background:'#fff7ed', borderRadius:'10px', padding:'8px 12px'}}>
+                  <Icons.Cake size={15} color="#c2410c" />
+                  <span style={{fontSize:'0.82rem', color:'#9a3412'}}>{new Date(selectedOnlineUser.profiles.data_nascimento + 'T00:00:00').toLocaleDateString('pt-PT', {day:'numeric', month:'long'})}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

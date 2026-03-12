@@ -821,3 +821,174 @@ input:checked + .slider:before {
   from { opacity: 0; transform: translate(-50%, 20px); }
   to { opacity: 1; transform: translate(-50%, 0); }
 }
+
+/* =========================================
+   WOW THEME LAYER (GLOBAL OVERRIDES)
+   ========================================= */
+:root {
+  --wow-bg-0: #f6efe2;
+  --wow-bg-1: #f8f3e9;
+  --wow-surface: #ffffff;
+  --wow-surface-soft: #fcfaf6;
+  --wow-border: #e8e1d5;
+  --wow-text: #1f2937;
+  --wow-text-soft: #6b7280;
+  --wow-primary: #2f6fed;
+  --wow-primary-soft: #e9f0ff;
+  --wow-success: #16a34a;
+  --wow-shadow-sm: 0 6px 14px rgba(15, 23, 42, 0.05);
+  --wow-shadow-md: 0 14px 28px rgba(15, 23, 42, 0.08);
+}
+
+html, body {
+  background: linear-gradient(180deg, var(--wow-bg-0) 0%, var(--wow-bg-1) 100%);
+  color: var(--wow-text);
+}
+
+.dashboard-container {
+  background:
+    radial-gradient(1200px 520px at -12% -24%, rgba(47,111,237,0.08), transparent 56%),
+    radial-gradient(920px 460px at 112% 0%, rgba(245,158,11,0.12), transparent 58%),
+    linear-gradient(180deg, var(--wow-bg-0) 0%, var(--wow-bg-1) 100%);
+}
+
+.dashboard-main {
+  background: transparent;
+  padding: 26px;
+}
+
+.page-container {
+  max-width: 1640px;
+}
+
+.sidebar {
+  background: linear-gradient(180deg, #182233 0%, #101827 100%);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sidebar nav ul li a {
+  border: 1px solid transparent;
+}
+
+.sidebar nav ul li a:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.sidebar nav ul li.active a {
+  background: linear-gradient(90deg, #24b469 0%, #1aa85f 100%);
+  box-shadow: 0 10px 20px rgba(22, 163, 74, 0.24);
+}
+
+.toggle-menu {
+  border-color: #2b3a53;
+  background: #131f31;
+}
+
+.toggle-menu:hover {
+  transform: translateY(-1px);
+}
+
+.card {
+  background: linear-gradient(180deg, var(--wow-surface) 0%, var(--wow-surface-soft) 100%);
+  border: 1px solid var(--wow-border);
+  border-radius: 16px;
+  box-shadow: var(--wow-shadow-sm);
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--wow-shadow-md);
+  border-color: #d8ccbb;
+}
+
+.page-header h1 {
+  letter-spacing: -0.02em;
+  font-weight: 800;
+  color: #111827;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #2f6fed 0%, #2a5fcb 100%);
+  border: 1px solid rgba(47, 111, 237, 0.3);
+  border-radius: 12px;
+  box-shadow: 0 10px 20px rgba(47, 111, 237, 0.22);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #2a5fcb 0%, #244ea7 100%);
+  transform: translateY(-1px);
+}
+
+.btn-small {
+  background: #fff;
+  border: 1px solid #ddd8cf;
+  color: #4b5563;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-weight: 600;
+}
+
+.btn-small:hover {
+  border-color: #c8c2b7;
+  color: #111827;
+  background: #faf8f4;
+}
+
+.data-table th {
+  background: #f8f5ef;
+  color: #667085;
+  border-bottom-color: #ebe7df;
+}
+
+.data-table td {
+  border-bottom-color: #f0ece5;
+}
+
+.data-table tr:hover {
+  background-color: #f8fbff;
+}
+
+.table-responsive {
+  border-color: var(--wow-border);
+  box-shadow: var(--wow-shadow-sm);
+}
+
+input, select, textarea {
+  background: #fff;
+  border: 1px solid #ddd8cf;
+  border-radius: 10px;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: #9bb7f3;
+  box-shadow: 0 0 0 3px rgba(47, 111, 237, 0.12);
+}
+
+.modal-content,
+.large-modal,
+.confirm-modal-box {
+  border: 1px solid var(--wow-border);
+  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.18);
+}
+
+.modal-header {
+  background: #faf7f2;
+  border-bottom-color: var(--wow-border);
+}
+
+.toast-container,
+.toast-notification {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(8px);
+}
+
+@media (max-width: 1024px) {
+  .dashboard-main {
+    padding: 18px;
+  }
+
+  .card {
+    border-radius: 14px;
+  }
+}

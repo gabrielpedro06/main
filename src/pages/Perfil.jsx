@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
@@ -43,6 +43,15 @@ export default function Perfil() {
   });
   
   const [newPassword, setNewPassword] = useState("");
+
+  const cropImgRef = useRef(null);
+  const cropContainerRef = useRef(null);
+  const [cropModal, setCropModal] = useState({ show: false, src: null });
+  const [cropScale, setCropScale] = useState(1);
+  const [cropOffset, setCropOffset] = useState({ x: 0, y: 0 });
+  const [cropDragStart, setCropDragStart] = useState(null);
+  const [cropImgNatural, setCropImgNatural] = useState({ w: 1, h: 1 });
+  const [cropContainerSize, setCropContainerSize] = useState({ w: 400, h: 400 });
 
   useEffect(() => {
     if (user && userProfile) {
@@ -92,30 +101,109 @@ export default function Perfil() {
       setFormData({ ...formData, ncc: formattedValue });
   };
 
-  // --- UPLOAD FOTO ---
-  async function handleAvatarUpload(e) {
+  // --- UPLOAD FOTO: abre o modal de recorte ---
+  function handleAvatarUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => setCropModal({ show: true, src: ev.target.result });
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  }
+
+  // --- WHEEL ZOOM (non-passive, via useEffect) ---
+  useEffect(() => {
+    const el = cropContainerRef.current;
+    if (!cropModal.show || !el) return;
+    const onWheel = (e) => {
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? 1.1 : 0.9;
+      setCropScale(prev => {
+        const minScale = Math.max(
+          (cropContainerSize.w * 0.8) / cropImgNatural.w,
+          (cropContainerSize.h * 0.8) / cropImgNatural.h
+        );
+        return Math.max(minScale, Math.min(prev * factor, minScale * 8));
+      });
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [cropModal.show, cropContainerSize, cropImgNatural]);
+
+  // --- CROP PAN DRAG HANDLERS ---
+  function handleCropMouseDown(e) {
+    e.preventDefault();
+    setCropDragStart({ mx: e.clientX, my: e.clientY, ox: cropOffset.x, oy: cropOffset.y });
+  }
+
+  function handleCropMouseMove(e) {
+    if (!cropDragStart) return;
+    const dx = e.clientX - cropDragStart.mx;
+    const dy = e.clientY - cropDragStart.my;
+    setCropOffset(clampCropOffset(cropDragStart.ox + dx, cropDragStart.oy + dy, cropScale));
+  }
+
+  function handleCropMouseUp() { setCropDragStart(null); }
+
+  function clampCropOffset(ox, oy, scale) {
+    const { w: cw, h: ch } = cropContainerSize;
+    const { w: iw, h: ih } = cropImgNatural;
+    const cropRadius = Math.round(Math.min(cw, ch) * 0.4);
+    const imgDisplayW = iw * scale;
+    const imgDisplayH = ih * scale;
+    // image top-left = cw/2 + ox - imgDisplayW/2
+    // circle occupies [cw/2 - cropRadius, cw/2 + cropRadius]
+    // constraint: imgLeft <= cw/2 - cropRadius  AND  imgRight >= cw/2 + cropRadius
+    const maxX = cw / 2 - cropRadius - (cw / 2 - imgDisplayW / 2);
+    const minX = cw / 2 + cropRadius - (cw / 2 + imgDisplayW / 2);
+    const maxY = ch / 2 - cropRadius - (ch / 2 - imgDisplayH / 2);
+    const minY = ch / 2 + cropRadius - (ch / 2 + imgDisplayH / 2);
+    return { x: Math.max(minX, Math.min(maxX, ox)), y: Math.max(minY, Math.min(maxY, oy)) };
+  }
+
+  // --- CONFIRMAR RECORTE ---
+  async function confirmCrop() {
     try {
       setUploading(true);
-      const file = e.target.files[0];
-      if (!file) return;
+      const img = cropImgRef.current;
+      if (!img) throw new Error('Imagem não encontrada.');
 
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}-${Math.random()}.${fileExt}`;
-      const filePath = `${fileName}`;
+      const { w: cw, h: ch } = cropContainerSize;
+      const cropRadius = Math.round(Math.min(cw, ch) * 0.4);
+      const cropDiameter = cropRadius * 2;
 
-      const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file);
+      // image top-left in container coords
+      const imgDispW = cropImgNatural.w * cropScale;
+      const imgDispH = cropImgNatural.h * cropScale;
+      const imgLeft = cw / 2 + cropOffset.x - imgDispW / 2;
+      const imgTop  = ch / 2 + cropOffset.y - imgDispH / 2;
+
+      // circle top-left in container coords
+      const circleLeft = cw / 2 - cropRadius;
+      const circleTop  = ch / 2 - cropRadius;
+
+      // crop source in natural image coords
+      const sx    = (circleLeft - imgLeft) / cropScale;
+      const sy    = (circleTop  - imgTop)  / cropScale;
+      const sSize = cropDiameter / cropScale;
+
+      const OUTPUT = 400;
+      const canvas = document.createElement('canvas');
+      canvas.width = OUTPUT; canvas.height = OUTPUT;
+      canvas.getContext('2d').drawImage(img, sx, sy, sSize, sSize, 0, 0, OUTPUT, OUTPUT);
+
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+      setCropModal({ show: false, src: null });
+
+      const fileName = `${user.id}-${Date.now()}.jpg`;
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, blob, { contentType: 'image/jpeg', upsert: true });
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
-
+      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(fileName);
       setFormData(prev => ({ ...prev, avatar_url: publicUrl }));
-      
-      // Mostrar Pop-up de Sucesso
-      setNotification({ show: true, message: "Foto carregada! Clica em 'Guardar Alterações' no fundo da página para finalizar.", type: "success" });
-
+      setNotification({ show: true, message: "Foto recortada e carregada! Clica em 'Guardar Alterações' para finalizar.", type: 'success' });
     } catch (error) {
-      // Mostrar Pop-up de Erro
-      setNotification({ show: true, message: "Erro no upload: " + error.message, type: "error" });
+      setNotification({ show: true, message: 'Erro no upload: ' + error.message, type: 'error' });
     } finally {
       setUploading(false);
     }
@@ -340,6 +428,141 @@ export default function Perfil() {
               </div>
           </div>
       </div>
+
+      {/* --- MODAL DE RECORTE DE FOTO --- */}
+      {cropModal.show && (
+        <ModalPortal>
+          <div
+            style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.92)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',zIndex:99999,padding:'16px',boxSizing:'border-box'}}
+            onMouseMove={handleCropMouseMove}
+            onMouseUp={handleCropMouseUp}
+            onMouseLeave={handleCropMouseUp}
+          >
+            {/* Header */}
+            <div style={{color:'white',marginBottom:'12px',textAlign:'center'}}>
+              <div style={{fontSize:'1.1rem',fontWeight:'bold'}}>✂️ Recortar Foto de Perfil</div>
+              <div style={{fontSize:'0.78rem',color:'rgba(255,255,255,0.55)',marginTop:'3px'}}>Arrasta para mover · Scroll para aproximar/afastar</div>
+            </div>
+
+            {/* Crop area — fixed square, circle in center */}
+            <div
+              ref={(el) => {
+                cropContainerRef.current = el;
+                if (el) {
+                  const s = Math.min(el.offsetWidth, el.offsetHeight);
+                  if (s !== cropContainerSize.w) setCropContainerSize({ w: s, h: s });
+                }
+              }}
+              onMouseDown={handleCropMouseDown}
+              style={{
+                position: 'relative',
+                width: 'min(80vw, 80vh, 440px)',
+                height: 'min(80vw, 80vh, 440px)',
+                background: '#111',
+                borderRadius: '12px',
+                overflow: 'hidden',
+                cursor: cropDragStart ? 'grabbing' : 'grab',
+                userSelect: 'none',
+              }}
+            >
+              {/* The image — centered + transformed */}
+              {cropModal.src && (
+                <img
+                  ref={cropImgRef}
+                  src={cropModal.src}
+                  alt="crop"
+                  draggable={false}
+                  style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: `translate(calc(-50% + ${cropOffset.x}px), calc(-50% + ${cropOffset.y}px)) scale(${cropScale})`,
+                    transformOrigin: 'center center',
+                    width: cropImgNatural.w > 0 ? cropImgNatural.w : 'auto',
+                    height: 'auto',
+                    maxWidth: 'none',
+                    pointerEvents: 'none',
+                    userSelect: 'none',
+                  }}
+                  onLoad={(e) => {
+                    const img = e.target;
+                    const nw = img.naturalWidth;
+                    const nh = img.naturalHeight;
+                    setCropImgNatural({ w: nw, h: nh });
+                    const size = cropContainerRef.current
+                      ? Math.min(cropContainerRef.current.offsetWidth, cropContainerRef.current.offsetHeight)
+                      : 400;
+                    setCropContainerSize({ w: size, h: size });
+                    const cropRadius = Math.round(size * 0.4);
+                    const minScale = Math.max((cropRadius * 2) / nw, (cropRadius * 2) / nh);
+                    setCropScale(minScale);
+                    setCropOffset({ x: 0, y: 0 });
+                  }}
+                />
+              )}
+
+              {/* Dark overlay with circular cutout via SVG clipPath */}
+              <svg
+                style={{position:'absolute',top:0,left:0,width:'100%',height:'100%',pointerEvents:'none'}}
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <defs>
+                  <mask id="cropMask">
+                    <rect width="100%" height="100%" fill="white" />
+                    <circle
+                      cx="50%" cy="50%"
+                      r={`${Math.round(Math.min(cropContainerSize.w, cropContainerSize.h) * 0.4)}px`}
+                      fill="black"
+                    />
+                  </mask>
+                </defs>
+                <rect width="100%" height="100%" fill="rgba(0,0,0,0.58)" mask="url(#cropMask)" />
+                <circle
+                  cx="50%" cy="50%"
+                  r={Math.round(Math.min(cropContainerSize.w, cropContainerSize.h) * 0.4)}
+                  fill="none" stroke="white" strokeWidth="2"
+                />
+              </svg>
+            </div>
+
+            {/* Zoom slider */}
+            <div style={{display:'flex',alignItems:'center',gap:'10px',marginTop:'14px',width:'min(80vw,440px)'}}>
+              <span style={{color:'rgba(255,255,255,0.5)',fontSize:'0.8rem'}}>−</span>
+              <input
+                type="range" min={1} max={100} step={1}
+                value={Math.round(
+                  (() => {
+                    const minS = Math.max(
+                      (Math.round(Math.min(cropContainerSize.w,cropContainerSize.h)*0.8)) / Math.max(cropImgNatural.w,1),
+                      (Math.round(Math.min(cropContainerSize.w,cropContainerSize.h)*0.8)) / Math.max(cropImgNatural.h,1)
+                    );
+                    const maxS = minS * 8;
+                    return ((cropScale - minS) / (maxS - minS)) * 99 + 1;
+                  })()
+                )}
+                onChange={(ev) => {
+                  const pct = (Number(ev.target.value) - 1) / 99;
+                  const minS = Math.max(
+                    (Math.round(Math.min(cropContainerSize.w,cropContainerSize.h)*0.8)) / Math.max(cropImgNatural.w,1),
+                    (Math.round(Math.min(cropContainerSize.w,cropContainerSize.h)*0.8)) / Math.max(cropImgNatural.h,1)
+                  );
+                  const newScale = minS + pct * (minS * 7);
+                  setCropScale(newScale);
+                  setCropOffset(prev => clampCropOffset(prev.x, prev.y, newScale));
+                }}
+                style={{flex:1,accentColor:'white'}}
+              />
+              <span style={{color:'rgba(255,255,255,0.5)',fontSize:'0.8rem'}}>+</span>
+            </div>
+
+            {/* Buttons */}
+            <div style={{display:'flex',gap:'10px',marginTop:'16px'}}>
+              <button type="button" onClick={() => setCropModal({ show: false, src: null })} style={{padding:'10px 22px',borderRadius:'8px',border:'1px solid rgba(255,255,255,0.2)',background:'transparent',color:'white',cursor:'pointer',fontWeight:'bold'}}>Cancelar</button>
+              <button type="button" onClick={confirmCrop} disabled={uploading} style={{padding:'10px 28px',borderRadius:'8px',border:'none',background:'#2563eb',color:'white',cursor:'pointer',fontWeight:'bold',fontSize:'0.95rem'}}>{uploading ? 'A guardar...' : '✂️ Confirmar Recorte'}</button>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
 
       {/* --- POP-UP DE NOTIFICAÇÃO (SUCESSO / ERRO) --- */}
       {notification.show && (

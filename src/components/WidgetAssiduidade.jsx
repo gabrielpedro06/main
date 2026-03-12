@@ -12,7 +12,8 @@ const Icons = {
   Target: ({ size = 16 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>,
   Check: ({ size = 16 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>,
   Folder: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>,
-  Filter: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+  Filter: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>,
+  Calendar: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
 };
 
 // --- PORTAL ---
@@ -20,7 +21,7 @@ const ModalPortal = ({ children }) => {
   return createPortal(children, document.body);
 };
 
-const WidgetAssiduidade = React.memo(function WidgetAssiduidade() {
+const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory }) {
   const { user } = useAuth();
   
   // Estados de Tempo e Ponto
@@ -42,7 +43,32 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade() {
   
   // Modais
   const [showStartModal, setShowStartModal] = useState(false); 
-  const [showClockOutModal, setShowClockOutModal] = useState(false); 
+  const [showClockOutModal, setShowClockOutModal] = useState(false);
+
+  // Registos Recentes
+  const [showRecords, setShowRecords] = useState(false);
+  const [recentRecords, setRecentRecords] = useState([]);
+
+  const calcSec = (entrada, saida, pausa) => {
+    if (!entrada || !saida) return 0;
+    const d = new Date(`1970-01-01T${saida}`) - new Date(`1970-01-01T${entrada}`);
+    const diff = d < 0 ? d + 86400000 : d;
+    return Math.max(0, diff / 1000 - (pausa || 0));
+  };
+
+  const fmtHrs = (s) => {
+    if (!s) return '—';
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    return `${h}h${String(m).padStart(2,'0')}`;
+  };
+
+  const fetchRecentRecords = useCallback(async () => {
+    if (!user?.id) return;
+    const primeiroDia = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+    const { data } = await supabase.from('assiduidade').select('*').eq('user_id', user.id).gte('data_registo', primeiroDia).order('data_registo', { ascending: false }).limit(5);
+    if (data) setRecentRecords(data);
+  }, [user?.id]); 
 
   // --- 1. VERIFICAR ESTADO E AUTO-ENCERRAMENTO ---
   const checkStatus = useCallback(async () => {
@@ -127,10 +153,11 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade() {
   }, [user?.id]);
 
   useEffect(() => { 
-      checkStatus(); 
+      checkStatus();
+      fetchRecentRecords();
       window.addEventListener('focus', checkStatus);
       return () => window.removeEventListener('focus', checkStatus);
-  }, [checkStatus]); 
+  }, [checkStatus, fetchRecentRecords]); 
 
   useEffect(() => {
     let interval = null;
@@ -473,52 +500,136 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade() {
   const inputFieldStyle = { width: '100%', padding: '12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.95rem', background: '#fff', boxSizing: 'border-box', outline: 'none', color: '#1e293b', transition: 'border 0.2s' };
 
   return (
-    <div className="card" style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', minHeight: '340px', padding: '25px' }}>
-      
-      <div style={{ marginBottom: '5px', color: '#64748b', fontSize: '0.85rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-          {status === 'paused' ? <><Icons.Pause size={14} /> Em Pausa</> : (status === 'running' ? <><Icons.Play size={14} /> A Trabalhar</> : 'Registo de Ponto')}
-      </div>
-      
-      {activeRecord && status !== 'stopped' && (
-          <div style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: '600' }}>
-              Início às {activeRecord.hora_entrada?.slice(0, 5)}
+    <div className="card" style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', minHeight: '360px', padding: '32px 28px', background: '#ffffff' }}>
+
+      {/* Toggle registos */}
+      <button onClick={() => { setShowRecords(v => !v); if (!showRecords) fetchRecentRecords(); }} title="Últimos registos" style={{position:'absolute', top:'20px', right:'20px', background: showRecords ? '#eff6ff' : '#f8fafc', border: showRecords ? '1px solid #3b82f6' : '1px solid #e2e8f0', borderRadius:'10px', padding:'8px 10px', cursor:'pointer', color: showRecords ? '#2563eb' : '#94a3b8', display:'flex', alignItems:'center', justifyContent:'center', transition:'all 0.2s', fontWeight: '600'}}>
+        <Icons.Calendar size={18} />
+      </button>
+
+      {/* STATUS E TIMER COM PROGRESS RING */}
+      <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', marginBottom: '28px'}}>
+        
+        {/* Status Label */}
+        {status !== 'stopped' && (
+          <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px'}}>
+            <div style={{ fontSize: '0.75rem', color: status === 'paused' ? '#eab308' : '#16a34a', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+              {status === 'paused' ? '⏸ EM PAUSA' : '▶ A TRABALHAR'}
+            </div>
+            {activeRecord && (
+              <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: '500' }}>
+                Início às {activeRecord.hora_entrada?.slice(0, 5)}
+              </div>
+            )}
           </div>
-      )}
-      
-      <div style={{ fontSize: '4rem', fontWeight: '800', fontFamily: 'monospace', color: status === 'paused' ? '#eab308' : (status === 'running' ? '#2563eb' : '#cbd5e1'), margin: '20px 0', letterSpacing: '-2px', fontVariantNumeric: 'tabular-nums' }}>
-        {formatTime(timer)}
+        )}
+
+        {/* Progress Ring com Timer — círculo completo, timer centrado */}
+        {(() => {
+          const META_SECONDS = 8 * 3600;
+          const progress = Math.min(timer / META_SECONDS, 1);
+          const radius = 75;
+          const circumference = 2 * Math.PI * radius;
+          const offset = circumference * (1 - progress);
+          const color = status === 'paused' ? '#eab308' : (status === 'running' ? '#10b981' : '#cbd5e1');
+          const h = Math.floor(timer / 3600);
+          const m = Math.floor((timer % 3600) / 60);
+          const timeLabel = `${h}h ${String(m).padStart(2,'0')}m`;
+
+          return (
+            <div style={{position: 'relative', width: '180px', height: '180px', flexShrink: 0}}>
+              <svg width="180" height="180" style={{position: 'absolute', top: 0, left: 0, transform: 'rotate(-90deg)'}}>
+                <circle cx="90" cy="90" r={radius} fill="none" stroke="#e8edf2" strokeWidth="8" />
+                <circle
+                  cx="90" cy="90" r={radius}
+                  fill="none"
+                  stroke={color}
+                  strokeWidth="8"
+                  strokeLinecap="round"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={offset}
+                  style={{transition: 'stroke-dashoffset 0.6s ease, stroke 0.3s'}}
+                />
+              </svg>
+              {/* Texto centrado dentro do círculo */}
+              <div style={{position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '3px'}}>
+                <div style={{fontSize: '1.8rem', fontWeight: '800', color: color, letterSpacing: '-1px', fontVariantNumeric: 'tabular-nums', lineHeight: 1}}>
+                  {timeLabel}
+                </div>
+                <div style={{fontSize: '0.78rem', color: '#94a3b8', fontWeight: '500'}}>
+                  de 8.00 hrs
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
-      <div style={{ marginTop: 'auto' }}>
+      {/* BOTÕES DE AÇÃO */}
+      <div style={{ marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
         {status === 'stopped' && (
-            <button onClick={openStartModal} disabled={loading} className="btn-primary hover-shadow" style={{ width: '100%', padding: '16px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '1rem', transition: '0.2s' }}>
+            <button onClick={openStartModal} disabled={loading} className="btn-primary hover-shadow" style={{ width: '100%', padding: '16px 20px', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', fontSize: '1rem', fontWeight: '800', transition: '0.2s', background: '#2563eb', color: 'white', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}>
                 <Icons.Play size={18} /> {loading ? "A preparar..." : "Iniciar Dia de Trabalho"}
             </button>
         )}
         {status === 'running' && (
             <div style={{display: 'flex', gap: '12px'}}>
-                <button onClick={handlePause} disabled={loading} style={{ flex: 1, padding: '16px', borderRadius: '12px', border: '1px solid #fef08a', cursor: 'pointer', background: '#fefce8', color: '#b45309', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: '0.2s' }} className="hover-shadow">
+                <button onClick={handlePause} disabled={loading} style={{ flex: 1, padding: '16px', borderRadius: '12px', border: 'none', cursor: 'pointer', background: '#fef3c7', color: '#a16207', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: '0.2s', fontSize: '0.95rem', opacity: loading ? 0.7 : 1 }} className="hover-shadow">
                     <Icons.Pause size={16} /> Pausar
                 </button>
-                <button onClick={handleFinishClick} disabled={loading} style={{ flex: 1, padding: '16px', borderRadius: '12px', border: '1px solid #fecaca', cursor: 'pointer', background: '#fef2f2', color: '#b91c1c', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: '0.2s' }} className="hover-shadow">
+                <button onClick={handleFinishClick} disabled={loading} style={{ flex: 1, padding: '16px', borderRadius: '12px', border: 'none', cursor: 'pointer', background: '#fee2e2', color: '#991b1b', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: '0.2s', fontSize: '0.95rem', opacity: loading ? 0.7 : 1 }} className="hover-shadow">
                     <Icons.Stop size={16} /> Terminar
                 </button>
             </div>
         )}
         {status === 'paused' && (
             <div style={{display: 'flex', gap: '12px'}}>
-                <button onClick={handleResume} disabled={loading} style={{ flex: 1, padding: '16px', borderRadius: '12px', border: '1px solid #bbf7d0', cursor: 'pointer', background: '#f0fdf4', color: '#15803d', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: '0.2s' }} className="hover-shadow">
+                <button onClick={handleResume} disabled={loading} style={{ flex: 2, padding: '16px', borderRadius: '12px', border: 'none', cursor: 'pointer', background: '#ef4444', color: 'white', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: '0.2s', fontSize: '0.95rem', opacity: loading ? 0.7 : 1 }} className="hover-shadow">
                     <Icons.Play size={16} /> Retomar
                 </button>
-                <button onClick={handleFinishClick} disabled={loading} style={{ flex: 1, padding: '16px', borderRadius: '12px', border: '1px solid #fecaca', cursor: 'pointer', background: '#fef2f2', color: '#b91c1c', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: '0.2s' }} className="hover-shadow">
+                <button onClick={handleFinishClick} disabled={loading} style={{ flex: 1, padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', cursor: 'pointer', background: '#f8fafc', color: '#64748b', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: '0.2s', fontSize: '0.95rem', opacity: loading ? 0.7 : 1 }} className="hover-shadow">
                     <Icons.Stop size={16} /> Terminar
                 </button>
             </div>
         )}
       </div>
 
-      {status === 'running' && <div style={{marginTop:'20px', fontSize:'0.8rem', color:'#16a34a', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'}}><span className="pulse-dot"></span> Tempo a decorrer</div>}
-      {status === 'paused' && <div style={{marginTop:'20px', fontSize:'0.8rem', color:'#eab308', fontWeight: '600'}}>O tempo está parado.</div>}
+      {status === 'running' && <div style={{textAlign: 'center', fontSize:'0.85rem', color:'#16a34a', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '4px', letterSpacing: '0.02em'}}><span className="pulse-dot"></span> Tempo a decorrer</div>}
+      {status === 'paused' && <div style={{textAlign: 'center', fontSize:'0.85rem', color:'#eab308', fontWeight: '700', marginTop: '4px', letterSpacing: '0.02em'}}>⏸ Pausa em curso</div>}
+
+      {/* Painel de Registos Recentes */}
+      {showRecords && (
+        <div style={{marginTop:'20px', borderTop:'1px solid #f1f5f9', paddingTop:'16px', textAlign:'left'}}>
+          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'10px'}}>
+            <span style={{fontSize:'0.78rem', fontWeight:'700', color:'#64748b', textTransform:'uppercase', letterSpacing:'0.05em'}}>Últimos Registos</span>
+            {onViewHistory && <button onClick={onViewHistory} style={{background:'none', border:'none', color:'#2563eb', fontSize:'0.78rem', fontWeight:'600', cursor:'pointer', padding:0}}>Ver histórico →</button>}
+          </div>
+          {recentRecords.length === 0 ? (
+            <div style={{textAlign:'center', color:'#94a3b8', fontSize:'0.82rem', padding:'8px 0'}}>Sem registos este mês.</div>
+          ) : (
+            <table style={{width:'100%', borderCollapse:'collapse', fontSize:'0.8rem'}}>
+              <thead>
+                <tr style={{color:'#94a3b8', borderBottom:'1px solid #f1f5f9'}}>
+                  <th style={{paddingBottom:'6px', fontWeight:'600', textAlign:'left'}}>Data</th>
+                  <th style={{paddingBottom:'6px', fontWeight:'600', textAlign:'center'}}>Entrada</th>
+                  <th style={{paddingBottom:'6px', fontWeight:'600', textAlign:'center'}}>Saída</th>
+                  <th style={{paddingBottom:'6px', fontWeight:'600', textAlign:'right'}}>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentRecords.map(r => (
+                  <tr key={r.id} style={{borderBottom:'1px solid #f8fafc'}}>
+                    <td style={{padding:'7px 0', fontWeight:'600', color:'#334155'}}>{new Date(r.data_registo).toLocaleDateString('pt-PT').slice(0,5)}</td>
+                    <td style={{padding:'7px 0', color:'#10b981', fontWeight:'500', textAlign:'center'}}>{r.hora_entrada?.slice(0,5)}</td>
+                    <td style={{padding:'7px 0', color: r.hora_saida ? '#ef4444' : '#94a3b8', fontWeight:'500', textAlign:'center'}}>{r.hora_saida?.slice(0,5) || '—'}</td>
+                    <td style={{padding:'7px 0', textAlign:'right', fontWeight:'700', color:'#2563eb'}}>{fmtHrs(calcSec(r.hora_entrada, r.hora_saida, r.tempo_pausa_acumulado))}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
 
       {/* ============================================================== */}
       {/* 💡 MODAL DA MANHÃ: PLANEAR O DIA COM FILTRO E ORDENAÇÃO */}
@@ -682,16 +793,23 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade() {
       )}
 
       <style>{`
-        .pulse-dot { width: 8px; height: 8px; background-color: #16a34a; border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; } 
-        @keyframes pulse { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(22, 163, 74, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); } }
+        .pulse-dot { width: 10px; height: 10px; background-color: #16a34a; border-radius: 50%; display: inline-block; animation: pulse 2s infinite; box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.7); } 
+        @keyframes pulse { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.7); } 50% { box-shadow: 0 0 0 8px rgba(22, 163, 74, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); } }
         
-        .hover-shadow:hover { transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1) !important; }
+        .btn-primary { background: #2563eb; color: white; border: none; cursor: pointer; }
+        .btn-primary:hover:not(:disabled) { background: #1d4ed8; transform: translateY(-2px); box-shadow: 0 8px 16px rgba(37, 99, 235, 0.25) !important; }
+        .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+        
+        .hover-shadow { box-shadow: 0 2px 4px rgba(0,0,0,0.08); }
+        .hover-shadow:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(0,0,0,0.12) !important; }
+        .hover-shadow:active:not(:disabled) { transform: translateY(0); }
+        
         .hover-blue-btn:hover { background-color: #eff6ff !important; color: #2563eb !important; }
         .hover-red-btn:hover { background-color: #fef2f2 !important; color: #ef4444 !important; }
         .hover-red-text:hover { color: #ef4444 !important; }
         
-        .input-focus:focus { border-color: #3b82f6 !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
-        .input-focus-alert:focus { border-color: #f59e0b !important; box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.1); }
+        .input-focus:focus { border-color: #3b82f6 !important; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+        .input-focus-alert:focus { border-color: #f59e0b !important; box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1); }
         
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }

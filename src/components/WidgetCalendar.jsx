@@ -98,7 +98,7 @@ export default function WidgetCalendar() {
         if (f.m === mesAtual) {
             listaEventos.push({
                 dia: f.d, tipo: 'feriado', hora: null,
-                displayName: `🇵🇹 ${f.nome}`, 
+                displayName: f.nome, 
                 bg: '#fee2e2', txt: '#991b1b',
                 fullTitle: `Feriado: ${f.nome}`
             });
@@ -111,7 +111,7 @@ export default function WidgetCalendar() {
         if (nasc.getMonth() === mesAtual) {
             listaEventos.push({
                 dia: nasc.getDate(), tipo: 'aniversario', hora: null,
-                displayName: `🎉 ${p.nome.split(' ')[0]}`, 
+                displayName: `Aniversário de ${p.nome.split(' ')[0]}`, 
                 bg: '#fef08a', txt: '#854d0e',
                 fullTitle: `Aniversário de ${p.nome}`
             });
@@ -119,22 +119,22 @@ export default function WidgetCalendar() {
     });
 
     // 2. Férias e Ausências
-    const { data: ferias } = await supabase.from("ferias").select("data_inicio, data_fim, tipo").eq("user_id", user.id).eq("estado", "aprovado").or(`data_inicio.lte.${fimMesStr},data_fim.gte.${inicioMesStr}`);
+    const { data: ferias } = await supabase.from("ferias").select("data_inicio, data_fim, tipo").eq("user_id", user.id).eq("estado", "aprovado").not("tipo", "ilike", "%km%").or(`data_inicio.lte.${fimMesStr},data_fim.gte.${inicioMesStr}`);
 
     if (ferias) {
         ferias.forEach(f => {
             const inicio = new Date(f.data_inicio);
             const fim = new Date(f.data_fim);
-            let bg = '#f59e0b'; let emoji = '🏖️'; 
-            if(f.tipo?.toLowerCase().includes('falta')) { bg = '#ef4444'; emoji = '🚨'; }
-            if(f.tipo?.toLowerCase().includes('baixa')) { bg = '#a855f7'; emoji = '🏥'; }
+            let bg = '#f59e0b';
+            if(f.tipo?.toLowerCase().includes('falta')) { bg = '#ef4444'; }
+            if(f.tipo?.toLowerCase().includes('baixa')) { bg = '#a855f7'; }
 
             const tipoFormatado = f.tipo.charAt(0).toUpperCase() + f.tipo.slice(1);
             for (let d = new Date(inicio); d <= fim; d.setDate(d.getDate() + 1)) {
                 if (d.getMonth() === mesAtual && d.getFullYear() === anoAtual) {
                     listaEventos.push({
                         dia: d.getDate(), tipo: 'ausencia', hora: null,
-                        displayName: `${emoji} ${tipoFormatado}`, 
+                        displayName: tipoFormatado,
                         bg: bg, txt: 'white', fullTitle: `${tipoFormatado} (Aprovado)`
                     });
                 }
@@ -150,7 +150,7 @@ export default function WidgetCalendar() {
             const dataAgenda = new Date(a.data);
             listaEventos.push({
                 id: a.id, dia: dataAgenda.getDate(), tipo: 'agenda', hora: a.hora.slice(0, 5), 
-                displayName: `🕒 ${a.hora.slice(0, 5)} ${a.titulo}`, 
+                displayName: `${a.hora.slice(0, 5)} ${a.titulo}`, 
                 bg: '#e0f2fe', txt: '#0369a1', fullTitle: a.titulo
             });
         });
@@ -255,7 +255,7 @@ export default function WidgetCalendar() {
       const exactNewTime = `${newHourBlock}:${oldMinutes}`;
 
       // Update Optimista (Visual imediato)
-      setEventos(prev => prev.map(ev => ev.id == eventId ? { ...ev, hora: exactNewTime, displayName: `🕒 ${exactNewTime} ${ev.fullTitle}` } : ev).sort((a,b) => (a.hora||'').localeCompare(b.hora||'')));
+      setEventos(prev => prev.map(ev => ev.id == eventId ? { ...ev, hora: exactNewTime, displayName: `${exactNewTime} ${ev.fullTitle}` } : ev).sort((a,b) => (a.hora||'').localeCompare(b.hora||'')));
 
       // Update Base de Dados
       await supabase.from('agenda').update({ hora: exactNewTime }).eq('id', eventId);
@@ -311,8 +311,8 @@ export default function WidgetCalendar() {
                                           {dia}
                                           {(isNiver || isFeriado) && (
                                               <div className="tooltip-event">
-                                                  {isFeriado && <div>🇵🇹 {feriadoDia.nome}</div>}
-                                                  {isNiver && <div>🎉 {nivers.map(n => n.nome.split(' ')[0]).join(', ')}</div>}
+                                                  {isFeriado && <div>{feriadoDia.nome}</div>}
+                                                  {isNiver && <div>{nivers.map(n => n.nome.split(' ')[0]).join(', ')}</div>}
                                               </div>
                                           )}
                                       </div>
