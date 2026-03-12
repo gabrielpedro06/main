@@ -552,7 +552,7 @@ export default function DashboardHome() {
     <div className="dashboard-home modern-boom factorial-like">
       
       {/* HEADER ESTÁTICO (Sem bugs no scroll) */}
-    <div className="dashboard-hero boom-reveal" style={{ '--d': '20ms', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', background: 'white', padding: '18px 24px', borderRadius: '16px', boxShadow: '0 2px 10px rgba(15,23,42,0.04)', border: '1px solid #ebe7df', flexWrap: 'wrap', gap: '16px' }}>
+    <div className="dashboard-hero boom-reveal" style={{ '--d': '20ms', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', background: 'white', padding: '18px 24px', borderRadius: '16px', boxShadow: '0 2px 10px rgba(15,23,42,0.04)', border: '1px solid #ebe7df', flexWrap: 'wrap', gap: '16px', position: 'relative', zIndex: 40, overflow: 'visible' }}>
         <div>
            <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
                <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: '800', letterSpacing: '-0.02em', color: '#22242a' }}>Bom Dia, {userFirstName}</h1>
@@ -615,7 +615,7 @@ export default function DashboardHome() {
                 </div>
 
                 {showMenu && (
-                  <div style={{ position: 'absolute', top: '110%', right: 0, background: 'white', border: '1px solid #e2e8f0', borderRadius: '10px', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', minWidth: '220px', zIndex: 50, overflow: 'hidden', animation: 'fadeIn 0.2s ease-out' }}>
+                  <div style={{ position: 'absolute', top: '110%', right: 0, background: 'white', border: '1px solid #e2e8f0', borderRadius: '10px', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', minWidth: '220px', zIndex: 9999, overflow: 'hidden', animation: 'fadeIn 0.2s ease-out' }}>
                     <div style={{padding: '12px 15px', borderBottom: '1px solid #f1f5f9', background: '#f8fafc'}}><span style={{fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 'bold', letterSpacing: '0.5px'}}>A Minha Conta</span></div>
                     <button className="menu-item" onClick={() => navigate("/dashboard/perfil")}><Icons.User /> O Meu Perfil</button>
                     <button className="menu-item" onClick={() => navigate("/dashboard/ferias")}><Icons.Sun /> Férias & Ausências</button>
