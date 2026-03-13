@@ -125,7 +125,7 @@ body, html {
 }
 
 .sidebar nav ul li.active a {
-  background-color: #16a34a; /* Verde Bizin */
+  background-color: #2563eb;
   color: white;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 }
@@ -144,9 +144,9 @@ body, html {
 }
 
 .toggle-menu:hover {
-  background: #16a34a;
+  background: #2563eb;
   color: white;
-  border-color: #16a34a;
+  border-color: #2563eb;
 }
 
 /* =========================================
@@ -185,26 +185,67 @@ body, html {
    COMPONENTES UI (BOTÕES & CARDS)
    ========================================= */
 
-/* Botão Principal - VERDE */
-.btn-primary {
-  background-color: #16a34a; /* Verde Bizin */
+/* Botão Principal / CTA Global */
+.btn-primary,
+.btn-cta {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
   color: white;
   padding: 12px 24px;
-  border-radius: 8px;
+  border-radius: 10px;
   border: none;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 0.95rem;
   cursor: pointer;
-  transition: background 0.2s, transform 0.1s;
-  box-shadow: 0 4px 6px -1px rgba(22, 163, 74, 0.2);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.22);
 }
 
-.btn-primary:hover {
-  background-color: #15803d; /* Verde mais escuro */
+.btn-primary::after,
+.btn-cta::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -150%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.38) 50%, rgba(255,255,255,0) 100%);
+  transform: skewX(-25deg);
+  transition: left 0.7s ease-in-out;
 }
 
-.btn-primary:active {
+.btn-primary:hover,
+.btn-cta:hover {
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 22px rgba(37, 99, 235, 0.28);
+}
+
+.btn-primary:hover::after,
+.btn-cta:hover::after {
+  animation: bizin-shine-sweep 1.2s infinite alternate ease-in-out;
+}
+
+.btn-primary:active,
+.btn-cta:active {
   transform: translateY(1px);
+}
+
+.btn-primary:disabled,
+.btn-cta:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+  box-shadow: none;
+}
+
+@keyframes bizin-shine-sweep {
+  0% { left: -150%; }
+  100% { left: 200%; }
 }
 
 /* Botão Secundário */
@@ -220,8 +261,8 @@ body, html {
 }
 
 .btn-small:hover {
-  border-color: #16a34a;
-  color: #16a34a;
+  border-color: #2563eb;
+  color: #2563eb;
 }
 
 /* Cards */
@@ -349,8 +390,8 @@ input, select, textarea {
 
 input:focus, select:focus, textarea:focus {
   outline: none;
-  border-color: #16a34a; /* Borda Verde ao focar */
-  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1);
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
 label {
@@ -461,14 +502,14 @@ label {
 }
 
 .tabs button:hover {
-  color: #16a34a; /* Verde ao passar o rato */
+  color: #2563eb;
   background: rgba(255,255,255,0.5);
 }
 
 /* Aba Ativa (A que está selecionada) */
 .tabs button.active {
-  color: #16a34a; /* Verde Bizin */
-  border-bottom: 3px solid #16a34a;
+  color: #2563eb;
+  border-bottom: 3px solid #2563eb;
   background: white;
   border-radius: 6px 6px 0 0;
 }
@@ -495,7 +536,7 @@ label {
 /* Botões dentro do formulário (Adicionar, Guardar) */
 .mini-form-grid button,
 .modal-body button[type="submit"] {
-  background-color: #16a34a;
+  background-color: #2563eb;
   color: white;
   border: none;
   padding: 10px 20px;
@@ -508,7 +549,7 @@ label {
 
 .mini-form-grid button:hover,
 .modal-body button[type="submit"]:hover {
-  background-color: #15803d;
+  background-color: #1d4ed8;
 }
 
 /* Botão de Cancelar/Apagar (Vermelho) */
@@ -570,7 +611,7 @@ label {
 .forum-reply-area input:focus,
 .forum-reply-area textarea:focus {
   background: white;
-  border-color: #16a34a;
+  border-color: #2563eb;
   outline: none;
 }
 
@@ -578,7 +619,7 @@ label {
 .forum-reply-area button {
   height: 45px;         /* Mesma altura do input */
   padding: 0 25px;
-  background-color: #16a34a; /* Verde */
+  background-color: #2563eb;
   color: white;
   border: none;
   border-radius: 8px;
@@ -588,7 +629,7 @@ label {
 }
 
 .forum-reply-area button:hover {
-  background-color: #15803d;
+  background-color: #1d4ed8;
 }
 
 /* =========================================
@@ -613,27 +654,6 @@ label {
     border-color: #16a34a33; /* Borda verde muito clarinha no hover */
 }
 
-/* 2. Botões com Gradiente e Brilho */
-.btn-primary {
-    background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
-    border: none;
-    position: relative;
-    overflow: hidden;
-}
-
-.btn-primary:after {
-    content: '';
-    position: absolute;
-    top: 0; left: -100%;
-    width: 100%; height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-    transition: 0.5s;
-}
-
-.btn-primary:hover:after {
-    left: 100%;
-}
-
 /* 3. Inputs com Foco Animado */
 input, select, textarea {
     border: 1px solid #e2e8f0;
@@ -648,7 +668,7 @@ input:focus {
 
 /* 4. Sidebar - Melhorar o Item Ativo */
 .sidebar nav ul li.active a {
-    background: linear-gradient(90deg, #16a34a 0%, #22c55e 100%);
+  background: linear-gradient(90deg, #2563eb 0%, #1d4ed8 100%);
     position: relative;
 }
 
@@ -699,7 +719,7 @@ input:focus {
   font-size: 0.9rem;
 }
 
-.toast-notification.success { background-color: #16a34a; } /* Verde */
+.toast-notification.success { background-color: #2563eb; }
 .toast-notification.error { background-color: #ef4444; }   /* Vermelho */
 .toast-notification.info { background-color: #3b82f6; }    /* Azul */
 
@@ -785,7 +805,7 @@ input:focus {
 }
 
 input:checked + .slider {
-  background-color: #22c55e; /* Verde quando ligado */
+  background-color: #2563eb;
 }
 
 input:checked + .slider:before {
@@ -876,8 +896,8 @@ html, body {
 }
 
 .sidebar nav ul li.active a {
-  background: linear-gradient(90deg, #24b469 0%, #1aa85f 100%);
-  box-shadow: 0 10px 20px rgba(22, 163, 74, 0.24);
+  background: linear-gradient(90deg, #2563eb 0%, #1d4ed8 100%);
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.24);
 }
 
 .toggle-menu {
@@ -908,18 +928,6 @@ html, body {
   color: #111827;
 }
 
-.btn-primary {
-  background: linear-gradient(135deg, #2f6fed 0%, #2a5fcb 100%);
-  border: 1px solid rgba(47, 111, 237, 0.3);
-  border-radius: 12px;
-  box-shadow: 0 10px 20px rgba(47, 111, 237, 0.22);
-}
-
-.btn-primary:hover {
-  background: linear-gradient(135deg, #2a5fcb 0%, #244ea7 100%);
-  transform: translateY(-1px);
-}
-
 .btn-small {
   background: #fff;
   border: 1px solid #ddd8cf;
@@ -930,9 +938,9 @@ html, body {
 }
 
 .btn-small:hover {
-  border-color: #c8c2b7;
-  color: #111827;
-  background: #faf8f4;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+  background: #eff6ff;
 }
 
 .data-table th {

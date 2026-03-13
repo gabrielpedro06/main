@@ -532,7 +532,7 @@ export default function ProjetoDetalhe() {
   };
 
   const getProjectStatusTheme = (estado) => {
-      if(estado === 'concluido') return { bg: '#dcfce7', text: '#16a34a', border: '#bbf7d0', dot: '#16a34a' };
+    if(estado === 'concluido') return { bg: '#dbeafe', text: '#2563eb', border: '#bfdbfe', dot: '#2563eb' };
       if(estado === 'em_curso') return { bg: '#fefce8', text: '#ca8a04', border: '#fde047', dot: '#eab308' };
       if(estado === 'cancelado') return { bg: '#f1f5f9', text: '#64748b', border: '#e2e8f0', dot: '#64748b' };
       return { bg: '#eff6ff', text: '#2563eb', border: '#bfdbfe', dot: '#2563eb' }; 
@@ -550,7 +550,7 @@ export default function ProjetoDetalhe() {
       const states = [
           { val: 'pendente', label: 'PENDENTE', color: '#3b82f6' },
           { val: 'em_curso', label: 'EM CURSO', color: '#f59e0b' },
-          { val: 'concluido', label: 'CONCLUÍDO', color: '#10b981' },
+          { val: 'concluido', label: 'CONCLUÍDO', color: '#2563eb' },
           { val: 'cancelado', label: 'CANCELADO', color: '#64748b' }
       ];
       return (
@@ -725,12 +725,12 @@ export default function ProjetoDetalhe() {
                         {/* CABEÇALHO DA ATIVIDADE */}
                         <div style={{padding: '15px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: isAtivDone ? '#f8fafc' : 'white', position: 'relative'}}>
                             <div style={{position: 'absolute', bottom: 0, left: 0, height: '3px', background: '#f1f5f9', width: '100%'}}>
-                                <div style={{height: '100%', background: progresso === 100 ? '#10b981' : '#3b82f6', width: `${progresso}%`, transition: 'width 0.4s ease-in-out'}}></div>
+                                <div style={{height: '100%', background: '#3b82f6', width: `${progresso}%`, transition: 'width 0.4s ease-in-out'}}></div>
                             </div>
                             
                             <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
                                 <div style={{cursor: 'grab', color: '#cbd5e1', display:'flex'}} title="Arraste para reordenar" className="hover-blue-text"><Icons.GripVertical /></div>
-                                <div onClick={() => toggleAtividadeStatus(ativ.id, ativ.estado)} style={{width: '26px', height: '26px', borderRadius: '8px', cursor: 'pointer', background: isAtivDone ? '#10b981' : '#f8fafc', border: isAtivDone ? 'none' : '2px solid #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', transition: 'all 0.2s'}}>
+                                <div onClick={() => toggleAtividadeStatus(ativ.id, ativ.estado)} style={{width: '26px', height: '26px', borderRadius: '8px', cursor: 'pointer', background: isAtivDone ? '#2563eb' : '#f8fafc', border: isAtivDone ? 'none' : '2px solid #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', transition: 'all 0.2s'}}>
                                     {isAtivDone && <Icons.Check size={16} />}
                                 </div>
                                 <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
@@ -805,7 +805,7 @@ export default function ProjetoDetalhe() {
                                         <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 15px', opacity: tar.estado === 'concluido' ? 0.6 : 1}}>
                                             <div style={{display: 'flex', alignItems: 'center', gap: '12px', flex: 1}}>
                                                 <div style={{cursor: 'grab', color: '#cbd5e1', display:'flex'}} title="Arraste para reordenar"><Icons.GripVertical /></div>
-                                                <div onClick={() => toggleTarefaStatus(tar.id, tar.estado)} style={{ width: '20px', height: '20px', borderRadius: '50%', cursor: 'pointer', border: tar.estado === 'concluido' ? 'none' : '2px solid #cbd5e1', background: tar.estado === 'concluido' ? '#10b981' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0 }}>
+                                                <div onClick={() => toggleTarefaStatus(tar.id, tar.estado)} style={{ width: '20px', height: '20px', borderRadius: '50%', cursor: 'pointer', border: tar.estado === 'concluido' ? 'none' : '2px solid #cbd5e1', background: tar.estado === 'concluido' ? '#2563eb' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0 }}>
                                                     {tar.estado === 'concluido' && <Icons.Check size={12} />}
                                                 </div>
                                                 
@@ -818,7 +818,7 @@ export default function ProjetoDetalhe() {
                                                     {respName && <span style={{fontSize: '0.65rem', background: '#eff6ff', color: '#2563eb', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold'}}>{respName.split(' ')[0]}</span>}
                                                     {extraColabsCount > 0 && <span style={{fontSize: '0.65rem', background: '#f3e8ff', color: '#7e22ce', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}} title={extraColabsNames}><Icons.Users size={10} /> +{extraColabsCount}</span>}
                                                     {renderDeadline(tar.data_fim, isTarDone)}
-                                                    {hasSubs && <span style={{fontSize: '0.65rem', background: subsDone === tar.subtarefas.length ? '#dcfce7' : '#f1f5f9', color: subsDone === tar.subtarefas.length ? '#16a34a' : '#64748b', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.ClipboardList size={10} /> {subsDone}/{tar.subtarefas.length}</span>}
+                                                    {hasSubs && <span style={{fontSize: '0.65rem', background: subsDone === tar.subtarefas.length ? '#dbeafe' : '#f1f5f9', color: subsDone === tar.subtarefas.length ? '#2563eb' : '#64748b', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.ClipboardList size={10} /> {subsDone}/{tar.subtarefas.length}</span>}
                                                 </div>
                                             </div>
 
@@ -1084,7 +1084,7 @@ export default function ProjetoDetalhe() {
                                 <h4 style={{margin: '0 0 15px 0', color: '#1e40af', display: 'flex', alignItems: 'center', gap: '8px', fontSize:'1rem'}}><Icons.Dollar /> Financeiro</h4>
                                 <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
                                     <div><label style={{...labelStyle, color: '#1e3a8a'}}>Investimento (€)</label><input type="number" step="0.01" value={formGeral.investimento || 0} onChange={e => setFormGeral({...formGeral, investimento: e.target.value})} style={{...inputStyle, borderColor: '#bfdbfe', marginBottom:0}} className="input-focus" /></div>
-                                    <div><label style={{...labelStyle, color: '#1e3a8a'}}>Incentivo (€)</label><input type="number" step="0.01" value={formGeral.incentivo || 0} onChange={e => setFormGeral({...formGeral, incentivo: e.target.value})} style={{...inputStyle, borderColor: '#bfdbfe', color: '#16a34a', marginBottom:0}} className="input-focus" /></div>
+                                    <div><label style={{...labelStyle, color: '#1e3a8a'}}>Incentivo (€)</label><input type="number" step="0.01" value={formGeral.incentivo || 0} onChange={e => setFormGeral({...formGeral, incentivo: e.target.value})} style={{...inputStyle, borderColor: '#bfdbfe', color: '#2563eb', marginBottom:0}} className="input-focus" /></div>
                                 </div>
                             </div>
                             <label style={labelStyle}>Descrição Pública</label>

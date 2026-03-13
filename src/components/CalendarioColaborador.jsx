@@ -654,7 +654,7 @@ export default function CalendarioColaborador({ userId, userName = "Colaborador"
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "12px" }}>
                     <div>
                       <span style={{ fontSize: "0.75rem", fontWeight: "bold", color: "#64748b" }}>Entrada</span>
-                      <p style={{ margin: "4px 0 0 0", fontSize: "1rem", fontWeight: "bold", color: "#10b981" }}>
+                      <p style={{ margin: "4px 0 0 0", fontSize: "1rem", fontWeight: "bold", color: "#2563eb" }}>
                         {formatarHora(ass.hora_entrada)}
                       </p>
                     </div>
@@ -795,7 +795,7 @@ export default function CalendarioColaborador({ userId, userName = "Colaborador"
           </div>
           <div style={{ background: "white", padding: "10px", borderRadius: "6px", textAlign: "center" }}>
             <span style={{ fontSize: "0.75rem", fontWeight: "bold", color: "#64748b", display: "block" }}>Dias Trabalhados</span>
-            <span style={{ fontSize: "1.3rem", fontWeight: "bold", color: "#059669" }}>{totais.diasTrabalhados}</span>
+            <span style={{ fontSize: "1.3rem", fontWeight: "bold", color: "#2563eb" }}>{totais.diasTrabalhados}</span>
           </div>
           {totais.totalPausasSeg > 0 && (
             <div style={{ background: "white", padding: "10px", borderRadius: "6px", textAlign: "center" }}>

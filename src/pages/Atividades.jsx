@@ -207,7 +207,7 @@ export default function Atividades() {
                 </div>
             )}
         </div>
-        <button className="btn-primary hover-shadow" onClick={handleNovo} style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold'}}>
+        <button className="btn-cta" onClick={handleNovo}>
             <Icons.Plus /> Nova Atividade
         </button>
       </div>

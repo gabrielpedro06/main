@@ -374,7 +374,7 @@ export default function GestaoLeads() {
             <button className="btn-outline hover-shadow" onClick={copyAllEmails}><Icons.Copy /> Copiar Emails</button>
             <button className="btn-outline hover-shadow" onClick={exportToCSV}><Icons.Upload /> Exportar CSV</button>
             <button className="btn-outline hover-shadow" onClick={() => setShowImportModal(true)}><Icons.Download /> Importar</button>
-            <button className="btn-primary hover-shadow" onClick={() => openForm(false)} style={{fontWeight: 'bold'}}>Novo {activeTab === 'leads' ? 'Lead' : 'Prospect'}</button>
+            <button className="btn-cta" onClick={() => openForm(false)}>Novo {activeTab === 'leads' ? 'Lead' : 'Prospect'}</button>
         </div>
       </div>
 

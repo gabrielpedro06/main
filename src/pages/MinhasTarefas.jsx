@@ -482,7 +482,7 @@ export default function MinhasTarefas() {
           const d = new Date(taskDeadline); d.setHours(0,0,0,0);
           const t = new Date(); t.setHours(0,0,0,0);
           if (d < t) dateColor = '#ef4444';
-          else if (d.getTime() === t.getTime()) dateColor = '#10b981';
+          else if (d.getTime() === t.getTime()) dateColor = '#2563eb';
       }
 
       const proj = task.atividades?.projetos;
@@ -517,7 +517,7 @@ export default function MinhasTarefas() {
                     width: '22px', height: '22px', borderRadius: '50%', cursor: 'pointer', marginTop: '2px', transition: '0.2s', flexShrink: 0, 
                     display: 'flex', alignItems: 'center', justifyContent: 'center', 
                     border: isCompleted ? 'none' : '2px solid #cbd5e1', 
-                    background: isCompleted ? '#10b981' : 'transparent',
+                    background: isCompleted ? '#2563eb' : 'transparent',
                     color: isCompleted ? 'white' : 'transparent'
                 }} 
                 className="hover-check-circle" 
@@ -668,7 +668,7 @@ export default function MinhasTarefas() {
                   <div style={{background: '#fff', width: '90%', maxWidth: '750px', borderRadius: '16px', padding: '30px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out', maxHeight: '85vh', display: 'flex', flexDirection: 'column'}} onClick={e => e.stopPropagation()}>
                       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
                           <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.25rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '10px'}}>
-                              <Icons.History color="#10b981" size={24} /> Arquivo de Concluídas
+                              <Icons.History color="#2563eb" size={24} /> Arquivo de Concluídas
                           </h3>
                           <button onClick={() => setShowCompletedModal(false)} style={{background:'none', border:'none', cursor:'pointer', color:'#94a3b8', display: 'flex'}} className="hover-red-text"><Icons.Close size={20} /></button>
                       </div>
@@ -677,9 +677,9 @@ export default function MinhasTarefas() {
                           {Object.keys(completedTasksGroups).map(groupName => {
                               const isActive = activeHistoryTab === groupName;
                               return (
-                                  <button key={groupName} onClick={() => setActiveHistoryTab(groupName)} style={{ background: 'none', border: 'none', padding: '10px 15px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: isActive ? '800' : '600', color: isActive ? '#10b981' : '#64748b', position: 'relative', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '8px' }} className="tab-hover-green">
-                                      {groupName} <span style={{ background: isActive ? '#dcfce7' : '#f1f5f9', color: isActive ? '#16a34a' : '#94a3b8', padding: '2px 8px', borderRadius: '12px', fontSize: '0.7rem' }}>{completedTasksGroups[groupName].length}</span>
-                                      {isActive && <div style={{position:'absolute', bottom:'-6px', left:0, right:0, height:'3px', background:'#10b981', borderRadius:'3px 3px 0 0'}} />}
+                                  <button key={groupName} onClick={() => setActiveHistoryTab(groupName)} style={{ background: 'none', border: 'none', padding: '10px 15px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: isActive ? '800' : '600', color: isActive ? '#2563eb' : '#64748b', position: 'relative', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '8px' }} className="tab-hover-green">
+                                      {groupName} <span style={{ background: isActive ? '#dbeafe' : '#f1f5f9', color: isActive ? '#2563eb' : '#94a3b8', padding: '2px 8px', borderRadius: '12px', fontSize: '0.7rem' }}>{completedTasksGroups[groupName].length}</span>
+                                      {isActive && <div style={{position:'absolute', bottom:'-6px', left:0, right:0, height:'3px', background:'#2563eb', borderRadius:'3px 3px 0 0'}} />}
                                   </button>
                               );
                           })}
@@ -697,7 +697,7 @@ export default function MinhasTarefas() {
                                   return (
                                       <div key={t.id} style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'white', padding: '15px', borderRadius: '12px', border: '1px solid #e2e8f0', transition: '0.2s'}} className="hover-shadow">
                                           <div style={{display: 'flex', alignItems: 'center', gap: '12px', flex: 1, overflow: 'hidden'}}>
-                                              <div style={{width: '24px', height: '24px', borderRadius: '50%', background: '#dcfce7', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0}}><Icons.Check size={14} /></div>
+                                              <div style={{width: '24px', height: '24px', borderRadius: '50%', background: '#dbeafe', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0}}><Icons.Check size={14} /></div>
                                               <div style={{display: 'flex', flexDirection: 'column', overflow: 'hidden'}}>
                                                   <span style={{fontSize: '0.95rem', color: '#475569', textDecoration: 'line-through', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: '500'}}>{t.titulo}</span>
                                                   <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px'}}>

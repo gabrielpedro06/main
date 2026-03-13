@@ -513,7 +513,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
         {/* Status Label */}
         {status !== 'stopped' && (
           <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px'}}>
-            <div style={{ fontSize: '0.75rem', color: status === 'paused' ? '#eab308' : '#16a34a', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+            <div style={{ fontSize: '0.75rem', color: status === 'paused' ? '#eab308' : '#2563eb', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
               {status === 'paused' ? '⏸ EM PAUSA' : '▶ A TRABALHAR'}
             </div>
             {activeRecord && (
@@ -531,7 +531,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
           const radius = 75;
           const circumference = 2 * Math.PI * radius;
           const offset = circumference * (1 - progress);
-          const color = status === 'paused' ? '#eab308' : (status === 'running' ? '#10b981' : '#cbd5e1');
+          const color = status === 'paused' ? '#eab308' : (status === 'running' ? '#2563eb' : '#cbd5e1');
           const h = Math.floor(timer / 3600);
           const m = Math.floor((timer % 3600) / 60);
           const timeLabel = `${h}h ${String(m).padStart(2,'0')}m`;
@@ -594,7 +594,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
         )}
       </div>
 
-      {status === 'running' && <div style={{textAlign: 'center', fontSize:'0.85rem', color:'#16a34a', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '4px', letterSpacing: '0.02em'}}><span className="pulse-dot"></span> Tempo a decorrer</div>}
+    {status === 'running' && <div style={{textAlign: 'center', fontSize:'0.85rem', color:'#2563eb', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '4px', letterSpacing: '0.02em'}}><span className="pulse-dot"></span> Tempo a decorrer</div>}
       {status === 'paused' && <div style={{textAlign: 'center', fontSize:'0.85rem', color:'#eab308', fontWeight: '700', marginTop: '4px', letterSpacing: '0.02em'}}>⏸ Pausa em curso</div>}
 
       {/* Painel de Registos Recentes */}
@@ -620,7 +620,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
                 {recentRecords.map(r => (
                   <tr key={r.id} style={{borderBottom:'1px solid #f8fafc'}}>
                     <td style={{padding:'7px 0', fontWeight:'600', color:'#334155'}}>{new Date(r.data_registo).toLocaleDateString('pt-PT').slice(0,5)}</td>
-                    <td style={{padding:'7px 0', color:'#10b981', fontWeight:'500', textAlign:'center'}}>{r.hora_entrada?.slice(0,5)}</td>
+                    <td style={{padding:'7px 0', color:'#2563eb', fontWeight:'500', textAlign:'center'}}>{r.hora_entrada?.slice(0,5)}</td>
                     <td style={{padding:'7px 0', color: r.hora_saida ? '#ef4444' : '#94a3b8', fontWeight:'500', textAlign:'center'}}>{r.hora_saida?.slice(0,5) || '—'}</td>
                     <td style={{padding:'7px 0', textAlign:'right', fontWeight:'700', color:'#2563eb'}}>{fmtHrs(calcSec(r.hora_entrada, r.hora_saida, r.tempo_pausa_acumulado))}</td>
                   </tr>

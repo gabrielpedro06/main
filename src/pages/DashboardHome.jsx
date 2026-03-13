@@ -642,10 +642,10 @@ export default function DashboardHome() {
                     </div>
                 </div>
 
-                <div className="card stat-card neo-stat boom-reveal" onClick={() => navigate("/dashboard/clientes")} style={{ '--d': '140ms', borderLeft: '3px solid #9ec5b2', cursor: 'pointer', transition: '0.2s', padding: '16px' }}>
+                <div className="card stat-card neo-stat boom-reveal" onClick={() => navigate("/dashboard/clientes")} style={{ '--d': '140ms', borderLeft: '3px solid #93c5fd', cursor: 'pointer', transition: '0.2s', padding: '16px' }}>
                     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
                         <div><h3 style={{fontSize: '0.8rem', color: '#64748b', margin: '0 0 5px 0'}}>Total Clientes</h3><p style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#1e293b', margin: 0 }}>{stats.clientes}</p></div>
-                        <span style={{background: '#dcfce7', color: '#10b981', padding: '6px', borderRadius: '8px', display: 'flex'}}><Icons.Users size={18}/></span>
+                        <span style={{background: '#dbeafe', color: '#2563eb', padding: '6px', borderRadius: '8px', display: 'flex'}}><Icons.Users size={18}/></span>
                     </div>
                 </div>
 
@@ -666,10 +666,10 @@ export default function DashboardHome() {
             <div className="bottom-split-grid" style={{display: 'flex', flexDirection: 'column', gap: '18px'}}>
                 
                 {/* ── EQUIPA ONLINE ── */}
-                <div ref={onlineCardRef} className="card online-showcase boom-reveal" style={{ '--d': '280ms', padding: '20px', background: '#ffffff', borderRadius: '16px', display: 'flex', flexDirection: 'column', border: '1px solid #ebe7df', boxShadow: '0 4px 16px rgba(15, 23, 42, 0.04)'}}>
+                <div ref={onlineCardRef} className="card online-showcase boom-reveal" style={{ '--d': '280ms', padding: '20px', background: '#ffffff', borderRadius: '16px', display: 'flex', flexDirection: 'column', border: '1px solid #dbe6f5', boxShadow: '0 4px 16px rgba(15, 23, 42, 0.04)'}}>
                     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px'}}>
-                        <h4 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Activity size={18} color="#16a34a" /> Equipa Online</h4>
-                        <span style={{background: '#f7f4ee', color: '#6b7280', padding: '3px 10px', borderRadius: '999px', fontSize: '0.72rem', fontWeight: '700', border: '1px solid #ebe7df'}}>{usersOnline.length} online</span>
+                        <h4 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Activity size={18} color="#2563eb" /> Equipa Online</h4>
+                        <span style={{background: '#f8fbff', color: '#64748b', padding: '3px 10px', borderRadius: '999px', fontSize: '0.72rem', fontWeight: '700', border: '1px solid #dbe6f5'}}>{usersOnline.length} online</span>
                     </div>
                     
                     {usersOnline.length > 0 ? (
@@ -688,7 +688,7 @@ export default function DashboardHome() {
                                             ? <img src={u.profiles.avatar_url} alt="U" style={{width:'100%', height:'100%', objectFit:'cover', objectPosition:'center', display:'block'}} />
                                             : getInitials(u.profiles?.nome)}
                                     </div>
-                                    <span style={{position:'absolute', bottom:'0px', right:'0px', width:'8px', height:'8px', background:'#16a34a', borderRadius:'50%', border:'1.5px solid white', display:'block'}}></span>
+                                    <span style={{position:'absolute', bottom:'0px', right:'0px', width:'8px', height:'8px', background:'#2563eb', borderRadius:'50%', border:'1.5px solid white', display:'block'}}></span>
                                 </div>
                                 <span style={{fontSize:'0.65rem', fontWeight:'600', color:'#334155', textAlign:'center', width:'100%', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{uNome}</span>
                                 <span style={{fontSize:'0.6rem', color:'#94a3b8'}}>{u.hora_entrada?.slice(0,5)}</span>
@@ -865,7 +865,7 @@ export default function DashboardHome() {
                                 <div style={{fontSize: '1.2rem', fontWeight: 'bold', color: '#2563eb'}}>{totalHorasMes.h}h {totalHorasMes.m}m</div>
                             </div>
                             
-                            <button className="btn-primary hover-shadow" style={{display: 'flex', alignItems: 'center', gap: '8px'}} onClick={() => { setIsAdding(true); setEditingRecord(null); }}>
+                            <button className="btn-cta" onClick={() => { setIsAdding(true); setEditingRecord(null); }}>
                                 <Icons.Plus /> Inserir Registo
                             </button>
                             
@@ -943,7 +943,7 @@ export default function DashboardHome() {
                                                 <td style={{padding: '12px 15px', fontWeight: 'bold', color: '#334155'}}>
                                                     {new Date(r.data_registo).toLocaleDateString('pt-PT')}
                                                 </td>
-                                                <td style={{padding: '12px 15px', color: '#10b981'}}>{r.hora_entrada?.slice(0,5)}</td>
+                                                <td style={{padding: '12px 15px', color: '#2563eb'}}>{r.hora_entrada?.slice(0,5)}</td>
                                                 <td style={{padding: '12px 15px', color: r.hora_saida ? '#ef4444' : '#94a3b8'}}>
                                                     {r.hora_saida?.slice(0,5) || '---'}
                                                 </td>
@@ -1164,9 +1164,9 @@ export default function DashboardHome() {
               {selectedOnlineUser.profiles?.empresa_interna && <div style={{fontSize:'0.78rem', color:'#94a3b8', marginTop:'2px'}}>{selectedOnlineUser.profiles.empresa_interna}</div>}
             </div>
             <div style={{display:'flex', flexDirection:'column', gap:'8px', width:'100%', marginTop:'4px'}}>
-              <div style={{display:'flex', alignItems:'center', gap:'8px', background:'#f0fdf4', borderRadius:'10px', padding:'8px 12px'}}>
-                <Icons.CircleDot size={10} color="#16a34a" />
-                <span style={{fontSize:'0.82rem', color:'#166534', fontWeight:'600'}}>Online agora · entrou às {selectedOnlineUser.hora_entrada?.slice(0,5)}</span>
+                            <div style={{display:'flex', alignItems:'center', gap:'8px', background:'#eff6ff', borderRadius:'10px', padding:'8px 12px'}}>
+                                <Icons.CircleDot size={10} color="#2563eb" />
+                                <span style={{fontSize:'0.82rem', color:'#1d4ed8', fontWeight:'600'}}>Online agora · entrou às {selectedOnlineUser.hora_entrada?.slice(0,5)}</span>
               </div>
               {selectedOnlineUser.profiles?.telemovel && (
                 <div style={{display:'flex', alignItems:'center', gap:'8px', background:'#f8fafc', borderRadius:'10px', padding:'8px 12px'}}>

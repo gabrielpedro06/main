@@ -484,7 +484,7 @@ export default function Clientes() {
                 <p style={{color: '#64748b', margin: 0, fontWeight: '500', fontSize: '0.9rem'}}>Carteira de Clientes Ativos</p>
             </div>
         </div>
-        <button className="btn-glow" onClick={handleNovo} style={{display:'flex', alignItems:'center', gap:'8px'}}>
+        <button className="btn-cta" onClick={handleNovo}>
             <Icons.Plus /> Nova Empresa
         </button>
       </div>
@@ -1095,20 +1095,6 @@ export default function Clientes() {
           /* Animação Modal */
           @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-          /* Botão Glow Principal */
-          .btn-glow {
-              position: relative; overflow: hidden; background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 8px;
-              font-weight: bold; font-size: 0.95rem; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.4); transition: all 0.3s ease;
-          }
-          .btn-glow::after {
-              content: ''; position: absolute; top: 0; left: -150%; width: 50%; height: 100%;
-              background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.4) 50%, rgba(255,255,255,0) 100%);
-              transform: skewX(-25deg); transition: left 0.7s ease-in-out;
-          }
-          .btn-glow:hover { background: #059669; transform: translateY(-1px); box-shadow: 0 6px 12px rgba(16, 185, 129, 0.3); }
-          .btn-glow:hover::after { animation: shine-sweep 1.2s infinite alternate ease-in-out; }
-          @keyframes shine-sweep { 0% { left: -150%; } 100% { left: 200%; } }
-          
           .pulse-dot-white { width: 8px; height: 8px; background-color: white; border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; }
       `}</style>
     </div>

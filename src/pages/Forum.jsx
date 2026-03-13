@@ -312,7 +312,7 @@ export default function Forum() {
                 <p style={{color: '#64748b', margin: 0, fontWeight: '500', fontSize: '0.9rem'}}>Fórum de partilha de informações e discussões</p>
             </div>
         </div>
-        <button className="btn-primary hover-shadow" onClick={() => setShowNewPostModal(true)} style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', padding: '12px 24px'}}>
+        <button className="btn-cta" onClick={() => setShowNewPostModal(true)}>
             <Icons.Plus /> Novo Post
         </button>
       </div>

@@ -266,7 +266,7 @@ export default function Tarefas() {
       return null;
   };
 
-  const projectColors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#f43f5e', '#14b8a6', '#0ea5e9', '#6366f1'];
+    const projectColors = ['#2563eb', '#3b82f6', '#1d4ed8', '#60a5fa', '#0ea5e9', '#0284c7', '#6366f1', '#4f46e5', '#1e40af'];
   const getColorForProject = (id) => {
       if (!id) return '#94a3b8'; 
       const hash = String(id).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
@@ -535,7 +535,7 @@ export default function Tarefas() {
                 </div>
             )}
         </div>
-        <button onClick={handleNovo} className="btn-shine">+ Nova Tarefa de Projeto</button>
+        <button onClick={handleNovo} className="btn-cta">+ Nova Tarefa de Projeto</button>
       </div>
 
       {/* FILTROS */}
@@ -552,7 +552,7 @@ export default function Tarefas() {
             </>
         )}
         <label style={{display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.85rem', color: '#475569', fontWeight: '600', background: 'white', padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1'}}>
-            <input type="checkbox" checked={mostrarConcluidos} onChange={(e) => setMostrarConcluidos(e.target.checked)} style={{width: '14px', height: '14px', accentColor: '#10b981', cursor: 'pointer'}} /> Mostrar Concluídos
+            <input type="checkbox" checked={mostrarConcluidos} onChange={(e) => setMostrarConcluidos(e.target.checked)} style={{width: '14px', height: '14px', accentColor: '#2563eb', cursor: 'pointer'}} /> Mostrar Concluídos
         </label>
       </div>
 
@@ -590,7 +590,7 @@ export default function Tarefas() {
                                         <div style={{padding: '12px 15px', background: isAtivCompleted ? '#f8fafc' : 'white', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
                                             <div style={{flex: 1, paddingRight: '10px'}}>
                                                 <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px'}}>
-                                                    <div onClick={() => handleToggleStatus('atividades', ativ.id, ativ.estado)} style={{width: '16px', height: '16px', borderRadius: '4px', border: isAtivCompleted ? 'none' : `2px solid ${proj.color}80`, background: isAtivCompleted ? '#10b981' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', cursor: 'pointer', flexShrink: 0, fontSize: '0.7rem'}}>
+                                                    <div onClick={() => handleToggleStatus('atividades', ativ.id, ativ.estado)} style={{width: '16px', height: '16px', borderRadius: '4px', border: isAtivCompleted ? 'none' : `2px solid ${proj.color}80`, background: isAtivCompleted ? '#2563eb' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', cursor: 'pointer', flexShrink: 0, fontSize: '0.7rem'}}>
                                                         {isAtivCompleted && '✓'}
                                                     </div>
                                                     
@@ -624,7 +624,7 @@ export default function Tarefas() {
                                                                 <div style={{display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px'}}>
                                                                     
                                                                     <div style={{display: 'flex', alignItems: 'flex-start', gap: '6px', flex: 1}}>
-                                                                        <div onClick={() => handleToggleStatus('tarefas', tar.id, tar.estado, tar.id)} style={{ width: '14px', height: '14px', borderRadius: '50%', cursor: 'pointer', border: isTarCompleted ? 'none' : '2px solid #cbd5e1', background: isTarCompleted ? '#10b981' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '0.6rem', flexShrink: 0, marginTop: '2px' }}>
+                                                                        <div onClick={() => handleToggleStatus('tarefas', tar.id, tar.estado, tar.id)} style={{ width: '14px', height: '14px', borderRadius: '50%', cursor: 'pointer', border: isTarCompleted ? 'none' : '2px solid #cbd5e1', background: isTarCompleted ? '#2563eb' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '0.6rem', flexShrink: 0, marginTop: '2px' }}>
                                                                             {isTarCompleted && '✓'}
                                                                         </div>
                                                                         <div style={{flex: 1}}>
@@ -890,8 +890,8 @@ export default function Tarefas() {
                                         ) : (
                                             <div>
                                                 <label style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', cursor: 'pointer'}}>
-                                                    <Icons.UploadCloud size={24} color={fileToUpload ? "#10b981" : "#94a3b8"} />
-                                                    <span style={{fontSize: '0.85rem', color: fileToUpload ? '#10b981' : '#64748b', fontWeight: 'bold'}}>
+                                                    <Icons.UploadCloud size={24} color={fileToUpload ? "#2563eb" : "#94a3b8"} />
+                                                    <span style={{fontSize: '0.85rem', color: fileToUpload ? '#2563eb' : '#64748b', fontWeight: 'bold'}}>
                                                         {fileToUpload ? fileToUpload.name : "Clique para anexar um documento (PDF, Excel, Word)"}
                                                     </span>
                                                     <input 
@@ -937,7 +937,7 @@ export default function Tarefas() {
                       {!isViewOnly && (
                           <div style={{display: 'flex', gap: '10px'}}>
                               <button type="button" onClick={() => setShowModal(false)} style={{padding: '10px 20px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white', color: '#64748b', fontWeight: '700', cursor: 'pointer', fontSize: '0.9rem'}} className="hover-shadow">Cancelar</button>
-                              <button type="submit" disabled={isUploading} style={{padding: '10px 20px', borderRadius: '8px', border: 'none', background: '#10b981', color: 'white', fontWeight: '700', cursor: isUploading ? 'wait' : 'pointer', fontSize: '0.9rem', opacity: isUploading ? 0.7 : 1}} className="hover-shadow">
+                              <button type="submit" disabled={isUploading} style={{padding: '10px 20px', borderRadius: '8px', border: 'none', background: '#2563eb', color: 'white', fontWeight: '700', cursor: isUploading ? 'wait' : 'pointer', fontSize: '0.9rem', opacity: isUploading ? 0.7 : 1}} className="hover-shadow">
                                   {isUploading ? "A carregar..." : (editId ? "💾 Guardar Alterações" : "🚀 Criar")}
                               </button>
                           </div>
@@ -967,45 +967,6 @@ export default function Tarefas() {
           
           .hover-underline:hover {text-decoration: underline !important; color: #2563eb !important} 
           .hover-text-blue:hover { color: #2563eb !important; }
-          
-          /* BOTÃO BRILHANTE / GLOW */
-          .btn-shine {
-              position: relative;
-              overflow: hidden;
-              background: #10b981;
-              color: white;
-              border: none;
-              padding: 10px 20px;
-              border-radius: 10px;
-              font-weight: bold;
-              font-size: 0.9rem;
-              cursor: pointer;
-              box-shadow: 0 4px 6px rgba(16, 185, 129, 0.2);
-              transition: all 0.3s ease;
-          }
-          .btn-shine::after {
-              content: '';
-              position: absolute;
-              top: 0;
-              left: -150%;
-              width: 50%;
-              height: 100%;
-              background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.4) 50%, rgba(255,255,255,0) 100%);
-              transform: skewX(-25deg);
-              transition: left 0.7s ease-in-out;
-          }
-          .btn-shine:hover {
-              background: #059669;
-              transform: translateY(-2px);
-              box-shadow: 0 6px 12px rgba(16, 185, 129, 0.3);
-          }
-          .btn-shine:hover::after {
-              animation: shine-sweep 1.2s infinite alternate ease-in-out;
-          }
-          @keyframes shine-sweep {
-              0% { left: -150%; }
-              100% { left: 200%; }
-          }
           
           .icon-btn-red {background: transparent; border: none; cursor: pointer; color: #f87171; font-size: 1.1rem; padding: 2px 6px; border-radius: 4px; transition: 0.2s;}
           .icon-btn-red:hover {background: #fef2f2; color: #dc2626; transform: scale(1.1);}

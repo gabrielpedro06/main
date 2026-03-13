@@ -363,7 +363,7 @@ export default function Ferias({ forcedType = null }) {
                 <p style={{color: '#64748b', margin: 0, fontWeight: '500', fontSize: '0.9rem'}}>{isKmOnlyMode ? 'Registo de deslocações extra para aprovação dos RH' : 'Gestão pessoal de tempo e calendário'}</p>
             </div>
         </div>
-        <button className="btn-primary hover-shadow" onClick={() => { setIsEditing(false); setEditingId(null); setShowModal(true); }} style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', padding: '12px 24px'}}>
+        <button className="btn-cta" onClick={() => { setIsEditing(false); setEditingId(null); setShowModal(true); }}>
             <Icons.Plus /> {isKmOnlyMode ? "Novo Pedido de Km's" : 'Novo Pedido'}
         </button>
       </div>
