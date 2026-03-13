@@ -3,6 +3,7 @@ import React from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
+import TimerSwitchModal from "../components/TimerSwitchModal";
 import "./../styles/dashboard.css";
 
 const ModalPortal = ({ children }) => {
@@ -52,6 +53,7 @@ export default function Tarefas() {
 
   const [deleteConfirm, setDeleteConfirm] = useState({ show: false, tabela: '', id: null, titulo: '' });
   const [visibleLimits, setVisibleLimits] = useState({}); 
+    const [timerSwitchModal, setTimerSwitchModal] = useState({ show: false, message: "", pendingTask: null });
 
   // 💡 ESTADOS DO UPLOAD
   const [fileToUpload, setFileToUpload] = useState(null);
@@ -266,6 +268,53 @@ export default function Tarefas() {
       return null;
   };
 
+  const getContextFromTaskId = (taskId) => {
+      for (const ativ of atividadesAgrupadas) {
+          const tarefa = (ativ.tarefas || []).find(t => t.id === taskId);
+          if (tarefa) {
+              return {
+                  tipo: 'tarefa',
+                  titulo: tarefa.titulo || 'tarefa',
+                  projeto: ativ.projetoNome || 'Sem projeto'
+              };
+          }
+      }
+      return null;
+  };
+
+  const getContextFromAtividadeId = (atividadeId) => {
+      const ativ = atividadesAgrupadas.find(a => a.id === atividadeId);
+      if (!ativ) return null;
+      return {
+          tipo: 'atividade',
+          titulo: ativ.titulo || 'atividade',
+          projeto: ativ.projetoNome || 'Sem projeto'
+      };
+  };
+
+  const getActiveTimerContext = (logEntry) => {
+      if (!logEntry) return { tipo: 'item', titulo: 'item', projeto: 'Sem projeto' };
+      if (logEntry.task_id) return getContextFromTaskId(logEntry.task_id) || { tipo: 'tarefa', titulo: 'tarefa', projeto: 'Sem projeto' };
+      if (logEntry.atividade_id) return getContextFromAtividadeId(logEntry.atividade_id) || { tipo: 'atividade', titulo: 'atividade', projeto: 'Sem projeto' };
+      return { tipo: 'item', titulo: 'item', projeto: 'Sem projeto' };
+  };
+
+  async function stopTaskLogById(logToStop) {
+      if (!logToStop) return null;
+      const diffMins = Math.max(1, Math.floor((new Date() - new Date(logToStop.start_time)) / 60000));
+      const { error } = await supabase
+          .from("task_logs")
+          .update({ end_time: new Date().toISOString(), duration_minutes: diffMins })
+          .eq("id", logToStop.id);
+
+      if (error) {
+          showToast("Erro ao terminar o cronómetro atual.", "error");
+          return null;
+      }
+
+      return diffMins;
+  }
+
     const projectColors = ['#2563eb', '#3b82f6', '#1d4ed8', '#60a5fa', '#0ea5e9', '#0284c7', '#6366f1', '#4f46e5', '#1e40af'];
   const getColorForProject = (id) => {
       if (!id) return '#94a3b8'; 
@@ -273,8 +322,7 @@ export default function Tarefas() {
       return projectColors[hash % projectColors.length];
   };
 
-  async function handleStartTask(tarefa) {
-      if (activeTask) return showToast("Pára o cronómetro atual antes de iniciares outro.", "error");
+  async function startTaskDirect(tarefa) {
       const payload = { user_id: user.id, task_id: tarefa.id, start_time: new Date().toISOString() };
       const ativPai = atividadesAgrupadas.find(a => a.tarefas.some(t => t.id === tarefa.id));
       if (ativPai && ativPai.projetoId) payload.projeto_id = ativPai.projetoId;
@@ -290,11 +338,52 @@ export default function Tarefas() {
       }
   }
 
+  async function confirmTimerSwitch() {
+      const nextTask = timerSwitchModal.pendingTask;
+      setTimerSwitchModal({ show: false, message: "", pendingTask: null });
+      if (!nextTask) return;
+
+      const mins = await stopTaskLogById(activeTask);
+      if (mins === null) return;
+
+      setActiveTask(null);
+      showToast(`Cronómetro anterior terminado (${mins} min).`, "success");
+      await startTaskDirect(nextTask);
+  }
+
+  function cancelTimerSwitch() {
+      setTimerSwitchModal({ show: false, message: "", pendingTask: null });
+      showToast("Mantivemos o cronómetro atual em execução.", "info");
+  }
+
+  async function handleStartTask(tarefa) {
+      if (activeTask) {
+          const atual = getActiveTimerContext(activeTask);
+          const ativPaiNova = atividadesAgrupadas.find(a => a.tarefas.some(t => t.id === tarefa.id));
+          const novo = {
+              tipo: 'tarefa',
+              titulo: tarefa?.titulo || 'tarefa',
+              projeto: ativPaiNova?.projetoNome || 'Sem projeto'
+          };
+
+          setTimerSwitchModal({
+              show: true,
+              message: `Deseja terminar a ${atual.tipo} "${atual.titulo}" do projeto "${atual.projeto}" para iniciar a tarefa "${novo.titulo}" do projeto "${novo.projeto}"?`,
+              pendingTask: tarefa
+          });
+          return;
+      }
+
+      await startTaskDirect(tarefa);
+  }
+
   async function handleStopTask() {
       if (!activeTask) return;
-      const diffMins = Math.max(1, Math.floor((new Date() - new Date(activeTask.start_time)) / 60000)); 
-      const { error } = await supabase.from("task_logs").update({ end_time: new Date().toISOString(), duration_minutes: diffMins }).eq("id", activeTask.id);
-      if (!error) { setActiveTask(null); showToast(`Tempo guardado: ${diffMins} min.`, "success"); fetchData(isAdmin); }
+      const diffMins = await stopTaskLogById(activeTask);
+      if (diffMins === null) return;
+      setActiveTask(null);
+      showToast(`Tempo guardado: ${diffMins} min.`, "success");
+      fetchData(isAdmin);
   }
 
   async function handleToggleStatus(tabela, id, estadoAtual, taskIdParaTimer = null) {
@@ -732,6 +821,14 @@ export default function Tarefas() {
               </div>
           </ModalPortal>
       )}
+
+            <TimerSwitchModal
+                open={timerSwitchModal.show}
+                title="Trocar Cronometro Ativo"
+                message={timerSwitchModal.message}
+                onCancel={cancelTimerSwitch}
+                onConfirm={confirmTimerSwitch}
+            />
 
       {/* 💡 MODAL DE EDIÇÃO AVANÇADO (C/ SEARCHABLE SELECT E UPLOAD DE ARQUIVO) */}
       {showModal && (

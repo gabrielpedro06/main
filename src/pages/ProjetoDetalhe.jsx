@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
+import TimerSwitchModal from "../components/TimerSwitchModal";
 import "./../styles/dashboard.css";
 
 // 💡 IMPORTAÇÃO CORRIGIDA (SEM CHAVETAS):
@@ -63,6 +64,7 @@ export default function ProjetoDetalhe() {
   const [notification, setNotification] = useState(null);
   
   const [activeLog, setActiveLog] = useState(null);
+    const [timerSwitchModal, setTimerSwitchModal] = useState({ show: false, message: "", pendingTarget: null, pendingType: null });
 
   // Estados UI - Visão Geral
   const [isEditingGeral, setIsEditingGeral] = useState(false);
@@ -315,27 +317,105 @@ export default function ProjetoDetalhe() {
       );
   };
 
+  const getTaskContext = (taskId) => {
+      for (const ativ of atividades) {
+          const tarefa = (ativ.tarefas || []).find(t => t.id === taskId);
+          if (tarefa) {
+              return {
+                  tipo: 'tarefa',
+                  titulo: tarefa.titulo || 'tarefa',
+                  projeto: projeto?.titulo || 'Sem projeto'
+              };
+          }
+      }
+      return null;
+  };
+
+  const getActivityContext = (atividadeId) => {
+      const ativ = atividades.find(a => a.id === atividadeId);
+      if (!ativ) return null;
+      return {
+          tipo: 'atividade',
+          titulo: ativ.titulo || 'atividade',
+          projeto: projeto?.titulo || 'Sem projeto'
+      };
+  };
+
+  const getLogContext = (logEntry) => {
+      if (!logEntry) return { tipo: 'item', titulo: 'item', projeto: projeto?.titulo || 'Sem projeto' };
+      if (logEntry.task_id) return getTaskContext(logEntry.task_id) || { tipo: 'tarefa', titulo: 'tarefa', projeto: projeto?.titulo || 'Sem projeto' };
+      if (logEntry.atividade_id) return getActivityContext(logEntry.atividade_id) || { tipo: 'atividade', titulo: 'atividade', projeto: projeto?.titulo || 'Sem projeto' };
+      return { tipo: 'item', titulo: 'item', projeto: projeto?.titulo || 'Sem projeto' };
+  };
+
+  async function stopLogById(logToStop) {
+      if (!logToStop) return null;
+      const diffMins = Math.max(1, Math.floor((new Date() - new Date(logToStop.start_time)) / 60000));
+      const { error } = await supabase
+          .from("task_logs")
+          .update({ end_time: new Date().toISOString(), duration_minutes: diffMins })
+          .eq("id", logToStop.id);
+
+      if (error) {
+          showToast("Erro ao terminar o cronómetro atual.", "error");
+          return null;
+      }
+
+      return diffMins;
+  }
+
+  async function startTimerDirect(targetId, type) {
+      const payload = { user_id: user.id, projeto_id: id, start_time: new Date().toISOString() };
+      if (type === 'task') payload.task_id = targetId;
+      else payload.atividade_id = targetId;
+
+      const { data, error } = await supabase.from("task_logs").insert([payload]).select().single();
+      if (!error) { setActiveLog(data); showToast("Cronómetro iniciado!"); }
+  }
+
+  async function confirmTimerSwitch() {
+      const { pendingTarget, pendingType } = timerSwitchModal;
+      setTimerSwitchModal({ show: false, message: "", pendingTarget: null, pendingType: null });
+      if (!pendingTarget || !pendingType) return;
+
+      const mins = await stopLogById(activeLog);
+      if (mins === null) return;
+      showToast(`Cronómetro anterior terminado (${mins} min).`, "success");
+      await startTimerDirect(pendingTarget, pendingType);
+  }
+
+  function cancelTimerSwitch() {
+      setTimerSwitchModal({ show: false, message: "", pendingTarget: null, pendingType: null });
+      showToast("Mantivemos o cronómetro atual em execução.", "info");
+  }
+
   async function handleToggleTimer(targetId, type) {
       if (activeLog) {
           const isSameTarget = (type === 'task' && activeLog.task_id === targetId) || (type === 'activity' && activeLog.atividade_id === targetId);
           
           if (isSameTarget) {
-              const diffMins = Math.max(1, Math.floor((new Date() - new Date(activeLog.start_time)) / 60000));
-              await supabase.from("task_logs").update({ end_time: new Date().toISOString(), duration_minutes: diffMins }).eq("id", activeLog.id);
+              const diffMins = await stopLogById(activeLog);
+              if (diffMins === null) return;
               setActiveLog(null);
               showToast(`Tempo guardado: ${diffMins} min.`);
               fetchProjetoDetails(); 
+              return;
           } else {
-              showToast("Já tens um cronómetro ativo noutro local! Pára-o primeiro.", "error");
-          }
-      } else {
-          const payload = { user_id: user.id, projeto_id: id, start_time: new Date().toISOString() };
-          if (type === 'task') payload.task_id = targetId;
-          else payload.atividade_id = targetId;
+              const atual = getLogContext(activeLog);
+              const novo = type === 'task' ? getTaskContext(targetId) : getActivityContext(targetId);
+              const novoInfo = novo || { tipo: type === 'task' ? 'tarefa' : 'atividade', titulo: 'item', projeto: projeto?.titulo || 'Sem projeto' };
 
-          const { data, error } = await supabase.from("task_logs").insert([payload]).select().single();
-          if (!error) { setActiveLog(data); showToast("Cronómetro iniciado!"); }
+              setTimerSwitchModal({
+                  show: true,
+                  message: `Deseja terminar a ${atual.tipo} "${atual.titulo}" do projeto "${atual.projeto}" para iniciar a ${novoInfo.tipo} "${novoInfo.titulo}" do projeto "${novoInfo.projeto}"?`,
+                  pendingTarget: targetId,
+                  pendingType: type
+              });
+              return;
+          }
       }
+
+      await startTimerDirect(targetId, type);
   }
 
   async function toggleAtividadeStatus(ativId, estadoAtual) {
@@ -1098,6 +1178,14 @@ export default function ProjetoDetalhe() {
         )}
 
       </div>
+
+      <TimerSwitchModal
+          open={timerSwitchModal.show}
+          title="Trocar Cronometro Ativo"
+          message={timerSwitchModal.message}
+          onCancel={cancelTimerSwitch}
+          onConfirm={confirmTimerSwitch}
+      />
 
       {/* =========================================
           MODAIS DE EDIÇÃO AVANÇADOS

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
+import TimerSwitchModal from "../components/TimerSwitchModal";
 import "./../styles/dashboard.css";
 
 // --- ÍCONES SVG PROFISSIONAIS (SaaS Premium) ---
@@ -61,6 +62,7 @@ export default function MinhasTarefas() {
   const [showCompletedModal, setShowCompletedModal] = useState(false);
   const [completedTasksGroups, setCompletedTasksGroups] = useState({ "Esta Semana": [], "Semana Passada": [], "Mais Antigas": [] });
   const [activeHistoryTab, setActiveHistoryTab] = useState("Esta Semana"); 
+    const [timerSwitchModal, setTimerSwitchModal] = useState({ show: false, message: "", pendingTask: null });
 
   // DRAG & DROP STATE (Kanban)
   const [draggedTask, setDraggedTask] = useState(null);
@@ -203,15 +205,62 @@ export default function MinhasTarefas() {
       return h > 0 ? `${h}h ${m}m` : `${m}m`;
   };
 
+  async function stopLogById(logToStop) {
+      if (!logToStop) return null;
+      const diffMins = Math.max(1, Math.floor((new Date() - new Date(logToStop.start_time)) / 60000));
+      const { error } = await supabase
+          .from("task_logs")
+          .update({ end_time: new Date().toISOString(), duration_minutes: diffMins })
+          .eq("id", logToStop.id);
+      if (error) {
+          showToast("Erro ao terminar o cronómetro atual.", "error");
+          return null;
+      }
+      return diffMins;
+  }
+
+  async function startTaskDirect(task) {
+      const { data, error } = await supabase
+          .from("task_logs")
+          .insert([{ user_id: user.id, task_id: task.id, start_time: new Date().toISOString() }])
+          .select()
+          .single();
+      if (!error) { setActiveLog(data); showToast("Cronómetro em curso!"); }
+  }
+
+  async function confirmTimerSwitch() {
+      const nextTask = timerSwitchModal.pendingTask;
+      setTimerSwitchModal({ show: false, message: "", pendingTask: null });
+      if (!nextTask) return;
+
+      const mins = await stopLogById(activeLog);
+      if (mins === null) return;
+
+      setActiveLog(null);
+      showToast(`Cronómetro anterior terminado (${mins} min).`, "success");
+      await startTaskDirect(nextTask);
+  }
+
+  function cancelTimerSwitch() {
+      setTimerSwitchModal({ show: false, message: "", pendingTask: null });
+      showToast("Mantivemos o cronómetro atual em execução.", "info");
+  }
+
   async function handleToggleTimer(task) {
       if (activeLog && activeLog.task_id === task.id) {
-          const diffMins = Math.max(1, Math.floor((new Date() - new Date(activeLog.start_time)) / 60000));
-          await supabase.from("task_logs").update({ end_time: new Date().toISOString(), duration_minutes: diffMins }).eq("id", activeLog.id);
+          const diffMins = await stopLogById(activeLog);
+          if (diffMins === null) return;
           setActiveLog(null); showToast(`Tempo guardado: ${diffMins} min.`); carregarTudo();
       } else {
-          if (activeLog) return showToast("Já tens um cronómetro ativo. Pára-o primeiro!", "error");
-          const { data, error } = await supabase.from("task_logs").insert([{ user_id: user.id, task_id: task.id, start_time: new Date().toISOString() }]).select().single();
-          if (!error) { setActiveLog(data); showToast("Cronómetro em curso!"); }
+          if (activeLog) {
+              setTimerSwitchModal({
+                  show: true,
+                  message: `Deseja terminar a tarefa atual para iniciar a tarefa \"${task.titulo}\"?`,
+                  pendingTask: task
+              });
+              return;
+          }
+          await startTaskDirect(task);
       }
   }
 
@@ -895,6 +944,14 @@ export default function MinhasTarefas() {
               </div>
           </ModalPortal>
       )}
+
+      <TimerSwitchModal
+          open={timerSwitchModal.show}
+          title="Trocar Cronometro Ativo"
+          message={timerSwitchModal.message}
+          onCancel={cancelTimerSwitch}
+          onConfirm={confirmTimerSwitch}
+      />
 
       {/* NOTIFICAÇÃO (TOAST) */}
       {notification && <div className={`toast-container ${notification.type}`}>{notification.type === 'success' ? '✅' : '⚠️'} {notification.message}</div>}

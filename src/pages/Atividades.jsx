@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
+import TimerSwitchModal from "../components/TimerSwitchModal";
 import "./../styles/dashboard.css";
 
 // --- ÍCONES SVG PROFISSIONAIS ---
@@ -36,6 +37,7 @@ export default function Atividades() {
 
   // Notificações (Toasts)
   const [notification, setNotification] = useState(null);
+    const [timerSwitchModal, setTimerSwitchModal] = useState({ show: false, message: "", pendingAtividade: null });
 
   // Filtros
   const [busca, setBusca] = useState("");
@@ -87,14 +89,48 @@ export default function Atividades() {
   async function checkActiveLog() {
     if(!user?.id) return;
     const { data } = await supabase.from("task_logs").select("*").eq("user_id", user.id).is("end_time", null).maybeSingle();
-    if (data) setActiveLog(data);
+        setActiveLog(data || null);
   }
 
-  async function handleStartAtividade(ativ) {
-    if (activeLog) {
-        showToast("Já tens um cronómetro ativo!", "error");
-        return;
+    async function stopLogById(logToStop) {
+        if (!logToStop) return null;
+        const diffMins = Math.max(1, Math.floor((new Date() - new Date(logToStop.start_time)) / 60000));
+        const { error } = await supabase
+            .from("task_logs")
+            .update({ end_time: new Date().toISOString(), duration_minutes: diffMins })
+            .eq("id", logToStop.id);
+
+        if (error) {
+            showToast("Erro ao terminar o cronómetro atual.", "error");
+            return null;
+        }
+
+        return diffMins;
     }
+
+    async function getAtividadeContextFromLog(logEntry) {
+        if (!logEntry?.atividade_id) {
+            return { titulo: "atividade", projeto: "Sem projeto" };
+        }
+
+        let atividadeAtual = atividades.find(a => a.id === logEntry.atividade_id);
+
+        if (!atividadeAtual) {
+            const { data } = await supabase
+                .from("atividades")
+                .select("id, titulo, projetos ( titulo )")
+                .eq("id", logEntry.atividade_id)
+                .maybeSingle();
+            atividadeAtual = data;
+        }
+
+        return {
+            titulo: atividadeAtual?.titulo || "atividade",
+            projeto: atividadeAtual?.projetos?.titulo || "Sem projeto"
+        };
+    }
+
+    async function startAtividadeDirect(ativ) {
     const { data, error } = await supabase
         .from("task_logs")
         .insert([{ user_id: user.id, atividade_id: ativ.id, start_time: new Date().toISOString() }])
@@ -110,19 +146,47 @@ export default function Atividades() {
     }
   }
 
+    async function confirmTimerSwitch() {
+        const nextAtividade = timerSwitchModal.pendingAtividade;
+        setTimerSwitchModal({ show: false, message: "", pendingAtividade: null });
+        if (!nextAtividade) return;
+
+        const mins = await stopLogById(activeLog);
+        if (mins === null) return;
+
+        showToast(`Atividade anterior terminada (${mins} min).`, "success");
+        await startAtividadeDirect(nextAtividade);
+    }
+
+    function cancelTimerSwitch() {
+        setTimerSwitchModal({ show: false, message: "", pendingAtividade: null });
+        showToast("Mantivemos o cronómetro atual em execução.", "info");
+    }
+
+    async function handleStartAtividade(ativ) {
+        if (activeLog) {
+            const atual = await getAtividadeContextFromLog(activeLog);
+            const novoTitulo = ativ?.titulo || "atividade";
+            const novoProjeto = ativ?.projetos?.titulo || "Sem projeto";
+            setTimerSwitchModal({
+                show: true,
+                message: `Deseja terminar a atividade "${atual.titulo}" do projeto "${atual.projeto}" para iniciar a atividade "${novoTitulo}" do projeto "${novoProjeto}"?`,
+                pendingAtividade: ativ
+            });
+            return;
+        }
+
+        await startAtividadeDirect(ativ);
+    }
+
   async function handleStopLog() {
     if (!activeLog) return;
-    const diffMins = Math.max(1, Math.floor((new Date() - new Date(activeLog.start_time)) / 60000)); 
+        const diffMins = await stopLogById(activeLog);
+        if (diffMins === null) return;
 
-    const { error } = await supabase.from("task_logs")
-        .update({ end_time: new Date().toISOString(), duration_minutes: diffMins })
-        .eq("id", activeLog.id);
-
-    if (!error) {
         setActiveLog(null);
         showToast(`Tempo registado: ${diffMins} min.`, "success");
         fetchData();
-    }
   }
 
   async function handleToggleStatus(ativ) {
@@ -422,6 +486,14 @@ export default function Atividades() {
           </div>
         </ModalPortal>
       )}
+
+            <TimerSwitchModal
+                open={timerSwitchModal.show}
+                title="Trocar Cronometro Ativo"
+                message={timerSwitchModal.message}
+                onCancel={cancelTimerSwitch}
+                onConfirm={confirmTimerSwitch}
+            />
       
       {notification && <div className={`toast-container ${notification.type}`}>{notification.type === 'success' ? '✅' : '⚠️'} {notification.message}</div>}
 

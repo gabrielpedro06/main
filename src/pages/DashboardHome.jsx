@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext"; 
 import WidgetAssiduidade from "../components/WidgetAssiduidade";
+import TimerSwitchModal from "../components/TimerSwitchModal";
 import { frasesMotivacionais } from "../data/frases"; 
 import "./../styles/dashboard.css";
 
@@ -34,6 +35,7 @@ const Icons = {
   CheckCircle: ({ size = 48, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>,
   XCircle: ({ size = 48, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>,
   Stop: ({ size = 12, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none"><rect x="6" y="6" width="12" height="12" rx="2" ry="2"></rect></svg>,
+    Play: ({ size = 12, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>,
   ArrowRight: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>,
   Phone: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.74a16 16 0 0 0 6 6l1.27-.93a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>,
   Mail: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"></rect><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path></svg>,
@@ -77,6 +79,11 @@ export default function DashboardHome() {
   const [addForm, setAddForm] = useState({ data: "", hora_entrada: "", hora_saida: "", tempo_pausa: 0, observacoes: "", motivo_alteracao: "" });
 
   const [alertModal, setAlertModal] = useState({ show: false, message: "" });
+    const [timerSwitchModal, setTimerSwitchModal] = useState({
+            show: false,
+            message: "",
+            pendingTask: null
+    });
     const onlineCardRef = useRef(null);
 
     function formatBirthdayDate(proximoAniversario) {
@@ -176,8 +183,9 @@ export default function DashboardHome() {
                           brandName = proj.clientes?.marca || "";
                       }
                   }
-              } else if (data.tarefa_id) {
-                  const { data: res } = await supabase.from("tarefas").select("titulo, atividades(projeto_id, projetos(titulo, clientes(marca)))").eq("id", data.tarefa_id).maybeSingle();
+              } else if (data.task_id || data.tarefa_id) {
+                  const taskId = data.task_id || data.tarefa_id;
+                  const { data: res } = await supabase.from("tarefas").select("titulo, atividades(projeto_id, projetos(titulo, clientes(marca)))").eq("id", taskId).maybeSingle();
                   if (res) {
                       title = res.titulo;
                       const ativ = Array.isArray(res.atividades) ? res.atividades[0] : res.atividades;
@@ -245,6 +253,75 @@ export default function DashboardHome() {
       const diffMins = Math.max(1, Math.floor((new Date() - new Date(activeLog.start_time)) / 60000)); 
       await supabase.from("task_logs").update({ end_time: new Date().toISOString(), duration_minutes: diffMins }).eq("id", activeLog.id);
       setActiveLog(null);
+      await fetchTarefasPessoais();
+  }
+
+  const isTaskCardRunning = (taskCard) => {
+      const runningTaskId = activeLog?.task_id || activeLog?.tarefa_id;
+      if (taskCard.isActivity) return activeLog?.atividade_id === taskCard.real_id;
+      return runningTaskId === taskCard.id;
+  };
+
+  async function startTaskFromHomeDirect(taskCard) {
+      const payload = {
+          user_id: user.id,
+          start_time: new Date().toISOString()
+      };
+
+      if (taskCard.projectId) payload.projeto_id = taskCard.projectId;
+      if (taskCard.isActivity) payload.atividade_id = taskCard.real_id;
+      else payload.task_id = taskCard.id;
+
+      const { data, error } = await supabase.from("task_logs").insert([payload]).select().single();
+      if (error) return;
+
+      const taskTitle = `${taskCard.projectName || "Sem projeto"} (${taskCard.titulo})`;
+      setActiveLog({ ...data, taskTitle, resolvedProjectId: taskCard.projectId || null });
+
+      if (taskCard.estado === 'pendente') {
+          const tabela = taskCard.isActivity ? 'atividades' : 'tarefas';
+          const targetId = taskCard.isActivity ? taskCard.real_id : taskCard.id;
+          await supabase.from(tabela).update({ estado: 'em_curso' }).eq('id', targetId);
+      }
+
+      await fetchTarefasPessoais();
+  }
+
+  async function confirmTimerSwitch() {
+      const nextTask = timerSwitchModal.pendingTask;
+      setTimerSwitchModal({ show: false, message: "", pendingTask: null });
+
+      if (!nextTask) return;
+      if (activeLog) await handleStopGlobalLog();
+      await startTaskFromHomeDirect(nextTask);
+  }
+
+  function cancelTimerSwitch() {
+      setTimerSwitchModal({ show: false, message: "", pendingTask: null });
+      showToast("Mantivemos o cronómetro atual em execução.", "info");
+  }
+
+  async function handleStartTaskFromHome(taskCard, e) {
+      if (e) e.stopPropagation();
+
+      const isSameRunning = isTaskCardRunning(taskCard);
+      if (activeLog && isSameRunning) {
+          await handleStopGlobalLog();
+          return;
+      }
+
+      if (activeLog) {
+          const novoTipo = taskCard.isActivity ? "atividade" : "tarefa";
+          const novoProjeto = taskCard.projectName || "Sem projeto";
+          setTimerSwitchModal({
+              show: true,
+              message: `Deseja terminar ${activeLog.taskTitle || "a atividade em curso"} para iniciar a ${novoTipo} "${taskCard.titulo}" do projeto "${novoProjeto}"?`,
+              pendingTask: taskCard
+          });
+          return;
+      }
+
+      await startTaskFromHomeDirect(taskCard);
   }
 
   async function fetchAniversarios() {
@@ -299,14 +376,14 @@ export default function DashboardHome() {
   async function fetchTarefasPessoais() {
       const { data: tarefas } = await supabase
           .from("tarefas")
-          .select(`*, atividades ( titulo, data_fim, projetos ( titulo, codigo_projeto, cliente_texto, clientes(marca) ) )`)
+          .select(`*, atividades ( titulo, data_fim, projetos ( id, titulo, codigo_projeto, cliente_texto, clientes(marca) ) )`)
           .eq("responsavel_id", user.id)
           .neq("estado", "concluido")
           .neq("estado", "cancelado");
 
       const { data: atividades } = await supabase
           .from("atividades")
-          .select(`*, projetos ( titulo, codigo_projeto, cliente_texto, clientes(marca) )`)
+          .select(`*, projetos ( id, titulo, codigo_projeto, cliente_texto, clientes(marca) )`)
           .eq("responsavel_id", user.id)
           .neq("estado", "concluido")
           .neq("estado", "cancelado");
@@ -335,6 +412,7 @@ export default function DashboardHome() {
                   parentTitle: ativ?.titulo || 'Sem Atividade',
                   clientLabel: clientLabel,
                   projectName: projectName,
+                  projectId: proj?.id || null,
                   computedDeadline: t.data_fim || t.data_limite || ativ?.data_fim 
               };
           });
@@ -363,6 +441,7 @@ export default function DashboardHome() {
                   parentTitle: 'Bloco / Atividade',
                   clientLabel: clientLabel,
                   projectName: projectName,
+                  projectId: proj?.id || null,
                   computedDeadline: a.data_fim 
               };
           });
@@ -764,7 +843,9 @@ export default function DashboardHome() {
                     </div>
                 ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
-                    {tarefasHoje.slice(0, 6).map((t) => (
+                    {tarefasHoje.slice(0, 6).map((t) => {
+                        const isRunning = isTaskCardRunning(t);
+                        return (
                         <div key={t.id} onClick={() => navigate(t.clientLabel === 'GERAL / AVULSA' ? '/dashboard/minhas-tarefas' : (t.isActivity ? '/dashboard/atividades' : '/dashboard/tarefas'))} className="task-hover-card" style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                 {/* 💡 LABEL EMPRESA - PROJETO ou GERAL/AVULSA */}
@@ -780,12 +861,21 @@ export default function DashboardHome() {
                             
                             <h4 style={{ margin: '5px 0 0 0', fontSize: '0.9rem', color: '#1e293b', lineHeight: '1.3' }}>{t.titulo}</h4>
                             
-                            <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '1px solid #f1f5f9' }}>
+                            <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '1px solid #f1f5f9', gap: '8px' }}>
                                 <span style={{ fontSize: '0.75rem', color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px' }}>{t.parentTitle}</span>
-                                <span style={{ fontSize: '0.9rem', color: '#cbd5e1' }}><Icons.ChevronRight size={14} /></span>
+                                <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                    <button
+                                        onClick={(e) => handleStartTaskFromHome(t, e)}
+                                        title={isRunning ? 'Parar temporizador' : 'Iniciar temporizador'}
+                                        style={{border: 'none', background: isRunning ? '#fee2e2' : '#eff6ff', color: isRunning ? '#ef4444' : '#2563eb', borderRadius: '999px', width: '26px', height: '26px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'}}
+                                    >
+                                        {isRunning ? <Icons.Stop size={10} /> : <Icons.Play size={10} />}
+                                    </button>
+                                    <span style={{ fontSize: '0.9rem', color: '#cbd5e1' }}><Icons.ChevronRight size={14} /></span>
+                                </div>
                             </div>
                         </div>
-                    ))}
+                    )})}
                     </div>
                 )}
             </div>
@@ -807,7 +897,9 @@ export default function DashboardHome() {
                     </div>
                 ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
-                    {tarefasGerais.slice(0, 10).map((t) => (
+                    {tarefasGerais.slice(0, 10).map((t) => {
+                        const isRunning = isTaskCardRunning(t);
+                        return (
                         <div key={t.id} onClick={() => navigate(t.clientLabel === 'GERAL / AVULSA' ? '/dashboard/minhas-tarefas' : (t.isActivity ? '/dashboard/atividades' : '/dashboard/tarefas'))} className="task-hover-card" style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                 {/* 💡 LABEL EMPRESA - PROJETO ou GERAL/AVULSA */}
@@ -823,12 +915,21 @@ export default function DashboardHome() {
                             
                             <h4 style={{ margin: '5px 0 0 0', fontSize: '0.9rem', color: '#1e293b', lineHeight: '1.3' }}>{t.titulo}</h4>
                             
-                            <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '1px solid #f1f5f9' }}>
+                            <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '1px solid #f1f5f9', gap: '8px' }}>
                                 <span style={{ fontSize: '0.75rem', color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px' }}>{t.parentTitle}</span>
-                                <span style={{ fontSize: '0.9rem', color: '#cbd5e1' }}><Icons.ChevronRight size={14} /></span>
+                                <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                    <button
+                                        onClick={(e) => handleStartTaskFromHome(t, e)}
+                                        title={isRunning ? 'Parar temporizador' : 'Iniciar temporizador'}
+                                        style={{border: 'none', background: isRunning ? '#fee2e2' : '#eff6ff', color: isRunning ? '#ef4444' : '#2563eb', borderRadius: '999px', width: '26px', height: '26px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'}}
+                                    >
+                                        {isRunning ? <Icons.Stop size={10} /> : <Icons.Play size={10} />}
+                                    </button>
+                                    <span style={{ fontSize: '0.9rem', color: '#cbd5e1' }}><Icons.ChevronRight size={14} /></span>
+                                </div>
                             </div>
                         </div>
-                    ))}
+                    )})}
                     </div>
                 )}
             </div>
@@ -1049,6 +1150,14 @@ export default function DashboardHome() {
               </div>
           </ModalPortal>
       )}
+
+      <TimerSwitchModal
+        open={timerSwitchModal.show}
+        title="Trocar Cronometro Ativo"
+        message={timerSwitchModal.message}
+        onCancel={cancelTimerSwitch}
+        onConfirm={confirmTimerSwitch}
+      />
 
       <style>{`
                 .dashboard-home {
