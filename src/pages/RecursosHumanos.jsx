@@ -5,6 +5,20 @@ import { useAuth } from "../context/AuthContext";
 import gerarRelatorioRecursosHumanos from "../components/pdfRecursosHumanos";
 import gerarRelatorioIndividual from "../components/pdfIndividual";
 import CalendarioColaborador from "../components/CalendarioColaborador";
+import {
+    calcularDiasUteis as calcularDiasUteisFerias,
+    buildToleranciasSkipSet,
+    calcularDiasUteisNoMes,
+    formatAbsenceTypeLabel,
+    getAnnualVacationLimitFromProfile,
+    getAttendanceCalculationStartDate,
+    getFeriados,
+    isVacationType,
+    normalizeAbsenceType,
+    parseLocalDate,
+    sincronizarSaldoFeriasPerfil,
+    validarSaldoFeriasParaIntervalo,
+} from "../utils/feriasSaldo";
 import "./../styles/dashboard.css"; 
 
 // --- ÍCONES SVG ESTILO SAAS ---
@@ -64,12 +78,26 @@ const isMissingTableError = (error) => {
     return error.code === "42P01" || /does not exist|relation .* does not exist/i.test(error.message || "");
 };
 
+const isMissingColumnError = (error) => {
+    if (!error) return false;
+    return error.code === "42703" || /column .* does not exist/i.test(error.message || "");
+};
+
 export default function RecursosHumanos() {
     const KM_REQUEST_TYPE = "Pedido de Km's";
+    const TOLERANCIA_TIPO = "Tolerância de Ponto";
+    const TOLERANCIA_TIPOS = [
+        TOLERANCIA_TIPO,
+        "Tolerancia de Ponto",
+        "tolerancia",
+        "tolerância",
+    ];
+    const isToleranceType = (tipo = "") => normalizeAbsenceType(tipo).includes("tolerancia");
 
   const { user } = useAuth();
   
   const [colaboradores, setColaboradores] = useState([]);
+    const [hasDiasFeriasTotalColumn, setHasDiasFeriasTotalColumn] = useState(true);
   const [selectedUser, setSelectedUser] = useState(null); 
   
   // Dados
@@ -85,6 +113,12 @@ export default function RecursosHumanos() {
   const [currentDate, setCurrentDate] = useState(new Date());
     const [isGeneratingRhPdf, setIsGeneratingRhPdf] = useState(false);
     const [isGeneratingIndividualPdf, setIsGeneratingIndividualPdf] = useState(false);
+
+  // Tolerâncias de Ponto
+  const [tolerancias, setTolerancias] = useState([]);
+  const [showToleranciaModal, setShowToleranciaModal] = useState(false);
+  const [newTolerancia, setNewTolerancia] = useState({ nome: '', data: '', tipo: 'global', user_id: '' });
+  const [isSubmittingTolerancia, setIsSubmittingTolerancia] = useState(false);
   
   // UI Abas do Colaborador
   const [userTab, setUserTab] = useState("financeiro"); 
@@ -107,44 +141,10 @@ export default function RecursosHumanos() {
 
   const [confirmModal, setConfirmModal] = useState({ show: false, pedido: null, acao: null });
   const [detailsModal, setDetailsModal] = useState({ show: false, pedido: null }); // NOVO: Modal de Detalhes
+    const [showBulkSAConfirmModal, setShowBulkSAConfirmModal] = useState(false);
   const [notification, setNotification] = useState({ show: false, message: '', type: 'success' });
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // --- ALGORITMO DE FERIADOS ---
-  const getFeriados = (ano) => {
-      const a = ano % 19; const b = Math.floor(ano / 100); const c = ano % 100;
-      const d = Math.floor(b / 4); const e = b % 4;
-      const f = Math.floor((b + 8) / 25); const g = Math.floor((b - f + 1) / 3);
-      const h = (19 * a + b - d - g + 15) % 30;
-      const i = Math.floor(c / 4); const k = c % 4;
-      const l = (32 + 2 * e + 2 * i - h - k) % 7;
-      const m = Math.floor((a + 11 * h + 22 * l) / 451);
-      const mesPascoa = Math.floor((h + l - 7 * m + 114) / 31) - 1;
-      const diaPascoa = ((h + l - 7 * m + 114) % 31) + 1;
-      
-      const pascoa = new Date(ano, mesPascoa, diaPascoa);
-      const sextaSanta = new Date(pascoa); sextaSanta.setDate(pascoa.getDate() - 2);
-      const carnaval = new Date(pascoa); carnaval.setDate(pascoa.getDate() - 47);
-      const corpoDeus = new Date(pascoa); corpoDeus.setDate(pascoa.getDate() + 60);
-
-      return [
-          { d: 1, m: 0, nome: "Ano Novo" },
-          { d: carnaval.getDate(), m: carnaval.getMonth(), nome: "Carnaval" },
-          { d: sextaSanta.getDate(), m: sextaSanta.getMonth(), nome: "Sexta-feira Santa" },
-          { d: pascoa.getDate(), m: pascoa.getMonth(), nome: "Páscoa" },
-          { d: 25, m: 3, nome: "Dia da Liberdade" },
-          { d: 1, m: 4, nome: "Dia do Trabalhador" },
-          { d: corpoDeus.getDate(), m: corpoDeus.getMonth(), nome: "Corpo de Deus" },
-          { d: 10, m: 5, nome: "Dia de Portugal" },
-          { d: 15, m: 7, nome: "Assunção de N. Senhora" },
-          { d: 7, m: 8, nome: "Feriado de Faro" }, 
-          { d: 5, m: 9, nome: "Implantação da República" },
-          { d: 1, m: 10, nome: "Todos os Santos" },
-          { d: 1, m: 11, nome: "Restauração da Independência" },
-          { d: 8, m: 11, nome: "Imaculada Conceição" },
-          { d: 25, m: 11, nome: "Natal" }
-      ];
-  };
+    const [isApplyingBulkSA, setIsApplyingBulkSA] = useState(false);
 
   const toLocalDateString = (date) => {
       const year = date.getFullYear();
@@ -153,27 +153,58 @@ export default function RecursosHumanos() {
       return `${year}-${month}-${day}`;
   };
 
-  useEffect(() => {
-    fetchColaboradores();
-    fetchPedidosPendentes();
-    fetchPedidosKmPendentes(); 
-  }, []);
+  const getAttendanceStartForUser = (userId) => {
+      const profile = colaboradores.find((c) => c.id === userId);
+      return getAttendanceCalculationStartDate(profile?.data_admissao);
+  };
+
+    useEffect(() => {
+        async function initRhData() {
+                try {
+                        await detectarColunaDiasFeriasTotal();
+                        fetchColaboradores();
+                        fetchPedidosPendentes();
+                        fetchPedidosKmPendentes();
+                        fetchTolerancias();
+                } catch (error) {
+                        console.error("Erro ao inicializar RH:", error);
+                        showNotification("Erro ao iniciar dados de RH.", "error");
+                }
+        }
+
+        initRhData();
+    }, []);
 
   useEffect(() => {
-    if (colaboradores.length > 0) {
-      fetchDadosMensais();
-      if(selectedUser) {
-          const u = colaboradores.find(c => c.id === selectedUser);
-          setTempUserProfile(u ? {
-              ...u,
-              empresas_internas: getProfileCompanies(u)
-          } : {});
-          fetchHistoricoUser(selectedUser);
-      } else {
-          setHistoricoUser([]);
-      }
+            fetchDadosMensais();
+        }, [selectedUser, currentDate, colaboradores]);
+
+    useEffect(() => {
+        if (!selectedUser) {
+                setHistoricoUser([]);
+                setTempUserProfile({});
+                setIsEditingUser(false);
+                return;
     }
-  }, [selectedUser, currentDate, colaboradores]);
+
+        fetchHistoricoUser(selectedUser);
+    }, [selectedUser]);
+
+    useEffect(() => {
+            if (!selectedUser || isEditingUser) return;
+
+            const u = colaboradores.find((c) => c.id === selectedUser);
+            setTempUserProfile(
+                    u
+                            ? {
+                                        ...u,
+                            dias_ferias_total:
+                                u.dias_ferias_total ?? u.dias_ferias ?? 22,
+                                        empresas_internas: getProfileCompanies(u),
+                                }
+                            : {},
+            );
+    }, [selectedUser, colaboradores, isEditingUser]);
 
   useEffect(() => {
       if (!newAbsence.is_parcial && newAbsence.data_inicio && newAbsence.data_fim) {
@@ -181,18 +212,272 @@ export default function RecursosHumanos() {
           const fim = new Date(newAbsence.data_fim);
           
           if (inicio <= fim) {
-              setDiasUteisModal(calcularDiasUteis(newAbsence.data_inicio, newAbsence.data_fim));
+              const skipDates = buildToleranciasSkipSet(tolerancias, newAbsence.user_id || null);
+              setDiasUteisModal(calcularDiasUteisFerias(newAbsence.data_inicio, newAbsence.data_fim, skipDates));
           } else {
               setDiasUteisModal(0);
           }
       } else {
           setDiasUteisModal(0);
       }
-  }, [newAbsence.data_inicio, newAbsence.data_fim, newAbsence.is_parcial]);
+  }, [newAbsence.data_inicio, newAbsence.data_fim, newAbsence.is_parcial, newAbsence.user_id, tolerancias]);
 
   const showNotification = (msg, type = 'success') => {
       setNotification({ show: true, message: msg, type });
   };
+
+  async function getDiasLimiteAnualAtualPorUserId(userId) {
+      const selectColumns = hasDiasFeriasTotalColumn
+          ? "dias_ferias_total, dias_ferias"
+          : "dias_ferias";
+
+      const { data, error } = await supabase
+          .from("profiles")
+          .select(selectColumns)
+          .eq("id", userId)
+          .single();
+      if (error) throw error;
+
+      return getAnnualVacationLimitFromProfile(data);
+  }
+
+  const getDiasDisponiveisPorUserId = (userId) => {
+      const profile = colaboradores.find((c) => c.id === userId);
+      const value = Number(profile?.dias_ferias);
+      return Number.isFinite(value) ? value : 0;
+  };
+
+  const calcularDiasFeriasComTolerancias = (userId, dataInicio, dataFim) => {
+      const skipDates = buildToleranciasSkipSet(tolerancias, userId || null);
+      return calcularDiasUteisFerias(dataInicio, dataFim || dataInicio, skipDates);
+  };
+
+  async function detectarColunaDiasFeriasTotal() {
+      const { error } = await supabase
+          .from("profiles")
+          .select("dias_ferias_total")
+          .limit(1);
+
+      if (error && isMissingColumnError(error)) {
+          setHasDiasFeriasTotalColumn(false);
+          return false;
+      }
+
+      if (error) throw error;
+
+      setHasDiasFeriasTotalColumn(true);
+      return true;
+  }
+
+  async function atualizarSaldoFeriasDireto(userId, delta) {
+      if (!userId || !Number.isFinite(delta) || delta === 0) return;
+
+      const { data, error } = await supabase
+          .from("profiles")
+          .select("dias_ferias")
+          .eq("id", userId)
+          .single();
+      if (error) throw error;
+
+      const atual = Number(data?.dias_ferias) || 0;
+      const novoSaldo = Math.max(0, atual + delta);
+      const { error: updateError } = await supabase
+          .from("profiles")
+          .update({ dias_ferias: novoSaldo })
+          .eq("id", userId);
+      if (updateError) throw updateError;
+  }
+
+  async function temFeriasAprovadasNoDia(userId, data) {
+      const { data: pedidos, error } = await supabase
+          .from("ferias")
+          .select("id, tipo, is_parcial")
+          .eq("user_id", userId)
+          .eq("estado", "aprovado")
+          .lte("data_inicio", data)
+          .gte("data_fim", data);
+      if (error) throw error;
+
+      return (pedidos || []).some((pedido) => !pedido.is_parcial && isVacationType(pedido.tipo));
+  }
+
+  async function existeOutraToleranciaAtivaNoDia({ userId, data, excludeToleranceId = null }) {
+      let query = supabase
+          .from("ferias")
+          .select("id")
+          .in("tipo", TOLERANCIA_TIPOS)
+          .neq("estado", "cancelado")
+          .neq("estado", "rejeitado")
+          .lte("data_inicio", data)
+          .gte("data_fim", data);
+
+      if (excludeToleranceId) query = query.neq("id", excludeToleranceId);
+      query = query.or(`user_id.is.null,user_id.eq.${userId}`);
+
+      const { data: matches, error } = await query;
+      if (error) throw error;
+
+      return (matches || []).length > 0;
+  }
+
+  async function aplicarAjusteToleranciaLegacy({ userId, data, movimento, excludeToleranceId = null }) {
+      const existeOutra = await existeOutraToleranciaAtivaNoDia({
+          userId,
+          data,
+          excludeToleranceId,
+      });
+
+      if (movimento === "add" && existeOutra) return;
+      if (movimento === "remove" && existeOutra) return;
+
+      const temFerias = await temFeriasAprovadasNoDia(userId, data);
+      if (!temFerias) return;
+
+      const delta = movimento === "add" ? 1 : -1;
+      await atualizarSaldoFeriasDireto(userId, delta);
+  }
+
+  async function sincronizarSaldoFeriasDosPerfis(userIds = []) {
+      if (!hasDiasFeriasTotalColumn) return;
+
+      const idsUnicos = [...new Set((userIds || []).filter(Boolean))];
+      if (idsUnicos.length === 0) return;
+
+      await Promise.all(
+          idsUnicos.map(async (userId) => {
+              const diasLimiteAnual = await getDiasLimiteAnualAtualPorUserId(userId);
+              return sincronizarSaldoFeriasPerfil({
+                  supabaseClient: supabase,
+                  userId,
+                  diasLimiteAnual,
+              });
+          }),
+      );
+  }
+
+  async function fetchTolerancias() {
+    try {
+        const { data, error } = await supabase
+            .from("ferias")
+            .select("id, user_id, tipo, motivo, data_inicio, estado")
+            .in("tipo", TOLERANCIA_TIPOS)
+            .neq("estado", "cancelado")
+            .neq("estado", "rejeitado")
+            .order("data_inicio", { ascending: true });
+        if (error) throw error;
+
+        const mapped = (data || []).map((item) => ({
+            id: item.id,
+            user_id: item.user_id,
+            nome: item.motivo || item.tipo || TOLERANCIA_TIPO,
+            data: item.data_inicio,
+        }));
+
+        setTolerancias(mapped);
+    } catch (error) {
+        console.error("Erro ao carregar tolerâncias:", error);
+    }
+  }
+
+  async function handleSaveTolerancia(e) {
+    e.preventDefault();
+    if (newTolerancia.tipo === 'individual' && !newTolerancia.user_id) {
+        return showNotification("Selecione um colaborador.", "error");
+    }
+    setIsSubmittingTolerancia(true);
+    try {
+        const payload = {
+            tipo: TOLERANCIA_TIPO,
+            motivo: newTolerancia.nome.trim() || TOLERANCIA_TIPO,
+            data_inicio: newTolerancia.data,
+            data_fim: newTolerancia.data,
+            is_parcial: false,
+            estado: "aprovado",
+            user_id: newTolerancia.tipo === 'individual' ? newTolerancia.user_id : null,
+        };
+        const { data: insertedTolerance, error } = await supabase
+            .from("ferias")
+            .insert([payload])
+            .select("id, data_inicio")
+            .single();
+        if (error) throw error;
+
+        const colaboradoresAfetados = payload.user_id
+            ? [payload.user_id]
+            : (colaboradores || []).map((c) => c.id);
+
+        if (hasDiasFeriasTotalColumn) {
+            await sincronizarSaldoFeriasDosPerfis(colaboradoresAfetados);
+        } else {
+            for (const userId of colaboradoresAfetados) {
+                await aplicarAjusteToleranciaLegacy({
+                    userId,
+                    data: payload.data_inicio,
+                    movimento: "add",
+                    excludeToleranceId: insertedTolerance?.id || null,
+                });
+            }
+        }
+
+        setShowToleranciaModal(false);
+        fetchTolerancias();
+        fetchColaboradores();
+        showNotification("Tolerância adicionada com sucesso!", "success");
+    } catch (err) {
+        showNotification("Erro ao guardar tolerância: " + err.message, "error");
+    } finally {
+        setIsSubmittingTolerancia(false);
+    }
+  }
+
+  async function handleDeleteTolerancia(id) {
+    if (!window.confirm("Eliminar esta tolerância?")) return;
+    try {
+                let toleranciaAlvo = tolerancias.find((t) => t.id === id);
+                if (!toleranciaAlvo) {
+                    const { data: dbTolerance } = await supabase
+                        .from("ferias")
+                        .select("id, user_id, data_inicio")
+                        .eq("id", id)
+                        .single();
+                    if (dbTolerance) {
+                        toleranciaAlvo = {
+                            id: dbTolerance.id,
+                            user_id: dbTolerance.user_id,
+                            data: dbTolerance.data_inicio,
+                        };
+                    }
+                }
+                const { error } = await supabase
+                        .from("ferias")
+                        .update({ estado: "cancelado" })
+                        .eq("id", id);
+        if (error) throw error;
+
+        const colaboradoresAfetados = toleranciaAlvo?.user_id
+            ? [toleranciaAlvo.user_id]
+            : (colaboradores || []).map((c) => c.id);
+
+        if (hasDiasFeriasTotalColumn) {
+            await sincronizarSaldoFeriasDosPerfis(colaboradoresAfetados);
+        } else if (toleranciaAlvo?.data) {
+            for (const userId of colaboradoresAfetados) {
+                await aplicarAjusteToleranciaLegacy({
+                    userId,
+                    data: toleranciaAlvo.data,
+                    movimento: "remove",
+                    excludeToleranceId: id,
+                });
+            }
+        }
+
+        fetchTolerancias();
+        fetchColaboradores();
+        showNotification("Tolerância eliminada.", "success");
+    } catch (err) {
+        showNotification("Erro ao eliminar tolerância: " + err.message, "error");
+    }
+  }
 
   async function fetchColaboradores() {
     try {
@@ -221,6 +506,9 @@ export default function RecursosHumanos() {
             return {
                 ...profile,
                 empresas_internas: empresasInternas,
+                dias_ferias_total: hasDiasFeriasTotalColumn
+                    ? (profile.dias_ferias_total ?? null)
+                    : null,
                 empresa_interna: empresasInternas[0] || profile.empresa_interna || ""
             };
         });
@@ -267,32 +555,30 @@ export default function RecursosHumanos() {
         const month = currentDate.getMonth() + 1;
         const startOfMonth = `${year}-${String(month).padStart(2, '0')}-01`;
                 const endOfMonth = toLocalDateString(new Date(year, month, 0));
+        const startOfAttendanceWindow = selectedUser
+            ? getAttendanceStartForUser(selectedUser)
+            : getAttendanceCalculationStartDate(startOfMonth);
 
-        let qAssiduidade = supabase.from("assiduidade").select("*").gte("data_registo", startOfMonth).lte("data_registo", endOfMonth);
+        let qAssiduidade = supabase.from("assiduidade").select("*").gte("data_registo", startOfAttendanceWindow).lte("data_registo", endOfMonth);
         if (selectedUser) qAssiduidade = qAssiduidade.eq("user_id", selectedUser);
         const { data: dAssiduidade } = await qAssiduidade;
         setAssiduidadeMes(dAssiduidade || []);
 
-        let qFerias = supabase.from("ferias").select("*").gte("data_inicio", startOfMonth).lte("data_inicio", endOfMonth).neq('estado', 'rejeitado').neq('estado', 'cancelado'); 
-        if (selectedUser) qFerias = qFerias.eq("user_id", selectedUser);
+        let qFerias = supabase
+            .from("ferias")
+            .select("*")
+            .neq('estado', 'rejeitado')
+            .neq('estado', 'cancelado')
+            .lte("data_inicio", endOfMonth)
+            .gte("data_fim", startOfAttendanceWindow);
+        if (selectedUser) qFerias = qFerias.or(`user_id.eq.${selectedUser},user_id.is.null`);
         const { data: dFerias } = await qFerias;
         setAusenciasMes(dFerias || []);
     } catch (err) { console.error(err); }
   }
 
   function calcularDiasUteis(dataInicio, dataFim) {
-      let count = 0;
-      let current = new Date(dataInicio);
-      const end = new Date(dataFim);
-      while (current <= end) {
-          const dayOfWeek = current.getDay();
-          const feriados = getFeriados(current.getFullYear());
-          const isFeriado = feriados.some(f => f.d === current.getDate() && f.m === current.getMonth());
-          
-          if (dayOfWeek !== 0 && dayOfWeek !== 6 && !isFeriado) count++; 
-          current.setDate(current.getDate() + 1);
-      }
-      return count;
+      return calcularDiasUteisFerias(dataInicio, dataFim);
   }
 
   function abrirModalConfirmacao(pedido, acao) {
@@ -307,24 +593,46 @@ export default function RecursosHumanos() {
   async function executarAcaoRH() {
       const { pedido, acao } = confirmModal;
       try {
-          const tipoNormalizado = pedido.tipo ? pedido.tipo.toLowerCase() : '';
-          const eFerias = tipoNormalizado.includes('férias') || tipoNormalizado.includes('ferias');
-          const diasUteis = calcularDiasUteis(pedido.data_inicio, pedido.data_fim);
+          const eFerias = isVacationType(pedido.tipo);
+          const profile = colaboradores.find((c) => c.id === pedido.user_id);
+          const diasLimiteAnual = getAnnualVacationLimitFromProfile(profile);
+          const diasPedidoFerias =
+              eFerias && !pedido.is_parcial
+                  ? calcularDiasFeriasComTolerancias(
+                        pedido.user_id,
+                        pedido.data_inicio,
+                        pedido.data_fim || pedido.data_inicio,
+                    )
+                  : 0;
           let novoEstadoDB = '';
 
           if (acao === 'aprovar') {
-              if (eFerias && !pedido.is_parcial) {
-                  const { data: userProf } = await supabase.from('profiles').select('dias_ferias').eq('id', pedido.user_id).single();
-                  await supabase.from('profiles').update({ dias_ferias: (userProf?.dias_ferias ?? 22) - diasUteis }).eq('id', pedido.user_id);
+              if (diasPedidoFerias > 0) {
+                  if (!hasDiasFeriasTotalColumn) {
+                      const saldoAtual = getDiasDisponiveisPorUserId(pedido.user_id);
+                      if (diasPedidoFerias > saldoAtual) {
+                          throw new Error(`Saldo insuficiente: pedido de ${diasPedidoFerias} dia(s), disponível ${saldoAtual}.`);
+                      }
+                  } else {
+                      const saldoCheck = await validarSaldoFeriasParaIntervalo({
+                          supabaseClient: supabase,
+                          userId: pedido.user_id,
+                          dataInicio: pedido.data_inicio,
+                          dataFim: pedido.data_fim || pedido.data_inicio,
+                          excluirPedidoId: pedido.id,
+                          diasLimiteAnual,
+                          tolerancias,
+                      });
+
+                      if (!saldoCheck.ok) {
+                          throw new Error(`Saldo insuficiente para ${saldoCheck.ano}: pedido de ${saldoCheck.diasPedidoNoAno} dia(s), disponível ${saldoCheck.diasDisponiveis}.`);
+                      }
+                  }
               }
               novoEstadoDB = 'aprovado';
           } 
           else if (acao === 'rejeitar') novoEstadoDB = 'rejeitado';
           else if (acao === 'aceitar_cancelamento' || acao === 'cancelar_direto') {
-              if (eFerias && !pedido.is_parcial) {
-                  const { data: userProf } = await supabase.from('profiles').select('dias_ferias').eq('id', pedido.user_id).single();
-                  await supabase.from('profiles').update({ dias_ferias: (userProf?.dias_ferias ?? 22) + diasUteis }).eq('id', pedido.user_id);
-              }
               novoEstadoDB = 'cancelado';
           }
           else if (acao === 'recusar_cancelamento') novoEstadoDB = 'aprovado';
@@ -333,6 +641,19 @@ export default function RecursosHumanos() {
           if(error) throw error;
           
           const isKmRequest = pedido.tipo === KM_REQUEST_TYPE;
+          if (!isKmRequest && pedido.user_id) {
+              if (hasDiasFeriasTotalColumn) {
+                  await sincronizarSaldoFeriasDosPerfis([pedido.user_id]);
+              } else if (diasPedidoFerias > 0) {
+                  if (acao === 'aprovar') {
+                      await atualizarSaldoFeriasDireto(pedido.user_id, -diasPedidoFerias);
+                  }
+                  if (acao === 'aceitar_cancelamento' || acao === 'cancelar_direto') {
+                      await atualizarSaldoFeriasDireto(pedido.user_id, diasPedidoFerias);
+                  }
+              }
+          }
+
           if (isKmRequest) {
               setPedidosKmPendentes(pedidosKmPendentes.filter(p => p.id !== pedido.id));
           } else {
@@ -374,24 +695,70 @@ export default function RecursosHumanos() {
       });
   };
 
+  const openUserEditor = () => {
+      if (!selectedUser) return;
+
+      const u = colaboradores.find((c) => c.id === selectedUser);
+      if (u) {
+          setTempUserProfile({
+              ...u,
+              dias_ferias_total:
+                  u.dias_ferias_total ?? u.dias_ferias ?? 22,
+              empresas_internas: getProfileCompanies(u),
+          });
+      }
+
+      setIsEditingUser(true);
+  };
+
   async function handleUpdateUserProfile() {
       if(!selectedUser) return;
       try {
           const empresasSelecionadas = toUniqueCompanies(tempUserProfile.empresas_internas || []);
           const empresaPrincipal = empresasSelecionadas[0] || null;
+          const diasFeriasTotalParsed = Number(tempUserProfile.dias_ferias_total);
 
-          const { error } = await supabase.from("profiles").update({
-              valor_sa: tempUserProfile.valor_sa, dias_ferias: tempUserProfile.dias_ferias,
-              empresa_interna: empresaPrincipal, funcao: tempUserProfile.funcao,
-              nome_completo: tempUserProfile.nome_completo, nif: tempUserProfile.nif,
-              niss: tempUserProfile.niss, ncc: tempUserProfile.ncc, 
-              validade_cc: tempUserProfile.validade_cc || null, 
+          if (hasDiasFeriasTotalColumn && (!Number.isFinite(diasFeriasTotalParsed) || diasFeriasTotalParsed <= 0)) {
+              throw new Error("Defina um limite anual de férias válido.");
+          }
+
+          const profilePayload = {
+              valor_sa: tempUserProfile.valor_sa,
+              dias_ferias: tempUserProfile.dias_ferias,
+              dias_ferias_total: hasDiasFeriasTotalColumn ? diasFeriasTotalParsed : null,
+              empresa_interna: empresaPrincipal,
+              funcao: tempUserProfile.funcao,
+              nome_completo: tempUserProfile.nome_completo,
+              nif: tempUserProfile.nif,
+              niss: tempUserProfile.niss,
+              ncc: tempUserProfile.ncc,
+              validade_cc: tempUserProfile.validade_cc || null,
               nr_dependentes: tempUserProfile.nr_dependentes,
-              estado_civil: tempUserProfile.estado_civil, morada: tempUserProfile.morada,
-              telemovel: tempUserProfile.telemovel, data_nascimento: tempUserProfile.data_nascimento,
-              tipo_contrato: tempUserProfile.tipo_contrato, nacionalidade: tempUserProfile.nacionalidade,
-              sexo: tempUserProfile.sexo, concelho: tempUserProfile.concelho
-          }).eq("id", selectedUser);
+              estado_civil: tempUserProfile.estado_civil,
+              morada: tempUserProfile.morada,
+              telemovel: tempUserProfile.telemovel,
+              data_nascimento: tempUserProfile.data_nascimento,
+              data_admissao: tempUserProfile.data_admissao || null,
+              tipo_contrato: tempUserProfile.tipo_contrato,
+              nacionalidade: tempUserProfile.nacionalidade,
+              sexo: tempUserProfile.sexo,
+              concelho: tempUserProfile.concelho,
+          };
+
+          let { error } = await supabase
+              .from("profiles")
+              .update(profilePayload)
+              .eq("id", selectedUser);
+
+          if (error && isMissingColumnError(error)) {
+              const legacyPayload = { ...profilePayload };
+              delete legacyPayload.dias_ferias_total;
+              const legacyResult = await supabase
+                  .from("profiles")
+                  .update(legacyPayload)
+                  .eq("id", selectedUser);
+              error = legacyResult.error;
+          }
 
           if(error) throw error;
 
@@ -407,6 +774,10 @@ export default function RecursosHumanos() {
               const payload = empresasSelecionadas.map((empresa) => ({ user_id: selectedUser, empresa }));
               const { error: insertRelError } = await supabase.from("profile_empresas").insert(payload);
               if (insertRelError) throw insertRelError;
+          }
+
+          if (hasDiasFeriasTotalColumn) {
+              await sincronizarSaldoFeriasDosPerfis([selectedUser]);
           }
 
           setIsEditingUser(false);
@@ -432,9 +803,40 @@ export default function RecursosHumanos() {
   }
 
   async function handleBulkUpdateSA() {
-      if(!window.confirm(`Tem a certeza que quer alterar o S.A. de TODOS para ${globalSA}€?`)) return;
-      const { error } = await supabase.from("profiles").update({ valor_sa: globalSA }).neq('id', '00000000-0000-0000-0000-000000000000'); 
-      if(!error) { fetchColaboradores(); showNotification("S.A. atualizado para todos!", "success"); }
+      const valorSA = Number(globalSA);
+      if (!Number.isFinite(valorSA) || valorSA < 0) {
+          showNotification("Introduza um valor de S.A. válido.", "error");
+          return;
+      }
+
+      setShowBulkSAConfirmModal(true);
+  }
+
+  async function confirmarBulkUpdateSA() {
+      const valorSA = Number(globalSA);
+      if (!Number.isFinite(valorSA) || valorSA < 0) {
+          showNotification("Introduza um valor de S.A. válido.", "error");
+          setShowBulkSAConfirmModal(false);
+          return;
+      }
+
+      try {
+          setIsApplyingBulkSA(true);
+          const { error } = await supabase
+              .from("profiles")
+              .update({ valor_sa: valorSA })
+              .neq('id', '00000000-0000-0000-0000-000000000000');
+
+          if (error) throw error;
+
+          setShowBulkSAConfirmModal(false);
+          fetchColaboradores();
+          showNotification("S.A. atualizado para todos!", "success");
+      } catch (err) {
+          showNotification("Erro ao atualizar S.A.: " + err.message, "error");
+      } finally {
+          setIsApplyingBulkSA(false);
+      }
   }
 
   // --- FUNÇÕES DE MODAL DE AUSÊNCIA (NOVO / EDITAR) ---
@@ -456,7 +858,7 @@ export default function RecursosHumanos() {
       setEditingAbsenceData(absenceData);
       setNewAbsence({
           user_id: absenceData.user_id,
-          tipo: absenceData.tipo,
+          tipo: absenceData.tipo === KM_REQUEST_TYPE ? KM_REQUEST_TYPE : formatAbsenceTypeLabel(absenceData.tipo),
           data_inicio: absenceData.data_inicio,
           data_fim: absenceData.data_fim,
           is_parcial: absenceData.is_parcial || false,
@@ -477,7 +879,7 @@ export default function RecursosHumanos() {
       if (!newAbsence.user_id) return showNotification("Selecione um colaborador!", "error");
       if (!newAbsence.data_inicio || (!isKmRequest && !newAbsence.is_parcial && !newAbsence.data_fim)) return showNotification("Selecione as datas!", "error");
       if (!isKmRequest && !newAbsence.is_parcial && diasUteisModal === 0) return showNotification("O período não contém dias úteis.", "error");
-      if (!isKmRequest && !newAbsence.is_parcial && new Date(newAbsence.data_inicio) > new Date(newAbsence.data_fim)) return showNotification("A data de fim é inválida.", "error");
+      if (!isKmRequest && !newAbsence.is_parcial && parseLocalDate(newAbsence.data_inicio) > parseLocalDate(newAbsence.data_fim)) return showNotification("A data de fim é inválida.", "error");
       if (isKmRequest) {
           const kmTotal = Number(newAbsence.km_total);
           if (!newAbsence.km_origem.trim() || !newAbsence.km_destino.trim()) return showNotification("Preencha os campos De e Para.", "error");
@@ -486,6 +888,31 @@ export default function RecursosHumanos() {
 
       setIsSubmitting(true);
       try {
+          const normalizedTipo = newAbsence.tipo === KM_REQUEST_TYPE ? KM_REQUEST_TYPE : formatAbsenceTypeLabel(newAbsence.tipo);
+          const isNewFerias = !newAbsence.is_parcial && isVacationType(normalizedTipo);
+          const dataFimFinal = isKmRequest
+              ? newAbsence.data_inicio
+              : (newAbsence.is_parcial ? newAbsence.data_inicio : newAbsence.data_fim);
+
+          const profile = colaboradores.find((c) => c.id === newAbsence.user_id);
+          const diasLimiteAnual = getAnnualVacationLimitFromProfile(profile);
+
+          const diasFeriasAntigos =
+              isEditingAbsence &&
+              editingAbsenceData?.estado === 'aprovado' &&
+              !editingAbsenceData?.is_parcial &&
+              isVacationType(editingAbsenceData?.tipo)
+                  ? calcularDiasFeriasComTolerancias(
+                        editingAbsenceData.user_id,
+                        editingAbsenceData.data_inicio,
+                        editingAbsenceData.data_fim || editingAbsenceData.data_inicio,
+                    )
+                  : 0;
+
+          const diasFeriasNovos = isNewFerias
+              ? calcularDiasFeriasComTolerancias(newAbsence.user_id, newAbsence.data_inicio, dataFimFinal)
+              : 0;
+
           let anexo_url = isEditingAbsence ? editingAbsenceData.anexo_url : null;
           if (absenceFile) {
               const fileExt = absenceFile.name.split('.').pop();
@@ -496,33 +923,51 @@ export default function RecursosHumanos() {
               anexo_url = publicUrl;
           }
 
-          const tipoLower = newAbsence.tipo.toLowerCase();
-          const isNewFerias = !newAbsence.is_parcial && (tipoLower.includes('férias') || tipoLower.includes('ferias'));
-          
-          if (isEditingAbsence && editingAbsenceData.estado === 'aprovado') {
-              const oldTipoLower = editingAbsenceData.tipo.toLowerCase();
-              const wasFerias = !editingAbsenceData.is_parcial && (oldTipoLower.includes('férias') || oldTipoLower.includes('ferias'));
-              
-              if (wasFerias) {
-                  const diasAntigos = calcularDiasUteis(editingAbsenceData.data_inicio, editingAbsenceData.data_fim);
-                  const { data: userProf } = await supabase.from('profiles').select('dias_ferias').eq('id', newAbsence.user_id).single();
-                  await supabase.from('profiles').update({ dias_ferias: (userProf?.dias_ferias ?? 22) + diasAntigos }).eq('id', newAbsence.user_id);
-              }
-          }
-
           if (isNewFerias) {
-             const { data: userProf, error: fetchError } = await supabase.from('profiles').select('dias_ferias').eq('id', newAbsence.user_id).single();
-             if (fetchError) throw new Error("Erro ao ler saldo de férias.");
-             const novoSaldo = (userProf?.dias_ferias ?? 22) - diasUteisModal;
-             const { error: updateError } = await supabase.from('profiles').update({ dias_ferias: novoSaldo }).eq('id', newAbsence.user_id);
-             if (updateError) throw new Error("Erro ao atualizar saldo.");
+              if (!hasDiasFeriasTotalColumn) {
+                  const deltasPorUser = new Map();
+                  if (diasFeriasAntigos > 0 && editingAbsenceData?.user_id) {
+                      deltasPorUser.set(
+                          editingAbsenceData.user_id,
+                          (deltasPorUser.get(editingAbsenceData.user_id) || 0) + diasFeriasAntigos,
+                      );
+                  }
+                  if (diasFeriasNovos > 0) {
+                      deltasPorUser.set(
+                          newAbsence.user_id,
+                          (deltasPorUser.get(newAbsence.user_id) || 0) - diasFeriasNovos,
+                      );
+                  }
+
+                  for (const [userId, delta] of deltasPorUser.entries()) {
+                      if (delta >= 0) continue;
+                      const saldoAtual = getDiasDisponiveisPorUserId(userId);
+                      if (saldoAtual < Math.abs(delta)) {
+                          throw new Error(`Saldo insuficiente: pedido de ${Math.abs(delta)} dia(s), disponível ${saldoAtual}.`);
+                      }
+                  }
+              } else {
+                  const saldoCheck = await validarSaldoFeriasParaIntervalo({
+                      supabaseClient: supabase,
+                      userId: newAbsence.user_id,
+                      dataInicio: newAbsence.data_inicio,
+                      dataFim: dataFimFinal,
+                      excluirPedidoId: isEditingAbsence ? editingAbsenceData.id : null,
+                      diasLimiteAnual,
+                      tolerancias,
+                  });
+
+                  if (!saldoCheck.ok) {
+                      throw new Error(`Saldo insuficiente para ${saldoCheck.ano}: pedido de ${saldoCheck.diasPedidoNoAno} dia(s), disponível ${saldoCheck.diasDisponiveis}.`);
+                  }
+              }
           }
 
           const payload = { 
               user_id: newAbsence.user_id, 
-              tipo: newAbsence.tipo,
+              tipo: normalizedTipo,
               data_inicio: newAbsence.data_inicio, 
-              data_fim: isKmRequest ? newAbsence.data_inicio : (newAbsence.is_parcial ? newAbsence.data_inicio : newAbsence.data_fim),
+              data_fim: dataFimFinal,
               is_parcial: isKmRequest ? false : newAbsence.is_parcial,
               hora_inicio: isKmRequest ? null : (newAbsence.is_parcial ? newAbsence.hora_inicio : null),
               hora_fim: isKmRequest ? null : (newAbsence.is_parcial ? newAbsence.hora_fim || null : null),
@@ -544,6 +989,37 @@ export default function RecursosHumanos() {
           }
 
           if(dbError) throw new Error("Erro ao gravar ausência: " + dbError.message);
+
+          if (!hasDiasFeriasTotalColumn) {
+              const deltasPorUser = new Map();
+              if (diasFeriasAntigos > 0 && editingAbsenceData?.user_id) {
+                  deltasPorUser.set(
+                      editingAbsenceData.user_id,
+                      (deltasPorUser.get(editingAbsenceData.user_id) || 0) + diasFeriasAntigos,
+                  );
+              }
+              if (diasFeriasNovos > 0) {
+                  deltasPorUser.set(
+                      newAbsence.user_id,
+                      (deltasPorUser.get(newAbsence.user_id) || 0) - diasFeriasNovos,
+                  );
+              }
+              for (const [userId, delta] of deltasPorUser.entries()) {
+                  await atualizarSaldoFeriasDireto(userId, delta);
+              }
+          }
+
+          const colaboradoresAfetados = [newAbsence.user_id];
+          if (
+              isEditingAbsence &&
+              editingAbsenceData?.user_id &&
+              editingAbsenceData.user_id !== newAbsence.user_id
+          ) {
+              colaboradoresAfetados.push(editingAbsenceData.user_id);
+          }
+          if (hasDiasFeriasTotalColumn) {
+              await sincronizarSaldoFeriasDosPerfis(colaboradoresAfetados);
+          }
 
           closeAbsenceModal();
           fetchDadosMensais();
@@ -614,7 +1090,8 @@ export default function RecursosHumanos() {
                   .from("ferias")
                   .select("*")
                   .eq("estado", "aprovado")
-                  .or(`data_inicio.lte.${endOfMonth},data_fim.gte.${startOfMonth}`),
+                  .lte("data_inicio", endOfMonth)
+                  .gte("data_fim", startOfMonth),
           ]);
 
           if (assiduidadeError) throw assiduidadeError;
@@ -646,14 +1123,47 @@ export default function RecursosHumanos() {
       let countTrabalho = 0, countFerias = 0, countFaltas = 0, countBaixas = 0;
       const diasUnicos = new Set(assiduidadeMes.map(a => a.data_registo)).size;
       countTrabalho = diasUnicos;
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      const toleranciasDoMes = (ausenciasMes || []).filter(
+          (a) => !a.is_parcial && isToleranceType(a.tipo),
+      );
+      const skipSetByUser = new Map();
+      const getSkipSetForUser = (targetUserId) => {
+          const cacheKey = targetUserId || "__global__";
+          if (!skipSetByUser.has(cacheKey)) {
+              const toleranciasNormalizadas = toleranciasDoMes.map((item) => ({
+                  user_id: item.user_id,
+                  data: item.data_inicio,
+                  data_inicio: item.data_inicio,
+                  data_fim: item.data_fim || item.data_inicio,
+              }));
+              skipSetByUser.set(
+                  cacheKey,
+                  buildToleranciasSkipSet(toleranciasNormalizadas, targetUserId || null),
+              );
+          }
+          return skipSetByUser.get(cacheKey);
+      };
 
       ausenciasMes.forEach(a => {
           if (!a.is_parcial) {
-              const dias = calcularDiasUteis(a.data_inicio, a.data_fim);
-              const t = a.tipo.toLowerCase();
-              if (t.includes('férias') || t.includes('ferias')) countFerias += dias;
-              else if (t.includes('falta')) countFaltas += dias;
-              else if (t.includes('baixa')) countBaixas += dias;
+              const tipoNormalizado = normalizeAbsenceType(a.tipo);
+              if (isToleranceType(tipoNormalizado)) return;
+
+              const dataInicioCalculo = getAttendanceStartForUser(a.user_id);
+              const dataInicioAjustada = a.data_inicio < dataInicioCalculo ? dataInicioCalculo : a.data_inicio;
+              const dias = calcularDiasUteisNoMes(
+                  dataInicioAjustada,
+                  a.data_fim || a.data_inicio,
+                  year,
+                  month,
+                  isVacationType(tipoNormalizado) ? getSkipSetForUser(a.user_id) : null,
+              );
+              if (dias <= 0) return;
+              if (isVacationType(tipoNormalizado)) countFerias += dias;
+              else if (tipoNormalizado.includes('falta')) countFaltas += dias;
+              else if (tipoNormalizado.includes('baixa') || tipoNormalizado.includes('doenca') || tipoNormalizado.includes('acidente')) countBaixas += dias;
           }
       });
 
@@ -675,6 +1185,7 @@ export default function RecursosHumanos() {
       const month = currentDate.getMonth();
       const daysInMonth = new Date(year, month + 1, 0).getDate();
       const hojeStr = new Date().toISOString().split('T')[0];
+      const dataInicioCalculo = getAttendanceStartForUser(selectedUser);
       const feriadosSet = new Set(
           getFeriados(year)
               .filter(f => f.m === month)
@@ -699,8 +1210,9 @@ export default function RecursosHumanos() {
           const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
           const isHoliday = feriadosSet.has(dateStr);
           const isPastOrToday = dateStr <= hojeStr;
+          const isAfterAttendanceStart = dateStr >= dataInicioCalculo;
 
-          if (!isPastOrToday || isWeekend || isHoliday) continue;
+          if (!isPastOrToday || !isAfterAttendanceStart || isWeekend || isHoliday) continue;
           if (datasComAssiduidade.has(dateStr)) continue;
           if (temJustificacaoNoDia(dateStr)) continue;
 
@@ -730,7 +1242,8 @@ export default function RecursosHumanos() {
       return lista.map(a => {
           const user = colaboradores.find(c => c.id === a.user_id);
           const infoHora = a.is_parcial ? `( ${a.hora_inicio?.slice(0,5)})` : '';
-          return { ...a, nomeUser: user?.nome || 'Desconhecido', infoHora };
+          const nomeUser = a.user_id ? (user?.nome || 'Desconhecido') : 'Global';
+          return { ...a, nomeUser, infoHora };
       });
   };
   const ausentesHoje = getAusentesHoje();
@@ -761,25 +1274,49 @@ export default function RecursosHumanos() {
           const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
           let content = null;
           let cellStyle = { background: '#fff', minHeight: '80px', position: 'relative' }; 
+          let cellBorderColor = '#f1f5f9';
           
           const feriado = feriadosDoMes.find(f => f.d === d);
-          if (feriado) { cellStyle.background = '#fee2e2'; cellStyle.borderColor = '#fca5a5'; }
+          const toleranciaGlobalNoDia = !selectedUser
+              ? ausenciasMes.find(
+                    a =>
+                        a.user_id === null &&
+                        !a.is_parcial &&
+                        isToleranceType(a.tipo) &&
+                        a.data_inicio <= dateStr &&
+                        a.data_fim >= dateStr,
+                )
+              : null;
+          if (feriado) {
+              cellStyle.background = '#fee2e2';
+              cellBorderColor = '#fca5a5';
+          }
+          else if (toleranciaGlobalNoDia) {
+              cellStyle.background = '#dbeafe';
+              cellBorderColor = '#93c5fd';
+          }
 
           if (selectedUser) {
               const trabalhou = assiduidadeMes.some(a => a.data_registo === dateStr);
               const ausencia = ausenciasMes.find(a => a.tipo !== KM_REQUEST_TYPE && a.data_inicio <= dateStr && a.data_fim >= dateStr);
               
               if (trabalhou) { 
-                  cellStyle.background = '#f0fdf4'; cellStyle.borderColor = '#bbf7d0'; 
+                  cellStyle.background = '#f0fdf4';
+                  cellBorderColor = '#bbf7d0'; 
                   content = <div style={{display:'flex', justifyContent:'center'}}><Icons.Check color="#16a34a" size={20} /></div>; 
               } 
               else if (ausencia) {
-                  const t = ausencia.tipo.toLowerCase();
-                  if (t.includes('férias') || t.includes('ferias')) { 
+                  const tipoNormalizado = normalizeAbsenceType(ausencia.tipo);
+                  if (isToleranceType(tipoNormalizado)) {
+                      cellStyle.background = '#eff6ff';
+                      cellBorderColor = '#bfdbfe';
+                      content = <div style={{display:'flex', justifyContent:'center'}}><Icons.Clock color="#3b82f6" size={20}/></div>;
+                  }
+                  else if (isVacationType(tipoNormalizado)) { 
                       cellStyle.background = '#fefce8'; 
                       content = <div style={{display:'flex', justifyContent:'center'}}>{ausencia.is_parcial ? <Icons.Clock color="#ca8a04" size={20}/> : <Icons.Sun color="#ca8a04" size={20}/>}</div>; 
                   }
-                  else if (t.includes('falta')) { 
+                  else if (tipoNormalizado.includes('falta')) { 
                       cellStyle.background = '#fef2f2'; 
                       content = <div style={{display:'flex', justifyContent:'center'}}>{ausencia.is_parcial ? <Icons.Clock color="#ef4444" size={20}/> : <Icons.X color="#ef4444" size={20}/>}</div>; 
                   }
@@ -792,28 +1329,46 @@ export default function RecursosHumanos() {
               }
           } else {
               const ausentesNoDia = ausenciasMes.filter(a => a.tipo !== KM_REQUEST_TYPE && a.data_inicio <= dateStr && a.data_fim >= dateStr);
+              const ausentesNoDiaParaBarras = ausentesNoDia.filter(
+                  a => !(toleranciaGlobalNoDia && a.user_id === null && !a.is_parcial && isToleranceType(a.tipo)),
+              );
               let bars = [];
-              if (ausentesNoDia.length > 0) {
-                  bars = ausentesNoDia.map((a, i) => {
+              if (ausentesNoDiaParaBarras.length > 0) {
+                  bars = ausentesNoDiaParaBarras.map((a, i) => {
                       const user = colaboradores.find(c => c.id === a.user_id);
+                      const tipoNormalizado = normalizeAbsenceType(a.tipo);
                       let barColor = '#fcd34d'; 
-                      if (a.tipo?.toLowerCase().includes('falta')) barColor = '#fca5a5';
-                      if (a.tipo?.toLowerCase().includes('baixa')) barColor = '#d8b4fe';
+                      if (isToleranceType(tipoNormalizado)) barColor = '#3b82f6';
+                      if (tipoNormalizado.includes('falta')) barColor = '#fca5a5';
+                      if (tipoNormalizado.includes('baixa') || tipoNormalizado.includes('doenca') || tipoNormalizado.includes('acidente')) barColor = '#d8b4fe';
                       if (a.is_parcial) barColor = '#94a3b8';
-                      return <div key={i} title={`${user?.nome}: ${a.tipo} ${a.is_parcial ? '(Horas)' : ''}`} style={{height: '6px', background: barColor, borderRadius: '3px', width: '100%'}} />;
+                      const ownerLabel = a.user_id ? (user?.nome || 'Desconhecido') : 'Global';
+                      return <div key={i} title={`${ownerLabel}: ${formatAbsenceTypeLabel(a.tipo)} ${a.is_parcial ? '(Horas)' : ''}`} style={{height: '6px', background: barColor, borderRadius: '3px', width: '100%'}} />;
                   });
               }
               content = (
                   <div style={{display: 'flex', flexDirection: 'column', gap: '2px', width: '100%', marginTop:'5px'}}>
                       {feriado && <div title={feriado.nome} style={{fontSize: '0.7rem', color: '#991b1b', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display:'flex', alignItems:'center', gap:'4px'}}><Icons.Flag size={10} color="#991b1b"/> {feriado.nome}</div>}
+                      {toleranciaGlobalNoDia && (
+                          <div title={toleranciaGlobalNoDia.motivo || formatAbsenceTypeLabel(toleranciaGlobalNoDia.tipo)} style={{fontSize: '0.7rem', color: '#1d4ed8', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display:'flex', alignItems:'center', gap:'4px'}}>
+                              <Icons.Flag size={10} color="#1d4ed8"/> {toleranciaGlobalNoDia.motivo || 'Tolerância de Ponto'}
+                          </div>
+                      )}
                       {bars}
                   </div>
               );
           }
+
+          const tituloDia = feriado
+              ? `Feriado: ${feriado.nome}`
+              : (toleranciaGlobalNoDia
+                    ? `Global: ${toleranciaGlobalNoDia.motivo || formatAbsenceTypeLabel(toleranciaGlobalNoDia.tipo)}`
+                    : '');
+          const numeroDiaCor = feriado ? '#ef4444' : (toleranciaGlobalNoDia ? '#2563eb' : '#94a3b8');
           
           days.push(
-              <div key={d} title={feriado ? `Feriado: ${feriado.nome}` : ''} style={{border:'1px solid #f1f5f9', borderRadius:'8px', padding:'5px', display:'flex', flexDirection:'column', justifyContent:'space-between', ...cellStyle}}>
-                  <span style={{fontSize:'0.75rem', color: feriado ? '#ef4444' : '#94a3b8', fontWeight:'bold'}}>{d}</span>
+              <div key={d} title={tituloDia} style={{border:`1px solid ${cellBorderColor}`, borderRadius:'8px', padding:'5px', display:'flex', flexDirection:'column', justifyContent:'space-between', outline:'none', boxShadow:'none', ...cellStyle}}>
+                  <span style={{fontSize:'0.75rem', color: numeroDiaCor, fontWeight:'bold'}}>{d}</span>
                   <div style={{textAlign:'center', fontSize:'1.2rem', width: '100%'}}>{content}</div>
               </div>
           );
@@ -823,7 +1378,7 @@ export default function RecursosHumanos() {
 
   const changeMonth = (delta) => setCurrentDate(new Date(currentDate.setMonth(currentDate.getMonth() + delta)));
   
-  const readOnlyGridStyle = { display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: '20px', rowGap: '10px', fontSize: '0.9rem', color: '#334151' };
+    const readOnlyGridStyle = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', columnGap: '20px', rowGap: '10px', fontSize: '0.9rem', color: '#334151' };
   const readOnlyItemStyle = { display: 'flex', flexDirection: 'column', borderBottom: '1px solid #f1f5f9', paddingBottom: '5px' };
   const labelStyle = { color: '#64748b', fontSize: '0.75rem', marginBottom: '2px' };
   const inputStyle = { padding: '10px', borderRadius: '5px', border: '1px solid #ccc', width: '100%', marginBottom: '10px' };
@@ -849,6 +1404,9 @@ export default function RecursosHumanos() {
                 <button className={activeView === 'pedidos' ? 'btn-primary' : 'btn-small'} onClick={() => setActiveView('pedidos')} style={{padding: '10px 20px', position: 'relative', display:'flex', alignItems:'center', gap:'8px'}}>
                     <Icons.Inbox size={18} /> Pedidos
                     {(pedidosPendentes.length + pedidosKmPendentes.length) > 0 && <span style={{position: 'absolute', top: '-8px', right: '-8px', background: '#ef4444', color: 'white', borderRadius: '50%', padding: '2px 8px', fontSize: '0.7rem', fontWeight: 'bold'}}>{pedidosPendentes.length + pedidosKmPendentes.length}</span>}
+                </button>
+                <button className={activeView === 'tolerancias' ? 'btn-primary' : 'btn-small'} onClick={() => setActiveView('tolerancias')} style={{padding: '10px 20px', display:'flex', alignItems:'center', gap:'8px'}}>
+                    <Icons.Clock size={18} /> Tolerâncias
                 </button>
             </div>
         </div>
@@ -879,7 +1437,7 @@ export default function RecursosHumanos() {
                                 {pedidosPendentes.map(p => (
                                     <tr key={p.id} style={{background: p.estado === 'pedido_cancelamento' ? '#fefce8' : 'transparent', borderBottom: '1px solid #f1f5f9'}}>
                                         <td style={{padding: '12px', fontWeight: 'bold', color: '#2563eb'}}>{p.profiles?.nome}</td>
-                                        <td style={{padding: '12px', color: '#334155'}}>{p.tipo}</td>
+                                        <td style={{padding: '12px', color: '#334155'}}>{formatAbsenceTypeLabel(p.tipo)}</td>
                                         <td style={{padding: '12px', color: '#334155'}}>
                                           {p.is_parcial ? (
                                               <>
@@ -1001,16 +1559,84 @@ export default function RecursosHumanos() {
           </div>
       )}
 
+      {activeView === 'tolerancias' && (
+          <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
+              <div className="card" style={{padding: '25px', borderRadius: '12px', background: 'white', boxShadow: '0 2px 10px rgba(0,0,0,0.02)'}}>
+                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: '20px'}}>
+                      <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+                          <Icons.Clock size={24} color="#1e293b" />
+                          <div>
+                              <h3 style={{margin: 0, color: '#1e293b'}}>Tolerâncias de Ponto</h3>
+                              <p style={{margin:'4px 0 0 0', color:'#64748b', fontSize:'0.85rem'}}>Dias dispensados que não contam como férias para os colaboradores.</p>
+                          </div>
+                      </div>
+                      <button className="btn-primary" onClick={() => { setNewTolerancia({ nome: '', data: '', tipo: 'global', user_id: '' }); setShowToleranciaModal(true); }} style={{padding: '10px 20px', display:'flex', alignItems:'center', gap:'8px'}}>
+                          <Icons.Flag size={16} /> Nova Tolerância
+                      </button>
+                  </div>
+                  {tolerancias.length > 0 ? (
+                      <div className="table-responsive">
+                          <table className="data-table" style={{width: '100%', borderCollapse: 'collapse', textAlign: 'left'}}>
+                              <thead>
+                                  <tr style={{borderBottom: '2px solid #f1f5f9', color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase'}}>
+                                      <th style={{padding: '12px'}}>Designação</th>
+                                      <th style={{padding: '12px'}}>Data</th>
+                                      <th style={{padding: '12px'}}>Âmbito</th>
+                                      <th style={{padding: '12px', textAlign: 'center'}}>Ações</th>
+                                  </tr>
+                              </thead>
+                              <tbody>
+                                  {tolerancias.map(t => {
+                                      const colab = t.user_id ? colaboradores.find(c => c.id === t.user_id) : null;
+                                      return (
+                                          <tr key={t.id} style={{borderBottom: '1px solid #f1f5f9'}}>
+                                              <td style={{padding: '12px', fontWeight: '500', color: '#1e293b'}}>{t.nome}</td>
+                                              <td style={{padding: '12px', color: '#475569'}}>{t.data ? new Date(t.data + 'T00:00:00').toLocaleDateString('pt-PT') : '-'}</td>
+                                              <td style={{padding: '12px'}}>
+                                                  {t.user_id ? (
+                                                      <span style={{background: '#f0fdf4', color: '#166534', padding: '4px 10px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: '600', display:'inline-flex', alignItems:'center', gap:'4px'}}>
+                                                          <Icons.User size={12} /> {colab?.nome || 'Individual'}
+                                                      </span>
+                                                  ) : (
+                                                      <span style={{background: '#eff6ff', color: '#1d4ed8', padding: '4px 10px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: '600', display:'inline-flex', alignItems:'center', gap:'4px'}}>
+                                                          <Icons.Users size={12} /> Global
+                                                      </span>
+                                                  )}
+                                              </td>
+                                              <td style={{padding: '12px', textAlign: 'center'}}>
+                                                  <button className="btn-small" title="Eliminar" style={{background: '#fef2f2', borderColor: '#fecaca', color: '#ef4444', display:'flex', alignItems:'center', padding:'6px', margin:'0 auto'}} onClick={() => handleDeleteTolerancia(t.id)}>
+                                                      <Icons.Trash size={16} />
+                                                  </button>
+                                              </td>
+                                          </tr>
+                                      );
+                                  })}
+                              </tbody>
+                          </table>
+                      </div>
+                  ) : (
+                      <div style={{textAlign: 'center', padding: '40px', color: '#94a3b8', background: '#f8fafc', borderRadius: '12px', display:'flex', flexDirection:'column', alignItems:'center', gap:'10px'}}>
+                          <Icons.Clock size={40} color="#cbd5e1" />
+                          <span style={{fontSize:'0.95rem'}}>Nenhuma tolerância definida. Adicione dias dispensados que não devem contar como férias.</span>
+                      </div>
+                  )}
+              </div>
+          </div>
+      )}
+
       {activeView === 'gestao' && (
           <>
-            <div style={{marginBottom: '20px', background:'white', padding:'15px 20px', borderRadius:'12px', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'15px', border: '1px solid #e2e8f0', boxShadow: '0 2px 5px rgba(0,0,0,0.02)'}}>
+            <div className="rh-toolbar" style={{marginBottom: '20px', background:'white', padding:'15px 20px', borderRadius:'12px', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'15px', border: '1px solid #e2e8f0', boxShadow: '0 2px 5px rgba(0,0,0,0.02)'}}>
                 <div style={{background:'#f8fafc', padding:'10px 15px', borderRadius:'8px', display:'flex', alignItems:'center', gap:'10px', border:'1px solid #e2e8f0'}}>
                     <span style={{fontSize:'0.8rem', fontWeight:'bold', color:'#475569'}}>S.A. GLOBAL:</span>
                     <input type="number" step="0.01" value={globalSA} onChange={e => setGlobalSA(e.target.value)} style={{width:'60px', padding:'5px', borderRadius:'4px', border:'1px solid #cbd5e1'}}/>
                     <button onClick={handleBulkUpdateSA} className="btn-small" style={{background:'#2563eb', color:'white', border:'none', padding:'6px 12px', fontWeight:'500'}}>Aplicar</button>
                 </div>
-                <div style={{display:'flex', gap:'15px', alignItems:'center'}}>
-                    <select value={selectedUser || ""} onChange={(e) => setSelectedUser(e.target.value || null)} style={{padding: '10px 15px', borderRadius: '8px', minWidth: '250px', border:'1px solid #cbd5e1', color:'#1e293b', fontWeight:'500'}}>
+                <div className="rh-toolbar-actions" style={{display:'flex', gap:'15px', alignItems:'center'}}>
+                    <select className="rh-user-select" value={selectedUser || ""} onChange={(e) => {
+                        setIsEditingUser(false);
+                        setSelectedUser(e.target.value || null);
+                    }} style={{padding: '10px 15px', borderRadius: '8px', minWidth: '250px', border:'1px solid #cbd5e1', color:'#1e293b', fontWeight:'500'}}>
                         <option value="">Visão Geral Global</option>
                         {colaboradores.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
                     </select>
@@ -1045,7 +1671,7 @@ export default function RecursosHumanos() {
             </div>
 
             <div className="rh-grid" style={{display:'grid', gridTemplateColumns: '400px 1fr', gap: '20px'}}>
-                <div>
+                <div style={{minWidth: 0}}>
                     {selectedUser ? (
                         <>
                             <div className="card" style={{marginBottom: '20px', padding:'25px', background:'white', borderRadius:'12px', borderTop:'4px solid #2563eb', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
@@ -1073,11 +1699,11 @@ export default function RecursosHumanos() {
                                     </button>
                                 </div>
 
-                                <div className="tabs" style={{marginBottom:'20px', display:'flex', background:'#f8fafc', padding:'4px', borderRadius:'8px'}}>
-                                    <button className={userTab === 'financeiro' ? 'active' : ''} onClick={() => setUserTab('financeiro')} style={{flex:1, borderRadius:'6px', padding:'8px', display:'flex', justifyContent:'center', alignItems:'center', gap:'6px', background: userTab === 'financeiro' ? 'white' : 'transparent', border: userTab === 'financeiro' ? '1px solid #e2e8f0' : 'none', color: userTab === 'financeiro' ? '#2563eb' : '#64748b', fontWeight:'bold', boxShadow: userTab === 'financeiro' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', transition:'0.2s'}}>
+                                <div className="tabs rh-user-tabs" style={{marginBottom:'20px', display:'flex', background:'#f8fafc', padding:'4px', borderRadius:'8px'}}>
+                                    <button type="button" className={userTab === 'financeiro' ? 'active' : ''} onClick={() => setUserTab('financeiro')} style={{flex:1, borderRadius:'6px', padding:'8px', display:'flex', justifyContent:'center', alignItems:'center', gap:'6px', background: userTab === 'financeiro' ? 'white' : 'transparent', border: userTab === 'financeiro' ? '1px solid #e2e8f0' : 'none', color: userTab === 'financeiro' ? '#2563eb' : '#64748b', fontWeight:'bold', boxShadow: userTab === 'financeiro' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', transition:'0.2s'}}>
                                         <Icons.Currency size={16} /> Financeiro
                                     </button>
-                                    <button className={userTab === 'dados' ? 'active' : ''} onClick={() => setUserTab('dados')} style={{flex:1, borderRadius:'6px', padding:'8px', display:'flex', justifyContent:'center', alignItems:'center', gap:'6px', background: userTab === 'dados' ? 'white' : 'transparent', border: userTab === 'dados' ? '1px solid #e2e8f0' : 'none', color: userTab === 'dados' ? '#2563eb' : '#64748b', fontWeight:'bold', boxShadow: userTab === 'dados' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', transition:'0.2s'}}>
+                                    <button type="button" className={userTab === 'dados' ? 'active' : ''} onClick={() => setUserTab('dados')} style={{flex:1, borderRadius:'6px', padding:'8px', display:'flex', justifyContent:'center', alignItems:'center', gap:'6px', background: userTab === 'dados' ? 'white' : 'transparent', border: userTab === 'dados' ? '1px solid #e2e8f0' : 'none', color: userTab === 'dados' ? '#2563eb' : '#64748b', fontWeight:'bold', boxShadow: userTab === 'dados' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', transition:'0.2s'}}>
                                         <Icons.FileText size={16} /> Pessoal
                                     </button>
                                 </div>
@@ -1091,9 +1717,15 @@ export default function RecursosHumanos() {
                                             </div>
                                             <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px', padding:'10px', background:'#eff6ff', borderRadius:'8px', border:'1px dashed #bfdbfe'}}>
                                                 <span style={{color:'#1e40af', fontSize:'0.9rem', display:'flex', alignItems:'center', gap:'6px'}}><Icons.Sun size={16}/> Férias Disponíveis</span>
-                                                <span style={{fontWeight:'bold', color:'#2563eb', fontSize:'1.1rem'}}>{currentUserProfile?.dias_ferias ?? 22} dias</span>
+                                                <span style={{fontWeight:'bold', color:'#2563eb', fontSize:'1.1rem'}}>{currentUserProfile?.dias_ferias ?? '--'} dias</span>
                                             </div>
-                                            <button onClick={() => setIsEditingUser(true)} style={{width:'100%', marginTop:'10px', padding:'10px', borderRadius:'8px', border:'1px solid #cbd5e1', background:'white', cursor:'pointer', color:'#475569', fontWeight:'600', display:'flex', justifyContent:'center', alignItems:'center', gap:'8px', transition:'0.2s'}} className="hover-bg-gray">
+                                            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px', padding:'10px', background:'#ecfeff', borderRadius:'8px', border:'1px dashed #a5f3fc'}}>
+                                                <span style={{color:'#0e7490', fontSize:'0.9rem', display:'flex', alignItems:'center', gap:'6px'}}><Icons.Flag size={16}/> Limite Anual de Férias</span>
+                                                <span style={{fontWeight:'bold', color:'#0f766e', fontSize:'1.1rem'}}>
+                                                    {hasDiasFeriasTotalColumn ? (currentUserProfile?.dias_ferias_total ?? '--') : '--'} dias
+                                                </span>
+                                            </div>
+                                            <button type="button" onClick={openUserEditor} style={{width:'100%', marginTop:'10px', padding:'10px', borderRadius:'8px', border:'1px solid #cbd5e1', background:'white', cursor:'pointer', color:'#475569', fontWeight:'600', display:'flex', justifyContent:'center', alignItems:'center', gap:'8px', transition:'0.2s'}} className="hover-bg-gray">
                                                 <Icons.Edit size={16} /> Editar Dados Financeiros
                                             </button>
                                         </div>
@@ -1102,12 +1734,28 @@ export default function RecursosHumanos() {
                                             <label style={{fontSize:'0.8rem', fontWeight:'600', color:'#475569'}}>Valor S.A. Diário (€):</label>
                                             <input type="number" step="0.01" value={tempUserProfile.valor_sa || 0} onChange={e => setTempUserProfile({...tempUserProfile, valor_sa: e.target.value})} style={{...inputStyle, marginTop:'5px', marginBottom:'15px'}} />
                                             
-                                            <label style={{fontSize:'0.8rem', fontWeight:'600', color:'#475569'}}>Dias de Férias Disponíveis:</label>
-                                            <input type="number" value={tempUserProfile.dias_ferias || 0} onChange={e => setTempUserProfile({...tempUserProfile, dias_ferias: e.target.value})} style={{...inputStyle, marginTop:'5px', marginBottom:'15px'}} />
+                                            {hasDiasFeriasTotalColumn && (
+                                                <>
+                                                    <label style={{fontSize:'0.8rem', fontWeight:'600', color:'#475569'}}>Limite Anual de Férias:</label>
+                                                    <input type="number" value={tempUserProfile.dias_ferias_total || 0} onChange={e => setTempUserProfile({...tempUserProfile, dias_ferias_total: e.target.value})} style={{...inputStyle, marginTop:'5px', marginBottom:'15px'}} />
+                                                    <label style={{fontSize:'0.8rem', fontWeight:'600', color:'#475569'}}>Saldo Atual de Férias:</label>
+                                                    <input type="number" value={tempUserProfile.dias_ferias || 0} readOnly disabled style={{...inputStyle, marginTop:'5px', marginBottom:'6px', background:'#f1f5f9', color:'#64748b', cursor:'not-allowed'}} />
+                                                    <p style={{margin:'0 0 15px 0', fontSize:'0.75rem', color:'#64748b'}}>
+                                                        O saldo atual e recalculado automaticamente a partir do limite anual e dos pedidos aprovados.
+                                                    </p>
+                                                </>
+                                            )}
+
+                                            {!hasDiasFeriasTotalColumn && (
+                                                <>
+                                                    <label style={{fontSize:'0.8rem', fontWeight:'600', color:'#475569'}}>Saldo Atual de Férias:</label>
+                                                    <input type="number" value={tempUserProfile.dias_ferias || 0} onChange={e => setTempUserProfile({...tempUserProfile, dias_ferias: e.target.value})} style={{...inputStyle, marginTop:'5px', marginBottom:'15px'}} />
+                                                </>
+                                            )}
                                             
                                             <div style={{display:'flex', gap:'10px'}}>
-                                                <button onClick={() => setIsEditingUser(false)} style={{flex:1, padding:'10px', border:'1px solid #cbd5e1', borderRadius:'6px', background:'white', color:'#475569', fontWeight:'600'}}>Cancelar</button>
-                                                <button onClick={handleUpdateUserProfile} style={{flex:1, padding:'10px', background:'#2563eb', borderRadius:'6px', color:'white', border:'none', fontWeight:'bold'}}>Guardar</button>
+                                                <button type="button" onClick={() => setIsEditingUser(false)} style={{flex:1, padding:'10px', border:'1px solid #cbd5e1', borderRadius:'6px', background:'white', color:'#475569', fontWeight:'600'}}>Cancelar</button>
+                                                <button type="button" onClick={handleUpdateUserProfile} style={{flex:1, padding:'10px', background:'#2563eb', borderRadius:'6px', color:'white', border:'none', fontWeight:'bold'}}>Guardar</button>
                                             </div>
                                         </div>
                                     )
@@ -1116,7 +1764,7 @@ export default function RecursosHumanos() {
                                 {userTab === 'dados' && (
                                     !isEditingUser ? (
                                         <>
-                                            <div style={readOnlyGridStyle}>
+                                            <div className="rh-readonly-grid" style={readOnlyGridStyle}>
                                                 <div style={readOnlyItemStyle}><span style={labelStyle}>Nome Completo</span><b>{currentUserProfile?.nome_completo || '-'}</b></div>
                                                 <div style={readOnlyItemStyle}><span style={labelStyle}>Telemóvel</span><b>{currentUserProfile?.telemovel || '-'}</b></div>
                                                 
@@ -1127,6 +1775,7 @@ export default function RecursosHumanos() {
                                                 <div style={readOnlyItemStyle}><span style={labelStyle}>Validade CC</span><b>{currentUserProfile?.validade_cc ? new Date(currentUserProfile.validade_cc).toLocaleDateString('pt-PT') : '-'}</b></div>
                                                 
                                                 <div style={readOnlyItemStyle}><span style={labelStyle}>Data Nasc.</span><b>{currentUserProfile?.data_nascimento ? new Date(currentUserProfile.data_nascimento).toLocaleDateString('pt-PT') : '-'}</b></div>
+                                                <div style={readOnlyItemStyle}><span style={labelStyle}>Data Admissão</span><b>{currentUserProfile?.data_admissao ? new Date(currentUserProfile.data_admissao).toLocaleDateString('pt-PT') : '-'}</b></div>
                                                 <div style={readOnlyItemStyle}><span style={labelStyle}>Dependentes</span><b>{currentUserProfile?.nr_dependentes || '0'}</b></div>
                                                 
                                                 <div style={readOnlyItemStyle}><span style={labelStyle}>Estado Civil</span><b>{currentUserProfile?.estado_civil || '-'}</b></div>
@@ -1138,7 +1787,7 @@ export default function RecursosHumanos() {
                                             <div style={{display:'flex', justifyContent:'space-between', marginTop:'15px', paddingBottom:'8px', borderBottom:'1px dashed #e2e8f0', fontSize:'0.9rem'}}><span style={labelStyle}>Concelho:</span> <b style={{color:'#1e293b'}}>{currentUserProfile?.concelho || '-'}</b></div>
                                             <div style={{display:'flex', justifyContent:'space-between', marginTop:'8px', paddingBottom:'8px', borderBottom:'1px dashed #e2e8f0', fontSize:'0.9rem'}}><span style={labelStyle}>Empresas:</span> <b style={{color:'#1e293b'}}>{formatCompaniesLabel(currentUserProfile)}</b></div>
                                             <div style={{display:'flex', justifyContent:'space-between', marginTop:'8px', fontSize:'0.9rem'}}><span style={labelStyle}>Contrato:</span> <b style={{color:'#1e293b'}}>{currentUserProfile?.tipo_contrato || '-'}</b></div>
-                                            <button onClick={() => setIsEditingUser(true)} style={{width:'100%', marginTop:'20px', padding:'10px', borderRadius:'8px', border:'1px solid #cbd5e1', background:'white', cursor:'pointer', color:'#475569', fontWeight:'600', display:'flex', justifyContent:'center', alignItems:'center', gap:'8px', transition:'0.2s'}}>
+                                            <button type="button" onClick={openUserEditor} style={{width:'100%', marginTop:'20px', padding:'10px', borderRadius:'8px', border:'1px solid #cbd5e1', background:'white', cursor:'pointer', color:'#475569', fontWeight:'600', display:'flex', justifyContent:'center', alignItems:'center', gap:'8px', transition:'0.2s'}}>
                                                 <Icons.Edit size={16} /> Editar Informações
                                             </button>
                                         </>
@@ -1147,7 +1796,7 @@ export default function RecursosHumanos() {
                                             <label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Nome Completo</label>
                                             <input type="text" value={tempUserProfile.nome_completo || ''} onChange={e => setTempUserProfile({...tempUserProfile, nome_completo: e.target.value})} style={{width:'100%', marginBottom:'10px', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} />
                                             
-                                            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'10px'}}>
+                                            <div className="rh-user-form-grid" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'10px'}}>
                                                 <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>NIF</label><input type="text" value={tempUserProfile.nif || ''} onChange={e => setTempUserProfile({...tempUserProfile, nif: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
                                                 <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>NISS</label><input type="text" value={tempUserProfile.niss || ''} onChange={e => setTempUserProfile({...tempUserProfile, niss: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
                                                 
@@ -1159,13 +1808,14 @@ export default function RecursosHumanos() {
                                                 <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Dependentes</label><input type="number" value={tempUserProfile.nr_dependentes || 0} onChange={e => setTempUserProfile({...tempUserProfile, nr_dependentes: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
                                                 <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Estado Civil</label><select value={tempUserProfile.estado_civil || ''} onChange={e => setTempUserProfile({...tempUserProfile, estado_civil: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px', background:'white'}}><option value="">-</option><option value="Solteiro">Solteiro</option><option value="Casado">Casado</option><option value="Divorciado">Divorciado</option><option value="União Facto">União Facto</option></select></div>
                                                 <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Data Nasc.</label><input type="date" value={tempUserProfile.data_nascimento || ''} onChange={e => setTempUserProfile({...tempUserProfile, data_nascimento: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
+                                                <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Data Admissão</label><input type="date" value={tempUserProfile.data_admissao || ''} onChange={e => setTempUserProfile({...tempUserProfile, data_admissao: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
                                                 <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Nacionalidade</label><input type="text" value={tempUserProfile.nacionalidade || ''} onChange={e => setTempUserProfile({...tempUserProfile, nacionalidade: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
                                                 <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Sexo</label><select value={tempUserProfile.sexo || ''} onChange={e => setTempUserProfile({...tempUserProfile, sexo: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px', background:'white'}}><option value="">-</option><option value="Masculino">Masculino</option><option value="Feminino">Feminino</option><option value="Outro">Outro</option></select></div>
                                             </div>
                                             <label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Morada</label>
                                             <input type="text" value={tempUserProfile.morada || ''} onChange={e => setTempUserProfile({...tempUserProfile, morada: e.target.value})} style={{width:'100%', marginBottom:'10px', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} />
                                             
-                                            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'10px'}}>
+                                            <div className="rh-user-form-grid" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'10px'}}>
                                                 <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Telemóvel</label><input type="text" value={tempUserProfile.telemovel || ''} onChange={e => setTempUserProfile({...tempUserProfile, telemovel: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
                                                 <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Concelho</label><input type="text" value={tempUserProfile.concelho || ''} onChange={e => setTempUserProfile({...tempUserProfile, concelho: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
                                             </div>
@@ -1206,11 +1856,11 @@ export default function RecursosHumanos() {
                                             </select>
                                             
                                             <div style={{display:'flex', gap:'10px'}}>
-                                                <button onClick={() => setIsEditingUser(false)} style={{flex:1, padding:'10px', border:'1px solid #cbd5e1', borderRadius:'6px', background:'white', color:'#475569', fontWeight:'600'}}>Cancelar</button>
-                                                <button onClick={handleUpdateUserProfile} style={{flex:1, padding:'10px', background:'#2563eb', color:'white', border:'none', borderRadius:'6px', fontWeight:'bold'}}>Gravar</button>
+                                                <button type="button" onClick={() => setIsEditingUser(false)} style={{flex:1, padding:'10px', border:'1px solid #cbd5e1', borderRadius:'6px', background:'white', color:'#475569', fontWeight:'600'}}>Cancelar</button>
+                                                <button type="button" onClick={handleUpdateUserProfile} style={{flex:1, padding:'10px', background:'#2563eb', color:'white', border:'none', borderRadius:'6px', fontWeight:'bold'}}>Gravar</button>
                                             </div>
                                             <div style={{marginTop: '25px', paddingTop: '15px', borderTop: '1px solid #e2e8f0', textAlign: 'center'}}>
-                                                <button onClick={() => handleDeleteUser(selectedUser)} style={{background: '#fee2e2', color: '#ef4444', border: 'none', padding: '10px 15px', borderRadius: '6px', fontSize: '0.85rem', fontWeight:'bold', cursor: 'pointer', width: '100%', display:'flex', alignItems:'center', justifyContent:'center', gap:'8px'}}>
+                                                <button type="button" onClick={() => handleDeleteUser(selectedUser)} style={{background: '#fee2e2', color: '#ef4444', border: 'none', padding: '10px 15px', borderRadius: '6px', fontSize: '0.85rem', fontWeight:'bold', cursor: 'pointer', width: '100%', display:'flex', alignItems:'center', justifyContent:'center', gap:'8px'}}>
                                                     <Icons.Trash size={16} /> Apagar Colaborador
                                                 </button>
                                             </div>
@@ -1259,7 +1909,7 @@ export default function RecursosHumanos() {
                                     <Icons.Clock size={14}/> Ausentes Hoje
                                 </h5>
                                 {ausentesHoje.length === 0 ? <div style={{background:'#f0fdf4', padding:'12px', borderRadius:'8px', color:'#166534', fontWeight:'600', fontSize:'0.9rem', display:'flex', alignItems:'center', gap:'8px'}}><Icons.Check size={18}/> Todos presentes!</div> : 
-                                    ausentesHoje.map(a => <div key={a.id} style={{padding:'10px', border:'1px solid #e2e8f0', borderRadius:'8px', marginBottom:'8px', fontSize:'0.9rem', color:'#334155'}}><b style={{color:'#1e293b'}}>{a.nomeUser}</b> {a.infoHora} - {a.tipo}</div>)
+                                    ausentesHoje.map(a => <div key={a.id} style={{padding:'10px', border:'1px solid #e2e8f0', borderRadius:'8px', marginBottom:'8px', fontSize:'0.9rem', color:'#334155'}}><b style={{color:'#1e293b'}}>{a.nomeUser}</b> {a.infoHora} - {formatAbsenceTypeLabel(a.tipo)}</div>)
                                 }
                             </div>
                             
@@ -1284,9 +1934,18 @@ export default function RecursosHumanos() {
                     )}
                 </div>
 
-                <div style={{display:'flex', flexDirection:'column', gap:'20px'}}>
+                <div style={{display:'flex', flexDirection:'column', gap:'20px', minWidth: 0}}>
                     {selectedUser ? (
-                        <CalendarioColaborador userId={selectedUser} userName={currentUserProfile?.nome || 'Colaborador'} />
+                        <CalendarioColaborador
+                            userId={selectedUser}
+                            userName={currentUserProfile?.nome || 'Colaborador'}
+                            dataAdmissao={currentUserProfile?.data_admissao}
+                            onVacationBalanceUpdated={async () => {
+                                await fetchColaboradores();
+                                if (selectedUser) await fetchHistoricoUser(selectedUser);
+                                await fetchDadosMensais();
+                            }}
+                        />
                     ) : (
                         <div className="card" style={{padding:'25px', background:'white', borderRadius:'12px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
                             <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'25px'}}>
@@ -1324,7 +1983,7 @@ export default function RecursosHumanos() {
                                     <tbody>
                                         {historicoUser.map(h => (
                                             <tr key={h.id} style={{borderBottom:'1px solid #f8fafc'}}>
-                                                <td style={{padding:'10px', color:'#334155', fontWeight:'500'}}>{h.tipo}</td>
+                                                <td style={{padding:'10px', color:'#334155', fontWeight:'500'}}>{formatAbsenceTypeLabel(h.tipo)}</td>
                                                 <td style={{padding:'10px', color:'#475569'}}>
                                                   {h.tipo === KM_REQUEST_TYPE ? (
                                                       <>
@@ -1396,7 +2055,7 @@ export default function RecursosHumanos() {
                           <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'15px'}}>
                               <div>
                                   <div style={{fontSize:'0.8rem', color:'#64748b', fontWeight:'600'}}>{detailsModal.pedido.tipo === KM_REQUEST_TYPE ? 'Tipo de Pedido' : 'Tipo de Ausência'}</div>
-                                  <div style={{fontWeight:'500', color:'#334155', marginTop:'2px'}}>{detailsModal.pedido.tipo}</div>
+                                  <div style={{fontWeight:'500', color:'#334155', marginTop:'2px'}}>{formatAbsenceTypeLabel(detailsModal.pedido.tipo)}</div>
                               </div>
                               <div>
                                   <div style={{fontSize:'0.8rem', color:'#64748b', fontWeight:'600'}}>Estado Atual</div>
@@ -1588,7 +2247,7 @@ export default function RecursosHumanos() {
                                 <span style={{marginTop:'2px'}}>{diasUteisModal > 0 ? <Icons.Info size={16}/> : <Icons.Alert size={16}/>}</span>
                                 <span>
                                     {diasUteisModal > 0 
-                                        ? (newAbsence.tipo.toLowerCase().includes('férias') 
+                                        ? (isVacationType(newAbsence.tipo) 
                                             ? <span>Este registo consumirá <b>{diasUteisModal} dia(s) útil(eis)</b> de férias do colaborador.</span> 
                                             : <span>Registará <b>{diasUteisModal} dia(s) útil(eis)</b> de ausência. Tratando-se de justificação, não desconta férias.</span>)
                                         : <span>Atenção: O período selecionado calha num fim de semana ou feriado. Não há dias úteis a contabilizar.</span>}
@@ -1640,7 +2299,7 @@ export default function RecursosHumanos() {
                       </div>
                       <h3 style={{marginTop: 0, color: '#1e293b'}}>Confirmar Ação</h3>
                       <p style={{color: '#64748b', marginBottom: '25px', lineHeight: '1.5', fontSize:'0.95rem'}}>
-                          {confirmModal.acao === 'aprovar' && <span>Tens a certeza que queres aprovar o pedido de <b>{confirmModal.pedido?.tipo}</b>?</span>}
+                          {confirmModal.acao === 'aprovar' && <span>Tens a certeza que queres aprovar o pedido de <b>{formatAbsenceTypeLabel(confirmModal.pedido?.tipo)}</b>?</span>}
                           {confirmModal.acao === 'rejeitar' && <span>Tens a certeza que queres rejeitar este pedido?</span>}
                           {(confirmModal.acao === 'aceitar_cancelamento' || confirmModal.acao === 'cancelar_direto') && <span>Tens a certeza que queres cancelar e devolver os dias ao colaborador (se férias)?</span>}
                           {confirmModal.acao === 'recusar_cancelamento' && <span>Queres recusar o pedido de cancelamento e manter o registo aprovado?</span>}
@@ -1649,6 +2308,41 @@ export default function RecursosHumanos() {
                           <button onClick={() => setConfirmModal({ show: false, pedido: null, acao: null })} style={{padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white', color:'#475569', fontWeight:'bold', flex: 1, cursor:'pointer'}}>Voltar</button>
                           <button onClick={executarAcaoRH} style={{padding: '12px', borderRadius: '8px', border: 'none', flex: 1, color: 'white', background: ['aprovar', 'recusar_cancelamento'].includes(confirmModal.acao) ? '#16a34a' : '#ef4444', fontWeight:'bold', cursor:'pointer'}}>
                               Confirmar
+                          </button>
+                      </div>
+                  </div>
+              </div>
+          </ModalPortal>
+      )}
+
+      {/* Modal Confirmação S.A. Global */}
+      {showBulkSAConfirmModal && (
+          <ModalPortal>
+              <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999}}>
+                  <div style={{background:'white', padding:'30px', borderRadius:'16px', width:'430px', maxWidth:'92%', textAlign:'center', boxShadow:'0 25px 50px -12px rgba(0, 0, 0, 0.25)'}}>
+                      <div style={{display:'flex', justifyContent:'center', marginBottom:'15px'}}>
+                          <div style={{background:'#eff6ff', padding:'15px', borderRadius:'50%', color:'#2563eb'}}><Icons.Currency size={30}/></div>
+                      </div>
+                      <h3 style={{marginTop:0, color:'#1e293b'}}>Atualizar S.A. Global</h3>
+                      <p style={{color:'#64748b', marginBottom:'25px', lineHeight:'1.5', fontSize:'0.95rem'}}>
+                          Tem a certeza que quer alterar o S.A. de TODOS para <b>{Number(globalSA).toFixed(2)}€</b>?
+                      </p>
+                      <div style={{display:'flex', gap:'10px', justifyContent:'center'}}>
+                          <button
+                              type="button"
+                              onClick={() => setShowBulkSAConfirmModal(false)}
+                              disabled={isApplyingBulkSA}
+                              style={{padding:'12px', borderRadius:'8px', border:'1px solid #cbd5e1', background:'white', color:'#475569', fontWeight:'bold', flex:1, cursor:'pointer', opacity: isApplyingBulkSA ? 0.7 : 1}}
+                          >
+                              Cancelar
+                          </button>
+                          <button
+                              type="button"
+                              onClick={confirmarBulkUpdateSA}
+                              disabled={isApplyingBulkSA}
+                              style={{padding:'12px', borderRadius:'8px', border:'none', flex:1, color:'white', background:'#2563eb', fontWeight:'bold', cursor:'pointer', opacity: isApplyingBulkSA ? 0.7 : 1}}
+                          >
+                              {isApplyingBulkSA ? 'A aplicar...' : 'Confirmar'}
                           </button>
                       </div>
                   </div>
@@ -1674,9 +2368,89 @@ export default function RecursosHumanos() {
           </ModalPortal>
       )}
 
+      {/* Modal Nova Tolerância */}
+      {showToleranciaModal && (
+          <ModalPortal>
+              <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999}}>
+                  <div style={{background:'white', padding:'30px', borderRadius:'16px', width:'460px', maxWidth:'90%', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'}}>
+                      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px'}}>
+                          <h3 style={{margin: 0, display:'flex', alignItems:'center', gap:'8px', color:'#1e293b'}}>
+                              <Icons.Clock size={20} color="#3b82f6"/> Nova Tolerância de Ponto
+                          </h3>
+                          <button type="button" onClick={() => setShowToleranciaModal(false)} style={{background:'none', border:'none', cursor:'pointer', color: '#94a3b8'}}><Icons.X size={20}/></button>
+                      </div>
+                      <form onSubmit={handleSaveTolerancia}>
+                          <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Designação</label>
+                          <input type="text" required placeholder="Ex: Véspera de Natal" value={newTolerancia.nome} onChange={e => setNewTolerancia({...newTolerancia, nome: e.target.value})} style={{...inputStyle, marginTop:'4px'}}/>
+
+                          <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Data</label>
+                          <input type="date" required value={newTolerancia.data} onChange={e => setNewTolerancia({...newTolerancia, data: e.target.value})} style={{...inputStyle, marginTop:'4px'}}/>
+
+                          <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569', display:'block', marginBottom:'8px'}}>Âmbito</label>
+                          <div style={{display:'flex', gap:'10px', marginBottom:'15px'}}>
+                              <button type="button" onClick={() => setNewTolerancia({...newTolerancia, tipo: 'global', user_id: ''})} style={{flex:1, padding:'12px 10px', borderRadius:'8px', border: newTolerancia.tipo === 'global' ? '2px solid #2563eb' : '1px solid #e2e8f0', background: newTolerancia.tipo === 'global' ? '#eff6ff' : '#f8fafc', color: newTolerancia.tipo === 'global' ? '#1d4ed8' : '#475569', fontWeight:'600', cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', gap:'4px', transition:'0.2s'}}>
+                                  <Icons.Users size={18} color={newTolerancia.tipo === 'global' ? '#2563eb' : '#94a3b8'}/>
+                                  <span style={{fontSize:'0.85rem'}}>Global</span>
+                                  <span style={{fontSize:'0.72rem', opacity:0.7}}>Toda a empresa</span>
+                              </button>
+                              <button type="button" onClick={() => setNewTolerancia({...newTolerancia, tipo: 'individual'})} style={{flex:1, padding:'12px 10px', borderRadius:'8px', border: newTolerancia.tipo === 'individual' ? '2px solid #16a34a' : '1px solid #e2e8f0', background: newTolerancia.tipo === 'individual' ? '#f0fdf4' : '#f8fafc', color: newTolerancia.tipo === 'individual' ? '#166534' : '#475569', fontWeight:'600', cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', gap:'4px', transition:'0.2s'}}>
+                                  <Icons.User size={18} color={newTolerancia.tipo === 'individual' ? '#16a34a' : '#94a3b8'}/>
+                                  <span style={{fontSize:'0.85rem'}}>Individual</span>
+                                  <span style={{fontSize:'0.72rem', opacity:0.7}}>Um colaborador</span>
+                              </button>
+                          </div>
+
+                          {newTolerancia.tipo === 'individual' && (
+                              <>
+                                  <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Colaborador</label>
+                                  <select required value={newTolerancia.user_id} onChange={e => setNewTolerancia({...newTolerancia, user_id: e.target.value})} style={{...inputStyle, marginTop:'4px', background:'white'}}>
+                                      <option value="">Selecione Colaborador...</option>
+                                      {colaboradores.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                                  </select>
+                              </>
+                          )}
+
+                          <div style={{display:'flex', gap:'10px', marginTop:'10px', paddingTop:'15px', borderTop:'1px solid #e2e8f0'}}>
+                              <button type="button" onClick={() => setShowToleranciaModal(false)} style={{flex:1, padding:'12px', background:'white', border:'1px solid #cbd5e1', borderRadius:'8px', cursor:'pointer', color: '#475569', fontWeight:'bold'}}>Cancelar</button>
+                              <button type="submit" disabled={isSubmittingTolerancia} style={{flex:2, padding:'12px', background:'#2563eb', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'bold', opacity: isSubmittingTolerancia ? 0.7 : 1}}>
+                                  {isSubmittingTolerancia ? 'A guardar...' : 'Guardar Tolerância'}
+                              </button>
+                          </div>
+                      </form>
+                  </div>
+              </div>
+          </ModalPortal>
+      )}
+
       <style>{`
           .btn-small:hover { opacity: 0.8; transform: translateY(-1px); }
           .hover-bg-gray:hover { background: #f8fafc !important; }
+          @media (max-width: 1180px) {
+              .rh-grid { grid-template-columns: 1fr !important; }
+          }
+          @media (max-width: 900px) {
+              .rh-toolbar { align-items: stretch !important; }
+              .rh-toolbar-actions {
+                  width: 100%;
+                  flex-wrap: wrap;
+              }
+              .rh-toolbar-actions > * {
+                  flex: 1 1 220px;
+              }
+              .rh-user-select {
+                  min-width: 0 !important;
+                  width: 100%;
+              }
+          }
+          @media (max-width: 720px) {
+              .rh-user-tabs {
+                  flex-direction: column;
+              }
+              .rh-readonly-grid,
+              .rh-user-form-grid {
+                  grid-template-columns: 1fr !important;
+              }
+          }
       `}</style>
     </div>
   );

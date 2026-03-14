@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { isVacationType } from "../utils/feriasSaldo";
 
 const C = {
 	navy: [27, 41, 82],
@@ -303,7 +304,7 @@ export const generateRecursosHumanosPDF = async ({
 					return;
 				}
 
-				if (tipo.includes("ferias") || tipo.includes("férias")) {
+				if (isVacationType(tipo)) {
 					ferias += dias;
 					return;
 				}

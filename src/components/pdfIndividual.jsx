@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { isVacationType } from "../utils/feriasSaldo";
 
 const C = {
 	navy: [27, 41, 82],
@@ -171,7 +172,7 @@ export const generateIndividualRHPDF = async ({
 		const rangeEnd = end > monthEnd ? monthEnd : end;
 		const dias = ausencia.is_parcial ? 0 : calcBusinessDaysInRange(rangeStart, rangeEnd, feriadosSet);
 
-		if (tipo.includes("ferias") || tipo.includes("férias")) {
+		if (isVacationType(tipo)) {
 			feriasDias += dias;
 			return;
 		}

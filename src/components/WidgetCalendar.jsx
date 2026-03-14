@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
+import { formatAbsenceTypeLabel, normalizeAbsenceType } from "../utils/feriasSaldo";
 
 export default function WidgetCalendar() {
   const { user } = useAuth();
@@ -119,17 +120,25 @@ export default function WidgetCalendar() {
     });
 
     // 2. Férias e Ausências
-    const { data: ferias } = await supabase.from("ferias").select("data_inicio, data_fim, tipo").eq("user_id", user.id).eq("estado", "aprovado").not("tipo", "ilike", "%km%").or(`data_inicio.lte.${fimMesStr},data_fim.gte.${inicioMesStr}`);
+    const { data: ferias } = await supabase
+        .from("ferias")
+        .select("data_inicio, data_fim, tipo")
+        .eq("user_id", user.id)
+        .eq("estado", "aprovado")
+        .not("tipo", "ilike", "%km%")
+        .lte("data_inicio", fimMesStr)
+        .gte("data_fim", inicioMesStr);
 
     if (ferias) {
         ferias.forEach(f => {
             const inicio = new Date(f.data_inicio);
             const fim = new Date(f.data_fim);
+            const tipoNormalizado = normalizeAbsenceType(f.tipo);
             let bg = '#f59e0b';
-            if(f.tipo?.toLowerCase().includes('falta')) { bg = '#ef4444'; }
-            if(f.tipo?.toLowerCase().includes('baixa')) { bg = '#a855f7'; }
+            if(tipoNormalizado.includes('falta')) { bg = '#ef4444'; }
+            if(tipoNormalizado.includes('baixa') || tipoNormalizado.includes('doenca') || tipoNormalizado.includes('acidente')) { bg = '#a855f7'; }
 
-            const tipoFormatado = f.tipo.charAt(0).toUpperCase() + f.tipo.slice(1);
+            const tipoFormatado = formatAbsenceTypeLabel(f.tipo);
             for (let d = new Date(inicio); d <= fim; d.setDate(d.getDate() + 1)) {
                 if (d.getMonth() === mesAtual && d.getFullYear() === anoAtual) {
                     listaEventos.push({

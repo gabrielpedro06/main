@@ -2,6 +2,15 @@ import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
+import {
+    calcularDiasUteis,
+    buildToleranciasSkipSet,
+    formatAbsenceTypeLabel,
+    getAnnualVacationLimitFromProfile,
+    isVacationType,
+    parseLocalDate,
+    validarSaldoFeriasParaIntervalo,
+} from "../utils/feriasSaldo";
 import "./../styles/dashboard.css";
 
 // --- ÍCONES SVG PROFISSIONAIS ---
@@ -37,12 +46,22 @@ const ModalPortal = ({ children }) => {
 
 export default function Ferias({ forcedType = null }) {
     const KM_REQUEST_TYPE = "Pedido de Km's";
+    const TOLERANCIA_TIPO = "Tolerância de Ponto";
+    const TOLERANCIA_TIPOS = [
+        TOLERANCIA_TIPO,
+        "Tolerancia de Ponto",
+        "tolerancia",
+        "tolerância",
+    ];
     const isKmOnlyMode = forcedType === KM_REQUEST_TYPE;
 
   const { user } = useAuth(); 
   const [pedidos, setPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [diasFerias, setDiasFerias] = useState(null); 
+    const [diasFeriasTotal, setDiasFeriasTotal] = useState(null);
+    const [hasDiasFeriasTotalColumn, setHasDiasFeriasTotalColumn] = useState(true);
+  const [tolerancias, setTolerancias] = useState([]);
   
   const [showModal, setShowModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -73,72 +92,80 @@ export default function Ferias({ forcedType = null }) {
   const [file, setFile] = useState(null); 
   const [diasUteis, setDiasUteis] = useState(0); 
 
-  // --- ALGORITMO DE FERIADOS ---
-  const getFeriados = (ano) => {
-      const a = ano % 19; const b = Math.floor(ano / 100); const c = ano % 100;
-      const d = Math.floor(b / 4); const e = b % 4;
-      const f = Math.floor((b + 8) / 25); const g = Math.floor((b - f + 1) / 3);
-      const h = (19 * a + b - d - g + 15) % 30;
-      const i = Math.floor(c / 4); const k = c % 4;
-      const l = (32 + 2 * e + 2 * i - h - k) % 7;
-      const m = Math.floor((a + 11 * h + 22 * l) / 451);
-      const mesPascoa = Math.floor((h + l - 7 * m + 114) / 31) - 1;
-      const diaPascoa = ((h + l - 7 * m + 114) % 31) + 1;
-      
-      const pascoa = new Date(ano, mesPascoa, diaPascoa);
-      const sextaSanta = new Date(pascoa); sextaSanta.setDate(pascoa.getDate() - 2);
-      const carnaval = new Date(pascoa); carnaval.setDate(pascoa.getDate() - 47);
-      const corpoDeus = new Date(pascoa); corpoDeus.setDate(pascoa.getDate() + 60);
-
-      return [
-          { d: 1, m: 0, nome: "Ano Novo" },
-          { d: carnaval.getDate(), m: carnaval.getMonth(), nome: "Carnaval" },
-          { d: sextaSanta.getDate(), m: sextaSanta.getMonth(), nome: "Sexta-feira Santa" },
-          { d: pascoa.getDate(), m: pascoa.getMonth(), nome: "Páscoa" },
-          { d: 25, m: 3, nome: "Dia da Liberdade" },
-          { d: 1, m: 4, nome: "Dia do Trabalhador" },
-          { d: corpoDeus.getDate(), m: corpoDeus.getMonth(), nome: "Corpo de Deus" },
-          { d: 10, m: 5, nome: "Dia de Portugal" },
-          { d: 15, m: 7, nome: "Assunção de N. Senhora" },
-          { d: 7, m: 8, nome: "Feriado de Faro" }, 
-          { d: 5, m: 9, nome: "Implantação da República" },
-          { d: 1, m: 10, nome: "Todos os Santos" },
-          { d: 1, m: 11, nome: "Restauração da Independência" },
-          { d: 8, m: 11, nome: "Imaculada Conceição" },
-          { d: 25, m: 11, nome: "Natal" }
-      ];
-  };
+    const isMissingColumnError = (error) => {
+            if (!error) return false;
+            return error.code === "42703" || /column .* does not exist/i.test(error.message || "");
+    };
 
   useEffect(() => {
     if (user) {
         fetchPedidos();
-        fetchDiasReais(); 
+        fetchDiasReais();
+        fetchTolerancias();
     }
   }, [user]);
 
   useEffect(() => {
       if (!form.is_parcial && form.data_inicio && form.data_fim) {
-          const inicio = new Date(form.data_inicio);
-          const fim = new Date(form.data_fim);
-          
-          if (inicio <= fim) {
-              let count = 0;
-              for (let d = new Date(inicio); d <= fim; d.setDate(d.getDate() + 1)) {
-                  const dayOfWeek = d.getDay();
-                  if (dayOfWeek !== 0 && dayOfWeek !== 6) { 
-                      const feriados = getFeriados(d.getFullYear());
-                      const isFeriado = feriados.some(f => f.d === d.getDate() && f.m === d.getMonth());
-                      if (!isFeriado) { count++; }
-                  }
-              }
-              setDiasUteis(count);
-          } else { setDiasUteis(0); }
+          const skipDates = buildToleranciasSkipSet(tolerancias, user?.id || null);
+          setDiasUteis(calcularDiasUteis(form.data_inicio, form.data_fim, skipDates));
       } else { setDiasUteis(0); }
-  }, [form.data_inicio, form.data_fim, form.is_parcial]);
+  }, [form.data_inicio, form.data_fim, form.is_parcial, tolerancias]);
 
   async function fetchDiasReais() {
-      const { data } = await supabase.from('profiles').select('dias_ferias').eq('id', user.id).single();
-      if (data) setDiasFerias(data.dias_ferias);
+      let data = null;
+      let error = null;
+
+      ({ data, error } = await supabase
+          .from('profiles')
+          .select('dias_ferias, dias_ferias_total')
+          .eq('id', user.id)
+          .single());
+
+      if (error && isMissingColumnError(error)) {
+          setHasDiasFeriasTotalColumn(false);
+          ({ data, error } = await supabase
+              .from('profiles')
+              .select('dias_ferias')
+              .eq('id', user.id)
+              .single());
+      } else {
+          setHasDiasFeriasTotalColumn(true);
+      }
+
+      if (error) {
+          console.error("Erro ao carregar saldo de férias:", error);
+          return;
+      }
+
+      if (data) {
+          setDiasFerias(data.dias_ferias);
+          setDiasFeriasTotal(getAnnualVacationLimitFromProfile(data));
+      }
+  }
+
+  async function fetchTolerancias() {
+      try {
+          const { data, error } = await supabase
+              .from("ferias")
+              .select("id, user_id, tipo, motivo, data_inicio, estado")
+              .in("tipo", TOLERANCIA_TIPOS)
+              .neq("estado", "cancelado")
+              .neq("estado", "rejeitado")
+              .or(`user_id.is.null,user_id.eq.${user.id}`);
+          if (error) throw error;
+
+          const mapped = (data || []).map((item) => ({
+              id: item.id,
+              user_id: item.user_id,
+              nome: item.motivo || item.tipo || TOLERANCIA_TIPO,
+              data: item.data_inicio,
+          }));
+
+          setTolerancias(mapped);
+      } catch (err) {
+          console.error("Erro ao carregar tolerâncias:", err);
+      }
   }
 
   async function fetchPedidos() {
@@ -158,7 +185,7 @@ export default function Ferias({ forcedType = null }) {
       setIsEditing(true);
       setEditingId(pedido.id);
       setForm({
-          tipo: pedido.tipo,
+          tipo: pedido.tipo === KM_REQUEST_TYPE ? KM_REQUEST_TYPE : formatAbsenceTypeLabel(pedido.tipo),
           data_inicio: pedido.data_inicio,
           data_fim: pedido.data_fim,
           is_parcial: pedido.is_parcial || false,
@@ -182,7 +209,8 @@ export default function Ferias({ forcedType = null }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    const isKmRequest = form.tipo === KM_REQUEST_TYPE;
+        const normalizedTipo = form.tipo === KM_REQUEST_TYPE ? KM_REQUEST_TYPE : formatAbsenceTypeLabel(form.tipo);
+        const isKmRequest = normalizedTipo === KM_REQUEST_TYPE;
 
     if (isKmRequest) {
         const kmTotal = Number(form.km_total);
@@ -205,9 +233,42 @@ export default function Ferias({ forcedType = null }) {
         setNotification({ show: true, message: "O período selecionado contém apenas fins de semana ou feriados.", type: "error" });
         return;
     }
-    if (!isKmRequest && !form.is_parcial && new Date(form.data_inicio) > new Date(form.data_fim)) {
+    if (!isKmRequest && !form.is_parcial && parseLocalDate(form.data_inicio) > parseLocalDate(form.data_fim)) {
         setNotification({ show: true, message: "A data de fim não pode ser anterior à data de início.", type: "error" });
         return;
+    }
+
+    const isVacationRequest = !isKmRequest && !form.is_parcial && isVacationType(normalizedTipo);
+    if (isVacationRequest) {
+        if (!hasDiasFeriasTotalColumn) {
+            const saldoAtual = Number(diasFerias) || 0;
+            if (diasUteis > saldoAtual) {
+                setNotification({
+                    show: true,
+                    message: `Saldo insuficiente: pedido de ${diasUteis} dia(s), disponível ${saldoAtual}.`,
+                    type: "error",
+                });
+                return;
+            }
+        } else {
+            const saldoCheck = await validarSaldoFeriasParaIntervalo({
+                supabaseClient: supabase,
+                userId: user.id,
+                dataInicio: form.data_inicio,
+                dataFim: form.data_fim,
+                diasLimiteAnual: diasFeriasTotal ?? diasFerias,
+                tolerancias,
+            });
+
+            if (!saldoCheck.ok) {
+                setNotification({
+                    show: true,
+                    message: `Saldo insuficiente para ${saldoCheck.ano}: pedido de ${saldoCheck.diasPedidoNoAno} dia(s), disponível ${saldoCheck.diasDisponiveis}.`,
+                    type: "error",
+                });
+                return;
+            }
+        }
     }
 
     setIsSubmitting(true);
@@ -227,7 +288,7 @@ export default function Ferias({ forcedType = null }) {
       
       const payload = { 
           user_id: user.id, 
-          tipo: form.tipo,
+          tipo: normalizedTipo,
           data_inicio: form.data_inicio,
           data_fim: isKmRequest ? form.data_inicio : (form.is_parcial ? form.data_inicio : form.data_fim), 
           is_parcial: isKmRequest ? false : form.is_parcial,
@@ -319,9 +380,10 @@ export default function Ferias({ forcedType = null }) {
   };
 
   const getTipoEstilo = (tipo) => {
+    const tipoLabel = formatAbsenceTypeLabel(tipo);
     let icon, color;
-    switch (tipo) {
-            case KM_REQUEST_TYPE: icon = <Icons.Briefcase color="#0ea5e9" />; color = "#0369a1"; break;
+    switch (tipoLabel) {
+        case KM_REQUEST_TYPE: icon = <Icons.Briefcase color="#0ea5e9" />; color = "#0369a1"; break;
       case 'Férias': icon = <Icons.Sun color="#d97706" />; color = "#b45309"; break;
       case 'Assistência à família': icon = <Icons.Users color="#2563eb" />; color = "#1d4ed8"; break;
       case 'Outros - Assuntos pessoais': icon = <Icons.User color="#475569" />; color = "#334155"; break;
@@ -338,7 +400,7 @@ export default function Ferias({ forcedType = null }) {
     }
     return (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: color, fontWeight: '700', fontSize: '0.9rem' }}>
-            {icon} {tipo}
+            {icon} {tipoLabel || '-'}
         </div>
     );
   };
@@ -584,7 +646,7 @@ export default function Ferias({ forcedType = null }) {
                             {!isKmRequest && form.data_inicio && form.data_fim && !form.is_parcial && (
                                 <div style={{background: diasUteis > 0 ? '#eff6ff' : '#fef2f2', color: diasUteis > 0 ? '#1e40af' : '#b91c1c', border: `1px solid ${diasUteis > 0 ? '#bfdbfe' : '#fecaca'}`, padding: '12px 15px', borderRadius: '8px', marginBottom: '20px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '10px', fontWeight: '500'}}>
                                     {diasUteis > 0 ? <Icons.Info size={18} /> : <Icons.AlertTriangle size={18} />}
-                                    <span>{diasUteis > 0 ? (form.tipo === 'Férias' ? `Este pedido consumirá ${diasUteis} dia(s) útil(eis) do seu saldo de férias.` : `Este pedido corresponde a ${diasUteis} dia(s) útil(eis). Tratando-se de justificação legal, não desconta férias.`) : `Atenção: O período selecionado calha num fim de semana ou feriado. Não é necessário marcar.`}</span>
+                                    <span>{diasUteis > 0 ? (isVacationType(form.tipo) ? `Este pedido consumirá ${diasUteis} dia(s) útil(eis) do seu saldo de férias.` : `Este pedido corresponde a ${diasUteis} dia(s) útil(eis). Tratando-se de justificação legal, não desconta férias.`) : `Atenção: O período selecionado calha num fim de semana ou feriado. Não é necessário marcar.`}</span>
                                 </div>
                             )}
                             

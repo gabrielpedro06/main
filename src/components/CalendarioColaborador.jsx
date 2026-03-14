@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../services/supabase";
+import { buildToleranciasSkipSet, calcularDiasUteis, calcularDiasUteisNoMes, formatAbsenceTypeLabel, getAnnualVacationLimitFromProfile, getAttendanceCalculationStartDate, getFeriados, isVacationType, normalizeAbsenceType, parseLocalDate, sincronizarSaldoFeriasPerfil } from "../utils/feriasSaldo";
 
-export default function CalendarioColaborador({ userId, userName = "Colaborador" }) {
+export default function CalendarioColaborador({
+  userId,
+  userName = "Colaborador",
+  dataAdmissao = null,
+  onVacationBalanceUpdated = null,
+}) {
   const KM_REQUEST_TYPE = "Pedido de Km's";
   const TOLERANCIA_TIPO = "Tolerância de Ponto";
 
@@ -45,52 +51,112 @@ export default function CalendarioColaborador({ userId, userName = "Colaborador"
 
   const formatMinutesFromSeconds = (seconds) => Math.floor((Number(seconds) || 0) / 60);
 
-  // ====== CALCULA FERIADOS ======
-  const getFeriados = (ano) => {
-    const a = ano % 19; const b = Math.floor(ano / 100); const c = ano % 100;
-    const d = Math.floor(b / 4); const e = b % 4;
-    const f = Math.floor((b + 8) / 25); const g = Math.floor((b - f + 1) / 3);
-    const h = (19 * a + b - d - g + 15) % 30;
-    const i = Math.floor(c / 4); const k = c % 4;
-    const l = (32 + 2 * e + 2 * i - h - k) % 7;
-    const m = Math.floor((a + 11 * h + 22 * l) / 451);
-    const mesPascoa = Math.floor((h + l - 7 * m + 114) / 31) - 1;
-    const diaPascoa = ((h + l - 7 * m + 114) % 31) + 1;
-
-    const pascoa = new Date(ano, mesPascoa, diaPascoa);
-    const sextaSanta = new Date(pascoa); sextaSanta.setDate(pascoa.getDate() - 2);
-    const carnaval = new Date(pascoa); carnaval.setDate(pascoa.getDate() - 47);
-    const corpoDeus = new Date(pascoa); corpoDeus.setDate(pascoa.getDate() + 60);
-
-    return [
-      { d: 1, m: 0, nome: "Ano Novo" },
-      { d: carnaval.getDate(), m: carnaval.getMonth(), nome: "Carnaval" },
-      { d: sextaSanta.getDate(), m: sextaSanta.getMonth(), nome: "Sexta-feira Santa" },
-      { d: pascoa.getDate(), m: pascoa.getMonth(), nome: "Páscoa" },
-      { d: 25, m: 3, nome: "Dia da Liberdade" },
-      { d: 1, m: 4, nome: "Dia do Trabalhador" },
-      { d: corpoDeus.getDate(), m: corpoDeus.getMonth(), nome: "Corpo de Deus" },
-      { d: 10, m: 5, nome: "Dia de Portugal" },
-      { d: 15, m: 7, nome: "Assunção de N. Senhora" },
-      { d: 7, m: 8, nome: "Feriado de Faro" },
-      { d: 5, m: 9, nome: "Implantação da República" },
-      { d: 1, m: 10, nome: "Todos os Santos" },
-      { d: 1, m: 11, nome: "Restauração da Independência" },
-      { d: 8, m: 11, nome: "Imaculada Conceição" },
-      { d: 25, m: 11, nome: "Natal" }
-    ];
+  const toLocalDateString = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
   };
+
+  const isToleranceType = (tipo = "") => normalizeAbsenceType(tipo).includes("tolerancia");
+
+  const isMissingColumnError = (error) => {
+    if (!error) return false;
+    return error.code === "42703" || /column .* does not exist/i.test(error.message || "");
+  };
+
+  async function atualizarSaldoFeriasLegacy(data, movimento, excludeToleranceId = null) {
+    let query = supabase
+      .from("ferias")
+      .select("id")
+      .in("tipo", ["Tolerância de Ponto", "Tolerancia de Ponto", "tolerancia", "tolerância"])
+      .neq("estado", "cancelado")
+      .neq("estado", "rejeitado")
+      .lte("data_inicio", data)
+      .gte("data_fim", data)
+      .or(`user_id.is.null,user_id.eq.${userId}`);
+
+    if (excludeToleranceId) query = query.neq("id", excludeToleranceId);
+
+    const { data: outrasTolerancias, error: toleranciaError } = await query;
+    if (toleranciaError) throw toleranciaError;
+
+    if ((outrasTolerancias || []).length > 0) return;
+
+    const { data: feriasDia, error: feriasError } = await supabase
+      .from("ferias")
+      .select("id, tipo, is_parcial")
+      .eq("user_id", userId)
+      .eq("estado", "aprovado")
+      .lte("data_inicio", data)
+      .gte("data_fim", data);
+    if (feriasError) throw feriasError;
+
+    const temFerias = (feriasDia || []).some((pedido) => !pedido.is_parcial && isVacationType(pedido.tipo));
+    if (!temFerias) return;
+
+    const { data: profileAtual, error: profileError } = await supabase
+      .from("profiles")
+      .select("dias_ferias")
+      .eq("id", userId)
+      .single();
+    if (profileError) throw profileError;
+
+    const saldoAtual = Number(profileAtual?.dias_ferias) || 0;
+    const delta = movimento === "add" ? 1 : -1;
+    const novoSaldo = Math.max(0, saldoAtual + delta);
+
+    const { error: updateError } = await supabase
+      .from("profiles")
+      .update({ dias_ferias: novoSaldo })
+      .eq("id", userId);
+    if (updateError) throw updateError;
+  }
+
+  async function sincronizarSaldoFeriasDoColaborador({ data, movimento, excludeToleranceId = null }) {
+    let profile = null;
+    let profileError = null;
+
+    ({ data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("dias_ferias, dias_ferias_total")
+      .eq("id", userId)
+      .single());
+
+    if (profileError && isMissingColumnError(profileError)) {
+      ({ data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("dias_ferias")
+        .eq("id", userId)
+        .single());
+
+      if (profileError) throw profileError;
+
+      await atualizarSaldoFeriasLegacy(data, movimento, excludeToleranceId);
+      return;
+    }
+
+    if (profileError) throw profileError;
+
+    await sincronizarSaldoFeriasPerfil({
+      supabaseClient: supabase,
+      userId,
+      diasLimiteAnual: getAnnualVacationLimitFromProfile(profile),
+    });
+  }
 
   // ====== CARREGA DADOS DO MÊS ======
   useEffect(() => {
     if (!userId) return;
     fetchDadosMes();
-  }, [mesAtual, anoAtual, userId]);
+  }, [mesAtual, anoAtual, userId, dataAdmissao]);
 
   async function fetchDadosMes() {
     setLoading(true);
-    const inicioMesStr = new Date(anoAtual, mesAtual, 1).toISOString().split('T')[0];
-    const fimMesStr = new Date(anoAtual, mesAtual + 1, 0).toISOString().split('T')[0];
+    const inicioMesStr = toLocalDateString(new Date(anoAtual, mesAtual, 1));
+    const fimMesStr = toLocalDateString(new Date(anoAtual, mesAtual + 1, 0));
+    const dataInicioCalculo = getAttendanceCalculationStartDate(dataAdmissao);
+    const inicioAssiduidadeConsulta = inicioMesStr < dataInicioCalculo ? dataInicioCalculo : inicioMesStr;
 
     try {
       // Buscar assiduidade
@@ -98,17 +164,18 @@ export default function CalendarioColaborador({ userId, userName = "Colaborador"
         .from("assiduidade")
         .select("*")
         .eq("user_id", userId)
-        .gte("data_registo", inicioMesStr)
+        .gte("data_registo", inicioAssiduidadeConsulta)
         .lte("data_registo", fimMesStr);
 
       // Buscar ausências
       const { data: ausenciasData } = await supabase
         .from("ferias")
         .select("*")
-        .eq("user_id", userId)
+        .or(`user_id.eq.${userId},user_id.is.null`)
         .neq("estado", "rejeitado")
         .neq("estado", "cancelado")
-        .or(`data_inicio.lte.${fimMesStr},data_fim.gte.${inicioMesStr}`);
+        .lte("data_inicio", fimMesStr)
+        .gte("data_fim", inicioMesStr);
 
       const ausenciasReais = (ausenciasData || []).filter((a) => a.tipo !== KM_REQUEST_TYPE);
 
@@ -127,6 +194,7 @@ export default function CalendarioColaborador({ userId, userName = "Colaborador"
   function construirCalendario(assidData, ausenciaData) {
     const diasTotais = new Date(anoAtual, mesAtual + 1, 0).getDate();
     const diaInicio = new Date(anoAtual, mesAtual, 1).getDay();
+    const dataInicioCalculo = getAttendanceCalculationStartDate(dataAdmissao);
     const diasVazios = Array(diaInicio).fill(null);
     const diasPreenchidos = Array.from({ length: diasTotais }, (_, i) => i + 1);
 
@@ -143,15 +211,16 @@ export default function CalendarioColaborador({ userId, userName = "Colaborador"
 
       // Buscar ausências deste dia
       const ausenciasDia = ausenciaData.filter((a) => {
-        const dataInicio = new Date(a.data_inicio);
-        const dataFim = new Date(a.data_fim);
-        const dataDia = new Date(dataStr);
+        const dataInicio = parseLocalDate(a.data_inicio);
+        const dataFim = parseLocalDate(a.data_fim || a.data_inicio);
+        const dataDia = parseLocalDate(dataStr);
+        if (!dataInicio || !dataFim || !dataDia) return false;
         return dataDia >= dataInicio && dataDia <= dataFim;
       });
 
       const ausenciasDiaInteiras = ausenciasDia.filter((a) => !a.is_parcial);
       const ausenciasDiaParciais = ausenciasDia.filter((a) => a.is_parcial);
-      const toleranciaDia = ausenciasDiaInteiras.find((a) => (a.tipo || "").toLowerCase().includes("tolerância de ponto") || (a.tipo || "").toLowerCase().includes("tolerancia de ponto"));
+      const toleranciaDia = ausenciasDiaInteiras.find((a) => isToleranceType(a.tipo));
 
       // Calcula tipo de dia
       let tipo = "normal";
@@ -159,7 +228,7 @@ export default function CalendarioColaborador({ userId, userName = "Colaborador"
       let textoCor = "#475569";
       let badge = "";
 
-      if (isFimSemana) {
+      if (isFimSemana && !assidDia) {
         tipo = "fimSemana";
         cor = "#f1f5f9";
         textoCor = "#94a3b8";
@@ -172,13 +241,13 @@ export default function CalendarioColaborador({ userId, userName = "Colaborador"
       } else if (ausenciasDiaInteiras.length > 0) {
         tipo = "ausencia";
         const tipoAusencia = ausenciasDiaInteiras[0].tipo || "";
-        const tipoNormalizado = tipoAusencia.toLowerCase();
+        const tipoNormalizado = normalizeAbsenceType(tipoAusencia);
 
-        if (tipoNormalizado.includes("férias")) {
+        if (isVacationType(tipoNormalizado)) {
           cor = "#fefce8";
           textoCor = "#854d0e";
           badge = "Férias";
-        } else if (tipoNormalizado.includes("doença") || tipoNormalizado.includes("acidente")) {
+        } else if (tipoNormalizado.includes("doenca") || tipoNormalizado.includes("acidente") || tipoNormalizado.includes("baixa")) {
           cor = "#faf5ff";
           textoCor = "#6b21a8";
           badge = "Doença";
@@ -204,7 +273,9 @@ export default function CalendarioColaborador({ userId, userName = "Colaborador"
           tipo = "completoSemPausa";
           cor = "#d1fae5";
           textoCor = "#065f46";
-          badge = ausenciasDiaParciais.length > 0 ? "Dia Completo + Ausência Parcial" : "Dia Completo";
+          badge = isFimSemana
+            ? `${formatDurationFromSeconds(totalLiquidoSeg)}${ausenciasDiaParciais.length > 0 ? " + Parcial" : ""}`
+            : ausenciasDiaParciais.length > 0 ? "Dia Completo + Ausência Parcial" : "Dia Completo";
         } else if (totalLiquidoSeg >= 8 * 3600) {
           tipo = "completoComPausa";
           cor = "#dcfce7";
@@ -230,7 +301,8 @@ export default function CalendarioColaborador({ userId, userName = "Colaborador"
       } else {
         const feriado = getFeriados(anoAtual).some((f) => f.m === mesAtual && f.d === dia);
         const isPassadoOuHoje = dataStr <= hojeStr;
-        if (isPassadoOuHoje && !feriado) {
+        const isAfterAttendanceStart = dataStr >= dataInicioCalculo;
+        if (isPassadoOuHoje && isAfterAttendanceStart && !feriado) {
           tipo = "faltaInjustificada";
           cor = "#fee2e2";
           textoCor = "#991b1b";
@@ -351,6 +423,12 @@ export default function CalendarioColaborador({ userId, userName = "Colaborador"
         const { error } = await supabase.from("ferias").update({ estado: "cancelado" }).eq("id", diaObj.toleranciaDia.id);
         if (error) throw error;
         setSaveFeedback({ show: true, type: "success", message: "Tolerância removida." });
+
+        await sincronizarSaldoFeriasDoColaborador({
+          data: diaObj.dataStr,
+          movimento: "remove",
+          excludeToleranceId: diaObj.toleranciaDia.id,
+        });
       } else {
         const payload = {
           user_id: userId,
@@ -361,9 +439,23 @@ export default function CalendarioColaborador({ userId, userName = "Colaborador"
           estado: "aprovado",
           motivo: "Lançamento manual RH",
         };
-        const { error } = await supabase.from("ferias").insert([payload]);
+        const { data: insertedTolerance, error } = await supabase
+          .from("ferias")
+          .insert([payload])
+          .select("id")
+          .single();
         if (error) throw error;
         setSaveFeedback({ show: true, type: "success", message: "Tolerância lançada com sucesso." });
+
+        await sincronizarSaldoFeriasDoColaborador({
+          data: diaObj.dataStr,
+          movimento: "add",
+          excludeToleranceId: insertedTolerance?.id || null,
+        });
+      }
+
+      if (typeof onVacationBalanceUpdated === "function") {
+        await Promise.resolve(onVacationBalanceUpdated());
       }
 
       fetchDadosMes();
@@ -381,6 +473,30 @@ export default function CalendarioColaborador({ userId, userName = "Colaborador"
     let diasTrabalhados = 0;
     let diasAusencia = { "Férias": 0, "Doença": 0, "Falta": 0, "Outro": 0 };
 
+    const toleranciasAtivas = (ausencias || []).filter((a) => !a.is_parcial && isToleranceType(a.tipo));
+    const toleranciaSkipSet = buildToleranciasSkipSet(
+      toleranciasAtivas.map((a) => ({
+        user_id: a.user_id,
+        data: a.data_inicio,
+        data_inicio: a.data_inicio,
+        data_fim: a.data_fim || a.data_inicio,
+      })),
+      userId,
+    );
+    const feriadosMesSet = new Set(
+      getFeriados(anoAtual)
+        .filter((f) => f.m === mesAtual)
+        .map((f) => `${anoAtual}-${String(f.m + 1).padStart(2, "0")}-${String(f.d).padStart(2, "0")}`),
+    );
+    const diasFolga = Array.from(toleranciaSkipSet).filter((dateKey) => {
+      const data = parseLocalDate(dateKey);
+      if (!data) return false;
+      if (data.getFullYear() !== anoAtual || data.getMonth() !== mesAtual) return false;
+      const day = data.getDay();
+      if (day === 0 || day === 6) return false;
+      return !feriadosMesSet.has(dateKey);
+    }).length;
+
     assiduidade.forEach((a) => {
       if (a.hora_entrada && a.hora_saida) {
         const entradaSeg = timeToSeconds(a.hora_entrada);
@@ -393,21 +509,35 @@ export default function CalendarioColaborador({ userId, userName = "Colaborador"
     });
 
     ausencias.forEach((a) => {
-      const dataInicio = new Date(a.data_inicio);
-      const dataFim = new Date(a.data_fim);
-      let dias = 0;
-      for (let d = new Date(dataInicio); d <= dataFim; d.setDate(d.getDate() + 1)) {
-        const diaSemana = d.getDay();
-        if (diaSemana !== 0 && diaSemana !== 6) dias++;
-      }
-      const tipo = a.tipo === "Férias" ? "Férias" : a.tipo === "Doença" ? "Doença" : a.tipo === "Falta" ? "Falta" : "Outro";
-      diasAusencia[tipo] = (diasAusencia[tipo] || 0) + dias;
+      if (a.is_parcial) return;
+
+      const tipoNormalizado = normalizeAbsenceType(a.tipo);
+      if (isToleranceType(tipoNormalizado)) return;
+
+      const dias = calcularDiasUteisNoMes(
+        a.data_inicio,
+        a.data_fim || a.data_inicio,
+        anoAtual,
+        mesAtual,
+        isVacationType(tipoNormalizado) ? toleranciaSkipSet : null,
+      );
+      let categoria = "Outro";
+
+      if (dias <= 0) return;
+
+      if (isVacationType(tipoNormalizado)) categoria = "Férias";
+      else if (tipoNormalizado.includes("doenca") || tipoNormalizado.includes("acidente") || tipoNormalizado.includes("baixa")) categoria = "Doença";
+      else if (tipoNormalizado.includes("falta")) categoria = "Falta";
+
+      diasAusencia[categoria] = (diasAusencia[categoria] || 0) + dias;
     });
 
-    return { totalHorasSeg, totalPausasSeg, diasTrabalhados, diasAusencia };
+    return { totalHorasSeg, totalPausasSeg, diasTrabalhados, diasAusencia, diasFolga };
   };
 
   const totais = totaisDoMes();
+  const totalDiasAusencia = Object.values(totais.diasAusencia).reduce((a, b) => a + b, 0);
+  const temResumoAusencias = totalDiasAusencia > 0 || totais.diasFolga > 0;
 
   if (loading) {
     return <div style={{ padding: "20px", textAlign: "center", color: "#94a3b8" }}>Carregando calendário...</div>;
@@ -534,7 +664,7 @@ export default function CalendarioColaborador({ userId, userName = "Colaborador"
               return (
                 <div>
                   <p style={{ margin: "0 0 8px 0", fontWeight: "bold", color: "#475569" }}>
-                    Ausência: {ausencia.tipo}
+                    Ausência: {formatAbsenceTypeLabel(ausencia.tipo)}
                   </p>
                   {ausencia.motivo && <p style={{ margin: "0", color: "#64748b", fontSize: "0.9rem" }}>Motivo: {ausencia.motivo}</p>}
                   {ausencia.is_parcial && (
@@ -543,7 +673,7 @@ export default function CalendarioColaborador({ userId, userName = "Colaborador"
                     </p>
                   )}
 
-                  {(ausencia.tipo || "").toLowerCase().includes("tolerância de ponto") || (ausencia.tipo || "").toLowerCase().includes("tolerancia de ponto") ? (
+                  {isToleranceType(ausencia.tipo) ? (
                     <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "12px" }}>
                       <button
                         type="button"
@@ -803,17 +933,23 @@ export default function CalendarioColaborador({ userId, userName = "Colaborador"
               <span style={{ fontSize: "1.3rem", fontWeight: "bold", color: "#eab308" }}>{formatMinutesFromSeconds(totais.totalPausasSeg)}min</span>
             </div>
           )}
-          {Object.values(totais.diasAusencia).some((v) => v > 0) && (
+          {totalDiasAusencia > 0 && (
             <div style={{ background: "white", padding: "10px", borderRadius: "6px", textAlign: "center" }}>
               <span style={{ fontSize: "0.75rem", fontWeight: "bold", color: "#64748b", display: "block" }}>Dias Ausência</span>
               <span style={{ fontSize: "1.3rem", fontWeight: "bold", color: "#ef4444" }}>
-                {Object.values(totais.diasAusencia).reduce((a, b) => a + b, 0)}
+                {totalDiasAusencia}
               </span>
+            </div>
+          )}
+          {totais.diasFolga > 0 && (
+            <div style={{ background: "white", padding: "10px", borderRadius: "6px", textAlign: "center" }}>
+              <span style={{ fontSize: "0.75rem", fontWeight: "bold", color: "#64748b", display: "block" }}>Dias Tolerância</span>
+              <span style={{ fontSize: "1.3rem", fontWeight: "bold", color: "#16a34a" }}>{totais.diasFolga}</span>
             </div>
           )}
         </div>
 
-        {Object.entries(totais.diasAusencia).some(([_, v]) => v > 0) && (
+        {temResumoAusencias && (
           <div style={{ marginTop: "12px", display: "flex", gap: "8px", flexWrap: "wrap" }}>
             {Object.entries(totais.diasAusencia).map(([tipo, dias]) =>
               dias > 0 ? (
@@ -832,6 +968,21 @@ export default function CalendarioColaborador({ userId, userName = "Colaborador"
                 </span>
               ) : null
             )}
+            {totais.diasFolga > 0 ? (
+              <span
+                key="Tolerância"
+                style={{
+                  fontSize: "0.8rem",
+                  background: "#dcfce7",
+                  color: "#166534",
+                  padding: "4px 8px",
+                  borderRadius: "4px",
+                  fontWeight: "500",
+                }}
+              >
+                Tolerância: {totais.diasFolga}d
+              </span>
+            ) : null}
           </div>
         )}
       </div>
