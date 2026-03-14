@@ -61,6 +61,8 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
     return '';
   };
 
+  const getSidebarTooltip = (label) => (!menuOpen ? label : undefined);
+
   return (
     <>
       <aside className={`sidebar ${menuOpen ? "open" : "closed"}`} style={{ display: 'flex', flexDirection: 'column', height: '100vh', zIndex: 100 }}>
@@ -76,42 +78,42 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
         <nav style={{ flex: 1, overflowY: 'auto', padding: '15px 0' }} className="sidebar-scroll">
           <ul style={{ margin: 0, padding: 0 }}>
             <li className={isActive('/dashboard')}>
-              <Link to="/dashboard" title="Início">
+              <Link to="/dashboard" title={getSidebarTooltip("Início")}>
                 <span className="icon"><Icons.Home /></span> 
                 <span className="link-text">Início</span>
               </Link>
             </li>
 
             <li className={isActive('/dashboard/minhas-tarefas')}>
-              <Link to="/dashboard/minhas-tarefas" title="Minhas Tarefas">
+              <Link to="/dashboard/minhas-tarefas" title={getSidebarTooltip("Minhas Tarefas")}>
                 <span className="icon"><Icons.Pin /></span> 
                 <span className="link-text">Minhas Tarefas</span>
               </Link>
             </li>
 
             <li className={isActive('/dashboard/tarefas')}>
-              <Link to="/dashboard/tarefas" title="Tarefas Globais">
+              <Link to="/dashboard/tarefas" title={getSidebarTooltip("Tarefas Globais")}>
                 <span className="icon"><Icons.Check /></span> 
                 <span className="link-text">Tarefas</span>
               </Link>
             </li>
 
             <li className={isActive('/dashboard/projetos')}>
-              <Link to="/dashboard/projetos" title="Projetos">
+              <Link to="/dashboard/projetos" title={getSidebarTooltip("Projetos")}>
                 <span className="icon"><Icons.Rocket /></span> 
                 <span className="link-text">Projetos</span>
               </Link>
             </li>
 
             <li className={isActive('/dashboard/clientes')}>
-              <Link to="/dashboard/clientes" title="Clientes">
+              <Link to="/dashboard/clientes" title={getSidebarTooltip("Clientes")}>
                 <span className="icon"><Icons.Users /></span> 
                 <span className="link-text">Clientes</span>
               </Link>
             </li>
 
             <li className={isActive('/dashboard/forum')}>
-              <Link to="/dashboard/forum" title="Fórum" onClick={() => {
+              <Link to="/dashboard/forum" title={getSidebarTooltip("Fórum")} onClick={() => {
                   localStorage.setItem('lastForumVisit', new Date().toISOString());
                   setUnreadCount(0);
               }}>
@@ -136,14 +138,14 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
 
             {/* 💡 O CALENDÁRIO AQUI NA SIDEBAR! */}
             <li>
-              <a href="#" onClick={(e) => { e.preventDefault(); setShowCalendarModal(true); }} title="Calendário de Prazos">
+              <a href="#" onClick={(e) => { e.preventDefault(); setShowCalendarModal(true); }} title={getSidebarTooltip("Calendário de Prazos")}>
                 <span className="icon"><Icons.Calendar /></span> 
                 <span className="link-text">Calendário</span>
               </a>
             </li>
 
             <li className={isActive('/dashboard/modelos')}>
-              <Link to="/dashboard/modelos" title="Modelos de Projetos">
+              <Link to="/dashboard/modelos" title={getSidebarTooltip("Modelos de Projetos")}>
                 <span className="icon"><Icons.Clipboard /></span> 
                 <span className="link-text">Modelos</span>
               </Link>
@@ -151,7 +153,7 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
 
             {['admin', 'gestor'].includes(userProfile?.role) && (
               <li className={isActive('/dashboard/rh')}>
-                <Link to="/dashboard/rh" title="Recursos Humanos">
+                <Link to="/dashboard/rh" title={getSidebarTooltip("Recursos Humanos")}>
                   <span className="icon"><Icons.Briefcase /></span> 
                   <span className="link-text">Recursos Humanos</span>
                 </Link>
@@ -160,7 +162,7 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
 
             {['admin', 'marketing'].includes(userProfile?.role) && (
               <li className={isActive('/dashboard/leads')}>
-                <Link to="/dashboard/leads" title="Marketing">
+                <Link to="/dashboard/leads" title={getSidebarTooltip("Marketing")}>
                   <span className="icon"><Icons.Target /></span> 
                   <span className="link-text">Marketing</span>
                 </Link>
@@ -180,7 +182,7 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
               background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', 
               color: '#94a3b8', cursor: 'pointer', transition: 'all 0.2s ease'
             }}
-            title={menuOpen ? "Recolher Menu" : "Expandir Menu"}
+            title={getSidebarTooltip("Expandir Menu")}
           >
             {menuOpen ? <><Icons.MenuArrowLeft /> Recolher</> : <Icons.MenuArrowRight />}
           </button>

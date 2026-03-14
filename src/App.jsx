@@ -11,6 +11,7 @@ import ResetPassword from "./pages/ResetPassword";
 
 // Layout e Proteção
 import ProtectedRoute from "./components/ProtectedRoute";
+import GlobalTooltipProvider from "./components/GlobalTooltipProvider";
 import Dashboard from "./pages/Dashboard"; 
 
 // Páginas do Dashboard
@@ -33,8 +34,9 @@ export default function App() {
   return (
     // 👈 O AUTH PROVIDER ENVOLVE AGORA TODA A APP
     <AuthProvider>
-      <HashRouter>
-        <Routes>
+      <GlobalTooltipProvider>
+        <HashRouter>
+          <Routes>
           {/* === ROTAS PÚBLICAS === */}
           <Route path="/" element={<Login />} />
           <Route path="/signup" element={<SignUp />} />
@@ -79,8 +81,9 @@ export default function App() {
             </div>
           } />
 
-        </Routes>
-      </HashRouter>
+          </Routes>
+        </HashRouter>
+      </GlobalTooltipProvider>
     </AuthProvider>
   );
 }

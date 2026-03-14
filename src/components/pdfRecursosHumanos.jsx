@@ -75,6 +75,39 @@ const timeToSeconds = (timeValue) => {
 	return (Number(hours) * 3600) + (Number(minutes) * 60) + Number(seconds);
 };
 
+const MIN_SA_WORK_SECONDS = 4 * 60 * 60;
+
+const getEffectiveWorkedSeconds = (attendanceRow) => {
+	if (!attendanceRow?.hora_entrada || !attendanceRow?.hora_saida) return 0;
+
+	const raw = timeToSeconds(attendanceRow.hora_saida) - timeToSeconds(attendanceRow.hora_entrada);
+	const pauseSeconds = Math.max(0, Number(attendanceRow.tempo_pausa_acumulado) || 0);
+	return Math.max(0, raw - pauseSeconds);
+};
+
+const countMealAllowanceEligibleDays = (attendanceRows = []) => {
+	const totalSecondsByDay = new Map();
+
+	(attendanceRows || []).forEach((row) => {
+		if (!row?.data_registo) return;
+
+		const effectiveSeconds = getEffectiveWorkedSeconds(row);
+		if (effectiveSeconds <= 0) return;
+
+		totalSecondsByDay.set(
+			row.data_registo,
+			(totalSecondsByDay.get(row.data_registo) || 0) + effectiveSeconds,
+		);
+	});
+
+	let eligibleDays = 0;
+	totalSecondsByDay.forEach((totalSeconds) => {
+		if (totalSeconds >= MIN_SA_WORK_SECONDS) eligibleDays += 1;
+	});
+
+	return eligibleDays;
+};
+
 const formatHours = (seconds) => {
 	const safeSeconds = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
 	const h = Math.floor(safeSeconds / 3600);
@@ -274,14 +307,10 @@ export const generateRecursosHumanosPDF = async ({
 			const userAssiduidade = (assiduidade || []).filter((a) => a.user_id === employee.id);
 			const userAusencias = (ausencias || []).filter((a) => a.user_id === employee.id);
 
-			const workedDays = new Set(userAssiduidade.map((a) => a.data_registo)).size;
+			const workedDays = countMealAllowanceEligibleDays(userAssiduidade);
 
 			const totalSeconds = userAssiduidade.reduce((acc, row) => {
-				if (!row.hora_entrada || !row.hora_saida) return acc;
-				const raw = timeToSeconds(row.hora_saida) - timeToSeconds(row.hora_entrada);
-				const pauseSeconds = Number(row.tempo_pausa_acumulado) || 0;
-				const effective = Math.max(0, raw - pauseSeconds);
-				return acc + effective;
+				return acc + getEffectiveWorkedSeconds(row);
 			}, 0);
 
 			let faltasJustificadas = 0;
@@ -343,7 +372,7 @@ export const generateRecursosHumanosPDF = async ({
 				"Faltas Injust.",
 				"Férias",
 				"Pedidos Km's",
-				"Dias Úteis Trabalhados",
+				"Dias >=4h",
 				"Subsídio Alimentação",
 				"Total Horas",
 			]],

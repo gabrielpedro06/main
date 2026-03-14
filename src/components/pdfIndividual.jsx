@@ -30,6 +30,39 @@ const timeToSeconds = (timeValue) => {
 	return (Number(hours) * 3600) + (Number(minutes) * 60) + Number(seconds);
 };
 
+const MIN_SA_WORK_SECONDS = 4 * 60 * 60;
+
+const getEffectiveWorkedSeconds = (attendanceRow) => {
+	if (!attendanceRow?.hora_entrada || !attendanceRow?.hora_saida) return 0;
+
+	const raw = timeToSeconds(attendanceRow.hora_saida) - timeToSeconds(attendanceRow.hora_entrada);
+	const pauseSeconds = Math.max(0, Number(attendanceRow.tempo_pausa_acumulado) || 0);
+	return Math.max(0, raw - pauseSeconds);
+};
+
+const countMealAllowanceEligibleDays = (attendanceRows = []) => {
+	const totalSecondsByDay = new Map();
+
+	(attendanceRows || []).forEach((row) => {
+		if (!row?.data_registo) return;
+
+		const effectiveSeconds = getEffectiveWorkedSeconds(row);
+		if (effectiveSeconds <= 0) return;
+
+		totalSecondsByDay.set(
+			row.data_registo,
+			(totalSecondsByDay.get(row.data_registo) || 0) + effectiveSeconds,
+		);
+	});
+
+	let eligibleDays = 0;
+	totalSecondsByDay.forEach((totalSeconds) => {
+		if (totalSeconds >= MIN_SA_WORK_SECONDS) eligibleDays += 1;
+	});
+
+	return eligibleDays;
+};
+
 const formatHours = (seconds) => {
 	const safeSeconds = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
 	const h = Math.floor(safeSeconds / 3600);
@@ -143,12 +176,9 @@ export const generateIndividualRHPDF = async ({
 	const logoTopBase64 = await loadImage("/logo1.png");
 	const logosFooterBase64 = await loadImage("/logos_all.png");
 
-	const diasTrabalhados = new Set((assiduidade || []).map((a) => a.data_registo)).size;
+	const diasTrabalhados = countMealAllowanceEligibleDays(assiduidade || []);
 	const totalSeconds = (assiduidade || []).reduce((acc, row) => {
-		if (!row.hora_entrada || !row.hora_saida) return acc;
-		const raw = timeToSeconds(row.hora_saida) - timeToSeconds(row.hora_entrada);
-		const pauseSeconds = Number(row.tempo_pausa_acumulado) || 0;
-		return acc + Math.max(0, raw - pauseSeconds);
+		return acc + getEffectiveWorkedSeconds(row);
 	}, 0);
 
 	let faltasJustificadas = 0;
@@ -258,7 +288,7 @@ export const generateIndividualRHPDF = async ({
 	doc.text(getColaboradorCompaniesLabel(colaborador), marginX + 30, 54);
 
 	const metricTitles = [
-		"Dias Trabalhados",
+		"Dias >=4h",
 		"Total de Horas",
 		"Subsídio Alimentação",
 		"Férias (dias)",

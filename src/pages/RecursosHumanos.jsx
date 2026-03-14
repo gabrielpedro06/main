@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
@@ -52,6 +52,128 @@ const ModalPortal = ({ children }) => {
   return createPortal(children, document.body);
 };
 
+const composeEventHandlers = (originalHandler, nextHandler) => (event) => {
+    if (typeof originalHandler === "function") {
+        originalHandler(event);
+    }
+    if (!event.defaultPrevented) {
+        nextHandler(event);
+    }
+};
+
+const ModernTooltip = ({ content, children }) => {
+    const triggerRef = useRef(null);
+    const tooltipIdRef = useRef(`rh-tooltip-${Math.random().toString(36).slice(2, 10)}`);
+    const [isOpen, setIsOpen] = useState(false);
+    const [position, setPosition] = useState({ top: 0, left: 0, placement: "top" });
+
+    const updatePosition = () => {
+        const node = triggerRef.current;
+        if (!node) return;
+
+        const rect = node.getBoundingClientRect();
+        const shouldRenderTop = rect.top > 90;
+
+        setPosition({
+            top: shouldRenderTop ? rect.top - 10 : rect.bottom + 10,
+            left: rect.left + (rect.width / 2),
+            placement: shouldRenderTop ? "top" : "bottom",
+        });
+    };
+
+    useEffect(() => {
+        if (!isOpen) return undefined;
+
+        updatePosition();
+        const onViewportChange = () => updatePosition();
+        window.addEventListener("scroll", onViewportChange, true);
+        window.addEventListener("resize", onViewportChange);
+
+        return () => {
+            window.removeEventListener("scroll", onViewportChange, true);
+            window.removeEventListener("resize", onViewportChange);
+        };
+    }, [isOpen]);
+
+    if (!content || !React.isValidElement(children)) {
+        return children;
+    }
+
+    const child = React.Children.only(children);
+    const handleOpen = () => {
+        updatePosition();
+        setIsOpen(true);
+    };
+    const handleClose = () => setIsOpen(false);
+
+    const childRef = child.ref;
+    const setMergedRef = (node) => {
+        triggerRef.current = node;
+        if (typeof childRef === "function") {
+            childRef(node);
+        } else if (childRef && typeof childRef === "object") {
+            childRef.current = node;
+        }
+    };
+
+    return (
+        <>
+            {React.cloneElement(child, {
+                ref: setMergedRef,
+                onMouseEnter: composeEventHandlers(child.props.onMouseEnter, handleOpen),
+                onMouseLeave: composeEventHandlers(child.props.onMouseLeave, handleClose),
+                onFocus: composeEventHandlers(child.props.onFocus, handleOpen),
+                onBlur: composeEventHandlers(child.props.onBlur, handleClose),
+                "aria-describedby": isOpen ? tooltipIdRef.current : child.props["aria-describedby"],
+            })}
+            {isOpen && createPortal(
+                <div
+                    id={tooltipIdRef.current}
+                    role="tooltip"
+                    style={{
+                        position: "fixed",
+                        left: position.left,
+                        top: position.top,
+                        transform: position.placement === "top" ? "translate(-50%, -100%)" : "translate(-50%, 0)",
+                        zIndex: 12000,
+                        pointerEvents: "none",
+                        maxWidth: "300px",
+                        padding: "8px 10px",
+                        borderRadius: "8px",
+                        border: "1px solid #bfdbfe",
+                        background: "#eff6ff",
+                        boxShadow: "0 10px 22px rgba(29, 78, 216, 0.14)",
+                        color: "#1d4ed8",
+                        fontSize: "0.75rem",
+                        fontWeight: 500,
+                        lineHeight: 1.35,
+                        textAlign: "left",
+                    }}
+                >
+                    {content}
+                    <span
+                        aria-hidden="true"
+                        style={{
+                            position: "absolute",
+                            left: "50%",
+                            width: "9px",
+                            height: "9px",
+                            borderRadius: "1px",
+                            border: "1px solid #bfdbfe",
+                            background: "#eff6ff",
+                            transform: "translateX(-50%) rotate(45deg)",
+                            ...(position.placement === "top"
+                                ? { bottom: "-5px", borderTop: "none", borderLeft: "none" }
+                                : { top: "-5px", borderBottom: "none", borderRight: "none" }),
+                        }}
+                    />
+                </div>,
+                document.body,
+            )}
+        </>
+    );
+};
+
 const EMPRESAS_INTERNAS = ["Neomarca", "Geoflicks", "2 Siglas", "Fator Triplo"];
 
 const toUniqueCompanies = (values = []) => [...new Set((values || []).filter(Boolean))];
@@ -81,6 +203,53 @@ const isMissingTableError = (error) => {
 const isMissingColumnError = (error) => {
     if (!error) return false;
     return error.code === "42703" || /column .* does not exist/i.test(error.message || "");
+};
+
+const MIN_SA_WORK_SECONDS = 4 * 60 * 60;
+
+const timeToSeconds = (timeValue) => {
+    if (!timeValue || typeof timeValue !== "string") return null;
+
+    const [hours = "0", minutes = "0", seconds = "0"] = timeValue.split(":");
+    const h = Number(hours);
+    const m = Number(minutes);
+    const s = Number(seconds);
+
+    if (![h, m, s].every(Number.isFinite)) return null;
+    return (h * 3600) + (m * 60) + s;
+};
+
+const getEffectiveWorkedSeconds = (attendanceRow) => {
+    const entradaSeg = timeToSeconds(attendanceRow?.hora_entrada);
+    const saidaSeg = timeToSeconds(attendanceRow?.hora_saida);
+
+    if (entradaSeg === null || saidaSeg === null || saidaSeg <= entradaSeg) return 0;
+
+    const pausaSeg = Math.max(0, Number(attendanceRow?.tempo_pausa_acumulado) || 0);
+    return Math.max(0, saidaSeg - entradaSeg - pausaSeg);
+};
+
+const countMealAllowanceEligibleDays = (attendanceRows = []) => {
+    const totalSecondsByDay = new Map();
+
+    (attendanceRows || []).forEach((row) => {
+        if (!row?.data_registo) return;
+
+        const effectiveSeconds = getEffectiveWorkedSeconds(row);
+        if (effectiveSeconds <= 0) return;
+
+        totalSecondsByDay.set(
+            row.data_registo,
+            (totalSecondsByDay.get(row.data_registo) || 0) + effectiveSeconds,
+        );
+    });
+
+    let eligibleDays = 0;
+    totalSecondsByDay.forEach((totalSeconds) => {
+        if (totalSeconds >= MIN_SA_WORK_SECONDS) eligibleDays += 1;
+    });
+
+    return eligibleDays;
 };
 
 export default function RecursosHumanos() {
@@ -1121,8 +1290,7 @@ export default function RecursosHumanos() {
 
   const getStats = () => {
       let countTrabalho = 0, countFerias = 0, countFaltas = 0, countBaixas = 0;
-      const diasUnicos = new Set(assiduidadeMes.map(a => a.data_registo)).size;
-      countTrabalho = diasUnicos;
+      countTrabalho = countMealAllowanceEligibleDays(assiduidadeMes);
       const year = currentDate.getFullYear();
       const month = currentDate.getMonth();
       const toleranciasDoMes = (ausenciasMes || []).filter(
@@ -1343,16 +1511,26 @@ export default function RecursosHumanos() {
                       if (tipoNormalizado.includes('baixa') || tipoNormalizado.includes('doenca') || tipoNormalizado.includes('acidente')) barColor = '#d8b4fe';
                       if (a.is_parcial) barColor = '#94a3b8';
                       const ownerLabel = a.user_id ? (user?.nome || 'Desconhecido') : 'Global';
-                      return <div key={i} title={`${ownerLabel}: ${formatAbsenceTypeLabel(a.tipo)} ${a.is_parcial ? '(Horas)' : ''}`} style={{height: '6px', background: barColor, borderRadius: '3px', width: '100%'}} />;
+                      return (
+                          <ModernTooltip key={i} content={`${ownerLabel}: ${formatAbsenceTypeLabel(a.tipo)} ${a.is_parcial ? '(Horas)' : ''}`}>
+                              <div style={{height: '6px', background: barColor, borderRadius: '3px', width: '100%'}} />
+                          </ModernTooltip>
+                      );
                   });
               }
               content = (
                   <div style={{display: 'flex', flexDirection: 'column', gap: '2px', width: '100%', marginTop:'5px'}}>
-                      {feriado && <div title={feriado.nome} style={{fontSize: '0.7rem', color: '#991b1b', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display:'flex', alignItems:'center', gap:'4px'}}><Icons.Flag size={10} color="#991b1b"/> {feriado.nome}</div>}
+                      {feriado && (
+                          <ModernTooltip content={feriado.nome}>
+                              <div style={{fontSize: '0.7rem', color: '#991b1b', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display:'flex', alignItems:'center', gap:'4px'}}><Icons.Flag size={10} color="#991b1b"/> {feriado.nome}</div>
+                          </ModernTooltip>
+                      )}
                       {toleranciaGlobalNoDia && (
-                          <div title={toleranciaGlobalNoDia.motivo || formatAbsenceTypeLabel(toleranciaGlobalNoDia.tipo)} style={{fontSize: '0.7rem', color: '#1d4ed8', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display:'flex', alignItems:'center', gap:'4px'}}>
-                              <Icons.Flag size={10} color="#1d4ed8"/> {toleranciaGlobalNoDia.motivo || 'Tolerância de Ponto'}
-                          </div>
+                          <ModernTooltip content={toleranciaGlobalNoDia.motivo || formatAbsenceTypeLabel(toleranciaGlobalNoDia.tipo)}>
+                              <div style={{fontSize: '0.7rem', color: '#1d4ed8', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display:'flex', alignItems:'center', gap:'4px'}}>
+                                  <Icons.Flag size={10} color="#1d4ed8"/> {toleranciaGlobalNoDia.motivo || 'Tolerância de Ponto'}
+                              </div>
+                          </ModernTooltip>
                       )}
                       {bars}
                   </div>
@@ -1367,10 +1545,12 @@ export default function RecursosHumanos() {
           const numeroDiaCor = feriado ? '#ef4444' : (toleranciaGlobalNoDia ? '#2563eb' : '#94a3b8');
           
           days.push(
-              <div key={d} title={tituloDia} style={{border:`1px solid ${cellBorderColor}`, borderRadius:'8px', padding:'5px', display:'flex', flexDirection:'column', justifyContent:'space-between', outline:'none', boxShadow:'none', ...cellStyle}}>
-                  <span style={{fontSize:'0.75rem', color: numeroDiaCor, fontWeight:'bold'}}>{d}</span>
-                  <div style={{textAlign:'center', fontSize:'1.2rem', width: '100%'}}>{content}</div>
-              </div>
+              <ModernTooltip key={d} content={tituloDia}>
+                  <div style={{border:`1px solid ${cellBorderColor}`, borderRadius:'8px', padding:'5px', display:'flex', flexDirection:'column', justifyContent:'space-between', outline:'none', boxShadow:'none', ...cellStyle}}>
+                      <span style={{fontSize:'0.75rem', color: numeroDiaCor, fontWeight:'bold'}}>{d}</span>
+                      <div style={{textAlign:'center', fontSize:'1.2rem', width: '100%'}}>{content}</div>
+                  </div>
+              </ModernTooltip>
           );
       }
       return days;
@@ -1457,23 +1637,33 @@ export default function RecursosHumanos() {
                                         </td>
                                         <td style={{padding: '12px', textAlign: 'center'}}>
                                             <div style={{display: 'flex', gap: '8px', justifyContent: 'center'}}>
-                                                <button className="btn-small" title="Ver Detalhes do Pedido" style={{background: '#f8fafc', borderColor: '#cbd5e1', color: '#475569', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalDetalhes(p)}>
-                                                    <Icons.Eye size={16} />
-                                                </button>
+                                                <ModernTooltip content="Ver Detalhes do Pedido">
+                                                    <button className="btn-small" style={{background: '#f8fafc', borderColor: '#cbd5e1', color: '#475569', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalDetalhes(p)}>
+                                                        <Icons.Eye size={16} />
+                                                    </button>
+                                                </ModernTooltip>
                                                 
                                                 {p.estado === 'pendente' ? (
                                                     <>
-                                                        <button className="btn-small" title="Aprovar" style={{background: '#f0fdf4', borderColor: '#bbf7d0', color: '#16a34a', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalConfirmacao(p, 'aprovar')}>
-                                                            <Icons.Check size={16} />
-                                                        </button>
-                                                        <button className="btn-small" title="Rejeitar" style={{background: '#fef2f2', borderColor: '#fecaca', color: '#ef4444', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalConfirmacao(p, 'rejeitar')}>
-                                                            <Icons.X size={16} />
-                                                        </button>
+                                                        <ModernTooltip content="Aprovar">
+                                                            <button className="btn-small" style={{background: '#f0fdf4', borderColor: '#bbf7d0', color: '#16a34a', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalConfirmacao(p, 'aprovar')}>
+                                                                <Icons.Check size={16} />
+                                                            </button>
+                                                        </ModernTooltip>
+                                                        <ModernTooltip content="Rejeitar">
+                                                            <button className="btn-small" style={{background: '#fef2f2', borderColor: '#fecaca', color: '#ef4444', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalConfirmacao(p, 'rejeitar')}>
+                                                                <Icons.X size={16} />
+                                                            </button>
+                                                        </ModernTooltip>
                                                     </>
                                                 ) : (
                                                     <>
-                                                        <button className="btn-small" title="Aceitar Cancelamento" style={{background: '#fef2f2', borderColor: '#fecaca', color: '#ef4444', fontWeight:'bold', fontSize:'0.8rem'}} onClick={() => abrirModalConfirmacao(p, 'aceitar_cancelamento')}>Aceitar</button>
-                                                        <button className="btn-small" title="Recusar Cancelamento" style={{background: '#f8fafc', borderColor: '#cbd5e1', color: '#64748b', fontSize:'0.8rem'}} onClick={() => abrirModalConfirmacao(p, 'recusar_cancelamento')}>Recusar</button>
+                                                        <ModernTooltip content="Aceitar Cancelamento">
+                                                            <button className="btn-small" style={{background: '#fef2f2', borderColor: '#fecaca', color: '#ef4444', fontWeight:'bold', fontSize:'0.8rem'}} onClick={() => abrirModalConfirmacao(p, 'aceitar_cancelamento')}>Aceitar</button>
+                                                        </ModernTooltip>
+                                                        <ModernTooltip content="Recusar Cancelamento">
+                                                            <button className="btn-small" style={{background: '#f8fafc', borderColor: '#cbd5e1', color: '#64748b', fontSize:'0.8rem'}} onClick={() => abrirModalConfirmacao(p, 'recusar_cancelamento')}>Recusar</button>
+                                                        </ModernTooltip>
                                                     </>
                                                 )}
                                             </div>
@@ -1525,23 +1715,33 @@ export default function RecursosHumanos() {
                                         </td>
                                         <td style={{padding: '12px', textAlign: 'center'}}>
                                             <div style={{display: 'flex', gap: '8px', justifyContent: 'center'}}>
-                                                <button className="btn-small" title="Ver Detalhes do Pedido" style={{background: '#f8fafc', borderColor: '#cbd5e1', color: '#475569', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalDetalhes(p)}>
-                                                    <Icons.Eye size={16} />
-                                                </button>
+                                                <ModernTooltip content="Ver Detalhes do Pedido">
+                                                    <button className="btn-small" style={{background: '#f8fafc', borderColor: '#cbd5e1', color: '#475569', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalDetalhes(p)}>
+                                                        <Icons.Eye size={16} />
+                                                    </button>
+                                                </ModernTooltip>
                                                 
                                                 {p.estado === 'pendente' ? (
                                                     <>
-                                                        <button className="btn-small" title="Aprovar" style={{background: '#f0fdf4', borderColor: '#bbf7d0', color: '#16a34a', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalConfirmacao(p, 'aprovar')}>
-                                                            <Icons.Check size={16} />
-                                                        </button>
-                                                        <button className="btn-small" title="Rejeitar" style={{background: '#fef2f2', borderColor: '#fecaca', color: '#ef4444', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalConfirmacao(p, 'rejeitar')}>
-                                                            <Icons.X size={16} />
-                                                        </button>
+                                                        <ModernTooltip content="Aprovar">
+                                                            <button className="btn-small" style={{background: '#f0fdf4', borderColor: '#bbf7d0', color: '#16a34a', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalConfirmacao(p, 'aprovar')}>
+                                                                <Icons.Check size={16} />
+                                                            </button>
+                                                        </ModernTooltip>
+                                                        <ModernTooltip content="Rejeitar">
+                                                            <button className="btn-small" style={{background: '#fef2f2', borderColor: '#fecaca', color: '#ef4444', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalConfirmacao(p, 'rejeitar')}>
+                                                                <Icons.X size={16} />
+                                                            </button>
+                                                        </ModernTooltip>
                                                     </>
                                                 ) : (
                                                     <>
-                                                        <button className="btn-small" title="Aceitar Cancelamento" style={{background: '#fef2f2', borderColor: '#fecaca', color: '#ef4444', fontWeight:'bold', fontSize:'0.8rem'}} onClick={() => abrirModalConfirmacao(p, 'aceitar_cancelamento')}>Aceitar</button>
-                                                        <button className="btn-small" title="Recusar Cancelamento" style={{background: '#f8fafc', borderColor: '#cbd5e1', color: '#64748b', fontSize:'0.8rem'}} onClick={() => abrirModalConfirmacao(p, 'recusar_cancelamento')}>Recusar</button>
+                                                        <ModernTooltip content="Aceitar Cancelamento">
+                                                            <button className="btn-small" style={{background: '#fef2f2', borderColor: '#fecaca', color: '#ef4444', fontWeight:'bold', fontSize:'0.8rem'}} onClick={() => abrirModalConfirmacao(p, 'aceitar_cancelamento')}>Aceitar</button>
+                                                        </ModernTooltip>
+                                                        <ModernTooltip content="Recusar Cancelamento">
+                                                            <button className="btn-small" style={{background: '#f8fafc', borderColor: '#cbd5e1', color: '#64748b', fontSize:'0.8rem'}} onClick={() => abrirModalConfirmacao(p, 'recusar_cancelamento')}>Recusar</button>
+                                                        </ModernTooltip>
                                                     </>
                                                 )}
                                             </div>
@@ -1604,9 +1804,11 @@ export default function RecursosHumanos() {
                                                   )}
                                               </td>
                                               <td style={{padding: '12px', textAlign: 'center'}}>
-                                                  <button className="btn-small" title="Eliminar" style={{background: '#fef2f2', borderColor: '#fecaca', color: '#ef4444', display:'flex', alignItems:'center', padding:'6px', margin:'0 auto'}} onClick={() => handleDeleteTolerancia(t.id)}>
-                                                      <Icons.Trash size={16} />
-                                                  </button>
+                                                  <ModernTooltip content="Eliminar">
+                                                      <button className="btn-small" style={{background: '#fef2f2', borderColor: '#fecaca', color: '#ef4444', display:'flex', alignItems:'center', padding:'6px', margin:'0 auto'}} onClick={() => handleDeleteTolerancia(t.id)}>
+                                                          <Icons.Trash size={16} />
+                                                      </button>
+                                                  </ModernTooltip>
                                               </td>
                                           </tr>
                                       );
@@ -1874,7 +2076,7 @@ export default function RecursosHumanos() {
                                     <Icons.Chart size={18} color="#64748b"/>
                                     Processamento {currentDate.toLocaleDateString('pt-PT', {month:'long'})}
                                 </h4>
-                                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'12px', fontSize:'0.9rem', color:'#334155'}}><span>Dias Trabalhados ({stats.countTrabalho})</span><span style={{fontWeight:'600'}}>+ {stats.valorSA} €</span></div>
+                                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'12px', fontSize:'0.9rem', color:'#334155'}}><span>Dias Trabalhados (&gt;=4h) ({stats.countTrabalho})</span><span style={{fontWeight:'600'}}>+ {stats.valorSA} €</span></div>
                                 <div style={{display:'flex', justifyContent:'space-between', marginBottom:'12px', fontSize:'0.9rem', color:'#334155'}}><span>Férias ({stats.countFerias})</span><span style={{color:'#94a3b8'}}>-</span></div>
                                 <div style={{display:'flex', justifyContent:'space-between', marginBottom:'12px', fontSize:'0.9rem', color:'#ef4444', fontWeight:'500'}}><span>Faltas ({stats.countFaltas})</span><span style={{color:'#fca5a5'}}>-</span></div>
                                 <div style={{display:'flex', justifyContent:'space-between', marginBottom:'12px', fontSize:'0.9rem', color:'#8b5cf6'}}><span>Baixas ({stats.countBaixas})</span><span style={{color:'#c4b5fd'}}>-</span></div>
@@ -2009,13 +2211,17 @@ export default function RecursosHumanos() {
                                                 </td>
                                                 <td style={{padding:'10px', textAlign: 'center'}}>
                                                     <div style={{display:'flex', gap:'5px', justifyContent:'center'}}>
-                                                        <button className="btn-small" style={{color:'#3b82f6', background:'#eff6ff', borderColor:'#bfdbfe', padding:'6px'}} onClick={() => handleEditClick(h)} title="Editar Registo">
-                                                            <Icons.Edit size={14} />
-                                                        </button>
-                                                        {h.estado === 'aprovado' && (
-                                                            <button className="btn-small" style={{color:'#ef4444', background:'#fef2f2', borderColor:'#fecaca', padding:'6px'}} onClick={() => abrirModalConfirmacao(h, 'cancelar_direto')} title="Cancelar e devolver dias">
-                                                                <Icons.Trash size={14} />
+                                                        <ModernTooltip content="Editar Registo">
+                                                            <button className="btn-small" style={{color:'#3b82f6', background:'#eff6ff', borderColor:'#bfdbfe', padding:'6px'}} onClick={() => handleEditClick(h)}>
+                                                                <Icons.Edit size={14} />
                                                             </button>
+                                                        </ModernTooltip>
+                                                        {h.estado === 'aprovado' && (
+                                                            <ModernTooltip content="Cancelar e devolver dias">
+                                                                <button className="btn-small" style={{color:'#ef4444', background:'#fef2f2', borderColor:'#fecaca', padding:'6px'}} onClick={() => abrirModalConfirmacao(h, 'cancelar_direto')}>
+                                                                    <Icons.Trash size={14} />
+                                                                </button>
+                                                            </ModernTooltip>
                                                         )}
                                                     </div>
                                                 </td>
