@@ -78,6 +78,8 @@ export default function DashboardHome() {
   const [isAdding, setIsAdding] = useState(false);
   const [addForm, setAddForm] = useState({ data: "", hora_entrada: "", hora_saida: "", tempo_pausa: 0, observacoes: "", motivo_alteracao: "" });
 
+  const [recentWorkLogs, setRecentWorkLogs] = useState([]);
+    const [recentTasksVisibleCount, setRecentTasksVisibleCount] = useState(2);
   const [alertModal, setAlertModal] = useState({ show: false, message: "" });
     const [timerSwitchModal, setTimerSwitchModal] = useState({
             show: false,
@@ -102,6 +104,7 @@ export default function DashboardHome() {
   useEffect(() => {
     if (user) {
       fetchTarefasPessoais();
+      fetchRecentWorkLogs();
       fetchStats();
       fetchUserProfile();
       loadUsersOnline();
@@ -481,6 +484,30 @@ export default function DashboardHome() {
       setTarefasGerais(outras);
   }
 
+  async function fetchRecentWorkLogs() {
+      const { data } = await supabase
+          .from("task_logs")
+          .select("task_id, atividade_id, start_time")
+          .eq("user_id", user.id)
+          .not("end_time", "is", null)
+          .order("start_time", { ascending: false })
+          .limit(40);
+
+      if (data) {
+          const seen = new Set();
+          const unique = [];
+          for (const log of data) {
+              const key = log.task_id ? `t_${log.task_id}` : (log.atividade_id ? `a_${log.atividade_id}` : null);
+              if (key && !seen.has(key)) {
+                  seen.add(key);
+                  unique.push({ ...log, last_worked: log.start_time });
+                  if (unique.length >= 6) break;
+              }
+          }
+          setRecentWorkLogs(unique);
+      }
+  }
+
   async function fetchStats() {
     const { count: countProjetos } = await supabase.from("projetos").select("*", { count: 'exact', head: true }).neq("estado", "cancelado").neq("estado", "concluido");
     const { count: countClientes } = await supabase.from("clientes").select("*", { count: 'exact', head: true });
@@ -625,6 +652,39 @@ export default function DashboardHome() {
   };
 
   const inputEditStyle = { width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.85rem' };
+
+  const formatLastWorked = (dateStr) => {
+      if (!dateStr) return '';
+      const now = new Date();
+      const d = new Date(dateStr);
+      const diffDays = Math.floor((now - d) / (1000 * 60 * 60 * 24));
+      if (diffDays === 0) return 'hoje';
+      if (diffDays === 1) return 'ontem';
+      return `há ${diffDays} dias`;
+  };
+
+  const tarefasRecentesCards = (() => {
+      if (!recentWorkLogs.length) return [];
+      const allTasks = [...tarefasHoje, ...tarefasGerais];
+      const result = [];
+      const seen = new Set();
+      for (const log of recentWorkLogs) {
+          const found = allTasks.find(t =>
+              (log.task_id && !t.isActivity && String(t.id) === String(log.task_id)) ||
+              (log.atividade_id && t.isActivity && String(t.real_id) === String(log.atividade_id))
+          );
+          if (found && !seen.has(found.id)) {
+              seen.add(found.id);
+              result.push({ ...found, last_worked: log.last_worked });
+          }
+      }
+      return result;
+  })();
+
+  useEffect(() => {
+      setRecentTasksVisibleCount(2);
+  }, [tarefasRecentesCards.length]);
+
   const userFirstName = getSafeFirstName(userProfile?.nome, userProfile?.email);
 
   return (
@@ -825,7 +885,77 @@ export default function DashboardHome() {
 
         {/* COLUNA DIREITA: SÓ TAREFAS */}
         <div style={{display: 'flex', flexDirection: 'column', gap: '24px'}}>
-            
+
+            {/* 🕐 RETOMAR - ÚLTIMAS TAREFAS TRABALHADAS */}
+            <div className="card boom-reveal" style={{ '--d': '280ms', padding: '20px', background: 'white', borderRadius: '16px' }}>
+                {tarefasRecentesCards.length > 0 ? (
+                    <>
+                        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px'}}>
+                            <h4 style={{margin: 0, color: '#1e293b', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                <Icons.Clock size={18} color="#8b5cf6" /> Retomar Trabalho
+                            </h4>
+                            <span style={{fontSize:'0.72rem', color:'#94a3b8', fontStyle:'italic'}}>Últimas atividades do cronómetro</span>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+                        {tarefasRecentesCards.slice(0, recentTasksVisibleCount).map((t) => {
+                            const isRunning = isTaskCardRunning(t);
+                            return (
+                            <div key={`recent_${t.id}`} onClick={() => navigate(t.clientLabel === 'GERAL / AVULSA' ? '/dashboard/minhas-tarefas' : (t.isActivity ? '/dashboard/atividades' : '/dashboard/tarefas'))} className="task-hover-card" style={{ background: '#faf5ff', border: '1px solid #e9d5ff', borderRadius: '12px', padding: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                    <span style={{ fontSize: '0.65rem', color: '#64748b', textTransform: 'uppercase', background: '#f5f3ff', padding: '2px 6px', borderRadius: '6px', maxWidth: '120px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={t.clientLabel}>
+                                        {t.clientLabel === 'GERAL / AVULSA' ? (
+                                            <strong style={{color: '#1e293b', fontWeight: '800'}}>GERAL / AVULSA</strong>
+                                        ) : (
+                                            <>{t.clientLabel}</>
+                                        )}
+                                    </span>
+                                    <span style={{fontSize:'0.65rem', color:'#8b5cf6', background:'#f5f3ff', padding:'2px 8px', borderRadius:'12px', fontWeight:'600', display:'flex', alignItems:'center', gap:'3px'}}>
+                                        <Icons.Clock size={9} /> {formatLastWorked(t.last_worked)}
+                                    </span>
+                                </div>
+                                <h4 style={{ margin: '5px 0 0 0', fontSize: '0.9rem', color: '#1e293b', lineHeight: '1.3' }}>{t.titulo}</h4>
+                                <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '1px solid #ede9fe', gap: '8px' }}>
+                                    <span style={{ fontSize: '0.75rem', color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px' }}>{t.parentTitle}</span>
+                                    <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                        <button
+                                            onClick={(e) => handleStartTaskFromHome(t, e)}
+                                            title={isRunning ? 'Parar temporizador' : 'Retomar temporizador'}
+                                            style={{border: 'none', background: isRunning ? '#fee2e2' : '#ede9fe', color: isRunning ? '#ef4444' : '#8b5cf6', borderRadius: '999px', width: '26px', height: '26px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'}}
+                                        >
+                                            {isRunning ? <Icons.Stop size={10} /> : <Icons.Play size={10} />}
+                                        </button>
+                                        <span style={{ fontSize: '0.9rem', color: '#cbd5e1' }}><Icons.ChevronRight size={14} /></span>
+                                    </div>
+                                </div>
+                            </div>
+                        )})}
+                        </div>
+                        {(recentTasksVisibleCount < tarefasRecentesCards.length || recentTasksVisibleCount > 2) && (
+                            <div style={{display: 'flex', justifyContent: 'center', marginTop: '14px', gap: '8px'}}>
+                                {recentTasksVisibleCount < tarefasRecentesCards.length && (
+                                    <button
+                                        className="btn-small hover-shadow"
+                                        style={{background: '#f5f3ff', color: '#7c3aed', fontWeight: '700'}}
+                                        onClick={() => setRecentTasksVisibleCount((prev) => Math.min(prev + 2, tarefasRecentesCards.length))}
+                                    >
+                                        Ver mais
+                                    </button>
+                                )}
+                                {recentTasksVisibleCount > 2 && (
+                                    <button
+                                        className="btn-small hover-shadow"
+                                        style={{background: '#ffffff', color: '#6d28d9', fontWeight: '700', border: '1px solid #ddd6fe'}}
+                                        onClick={() => setRecentTasksVisibleCount(2)}
+                                    >
+                                        Recolher
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                    </>
+                ) : null}
+            </div>
+
             {/* 🔥 TAREFAS URGENTES / PARA HOJE */}
             <div className="card boom-reveal" style={{ '--d': '280ms', padding: '20px', background: 'white', borderRadius: '16px' }}>
                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px'}}>
@@ -884,7 +1014,7 @@ export default function DashboardHome() {
             <div className="card boom-reveal" style={{ '--d': '330ms', padding: '20px', background: 'white', borderRadius: '16px' }}>
                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px'}}>
                     <h4 style={{margin: 0, color: '#1e293b', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Clipboard color="#2563eb" /> Próximas Tarefas / Blocos</h4>
-                    {tarefasGerais.length > 10 && (
+                    {tarefasGerais.length > 8 && (
                         <button className="btn-small hover-shadow" style={{background: '#f8fafc', color: '#64748b', fontWeight: 'bold'}} onClick={() => navigate("/dashboard/tarefas")}>
                             Ver as {tarefasGerais.length} <Icons.ChevronRight />
                         </button>
@@ -897,7 +1027,7 @@ export default function DashboardHome() {
                     </div>
                 ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
-                    {tarefasGerais.slice(0, 10).map((t) => {
+                    {tarefasGerais.slice(0, 8).map((t) => {
                         const isRunning = isTaskCardRunning(t);
                         return (
                         <div key={t.id} onClick={() => navigate(t.clientLabel === 'GERAL / AVULSA' ? '/dashboard/minhas-tarefas' : (t.isActivity ? '/dashboard/atividades' : '/dashboard/tarefas'))} className="task-hover-card" style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '8px' }}>
