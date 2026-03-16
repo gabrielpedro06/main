@@ -900,27 +900,27 @@ export default function DashboardHome() {
                         {tarefasRecentesCards.slice(0, recentTasksVisibleCount).map((t) => {
                             const isRunning = isTaskCardRunning(t);
                             return (
-                            <div key={`recent_${t.id}`} onClick={() => navigate(t.clientLabel === 'GERAL / AVULSA' ? '/dashboard/minhas-tarefas' : (t.isActivity ? '/dashboard/atividades' : '/dashboard/tarefas'))} className="task-hover-card" style={{ background: '#faf5ff', border: '1px solid #e9d5ff', borderRadius: '12px', padding: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <div key={`recent_${t.id}`} onClick={() => navigate(t.clientLabel === 'GERAL / AVULSA' ? '/dashboard/minhas-tarefas' : (t.isActivity ? '/dashboard/atividades' : '/dashboard/tarefas'))} className="task-hover-card" style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                    <span style={{ fontSize: '0.65rem', color: '#64748b', textTransform: 'uppercase', background: '#f5f3ff', padding: '2px 6px', borderRadius: '6px', maxWidth: '120px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={t.clientLabel}>
+                                    <span style={{ fontSize: '0.65rem', color: '#64748b', textTransform: 'uppercase', background: '#f8fafc', padding: '2px 6px', borderRadius: '6px', maxWidth: '120px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={t.clientLabel}>
                                         {t.clientLabel === 'GERAL / AVULSA' ? (
                                             <strong style={{color: '#1e293b', fontWeight: '800'}}>GERAL / AVULSA</strong>
                                         ) : (
                                             <>{t.clientLabel}</>
                                         )}
                                     </span>
-                                    <span style={{fontSize:'0.65rem', color:'#8b5cf6', background:'#f5f3ff', padding:'2px 8px', borderRadius:'12px', fontWeight:'600', display:'flex', alignItems:'center', gap:'3px'}}>
+                                    <span style={{fontSize:'0.65rem', color:'#64748b', background:'#f8fafc', padding:'2px 8px', borderRadius:'12px', fontWeight:'600', display:'flex', alignItems:'center', gap:'3px'}}>
                                         <Icons.Clock size={9} /> {formatLastWorked(t.last_worked)}
                                     </span>
                                 </div>
                                 <h4 style={{ margin: '5px 0 0 0', fontSize: '0.9rem', color: '#1e293b', lineHeight: '1.3' }}>{t.titulo}</h4>
-                                <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '1px solid #ede9fe', gap: '8px' }}>
+                                <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '1px solid #f1f5f9', gap: '8px' }}>
                                     <span style={{ fontSize: '0.75rem', color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px' }}>{t.parentTitle}</span>
                                     <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
                                         <button
                                             onClick={(e) => handleStartTaskFromHome(t, e)}
                                             title={isRunning ? 'Parar temporizador' : 'Retomar temporizador'}
-                                            style={{border: 'none', background: isRunning ? '#fee2e2' : '#ede9fe', color: isRunning ? '#ef4444' : '#8b5cf6', borderRadius: '999px', width: '26px', height: '26px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'}}
+                                            style={{border: 'none', background: isRunning ? '#fee2e2' : '#eff6ff', color: isRunning ? '#ef4444' : '#2563eb', borderRadius: '999px', width: '26px', height: '26px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'}}
                                         >
                                             {isRunning ? <Icons.Stop size={10} /> : <Icons.Play size={10} />}
                                         </button>
@@ -935,7 +935,7 @@ export default function DashboardHome() {
                                 {recentTasksVisibleCount < tarefasRecentesCards.length && (
                                     <button
                                         className="btn-small hover-shadow"
-                                        style={{background: '#f5f3ff', color: '#7c3aed', fontWeight: '700'}}
+                                        style={{background: '#eff6ff', color: '#2563eb', fontWeight: '700'}}
                                         onClick={() => setRecentTasksVisibleCount((prev) => Math.min(prev + 2, tarefasRecentesCards.length))}
                                     >
                                         Ver mais
@@ -944,7 +944,7 @@ export default function DashboardHome() {
                                 {recentTasksVisibleCount > 2 && (
                                     <button
                                         className="btn-small hover-shadow"
-                                        style={{background: '#ffffff', color: '#6d28d9', fontWeight: '700', border: '1px solid #ddd6fe'}}
+                                        style={{background: '#f8fafc', color: '#64748b', fontWeight: '700', border: '1px solid #e2e8f0'}}
                                         onClick={() => setRecentTasksVisibleCount(2)}
                                     >
                                         Recolher
