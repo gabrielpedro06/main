@@ -71,11 +71,13 @@ export default function Projetos() {
   const [clientes, setClientes] = useState([]);
   const [tipos, setTipos] = useState([]);
   const [staff, setStaff] = useState([]); 
+    const [entidadePessoas, setEntidadePessoas] = useState([]);
 
   const [showModal, setShowModal] = useState(false);
   const [editId, setEditId] = useState(null);
   const [isViewOnly, setIsViewOnly] = useState(false);
   const [activeTab, setActiveTab] = useState("geral");
+    const [parceiroSelecionado, setParceiroSelecionado] = useState("");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -126,6 +128,36 @@ export default function Projetos() {
           navigate(location.pathname, { replace: true, state: {} });
       }
   }, [location.state, navigate]);
+
+  useEffect(() => {
+      if (!showModal) {
+          setEntidadePessoas([]);
+          return;
+      }
+
+      const targetClientIds = [
+          ...(form.cliente_id ? [String(form.cliente_id)] : []),
+          ...((form.parceiros_ids || []).map((id) => String(id)) || [])
+      ];
+      const uniqueClientIds = [...new Set(targetClientIds.filter(Boolean))];
+
+      if (uniqueClientIds.length === 0) {
+          setEntidadePessoas([]);
+          return;
+      }
+
+      let cancelled = false;
+      (async () => {
+          const { data } = await supabase
+              .from("contactos_cliente")
+              .select("id, cliente_id, nome_contacto, cargo, email, clientes(marca)")
+              .in("cliente_id", uniqueClientIds)
+              .order("nome_contacto", { ascending: true });
+          if (!cancelled) setEntidadePessoas(data || []);
+      })();
+
+      return () => { cancelled = true; };
+  }, [showModal, form.cliente_id, form.parceiros_ids]);
 
   const showToast = (message, type = 'success') => {
       setNotification({ message, type });
@@ -361,6 +393,7 @@ export default function Projetos() {
 
   function handleNovo() {
     setEditId(null); setIsViewOnly(false);
+        setParceiroSelecionado("");
     setForm({ 
         ...initialForm, 
         tipo_projeto_id: (selectedCategoria && selectedCategoria !== 'sem-categoria') ? selectedCategoria : "", 
@@ -373,6 +406,7 @@ export default function Projetos() {
   function handleEdit(e, proj) {
     e.stopPropagation();
     setEditId(proj.id); setIsViewOnly(false);
+        setParceiroSelecionado("");
     setForm({
         titulo: proj.titulo || "", descricao: proj.descricao || "", 
         cliente_id: proj.cliente_id || "", cliente_texto: proj.cliente_texto || "",
@@ -413,21 +447,28 @@ export default function Projetos() {
 
   // Toggles de Pills UI
   const handleToggleParceiro = (cId) => {
-      setForm(prev => ({
-          ...prev, 
-          parceiros_ids: prev.parceiros_ids.includes(cId) 
-              ? prev.parceiros_ids.filter(id => id !== cId) 
-              : [...prev.parceiros_ids, cId]
-      }));
+      setForm(prev => {
+          if (String(cId) === String(prev.cliente_id)) return prev;
+          return {
+              ...prev,
+              parceiros_ids: prev.parceiros_ids.includes(cId)
+                  ? prev.parceiros_ids.filter(id => id !== cId)
+                  : [...prev.parceiros_ids, cId]
+          };
+      });
   };
 
   const handleToggleColaborador = (sId) => {
-      setForm(prev => ({
-          ...prev, 
-          colaboradores: prev.colaboradores.includes(sId) 
-              ? prev.colaboradores.filter(id => id !== sId) 
-              : [...prev.colaboradores, sId]
-      }));
+      setForm(prev => {
+          const selectedId = String(sId);
+          const current = (prev.colaboradores || []).map((id) => String(id));
+          return {
+              ...prev,
+              colaboradores: current.includes(selectedId)
+                  ? current.filter(id => id !== selectedId)
+                  : [...current, selectedId]
+          };
+      });
   };
 
   async function handleSubmit(e) {
@@ -440,14 +481,18 @@ export default function Projetos() {
     if (payload.responsavel_id === "") payload.responsavel_id = null;
     if (payload.data_fim === "") payload.data_fim = null;
 
-    if (!payload.is_parceria) payload.parceiros_ids = [];
+    if (!payload.cliente_id) {
+        showToast("Seleciona um cliente principal para o projeto.", "warning");
+        setIsSubmitting(false);
+        return;
+    }
 
-    const tipoSelecionado = tipos.find(t => String(t.id) === String(payload.tipo_projeto_id));
-    const isFormacao = tipoSelecionado?.nome?.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes('forma');
-    
-    if (isFormacao) { payload.cliente_id = null; payload.is_parceria = false; }
-    else payload.cliente_texto = "";
-    
+    if (!payload.is_parceria) payload.parceiros_ids = [];
+    payload.parceiros_ids = (payload.parceiros_ids || []).filter(
+        (pid) => String(pid) !== String(payload.cliente_id)
+    );
+    payload.cliente_texto = "";
+
     try {
         if (editId) {
             const { error } = await supabase.from("projetos").update(payload).eq("id", editId);
@@ -878,12 +923,12 @@ export default function Projetos() {
                         
                         <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '20px'}}>
                             <div>
-                                <label style={labelStyle}>Tipo de Entidade</label>
+                                <label style={labelStyle}>Tipologia</label>
                                 <select value={form.is_parceria ? 'parceria' : 'unico'} onChange={e => {
                                     const isParc = e.target.value === 'parceria';
-                                    setForm({...form, is_parceria: isParc, cliente_id: isParc ? '' : form.cliente_id, parceiros_ids: isParc ? form.parceiros_ids : []});
+                                    setForm({...form, is_parceria: isParc, parceiros_ids: isParc ? form.parceiros_ids : []});
                                 }} style={{...inputStyle, cursor: 'pointer'}} className="input-focus">
-                                    <option value="unico">👤 Cliente Único</option>
+                                    <option value="unico">👤 Individual </option>
                                     <option value="parceria">🤝 Parceria (Vários)</option>
                                 </select>
                             </div>
@@ -916,64 +961,134 @@ export default function Projetos() {
                             </div>
                         </div>
 
-                        {/* ROW: Cliente ou Parceiros */}
-                        <div style={{marginBottom: '20px'}}>
-                            {isFormacaoSelected ? (
+                        {/* ROW: Cliente principal + parceiros */}
+                        <div style={{display: 'grid', gridTemplateColumns: form.is_parceria ? '1fr 1fr' : '1fr', gap: '15px', marginBottom: form.is_parceria ? '10px' : '20px'}}>
+                            <div>
+                                <label style={labelStyle}>Entidade Lider *</label>
+                                <select
+                                    value={form.cliente_id || ''}
+                                    onChange={e => {
+                                        const selectedId = e.target.value;
+                                        setForm(prev => ({
+                                            ...prev,
+                                            cliente_id: selectedId,
+                                            parceiros_ids: (prev.parceiros_ids || []).filter(pid => String(pid) !== String(selectedId))
+                                        }));
+                                        setParceiroSelecionado("");
+                                    }}
+                                    required
+                                    style={{...inputStyle, cursor: 'pointer'}}
+                                    className="input-focus"
+                                >
+                                    <option value="">-- Selecione o Cliente --</option>
+                                    {clientes.map(c => <option key={c.id} value={c.id}>{c.marca}</option>)}
+                                </select>
+                            </div>
+
+                            {form.is_parceria && (
                                 <div>
-                                    <label style={labelStyle}>Cliente / Local (Livre) *</label>
-                                    <input type="text" value={form.cliente_texto || ''} onChange={e => setForm({...form, cliente_texto: e.target.value})} placeholder="Ex: Cenfim Faro..." required style={inputStyle} className="input-focus" />
-                                </div>
-                            ) : form.is_parceria ? (
-                                <div>
-                                    <label style={labelStyle}>Parceiros / Clientes (Seleciona vários)</label>
-                                    <div className="pill-container">
-                                        {clientes.map(c => {
-                                            const isSelected = form.parceiros_ids.includes(c.id);
-                                            return (
-                                                <div 
-                                                    key={c.id} 
-                                                    onClick={() => !isViewOnly && handleToggleParceiro(c.id)}
-                                                    className={`pill-checkbox ${isSelected ? 'selected' : ''}`}
-                                                >
-                                                    {c.marca}
-                                                </div>
-                                            )
-                                        })}
-                                        {clientes.length === 0 && <span style={{color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic'}}>Sem clientes disponíveis.</span>}
-                                    </div>
-                                </div>
-                            ) : (
-                                <div>
-                                    <label style={labelStyle}>Cliente Principal *</label>
-                                    <select value={form.cliente_id || ''} onChange={e => setForm({...form, cliente_id: e.target.value})} required style={{...inputStyle, cursor: 'pointer'}} className="input-focus">
-                                        <option value="">-- Selecione o Cliente --</option>
-                                        {clientes.map(c => <option key={c.id} value={c.id}>{c.marca}</option>)}
+                                    <label style={labelStyle}>Entidades Parceiras</label>
+                                    <select
+                                        value={parceiroSelecionado}
+                                        onChange={e => {
+                                            const selected = e.target.value;
+                                            setParceiroSelecionado(selected);
+                                            if (!selected) return;
+                                            setForm(prev => {
+                                                if (String(selected) === String(prev.cliente_id)) return prev;
+                                                if ((prev.parceiros_ids || []).includes(selected)) return prev;
+                                                return { ...prev, parceiros_ids: [...(prev.parceiros_ids || []), selected] };
+                                            });
+                                            setParceiroSelecionado("");
+                                        }}
+                                        style={{...inputStyle, cursor: 'pointer'}}
+                                        className="input-focus"
+                                    >
+                                        <option value="">-- Adicionar entidade parceira --</option>
+                                        {clientes
+                                            .filter(c => String(c.id) !== String(form.cliente_id || ''))
+                                            .filter(c => !(form.parceiros_ids || []).includes(c.id))
+                                            .map(c => <option key={c.id} value={c.id}>{c.marca}</option>)}
                                     </select>
                                 </div>
                             )}
                         </div>
 
+                        {form.is_parceria && (
+                            <div style={{marginBottom: '20px'}}>
+                                <label style={labelStyle}>Entidades Selecionadas</label>
+                                <div className="pill-container" style={{width: '100%', boxSizing: 'border-box'}}>
+                                    {(form.parceiros_ids || []).length === 0 && <span style={{color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic'}}>Sem parceiros selecionados.</span>}
+                                    {(form.parceiros_ids || []).map(pid => {
+                                        const parceiro = clientes.find(c => String(c.id) === String(pid));
+                                        if (!parceiro) return null;
+                                        return (
+                                            <div
+                                                key={pid}
+                                                onClick={() => !isViewOnly && handleToggleParceiro(pid)}
+                                                className="pill-checkbox selected"
+                                                title="Remover parceiro"
+                                            >
+                                                {parceiro.marca} ✕
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
                         {/* ROW: Colaboradores em formato PILL com filtro do Responsável */}
                         <div style={{marginBottom: '30px'}}>
                             <label style={labelStyle}>Outros Colaboradores Envolvidos</label>
-                            <div className="pill-container">
-                                {staff
-                                    .filter(s => s.id !== form.responsavel_id) // 💡 Responsável Global NÃO aparece aqui!
-                                    .map(s => {
-                                        const isSelected = form.colaboradores.includes(s.id);
-                                        return (
-                                            <div 
-                                                key={s.id} 
-                                                onClick={() => !isViewOnly && handleToggleColaborador(s.id)}
-                                                className={`pill-checkbox ${isSelected ? 'selected' : ''}`}
-                                            >
-                                                {s.nome || s.email}
-                                            </div>
-                                        )
-                                })}
-                                {staff.filter(s => s.id !== form.responsavel_id).length === 0 && (
-                                    <span style={{color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic'}}>Sem colaboradores adicionais disponíveis.</span>
-                                )}
+                            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px'}}>
+                                <div>
+                                    <div style={{fontSize: '0.74rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px'}}>Equipa Interna</div>
+                                    <div className="pill-container" style={{minHeight: '60px'}}>
+                                        {staff
+                                            .filter(s => String(s.id) !== String(form.responsavel_id || ''))
+                                            .map(s => {
+                                                const isSelected = (form.colaboradores || []).map(id => String(id)).includes(String(s.id));
+                                                return (
+                                                    <div 
+                                                        key={`int-${s.id}`}
+                                                        onClick={() => !isViewOnly && handleToggleColaborador(s.id)}
+                                                        className={`pill-checkbox ${isSelected ? 'selected' : ''}`}
+                                                    >
+                                                        {s.nome || s.email}
+                                                    </div>
+                                                )
+                                        })}
+                                        {staff.filter(s => String(s.id) !== String(form.responsavel_id || '')).length === 0 && (
+                                            <span style={{color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic'}}>Sem pessoas internas disponíveis.</span>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <div style={{fontSize: '0.74rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px'}}>Pessoas das Entidades</div>
+                                    <div className="pill-container" style={{minHeight: '60px'}}>
+                                        {entidadePessoas
+                                            .filter(s => String(s.id) !== String(form.responsavel_id || ''))
+                                            .map(s => {
+                                                const isSelected = (form.colaboradores || []).map(id => String(id)).includes(String(s.id));
+                                                const base = s.nome_contacto || s.email || 'Contacto';
+                                                const cargo = s.cargo ? ` (${s.cargo})` : '';
+                                                const marca = s.clientes?.marca ? ` - ${s.clientes.marca}` : '';
+                                                return (
+                                                    <div 
+                                                        key={`ent-${s.id}`}
+                                                        onClick={() => !isViewOnly && handleToggleColaborador(s.id)}
+                                                        className={`pill-checkbox ${isSelected ? 'selected' : ''}`}
+                                                    >
+                                                        {`${base}${cargo}${marca}`}
+                                                    </div>
+                                                )
+                                        })}
+                                        {entidadePessoas.filter(s => String(s.id) !== String(form.responsavel_id || '')).length === 0 && (
+                                            <span style={{color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic'}}>Sem contactos das entidades selecionadas.</span>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                         </div>
 

@@ -40,6 +40,7 @@ export default function Tarefas() {
   const [staff, setStaff] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [projetosList, setProjetosList] = useState([]); 
+    const [entidadePessoas, setEntidadePessoas] = useState([]);
 
   const [busca, setBusca] = useState("");
   const [filtroCliente, setFiltroCliente] = useState("");
@@ -146,14 +147,49 @@ export default function Tarefas() {
       } catch (e) { return "Colaborador"; }
   };
 
+  const normalizeIdsList = (raw) => {
+      if (Array.isArray(raw)) return raw.filter(Boolean).map((v) => String(v));
+      if (typeof raw === 'string') {
+          const trimmed = raw.trim();
+          if (!trimmed) return [];
+          if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+              return trimmed
+                  .slice(1, -1)
+                  .split(',')
+                  .map((item) => item.replace(/^"|"$/g, '').trim())
+                  .filter(Boolean);
+          }
+          try {
+              const parsed = JSON.parse(trimmed);
+              return Array.isArray(parsed) ? parsed.filter(Boolean).map((v) => String(v)) : [];
+          } catch {
+              return [];
+          }
+      }
+      return [];
+  };
+
+  const getPersonLabelById = (personId) => {
+      if (!personId) return null;
+      const interno = staff.find((s) => String(s.id) === String(personId));
+      if (interno) return interno.nome || interno.email || null;
+
+      const externo = entidadePessoas.find((p) => String(p.id) === String(personId));
+      if (!externo) return null;
+      const base = externo.nome_contacto || externo.email || 'Contacto';
+      const cargo = externo.cargo ? ` (${externo.cargo})` : '';
+      const marca = externo.clientes?.marca ? ` - ${externo.clientes.marca}` : '';
+      return `${base}${cargo}${marca}`;
+  };
+
   async function fetchData(adminStatus) {
     try {
-        let queryAtivs = supabase.from("atividades").select(`*, projetos!inner(id, titulo, clientes(id, marca)), profiles:criado_por(nome)`).not("projeto_id", "is", null);
+        let queryAtivs = supabase.from("atividades").select(`*, projetos!inner(id, titulo, cliente_id, parceiros_ids, clientes(id, marca)), profiles:criado_por(nome)`).not("projeto_id", "is", null);
         if (!adminStatus) {
             queryAtivs = queryAtivs.or(`responsavel_id.eq.${user.id},colaboradores_extra.cs.{${user.id}}`);
         }
 
-        let queryTarefas = supabase.from("tarefas").select(`*, atividades!inner(*, projetos!inner(id, titulo, clientes(id, marca))), profiles:criado_por(nome)`);
+        let queryTarefas = supabase.from("tarefas").select(`*, atividades!inner(*, projetos!inner(id, titulo, cliente_id, parceiros_ids, clientes(id, marca))), profiles:criado_por(nome)`);
         if (!adminStatus) {
             queryTarefas = queryTarefas.or(`responsavel_id.eq.${user.id},colaboradores_extra.cs.{${user.id}}`);
         }
@@ -168,7 +204,8 @@ export default function Tarefas() {
             { data: comboAtiv },
             { data: staffData },
             { data: cliData },
-            { data: projData }
+            { data: projData },
+            { data: entidadesData }
         ] = await Promise.all([
             queryAtivs,
             queryTarefas,
@@ -176,7 +213,8 @@ export default function Tarefas() {
             supabase.from("atividades").select("id, titulo, projetos(titulo)").not("projeto_id", "is", null).neq("estado", "cancelado"),
             supabase.from("profiles").select("id, nome, email").order("nome"),
             supabase.from("clientes").select("id, marca").order("marca"),
-            supabase.from("projetos").select("id, titulo").order("titulo")
+            supabase.from("projetos").select("id, titulo").order("titulo"),
+            supabase.from("contactos_cliente").select("id, cliente_id, nome_contacto, cargo, email, clientes(marca)")
         ]);
 
         let mapAtividades = new Map();
@@ -261,6 +299,7 @@ export default function Tarefas() {
         setStaff(staffData || []);
         setClientes(cliData || []);
         setProjetosList(projData || []);
+        setEntidadePessoas(entidadesData || []);
 
     } catch (e) { console.error("ERRO FATAL:", e); }
     
@@ -773,9 +812,10 @@ export default function Tarefas() {
 
   const toggleColaboradorExtra = (colabId) => {
       setForm(prev => {
-          const arr = Array.isArray(prev.colaboradores_extra) ? prev.colaboradores_extra : [];
-          if (arr.includes(colabId)) return { ...prev, colaboradores_extra: arr.filter(id => id !== colabId) };
-          return { ...prev, colaboradores_extra: [...arr, colabId] };
+          const selectedId = String(colabId);
+          const arr = Array.isArray(prev.colaboradores_extra) ? prev.colaboradores_extra.map((id) => String(id)) : [];
+          if (arr.includes(selectedId)) return { ...prev, colaboradores_extra: arr.filter(id => id !== selectedId) };
+          return { ...prev, colaboradores_extra: [...arr, selectedId] };
       });
   };
 
@@ -793,6 +833,54 @@ export default function Tarefas() {
   };
 
   const associatedTasks = getAssociatedTasksForEditing();
+
+  const internalAssigneeOptions = (staff || [])
+      .filter((s) => Boolean(s?.id))
+      .map((s) => ({ id: String(s.id), label: s.nome || s.email || 'Colaborador interno' }));
+
+  const currentModalAtividade = (() => {
+      if (editType === 'atividade' && editId) {
+          return atividadesAgrupadas.find((a) => String(a.id) === String(editId)) || null;
+      }
+      if (form.atividade_id) {
+          return atividadesAgrupadas.find((a) => String(a.id) === String(form.atividade_id)) || null;
+      }
+      return null;
+  })();
+
+  const modalClientIds = (() => {
+      const projeto = currentModalAtividade?.projetos;
+      if (!projeto) return [];
+      const ids = [
+          ...(projeto.cliente_id ? [String(projeto.cliente_id)] : []),
+          ...normalizeIdsList(projeto.parceiros_ids)
+      ];
+      return [...new Set(ids.filter(Boolean))];
+  })();
+
+  const modalEntityAssigneeOptions = (entidadePessoas || [])
+      .filter((p) => modalClientIds.includes(String(p.cliente_id)))
+      .map((p) => {
+          const base = p.nome_contacto || p.email || 'Contacto';
+          const cargo = p.cargo ? ` (${p.cargo})` : '';
+          const marca = p.clientes?.marca ? ` - ${p.clientes.marca}` : '';
+          return { id: String(p.id), label: `${base}${cargo}${marca}` };
+      });
+
+  const renderResponsavelOptionsGroups = () => (
+      <>
+          {internalAssigneeOptions.length > 0 && (
+              <optgroup label="Equipa Interna">
+                  {internalAssigneeOptions.map((opt) => <option key={`int-${opt.id}`} value={opt.id}>{opt.label}</option>)}
+              </optgroup>
+          )}
+          {modalEntityAssigneeOptions.length > 0 && (
+              <optgroup label="Pessoas das Entidades do Projeto">
+                  {modalEntityAssigneeOptions.map((opt) => <option key={`ent-${opt.id}`} value={opt.id}>{opt.label}</option>)}
+              </optgroup>
+          )}
+      </>
+  );
 
   const modalOverlayStyle = { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.5)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999 };
   const modalStyle = { background: '#fff', width: '95%', maxWidth: '650px', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', display: 'flex', flexDirection: 'column', maxHeight: '90vh', overflow: 'hidden' };
@@ -1146,9 +1234,13 @@ export default function Tarefas() {
                         
                         <div style={inputGroupStyle}>
                             <label style={labelStyle}>Responsável Principal *</label>
-                            <select value={form.responsavel_id} onChange={e => setForm({...form, responsavel_id: e.target.value})} style={inputStyle} required>
+                            <select value={form.responsavel_id} onChange={e => {
+                                const newResp = e.target.value;
+                                const extras = Array.isArray(form.colaboradores_extra) ? form.colaboradores_extra.map((id) => String(id)) : [];
+                                setForm({...form, responsavel_id: newResp, colaboradores_extra: extras.filter((id) => id !== String(newResp))});
+                            }} style={inputStyle} required>
                                 <option value="">-- Selecione --</option>
-                                {staff.map(s => <option key={s.id} value={s.id}>{s.nome || s.email}</option>)}
+                                {renderResponsavelOptionsGroups()}
                             </select>
                         </div>
 
@@ -1163,27 +1255,51 @@ export default function Tarefas() {
                     {(editType === 'tarefa' || editType === 'atividade') && (
                         <div style={{marginBottom: '15px'}}>
                             <label style={labelStyle}>Outros Colaboradores Envolvidos</label>
-                            <div style={{background: 'white', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', maxHeight: '100px', overflowY: 'auto'}} className="custom-scrollbar">
-                                <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap'}}>
-                                    {staff.filter(s => s.id !== form.responsavel_id).map(s => {
-                                        const isChecked = Array.isArray(form.colaboradores_extra) && form.colaboradores_extra.includes(s.id);
-                                        const sNome = getSafeFirstName(s.nome, s.email);
-                                        
-                                        return (
-                                            <div 
-                                                key={s.id} 
-                                                onClick={() => toggleColaboradorExtra(s.id)}
-                                                style={{
-                                                    background: isChecked ? '#eff6ff' : '#f8fafc',
-                                                    color: isChecked ? '#2563eb' : '#64748b',
-                                                    border: `1px solid ${isChecked ? '#3b82f6' : '#e2e8f0'}`,
-                                                    padding: '4px 10px', borderRadius: '15px', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', gap: '4px'
-                                                }}
-                                            >
-                                                {isChecked && '✓'} {sNome}
-                                            </div>
-                                        )
-                                    })}
+                            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px'}}>
+                                <div style={{background: 'white', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', maxHeight: '100px', overflowY: 'auto'}} className="custom-scrollbar">
+                                    <div style={{fontSize: '0.7rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px'}}>Equipa Interna</div>
+                                    <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap'}}>
+                                        {internalAssigneeOptions.filter(s => String(s.id) !== String(form.responsavel_id || '')).map(s => {
+                                            const isChecked = Array.isArray(form.colaboradores_extra) && form.colaboradores_extra.map((id) => String(id)).includes(String(s.id));
+                                            return (
+                                                <div 
+                                                    key={`extra-int-${s.id}`} 
+                                                    onClick={() => toggleColaboradorExtra(s.id)}
+                                                    style={{
+                                                        background: isChecked ? '#eff6ff' : '#f8fafc',
+                                                        color: isChecked ? '#2563eb' : '#64748b',
+                                                        border: `1px solid ${isChecked ? '#3b82f6' : '#e2e8f0'}`,
+                                                        padding: '4px 10px', borderRadius: '15px', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', gap: '4px'
+                                                    }}
+                                                >
+                                                    {isChecked && '✓'} {s.label}
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+
+                                <div style={{background: 'white', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', maxHeight: '100px', overflowY: 'auto'}} className="custom-scrollbar">
+                                    <div style={{fontSize: '0.7rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px'}}>Pessoas das Entidades</div>
+                                    <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap'}}>
+                                        {modalEntityAssigneeOptions.filter(s => String(s.id) !== String(form.responsavel_id || '')).map(s => {
+                                            const isChecked = Array.isArray(form.colaboradores_extra) && form.colaboradores_extra.map((id) => String(id)).includes(String(s.id));
+                                            return (
+                                                <div 
+                                                    key={`extra-ent-${s.id}`} 
+                                                    onClick={() => toggleColaboradorExtra(s.id)}
+                                                    style={{
+                                                        background: isChecked ? '#eff6ff' : '#f8fafc',
+                                                        color: isChecked ? '#2563eb' : '#64748b',
+                                                        border: `1px solid ${isChecked ? '#3b82f6' : '#e2e8f0'}`,
+                                                        padding: '4px 10px', borderRadius: '15px', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', gap: '4px'
+                                                    }}
+                                                >
+                                                    {isChecked && '✓'} {s.label}
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1207,7 +1323,7 @@ export default function Tarefas() {
                                     <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
                                         {associatedTasks.map((task) => {
                                             const isTaskInactive = task.estado === 'concluido' || task.estado === 'cancelado';
-                                            const responsavel = staff.find((person) => String(person.id) === String(task.responsavel_id));
+                                            const responsavelNome = getPersonLabelById(task.responsavel_id);
                                             const subtarefasCount = Array.isArray(task.subtarefas) ? task.subtarefas.length : 0;
 
                                             return (
@@ -1269,7 +1385,7 @@ export default function Tarefas() {
                                                             </div>
                                                         </div>
                                                         <div style={{display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', color: '#64748b', fontSize: '0.75rem'}}>
-                                                            <span>Responsável: {responsavel?.nome || responsavel?.email || 'Sem responsável'}</span>
+                                                            <span>Responsável: {responsavelNome || 'Sem responsável'}</span>
                                                             {task.data_fim && renderDeadline(task.data_fim, task.estado === 'concluido')}
                                                             {subtarefasCount > 0 && <span style={{fontWeight: '700', color: '#475569'}}>Subtarefas: {subtarefasCount}</span>}
                                                         </div>

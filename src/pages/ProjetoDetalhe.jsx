@@ -86,6 +86,7 @@ export default function ProjetoDetalhe() {
   const [formGeral, setFormGeral] = useState({});
   const [clientes, setClientes] = useState([]);
   const [staff, setStaff] = useState([]);
+    const [entidadePessoas, setEntidadePessoas] = useState([]);
   const [tiposProjeto, setTiposProjeto] = useState([]);
 
   // Estados de Expansão
@@ -93,14 +94,46 @@ export default function ProjetoDetalhe() {
   const [collapsedAtivs, setCollapsedAtivs] = useState({}); 
     const [activeSubtarefaComposer, setActiveSubtarefaComposer] = useState(null);
 
-  const [novaAtividadeNome, setNovaAtividadeNome] = useState("");
-  const [novaTarefaNome, setNovaTarefaNome] = useState({ ativId: null, nome: "" });
+    const [novaAtividadeNome, setNovaAtividadeNome] = useState("");
+    const [novaAtividadeResponsavel, setNovaAtividadeResponsavel] = useState("");
+    const [novaTarefaNome, setNovaTarefaNome] = useState({ ativId: null, nome: "", responsavel_id: "" });
   const [novaSubtarefaNome, setNovaSubtarefaNome] = useState({ tarId: null, nome: "" });
 
   // MODAIS
   const [atividadeModal, setAtividadeModal] = useState({ show: false, data: null });
   const [tarefaModal, setTarefaModal] = useState({ show: false, data: null, atividadeNome: '' });
   const [subtarefaModal, setSubtarefaModal] = useState({ show: false, data: null, tarefaNome: '' }); 
+    const [parceiroSelecionado, setParceiroSelecionado] = useState("");
+
+  const normalizeIdsList = (raw) => {
+      if (Array.isArray(raw)) return raw.filter(Boolean);
+      if (typeof raw === "string") {
+          const trimmed = raw.trim();
+          if (!trimmed) return [];
+          if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+              return trimmed
+                  .slice(1, -1)
+                  .split(",")
+                  .map((item) => item.replace(/^"|"$/g, "").trim())
+                  .filter(Boolean);
+          }
+          try {
+              const parsed = JSON.parse(trimmed);
+              return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+          } catch {
+              return [];
+          }
+      }
+      return [];
+  };
+
+  const getProjetoClientIds = (projLike) => {
+      if (!projLike) return [];
+      const ids = [];
+      if (projLike.cliente_id) ids.push(projLike.cliente_id);
+      ids.push(...normalizeIdsList(projLike.parceiros_ids));
+      return [...new Set(ids.map((v) => String(v)).filter(Boolean))];
+  };
 
   // --- REFS PARA DRAG & DROP NATIVO ---
   const dragAtivItem = useRef();
@@ -113,6 +146,10 @@ export default function ProjetoDetalhe() {
     fetchProjetoDetails();
     checkActiveLog();
   }, [id, user]);
+
+    useEffect(() => {
+            setParceiroSelecionado("");
+    }, [formGeral?.cliente_id, formGeral?.is_parceria]);
 
   const showToast = (message, type = 'success') => {
       setNotification({ message, type });
@@ -162,14 +199,26 @@ export default function ProjetoDetalhe() {
     const { data: projData } = await supabase.from("projetos").select("*, clientes(marca), tipos_projeto(nome), profiles(nome)").eq("id", id).single();
     if (projData) { setProjeto(projData); setFormGeral(projData); }
 
-    const { data: cliData } = await supabase.from("clientes").select("id, marca").order("marca");
+    const [{ data: cliData }, { data: staffData }, { data: tiposData }] = await Promise.all([
+        supabase.from("clientes").select("id, marca").order("marca"),
+        supabase.from("profiles").select("id, nome, email").order("nome"),
+        supabase.from("tipos_projeto").select("id, nome").order("nome")
+    ]);
     setClientes(cliData || []);
-    
-    const { data: staffData } = await supabase.from("profiles").select("id, nome").order("nome");
     setStaff(staffData || []);
-
-    const { data: tiposData } = await supabase.from("tipos_projeto").select("id, nome").order("nome");
     setTiposProjeto(tiposData || []);
+
+    const entidadeIds = getProjetoClientIds(projData);
+    if (entidadeIds.length > 0) {
+        const { data: contactosData } = await supabase
+            .from("contactos_cliente")
+            .select("id, cliente_id, nome_contacto, cargo, email, clientes(marca)")
+            .in("cliente_id", entidadeIds)
+            .order("nome_contacto", { ascending: true });
+        setEntidadePessoas(contactosData || []);
+    } else {
+        setEntidadePessoas([]);
+    }
 
     const { data: ativData, error: ativError } = await supabase
         .from("atividades")
@@ -323,15 +372,27 @@ export default function ProjetoDetalhe() {
       return h > 0 ? `${h}h ${m}m` : `${m} min`;
   };
 
+  const getPersonLabelById = (personId) => {
+      if (!personId) return null;
+      const membroInterno = staff.find(s => String(s.id) === String(personId));
+      if (membroInterno) return membroInterno.nome || membroInterno.email || null;
+
+      const contacto = entidadePessoas.find(c => String(c.id) === String(personId));
+      if (!contacto) return null;
+      const base = contacto.nome_contacto || contacto.email || null;
+      return contacto.cargo ? `${base} (${contacto.cargo})` : base;
+  };
+
   const getStaffNames = (responsavelId, extraIds = []) => {
+
       const names = [];
-      const responsavelNome = staff.find(s => s.id === responsavelId)?.nome;
+    const responsavelNome = getPersonLabelById(responsavelId);
       if (responsavelNome) names.push(responsavelNome);
 
       const extras = Array.isArray(extraIds) ? extraIds : [];
       extras.forEach(extraId => {
           if (extraId === responsavelId) return;
-          const extraNome = staff.find(s => s.id === extraId)?.nome;
+          const extraNome = getPersonLabelById(extraId);
           if (extraNome && !names.includes(extraNome)) names.push(extraNome);
       });
 
@@ -614,12 +675,15 @@ export default function ProjetoDetalhe() {
 
   // --- TOGGLES DE COLABORADORES E PARCEIROS NO EDIT ---
   const handleToggleParceiro = (cId) => {
-      setFormGeral(prev => ({
-          ...prev, 
-          parceiros_ids: (prev.parceiros_ids || []).includes(cId) 
-              ? prev.parceiros_ids.filter(id => id !== cId) 
-              : [...(prev.parceiros_ids || []), cId]
-      }));
+      setFormGeral(prev => {
+          if (String(cId) === String(prev.cliente_id)) return prev;
+          return {
+              ...prev,
+              parceiros_ids: (prev.parceiros_ids || []).includes(cId)
+                  ? prev.parceiros_ids.filter(id => id !== cId)
+                  : [...(prev.parceiros_ids || []), cId]
+          };
+      });
   };
 
   const handleToggleColaborador = (sId) => {
@@ -633,10 +697,11 @@ export default function ProjetoDetalhe() {
 
   const handleToggleTarefaColaborador = (sId) => {
       setTarefaModal(prev => {
-          const arr = Array.isArray(prev?.data?.colaboradores_extra) ? prev.data.colaboradores_extra : [];
-          const novosColaboradores = arr.includes(sId)
-              ? arr.filter(id => id !== sId)
-              : [...arr, sId];
+          const selectedId = String(sId);
+          const arr = Array.isArray(prev?.data?.colaboradores_extra) ? prev.data.colaboradores_extra.map(id => String(id)) : [];
+          const novosColaboradores = arr.includes(selectedId)
+              ? arr.filter(id => id !== selectedId)
+              : [...arr, selectedId];
 
           return {
               ...prev,
@@ -650,10 +715,11 @@ export default function ProjetoDetalhe() {
 
   const handleToggleAtividadeColaborador = (sId) => {
       setAtividadeModal(prev => {
-          const arr = Array.isArray(prev?.data?.colaboradores_extra) ? prev.data.colaboradores_extra : [];
-          const novosColaboradores = arr.includes(sId)
-              ? arr.filter(id => id !== sId)
-              : [...arr, sId];
+          const selectedId = String(sId);
+          const arr = Array.isArray(prev?.data?.colaboradores_extra) ? prev.data.colaboradores_extra.map(id => String(id)) : [];
+          const novosColaboradores = arr.includes(selectedId)
+              ? arr.filter(id => id !== selectedId)
+              : [...arr, selectedId];
 
           return {
               ...prev,
@@ -668,10 +734,20 @@ export default function ProjetoDetalhe() {
   async function handleUpdateProjeto(e) {
       e.preventDefault();
       try {
+          if (!formGeral.cliente_id) {
+              showToast("Seleciona um cliente principal para o projeto.", "warning");
+              return;
+          }
+
+          const parceirosSanitizados = (formGeral.parceiros_ids || []).filter(
+              (pid) => String(pid) !== String(formGeral.cliente_id)
+          );
+
           const payload = {
               titulo: formGeral.titulo, cliente_id: formGeral.cliente_id, responsavel_id: formGeral.responsavel_id,
-              is_parceria: formGeral.is_parceria, parceiros_ids: formGeral.parceiros_ids,
+              is_parceria: formGeral.is_parceria, parceiros_ids: formGeral.is_parceria ? parceirosSanitizados : [],
               colaboradores: formGeral.colaboradores,
+              cliente_texto: "",
               estado: formGeral.estado, data_inicio: formGeral.data_inicio, data_fim: formGeral.data_fim,
               programa: formGeral.programa, aviso: formGeral.aviso, codigo_projeto: formGeral.codigo_projeto,
               descricao: formGeral.descricao, observacoes: formGeral.observacoes,
@@ -686,18 +762,51 @@ export default function ProjetoDetalhe() {
       } catch (err) { showToast("Erro: " + err.message, "error"); }
   }
 
+  const internalAssigneeOptions = (staff || [])
+      .filter((s) => Boolean(s?.id))
+      .map((s) => ({ id: s.id, label: s.nome || s.email || "Colaborador interno", source: "internal" }));
+
+  const entityAssigneeOptions = (entidadePessoas || [])
+      .filter((p) => Boolean(p?.id))
+      .map((p) => {
+          const empresa = p.clientes?.marca ? ` - ${p.clientes.marca}` : "";
+          const cargo = p.cargo ? ` (${p.cargo})` : "";
+          const nome = p.nome_contacto || p.email || "Contacto";
+          return { id: p.id, label: `${nome}${cargo}${empresa}`, source: "entity" };
+      });
+
+  const assigneeOptions = [...internalAssigneeOptions, ...entityAssigneeOptions];
+
+  const renderAssigneeOptionGroups = () => (
+      <>
+          {internalAssigneeOptions.length > 0 && (
+              <optgroup label="Equipa Interna">
+                  {internalAssigneeOptions.map((opt) => <option key={`int-${opt.id}`} value={opt.id}>{opt.label}</option>)}
+              </optgroup>
+          )}
+          {entityAssigneeOptions.length > 0 && (
+              <optgroup label="Pessoas das Entidades do Projeto">
+                  {entityAssigneeOptions.map((opt) => <option key={`ent-${opt.id}`} value={opt.id}>{opt.label}</option>)}
+              </optgroup>
+          )}
+      </>
+  );
+
   async function handleAddAtividade(e) {
       e.preventDefault();
       if(!novaAtividadeNome.trim()) return;
-      await supabase.from("atividades").insert([{ projeto_id: id, titulo: novaAtividadeNome, colaboradores_extra: [], estado: 'pendente', ordem: atividades.length }]);
-      setNovaAtividadeNome(""); fetchProjetoDetails();
+      await supabase.from("atividades").insert([{ projeto_id: id, titulo: novaAtividadeNome, responsavel_id: novaAtividadeResponsavel || null, colaboradores_extra: [], estado: 'pendente', ordem: atividades.length }]);
+      setNovaAtividadeNome("");
+      setNovaAtividadeResponsavel("");
+      fetchProjetoDetails();
   }
   async function handleAddTarefa(e, ativId) {
       e.preventDefault();
       if(!novaTarefaNome.nome.trim()) return;
       const tOrdem = atividades.find(a=>a.id===ativId)?.tarefas?.length || 0;
-      await supabase.from("tarefas").insert([{ atividade_id: ativId, titulo: novaTarefaNome.nome, responsavel_id: projeto.responsavel_id, colaboradores_extra: [], estado: 'pendente', ordem: tOrdem }]);
-      setNovaTarefaNome({ ativId: null, nome: "" }); fetchProjetoDetails();
+      await supabase.from("tarefas").insert([{ atividade_id: ativId, titulo: novaTarefaNome.nome, responsavel_id: novaTarefaNome.responsavel_id || projeto.responsavel_id || null, colaboradores_extra: [], estado: 'pendente', ordem: tOrdem }]);
+      setNovaTarefaNome({ ativId: null, nome: "", responsavel_id: "" });
+      fetchProjetoDetails();
   }
   async function handleAddSubtarefa(e, tarId) {
       e.preventDefault();
@@ -706,6 +815,80 @@ export default function ProjetoDetalhe() {
       setNovaSubtarefaNome({ tarId: tarId, nome: "" });
       setActiveSubtarefaComposer(tarId);
       fetchProjetoDetails();
+  }
+
+  async function handleReuseActivityBlock(atividadeId) {
+      try {
+          const sourceAtividade = (atividades || []).find((a) => String(a.id) === String(atividadeId));
+          if (!sourceAtividade) {
+              showToast("Bloco de atividade não encontrado.", "error");
+              return;
+          }
+
+          const { data: novaAtividade, error: atividadeError } = await supabase
+              .from("atividades")
+              .insert([{
+                  projeto_id: id,
+                  titulo: sourceAtividade.titulo,
+                  responsavel_id: sourceAtividade.responsavel_id || null,
+                  colaboradores_extra: Array.isArray(sourceAtividade.colaboradores_extra) ? sourceAtividade.colaboradores_extra : [],
+                  estado: "pendente",
+                  data_inicio: null,
+                  data_fim: null,
+                  investimento: sourceAtividade.investimento || 0,
+                  incentivo: sourceAtividade.incentivo || 0,
+                  descricao: sourceAtividade.descricao || null,
+                  observacoes: sourceAtividade.observacoes || null,
+                  ordem: (atividades || []).length
+              }])
+              .select("id")
+              .single();
+
+          if (atividadeError) throw atividadeError;
+
+          const tarefasOrigem = Array.isArray(sourceAtividade.tarefas) ? sourceAtividade.tarefas : [];
+
+          for (let idx = 0; idx < tarefasOrigem.length; idx += 1) {
+              const tarefaOrigem = tarefasOrigem[idx];
+              const { data: novaTarefa, error: tarefaError } = await supabase
+                  .from("tarefas")
+                  .insert([{
+                      atividade_id: novaAtividade.id,
+                      titulo: tarefaOrigem.titulo,
+                      estado: "pendente",
+                      responsavel_id: tarefaOrigem.responsavel_id || null,
+                      colaboradores_extra: Array.isArray(tarefaOrigem.colaboradores_extra) ? tarefaOrigem.colaboradores_extra : [],
+                      data_inicio: null,
+                      data_fim: null,
+                      prioridade: tarefaOrigem.prioridade || "Normal",
+                      descricao: tarefaOrigem.descricao || null,
+                      ordem: Number.isFinite(tarefaOrigem.ordem) ? tarefaOrigem.ordem : idx
+                  }])
+                  .select("id")
+                  .single();
+
+              if (tarefaError) throw tarefaError;
+
+              const subtarefasOrigem = Array.isArray(tarefaOrigem.subtarefas) ? tarefaOrigem.subtarefas : [];
+              if (subtarefasOrigem.length > 0) {
+                  const subtarefasPayload = subtarefasOrigem.map((sub, subIdx) => ({
+                      tarefa_id: novaTarefa.id,
+                      titulo: sub.titulo,
+                      estado: "pendente",
+                      data_fim: null,
+                      ordem: Number.isFinite(sub.ordem) ? sub.ordem : subIdx
+                  }));
+
+                  const { error: subtarefaError } = await supabase.from("subtarefas").insert(subtarefasPayload);
+                  if (subtarefaError) throw subtarefaError;
+              }
+          }
+
+          showToast("Bloco de atividade reaproveitado com sucesso!");
+          fetchProjetoDetails();
+      } catch (err) {
+          showToast("Erro ao reaproveitar bloco: " + err.message, "error");
+      }
   }
 
   async function deleteItemDirect(tabela, itemId) {
@@ -1101,6 +1284,15 @@ export default function ProjetoDetalhe() {
                                     </button>
                                 )}
 
+                                <button
+                                    onClick={() => handleReuseActivityBlock(ativ.id)}
+                                    style={{background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1d4ed8', cursor: 'pointer', padding: '5px 10px', borderRadius: '12px', fontSize: '0.72rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px'}}
+                                    className="hover-shadow"
+                                    title="Reaproveitar este bloco de atividade"
+                                >
+                                    <Icons.Layers size={12} /> Repetir Bloco
+                                </button>
+
                                 <button onClick={() => handleDeleteItem("atividades", ativ.id)} style={{background:'none', border:'none', color:'#ef4444', cursor:'pointer', opacity:0.4}} className="hover-red">
                                     <Icons.Trash size={16} />
                                 </button>
@@ -1118,10 +1310,10 @@ export default function ProjetoDetalhe() {
                                     
                                     const isTimerActive = activeLog?.task_id === tar.id;
                                     const taskTime = getTaskTime(tar.id);
-                                    const respName = staff.find(s => s.id === tar.responsavel_id)?.nome;
+                                    const respName = getPersonLabelById(tar.responsavel_id);
                                     const extraColabsIds = (Array.isArray(tar.colaboradores_extra) ? tar.colaboradores_extra : []).filter(cid => cid !== tar.responsavel_id);
                                     const extraColabsCount = extraColabsIds.length;
-                                    const extraColabsNames = extraColabsIds.map(cid => staff.find(s => s.id === cid)?.nome).filter(Boolean).join(', ');
+                                    const extraColabsNames = extraColabsIds.map(cid => getPersonLabelById(cid)).filter(Boolean).join(', ');
                                     const isComposerOpen = activeSubtarefaComposer === tar.id;
 
                                     return (
@@ -1209,8 +1401,18 @@ export default function ProjetoDetalhe() {
                                     );
                                 })}
 
-                                <form onSubmit={(e) => handleAddTarefa(e, ativ.id)} style={{marginTop: '10px'}}>
-                                    <input type="text" placeholder="+ Adicionar Tarefa Principal (Enter)..." value={novaTarefaNome.ativId === ativ.id ? novaTarefaNome.nome : ""} onChange={e => setNovaTarefaNome({ ativId: ativ.id, nome: e.target.value })} style={{width: '100%', padding: '12px 15px', borderRadius: '8px', border: '1px dashed #cbd5e1', background: 'white', outline: 'none', fontSize: '0.9rem', color: '#64748b'}} className="input-focus" />
+                                <form onSubmit={(e) => handleAddTarefa(e, ativ.id)} style={{marginTop: '10px', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 230px', gap: '8px'}}>
+                                    <input type="text" placeholder="+ Adicionar Tarefa Principal (Enter)..." value={novaTarefaNome.ativId === ativ.id ? novaTarefaNome.nome : ""} onChange={e => setNovaTarefaNome({ ativId: ativ.id, nome: e.target.value, responsavel_id: novaTarefaNome.ativId === ativ.id ? novaTarefaNome.responsavel_id : "" })} style={{width: '100%', padding: '12px 15px', borderRadius: '8px', border: '1px dashed #cbd5e1', background: 'white', outline: 'none', fontSize: '0.9rem', color: '#64748b'}} className="input-focus" />
+                                    <select
+                                        value={novaTarefaNome.ativId === ativ.id ? (novaTarefaNome.responsavel_id || "") : ""}
+                                        onChange={e => setNovaTarefaNome({ ativId: ativ.id, nome: novaTarefaNome.ativId === ativ.id ? novaTarefaNome.nome : "", responsavel_id: e.target.value })}
+                                        style={{...inputStyle, marginBottom: 0, cursor: 'pointer'}}
+                                        className="input-focus"
+                                        title="Responsável da nova tarefa"
+                                    >
+                                        <option value="">Responsável (opcional)</option>
+                                        {renderAssigneeOptionGroups()}
+                                    </select>
                                 </form>
                             </div>
                         )}
@@ -1218,8 +1420,18 @@ export default function ProjetoDetalhe() {
                 )})}
 
                 <form onSubmit={handleAddAtividade} style={{marginTop: '25px', background: 'transparent', padding: '0'}}>
-                    <div style={{display: 'flex', gap: '10px'}}>
+                    <div style={{display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 250px auto', gap: '10px'}}>
                         <input type="text" placeholder="+ Nome de uma nova Atividade (Agrupador)..." value={novaAtividadeNome} onChange={e => setNovaAtividadeNome(e.target.value)} style={{flex: 1, padding: '14px 15px', borderRadius: '8px', border: '1px dashed #cbd5e1', background: 'white', outline: 'none', fontSize: '0.95rem', color: '#1e293b'}} className="input-focus" />
+                        <select
+                            value={novaAtividadeResponsavel}
+                            onChange={e => setNovaAtividadeResponsavel(e.target.value)}
+                            style={{...inputStyle, marginBottom: 0, cursor: 'pointer'}}
+                            className="input-focus"
+                            title="Responsável da nova atividade"
+                        >
+                            <option value="">Responsável (opcional)</option>
+                            {renderAssigneeOptionGroups()}
+                        </select>
                         <button type="submit" className="btn-primary hover-shadow" style={{borderRadius: '8px', padding: '0 25px', fontSize: '0.95rem', background: '#64748b', display: 'flex', alignItems: 'center', gap: '8px'}}>
                             <Icons.Plus /> Criar Bloco
                         </button>
@@ -1318,7 +1530,7 @@ export default function ProjetoDetalhe() {
                             <label style={labelStyle}>Tipo de Entidade</label>
                             <select value={formGeral.is_parceria ? 'parceria' : 'unico'} onChange={e => {
                                 const isParc = e.target.value === 'parceria';
-                                setFormGeral({...formGeral, is_parceria: isParc, cliente_id: isParc ? null : formGeral.cliente_id, parceiros_ids: isParc ? (formGeral.parceiros_ids || []) : []});
+                                setFormGeral({...formGeral, is_parceria: isParc, parceiros_ids: isParc ? (formGeral.parceiros_ids || []) : []});
                             }} style={{...inputStyle, cursor: 'pointer'}} className="input-focus">
                                 <option value="unico">👤 Cliente Único</option>
                                 <option value="parceria">🤝 Parceria (Vários)</option>
@@ -1347,61 +1559,126 @@ export default function ProjetoDetalhe() {
                         </div>
                     </div>
 
-                    <div style={{marginBottom: '20px'}}>
-                        {formGeral.is_parceria ? (
+                    <div style={{display: 'grid', gridTemplateColumns: formGeral.is_parceria ? '1fr 1fr' : '1fr', gap: '15px', marginBottom: formGeral.is_parceria ? '10px' : '20px'}}>
+                        <div>
+                            <label style={labelStyle}>Cliente Principal *</label>
+                            <select value={formGeral.cliente_id || ''} onChange={e => {
+                                const selectedId = e.target.value;
+                                setFormGeral(prev => ({
+                                    ...prev,
+                                    cliente_id: selectedId,
+                                    cliente_texto: "",
+                                    parceiros_ids: (prev.parceiros_ids || []).filter(pid => String(pid) !== String(selectedId))
+                                }));
+                            }} style={{...inputStyle, cursor: 'pointer'}} className="input-focus" required>
+                                <option value="">- Selecione -</option>
+                                {clientes.map(c => <option key={c.id} value={c.id}>{c.marca}</option>)}
+                            </select>
+                        </div>
+
+                        {formGeral.is_parceria && (
                             <div>
-                                <label style={labelStyle}>Parceiros / Clientes (Seleciona vários)</label>
-                                <div className="pill-container">
-                                    {clientes.map(c => {
-                                        const isSelected = (formGeral.parceiros_ids || []).includes(c.id);
-                                        return (
-                                            <div 
-                                                key={c.id} 
-                                                onClick={() => isEditingGeral && handleToggleParceiro(c.id)}
-                                                className={`pill-checkbox ${isSelected ? 'selected' : ''}`}
-                                            >
-                                                {c.marca}
-                                            </div>
-                                        )
-                                    })}
-                                    {clientes.length === 0 && <span style={{color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic'}}>Sem clientes disponíveis.</span>}
-                                </div>
-                            </div>
-                        ) : (
-                            <div style={{display: 'flex', gap: '15px'}}>
-                                <div style={{flex: 1}}>
-                                    <label style={labelStyle}>Cliente Principal</label>
-                                    <select value={formGeral.cliente_id || ''} onChange={e => setFormGeral({...formGeral, cliente_id: e.target.value, cliente_texto: ""})} style={{...inputStyle, cursor: 'pointer'}} className="input-focus">
-                                        <option value="">- Selecione -</option>
-                                        {clientes.map(c => <option key={c.id} value={c.id}>{c.marca}</option>)}
-                                    </select>
-                                </div>
-                                <div style={{flex: 1}}>
-                                    <label style={labelStyle}>Ou Texto Livre (Ex: Formação Cenfim)</label>
-                                    <input type="text" value={formGeral.cliente_texto || ''} onChange={e => setFormGeral({...formGeral, cliente_texto: e.target.value, cliente_id: null})} style={inputStyle} className="input-focus" />
-                                </div>
+                                <label style={labelStyle}>Entidades Parceiras</label>
+                                <select
+                                        value={parceiroSelecionado}
+                                    onChange={e => {
+                                            const selected = e.target.value;
+                                            setParceiroSelecionado(selected);
+                                            if (!selected) return;
+                                        setFormGeral(prev => ({
+                                            ...prev,
+                                                parceiros_ids: String(selected) === String(prev.cliente_id)
+                                                    ? (prev.parceiros_ids || [])
+                                                    : (prev.parceiros_ids || []).includes(selected)
+                                                        ? (prev.parceiros_ids || [])
+                                                        : [...(prev.parceiros_ids || []), selected]
+                                        }));
+                                            setParceiroSelecionado("");
+                                    }}
+                                        style={{...inputStyle, cursor: 'pointer'}}
+                                    className="input-focus"
+                                >
+                                        <option value="">-- Adicionar entidade parceira --</option>
+                                    {clientes
+                                        .filter(c => String(c.id) !== String(formGeral.cliente_id || ''))
+                                            .filter(c => !(formGeral.parceiros_ids || []).includes(c.id))
+                                        .map(c => <option key={c.id} value={c.id}>{c.marca}</option>)}
+                                </select>
                             </div>
                         )}
                     </div>
 
+                    {formGeral.is_parceria && (
+                        <div style={{marginBottom: '20px'}}>
+                            <label style={labelStyle}>Entidades Selecionadas</label>
+                            <div className="pill-container" style={{width: '100%', boxSizing: 'border-box'}}>
+                                {(formGeral.parceiros_ids || []).length === 0 && <span style={{color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic'}}>Sem parceiros selecionados.</span>}
+                                {(formGeral.parceiros_ids || []).map(pid => {
+                                    const parceiro = clientes.find(c => String(c.id) === String(pid));
+                                    if (!parceiro) return null;
+                                    return (
+                                        <div
+                                            key={pid}
+                                            onClick={() => isEditingGeral && handleToggleParceiro(pid)}
+                                            className="pill-checkbox selected"
+                                            title="Remover parceiro"
+                                        >
+                                            {parceiro.marca} ✕
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
                     <div style={{marginBottom: '30px'}}>
                         <label style={labelStyle}>Outros Colaboradores Envolvidos</label>
-                        <div className="pill-container">
-                            {staff.filter(s => s.id !== formGeral.responsavel_id).map(s => {
-                                const isSelected = (formGeral.colaboradores || []).includes(s.id);
-                                return (
-                                    <div 
-                                        key={s.id} 
-                                        onClick={() => isEditingGeral && handleToggleColaborador(s.id)}
-                                        className={`pill-checkbox ${isSelected ? 'selected' : ''}`}
-                                    >
-                                        {s.nome || s.email}
-                                    </div>
-                                )
-                            })}
-                            {staff.filter(s => s.id !== formGeral.responsavel_id).length === 0 && (
-                                <span style={{color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic'}}>Sem colaboradores adicionais disponíveis.</span>
-                            )}
+                        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px'}}>
+                            <div>
+                                <div style={{fontSize: '0.74rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px'}}>Equipa Interna</div>
+                                <div className="pill-container" style={{minHeight: '60px'}}>
+                                    {internalAssigneeOptions
+                                        .filter(s => String(s.id) !== String(formGeral.responsavel_id || ''))
+                                        .map(s => {
+                                            const isSelected = (formGeral.colaboradores || []).map(id => String(id)).includes(String(s.id));
+                                            return (
+                                                <div 
+                                                    key={`colab-int-${s.id}`}
+                                                    onClick={() => isEditingGeral && handleToggleColaborador(s.id)}
+                                                    className={`pill-checkbox ${isSelected ? 'selected' : ''}`}
+                                                >
+                                                    {s.label}
+                                                </div>
+                                            )
+                                        })}
+                                    {internalAssigneeOptions.filter(s => String(s.id) !== String(formGeral.responsavel_id || '')).length === 0 && (
+                                        <span style={{color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic'}}>Sem pessoas internas disponíveis.</span>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div>
+                                <div style={{fontSize: '0.74rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px'}}>Pessoas das Entidades</div>
+                                <div className="pill-container" style={{minHeight: '60px'}}>
+                                    {entityAssigneeOptions
+                                        .filter(s => String(s.id) !== String(formGeral.responsavel_id || ''))
+                                        .map(s => {
+                                            const isSelected = (formGeral.colaboradores || []).map(id => String(id)).includes(String(s.id));
+                                            return (
+                                                <div 
+                                                    key={`colab-ent-${s.id}`}
+                                                    onClick={() => isEditingGeral && handleToggleColaborador(s.id)}
+                                                    className={`pill-checkbox ${isSelected ? 'selected' : ''}`}
+                                                >
+                                                    {s.label}
+                                                </div>
+                                            )
+                                        })}
+                                    {entityAssigneeOptions.filter(s => String(s.id) !== String(formGeral.responsavel_id || '')).length === 0 && (
+                                        <span style={{color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic'}}>Sem contactos das entidades deste projeto.</span>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -1701,27 +1978,51 @@ export default function ProjetoDetalhe() {
                                       setAtividadeModal({show: true, data: {...atividadeModal.data, responsavel_id: newResp, colaboradores_extra: extras.filter(id => id !== newResp)}})
                                   }} style={{...inputStyle, marginBottom: 0}} className="input-focus">
                                       <option value="">- Ninguém -</option>
-                                      {staff.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
+                                      {renderAssigneeOptionGroups()}
                                   </select>
                               </div>
                           </div>
 
                           <div style={{marginBottom: '15px'}}>
                               <label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '6px', display:'block', fontWeight:'bold'}}>Outros Colaboradores Envolvidos</label>
-                              <div className="pill-container custom-scrollbar" style={{padding: '8px', maxHeight: '88px', overflowY: 'auto'}}>
-                                  {staff.filter(s => s.id !== atividadeModal.data.responsavel_id).map(s => {
-                                      const isSelected = Array.isArray(atividadeModal.data.colaboradores_extra) && atividadeModal.data.colaboradores_extra.includes(s.id);
-                                      return (
-                                          <div
-                                              key={s.id}
-                                              onClick={() => handleToggleAtividadeColaborador(s.id)}
-                                              className={`pill-checkbox ${isSelected ? 'selected' : ''}`}
-                                              style={{fontSize: '0.72rem', padding: '5px 10px'}}
-                                          >
-                                              {s.nome || s.email}
-                                          </div>
-                                      )
-                                  })}
+                              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px'}}>
+                                  <div>
+                                      <div style={{fontSize: '0.7rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px'}}>Equipa Interna</div>
+                                      <div className="pill-container custom-scrollbar" style={{padding: '8px', maxHeight: '88px', overflowY: 'auto'}}>
+                                          {internalAssigneeOptions.filter(s => String(s.id) !== String(atividadeModal.data.responsavel_id || '')).map(s => {
+                                              const isSelected = Array.isArray(atividadeModal.data.colaboradores_extra) && atividadeModal.data.colaboradores_extra.map(id => String(id)).includes(String(s.id));
+                                              return (
+                                                  <div
+                                                      key={`ativ-int-${s.id}`}
+                                                      onClick={() => handleToggleAtividadeColaborador(s.id)}
+                                                      className={`pill-checkbox ${isSelected ? 'selected' : ''}`}
+                                                      style={{fontSize: '0.72rem', padding: '5px 10px'}}
+                                                  >
+                                                      {s.label}
+                                                  </div>
+                                              )
+                                          })}
+                                      </div>
+                                  </div>
+
+                                  <div>
+                                      <div style={{fontSize: '0.7rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px'}}>Pessoas das Entidades</div>
+                                      <div className="pill-container custom-scrollbar" style={{padding: '8px', maxHeight: '88px', overflowY: 'auto'}}>
+                                          {entityAssigneeOptions.filter(s => String(s.id) !== String(atividadeModal.data.responsavel_id || '')).map(s => {
+                                              const isSelected = Array.isArray(atividadeModal.data.colaboradores_extra) && atividadeModal.data.colaboradores_extra.map(id => String(id)).includes(String(s.id));
+                                              return (
+                                                  <div
+                                                      key={`ativ-ent-${s.id}`}
+                                                      onClick={() => handleToggleAtividadeColaborador(s.id)}
+                                                      className={`pill-checkbox ${isSelected ? 'selected' : ''}`}
+                                                      style={{fontSize: '0.72rem', padding: '5px 10px'}}
+                                                  >
+                                                      {s.label}
+                                                  </div>
+                                              )
+                                          })}
+                                      </div>
+                                  </div>
                               </div>
                           </div>
 
@@ -1780,27 +2081,51 @@ export default function ProjetoDetalhe() {
                                       setTarefaModal({...tarefaModal, data: {...tarefaModal.data, responsavel_id: newResp, colaboradores_extra: extras.filter(id => id !== newResp)}})
                                   }} style={{...inputStyle, marginBottom: 0}} className="input-focus">
                                       <option value="">- Ninguém -</option>
-                                      {staff.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
+                                      {renderAssigneeOptionGroups()}
                                   </select>
                               </div>
                           </div>
 
                           <div style={{marginBottom: '15px'}}>
                               <label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '6px', display:'block', fontWeight:'bold'}}>Outros Colaboradores Envolvidos</label>
-                              <div className="pill-container custom-scrollbar" style={{padding: '8px', maxHeight: '88px', overflowY: 'auto'}}>
-                                  {staff.filter(s => s.id !== tarefaModal.data.responsavel_id).map(s => {
-                                      const isSelected = Array.isArray(tarefaModal.data.colaboradores_extra) && tarefaModal.data.colaboradores_extra.includes(s.id);
-                                      return (
-                                          <div
-                                              key={s.id}
-                                              onClick={() => handleToggleTarefaColaborador(s.id)}
-                                              className={`pill-checkbox ${isSelected ? 'selected' : ''}`}
-                                              style={{fontSize: '0.72rem', padding: '5px 10px'}}
-                                          >
-                                              {s.nome || s.email}
-                                          </div>
-                                      )
-                                  })}
+                              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px'}}>
+                                  <div>
+                                      <div style={{fontSize: '0.7rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px'}}>Equipa Interna</div>
+                                      <div className="pill-container custom-scrollbar" style={{padding: '8px', maxHeight: '88px', overflowY: 'auto'}}>
+                                          {internalAssigneeOptions.filter(s => String(s.id) !== String(tarefaModal.data.responsavel_id || '')).map(s => {
+                                              const isSelected = Array.isArray(tarefaModal.data.colaboradores_extra) && tarefaModal.data.colaboradores_extra.map(id => String(id)).includes(String(s.id));
+                                              return (
+                                                  <div
+                                                      key={`tar-int-${s.id}`}
+                                                      onClick={() => handleToggleTarefaColaborador(s.id)}
+                                                      className={`pill-checkbox ${isSelected ? 'selected' : ''}`}
+                                                      style={{fontSize: '0.72rem', padding: '5px 10px'}}
+                                                  >
+                                                      {s.label}
+                                                  </div>
+                                              )
+                                          })}
+                                      </div>
+                                  </div>
+
+                                  <div>
+                                      <div style={{fontSize: '0.7rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px'}}>Pessoas das Entidades</div>
+                                      <div className="pill-container custom-scrollbar" style={{padding: '8px', maxHeight: '88px', overflowY: 'auto'}}>
+                                          {entityAssigneeOptions.filter(s => String(s.id) !== String(tarefaModal.data.responsavel_id || '')).map(s => {
+                                              const isSelected = Array.isArray(tarefaModal.data.colaboradores_extra) && tarefaModal.data.colaboradores_extra.map(id => String(id)).includes(String(s.id));
+                                              return (
+                                                  <div
+                                                      key={`tar-ent-${s.id}`}
+                                                      onClick={() => handleToggleTarefaColaborador(s.id)}
+                                                      className={`pill-checkbox ${isSelected ? 'selected' : ''}`}
+                                                      style={{fontSize: '0.72rem', padding: '5px 10px'}}
+                                                  >
+                                                      {s.label}
+                                                  </div>
+                                              )
+                                          })}
+                                      </div>
+                                  </div>
                               </div>
                           </div>
 
