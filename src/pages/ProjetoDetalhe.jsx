@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
 import TimerSwitchModal from "../components/TimerSwitchModal";
+import StopTimerNoteModal from "../components/StopTimerNoteModal";
 import "./../styles/dashboard.css";
 
 // 💡 IMPORTAÇÃO CORRIGIDA (SEM CHAVETAS):
@@ -62,15 +63,30 @@ export default function ProjetoDetalhe() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("atividades");
   const [notification, setNotification] = useState(null);
+    const [projectActionLoading, setProjectActionLoading] = useState(false);
+    const [confirmModal, setConfirmModal] = useState({
+            show: false,
+            action: null,
+            title: "",
+            message: "",
+            confirmLabel: "Confirmar",
+            confirmTone: "warning",
+            requiresText: false,
+            expectedText: "",
+            inputValue: "",
+            payload: null
+    });
   
   const [activeLog, setActiveLog] = useState(null);
     const [timerSwitchModal, setTimerSwitchModal] = useState({ show: false, message: "", pendingTarget: null, pendingType: null });
+        const [stopNoteModal, setStopNoteModal] = useState({ show: false });
 
   // Estados UI - Visão Geral
   const [isEditingGeral, setIsEditingGeral] = useState(false);
   const [formGeral, setFormGeral] = useState({});
   const [clientes, setClientes] = useState([]);
   const [staff, setStaff] = useState([]);
+  const [tiposProjeto, setTiposProjeto] = useState([]);
 
   // Estados de Expansão
   const [expandedTasks, setExpandedTasks] = useState({});
@@ -103,6 +119,37 @@ export default function ProjetoDetalhe() {
       setTimeout(() => setNotification(null), 3000);
   };
 
+  function openConfirmModal(config) {
+      setConfirmModal({
+          show: true,
+          action: config.action || null,
+          title: config.title || "Confirmar ação",
+          message: config.message || "",
+          confirmLabel: config.confirmLabel || "Confirmar",
+          confirmTone: config.confirmTone || "warning",
+          requiresText: Boolean(config.requiresText),
+          expectedText: config.expectedText || "",
+          inputValue: "",
+          payload: config.payload || null
+      });
+  }
+
+  function closeConfirmModal() {
+      if (projectActionLoading) return;
+      setConfirmModal({
+          show: false,
+          action: null,
+          title: "",
+          message: "",
+          confirmLabel: "Confirmar",
+          confirmTone: "warning",
+          requiresText: false,
+          expectedText: "",
+          inputValue: "",
+          payload: null
+      });
+  }
+
   async function checkActiveLog() {
       if(!user?.id) return;
       const { data } = await supabase.from("task_logs").select("*").eq("user_id", user.id).is("end_time", null).maybeSingle();
@@ -120,6 +167,9 @@ export default function ProjetoDetalhe() {
     
     const { data: staffData } = await supabase.from("profiles").select("id, nome").order("nome");
     setStaff(staffData || []);
+
+    const { data: tiposData } = await supabase.from("tipos_projeto").select("id, nome").order("nome");
+    setTiposProjeto(tiposData || []);
 
     const { data: ativData, error: ativError } = await supabase
         .from("atividades")
@@ -160,7 +210,7 @@ export default function ProjetoDetalhe() {
         setAtividades(sortedData);
     }
 
-    const { data: logsData } = await supabase.from("task_logs").select("*").eq("projeto_id", id);
+    const { data: logsData } = await supabase.from("task_logs").select("*, profiles(nome)").eq("projeto_id", id);
     if (logsData) setLogs(logsData);
     
     setLoading(false);
@@ -255,6 +305,17 @@ export default function ProjetoDetalhe() {
   };
   const getProjectTotalTime = () => atividades.reduce((acc, a) => acc + getActivityTime(a), 0);
 
+  const getTaskTimePerUser = (taskId) => {
+      const taskLogs = logs.filter(l => l.task_id === taskId && (l.duration_minutes || 0) > 0);
+      const byUser = {};
+      taskLogs.forEach(l => {
+          const key = l.user_id;
+          if (!byUser[key]) byUser[key] = { nome: l.profiles?.nome || 'Utilizador', total: 0 };
+          byUser[key].total += (l.duration_minutes || 0);
+      });
+      return Object.values(byUser).sort((a, b) => b.total - a.total);
+  };
+
   const formatTime = (totalMinutes) => {
       if (totalMinutes === 0) return "0 min";
       const h = Math.floor(totalMinutes / 60);
@@ -348,13 +409,26 @@ export default function ProjetoDetalhe() {
       return { tipo: 'item', titulo: 'item', projeto: projeto?.titulo || 'Sem projeto' };
   };
 
-  async function stopLogById(logToStop) {
+  async function stopLogById(logToStop, stopNote = "") {
       if (!logToStop) return null;
       const diffMins = Math.max(1, Math.floor((new Date() - new Date(logToStop.start_time)) / 60000));
-      const { error } = await supabase
+      const stopTimestamp = new Date().toISOString();
+      const note = typeof stopNote === "string" ? stopNote.trim() : "";
+      const payload = { end_time: stopTimestamp, duration_minutes: diffMins };
+      if (note) payload.observacoes = note;
+
+      let { error } = await supabase
           .from("task_logs")
-          .update({ end_time: new Date().toISOString(), duration_minutes: diffMins })
+          .update(payload)
           .eq("id", logToStop.id);
+
+      if (error && note) {
+          const retry = await supabase
+              .from("task_logs")
+              .update({ end_time: stopTimestamp, duration_minutes: diffMins })
+              .eq("id", logToStop.id);
+          error = retry.error;
+      }
 
       if (error) {
           showToast("Erro ao terminar o cronómetro atual.", "error");
@@ -389,16 +463,65 @@ export default function ProjetoDetalhe() {
       showToast("Mantivemos o cronómetro atual em execução.", "info");
   }
 
+  function getStopCompleteLabel(logEntry) {
+      if (logEntry?.task_id) return "Marcar tarefa como concluida";
+      if (logEntry?.atividade_id) return "Marcar atividade como concluida";
+      if (logEntry?.projeto_id) return "Marcar projeto como concluido";
+      return "Marcar item como concluido";
+  }
+
+  async function completeLogItem(logEntry) {
+      if (!logEntry) return;
+
+      if (logEntry.task_id) {
+          await supabase
+              .from("tarefas")
+              .update({ estado: "concluido", data_conclusao: new Date().toISOString() })
+              .eq("id", logEntry.task_id);
+          return;
+      }
+
+      if (logEntry.atividade_id) {
+          await supabase.from("atividades").update({ estado: "concluido" }).eq("id", logEntry.atividade_id);
+          return;
+      }
+
+      if (logEntry.projeto_id) {
+          await supabase.from("projetos").update({ estado: "concluido" }).eq("id", logEntry.projeto_id);
+      }
+  }
+
+  function openStopNoteModal() {
+      if (!activeLog) return;
+      setStopNoteModal({ show: true });
+  }
+
+  function closeStopNoteModal() {
+      setStopNoteModal({ show: false });
+  }
+
+  async function confirmStopWithNote(note, shouldComplete) {
+      setStopNoteModal({ show: false });
+      if (!activeLog) return;
+
+      const logToStop = activeLog;
+
+      const diffMins = await stopLogById(logToStop, note);
+      if (diffMins === null) return;
+
+      if (shouldComplete) await completeLogItem(logToStop);
+
+      setActiveLog(null);
+      showToast(shouldComplete ? `Tempo guardado: ${diffMins} min. Item concluido.` : `Tempo guardado: ${diffMins} min.`);
+      fetchProjetoDetails();
+  }
+
   async function handleToggleTimer(targetId, type) {
       if (activeLog) {
           const isSameTarget = (type === 'task' && activeLog.task_id === targetId) || (type === 'activity' && activeLog.atividade_id === targetId);
           
           if (isSameTarget) {
-              const diffMins = await stopLogById(activeLog);
-              if (diffMins === null) return;
-              setActiveLog(null);
-              showToast(`Tempo guardado: ${diffMins} min.`);
-              fetchProjetoDetails(); 
+              openStopNoteModal();
               return;
           } else {
               const atual = getLogContext(activeLog);
@@ -552,7 +675,8 @@ export default function ProjetoDetalhe() {
               estado: formGeral.estado, data_inicio: formGeral.data_inicio, data_fim: formGeral.data_fim,
               programa: formGeral.programa, aviso: formGeral.aviso, codigo_projeto: formGeral.codigo_projeto,
               descricao: formGeral.descricao, observacoes: formGeral.observacoes,
-              investimento: formGeral.investimento, incentivo: formGeral.incentivo
+              investimento: formGeral.investimento, incentivo: formGeral.incentivo,
+              tipo_projeto_id: formGeral.tipo_projeto_id || null
           };
           const { error } = await supabase.from("projetos").update(payload).eq("id", id);
           if (error) throw error;
@@ -584,10 +708,138 @@ export default function ProjetoDetalhe() {
       fetchProjetoDetails();
   }
 
-  async function handleDeleteItem(tabela, itemId) {
-      if(!window.confirm("Tens a certeza que desejas apagar isto permanentemente?")) return;
+  async function deleteItemDirect(tabela, itemId) {
       await supabase.from(tabela).delete().eq("id", itemId);
       fetchProjetoDetails();
+  }
+
+  function handleDeleteItem(tabela, itemId) {
+      openConfirmModal({
+          action: "delete-item",
+          title: "Apagar item",
+          message: "Este item será removido permanentemente. Esta ação não pode ser desfeita.",
+          confirmLabel: "Apagar",
+          confirmTone: "danger",
+          payload: { tabela, itemId }
+      });
+  }
+
+  async function archiveProjectDirect() {
+      if (!projeto?.id) return;
+
+      setProjectActionLoading(true);
+      try {
+          const { error } = await supabase
+              .from("projetos")
+              .update({ estado: "cancelado" })
+              .eq("id", projeto.id);
+
+          if (error) throw error;
+
+          closeConfirmModal();
+          showToast("Projeto arquivado com sucesso.");
+          navigate("/dashboard/projetos");
+      } catch (error) {
+          showToast("Erro ao arquivar projeto: " + error.message, "error");
+      } finally {
+          setProjectActionLoading(false);
+      }
+  }
+
+  function handleArchiveProject() {
+      if (!projeto?.id) return;
+      openConfirmModal({
+          action: "archive-project",
+          title: "Arquivar projeto",
+          message: "O projeto deixará de aparecer nas listas normais, mas continuará guardado no sistema e no histórico.",
+          confirmLabel: "Arquivar",
+          confirmTone: "warning"
+      });
+  }
+
+  async function hardDeleteProjectDirect() {
+      if (!projeto?.id) return;
+
+      setProjectActionLoading(true);
+      try {
+          const atividadeIds = (atividades || []).map((atividade) => atividade.id).filter(Boolean);
+          const tarefasProjeto = (atividades || []).flatMap((atividade) => atividade.tarefas || []);
+          const tarefaIds = tarefasProjeto.map((tarefa) => tarefa.id).filter(Boolean);
+          const subtarefaIds = tarefasProjeto.flatMap((tarefa) => tarefa.subtarefas || []).map((subtarefa) => subtarefa.id).filter(Boolean);
+
+          const deleteOperations = [
+              supabase.from("task_logs").delete().eq("projeto_id", projeto.id)
+          ];
+
+          if (atividadeIds.length > 0) deleteOperations.push(supabase.from("task_logs").delete().in("atividade_id", atividadeIds));
+          if (tarefaIds.length > 0) deleteOperations.push(supabase.from("task_logs").delete().in("task_id", tarefaIds));
+
+          const deleteLogResults = await Promise.all(deleteOperations);
+          const deleteLogError = deleteLogResults.find((result) => result.error)?.error;
+          if (deleteLogError) throw deleteLogError;
+
+          if (subtarefaIds.length > 0) {
+              const { error } = await supabase.from("subtarefas").delete().in("id", subtarefaIds);
+              if (error) throw error;
+          }
+
+          if (tarefaIds.length > 0) {
+              const { error } = await supabase.from("tarefas").delete().in("id", tarefaIds);
+              if (error) throw error;
+          }
+
+          if (atividadeIds.length > 0) {
+              const { error } = await supabase.from("atividades").delete().in("id", atividadeIds);
+              if (error) throw error;
+          }
+
+          const { error: deleteProjectError } = await supabase.from("projetos").delete().eq("id", projeto.id);
+          if (deleteProjectError) throw deleteProjectError;
+
+          closeConfirmModal();
+          showToast("Projeto apagado permanentemente.");
+          navigate("/dashboard/projetos");
+      } catch (error) {
+          showToast("Erro ao apagar projeto: " + error.message, "error");
+      } finally {
+          setProjectActionLoading(false);
+      }
+  }
+
+  function handleHardDeleteProject() {
+      if (!projeto?.id) return;
+      openConfirmModal({
+          action: "hard-delete-project",
+          title: "Apagar projeto permanentemente",
+          message: "Isto vai apagar o projeto, atividades, tarefas, subtarefas e registos de tempo associados. Esta ação é irreversível.",
+          confirmLabel: "Apagar permanentemente",
+          confirmTone: "danger",
+          requiresText: true,
+          expectedText: "APAGAR"
+      });
+  }
+
+  async function handleConfirmModalAction() {
+      if (confirmModal.requiresText && confirmModal.inputValue !== confirmModal.expectedText) {
+          showToast("Texto de confirmação inválido.", "info");
+          return;
+      }
+
+      if (confirmModal.action === "archive-project") {
+          await archiveProjectDirect();
+          return;
+      }
+
+      if (confirmModal.action === "hard-delete-project") {
+          await hardDeleteProjectDirect();
+          return;
+      }
+
+      if (confirmModal.action === "delete-item") {
+          const payload = confirmModal.payload || {};
+          await deleteItemDirect(payload.tabela, payload.itemId);
+          closeConfirmModal();
+      }
   }
 
   const toggleExpand = (taskId) => {
@@ -1011,13 +1263,23 @@ export default function ProjetoDetalhe() {
                                 </tr>
                                 {ativ.tarefas?.map(tar => {
                                     const time = getTaskTime(tar.id);
-                                    if (time === 0) return null; 
+                                    if (time === 0) return null;
+                                    const userBreakdown = getTaskTimePerUser(tar.id);
                                     return (
-                                        <tr key={tar.id} style={{borderBottom: '1px solid #f1f5f9'}}>
-                                            <td style={{padding: '10px 12px 10px 40px', color: '#475569', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.CornerDownRight size={14} /> {tar.titulo}</td>
-                                            <td style={{padding: '10px 12px', color: '#64748b', fontSize: '0.85rem'}}>{getStaffNames(tar.responsavel_id, tar.colaboradores_extra)}</td>
-                                            <td style={{padding: '10px 12px', textAlign: 'right', color: '#475569', fontSize: '0.9rem'}}>{formatTime(time)}</td>
-                                        </tr>
+                                        <React.Fragment key={tar.id}>
+                                            <tr style={{borderBottom: userBreakdown.length > 0 ? 'none' : '1px solid #f1f5f9'}}>
+                                                <td style={{padding: '10px 12px 10px 40px', color: '#475569', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.CornerDownRight size={14} /> {tar.titulo}</td>
+                                                <td style={{padding: '10px 12px', color: '#64748b', fontSize: '0.85rem'}}>{getStaffNames(tar.responsavel_id, tar.colaboradores_extra)}</td>
+                                                <td style={{padding: '10px 12px', textAlign: 'right', color: '#475569', fontSize: '0.9rem', fontWeight: userBreakdown.length > 1 ? '600' : 'normal'}}>{formatTime(time)}</td>
+                                            </tr>
+                                            {userBreakdown.map((u, i) => (
+                                                <tr key={`${tar.id}-u-${i}`} style={{background: '#fafbfc', borderBottom: i === userBreakdown.length - 1 ? '1px solid #f1f5f9' : '1px solid #f8fafc'}}>
+                                                    <td style={{padding: '5px 12px 5px 64px', color: '#94a3b8', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.User size={11} color="#cbd5e1" /> {u.nome}</td>
+                                                    <td style={{padding: '5px 12px'}}></td>
+                                                    <td style={{padding: '5px 12px', textAlign: 'right', color: '#64748b', fontSize: '0.78rem'}}>{formatTime(u.total)}</td>
+                                                </tr>
+                                            ))}
+                                        </React.Fragment>
                                     )
                                 })}
                             </React.Fragment>
@@ -1074,6 +1336,13 @@ export default function ProjetoDetalhe() {
                             }} style={{...inputStyle, cursor: 'pointer'}} className="input-focus">
                                 <option value="">- Ninguém -</option>
                                 {staff.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label style={labelStyle}>Tipo de Projeto</label>
+                            <select value={formGeral.tipo_projeto_id || ''} onChange={e => setFormGeral({...formGeral, tipo_projeto_id: e.target.value || null})} style={{...inputStyle, cursor: 'pointer'}} className="input-focus">
+                                <option value="">— Sem tipo —</option>
+                                {tiposProjeto.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
                             </select>
                         </div>
                     </div>
@@ -1173,11 +1442,213 @@ export default function ProjetoDetalhe() {
                             <textarea rows="3" value={formGeral.observacoes || ''} onChange={e => setFormGeral({...formGeral, observacoes: e.target.value})} style={{...inputStyle, resize: 'vertical', background: '#fffbeb', borderColor: '#fcd34d', fontSize:'0.85rem'}} className="input-focus-alert" />
                         </div>
                     </div>
+
+                    <div style={{marginTop: '28px', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: '14px', padding: '18px 20px'}}>
+                        <div style={{display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px', color: '#9a3412', fontWeight: '800'}}>
+                            <Icons.AlertTriangle size={16} /> Zona de Arquivo / Apagamento
+                        </div>
+                        <p style={{margin: '0 0 16px 0', color: '#9a3412', fontSize: '0.85rem', lineHeight: 1.5}}>
+                            Arquivar remove o projeto das listas normais sem perder histórico. Apagar elimina permanentemente o projeto e os registos associados.
+                        </p>
+                        <div style={{display: 'flex', gap: '12px', flexWrap: 'wrap'}}>
+                            <button
+                                type="button"
+                                onClick={handleArchiveProject}
+                                disabled={projectActionLoading}
+                                style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    border: '1px solid #fdba74',
+                                    background: '#fff',
+                                    color: '#c2410c',
+                                    borderRadius: '10px',
+                                    padding: '10px 14px',
+                                    cursor: projectActionLoading ? 'not-allowed' : 'pointer',
+                                    fontWeight: '700',
+                                    opacity: projectActionLoading ? 0.6 : 1
+                                }}
+                                className="hover-shadow"
+                            >
+                                <Icons.Folder size={15} /> Arquivar Projeto
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleHardDeleteProject}
+                                disabled={projectActionLoading}
+                                style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    border: '1px solid #ef4444',
+                                    background: '#ef4444',
+                                    color: '#fff',
+                                    borderRadius: '10px',
+                                    padding: '10px 14px',
+                                    cursor: projectActionLoading ? 'not-allowed' : 'pointer',
+                                    fontWeight: '700',
+                                    opacity: projectActionLoading ? 0.6 : 1
+                                }}
+                                className="hover-shadow"
+                            >
+                                <Icons.Trash size={15} color="#ffffff" /> Apagar Permanentemente
+                            </button>
+                        </div>
+                    </div>
                 </fieldset>
             </div>
         )}
 
       </div>
+
+      {confirmModal.show && (
+          <ModalPortal>
+              <div
+                  style={{
+                      position: 'fixed',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      background: 'rgba(15, 23, 42, 0.62)',
+                      backdropFilter: 'blur(6px)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      zIndex: 99999,
+                      padding: '20px'
+                  }}
+                  onClick={(e) => {
+                      if (e.target === e.currentTarget) closeConfirmModal();
+                  }}
+              >
+                  <div
+                      style={{
+                          width: '100%',
+                          maxWidth: '520px',
+                          background: '#ffffff',
+                          borderRadius: '22px',
+                          border: `1px solid ${confirmModal.confirmTone === 'danger' ? '#fecaca' : '#fed7aa'}`,
+                          boxShadow: '0 30px 60px -20px rgba(15, 23, 42, 0.35)',
+                          overflow: 'hidden'
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                  >
+                      <div
+                          style={{
+                              padding: '24px 26px 18px',
+                              background: confirmModal.confirmTone === 'danger'
+                                  ? 'linear-gradient(180deg, #fff1f2 0%, #ffffff 100%)'
+                                  : 'linear-gradient(180deg, #fff7ed 0%, #ffffff 100%)'
+                          }}
+                      >
+                          <div style={{display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px'}}>
+                              <div style={{display: 'flex', alignItems: 'flex-start', gap: '14px'}}>
+                                  <div
+                                      style={{
+                                          width: '46px',
+                                          height: '46px',
+                                          borderRadius: '14px',
+                                          background: confirmModal.confirmTone === 'danger' ? '#fee2e2' : '#ffedd5',
+                                          color: confirmModal.confirmTone === 'danger' ? '#dc2626' : '#c2410c',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          flexShrink: 0
+                                      }}
+                                  >
+                                      {confirmModal.confirmTone === 'danger' ? <Icons.Trash size={18} color="currentColor" /> : <Icons.Folder size={18} color="currentColor" />}
+                                  </div>
+                                  <div>
+                                      <h3 style={{margin: '2px 0 8px 0', color: '#0f172a', fontSize: '1.15rem', fontWeight: '800'}}>{confirmModal.title}</h3>
+                                      <p style={{margin: 0, color: '#64748b', fontSize: '0.92rem', lineHeight: 1.55}}>{confirmModal.message}</p>
+                                  </div>
+                              </div>
+                              <button
+                                  type="button"
+                                  onClick={closeConfirmModal}
+                                  disabled={projectActionLoading}
+                                  style={{background: 'transparent', border: 'none', color: '#94a3b8', cursor: projectActionLoading ? 'not-allowed' : 'pointer', padding: 0, display: 'flex'}}
+                              >
+                                  <Icons.Close size={20} />
+                              </button>
+                          </div>
+                      </div>
+
+                      <div style={{padding: '0 26px 24px'}}>
+                          {confirmModal.requiresText && (
+                              <div style={{marginBottom: '18px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '14px 16px'}}>
+                                  <div style={{fontSize: '0.74rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px'}}>
+                                      Confirmação obrigatória
+                                  </div>
+                                  <p style={{margin: '0 0 10px 0', color: '#475569', fontSize: '0.88rem'}}>
+                                      Escreve <strong>{confirmModal.expectedText}</strong> para desbloquear esta ação.
+                                  </p>
+                                  <input
+                                      type="text"
+                                      value={confirmModal.inputValue}
+                                      onChange={(e) => setConfirmModal((prev) => ({ ...prev, inputValue: e.target.value }))}
+                                      placeholder={confirmModal.expectedText}
+                                      style={{
+                                          width: '100%',
+                                          padding: '11px 12px',
+                                          borderRadius: '10px',
+                                          border: '1px solid #cbd5e1',
+                                          background: '#ffffff',
+                                          fontSize: '0.92rem',
+                                          color: '#0f172a',
+                                          outline: 'none',
+                                          boxSizing: 'border-box'
+                                      }}
+                                  />
+                              </div>
+                          )}
+
+                          <div style={{display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap'}}>
+                              <button
+                                  type="button"
+                                  onClick={closeConfirmModal}
+                                  disabled={projectActionLoading}
+                                  style={{
+                                      border: '1px solid #cbd5e1',
+                                      background: '#ffffff',
+                                      color: '#475569',
+                                      borderRadius: '12px',
+                                      padding: '11px 16px',
+                                      fontWeight: '700',
+                                      cursor: projectActionLoading ? 'not-allowed' : 'pointer',
+                                      opacity: projectActionLoading ? 0.6 : 1
+                                  }}
+                              >
+                                  Cancelar
+                              </button>
+                              <button
+                                  type="button"
+                                  onClick={handleConfirmModalAction}
+                                  disabled={projectActionLoading || (confirmModal.requiresText && confirmModal.inputValue !== confirmModal.expectedText)}
+                                  style={{
+                                      border: 'none',
+                                      background: confirmModal.confirmTone === 'danger' ? '#dc2626' : '#ea580c',
+                                      color: '#ffffff',
+                                      borderRadius: '12px',
+                                      padding: '11px 16px',
+                                      fontWeight: '800',
+                                      cursor: projectActionLoading || (confirmModal.requiresText && confirmModal.inputValue !== confirmModal.expectedText) ? 'not-allowed' : 'pointer',
+                                      opacity: projectActionLoading || (confirmModal.requiresText && confirmModal.inputValue !== confirmModal.expectedText) ? 0.6 : 1,
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '8px'
+                                  }}
+                              >
+                                  {confirmModal.confirmTone === 'danger' ? <Icons.Trash size={15} color="#ffffff" /> : <Icons.Folder size={15} color="#ffffff" />}
+                                  {projectActionLoading ? 'A processar...' : confirmModal.confirmLabel}
+                              </button>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </ModalPortal>
+      )}
 
       <TimerSwitchModal
           open={timerSwitchModal.show}
@@ -1185,6 +1656,17 @@ export default function ProjetoDetalhe() {
           message={timerSwitchModal.message}
           onCancel={cancelTimerSwitch}
           onConfirm={confirmTimerSwitch}
+      />
+
+      <StopTimerNoteModal
+          open={stopNoteModal.show}
+          title="Parar cronometro"
+          message="Regista uma nota breve deste bloco de trabalho (opcional)."
+          placeholder="Ex: Checklist finalizada e pendente validação"
+          showCompleteOption={Boolean(activeLog)}
+          completeLabel={getStopCompleteLabel(activeLog)}
+          onCancel={closeStopNoteModal}
+          onConfirm={confirmStopWithNote}
       />
 
       {/* =========================================

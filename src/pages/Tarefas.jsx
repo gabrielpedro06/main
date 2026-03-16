@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import React from "react";
 import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
 import TimerSwitchModal from "../components/TimerSwitchModal";
+import StopTimerNoteModal from "../components/StopTimerNoteModal";
 import "./../styles/dashboard.css";
 
 const ModalPortal = ({ children }) => {
@@ -13,6 +15,7 @@ const ModalPortal = ({ children }) => {
 // --- ÍCONES SVG ---
 const Icons = {
   Trash: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>,
+    Stop: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="6" width="12" height="12" rx="1"></rect></svg>,
   Close: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>,
   Calendar: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>,
   AlertTriangle: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>,
@@ -24,6 +27,7 @@ const Icons = {
 
 export default function Tarefas() {
   const { user } = useAuth();
+    const navigate = useNavigate();
   
   const [atividadesAgrupadas, setAtividadesAgrupadas] = useState([]); 
   const [logs, setLogs] = useState([]);
@@ -54,6 +58,7 @@ export default function Tarefas() {
   const [deleteConfirm, setDeleteConfirm] = useState({ show: false, tabela: '', id: null, titulo: '' });
   const [visibleLimits, setVisibleLimits] = useState({}); 
     const [timerSwitchModal, setTimerSwitchModal] = useState({ show: false, message: "", pendingTask: null });
+        const [stopNoteModal, setStopNoteModal] = useState({ show: false });
 
   // 💡 ESTADOS DO UPLOAD
   const [fileToUpload, setFileToUpload] = useState(null);
@@ -88,7 +93,12 @@ export default function Tarefas() {
 
   async function checkActiveTask() {
       try {
-          const { data } = await supabase.from("task_logs").select("*").eq("user_id", user.id).is("end_time", null).maybeSingle();
+          const { data } = await supabase
+              .from("task_logs")
+              .select("id, task_id, atividade_id, projeto_id, start_time")
+              .eq("user_id", user.id)
+              .is("end_time", null)
+              .maybeSingle();
           setActiveTask(data || null);
       } catch (err) { console.error(err); }
   }
@@ -142,20 +152,32 @@ export default function Tarefas() {
         if (!adminStatus) {
             queryAtivs = queryAtivs.or(`responsavel_id.eq.${user.id},colaboradores_extra.cs.{${user.id}}`);
         }
-        const { data: ativsData } = await queryAtivs;
 
         let queryTarefas = supabase.from("tarefas").select(`*, atividades!inner(*, projetos!inner(id, titulo, clientes(id, marca))), profiles:criado_por(nome)`);
         if (!adminStatus) {
             queryTarefas = queryTarefas.or(`responsavel_id.eq.${user.id},colaboradores_extra.cs.{${user.id}}`);
         }
-        const { data: tarefasData } = await queryTarefas;
 
         let querySubtarefas = supabase.from("subtarefas").select(`*, tarefas!inner(*, atividades!inner(*, projetos!inner(id, titulo, clientes(id, marca))))`);
         if (!adminStatus) querySubtarefas = querySubtarefas.eq("responsavel_id", user.id);
-        const { data: subtarefasData } = await querySubtarefas;
 
-        const { data: logsData } = await supabase.from("task_logs").select("*");
-        setLogs(logsData || []);
+        const [
+            { data: ativsData },
+            { data: tarefasData },
+            { data: subtarefasData },
+            { data: comboAtiv },
+            { data: staffData },
+            { data: cliData },
+            { data: projData }
+        ] = await Promise.all([
+            queryAtivs,
+            queryTarefas,
+            querySubtarefas,
+            supabase.from("atividades").select("id, titulo, projetos(titulo)").not("projeto_id", "is", null).neq("estado", "cancelado"),
+            supabase.from("profiles").select("id, nome, email").order("nome"),
+            supabase.from("clientes").select("id, marca").order("marca"),
+            supabase.from("projetos").select("id, titulo").order("titulo")
+        ]);
 
         let mapAtividades = new Map();
 
@@ -217,15 +239,27 @@ export default function Tarefas() {
         });
         listaAtividades.sort((a1, a2) => sortMaster(a1, a2, 'data_fim'));
 
-        setAtividadesAgrupadas(listaAtividades);
+        const taskIds = Array.from(
+            new Set(
+                listaAtividades.flatMap((a) => (a.tarefas || []).map((t) => t.id)).filter(Boolean)
+            )
+        );
 
-        const { data: comboAtiv } = await supabase.from("atividades").select("id, titulo, projetos(titulo)").not("projeto_id", "is", null).neq("estado", "cancelado");
+        if (taskIds.length > 0) {
+            const { data: logsData } = await supabase
+                .from("task_logs")
+                .select("task_id, duration_minutes")
+                .in("task_id", taskIds)
+                .not("duration_minutes", "is", null);
+            setLogs(logsData || []);
+        } else {
+            setLogs([]);
+        }
+
+        setAtividadesAgrupadas(listaAtividades);
         setAtividadesBase(comboAtiv || []);
-        const { data: staffData } = await supabase.from("profiles").select("id, nome, email").order("nome");
         setStaff(staffData || []);
-        const { data: cliData } = await supabase.from("clientes").select("id, marca").order("marca");
         setClientes(cliData || []);
-        const { data: projData } = await supabase.from("projetos").select("id, titulo").order("titulo");
         setProjetosList(projData || []);
 
     } catch (e) { console.error("ERRO FATAL:", e); }
@@ -299,13 +333,26 @@ export default function Tarefas() {
       return { tipo: 'item', titulo: 'item', projeto: 'Sem projeto' };
   };
 
-  async function stopTaskLogById(logToStop) {
+  async function stopTaskLogById(logToStop, stopNote = "") {
       if (!logToStop) return null;
       const diffMins = Math.max(1, Math.floor((new Date() - new Date(logToStop.start_time)) / 60000));
-      const { error } = await supabase
+      const stopTimestamp = new Date().toISOString();
+      const note = typeof stopNote === "string" ? stopNote.trim() : "";
+      const payload = { end_time: stopTimestamp, duration_minutes: diffMins };
+      if (note) payload.observacoes = note;
+
+      let { error } = await supabase
           .from("task_logs")
-          .update({ end_time: new Date().toISOString(), duration_minutes: diffMins })
+          .update(payload)
           .eq("id", logToStop.id);
+
+      if (error && note) {
+          const retry = await supabase
+              .from("task_logs")
+              .update({ end_time: stopTimestamp, duration_minutes: diffMins })
+              .eq("id", logToStop.id);
+          error = retry.error;
+      }
 
       if (error) {
           showToast("Erro ao terminar o cronómetro atual.", "error");
@@ -322,19 +369,32 @@ export default function Tarefas() {
       return projectColors[hash % projectColors.length];
   };
 
-  async function startTaskDirect(tarefa) {
-      const payload = { user_id: user.id, task_id: tarefa.id, start_time: new Date().toISOString() };
-      const ativPai = atividadesAgrupadas.find(a => a.tarefas.some(t => t.id === tarefa.id));
-      if (ativPai && ativPai.projetoId) payload.projeto_id = ativPai.projetoId;
+  function openProjectDetail(projectId) {
+      if (!projectId) return;
+      navigate(`/dashboard/projetos/${projectId}`);
+  }
 
-      const { data, error } = await supabase.from("task_logs").insert([payload]).select().single();
-      if (!error) {
+  async function startTaskDirect(tarefa) {
+      try {
+          const payload = { user_id: user.id, task_id: tarefa.id, start_time: new Date().toISOString() };
+          const ativPai = atividadesAgrupadas.find(a => a.tarefas.some(t => t.id === tarefa.id));
+          if (ativPai && ativPai.projetoId) payload.projeto_id = ativPai.projetoId;
+
+          const { data, error } = await supabase.from("task_logs").insert([payload]).select().single();
+          if (error) {
+              showToast("Não foi possível iniciar o cronómetro.", "error");
+              return;
+          }
+
           setActiveTask(data);
           if (tarefa.estado === 'pendente') {
               await supabase.from('tarefas').update({ estado: 'em_curso' }).eq('id', tarefa.id);
               fetchData(isAdmin);
           }
           showToast("Cronómetro iniciado! ⏱️");
+      } catch (err) {
+          console.error("Erro ao iniciar cronómetro:", err);
+          showToast("Ocorreu um erro ao iniciar o cronómetro.", "error");
       }
   }
 
@@ -356,7 +416,11 @@ export default function Tarefas() {
       showToast("Mantivemos o cronómetro atual em execução.", "info");
   }
 
-  async function handleStartTask(tarefa) {
+  async function handleStartTask(tarefa, e) {
+      if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+      }
       if (activeTask) {
           const atual = getActiveTimerContext(activeTask);
           const ativPaiNova = atividadesAgrupadas.find(a => a.tarefas.some(t => t.id === tarefa.id));
@@ -386,18 +450,125 @@ export default function Tarefas() {
       fetchData(isAdmin);
   }
 
+  function getActiveTaskTitle() {
+      if (!activeTask?.task_id) return "Tarefa em curso";
+
+      for (const ativ of atividadesAgrupadas) {
+          const found = (ativ.tarefas || []).find((t) => String(t.id) === String(activeTask.task_id));
+          if (found) return found.titulo || "Tarefa em curso";
+      }
+
+      return "Tarefa em curso";
+  }
+
+  function getStopCompleteLabel(logEntry) {
+      if (logEntry?.task_id) return "Marcar tarefa como concluida";
+      if (logEntry?.atividade_id) return "Marcar atividade como concluida";
+      if (logEntry?.projeto_id) return "Marcar projeto como concluido";
+      return "Marcar item como concluido";
+  }
+
+  async function completeLogItem(logEntry) {
+      if (!logEntry) return;
+
+      if (logEntry.task_id) {
+          await supabase
+              .from("tarefas")
+              .update({ estado: "concluido", data_conclusao: new Date().toISOString() })
+              .eq("id", logEntry.task_id);
+          return;
+      }
+
+      if (logEntry.atividade_id) {
+          await supabase.from("atividades").update({ estado: "concluido" }).eq("id", logEntry.atividade_id);
+          return;
+      }
+
+      if (logEntry.projeto_id) {
+          await supabase.from("projetos").update({ estado: "concluido" }).eq("id", logEntry.projeto_id);
+      }
+  }
+
+  function openStopNoteModal(e) {
+      if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+      }
+      if (!activeTask) return;
+      setStopNoteModal({ show: true });
+  }
+
+  function closeStopNoteModal() {
+      setStopNoteModal({ show: false });
+  }
+
+  async function confirmStopWithNote(note, shouldComplete) {
+      setStopNoteModal({ show: false });
+      if (!activeTask) return;
+
+      const logToStop = activeTask;
+
+      const diffMins = await stopTaskLogById(logToStop, note);
+      if (diffMins === null) return;
+
+      if (shouldComplete) await completeLogItem(logToStop);
+
+      setActiveTask(null);
+      showToast(shouldComplete ? `Tempo guardado: ${diffMins} min. Item concluido.` : `Tempo guardado: ${diffMins} min.`, "success");
+      fetchData(isAdmin);
+  }
+
   async function handleToggleStatus(tabela, id, estadoAtual, taskIdParaTimer = null) {
       const novoEstado = estadoAtual === 'concluido' ? 'pendente' : 'concluido';
-      const dataConclusao = novoEstado === 'concluido' ? new Date().toISOString() : null;
+      const dataConclusao = new Date().toISOString();
 
       if (novoEstado === 'concluido' && activeTask && activeTask.task_id === taskIdParaTimer) await handleStopTask();
-      
+
+      if (tabela === 'atividades' && novoEstado === 'concluido') {
+          const { error: atividadeError } = await supabase.from('atividades').update({ estado: 'concluido' }).eq('id', id);
+          if (atividadeError) {
+              showToast("Erro ao concluir atividade.", "error");
+              return;
+          }
+
+          const atividadeLocal = atividadesAgrupadas.find((a) => String(a.id) === String(id));
+          let taskIds = (atividadeLocal?.tarefas || []).map((t) => t.id).filter(Boolean);
+
+          if (!taskIds.length) {
+              const { data: tarefasAtividade } = await supabase.from('tarefas').select('id').eq('atividade_id', id);
+              taskIds = (tarefasAtividade || []).map((t) => t.id).filter(Boolean);
+          }
+
+          if (taskIds.length) {
+              await supabase
+                  .from('tarefas')
+                  .update({ estado: 'concluido', data_conclusao: dataConclusao })
+                  .in('id', taskIds);
+
+              await supabase
+                  .from('subtarefas')
+                  .update({ estado: 'concluido' })
+                  .in('tarefa_id', taskIds);
+          }
+
+          fetchData(isAdmin);
+          showToast("Atividade, tarefas e subtarefas concluídas! 🎉");
+          return;
+      }
+
       const payload = { estado: novoEstado };
-      if (novoEstado === 'concluido') payload.data_conclusao = dataConclusao;
-      else payload.data_conclusao = null; 
+      if (tabela === 'tarefas') {
+          payload.data_conclusao = novoEstado === 'concluido' ? dataConclusao : null;
+      }
 
       const { error } = await supabase.from(tabela).update(payload).eq("id", id);
-      if (!error) { fetchData(isAdmin); showToast(novoEstado === 'concluido' ? "Feito! 🎉" : "Reaberto."); }
+      if (error) {
+          showToast("Erro ao alterar estado.", "error");
+          return;
+      }
+
+      fetchData(isAdmin);
+      showToast(novoEstado === 'concluido' ? "Feito! 🎉" : "Reaberto.");
   }
 
   function openDeleteConfirm(tabela, id, titulo) {
@@ -414,22 +585,39 @@ export default function Tarefas() {
 
   const toggleExpand = (taskId) => setExpandedTasks(prev => ({ ...prev, [taskId]: !prev[taskId] }));
 
-  const checkFilters = (t, termo) => {
-      const matchBusca = t.searchString.includes(termo) || t.subtarefas.some(s => s.searchString.includes(termo));
-      const isInactive = t.estado === 'concluido' || t.estado === 'cancelado';
-      if (!mostrarConcluidos && isInactive) return false;
-      return matchBusca;
-  }
+  const isInactiveStatus = (estado) => estado === 'concluido' || estado === 'cancelado';
 
   const atividadesFiltradas = atividadesAgrupadas.map(a => {
-      const tarefasFiltered = a.tarefas.filter(t => checkFilters(t, busca.toLowerCase()) || a.searchString.includes(busca.toLowerCase()));
+      const termoBusca = busca.trim().toLowerCase();
+      const matchAtividade = !termoBusca || a.searchString.includes(termoBusca);
+      const tarefasFiltered = a.tarefas.reduce((acc, t) => {
+          const tarefaInativa = isInactiveStatus(t.estado);
+          if (!mostrarConcluidos && tarefaInativa) return acc;
+
+          const subtarefasFiltradas = (t.subtarefas || []).filter((s) => {
+              if (!mostrarConcluidos && isInactiveStatus(s.estado)) return false;
+              return !termoBusca || s.searchString.includes(termoBusca);
+          });
+
+          const matchTarefa = !termoBusca || t.searchString.includes(termoBusca);
+          const shouldIncludeTask = !termoBusca || matchAtividade || matchTarefa || subtarefasFiltradas.length > 0;
+
+          if (!shouldIncludeTask) return acc;
+
+          acc.push({
+              ...t,
+              subtarefas: subtarefasFiltradas
+          });
+          return acc;
+      }, []);
+
       const matchProjeto = filtroProjeto ? String(a.projetoId) === String(filtroProjeto) : true;
       const matchCliente = filtroCliente ? String(a.clienteId) === String(filtroCliente) : true;
-      const isAtivInactive = a.estado === 'concluido' || a.estado === 'cancelado';
+      const isAtivInactive = isInactiveStatus(a.estado);
       
       if (!matchProjeto || !matchCliente) return null;
       if (!mostrarConcluidos && isAtivInactive && tarefasFiltered.length === 0) return null;
-      if (busca && tarefasFiltered.length === 0 && !a.searchString.includes(busca.toLowerCase())) return null; 
+      if (termoBusca && tarefasFiltered.length === 0 && !matchAtividade) return null;
 
       return { ...a, tarefas: tarefasFiltered };
   }).filter(Boolean); 
@@ -598,6 +786,14 @@ export default function Tarefas() {
       } catch(e) { return null; }
   };
 
+  const getAssociatedTasksForEditing = () => {
+      if (editType !== 'atividade' || !editId) return [];
+      const atividadeAtual = atividadesAgrupadas.find((atividade) => String(atividade.id) === String(editId));
+      return atividadeAtual?.tarefas || [];
+  };
+
+  const associatedTasks = getAssociatedTasksForEditing();
+
   const modalOverlayStyle = { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.5)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999 };
   const modalStyle = { background: '#fff', width: '95%', maxWidth: '650px', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', display: 'flex', flexDirection: 'column', maxHeight: '90vh', overflow: 'hidden' };
   const modalHeaderStyle = { padding: '16px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff' };
@@ -617,10 +813,13 @@ export default function Tarefas() {
         <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
             <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.5rem', fontWeight: '800', letterSpacing: '-0.02em'}}>Tarefas de Projetos</h1>
             {activeTask && (
-                <div style={{ background: '#fee2e2', border: '1px solid #fecaca', color: '#ef4444', padding: '4px 12px', borderRadius: '8px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
-                    <span style={{width: '6px', height: '6px', background: '#ef4444', borderRadius: '50%', display: 'inline-block', animation: 'pulse 1.5s infinite'}}></span> 
-                    Em curso
-                    <button onClick={handleStopTask} style={{background: 'white', color:'#ef4444', border:'1px solid #fecaca', borderRadius:'4px', padding:'2px 6px', cursor:'pointer', fontWeight:'bold', marginLeft: '5px', fontSize: '0.7rem'}}>⏹ PARAR</button>
+                <div style={{background: 'linear-gradient(to right, #ef4444, #b91c1c)', color: 'white', padding: '8px 16px', borderRadius: '24px', display: 'flex', alignItems: 'center', gap: '12px', border: '2px solid #fecaca', boxShadow: '0 4px 10px rgba(239, 68, 68, 0.35)'}}>
+                    <span style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700', fontSize: '0.85rem'}}>
+                        <span className="pulse-dot-white"></span>
+                        {getActiveTaskTitle().length > 28 ? `${getActiveTaskTitle().slice(0, 28)}...` : getActiveTaskTitle()}
+                    </span>
+                    <div style={{width: '1px', height: '18px', background: 'rgba(255,255,255,0.35)'}}></div>
+                    <button type="button" onClick={openStopNoteModal} style={{background: 'white', color:'#ef4444', border:'none', borderRadius:'18px', padding:'4px 10px', cursor:'pointer', fontWeight:'800', fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '5px'}}><Icons.Stop size={10} /> PARAR</button>
                 </div>
             )}
         </div>
@@ -659,13 +858,29 @@ export default function Tarefas() {
                         <div style={{display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px', paddingBottom: '8px', borderBottom: `2px solid ${proj.color}40`}}>
                             <div style={{width: '12px', height: '12px', borderRadius: '50%', backgroundColor: proj.color}}></div>
                             
-                            <h2 style={{margin: 0, fontSize: '1.2rem', color: '#475569', fontWeight: '500'}}>
+                            <button
+                                type="button"
+                                onClick={() => openProjectDetail(proj.id)}
+                                style={{
+                                    margin: 0,
+                                    padding: 0,
+                                    fontSize: '1.2rem',
+                                    color: '#475569',
+                                    fontWeight: '500',
+                                    background: 'transparent',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    textAlign: 'left'
+                                }}
+                                className="hover-text-blue"
+                                title="Abrir projeto"
+                            >
                                 {proj.cliente ? (
                                     <><strong style={{color: '#1e293b', fontWeight: '900'}}>{proj.cliente}</strong> - {proj.titulo}</>
                                 ) : (
                                     <strong style={{color: '#1e293b', fontWeight: '800'}}>{proj.titulo}</strong>
                                 )}
-                            </h2>
+                            </button>
                         </div>
 
                         <div className="project-grid">
@@ -679,9 +894,17 @@ export default function Tarefas() {
                                         <div style={{padding: '12px 15px', background: isAtivCompleted ? '#f8fafc' : 'white', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
                                             <div style={{flex: 1, paddingRight: '10px'}}>
                                                 <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px'}}>
-                                                    <div onClick={() => handleToggleStatus('atividades', ativ.id, ativ.estado)} style={{width: '16px', height: '16px', borderRadius: '4px', border: isAtivCompleted ? 'none' : `2px solid ${proj.color}80`, background: isAtivCompleted ? '#2563eb' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', cursor: 'pointer', flexShrink: 0, fontSize: '0.7rem'}}>
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleToggleStatus('atividades', ativ.id, ativ.estado);
+                                                        }}
+                                                        title={isAtivCompleted ? 'Reabrir atividade' : 'Concluir atividade'}
+                                                        style={{width: '18px', height: '18px', borderRadius: '4px', border: isAtivCompleted ? 'none' : `2px solid ${proj.color}80`, background: isAtivCompleted ? '#2563eb' : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', cursor: 'pointer', flexShrink: 0, fontSize: '0.7rem', padding: 0, lineHeight: 1}}
+                                                    >
                                                         {isAtivCompleted && '✓'}
-                                                    </div>
+                                                    </button>
                                                     
                                                     <h3 onClick={() => handleEdit(ativ, 'atividade')} style={{margin: 0, fontSize: '0.9rem', fontWeight: '700', color: isAtivCompleted ? '#94a3b8' : '#1e293b', cursor: 'pointer', textDecoration: isAtivCompleted ? 'line-through' : 'none', lineHeight: '1.2'}} className="hover-text-blue">
                                                         {ativ.titulo}
@@ -713,9 +936,17 @@ export default function Tarefas() {
                                                                 <div style={{display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px'}}>
                                                                     
                                                                     <div style={{display: 'flex', alignItems: 'flex-start', gap: '6px', flex: 1}}>
-                                                                        <div onClick={() => handleToggleStatus('tarefas', tar.id, tar.estado, tar.id)} style={{ width: '14px', height: '14px', borderRadius: '50%', cursor: 'pointer', border: isTarCompleted ? 'none' : '2px solid #cbd5e1', background: isTarCompleted ? '#2563eb' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '0.6rem', flexShrink: 0, marginTop: '2px' }}>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                handleToggleStatus('tarefas', tar.id, tar.estado, tar.id);
+                                                                            }}
+                                                                            title={isTarCompleted ? 'Reabrir tarefa' : 'Concluir tarefa'}
+                                                                            style={{ width: '16px', height: '16px', borderRadius: '50%', cursor: 'pointer', border: isTarCompleted ? 'none' : '2px solid #cbd5e1', background: isTarCompleted ? '#2563eb' : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '0.6rem', flexShrink: 0, marginTop: '1px', padding: 0, lineHeight: 1 }}
+                                                                        >
                                                                             {isTarCompleted && '✓'}
-                                                                        </div>
+                                                                        </button>
                                                                         <div style={{flex: 1}}>
                                                                             <span onClick={() => handleEdit(tar, 'tarefa')} style={{textDecoration: isTarCompleted ? 'line-through' : 'none', color: '#334155', fontWeight: '600', cursor: 'pointer', fontSize: '0.8rem', lineHeight: '1.2', display: 'block', marginBottom: '4px'}} className="hover-underline">
                                                                                 {tar.titulo}
@@ -735,7 +966,7 @@ export default function Tarefas() {
 
                                                                     <div style={{display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-end'}}>
                                                                         {!tar.is_readonly_parent && (
-                                                                            <button onClick={() => isTimerActive ? handleStopTask() : handleStartTask(tar)} style={{ background: isTimerActive ? '#fee2e2' : 'white', color: isTimerActive ? '#ef4444' : '#64748b', border: '1px solid #e2e8f0', padding: '2px 6px', borderRadius: '12px', cursor: 'pointer', fontSize: '0.65rem', fontWeight: 'bold', display: 'flex', alignItems: 'center'}}>
+                                                                            <button type="button" onClick={(e) => isTimerActive ? openStopNoteModal(e) : handleStartTask(tar, e)} style={{ background: isTimerActive ? '#fee2e2' : 'white', color: isTimerActive ? '#ef4444' : '#64748b', border: '1px solid #e2e8f0', padding: '2px 6px', borderRadius: '12px', cursor: 'pointer', fontSize: '0.65rem', fontWeight: 'bold', display: 'flex', alignItems: 'center'}}>
                                                                                 {isTimerActive ? '⏹' : '▶'}
                                                                             </button>
                                                                         )}
@@ -828,6 +1059,17 @@ export default function Tarefas() {
                 message={timerSwitchModal.message}
                 onCancel={cancelTimerSwitch}
                 onConfirm={confirmTimerSwitch}
+            />
+
+            <StopTimerNoteModal
+                open={stopNoteModal.show}
+                title="Parar cronometro"
+                message="Podes adicionar uma nota breve para este registo (opcional)."
+                placeholder="Ex: Pausa para reunião com cliente"
+                showCompleteOption={Boolean(activeTask)}
+                completeLabel={getStopCompleteLabel(activeTask)}
+                onCancel={closeStopNoteModal}
+                onConfirm={confirmStopWithNote}
             />
 
       {/* 💡 MODAL DE EDIÇÃO AVANÇADO (C/ SEARCHABLE SELECT E UPLOAD DE ARQUIVO) */}
@@ -952,6 +1194,113 @@ export default function Tarefas() {
                         {(editType === 'tarefa' || editType === 'atividade') && (<div style={inputGroupStyle}><label style={labelStyle}>Início</label><input type="date" value={form.data_inicio} onChange={e => setForm({...form, data_inicio: e.target.value})} style={inputStyle} /></div>)}
                         <div style={inputGroupStyle}><label style={labelStyle}>Deadline</label><input type="date" value={form.data_limite} onChange={e => setForm({...form, data_limite: e.target.value})} style={{...inputStyle, borderColor: form.data_limite ? '#fca5a5' : '#cbd5e1'}} /></div>
                     </div>
+
+                    {editType === 'atividade' && editId && (
+                        <>
+                            <div style={sectionTitleStyle}>🗂️ Tarefas Associadas</div>
+                            <div style={{background: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '12px', marginBottom: '15px'}}>
+                                {associatedTasks.length === 0 ? (
+                                    <div style={{fontSize: '0.82rem', color: '#94a3b8', textAlign: 'center', padding: '10px 6px'}}>
+                                        Ainda não existem tarefas ligadas a esta atividade.
+                                    </div>
+                                ) : (
+                                    <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
+                                        {associatedTasks.map((task) => {
+                                            const isTaskInactive = task.estado === 'concluido' || task.estado === 'cancelado';
+                                            const responsavel = staff.find((person) => String(person.id) === String(task.responsavel_id));
+                                            const subtarefasCount = Array.isArray(task.subtarefas) ? task.subtarefas.length : 0;
+
+                                            return (
+                                                <div
+                                                    key={task.id}
+                                                    style={{
+                                                        width: '100%',
+                                                        textAlign: 'left',
+                                                        border: '1px solid #e2e8f0',
+                                                        background: isTaskInactive ? '#f8fafc' : '#ffffff',
+                                                        borderRadius: '10px',
+                                                        padding: '10px 12px',
+                                                        display: 'grid',
+                                                        gridTemplateColumns: 'minmax(0, 1fr) auto',
+                                                        alignItems: 'center',
+                                                        gap: '12px',
+                                                        opacity: isTaskInactive ? 0.75 : 1,
+                                                        boxSizing: 'border-box',
+                                                        overflow: 'hidden'
+                                                    }}
+                                                    className="hover-shadow"
+                                                >
+                                                    <div style={{minWidth: 0, flex: 1}}>
+                                                        <div style={{display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '4px'}}>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleToggleStatus('tarefas', task.id, task.estado, task.id)}
+                                                                title={task.estado === 'concluido' ? 'Reabrir tarefa' : 'Concluir tarefa'}
+                                                                style={{
+                                                                    width: '20px',
+                                                                    height: '20px',
+                                                                    border: task.estado === 'concluido' ? 'none' : '2px solid #cbd5e1',
+                                                                    background: task.estado === 'concluido' ? '#2563eb' : '#ffffff',
+                                                                    color: '#ffffff',
+                                                                    borderRadius: '50%',
+                                                                    padding: 0,
+                                                                    cursor: 'pointer',
+                                                                    fontSize: '0.7rem',
+                                                                    fontWeight: '700',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'center',
+                                                                    lineHeight: 1,
+                                                                    flexShrink: 0,
+                                                                    marginTop: '1px'
+                                                                }}
+                                                            >
+                                                                {task.estado === 'concluido' ? '✓' : ''}
+                                                            </button>
+                                                            <div style={{minWidth: 0, flex: 1}}>
+                                                                <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap'}}>
+                                                                    <strong style={{color: '#1e293b', fontSize: '0.85rem', textDecoration: isTaskInactive ? 'line-through' : 'none'}}>{task.titulo}</strong>
+                                                                    {renderStatusTag(task.estado) || (
+                                                                        <span style={{fontSize: '0.62rem', background: '#f1f5f9', color: '#64748b', padding: '2px 6px', borderRadius: '999px', fontWeight: '700', textTransform: 'uppercase'}}>
+                                                                            {String(task.estado || 'pendente').replace('_', ' ')}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div style={{display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', color: '#64748b', fontSize: '0.75rem'}}>
+                                                            <span>Responsável: {responsavel?.nome || responsavel?.email || 'Sem responsável'}</span>
+                                                            {task.data_fim && renderDeadline(task.data_fim, task.estado === 'concluido')}
+                                                            {subtarefasCount > 0 && <span style={{fontWeight: '700', color: '#475569'}}>Subtarefas: {subtarefasCount}</span>}
+                                                        </div>
+                                                    </div>
+                                                    <div style={{display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, paddingLeft: '4px'}}>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleEdit(task, 'tarefa')}
+                                                            style={{
+                                                                border: '1px solid #dbeafe',
+                                                                background: '#eff6ff',
+                                                                color: '#2563eb',
+                                                                borderRadius: '999px',
+                                                                padding: '6px 10px',
+                                                                cursor: 'pointer',
+                                                                fontSize: '0.72rem',
+                                                                fontWeight: '700',
+                                                                whiteSpace: 'nowrap'
+                                                            }}
+                                                        >
+                                                            Abrir
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        </>
+                    )}
 
                     {/* 💡 NOVA SECÇÃO: ENTREGÁVEIS COM UPLOAD DE PDF/DOCUMENTOS */}
                     {(editType === 'tarefa' || editType === 'atividade') && (

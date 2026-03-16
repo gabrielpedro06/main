@@ -113,6 +113,17 @@ export const generateProjectPDF = async (
             .reduce((acc, item) => acc + (item.duration_minutes || 0), 0);
     };
 
+    const getTaskTimePerUser = (taskId) => {
+        const taskLogs = (logs || []).filter((l) => l.task_id === taskId && (l.duration_minutes || 0) > 0);
+        const byUser = {};
+        taskLogs.forEach((l) => {
+            const key = l.user_id;
+            if (!byUser[key]) byUser[key] = { nome: l.profiles?.nome || 'Utilizador', total: 0 };
+            byUser[key].total += (l.duration_minutes || 0);
+        });
+        return Object.values(byUser).sort((a, b) => b.total - a.total);
+    };
+
     const getActivityTime = (atividade) => {
         if ((atividade?.tarefas || []).length > 0) {
             return (atividade.tarefas || []).reduce((acc, tarefa) => acc + getTaskTime(tarefa.id), 0);
@@ -425,6 +436,7 @@ export const generateProjectPDF = async (
 
         (atividade.tarefas || []).forEach((tarefa) => {
             const taskStatus = getStatusMeta(tarefa.estado);
+            const userBreakdown = getTaskTimePerUser(tarefa.id);
             tableRows.push([
                 { content: `- ${tarefa.titulo || 'Sem título'}`, styles: { textColor: COLORS.ink } },
                 {
@@ -435,8 +447,20 @@ export const generateProjectPDF = async (
                     content: getTeamLabel(tarefa.responsavel_id, tarefa.colaboradores_extra || []),
                     styles: { textColor: COLORS.slate },
                 },
-                { content: formatDuration(getTaskTime(tarefa.id)), styles: { textColor: COLORS.slate, halign: 'right' } },
+                {
+                    content: formatDuration(getTaskTime(tarefa.id)),
+                    styles: { textColor: COLORS.slate, halign: 'right', fontStyle: userBreakdown.length > 1 ? 'bold' : 'normal' },
+                },
             ]);
+
+            userBreakdown.forEach((u) => {
+                tableRows.push([
+                    { content: `      ↳ ${u.nome}`, styles: { textColor: COLORS.slate, fontSize: 7.5, fontStyle: 'italic' } },
+                    { content: '', styles: { textColor: COLORS.slate, fontSize: 7.5 } },
+                    { content: '', styles: { textColor: COLORS.slate, fontSize: 7.5 } },
+                    { content: formatDuration(u.total), styles: { textColor: COLORS.slate, fontSize: 7.5, halign: 'right', fontStyle: 'italic' } },
+                ]);
+            });
 
             (tarefa.subtarefas || []).forEach((passo) => {
                 const passoStatus = getStatusMeta(passo.estado);

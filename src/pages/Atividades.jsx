@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
 import TimerSwitchModal from "../components/TimerSwitchModal";
+import StopTimerNoteModal from "../components/StopTimerNoteModal";
 import "./../styles/dashboard.css";
 
 // --- ÍCONES SVG PROFISSIONAIS ---
@@ -38,6 +39,7 @@ export default function Atividades() {
   // Notificações (Toasts)
   const [notification, setNotification] = useState(null);
     const [timerSwitchModal, setTimerSwitchModal] = useState({ show: false, message: "", pendingAtividade: null });
+        const [stopNoteModal, setStopNoteModal] = useState({ show: false });
 
   // Filtros
   const [busca, setBusca] = useState("");
@@ -92,13 +94,26 @@ export default function Atividades() {
         setActiveLog(data || null);
   }
 
-    async function stopLogById(logToStop) {
+    async function stopLogById(logToStop, stopNote = "") {
         if (!logToStop) return null;
         const diffMins = Math.max(1, Math.floor((new Date() - new Date(logToStop.start_time)) / 60000));
-        const { error } = await supabase
+        const stopTimestamp = new Date().toISOString();
+        const note = typeof stopNote === "string" ? stopNote.trim() : "";
+        const payload = { end_time: stopTimestamp, duration_minutes: diffMins };
+        if (note) payload.observacoes = note;
+
+        let { error } = await supabase
             .from("task_logs")
-            .update({ end_time: new Date().toISOString(), duration_minutes: diffMins })
+            .update(payload)
             .eq("id", logToStop.id);
+
+        if (error && note) {
+            const retry = await supabase
+                .from("task_logs")
+                .update({ end_time: stopTimestamp, duration_minutes: diffMins })
+                .eq("id", logToStop.id);
+            error = retry.error;
+        }
 
         if (error) {
             showToast("Erro ao terminar o cronómetro atual.", "error");
@@ -189,6 +204,59 @@ export default function Atividades() {
         fetchData();
   }
 
+    function getStopCompleteLabel(logEntry) {
+        if (logEntry?.atividade_id) return "Marcar atividade como concluida";
+        if (logEntry?.task_id) return "Marcar tarefa como concluida";
+        if (logEntry?.projeto_id) return "Marcar projeto como concluido";
+        return "Marcar item como concluido";
+    }
+
+    async function completeLogItem(logEntry) {
+        if (!logEntry) return;
+
+        if (logEntry.atividade_id) {
+            await supabase.from("atividades").update({ estado: "concluido" }).eq("id", logEntry.atividade_id);
+            return;
+        }
+
+        if (logEntry.task_id) {
+            await supabase
+                .from("tarefas")
+                .update({ estado: "concluido", data_conclusao: new Date().toISOString() })
+                .eq("id", logEntry.task_id);
+            return;
+        }
+
+        if (logEntry.projeto_id) {
+            await supabase.from("projetos").update({ estado: "concluido" }).eq("id", logEntry.projeto_id);
+        }
+    }
+
+    function openStopNoteModal() {
+        if (!activeLog) return;
+        setStopNoteModal({ show: true });
+    }
+
+    function closeStopNoteModal() {
+        setStopNoteModal({ show: false });
+    }
+
+    async function confirmStopWithNote(note, shouldComplete) {
+        setStopNoteModal({ show: false });
+        if (!activeLog) return;
+
+        const logToStop = activeLog;
+
+        const diffMins = await stopLogById(logToStop, note);
+        if (diffMins === null) return;
+
+        if (shouldComplete) await completeLogItem(logToStop);
+
+        setActiveLog(null);
+        showToast(shouldComplete ? `Tempo registado: ${diffMins} min. Item concluido.` : `Tempo registado: ${diffMins} min.`, "success");
+        fetchData();
+    }
+
   async function handleToggleStatus(ativ) {
     const novoEstado = ativ.estado === 'concluido' ? 'em_curso' : 'concluido';
     if (novoEstado === 'concluido' && activeLog?.atividade_id === ativ.id) {
@@ -265,7 +333,7 @@ export default function Atividades() {
             {activeLog && (
                 <div style={{ background: '#2563eb', color: 'white', padding: '8px 16px', borderRadius: '20px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '10px', boxShadow: '0 4px 10px rgba(37, 99, 235, 0.3)', marginLeft: '15px' }}>
                     <span className="pulse-dot-white"></span> A contar...
-                    <button onClick={handleStopLog} style={{background: 'white', color:'#2563eb', border:'none', borderRadius:'5px', padding:'4px 8px', cursor:'pointer', fontWeight:'bold', display: 'flex', alignItems: 'center', gap: '4px'}}>
+                    <button onClick={openStopNoteModal} style={{background: 'white', color:'#2563eb', border:'none', borderRadius:'5px', padding:'4px 8px', cursor:'pointer', fontWeight:'bold', display: 'flex', alignItems: 'center', gap: '4px'}}>
                         <Icons.Stop size={12} /> Parar
                     </button>
                 </div>
@@ -314,7 +382,7 @@ export default function Atividades() {
                                 <td style={{padding: '15px', textAlign: 'center'}}>
                                     <div style={{display:'flex', alignItems:'center', justifyContent:'center', gap:'12px'}}>
                                         {isRunning ? (
-                                            <button onClick={handleStopLog} title="Parar Timer" style={{border:'none', background:'#fee2e2', color:'#ef4444', borderRadius:'50%', width:'32px', height:'32px', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', boxShadow: '0 2px 4px rgba(239, 68, 68, 0.2)'}}>
+                                            <button onClick={openStopNoteModal} title="Parar Timer" style={{border:'none', background:'#fee2e2', color:'#ef4444', borderRadius:'50%', width:'32px', height:'32px', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', boxShadow: '0 2px 4px rgba(239, 68, 68, 0.2)'}}>
                                                 <Icons.Stop size={14} />
                                             </button>
                                         ) : (
@@ -493,6 +561,17 @@ export default function Atividades() {
                 message={timerSwitchModal.message}
                 onCancel={cancelTimerSwitch}
                 onConfirm={confirmTimerSwitch}
+            />
+
+            <StopTimerNoteModal
+                open={stopNoteModal.show}
+                title="Parar cronometro"
+                message="Podes adicionar uma nota breve para este registo (opcional)."
+                placeholder="Ex: Finalizada revisão da atividade"
+                showCompleteOption={Boolean(activeLog)}
+                completeLabel={getStopCompleteLabel(activeLog)}
+                onCancel={closeStopNoteModal}
+                onConfirm={confirmStopWithNote}
             />
       
       {notification && <div className={`toast-container ${notification.type}`}>{notification.type === 'success' ? '✅' : '⚠️'} {notification.message}</div>}

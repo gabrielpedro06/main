@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
 import TimerSwitchModal from "../components/TimerSwitchModal";
+import StopTimerNoteModal from "../components/StopTimerNoteModal";
 import "./../styles/dashboard.css";
 
 // --- ÍCONES SVG PROFISSIONAIS (SaaS Premium) ---
@@ -63,6 +64,7 @@ export default function MinhasTarefas() {
   const [completedTasksGroups, setCompletedTasksGroups] = useState({ "Esta Semana": [], "Semana Passada": [], "Mais Antigas": [] });
   const [activeHistoryTab, setActiveHistoryTab] = useState("Esta Semana"); 
     const [timerSwitchModal, setTimerSwitchModal] = useState({ show: false, message: "", pendingTask: null });
+        const [stopNoteModal, setStopNoteModal] = useState({ show: false });
 
   // DRAG & DROP STATE (Kanban)
   const [draggedTask, setDraggedTask] = useState(null);
@@ -87,14 +89,23 @@ export default function MinhasTarefas() {
 
   async function carregarTudo() {
       setLoading(true);
-      const { data: staffData } = await supabase.from("profiles").select("id, nome, email").order("nome");
-      setStaff(staffData || []);
-      await checkActiveLog();
-      await fetchMyTasks();
+      await Promise.all([
+          (async () => {
+              const { data: staffData } = await supabase.from("profiles").select("id, nome, email").order("nome");
+              setStaff(staffData || []);
+          })(),
+          checkActiveLog(),
+          fetchMyTasks()
+      ]);
   }
 
   async function checkActiveLog() {
-      const { data } = await supabase.from("task_logs").select("*").eq("user_id", user.id).is("end_time", null).maybeSingle();
+      const { data } = await supabase
+          .from("task_logs")
+          .select("id, task_id, atividade_id, projeto_id, start_time")
+          .eq("user_id", user.id)
+          .is("end_time", null)
+          .maybeSingle();
       setActiveLog(data || null);
   }
 
@@ -110,8 +121,18 @@ export default function MinhasTarefas() {
           if (!mostrarConcluidos) query = query.neq("estado", "concluido");
 
           const { data: tData } = await query;
-          const { data: logsData } = await supabase.from("task_logs").select("*").eq("user_id", user.id);
-          setLogs(logsData || []);
+          const taskIds = (tData || []).map(t => t.id).filter(Boolean);
+          if (taskIds.length > 0) {
+              const { data: logsData } = await supabase
+                  .from("task_logs")
+                  .select("task_id, duration_minutes")
+                  .eq("user_id", user.id)
+                  .in("task_id", taskIds)
+                  .not("duration_minutes", "is", null);
+              setLogs(logsData || []);
+          } else {
+              setLogs([]);
+          }
 
           if (tData) {
               const pMap = new Map();
@@ -205,13 +226,26 @@ export default function MinhasTarefas() {
       return h > 0 ? `${h}h ${m}m` : `${m}m`;
   };
 
-  async function stopLogById(logToStop) {
+  async function stopLogById(logToStop, stopNote = "") {
       if (!logToStop) return null;
       const diffMins = Math.max(1, Math.floor((new Date() - new Date(logToStop.start_time)) / 60000));
-      const { error } = await supabase
+      const stopTimestamp = new Date().toISOString();
+      const note = typeof stopNote === "string" ? stopNote.trim() : "";
+      const payload = { end_time: stopTimestamp, duration_minutes: diffMins };
+      if (note) payload.observacoes = note;
+
+      let { error } = await supabase
           .from("task_logs")
-          .update({ end_time: new Date().toISOString(), duration_minutes: diffMins })
+          .update(payload)
           .eq("id", logToStop.id);
+
+      if (error && note) {
+          const retry = await supabase
+              .from("task_logs")
+              .update({ end_time: stopTimestamp, duration_minutes: diffMins })
+              .eq("id", logToStop.id);
+          error = retry.error;
+      }
       if (error) {
           showToast("Erro ao terminar o cronómetro atual.", "error");
           return null;
@@ -246,11 +280,62 @@ export default function MinhasTarefas() {
       showToast("Mantivemos o cronómetro atual em execução.", "info");
   }
 
+  function getStopCompleteLabel(logEntry) {
+      if (logEntry?.task_id) return "Marcar tarefa como concluida";
+      if (logEntry?.atividade_id) return "Marcar atividade como concluida";
+      if (logEntry?.projeto_id) return "Marcar projeto como concluido";
+      return "Marcar item como concluido";
+  }
+
+  async function completeLogItem(logEntry) {
+      if (!logEntry) return;
+
+      if (logEntry.task_id) {
+          await supabase
+              .from("tarefas")
+              .update({ estado: "concluido", data_conclusao: new Date().toISOString() })
+              .eq("id", logEntry.task_id);
+          return;
+      }
+
+      if (logEntry.atividade_id) {
+          await supabase.from("atividades").update({ estado: "concluido" }).eq("id", logEntry.atividade_id);
+          return;
+      }
+
+      if (logEntry.projeto_id) {
+          await supabase.from("projetos").update({ estado: "concluido" }).eq("id", logEntry.projeto_id);
+      }
+  }
+
+  function openStopNoteModal() {
+      if (!activeLog) return;
+      setStopNoteModal({ show: true });
+  }
+
+  function closeStopNoteModal() {
+      setStopNoteModal({ show: false });
+  }
+
+  async function confirmStopWithNote(note, shouldComplete) {
+      setStopNoteModal({ show: false });
+      if (!activeLog) return;
+
+      const logToStop = activeLog;
+
+      const diffMins = await stopLogById(logToStop, note);
+      if (diffMins === null) return;
+
+      if (shouldComplete) await completeLogItem(logToStop);
+
+      setActiveLog(null);
+      showToast(shouldComplete ? `Tempo guardado: ${diffMins} min. Item concluido.` : `Tempo guardado: ${diffMins} min.`);
+      carregarTudo();
+  }
+
   async function handleToggleTimer(task) {
       if (activeLog && activeLog.task_id === task.id) {
-          const diffMins = await stopLogById(activeLog);
-          if (diffMins === null) return;
-          setActiveLog(null); showToast(`Tempo guardado: ${diffMins} min.`); carregarTudo();
+          openStopNoteModal();
       } else {
           if (activeLog) {
               setTimerSwitchModal({
@@ -951,6 +1036,17 @@ export default function MinhasTarefas() {
           message={timerSwitchModal.message}
           onCancel={cancelTimerSwitch}
           onConfirm={confirmTimerSwitch}
+      />
+
+      <StopTimerNoteModal
+          open={stopNoteModal.show}
+          title="Parar cronometro"
+          message="Se quiseres, adiciona uma nota breve sobre o que foi feito (opcional)."
+          placeholder="Ex: Concluída análise e próximos passos definidos"
+          showCompleteOption={Boolean(activeLog)}
+          completeLabel={getStopCompleteLabel(activeLog)}
+          onCancel={closeStopNoteModal}
+          onConfirm={confirmStopWithNote}
       />
 
       {/* NOTIFICAÇÃO (TOAST) */}

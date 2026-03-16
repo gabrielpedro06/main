@@ -5,6 +5,7 @@ import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext"; 
 import WidgetAssiduidade from "../components/WidgetAssiduidade";
 import TimerSwitchModal from "../components/TimerSwitchModal";
+import StopTimerNoteModal from "../components/StopTimerNoteModal";
 import { frasesMotivacionais } from "../data/frases"; 
 import "./../styles/dashboard.css";
 
@@ -86,6 +87,7 @@ export default function DashboardHome() {
             message: "",
             pendingTask: null
     });
+        const [stopNoteModal, setStopNoteModal] = useState({ show: false });
     const onlineCardRef = useRef(null);
 
     function formatBirthdayDate(proximoAniversario) {
@@ -103,13 +105,20 @@ export default function DashboardHome() {
 
   useEffect(() => {
     if (user) {
-      fetchTarefasPessoais();
-      fetchRecentWorkLogs();
+      refreshDashboardWorkItems();
       fetchStats();
       fetchUserProfile();
       loadUsersOnline();
       fetchAniversarios(); 
       checkActiveLog(); 
+
+      const handleVisibilityRefresh = () => {
+          if (document.visibilityState === 'visible') refreshDashboardWorkItems();
+      };
+
+      const handleWindowFocus = () => {
+          refreshDashboardWorkItems();
+      };
       
       const hoje = new Date();
       const seed = hoje.getFullYear() * 10000 + (hoje.getMonth() + 1) * 100 + hoje.getDate();
@@ -122,13 +131,29 @@ export default function DashboardHome() {
       }, 1000);
 
       const onlineInterval = setInterval(loadUsersOnline, 60000);
+            const workRefreshInterval = setInterval(refreshDashboardWorkItems, 90000);
+
+            window.addEventListener('focus', handleWindowFocus);
+            document.addEventListener('visibilitychange', handleVisibilityRefresh);
 
       return () => {
           clearInterval(relogioInterval);
           clearInterval(onlineInterval);
+                    clearInterval(workRefreshInterval);
+                    window.removeEventListener('focus', handleWindowFocus);
+                    document.removeEventListener('visibilitychange', handleVisibilityRefresh);
       };
     }
   }, [user]);
+
+    async function refreshDashboardWorkItems() {
+            if (!user?.id) return;
+            await Promise.all([
+                    fetchTarefasPessoais(),
+                    fetchRecentWorkLogs(),
+                    checkActiveLog()
+            ]);
+    }
 
 
 
@@ -165,17 +190,25 @@ export default function DashboardHome() {
   // 💡 O CÉREBRO DO CRONÓMETRO: Descobre as hierarquias e Clientes para formatar "Empresa - Projeto (Tarefa)"
   async function checkActiveLog() {
       try {
-          const { data, error } = await supabase.from("task_logs").select("*").eq("user_id", user.id).is("end_time", null).maybeSingle();
+          const { data, error } = await supabase
+              .from("task_logs")
+              .select("*")
+              .eq("user_id", user.id)
+              .is("end_time", null)
+              .order("start_time", { ascending: false });
           if (error) throw error;
+
+          const activeRows = Array.isArray(data) ? data : [];
+          const activeRow = activeRows[0] || null;
           
-          if (data) {
+          if (activeRow) {
               let title = "Tempo a decorrer...";
-              let foundProjectId = data.projeto_id;
+              let foundProjectId = activeRow.projeto_id;
               let projName = "";
               let brandName = "";
               
-              if (data.subtarefa_id) {
-                  const { data: res } = await supabase.from("subtarefas").select("titulo, tarefas(atividades(projeto_id, projetos(titulo, clientes(marca))))").eq("id", data.subtarefa_id).maybeSingle();
+              if (activeRow.subtarefa_id) {
+                  const { data: res } = await supabase.from("subtarefas").select("titulo, tarefas(atividades(projeto_id, projetos(titulo, clientes(marca))))").eq("id", activeRow.subtarefa_id).maybeSingle();
                   if (res) {
                       title = res.titulo;
                       const ativ = Array.isArray(res.tarefas?.atividades) ? res.tarefas.atividades[0] : res.tarefas?.atividades;
@@ -186,8 +219,8 @@ export default function DashboardHome() {
                           brandName = proj.clientes?.marca || "";
                       }
                   }
-              } else if (data.task_id || data.tarefa_id) {
-                  const taskId = data.task_id || data.tarefa_id;
+              } else if (activeRow.task_id || activeRow.tarefa_id) {
+                  const taskId = activeRow.task_id || activeRow.tarefa_id;
                   const { data: res } = await supabase.from("tarefas").select("titulo, atividades(projeto_id, projetos(titulo, clientes(marca)))").eq("id", taskId).maybeSingle();
                   if (res) {
                       title = res.titulo;
@@ -199,8 +232,8 @@ export default function DashboardHome() {
                           brandName = proj.clientes?.marca || "";
                       }
                   }
-              } else if (data.atividade_id) {
-                  const { data: res } = await supabase.from("atividades").select("titulo, projeto_id, projetos(titulo, clientes(marca))").eq("id", data.atividade_id).maybeSingle();
+              } else if (activeRow.atividade_id) {
+                  const { data: res } = await supabase.from("atividades").select("titulo, projeto_id, projetos(titulo, clientes(marca))").eq("id", activeRow.atividade_id).maybeSingle();
                   if (res) {
                       title = res.titulo;
                       const proj = Array.isArray(res.projetos) ? res.projetos[0] : res.projetos;
@@ -210,8 +243,8 @@ export default function DashboardHome() {
                           brandName = proj.clientes?.marca || "";
                       }
                   }
-              } else if (data.projeto_id) {
-                  const { data: res } = await supabase.from("projetos").select("titulo, clientes(marca)").eq("id", data.projeto_id).maybeSingle();
+              } else if (activeRow.projeto_id) {
+                  const { data: res } = await supabase.from("projetos").select("titulo, clientes(marca)").eq("id", activeRow.projeto_id).maybeSingle();
                   if (res) {
                       title = res.titulo;
                       projName = res.titulo;
@@ -227,7 +260,7 @@ export default function DashboardHome() {
                   finalDisplay = `Avulsa (${title})`;
               }
 
-              setActiveLog({ ...data, taskTitle: finalDisplay, resolvedProjectId: foundProjectId });
+              setActiveLog({ ...activeRow, taskTitle: finalDisplay, resolvedProjectId: foundProjectId });
           } else {
               setActiveLog(null);
           }
@@ -250,13 +283,83 @@ export default function DashboardHome() {
       return activeLog.taskTitle || "Tempo a decorrer...";
   };
 
-  async function handleStopGlobalLog(e) {
+  async function handleStopGlobalLog(e, stopNote = "") {
       if(e) e.stopPropagation();
       if (!activeLog) return;
-      const diffMins = Math.max(1, Math.floor((new Date() - new Date(activeLog.start_time)) / 60000)); 
-      await supabase.from("task_logs").update({ end_time: new Date().toISOString(), duration_minutes: diffMins }).eq("id", activeLog.id);
+      const diffMins = Math.max(1, Math.floor((new Date() - new Date(activeLog.start_time)) / 60000));
+      const stopTimestamp = new Date().toISOString();
+      const note = typeof stopNote === "string" ? stopNote.trim() : "";
+      const payload = { end_time: stopTimestamp, duration_minutes: diffMins };
+      if (note) payload.observacoes = note;
+
+      let { error } = await supabase.from("task_logs").update(payload).eq("id", activeLog.id);
+      if (error && note) {
+          const retry = await supabase
+              .from("task_logs")
+              .update({ end_time: stopTimestamp, duration_minutes: diffMins })
+              .eq("id", activeLog.id);
+          error = retry.error;
+      }
+
+      if (error) {
+          showToast("Erro ao terminar o cronómetro atual.", "error");
+          return;
+      }
+
       setActiveLog(null);
-      await fetchTarefasPessoais();
+      await refreshDashboardWorkItems();
+  }
+
+  function openStopNoteModal(e) {
+      if (e) e.stopPropagation();
+      if (!activeLog) return;
+      setStopNoteModal({ show: true });
+  }
+
+  function closeStopNoteModal() {
+      setStopNoteModal({ show: false });
+  }
+
+  function getStopCompleteLabel(logEntry) {
+      if (logEntry?.task_id || logEntry?.tarefa_id) return "Marcar tarefa como concluida";
+      if (logEntry?.atividade_id) return "Marcar atividade como concluida";
+      if (logEntry?.projeto_id) return "Marcar projeto como concluido";
+      return "Marcar item como concluido";
+  }
+
+  async function completeLogItem(logEntry) {
+      if (!logEntry) return;
+
+      const taskId = logEntry.task_id || logEntry.tarefa_id;
+      if (taskId) {
+          await supabase
+              .from("tarefas")
+              .update({ estado: "concluido", data_conclusao: new Date().toISOString() })
+              .eq("id", taskId);
+          return;
+      }
+
+      if (logEntry.atividade_id) {
+          await supabase.from("atividades").update({ estado: "concluido" }).eq("id", logEntry.atividade_id);
+          return;
+      }
+
+      if (logEntry.projeto_id) {
+          await supabase.from("projetos").update({ estado: "concluido" }).eq("id", logEntry.projeto_id);
+      }
+  }
+
+  async function confirmStopWithNote(note, shouldComplete) {
+      setStopNoteModal({ show: false });
+      if (!activeLog) return;
+
+      const logToStop = activeLog;
+      await handleStopGlobalLog(null, note);
+      if (shouldComplete) {
+          await completeLogItem(logToStop);
+          showToast("Tempo guardado e item concluido.", "success");
+          await refreshDashboardWorkItems();
+      }
   }
 
   const isTaskCardRunning = (taskCard) => {
@@ -287,7 +390,7 @@ export default function DashboardHome() {
           await supabase.from(tabela).update({ estado: 'em_curso' }).eq('id', targetId);
       }
 
-      await fetchTarefasPessoais();
+      await refreshDashboardWorkItems();
   }
 
   async function confirmTimerSwitch() {
@@ -309,7 +412,7 @@ export default function DashboardHome() {
 
       const isSameRunning = isTaskCardRunning(taskCard);
       if (activeLog && isSameRunning) {
-          await handleStopGlobalLog();
+          openStopNoteModal();
           return;
       }
 
@@ -380,14 +483,14 @@ export default function DashboardHome() {
       const { data: tarefas } = await supabase
           .from("tarefas")
           .select(`*, atividades ( titulo, data_fim, projetos ( id, titulo, codigo_projeto, cliente_texto, clientes(marca) ) )`)
-          .eq("responsavel_id", user.id)
+          .or(`responsavel_id.eq.${user.id},colaboradores_extra.cs.{${user.id}}`)
           .neq("estado", "concluido")
           .neq("estado", "cancelado");
 
       const { data: atividades } = await supabase
           .from("atividades")
           .select(`*, projetos ( id, titulo, codigo_projeto, cliente_texto, clientes(marca) )`)
-          .eq("responsavel_id", user.id)
+          .or(`responsavel_id.eq.${user.id},colaboradores_extra.cs.{${user.id}}`)
           .neq("estado", "concluido")
           .neq("estado", "cancelado");
 
@@ -722,7 +825,7 @@ export default function DashboardHome() {
                     </div>
                     <div style={{width: '1px', height: '20px', background: 'rgba(255,255,255,0.3)'}}></div>
                     <button 
-                        onClick={handleStopGlobalLog} 
+                        onClick={openStopNoteModal} 
                         style={{
                             background: 'white', color: '#ef4444', border: 'none', borderRadius: '20px', 
                             padding: '6px 12px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.8rem', 
@@ -888,14 +991,15 @@ export default function DashboardHome() {
 
             {/* 🕐 RETOMAR - ÚLTIMAS TAREFAS TRABALHADAS */}
             <div className="card boom-reveal" style={{ '--d': '280ms', padding: '20px', background: 'white', borderRadius: '16px' }}>
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px'}}>
+                    <h4 style={{margin: 0, color: '#1e293b', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                        <Icons.Clock size={18} color="#8b5cf6" /> Retomar Trabalho
+                    </h4>
+                    <span style={{fontSize:'0.72rem', color:'#94a3b8', fontStyle:'italic'}}>Últimas atividades do cronómetro</span>
+                </div>
+
                 {tarefasRecentesCards.length > 0 ? (
                     <>
-                        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px'}}>
-                            <h4 style={{margin: 0, color: '#1e293b', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px'}}>
-                                <Icons.Clock size={18} color="#8b5cf6" /> Retomar Trabalho
-                            </h4>
-                            <span style={{fontSize:'0.72rem', color:'#94a3b8', fontStyle:'italic'}}>Últimas atividades do cronómetro</span>
-                        </div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
                         {tarefasRecentesCards.slice(0, recentTasksVisibleCount).map((t) => {
                             const isRunning = isTaskCardRunning(t);
@@ -953,7 +1057,11 @@ export default function DashboardHome() {
                             </div>
                         )}
                     </>
-                ) : null}
+                ) : (
+                    <div style={{textAlign: 'center', padding: '20px 0', color: '#94a3b8', fontSize: '0.9rem', background: '#f8fafc', borderRadius: '12px'}}>
+                        Ainda não tens tarefas recentes para retomar.
+                    </div>
+                )}
             </div>
 
             {/* 🔥 TAREFAS URGENTES / PARA HOJE */}
@@ -1288,6 +1396,17 @@ export default function DashboardHome() {
         onCancel={cancelTimerSwitch}
         onConfirm={confirmTimerSwitch}
       />
+
+            <StopTimerNoteModal
+                open={stopNoteModal.show}
+                title="Parar cronometro"
+                message="Podes adicionar uma nota breve ao parar este registo (opcional)."
+                placeholder="Ex: Encerrado após validação com equipa"
+                showCompleteOption={Boolean(activeLog)}
+                completeLabel={getStopCompleteLabel(activeLog)}
+                onCancel={closeStopNoteModal}
+                onConfirm={confirmStopWithNote}
+            />
 
       <style>{`
                 .dashboard-home {
