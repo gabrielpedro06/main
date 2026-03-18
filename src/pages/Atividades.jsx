@@ -606,6 +606,7 @@ export default function Atividades() {
                     <div style={{display: 'flex', gap: '10px', marginBottom: '25px'}}>
                         {[
                             {val: 'pendente', label: 'Pendente'}, 
+                            {val: 'em_analise', label: 'Em Análise'}, 
                             {val: 'em_curso', label: 'Em Curso'}, 
                             {val: 'concluido', label: 'Concluído'}, 
                             {val: 'cancelado', label: 'Cancelado'}

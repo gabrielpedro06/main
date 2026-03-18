@@ -54,6 +54,7 @@ export default function DashboardHome() {
   
   const [tarefasHoje, setTarefasHoje] = useState([]);
   const [tarefasGerais, setTarefasGerais] = useState([]);
+    const [tarefasEmAnalise, setTarefasEmAnalise] = useState([]);
   const [stats, setStats] = useState({ projetos: 0, clientes: 0, forum: 0 });
   const [userProfile, setUserProfile] = useState(null);
   const [usersOnline, setUsersOnline] = useState([]);
@@ -150,7 +151,8 @@ export default function DashboardHome() {
             if (!user?.id) return;
             await Promise.all([
                     fetchTarefasPessoais(),
-                    fetchRecentWorkLogs(),
+                fetchTarefasEmAnalise(),
+                fetchRecentWorkLogs(),
                     checkActiveLog()
             ]);
     }
@@ -616,6 +618,83 @@ export default function DashboardHome() {
       }
   }
 
+  async function fetchTarefasEmAnalise() {
+      try {
+          const { data: tarefas } = await supabase
+              .from("tarefas")
+              .select(`*, atividades ( titulo, data_fim, projetos ( id, titulo, codigo_projeto, cliente_texto, clientes(marca, sigla) ) )`)
+              .or(`responsavel_id.eq.${user.id},colaboradores_extra.cs.{${user.id}}`)
+              .eq("estado", "em_analise");
+
+          const { data: atividades } = await supabase
+              .from("atividades")
+              .select(`*, projetos ( id, titulo, codigo_projeto, cliente_texto, clientes(marca, sigla) )`)
+              .or(`responsavel_id.eq.${user.id},colaboradores_extra.cs.{${user.id}}`)
+              .eq("estado", "em_analise");
+
+          let combinedAnalysis = [];
+
+          if (tarefas) {
+              const formattedTasks = tarefas.map((t) => {
+                  const ativ = Array.isArray(t.atividades) ? t.atividades[0] : t.atividades;
+                  const proj = ativ ? (Array.isArray(ativ.projetos) ? ativ.projetos[0] : ativ.projetos) : null;
+
+                  let clientLabel = "GERAL / AVULSA";
+                  if (proj) {
+                      const brand = getClientDisplayName(proj.clientes) || proj.cliente_texto;
+                      clientLabel = brand ? `${brand} - ${proj.titulo}` : proj.titulo;
+                  } else if (ativ) {
+                      clientLabel = "Atividade Sem Projeto";
+                  }
+
+                  return {
+                      ...t,
+                      isActivity: false,
+                      parentTitle: ativ?.titulo || "Sem Atividade",
+                      clientLabel,
+                      computedDeadline: t.data_fim || t.data_limite || ativ?.data_fim,
+                  };
+              });
+              combinedAnalysis = [...combinedAnalysis, ...formattedTasks];
+          }
+
+          if (atividades) {
+              const formattedAtivs = atividades.map((a) => {
+                  const proj = Array.isArray(a.projetos) ? a.projetos[0] : a.projetos;
+
+                  let clientLabel = "GERAL / AVULSA";
+                  if (proj) {
+                      const brand = getClientDisplayName(proj.clientes) || proj.cliente_texto;
+                      clientLabel = brand ? `${brand} - ${proj.titulo}` : proj.titulo;
+                  }
+
+                  return {
+                      id: `ativ_${a.id}`,
+                      real_id: a.id,
+                      titulo: a.titulo,
+                      estado: a.estado,
+                      isActivity: true,
+                      parentTitle: "Bloco / Atividade",
+                      clientLabel,
+                      computedDeadline: a.data_fim,
+                  };
+              });
+              combinedAnalysis = [...combinedAnalysis, ...formattedAtivs];
+          }
+
+          combinedAnalysis.sort((a, b) => {
+              if (!a.computedDeadline) return 1;
+              if (!b.computedDeadline) return -1;
+              return new Date(a.computedDeadline) - new Date(b.computedDeadline);
+          });
+
+          setTarefasEmAnalise(combinedAnalysis);
+      } catch (err) {
+          console.error("Erro ao carregar tarefas em análise:", err);
+          setTarefasEmAnalise([]);
+      }
+  }
+
   async function fetchStats() {
     const { count: countProjetos } = await supabase.from("projetos").select("*", { count: 'exact', head: true }).neq("estado", "cancelado").neq("estado", "concluido");
     const { count: countClientes } = await supabase.from("clientes").select("*", { count: 'exact', head: true });
@@ -1002,7 +1081,6 @@ export default function DashboardHome() {
                     </h4>
                     <span style={{fontSize:'0.72rem', color:'#94a3b8', fontStyle:'italic'}}>Últimas atividades do cronómetro</span>
                 </div>
-
                 {tarefasRecentesCards.length > 0 ? (
                     <>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
@@ -1140,7 +1218,7 @@ export default function DashboardHome() {
                     </div>
                 ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
-                    {tarefasGerais.slice(0, 8).map((t) => {
+                    {tarefasGerais.slice(0, 6).map((t) => {
                         const isRunning = isTaskCardRunning(t);
                         return (
                         <div key={t.id} onClick={() => navigate(t.clientLabel === 'GERAL / AVULSA' ? '/dashboard/minhas-tarefas' : (t.isActivity ? '/dashboard/atividades' : '/dashboard/tarefas'))} className="task-hover-card" style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -1173,6 +1251,33 @@ export default function DashboardHome() {
                             </div>
                         </div>
                     )})}
+                    </div>
+                )}
+            </div>
+
+            {/* 🔍 ATIVIDADES EM ANÁLISE */}
+            <div className="card boom-reveal" style={{ '--d': '380ms', padding: '20px', background: 'white', borderRadius: '16px' }}>
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px'}}>
+                    <h4 style={{margin: 0, color: '#1e293b', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Activity color="#ec4899" /> Em Análise / Revisão</h4>
+                    {tarefasEmAnalise.length > 0 && <span style={{fontSize: '0.8rem', background: '#fce7f3', color: '#be123c', padding: '4px 10px', borderRadius: '999px', fontWeight: 'bold'}}>{tarefasEmAnalise.length}</span>}
+                </div>
+                {tarefasEmAnalise.length === 0 ? (
+                    <div style={{textAlign: 'center', padding: '20px 0', color: '#94a3b8', fontSize: '0.9rem', background: '#f8fafc', borderRadius: '12px'}}>Nenhuma tarefa em análise no momento. ✨</div>
+                ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+                    {tarefasEmAnalise.map((t) => (
+                        <div key={t.id} onClick={() => navigate(t.isActivity ? '/dashboard/atividades' : '/dashboard/tarefas')} style={{ background: 'white', border: '2px solid #fce7f3', borderRadius: '12px', padding: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                <span style={{ fontSize: '0.65rem', color: '#be123c', textTransform: 'uppercase', background: '#fce7f3', padding: '2px 6px', borderRadius: '6px', fontWeight: 'bold' }}>{t.clientLabel}</span>
+                                <span style={{ fontSize: '0.65rem', color: '#ec4899', background: '#fce7f3', padding: '2px 8px', borderRadius: '12px', fontWeight: '600', fontStyle: 'italic' }}>Em Análise</span>
+                            </div>
+                            <h4 style={{ margin: '5px 0 0 0', fontSize: '0.9rem', color: '#1e293b', lineHeight: '1.3' }}>{t.titulo}</h4>
+                            <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '1px solid #fce7f3', gap: '8px' }}>
+                                <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{t.parentTitle}</span>
+                                <span style={{ fontSize: '0.9rem', color: '#cbd5e1' }}><Icons.ChevronRight size={14} /></span>
+                            </div>
+                        </div>
+                    ))}
                     </div>
                 )}
             </div>

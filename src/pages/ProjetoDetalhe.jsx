@@ -1236,6 +1236,7 @@ export default function ProjetoDetalhe() {
   const renderStatePills = (currentState, onChange) => {
       const states = [
           { val: 'pendente', label: 'PENDENTE', color: '#3b82f6' },
+          { val: 'em_analise', label: 'EM ANÁLISE', color: '#ec4899' },
           { val: 'em_curso', label: 'EM CURSO', color: '#f59e0b' },
           { val: 'concluido', label: 'CONCLUÍDO', color: '#2563eb' },
           { val: 'cancelado', label: 'CANCELADO', color: '#64748b' }
@@ -1976,7 +1977,7 @@ export default function ProjetoDetalhe() {
                                 <div>
                                     <label style={labelStyle}>Estado</label>
                                     <select value={formGeral.estado || 'pendente'} onChange={e => setFormGeral({...formGeral, estado: e.target.value})} style={{...inputStyle, fontWeight: 'bold'}} className="input-focus">
-                                        <option value="pendente">Pendente</option><option value="em_curso">Em Curso</option><option value="concluido">Concluído</option><option value="cancelado">Cancelado</option>
+                                        <option value="pendente">Pendente</option><option value="em_analise">Em Análise</option><option value="em_curso">Em Curso</option><option value="concluido">Concluído</option><option value="cancelado">Cancelado</option>
                                     </select>
                                 </div>
                             </div>

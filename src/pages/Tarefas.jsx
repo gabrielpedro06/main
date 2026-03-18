@@ -1918,7 +1918,7 @@ export default function Tarefas() {
                     <div style={{marginBottom: '15px'}}>
                         <label style={labelStyle}>Estado Atual</label>
                         <div style={{display: 'flex', gap: '8px'}}>
-                            {['pendente', 'em_curso', 'concluido', 'cancelado'].map(st => (
+                            {['pendente', 'em_analise', 'em_curso', 'concluido', 'cancelado'].map(st => (
                                 <div key={st} onClick={() => !isViewOnly && setForm({...form, estado: st})} style={{flex: 1, textAlign: 'center', padding: '8px', borderRadius: '6px', cursor: isViewOnly ? 'default' : 'pointer', fontSize: '0.8rem', fontWeight: '700', background: form.estado === st ? '#2563eb' : '#fff', color: form.estado === st ? 'white' : '#64748b', border: form.estado === st ? '1px solid #2563eb' : '1px solid #cbd5e1', transition: 'all 0.2s', textTransform: 'uppercase'}}>
                                     {st.replace('_', ' ')}
                                 </div>
