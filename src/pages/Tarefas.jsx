@@ -21,6 +21,7 @@ const getClientDisplayName = (client) => {
 // --- ÍCONES SVG ---
 const Icons = {
   Trash: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>,
+        Edit: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path></svg>,
     Clock: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>,
     Stop: ({ size = 12, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none"><rect x="6" y="6" width="12" height="12" rx="2" ry="2"></rect></svg>,
   Close: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>,
@@ -1238,6 +1239,22 @@ export default function Tarefas() {
   const inputGroupStyle = { marginBottom: '12px' };
   const labelStyle = { display: 'block', marginBottom: '4px', fontSize: '0.8rem', fontWeight: '600', color: '#475569' };
   const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.9rem', color: '#1e293b', outline: 'none', transition: 'border-color 0.2s', boxSizing: 'border-box' };
+    const timeLogActionCellStyle = { padding: '8px', textAlign: 'right' };
+    const timeLogActionsWrapStyle = { display: 'inline-flex', alignItems: 'center', gap: '6px' };
+    const timeLogActionBtnBaseStyle = {
+            width: '30px',
+            height: '30px',
+            borderRadius: '8px',
+            border: '1px solid #d1d5db',
+            background: '#ffffff',
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.2s ease'
+    };
+    const timeLogEditBtnStyle = { ...timeLogActionBtnBaseStyle, color: '#334155' };
+    const timeLogDeleteBtnStyle = { ...timeLogActionBtnBaseStyle, color: '#b91c1c' };
 
   if (loading) return <div className="page-container" style={{display:'flex', justifyContent:'center', alignItems:'center', height:'80vh'}}><div className="pulse-dot-white" style={{background:'#2563eb'}}></div></div>;
 
@@ -1573,9 +1590,27 @@ export default function Tarefas() {
                                                   <td style={{padding: '8px', fontSize: '0.8rem', color: '#334155'}}>{getTimeLogTargetLabel(log)}</td>
                                                   <td style={{padding: '8px', fontSize: '0.8rem', color: '#334155'}}>{staff.find((s) => String(s.id) === String(log.user_id))?.nome || staff.find((s) => String(s.id) === String(log.user_id))?.email || 'Utilizador'}</td>
                                                   <td style={{padding: '8px', textAlign: 'right', fontWeight: '700'}}>{formatTime(log.duration_minutes || 0)}</td>
-                                                  <td style={{padding: '8px', textAlign: 'right'}}>
-                                                      <button onClick={() => openTimeEditModal(log)} className="action-btn hover-orange-text" style={{marginRight: '6px'}}>✎</button>
-                                                      <button onClick={() => handleDeleteTimeLog(log.id)} className="action-btn hover-red-text">🗑</button>
+                                                  <td style={timeLogActionCellStyle}>
+                                                      <div style={timeLogActionsWrapStyle}>
+                                                          <button
+                                                              type="button"
+                                                              onClick={() => openTimeEditModal(log)}
+                                                              title="Editar registo"
+                                                              style={timeLogEditBtnStyle}
+                                                              className="time-log-action-btn"
+                                                          >
+                                                              <Icons.Edit size={13} />
+                                                          </button>
+                                                          <button
+                                                              type="button"
+                                                              onClick={() => handleDeleteTimeLog(log.id)}
+                                                              title="Apagar registo"
+                                                              style={timeLogDeleteBtnStyle}
+                                                              className="time-log-action-btn"
+                                                          >
+                                                              <Icons.Trash size={13} />
+                                                          </button>
+                                                      </div>
                                                   </td>
                                               </tr>
                                           ))}
@@ -2015,6 +2050,10 @@ export default function Tarefas() {
           
           .hover-underline:hover {text-decoration: underline !important; color: #2563eb !important} 
           .hover-text-blue:hover { color: #2563eb !important; }
+
+          .time-log-action-btn:hover { transform: translateY(-1px); box-shadow: 0 2px 6px rgba(15, 23, 42, 0.15); }
+          .time-log-action-btn:active { transform: translateY(0); }
+          .time-log-action-btn:focus-visible { outline: 2px solid #93c5fd; outline-offset: 1px; }
           
           .icon-btn-red {background: transparent; border: none; cursor: pointer; color: #f87171; font-size: 1.1rem; padding: 2px 6px; border-radius: 4px; transition: 0.2s;}
           .icon-btn-red:hover {background: #fef2f2; color: #dc2626; transform: scale(1.1);}
