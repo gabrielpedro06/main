@@ -61,7 +61,7 @@ export default function Clientes() {
 
   // FORMULÁRIO GERAL 
   const initialForm = {
-    marca: "", nif: "", entidade: "", website: "",
+    marca: "", sigla: "", nif: "", entidade: "", website: "",
     objeto_social: "", plano: "Standard",
     certidao_permanente: "", validade_certidao: "",
     rcbe: "", validade_rcbe: "", ativo: true
@@ -229,7 +229,9 @@ export default function Clientes() {
   if (busca) {
       const textoBusca = busca.toLowerCase();
       processedClientes = processedClientes.filter(c =>
-          c.marca?.toLowerCase().includes(textoBusca) || c.nif?.includes(textoBusca)
+        c.marca?.toLowerCase().includes(textoBusca) ||
+        c.sigla?.toLowerCase().includes(textoBusca) ||
+        c.nif?.includes(textoBusca)
       );
   }
 
@@ -389,7 +391,18 @@ export default function Clientes() {
     if (isViewOnly) return;
 
     const dbPayload = {
-      nif: form.nif, marca: form.marca, entidade: form.entidade, objeto_social: form.objeto_social, website: form.website, plano: form.plano, certidao_permanente: form.certidao_permanente, validade_certidao: form.validade_certidao || null, rcbe: form.rcbe, validade_rcbe: form.validade_rcbe || null, ativo: form.ativo 
+      nif: form.nif,
+      marca: form.marca,
+      sigla: form.sigla?.trim() || null,
+      entidade: form.entidade,
+      objeto_social: form.objeto_social,
+      website: form.website,
+      plano: form.plano,
+      certidao_permanente: form.certidao_permanente,
+      validade_certidao: form.validade_certidao || null,
+      rcbe: form.rcbe,
+      validade_rcbe: form.validade_rcbe || null,
+      ativo: form.ativo 
     };
 
     try {
@@ -492,7 +505,7 @@ export default function Clientes() {
       <div style={{background: '#f8fafc', padding: '12px 20px', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '25px', display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap'}}>
         <div style={{flex: 1, minWidth: '250px', position: 'relative'}}>
             <span style={{position: 'absolute', left: '12px', top: '10px', color: '#94a3b8'}}><Icons.Search /></span>
-            <input type="text" placeholder="Procurar por Empresa ou NIF..." value={busca} onChange={(e) => setBusca(e.target.value)} style={{width: '100%', padding: '8px 12px 8px 38px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.85rem', boxSizing: 'border-box'}} />
+          <input type="text" placeholder="Procurar por Empresa, Sigla ou NIF..." value={busca} onChange={(e) => setBusca(e.target.value)} style={{width: '100%', padding: '8px 12px 8px 38px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.85rem', boxSizing: 'border-box'}} />
         </div>
         <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#475569', fontSize: '0.9rem', fontWeight: 'bold' }}>
             <input type="checkbox" checked={mostrarInativos} onChange={e => setMostrarInativos(e.target.checked)} style={{width:'16px', height:'16px', accentColor: '#10b981'}} /> Mostrar Inativos
@@ -523,7 +536,10 @@ export default function Clientes() {
                               {isInactive && <span style={{fontSize: '0.65rem', background: '#fee2e2', color: '#ef4444', padding: '2px 8px', borderRadius: '12px', fontWeight: '800'}}>INATIVO</span>}
                           </div>
 
-                          <h2 style={{margin: '0 0 10px 0', fontSize: '1.25rem', color: '#1e293b', fontWeight: '800', lineHeight: '1.2'}}>{c.marca}</h2>
+                            <div style={{display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px', marginBottom: '10px'}}>
+                              <h2 style={{margin: 0, fontSize: '1.25rem', color: '#1e293b', fontWeight: '800', lineHeight: '1.2'}}>{c.marca || "Sem nome"}</h2>
+                              {c.sigla?.trim() && <span style={{background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '3px 8px', borderRadius: '999px', fontSize: '0.68rem', fontWeight: '800', letterSpacing: '0.04em'}}>{c.sigla}</span>}
+                            </div>
                           
                           <div style={{display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '15px'}}>
                               {moradaRef ? (
@@ -635,7 +651,7 @@ export default function Clientes() {
                 {activeTab === 'geral' && (
                   <form onSubmit={handleSubmitGeral}>
                      <fieldset disabled={isViewOnly} style={{border: 'none', padding: 0, margin: 0}}>
-                      <div style={{display:'grid', gridTemplateColumns:'1fr 2fr', gap:'20px'}}>
+                      <div style={{display:'grid', gridTemplateColumns:'1fr 2fr 1fr', gap:'20px'}}>
                         <div>
                             <label style={labelStyle}>NIF * <span style={{fontSize:'0.7rem', color:'#2563eb', textTransform: 'none'}}>(Pesquisa Auto)</span></label>
                             <div style={{position: 'relative'}}>
@@ -646,6 +662,10 @@ export default function Clientes() {
                         <div>
                             <label style={labelStyle}>Marca / Nome Comercial *</label>
                             <input type="text" value={form.marca} onChange={e => setForm({...form, marca: e.target.value})} required style={inputStyle} className="input-focus" />
+                        </div>
+                        <div>
+                            <label style={labelStyle}>Sigla</label>
+                            <input type="text" value={form.sigla || ""} onChange={e => setForm({...form, sigla: e.target.value})} maxLength="20" placeholder="Ex: UAlg" style={inputStyle} className="input-focus" />
                         </div>
                       </div>
 

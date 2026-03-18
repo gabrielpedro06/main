@@ -48,6 +48,11 @@ const addDays = (dateStr, days) => {
     return d.toISOString().split('T')[0];
 };
 
+const getClientDisplayName = (client) => {
+    if (!client) return "";
+    return client.sigla?.trim() || client.marca || "";
+};
+
 export default function Projetos() {
   const { user } = useAuth();
   const navigate = useNavigate(); 
@@ -150,7 +155,7 @@ export default function Projetos() {
       (async () => {
           const { data } = await supabase
               .from("contactos_cliente")
-              .select("id, cliente_id, nome_contacto, cargo, email, clientes(marca)")
+              .select("id, cliente_id, nome_contacto, cargo, email, clientes(marca, sigla)")
               .in("cliente_id", uniqueClientIds)
               .order("nome_contacto", { ascending: true });
           if (!cancelled) setEntidadePessoas(data || []);
@@ -211,7 +216,7 @@ export default function Projetos() {
       .from("projetos")
       .select(`
           *, 
-          clientes ( marca ), 
+                    clientes ( marca, sigla ), 
           tipos_projeto ( nome ), 
           profiles ( nome, email ),
           atividades ( 
@@ -227,7 +232,7 @@ export default function Projetos() {
     if (error) console.error("Erro no fetch:", error);
     else setProjetos(projData || []);
 
-    const { data: cliData } = await supabase.from("clientes").select("id, marca").order("marca");
+    const { data: cliData } = await supabase.from("clientes").select("id, marca, sigla").order("marca");
     setClientes(cliData || []);
 
     const { data: tipoData } = await supabase.from("tipos_projeto").select("id, nome").order("nome");
@@ -603,7 +608,7 @@ export default function Projetos() {
     if (!checkUserInvolvement(p)) return false;
 
     const termo = busca.toLowerCase();
-    const matchBusca = p.titulo?.toLowerCase().includes(termo) || p.clientes?.marca?.toLowerCase().includes(termo) || p.codigo_projeto?.toLowerCase().includes(termo);
+        const matchBusca = p.titulo?.toLowerCase().includes(termo) || p.clientes?.marca?.toLowerCase().includes(termo) || p.clientes?.sigla?.toLowerCase().includes(termo) || p.codigo_projeto?.toLowerCase().includes(termo);
     if (!matchBusca) return false;
 
     const isInactive = p.estado === 'concluido' || p.estado === 'cancelado';
@@ -621,7 +626,7 @@ export default function Projetos() {
   projetos.forEach(p => {
       if (!checkUserInvolvement(p)) return;
       const termo = busca.toLowerCase();
-      if (!(p.titulo?.toLowerCase().includes(termo) || p.clientes?.marca?.toLowerCase().includes(termo) || p.codigo_projeto?.toLowerCase().includes(termo))) return;
+      if (!(p.titulo?.toLowerCase().includes(termo) || p.clientes?.marca?.toLowerCase().includes(termo) || p.clientes?.sigla?.toLowerCase().includes(termo) || p.codigo_projeto?.toLowerCase().includes(termo))) return;
       if (!mostrarConcluidos && (p.estado === 'concluido' || p.estado === 'cancelado')) return;
 
       const catId = p.tipo_projeto_id || 'sem-categoria';
@@ -780,11 +785,11 @@ export default function Projetos() {
                       const catColor = getColorForCategory(p.tipo_projeto_id);
 
                       // Lógica Display Cliente/Parceria
-                      let clientDisplay = p.cliente_texto ? p.cliente_texto : (p.clientes?.marca || 'Sem Cliente');
+                      let clientDisplay = p.cliente_texto ? p.cliente_texto : (getClientDisplayName(p.clientes) || 'Sem Cliente');
                       let clientIcon = p.cliente_texto ? <Icons.FileText size={14} /> : <Icons.Building size={14} />;
                       
                       if (p.is_parceria && p.parceiros_ids?.length > 0) {
-                          const parceirosNomes = p.parceiros_ids.map(id => clientes.find(c => c.id === id)?.marca).filter(Boolean).join(', ');
+                          const parceirosNomes = p.parceiros_ids.map(id => getClientDisplayName(clientes.find(c => c.id === id))).filter(Boolean).join(', ');
                           clientDisplay = `Parceria: ${parceirosNomes}`;
                           clientIcon = <Icons.Handshake size={14} />;
                       }
@@ -981,7 +986,7 @@ export default function Projetos() {
                                     className="input-focus"
                                 >
                                     <option value="">-- Selecione o Cliente --</option>
-                                    {clientes.map(c => <option key={c.id} value={c.id}>{c.marca}</option>)}
+                                    {clientes.map(c => <option key={c.id} value={c.id}>{getClientDisplayName(c) || c.marca}</option>)}
                                 </select>
                             </div>
 
@@ -1008,7 +1013,7 @@ export default function Projetos() {
                                         {clientes
                                             .filter(c => String(c.id) !== String(form.cliente_id || ''))
                                             .filter(c => !(form.parceiros_ids || []).includes(c.id))
-                                            .map(c => <option key={c.id} value={c.id}>{c.marca}</option>)}
+                                            .map(c => <option key={c.id} value={c.id}>{getClientDisplayName(c) || c.marca}</option>)}
                                     </select>
                                 </div>
                             )}
@@ -1029,7 +1034,7 @@ export default function Projetos() {
                                                 className="pill-checkbox selected"
                                                 title="Remover parceiro"
                                             >
-                                                {parceiro.marca} ✕
+                                                {getClientDisplayName(parceiro) || parceiro.marca} ✕
                                             </div>
                                         );
                                     })}
@@ -1073,7 +1078,7 @@ export default function Projetos() {
                                                 const isSelected = (form.colaboradores || []).map(id => String(id)).includes(String(s.id));
                                                 const base = s.nome_contacto || s.email || 'Contacto';
                                                 const cargo = s.cargo ? ` (${s.cargo})` : '';
-                                                const marca = s.clientes?.marca ? ` - ${s.clientes.marca}` : '';
+                                                const marca = getClientDisplayName(s.clientes) ? ` - ${getClientDisplayName(s.clientes)}` : '';
                                                 return (
                                                     <div 
                                                         key={`ent-${s.id}`}

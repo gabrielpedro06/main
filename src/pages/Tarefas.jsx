@@ -12,10 +12,16 @@ const ModalPortal = ({ children }) => {
   return createPortal(children, document.body);
 };
 
+const getClientDisplayName = (client) => {
+    if (!client) return "";
+    return client.sigla?.trim() || client.marca || "";
+};
+
 // --- ÍCONES SVG ---
 const Icons = {
   Trash: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>,
-    Stop: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="6" width="12" height="12" rx="1"></rect></svg>,
+    Clock: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>,
+    Stop: ({ size = 12, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none"><rect x="6" y="6" width="12" height="12" rx="2" ry="2"></rect></svg>,
   Close: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>,
   Calendar: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>,
   AlertTriangle: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>,
@@ -55,6 +61,11 @@ export default function Tarefas() {
   const [editId, setEditId] = useState(null);
   const [editType, setEditType] = useState('tarefa'); 
   const [isViewOnly, setIsViewOnly] = useState(false);
+    const [showTimeModal, setShowTimeModal] = useState(false);
+    const [timeLogSaving, setTimeLogSaving] = useState(false);
+    const [timeLogForm, setTimeLogForm] = useState({ user_id: "", target_type: "tarefa", target_id: "", duration_minutes: "" });
+    const [editingTimeLogId, setEditingTimeLogId] = useState(null);
+    const [taskLogsHasExtendedTargets, setTaskLogsHasExtendedTargets] = useState(true);
 
   const [deleteConfirm, setDeleteConfirm] = useState({ show: false, tabela: '', id: null, titulo: '' });
   const [visibleLimits, setVisibleLimits] = useState({}); 
@@ -178,23 +189,23 @@ export default function Tarefas() {
       if (!externo) return null;
       const base = externo.nome_contacto || externo.email || 'Contacto';
       const cargo = externo.cargo ? ` (${externo.cargo})` : '';
-      const marca = externo.clientes?.marca ? ` - ${externo.clientes.marca}` : '';
+      const marca = getClientDisplayName(externo.clientes) ? ` - ${getClientDisplayName(externo.clientes)}` : '';
       return `${base}${cargo}${marca}`;
   };
 
   async function fetchData(adminStatus) {
     try {
-        let queryAtivs = supabase.from("atividades").select(`*, projetos!inner(id, titulo, cliente_id, parceiros_ids, clientes(id, marca)), profiles:criado_por(nome)`).not("projeto_id", "is", null);
+        let queryAtivs = supabase.from("atividades").select(`*, projetos!inner(id, titulo, cliente_id, parceiros_ids, clientes(id, marca, sigla)), profiles:criado_por(nome)`).not("projeto_id", "is", null);
         if (!adminStatus) {
             queryAtivs = queryAtivs.or(`responsavel_id.eq.${user.id},colaboradores_extra.cs.{${user.id}}`);
         }
 
-        let queryTarefas = supabase.from("tarefas").select(`*, atividades!inner(*, projetos!inner(id, titulo, cliente_id, parceiros_ids, clientes(id, marca))), profiles:criado_por(nome)`);
+        let queryTarefas = supabase.from("tarefas").select(`*, atividades!inner(*, projetos!inner(id, titulo, cliente_id, parceiros_ids, clientes(id, marca, sigla))), profiles:criado_por(nome)`);
         if (!adminStatus) {
             queryTarefas = queryTarefas.or(`responsavel_id.eq.${user.id},colaboradores_extra.cs.{${user.id}}`);
         }
 
-        let querySubtarefas = supabase.from("subtarefas").select(`*, tarefas!inner(*, atividades!inner(*, projetos!inner(id, titulo, clientes(id, marca))))`);
+        let querySubtarefas = supabase.from("subtarefas").select(`*, tarefas!inner(*, atividades!inner(*, projetos!inner(id, titulo, clientes(id, marca, sigla))))`);
         if (!adminStatus) querySubtarefas = querySubtarefas.eq("responsavel_id", user.id);
 
         const [
@@ -212,9 +223,9 @@ export default function Tarefas() {
             querySubtarefas,
             supabase.from("atividades").select("id, titulo, projetos(titulo)").not("projeto_id", "is", null).neq("estado", "cancelado"),
             supabase.from("profiles").select("id, nome, email").order("nome"),
-            supabase.from("clientes").select("id, marca").order("marca"),
+            supabase.from("clientes").select("id, marca, sigla").order("marca"),
             supabase.from("projetos").select("id, titulo").order("titulo"),
-            supabase.from("contactos_cliente").select("id, cliente_id, nome_contacto, cargo, email, clientes(marca)")
+            supabase.from("contactos_cliente").select("id, cliente_id, nome_contacto, cargo, email, clientes(marca, sigla)")
         ]);
 
         let mapAtividades = new Map();
@@ -224,7 +235,7 @@ export default function Tarefas() {
                 mapAtividades.set(a.id, {
                     ...a, 
                     projetoNome: a.projetos?.titulo, projetoId: a.projetos?.id,
-                    clienteNome: a.projetos?.clientes?.marca, clienteId: a.projetos?.clientes?.id,
+                    clienteNome: getClientDisplayName(a.projetos?.clientes), clienteId: a.projetos?.clientes?.id,
                     searchString: (a.titulo + " " + (a.projetos?.titulo||"")).toLowerCase(),
                     tarefasMap: new Map()
                 });
@@ -238,7 +249,7 @@ export default function Tarefas() {
                     mapAtividades.set(ativ.id, {
                         ...ativ,
                         projetoNome: ativ.projetos?.titulo, projetoId: ativ.projetos?.id,
-                        clienteNome: ativ.projetos?.clientes?.marca, clienteId: ativ.projetos?.clientes?.id,
+                        clienteNome: getClientDisplayName(ativ.projetos?.clientes), clienteId: ativ.projetos?.clientes?.id,
                         searchString: (ativ.titulo + " " + (ativ.projetos?.titulo||"")).toLowerCase(),
                         tarefasMap: new Map()
                     });
@@ -256,7 +267,7 @@ export default function Tarefas() {
                     mapAtividades.set(ativ.id, {
                         ...ativ,
                         projetoNome: ativ.projetos?.titulo, projetoId: ativ.projetos?.id,
-                        clienteNome: ativ.projetos?.clientes?.marca, clienteId: ativ.projetos?.clientes?.id,
+                        clienteNome: getClientDisplayName(ativ.projetos?.clientes), clienteId: ativ.projetos?.clientes?.id,
                         searchString: (ativ.titulo + " " + (ativ.projetos?.titulo||"")).toLowerCase(),
                         tarefasMap: new Map()
                     });
@@ -284,12 +295,50 @@ export default function Tarefas() {
         );
 
         if (taskIds.length > 0) {
-            const { data: logsData } = await supabase
-                .from("task_logs")
-                .select("task_id, duration_minutes")
-                .in("task_id", taskIds)
-                .not("duration_minutes", "is", null);
-            setLogs(logsData || []);
+            let logsData = [];
+
+            if (taskLogsHasExtendedTargets) {
+                const primary = await supabase
+                    .from("task_logs")
+                    .select("id, user_id, task_id, atividade_id, subtarefa_id, start_time, end_time, duration_minutes")
+                    .in("task_id", taskIds)
+                    .not("duration_minutes", "is", null);
+
+                if (!primary.error) {
+                    logsData = primary.data || [];
+                } else {
+                    setTaskLogsHasExtendedTargets(false);
+
+                    // Fallback for deployments where some target columns are not available.
+                    const fallback = await supabase
+                        .from("task_logs")
+                        .select("id, user_id, task_id, start_time, end_time, duration_minutes")
+                        .in("task_id", taskIds)
+                        .not("duration_minutes", "is", null);
+
+                    if (fallback.error) {
+                        console.error("Erro ao carregar logs de tarefa:", fallback.error);
+                        logsData = [];
+                    } else {
+                        logsData = fallback.data || [];
+                    }
+                }
+            } else {
+                const fallback = await supabase
+                    .from("task_logs")
+                    .select("id, user_id, task_id, start_time, end_time, duration_minutes")
+                    .in("task_id", taskIds)
+                    .not("duration_minutes", "is", null);
+
+                if (fallback.error) {
+                    console.error("Erro ao carregar logs de tarefa:", fallback.error);
+                    logsData = [];
+                } else {
+                    logsData = fallback.data || [];
+                }
+            }
+
+            setLogs(logsData);
         } else {
             setLogs([]);
         }
@@ -312,7 +361,143 @@ export default function Tarefas() {
   const formatTime = (mins) => {
       if (mins === 0) return "0m";
       const h = Math.floor(mins / 60); const m = mins % 60;
-      return h > 0 ? `${h}h ${m}m` : `${m}m`;
+      return h > 0 ? `${h}h${m}m` : `${m}m`;
+  };
+
+  const activityOptions = atividadesAgrupadas.map((a) => ({ id: String(a.id), label: `${a.projetoNome || 'Projeto'} > ${a.titulo}` }));
+  const taskOptions = atividadesAgrupadas.flatMap((a) =>
+      (a.tarefas || []).map((t) => ({ id: String(t.id), atividade_id: String(a.id), label: `${a.projetoNome || 'Projeto'} > ${a.titulo} > ${t.titulo}` }))
+  );
+  const subtaskOptions = atividadesAgrupadas.flatMap((a) =>
+      (a.tarefas || []).flatMap((t) =>
+          (t.subtarefas || []).map((s) => ({
+              id: String(s.id),
+              task_id: String(t.id),
+              atividade_id: String(a.id),
+              label: `${a.projetoNome || 'Projeto'} > ${a.titulo} > ${t.titulo} > ${s.titulo}`
+          }))
+      )
+  );
+
+  const getTargetOptions = (targetType) => {
+      if (targetType === "atividade") return activityOptions;
+      if (targetType === "subtarefa") return subtaskOptions;
+      return taskOptions;
+  };
+
+  const getTimeLogTargetLabel = (log) => {
+      if (log.subtarefa_id) return subtaskOptions.find((s) => String(s.id) === String(log.subtarefa_id))?.label || "Passo";
+      if (log.task_id) return taskOptions.find((t) => String(t.id) === String(log.task_id))?.label || "Tarefa";
+      if (log.atividade_id) return activityOptions.find((a) => String(a.id) === String(log.atividade_id))?.label || "Atividade";
+      return "Sem associação";
+  };
+
+  const openTimeCreateModal = () => {
+      setEditingTimeLogId(null);
+      setTimeLogForm({
+          user_id: user.id,
+          target_type: "tarefa",
+          target_id: taskOptions[0]?.id || "",
+          duration_minutes: "30"
+      });
+      setShowTimeModal(true);
+  };
+
+  const openTimeEditModal = (log) => {
+      let targetType = "tarefa";
+      let targetId = String(log.task_id || "");
+      if (log.subtarefa_id) {
+          targetType = "subtarefa";
+          targetId = String(log.subtarefa_id);
+      } else if (!log.task_id && log.atividade_id) {
+          targetType = "atividade";
+          targetId = String(log.atividade_id);
+      }
+
+      setEditingTimeLogId(log.id);
+      setTimeLogForm({
+          user_id: log.user_id || "",
+          target_type: targetType,
+          target_id: targetId,
+          duration_minutes: String(log.duration_minutes || "")
+      });
+      setShowTimeModal(true);
+  };
+
+  const handleSaveTimeLog = async (e) => {
+      e.preventDefault();
+      const duration = Math.max(1, parseInt(timeLogForm.duration_minutes, 10) || 0);
+      if (!timeLogForm.user_id || !timeLogForm.target_id || !duration) {
+          showToast("Seleciona colaborador, item e minutos válidos.", "warning");
+          return;
+      }
+
+      let atividadeId = null;
+      let taskId = null;
+      let subtarefaId = null;
+
+      if (timeLogForm.target_type === "atividade") {
+          atividadeId = timeLogForm.target_id;
+      } else if (timeLogForm.target_type === "subtarefa") {
+          const selected = subtaskOptions.find((s) => s.id === timeLogForm.target_id);
+          if (!selected) return showToast("Passo inválido.", "error");
+          subtarefaId = selected.id;
+          taskId = selected.task_id;
+          atividadeId = selected.atividade_id;
+      } else {
+          const selected = taskOptions.find((t) => t.id === timeLogForm.target_id);
+          if (!selected) return showToast("Tarefa inválida.", "error");
+          taskId = selected.id;
+          atividadeId = selected.atividade_id;
+      }
+
+      const existing = logs.find((l) => String(l.id) === String(editingTimeLogId));
+      const start = existing?.start_time ? new Date(existing.start_time) : new Date(Date.now() - duration * 60000);
+      const safeStart = isNaN(start.getTime()) ? new Date(Date.now() - duration * 60000) : start;
+      const end = new Date(safeStart.getTime() + duration * 60000);
+
+      const payload = {
+          user_id: timeLogForm.user_id,
+          atividade_id: atividadeId,
+          task_id: taskId,
+          subtarefa_id: subtarefaId,
+          duration_minutes: duration,
+          start_time: safeStart.toISOString(),
+          end_time: end.toISOString()
+      };
+
+      const atividadePai = atividadesAgrupadas.find((a) => String(a.id) === String(atividadeId));
+      if (atividadePai?.projetoId) payload.projeto_id = atividadePai.projetoId;
+
+      setTimeLogSaving(true);
+      try {
+          if (editingTimeLogId) {
+              const { error } = await supabase.from("task_logs").update(payload).eq("id", editingTimeLogId);
+              if (error) throw error;
+              showToast("Registo de tempo atualizado.");
+          } else {
+              const { error } = await supabase.from("task_logs").insert([payload]);
+              if (error) throw error;
+              showToast("Registo de tempo criado.");
+          }
+          setShowTimeModal(false);
+          fetchData(isAdmin);
+      } catch (err) {
+          showToast("Erro ao guardar tempo: " + err.message, "error");
+      } finally {
+          setTimeLogSaving(false);
+      }
+  };
+
+  const handleDeleteTimeLog = async (logId) => {
+      if (!window.confirm("Apagar este registo de tempo?")) return;
+      const { error } = await supabase.from("task_logs").delete().eq("id", logId);
+      if (error) {
+          showToast("Erro ao apagar registo.", "error");
+          return;
+      }
+      setLogs((prev) => prev.filter((l) => String(l.id) !== String(logId)));
+      showToast("Registo de tempo apagado.");
   };
 
   const renderDeadline = (dateString, isCompleted, isLarge = false) => {
@@ -437,6 +622,33 @@ export default function Tarefas() {
       }
   }
 
+  async function startAtividadeDirect(atividade) {
+      try {
+          const payload = {
+              user_id: user.id,
+              atividade_id: atividade.id,
+              projeto_id: atividade.projetoId || null,
+              start_time: new Date().toISOString()
+          };
+
+          const { data, error } = await supabase.from("task_logs").insert([payload]).select().single();
+          if (error) {
+              showToast("Não foi possível iniciar o cronómetro.", "error");
+              return;
+          }
+
+          setActiveTask(data);
+          if (atividade.estado === 'pendente') {
+              await supabase.from('atividades').update({ estado: 'em_curso' }).eq('id', atividade.id);
+              fetchData(isAdmin);
+          }
+          showToast("Cronómetro da atividade iniciado! ⏱️");
+      } catch (err) {
+          console.error("Erro ao iniciar cronómetro da atividade:", err);
+          showToast("Ocorreu um erro ao iniciar o cronómetro.", "error");
+      }
+  }
+
   async function confirmTimerSwitch() {
       const nextTask = timerSwitchModal.pendingTask;
       setTimerSwitchModal({ show: false, message: "", pendingTask: null });
@@ -447,7 +659,11 @@ export default function Tarefas() {
 
       setActiveTask(null);
       showToast(`Cronómetro anterior terminado (${mins} min).`, "success");
-      await startTaskDirect(nextTask);
+      if (nextTask.__timerType === 'atividade') {
+          await startAtividadeDirect(nextTask);
+      } else {
+          await startTaskDirect(nextTask);
+      }
   }
 
   function cancelTimerSwitch() {
@@ -480,6 +696,30 @@ export default function Tarefas() {
       await startTaskDirect(tarefa);
   }
 
+  async function handleStartAtividade(atividade, e) {
+      if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+      }
+      if (activeTask) {
+          const atual = getActiveTimerContext(activeTask);
+          const novo = {
+              tipo: 'atividade',
+              titulo: atividade?.titulo || 'atividade',
+              projeto: atividade?.projetoNome || 'Sem projeto'
+          };
+
+          setTimerSwitchModal({
+              show: true,
+              message: `Deseja terminar a ${atual.tipo} "${atual.titulo}" do projeto "${atual.projeto}" para iniciar a atividade "${novo.titulo}" do projeto "${novo.projeto}"?`,
+              pendingTask: { ...atividade, __timerType: 'atividade' }
+          });
+          return;
+      }
+
+      await startAtividadeDirect(atividade);
+  }
+
   async function handleStopTask() {
       if (!activeTask) return;
       const diffMins = await stopTaskLogById(activeTask);
@@ -490,6 +730,11 @@ export default function Tarefas() {
   }
 
   function getActiveTaskTitle() {
+      if (activeTask?.atividade_id && !activeTask?.task_id) {
+          const atividadeAtiva = atividadesAgrupadas.find((a) => String(a.id) === String(activeTask.atividade_id));
+          return atividadeAtiva?.titulo || "Atividade em curso";
+      }
+
       if (!activeTask?.task_id) return "Tarefa em curso";
 
       for (const ativ of atividadesAgrupadas) {
@@ -498,6 +743,68 @@ export default function Tarefas() {
       }
 
       return "Tarefa em curso";
+  }
+
+  function getActiveTaskLocationLabel() {
+      if (!activeTask) return "";
+
+      if (activeTask.task_id) {
+          const atividadePai = atividadesAgrupadas.find((a) => (a.tarefas || []).some((t) => String(t.id) === String(activeTask.task_id)));
+          if (!atividadePai) return "Tarefa ativa";
+          const projeto = atividadePai.projetoNome || "Sem projeto";
+          return `${projeto} > ${atividadePai.titulo}`;
+      }
+
+      if (activeTask.atividade_id) {
+          const atividadeAtiva = atividadesAgrupadas.find((a) => String(a.id) === String(activeTask.atividade_id));
+          if (!atividadeAtiva) return "Atividade ativa";
+          const projeto = atividadeAtiva.projetoNome || "Sem projeto";
+          return `${projeto}`;
+      }
+
+      if (activeTask.projeto_id) {
+          const projeto = projetosList.find((p) => String(p.id) === String(activeTask.projeto_id));
+          return projeto?.titulo || "Projeto ativo";
+      }
+
+      return "Item ativo";
+  }
+
+    async function focusActiveTaskLocation() {
+      if (!activeTask) return;
+
+      // Match DashboardHome behavior: go straight to the project detail when possible.
+      if (activeTask.projeto_id) {
+          navigate(`/dashboard/projetos/${activeTask.projeto_id}`);
+          return;
+      }
+
+      if (activeTask.atividade_id) {
+          navigate('/dashboard/atividades');
+          return;
+      }
+
+      if (activeTask.task_id) {
+          const { data: taskData } = await supabase
+              .from("tarefas")
+              .select("atividade_id, atividades(projeto_id)")
+              .eq("id", activeTask.task_id)
+              .maybeSingle();
+
+          const projectId = taskData?.atividades?.projeto_id;
+          if (projectId) {
+              navigate(`/dashboard/projetos/${projectId}`);
+              return;
+          }
+
+          if (taskData?.atividade_id) {
+              navigate('/dashboard/atividades');
+              return;
+          }
+
+          // Avulsa: open personal tasks board.
+          navigate('/dashboard/minhas-tarefas');
+      }
   }
 
   function getStopCompleteLabel(logEntry) {
@@ -863,7 +1170,7 @@ export default function Tarefas() {
       .map((p) => {
           const base = p.nome_contacto || p.email || 'Contacto';
           const cargo = p.cargo ? ` (${p.cargo})` : '';
-          const marca = p.clientes?.marca ? ` - ${p.clientes.marca}` : '';
+          const marca = getClientDisplayName(p.clientes) ? ` - ${getClientDisplayName(p.clientes)}` : '';
           return { id: String(p.id), label: `${base}${cargo}${marca}` };
       });
 
@@ -901,17 +1208,20 @@ export default function Tarefas() {
         <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
             <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.5rem', fontWeight: '800', letterSpacing: '-0.02em'}}>Tarefas de Projetos</h1>
             {activeTask && (
-                <div style={{background: 'linear-gradient(to right, #ef4444, #b91c1c)', color: 'white', padding: '8px 16px', borderRadius: '24px', display: 'flex', alignItems: 'center', gap: '12px', border: '2px solid #fecaca', boxShadow: '0 4px 10px rgba(239, 68, 68, 0.35)'}}>
-                    <span style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700', fontSize: '0.85rem'}}>
+                <div onClick={focusActiveTaskLocation} className="hover-shadow" title="Clica para ir para a tarefa/atividade em curso" style={{background: 'linear-gradient(to right, #ef4444, #b91c1c)', color: 'white', padding: '10px 20px', borderRadius: '30px', display: 'flex', alignItems: 'center', gap: '15px', border: '2px solid #fecaca', boxShadow: '0 4px 10px rgba(239, 68, 68, 0.35)', cursor: 'pointer', transition: '0.2s'}}>
+                    <div style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700', fontSize: '0.95rem'}}>
                         <span className="pulse-dot-white"></span>
-                        {getActiveTaskTitle().length > 28 ? `${getActiveTaskTitle().slice(0, 28)}...` : getActiveTaskTitle()}
-                    </span>
-                    <div style={{width: '1px', height: '18px', background: 'rgba(255,255,255,0.35)'}}></div>
-                    <button type="button" onClick={openStopNoteModal} style={{background: 'white', color:'#ef4444', border:'none', borderRadius:'18px', padding:'4px 10px', cursor:'pointer', fontWeight:'800', fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '5px'}}><Icons.Stop size={10} /> PARAR</button>
+                        {getActiveTaskTitle().length > 30 ? `${getActiveTaskTitle().slice(0, 30)}...` : getActiveTaskTitle()}
+                    </div>
+                    <div style={{width: '1px', height: '20px', background: 'rgba(255,255,255,0.3)'}}></div>
+                    <button type="button" onClick={openStopNoteModal} style={{background: 'white', color:'#ef4444', border:'none', borderRadius:'20px', padding:'6px 12px', cursor:'pointer', fontWeight:'700', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px', transition: '0.2s'}}><Icons.Stop /> Parar</button>
                 </div>
             )}
         </div>
-        <button onClick={handleNovo} className="btn-cta">+ Nova Tarefa de Projeto</button>
+        <div style={{display:'flex', gap:'10px'}}>
+            <button onClick={openTimeCreateModal} className="btn-soft-cta"><Icons.Clock size={16} /> Tempo Manual</button>
+            <button onClick={handleNovo} className="btn-cta">+ Nova Tarefa de Projeto</button>
+        </div>
       </div>
 
       {/* FILTROS */}
@@ -923,7 +1233,7 @@ export default function Tarefas() {
         
         {isAdmin && (
             <>
-                <select value={filtroCliente} onChange={(e) => setFiltroCliente(e.target.value)} style={{flex: 1, minWidth: '120px', padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', background: 'white', fontSize: '0.85rem', color: '#475569'}}><option value="">Todos os Clientes</option>{clientes.map(c => <option key={c.id} value={c.id}>{c.marca}</option>)}</select>
+                <select value={filtroCliente} onChange={(e) => setFiltroCliente(e.target.value)} style={{flex: 1, minWidth: '120px', padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', background: 'white', fontSize: '0.85rem', color: '#475569'}}><option value="">Todos os Clientes</option>{clientes.map(c => <option key={c.id} value={c.id}>{getClientDisplayName(c) || c.marca}</option>)}</select>
                 <select value={filtroProjeto} onChange={(e) => setFiltroProjeto(e.target.value)} style={{flex: 1, minWidth: '120px', padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', background: 'white', fontSize: '0.85rem', color: '#475569'}}><option value="">Todos os Projetos</option>{projetosList.map(p => <option key={p.id} value={p.id}>{p.titulo}</option>)}</select>
             </>
         )}
@@ -974,10 +1284,11 @@ export default function Tarefas() {
                         <div className="project-grid">
                             {visibleAtivs.map(ativ => {
                                 const isAtivCompleted = ativ.estado === 'concluido';
+                                const isAtivTimerActive = activeTask && String(activeTask.atividade_id) === String(ativ.id) && !activeTask.task_id;
                                 const ativTime = getActivityTime(ativ);
 
                                 return (
-                                    <div key={ativ.id} style={{background: 'white', borderRadius: '10px', border: `1px solid ${isAtivCompleted ? '#e2e8f0' : proj.color}60`, borderTop: `4px solid ${isAtivCompleted ? '#cbd5e1' : proj.color}`, boxShadow: '0 2px 5px rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column', opacity: isAtivCompleted ? 0.6 : 1, transition: '0.2s', maxHeight: '400px'}}>
+                                    <div id={`atividade-card-${ativ.id}`} key={ativ.id} style={{background: 'white', borderRadius: '10px', border: `1px solid ${isAtivCompleted ? '#e2e8f0' : proj.color}60`, borderTop: `4px solid ${isAtivCompleted ? '#cbd5e1' : proj.color}`, boxShadow: '0 2px 5px rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column', opacity: isAtivCompleted ? 0.6 : 1, transition: '0.2s', maxHeight: '400px'}}>
                                         
                                         <div style={{padding: '12px 15px', background: isAtivCompleted ? '#f8fafc' : 'white', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
                                             <div style={{flex: 1, paddingRight: '10px'}}>
@@ -1006,6 +1317,16 @@ export default function Tarefas() {
                                                     {ativ.tem_entregavel && <span title="Tem Documento Entregável" style={{fontSize: '0.7rem', color: '#3b82f6'}}>📄</span>}
                                                 </div>
                                             </div>
+                                            {!isAtivCompleted && (
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => isAtivTimerActive ? openStopNoteModal(e) : handleStartAtividade(ativ, e)}
+                                                    title={isAtivTimerActive ? 'Parar cronómetro da atividade' : 'Iniciar cronómetro da atividade'}
+                                                    style={{ background: isAtivTimerActive ? '#fee2e2' : '#ecfdf5', color: isAtivTimerActive ? '#ef4444' : '#059669', border: isAtivTimerActive ? '1px solid #fecaca' : '1px solid #d1fae5', borderRadius: '999px', width: '30px', height: '30px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1, flexShrink: 0 }}
+                                                >
+                                                    {isAtivTimerActive ? '⏹' : '▶'}
+                                                </button>
+                                            )}
                                         </div>
 
                                         {!isAtivCompleted && (
@@ -1020,7 +1341,7 @@ export default function Tarefas() {
                                                         const subsToRender = tar.subtarefas;
 
                                                         return (
-                                                            <div key={tar.id} style={{background: isTimerActive ? '#fefce8' : '#f8fafc', border: isTimerActive ? '1px solid #eab308' : '1px solid transparent', borderRadius: '6px', padding: '8px', marginBottom: '6px', opacity: isTarCompleted ? 0.6 : 1, transition: '0.2s'}}>
+                                                            <div id={`tarefa-card-${tar.id}`} key={tar.id} style={{background: isTimerActive ? '#fefce8' : '#f8fafc', border: isTimerActive ? '1px solid #eab308' : '1px solid transparent', borderRadius: '6px', padding: '8px', marginBottom: '6px', opacity: isTarCompleted ? 0.6 : 1, transition: '0.2s'}}>
                                                                 <div style={{display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px'}}>
                                                                     
                                                                     <div style={{display: 'flex', alignItems: 'flex-start', gap: '6px', flex: 1}}>
@@ -1135,6 +1456,95 @@ export default function Tarefas() {
                       <div style={{display: 'flex', gap: '10px'}}>
                           <button onClick={() => setDeleteConfirm({show:false, tabela:'', id:null, titulo:''})} style={{flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', background: 'white', color: '#475569', fontWeight: 'bold', cursor: 'pointer'}}>Cancelar</button>
                           <button onClick={executeDelete} style={{flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: '#ef4444', color: 'white', fontWeight: 'bold', cursor: 'pointer'}}>Sim, Apagar</button>
+                      </div>
+                  </div>
+              </div>
+          </ModalPortal>
+      )}
+
+      {showTimeModal && (
+          <ModalPortal>
+              <div style={modalOverlayStyle} onClick={() => !timeLogSaving && setShowTimeModal(false)}>
+                  <div style={{...modalStyle, maxWidth: '760px'}} onClick={e => e.stopPropagation()}>
+                      <div style={modalHeaderStyle}>
+                          <h3 style={{margin: 0, color: '#1e293b'}}>{editingTimeLogId ? 'Editar Registo de Tempo' : 'Novo Registo de Tempo'}</h3>
+                          <button onClick={() => !timeLogSaving && setShowTimeModal(false)} style={{background:'transparent', border:'none', cursor:'pointer', color:'#94a3b8'}}>✕</button>
+                      </div>
+                      <div style={modalBodyStyle}>
+                          <form onSubmit={handleSaveTimeLog} style={{display: 'grid', gap: '12px', marginBottom: '16px'}}>
+                              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px'}}>
+                                  <div>
+                                      <label style={labelStyle}>Colaborador</label>
+                                      <select value={timeLogForm.user_id} onChange={(e) => setTimeLogForm(prev => ({...prev, user_id: e.target.value}))} style={inputStyle} required>
+                                          <option value="">Selecionar...</option>
+                                          {staff.map((s) => <option key={s.id} value={s.id}>{s.nome || s.email}</option>)}
+                                      </select>
+                                  </div>
+                                  <div>
+                                      <label style={labelStyle}>Tempo (minutos)</label>
+                                      <input type="number" min="1" value={timeLogForm.duration_minutes} onChange={(e) => setTimeLogForm(prev => ({...prev, duration_minutes: e.target.value}))} style={inputStyle} required />
+                                  </div>
+                              </div>
+                              <div style={{display: 'grid', gridTemplateColumns: '170px 1fr', gap: '10px'}}>
+                                  <div>
+                                      <label style={labelStyle}>Tipo</label>
+                                      <select value={timeLogForm.target_type} onChange={(e) => {
+                                          const nextType = e.target.value;
+                                          setTimeLogForm(prev => ({ ...prev, target_type: nextType, target_id: getTargetOptions(nextType)[0]?.id || "" }));
+                                      }} style={inputStyle}>
+                                          <option value="atividade">Atividade</option>
+                                          <option value="tarefa">Tarefa</option>
+                                          <option value="subtarefa">Passo</option>
+                                      </select>
+                                  </div>
+                                  <div>
+                                      <label style={labelStyle}>Item</label>
+                                      <select value={timeLogForm.target_id} onChange={(e) => setTimeLogForm(prev => ({...prev, target_id: e.target.value}))} style={inputStyle} required>
+                                          <option value="">Selecionar...</option>
+                                          {getTargetOptions(timeLogForm.target_type).map((opt) => <option key={opt.id} value={opt.id}>{opt.label}</option>)}
+                                      </select>
+                                  </div>
+                              </div>
+                              <div style={{fontSize: '0.78rem', color: '#64748b'}}>Pré-visualização: {formatTime(Math.max(0, parseInt(timeLogForm.duration_minutes || "0", 10) || 0))}</div>
+                              <div style={{display: 'flex', justifyContent: 'flex-end', gap: '10px'}}>
+                                  <button type="button" onClick={() => setShowTimeModal(false)} style={{padding: '10px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white'}}>Cancelar</button>
+                                  <button type="submit" disabled={timeLogSaving} className="btn-primary hover-shadow" style={{padding: '10px 16px'}}>{timeLogSaving ? 'A guardar...' : 'Guardar'}</button>
+                              </div>
+                          </form>
+
+                          <div style={{borderTop: '1px solid #e2e8f0', paddingTop: '12px'}}>
+                              <h4 style={{margin: '0 0 10px 0', fontSize: '0.95rem', color: '#334155'}}>Registos</h4>
+                              <div style={{maxHeight: '260px', overflowY: 'auto'}} className="custom-scrollbar">
+                                  <table style={{width: '100%', borderCollapse: 'collapse'}}>
+                                      <thead>
+                                          <tr style={{fontSize: '0.72rem', color: '#64748b', textTransform: 'uppercase', borderBottom: '1px solid #e2e8f0'}}>
+                                              <th style={{padding: '8px', textAlign: 'left'}}>Data</th>
+                                              <th style={{padding: '8px', textAlign: 'left'}}>Item</th>
+                                              <th style={{padding: '8px', textAlign: 'left'}}>Quem</th>
+                                              <th style={{padding: '8px', textAlign: 'right'}}>Tempo</th>
+                                              <th style={{padding: '8px', textAlign: 'right'}}>Ações</th>
+                                          </tr>
+                                      </thead>
+                                      <tbody>
+                                          {logs.filter((l) => (l.duration_minutes || 0) > 0).map((log) => (
+                                              <tr key={log.id} style={{borderBottom: '1px solid #f1f5f9'}}>
+                                                  <td style={{padding: '8px', fontSize: '0.78rem', color: '#64748b'}}>{log.start_time ? new Date(log.start_time).toLocaleString('pt-PT') : '-'}</td>
+                                                  <td style={{padding: '8px', fontSize: '0.8rem', color: '#334155'}}>{getTimeLogTargetLabel(log)}</td>
+                                                  <td style={{padding: '8px', fontSize: '0.8rem', color: '#334155'}}>{staff.find((s) => String(s.id) === String(log.user_id))?.nome || staff.find((s) => String(s.id) === String(log.user_id))?.email || 'Utilizador'}</td>
+                                                  <td style={{padding: '8px', textAlign: 'right', fontWeight: '700'}}>{formatTime(log.duration_minutes || 0)}</td>
+                                                  <td style={{padding: '8px', textAlign: 'right'}}>
+                                                      <button onClick={() => openTimeEditModal(log)} className="action-btn hover-orange-text" style={{marginRight: '6px'}}>✎</button>
+                                                      <button onClick={() => handleDeleteTimeLog(log.id)} className="action-btn hover-red-text">🗑</button>
+                                                  </td>
+                                              </tr>
+                                          ))}
+                                          {logs.filter((l) => (l.duration_minutes || 0) > 0).length === 0 && (
+                                              <tr><td colSpan={5} style={{padding: '12px', textAlign: 'center', color: '#94a3b8'}}>Sem registos de tempo.</td></tr>
+                                          )}
+                                      </tbody>
+                                  </table>
+                              </div>
+                          </div>
                       </div>
                   </div>
               </div>
@@ -1323,6 +1733,7 @@ export default function Tarefas() {
                                     <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
                                         {associatedTasks.map((task) => {
                                             const isTaskInactive = task.estado === 'concluido' || task.estado === 'cancelado';
+                                            const isTaskTimerActive = activeTask && String(activeTask.task_id) === String(task.id);
                                             const responsavelNome = getPersonLabelById(task.responsavel_id);
                                             const subtarefasCount = Array.isArray(task.subtarefas) ? task.subtarefas.length : 0;
 
@@ -1391,6 +1802,30 @@ export default function Tarefas() {
                                                         </div>
                                                     </div>
                                                     <div style={{display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, paddingLeft: '4px'}}>
+                                                        {!isTaskInactive && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => isTaskTimerActive ? openStopNoteModal() : handleStartTask(task)}
+                                                                title={isTaskTimerActive ? 'Parar cronómetro' : 'Iniciar cronómetro'}
+                                                                style={{
+                                                                    border: isTaskTimerActive ? '1px solid #fecaca' : '1px solid #d1fae5',
+                                                                    background: isTaskTimerActive ? '#fee2e2' : '#ecfdf5',
+                                                                    color: isTaskTimerActive ? '#dc2626' : '#059669',
+                                                                    borderRadius: '999px',
+                                                                    width: '30px',
+                                                                    height: '30px',
+                                                                    cursor: 'pointer',
+                                                                    fontSize: '0.8rem',
+                                                                    fontWeight: '700',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'center',
+                                                                    lineHeight: 1
+                                                                }}
+                                                            >
+                                                                {isTaskTimerActive ? '⏹' : '▶'}
+                                                            </button>
+                                                        )}
                                                         <button
                                                             type="button"
                                                             onClick={() => handleEdit(task, 'tarefa')}

@@ -53,6 +53,11 @@ export default function Atividades() {
   const [showModal, setShowModal] = useState(false);
   const [editId, setEditId] = useState(null);
   const [isViewOnly, setIsViewOnly] = useState(false);
+    const [timeLogs, setTimeLogs] = useState([]);
+    const [showTimeModal, setShowTimeModal] = useState(false);
+    const [timeLogSaving, setTimeLogSaving] = useState(false);
+    const [editingTimeLogId, setEditingTimeLogId] = useState(null);
+    const [timeLogForm, setTimeLogForm] = useState({ user_id: "", atividade_id: "", duration_minutes: "" });
 
   // Formulário
   const [form, setForm] = useState({
@@ -85,6 +90,20 @@ export default function Atividades() {
 
     const { data: staffData } = await supabase.from("profiles").select("id, nome, email").order("nome");
     setStaff(staffData || []);
+
+        const atividadeIds = (ativData || []).map((a) => a.id).filter(Boolean);
+        if (atividadeIds.length > 0) {
+            const { data: logsData } = await supabase
+                .from("task_logs")
+                .select("id, user_id, atividade_id, start_time, end_time, duration_minutes")
+                .in("atividade_id", atividadeIds)
+                .not("duration_minutes", "is", null)
+                .order("start_time", { ascending: false });
+            setTimeLogs(logsData || []);
+        } else {
+            setTimeLogs([]);
+        }
+
     setLoading(false);
   }
 
@@ -314,6 +333,82 @@ export default function Atividades() {
     } catch (error) { showToast("Erro: " + error.message, "error"); }
   }
 
+    const atividadeOptions = atividades.map((a) => ({ id: String(a.id), label: `${a.projetos?.titulo || 'Sem Projeto'} > ${a.titulo}` }));
+
+    const formatDuration = (mins) => {
+        const total = Math.max(0, Number(mins) || 0);
+        if (total === 0) return "0m";
+        const h = Math.floor(total / 60);
+        const m = total % 60;
+        return h > 0 ? `${h}h${m}m` : `${m}m`;
+    };
+
+    const openTimeCreateModal = () => {
+        setEditingTimeLogId(null);
+        setTimeLogForm({ user_id: user.id, atividade_id: atividadeOptions[0]?.id || "", duration_minutes: "30" });
+        setShowTimeModal(true);
+    };
+
+    const openTimeEditModal = (log) => {
+        setEditingTimeLogId(log.id);
+        setTimeLogForm({ user_id: log.user_id || "", atividade_id: String(log.atividade_id || ""), duration_minutes: String(log.duration_minutes || "") });
+        setShowTimeModal(true);
+    };
+
+    const handleSaveTimeLog = async (e) => {
+        e.preventDefault();
+        const duration = Math.max(1, parseInt(timeLogForm.duration_minutes, 10) || 0);
+        if (!timeLogForm.user_id || !timeLogForm.atividade_id || !duration) {
+            showToast("Preenche colaborador, atividade e minutos válidos.", "warning");
+            return;
+        }
+
+        const atividadeSelecionada = atividades.find((a) => String(a.id) === String(timeLogForm.atividade_id));
+        const existing = timeLogs.find((l) => String(l.id) === String(editingTimeLogId));
+        const start = existing?.start_time ? new Date(existing.start_time) : new Date(Date.now() - duration * 60000);
+        const safeStart = isNaN(start.getTime()) ? new Date(Date.now() - duration * 60000) : start;
+        const end = new Date(safeStart.getTime() + duration * 60000);
+
+        const payload = {
+            user_id: timeLogForm.user_id,
+            atividade_id: timeLogForm.atividade_id,
+            projeto_id: atividadeSelecionada?.projeto_id || null,
+            duration_minutes: duration,
+            start_time: safeStart.toISOString(),
+            end_time: end.toISOString()
+        };
+
+        setTimeLogSaving(true);
+        try {
+            if (editingTimeLogId) {
+                const { error } = await supabase.from("task_logs").update(payload).eq("id", editingTimeLogId);
+                if (error) throw error;
+                showToast("Registo de tempo atualizado.");
+            } else {
+                const { error } = await supabase.from("task_logs").insert([payload]);
+                if (error) throw error;
+                showToast("Registo de tempo criado.");
+            }
+            setShowTimeModal(false);
+            fetchData();
+        } catch (err) {
+            showToast("Erro ao guardar tempo: " + err.message, "error");
+        } finally {
+            setTimeLogSaving(false);
+        }
+    };
+
+    const handleDeleteTimeLog = async (logId) => {
+        if (!window.confirm("Apagar este registo de tempo?")) return;
+        const { error } = await supabase.from("task_logs").delete().eq("id", logId);
+        if (error) {
+            showToast("Erro ao apagar registo.", "error");
+            return;
+        }
+        setTimeLogs((prev) => prev.filter((l) => String(l.id) !== String(logId)));
+        showToast("Registo de tempo apagado.");
+    };
+
   const sectionTitleStyle = { display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '15px', marginTop: '20px', borderBottom: '1px solid #e2e8f0', paddingBottom: '5px' };
   const labelStyle = { display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' };
   const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', color: '#1e293b', outline: 'none', boxSizing: 'border-box' };
@@ -339,9 +434,12 @@ export default function Atividades() {
                 </div>
             )}
         </div>
-        <button className="btn-cta" onClick={handleNovo}>
-            <Icons.Plus /> Nova Atividade
-        </button>
+        <div style={{display:'flex', gap:'10px'}}>
+            <button className="btn-soft-cta" onClick={openTimeCreateModal}><Icons.Clock size={16} /> Tempo Manual</button>
+            <button className="btn-cta" onClick={handleNovo}>
+                <Icons.Plus /> Nova Atividade
+            </button>
+        </div>
       </div>
 
       <div className="card" style={{ padding: '20px', borderRadius: '12px' }}>
@@ -554,6 +652,79 @@ export default function Atividades() {
           </div>
         </ModalPortal>
       )}
+
+            {showTimeModal && (
+                <ModalPortal>
+                    <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(15, 23, 42, 0.7)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:99999}} onClick={() => !timeLogSaving && setShowTimeModal(false)}>
+                        <div style={{background:'#fff', width:'92%', maxWidth:'760px', borderRadius:'16px', boxShadow:'0 25px 50px -12px rgba(0,0,0,0.25)', overflow:'hidden'}} onClick={e => e.stopPropagation()}>
+                            <div style={{padding:'18px 22px', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                                <h3 style={{margin:0, color:'#1e293b', fontSize:'1.1rem'}}>{editingTimeLogId ? 'Editar Registo de Tempo' : 'Novo Registo de Tempo'}</h3>
+                                <button onClick={() => !timeLogSaving && setShowTimeModal(false)} style={{background:'transparent', border:'none', color:'#94a3b8', cursor:'pointer'}}><Icons.Close /></button>
+                            </div>
+                            <div style={{padding:'18px 22px', background:'#f8fafc'}}>
+                                <form onSubmit={handleSaveTimeLog} style={{display:'grid', gap:'12px', marginBottom:'14px'}}>
+                                    <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px'}}>
+                                        <div>
+                                            <label style={labelStyle}>Colaborador</label>
+                                            <select value={timeLogForm.user_id} onChange={e => setTimeLogForm(prev => ({...prev, user_id: e.target.value}))} style={inputStyle} required>
+                                                <option value="">Selecionar...</option>
+                                                {staff.map(s => <option key={s.id} value={s.id}>{s.nome || s.email}</option>)}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label style={labelStyle}>Tempo (minutos)</label>
+                                            <input type="number" min="1" value={timeLogForm.duration_minutes} onChange={e => setTimeLogForm(prev => ({...prev, duration_minutes: e.target.value}))} style={inputStyle} required />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label style={labelStyle}>Atividade</label>
+                                        <select value={timeLogForm.atividade_id} onChange={e => setTimeLogForm(prev => ({...prev, atividade_id: e.target.value}))} style={inputStyle} required>
+                                            <option value="">Selecionar...</option>
+                                            {atividadeOptions.map(opt => <option key={opt.id} value={opt.id}>{opt.label}</option>)}
+                                        </select>
+                                    </div>
+                                    <div style={{fontSize:'0.78rem', color:'#64748b'}}>Pré-visualização: {formatDuration(timeLogForm.duration_minutes)}</div>
+                                    <div style={{display:'flex', justifyContent:'flex-end', gap:'10px'}}>
+                                        <button type="button" onClick={() => setShowTimeModal(false)} style={{padding:'10px 14px', borderRadius:'8px', border:'1px solid #cbd5e1', background:'white'}}>Cancelar</button>
+                                        <button type="submit" disabled={timeLogSaving} className="btn-primary hover-shadow" style={{padding:'10px 14px'}}>{timeLogSaving ? 'A guardar...' : 'Guardar'}</button>
+                                    </div>
+                                </form>
+
+                                <div style={{borderTop:'1px solid #e2e8f0', paddingTop:'10px', maxHeight:'260px', overflowY:'auto'}} className="custom-scrollbar">
+                                    <table style={{width:'100%', borderCollapse:'collapse'}}>
+                                        <thead>
+                                            <tr style={{fontSize:'0.72rem', color:'#64748b', textTransform:'uppercase', borderBottom:'1px solid #e2e8f0'}}>
+                                                <th style={{padding:'8px', textAlign:'left'}}>Data</th>
+                                                <th style={{padding:'8px', textAlign:'left'}}>Atividade</th>
+                                                <th style={{padding:'8px', textAlign:'left'}}>Quem</th>
+                                                <th style={{padding:'8px', textAlign:'right'}}>Tempo</th>
+                                                <th style={{padding:'8px', textAlign:'right'}}>Ações</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {timeLogs.filter(l => (l.duration_minutes || 0) > 0).map(log => (
+                                                <tr key={log.id} style={{borderBottom:'1px solid #f1f5f9'}}>
+                                                    <td style={{padding:'8px', fontSize:'0.78rem', color:'#64748b'}}>{log.start_time ? new Date(log.start_time).toLocaleString('pt-PT') : '-'}</td>
+                                                    <td style={{padding:'8px', fontSize:'0.8rem', color:'#334155'}}>{atividadeOptions.find(a => String(a.id) === String(log.atividade_id))?.label || 'Atividade'}</td>
+                                                    <td style={{padding:'8px', fontSize:'0.8rem', color:'#334155'}}>{staff.find((s) => String(s.id) === String(log.user_id))?.nome || staff.find((s) => String(s.id) === String(log.user_id))?.email || 'Utilizador'}</td>
+                                                    <td style={{padding:'8px', textAlign:'right', fontWeight:'700'}}>{formatDuration(log.duration_minutes || 0)}</td>
+                                                    <td style={{padding:'8px', textAlign:'right'}}>
+                                                        <button onClick={() => openTimeEditModal(log)} style={{border:'none', background:'transparent', color:'#f97316', cursor:'pointer', marginRight:'6px'}}>✎</button>
+                                                        <button onClick={() => handleDeleteTimeLog(log.id)} style={{border:'none', background:'transparent', color:'#ef4444', cursor:'pointer'}}>🗑</button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            {timeLogs.filter(l => (l.duration_minutes || 0) > 0).length === 0 && (
+                                                <tr><td colSpan={5} style={{padding:'12px', textAlign:'center', color:'#94a3b8'}}>Sem registos de tempo.</td></tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </ModalPortal>
+            )}
 
             <TimerSwitchModal
                 open={timerSwitchModal.show}

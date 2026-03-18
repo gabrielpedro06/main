@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
 import TimerSwitchModal from "../components/TimerSwitchModal";
@@ -39,10 +40,14 @@ const ModalPortal = ({ children }) => createPortal(children, document.body);
 
 export default function MinhasTarefas() {
   const { user } = useAuth();
+    const navigate = useNavigate();
   
   const [tasks, setTasks] = useState({ atrasadas: [], hoje: [], amanha: [], depois: [], semData: [] });
   const [logs, setLogs] = useState([]);
   const [activeLog, setActiveLog] = useState(null);
+    const [activeTimerTitle, setActiveTimerTitle] = useState("");
+        const [activeTimerLocation, setActiveTimerLocation] = useState("");
+        const [activeTimerRoute, setActiveTimerRoute] = useState("");
   const [loading, setLoading] = useState(true);
   const [notification, setNotification] = useState(null);
   const [staff, setStaff] = useState([]); 
@@ -65,6 +70,11 @@ export default function MinhasTarefas() {
   const [activeHistoryTab, setActiveHistoryTab] = useState("Esta Semana"); 
     const [timerSwitchModal, setTimerSwitchModal] = useState({ show: false, message: "", pendingTask: null });
         const [stopNoteModal, setStopNoteModal] = useState({ show: false });
+    const [showTimeModal, setShowTimeModal] = useState(false);
+    const [timeLogSaving, setTimeLogSaving] = useState(false);
+    const [timeLogForm, setTimeLogForm] = useState({ user_id: "", task_id: "", duration_minutes: "" });
+    const [editingTimeLogId, setEditingTimeLogId] = useState(null);
+    const [showQuickTaskModal, setShowQuickTaskModal] = useState(false);
 
   // DRAG & DROP STATE (Kanban)
   const [draggedTask, setDraggedTask] = useState(null);
@@ -73,6 +83,94 @@ export default function MinhasTarefas() {
   useEffect(() => {
     if (user?.id) carregarTudo();
   }, [user, mostrarConcluidos, selectedProjectFilter]);
+
+  useEffect(() => {
+      let cancelled = false;
+
+      const resolveActiveTimerTitle = async () => {
+          if (!activeLog) {
+              if (!cancelled) setActiveTimerTitle("");
+              if (!cancelled) setActiveTimerLocation("");
+              if (!cancelled) setActiveTimerRoute("");
+              return;
+          }
+
+          const allTasks = [
+              ...tasks.atrasadas,
+              ...tasks.hoje,
+              ...tasks.amanha,
+              ...tasks.depois,
+              ...tasks.semData
+          ];
+
+          if (activeLog.task_id) {
+              const foundTask = allTasks.find((t) => String(t.id) === String(activeLog.task_id));
+              if (foundTask?.titulo) {
+                  const proj = foundTask.atividades?.projetos;
+                  const atividadeTitulo = foundTask.atividades?.titulo;
+                  const projectLabel = proj ? (proj.codigo_projeto ? `[${proj.codigo_projeto}] ${proj.titulo}` : proj.titulo) : "Avulsa";
+                  if (!cancelled) setActiveTimerTitle(foundTask.titulo);
+                  if (!cancelled) setActiveTimerLocation(proj ? `${projectLabel} > ${atividadeTitulo || 'Atividade'}` : "Tarefa Avulsa");
+                  if (!cancelled) setActiveTimerRoute(proj ? "/dashboard/tarefas" : "/dashboard/minhas-tarefas");
+                  return;
+              }
+
+              const { data } = await supabase
+                  .from("tarefas")
+                  .select("titulo, atividades(titulo, projetos(id, titulo, codigo_projeto))")
+                  .eq("id", activeLog.task_id)
+                  .maybeSingle();
+              const proj = data?.atividades?.projetos;
+              const projectLabel = proj ? (proj.codigo_projeto ? `[${proj.codigo_projeto}] ${proj.titulo}` : proj.titulo) : "Avulsa";
+              if (!cancelled) setActiveTimerTitle(data?.titulo || "Tarefa em curso");
+              if (!cancelled) setActiveTimerLocation(proj ? `${projectLabel} > ${data?.atividades?.titulo || 'Atividade'}` : "Tarefa Avulsa");
+              if (!cancelled) setActiveTimerRoute(proj ? "/dashboard/tarefas" : "/dashboard/minhas-tarefas");
+              return;
+          }
+
+          if (activeLog.atividade_id) {
+              const foundTaskFromActivity = allTasks.find((t) => String(t.atividades?.id) === String(activeLog.atividade_id));
+              if (foundTaskFromActivity?.atividades?.titulo) {
+                  const proj = foundTaskFromActivity.atividades?.projetos;
+                  const projectLabel = proj ? (proj.codigo_projeto ? `[${proj.codigo_projeto}] ${proj.titulo}` : proj.titulo) : "Sem projeto";
+                  if (!cancelled) setActiveTimerTitle(foundTaskFromActivity.atividades.titulo);
+                  if (!cancelled) setActiveTimerLocation(projectLabel);
+                  if (!cancelled) setActiveTimerRoute("/dashboard/atividades");
+                  return;
+              }
+
+              const { data } = await supabase
+                  .from("atividades")
+                  .select("titulo, projetos(id, titulo, codigo_projeto)")
+                  .eq("id", activeLog.atividade_id)
+                  .maybeSingle();
+              const projectLabel = data?.projetos ? (data.projetos.codigo_projeto ? `[${data.projetos.codigo_projeto}] ${data.projetos.titulo}` : data.projetos.titulo) : "Sem projeto";
+              if (!cancelled) setActiveTimerTitle(data?.titulo || "Atividade em curso");
+              if (!cancelled) setActiveTimerLocation(projectLabel);
+              if (!cancelled) setActiveTimerRoute("/dashboard/atividades");
+              return;
+          }
+
+          if (activeLog.projeto_id) {
+              const { data } = await supabase.from("projetos").select("id, titulo, codigo_projeto").eq("id", activeLog.projeto_id).maybeSingle();
+              const projectLabel = data ? (data.codigo_projeto ? `[${data.codigo_projeto}] ${data.titulo}` : data.titulo) : "Projeto em curso";
+              if (!cancelled) setActiveTimerTitle(data?.titulo || "Projeto em curso");
+              if (!cancelled) setActiveTimerLocation(projectLabel);
+              if (!cancelled) setActiveTimerRoute(data?.id ? `/dashboard/projetos/${data.id}` : "/dashboard/projetos");
+              return;
+          }
+
+          if (!cancelled) setActiveTimerTitle("Cronómetro em curso");
+          if (!cancelled) setActiveTimerLocation("Item ativo");
+          if (!cancelled) setActiveTimerRoute("/dashboard/tarefas");
+      };
+
+      resolveActiveTimerTitle();
+
+      return () => {
+          cancelled = true;
+      };
+  }, [activeLog, tasks]);
 
   const showToast = (message, type = 'success') => {
       setNotification({ message, type });
@@ -114,7 +212,7 @@ export default function MinhasTarefas() {
           // 💡 Atualizado: Puxamos a nova coluna anexos (JSONB)
           let query = supabase
               .from("tarefas")
-              .select(`id, titulo, estado, responsavel_id, criado_por, data_limite, data_fim, prioridade, descricao, created_at, atividades(projetos(id, titulo, codigo_projeto)), colaboradores_extra, anexos, arquivo_url, nome_entregavel, data_entregavel, profiles:criado_por(nome)`)
+              .select(`id, titulo, estado, responsavel_id, criado_por, data_limite, data_fim, prioridade, descricao, created_at, atividades(id, titulo, projetos(id, titulo, codigo_projeto)), colaboradores_extra, anexos, arquivo_url, nome_entregavel, data_entregavel, profiles:criado_por(nome)`)
               .or(`responsavel_id.eq.${user.id},colaboradores_extra.cs.{${user.id}}`)
               .order("created_at", { ascending: true }); 
 
@@ -125,8 +223,7 @@ export default function MinhasTarefas() {
           if (taskIds.length > 0) {
               const { data: logsData } = await supabase
                   .from("task_logs")
-                  .select("task_id, duration_minutes")
-                  .eq("user_id", user.id)
+                  .select("id, user_id, task_id, start_time, end_time, duration_minutes")
                   .in("task_id", taskIds)
                   .not("duration_minutes", "is", null);
               setLogs(logsData || []);
@@ -223,7 +320,124 @@ export default function MinhasTarefas() {
   const formatTime = (mins) => {
       if (mins === 0) return "0m";
       const h = Math.floor(mins / 60); const m = mins % 60;
-      return h > 0 ? `${h}h ${m}m` : `${m}m`;
+      return h > 0 ? `${h}h${m}m` : `${m}m`;
+  };
+
+  const allCurrentTasks = [
+      ...tasks.atrasadas,
+      ...tasks.hoje,
+      ...tasks.amanha,
+      ...tasks.depois,
+      ...tasks.semData
+  ];
+
+  const uniqueTaskOptions = Array.from(
+      new Map(allCurrentTasks.map((t) => [String(t.id), t])).values()
+  ).map((t) => {
+      const proj = t.atividades?.projetos;
+      const contexto = proj ? (proj.codigo_projeto ? `[${proj.codigo_projeto}] ${proj.titulo}` : proj.titulo) : "Avulsa";
+      return { id: String(t.id), label: `${contexto} > ${t.titulo}` };
+  });
+
+  const getTaskLabelById = (taskId) => uniqueTaskOptions.find((opt) => String(opt.id) === String(taskId))?.label || "Tarefa";
+
+  const getActiveTimerTitle = () => activeTimerTitle || "Cronómetro em curso";
+
+  function openActiveTimerLocation() {
+      if (!activeLog) return;
+
+      // Match DashboardHome behavior: open project detail when project is known.
+      if (activeLog.projeto_id) {
+          navigate(`/dashboard/projetos/${activeLog.projeto_id}`);
+          return;
+      }
+
+      if (activeLog.task_id) {
+          const samePageCard = document.getElementById(`my-task-card-${activeLog.task_id}`);
+          if (samePageCard) {
+              samePageCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              return;
+          }
+      }
+
+      if (activeLog.atividade_id) {
+          navigate('/dashboard/atividades');
+          return;
+      }
+
+      navigate(activeTimerRoute || '/dashboard/minhas-tarefas');
+  }
+
+  const openTimeCreateModal = () => {
+      setEditingTimeLogId(null);
+      setTimeLogForm({
+          user_id: user.id,
+          task_id: uniqueTaskOptions[0]?.id || "",
+          duration_minutes: "30"
+      });
+      setShowTimeModal(true);
+  };
+
+  const openTimeEditModal = (log) => {
+      setEditingTimeLogId(log.id);
+      setTimeLogForm({
+          user_id: log.user_id || "",
+          task_id: String(log.task_id || ""),
+          duration_minutes: String(log.duration_minutes || "")
+      });
+      setShowTimeModal(true);
+  };
+
+  const handleSaveTimeLog = async (e) => {
+      e.preventDefault();
+      const duration = Math.max(1, parseInt(timeLogForm.duration_minutes, 10) || 0);
+      if (!timeLogForm.user_id || !timeLogForm.task_id || !duration) {
+          showToast("Preenche colaborador, tarefa e minutos válidos.", "warning");
+          return;
+      }
+
+      const existing = logs.find((l) => String(l.id) === String(editingTimeLogId));
+      const start = existing?.start_time ? new Date(existing.start_time) : new Date(Date.now() - duration * 60000);
+      const safeStart = isNaN(start.getTime()) ? new Date(Date.now() - duration * 60000) : start;
+      const end = new Date(safeStart.getTime() + duration * 60000);
+
+      const payload = {
+          user_id: timeLogForm.user_id,
+          task_id: timeLogForm.task_id,
+          duration_minutes: duration,
+          start_time: safeStart.toISOString(),
+          end_time: end.toISOString()
+      };
+
+      setTimeLogSaving(true);
+      try {
+          if (editingTimeLogId) {
+              const { error } = await supabase.from("task_logs").update(payload).eq("id", editingTimeLogId);
+              if (error) throw error;
+              showToast("Registo de tempo atualizado.");
+          } else {
+              const { error } = await supabase.from("task_logs").insert([payload]);
+              if (error) throw error;
+              showToast("Registo de tempo criado.");
+          }
+          setShowTimeModal(false);
+          fetchMyTasks();
+      } catch (err) {
+          showToast("Erro ao guardar tempo: " + err.message, "error");
+      } finally {
+          setTimeLogSaving(false);
+      }
+  };
+
+  const handleDeleteTimeLog = async (logId) => {
+      if (!window.confirm("Apagar este registo de tempo?")) return;
+      const { error } = await supabase.from("task_logs").delete().eq("id", logId);
+      if (error) {
+          showToast("Erro ao apagar registo.", "error");
+          return;
+      }
+      setLogs((prev) => prev.filter((l) => String(l.id) !== String(logId)));
+      showToast("Registo de tempo apagado.");
   };
 
   async function stopLogById(logToStop, stopNote = "") {
@@ -308,7 +522,8 @@ export default function MinhasTarefas() {
       }
   }
 
-  function openStopNoteModal() {
+  function openStopNoteModal(e) {
+      if (e) e.stopPropagation();
       if (!activeLog) return;
       setStopNoteModal({ show: true });
   }
@@ -630,6 +845,7 @@ export default function MinhasTarefas() {
 
       return (
           <div 
+              id={`my-task-card-${task.id}`}
               key={task.id}
               draggable 
               onDragStart={() => setDraggedTask(task)}
@@ -748,7 +964,7 @@ export default function MinhasTarefas() {
       
       {/* HEADER DO KANBAN */}
       <div className="card" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '30px', flexWrap: 'wrap', gap: '15px', background: 'white', padding: '25px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
-          <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
+          <div style={{display: 'flex', alignItems: 'center', gap: '15px', flex: 1, minWidth: '300px'}}>
               <div style={{background: '#eff6ff', color: '#2563eb', padding: '12px', borderRadius: '12px', display: 'flex'}}><Icons.Kanban /></div>
               <div>
                   <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>Minhas Tarefas</h1>
@@ -756,7 +972,7 @@ export default function MinhasTarefas() {
               </div>
           </div>
           
-          <div style={{display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap'}}>
+          <div style={{display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end'}}>
               <div style={{position: 'relative'}}>
                   <select 
                       value={selectedProjectFilter} 
@@ -773,16 +989,25 @@ export default function MinhasTarefas() {
                   <span style={{position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', fontSize: '0.6rem', color: '#94a3b8'}}>▼</span>
               </div>
 
-              <button onClick={openCompletedHistory} style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: '#475569', fontWeight: '700', background: '#f8fafc', padding: '0 15px', height: '36px', borderRadius: '8px', border: '1px solid #e2e8f0', transition: '0.2s'}} className="hover-shadow hover-text-blue">
-                  <Icons.History /> Histórico
+              <button onClick={openCompletedHistory} title="Histórico" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#475569', background: '#f8fafc', padding: '0', width: '36px', height: '36px', borderRadius: '8px', border: '1px solid #e2e8f0', transition: '0.2s'}} className="hover-shadow hover-text-blue">
+                  <Icons.History size={16} />
               </button>
 
-              <form onSubmit={handleCreatePessoal} style={{display: 'flex', gap: '10px', background: 'white', padding: '4px', borderRadius: '10px', border: '1px solid #cbd5e1', width: '280px', transition: '0.2s'}} className="input-focus-wrapper hover-shadow">
-                  <input type="text" placeholder="Tarefa rápida..." value={novaTarefaNome} onChange={e => setNovaTarefaNome(e.target.value)} style={{flex: 1, border: 'none', outline: 'none', background: 'transparent', padding: '0 8px', fontSize: '0.9rem', color: '#1e293b'}} />
-                  <button type="submit" style={{background: '#2563eb', color: 'white', border: 'none', padding: '0 12px', height: '28px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem'}} className="hover-bg-blue">
-                      <Icons.Plus size={14} /> Add
-                  </button>
-              </form>
+              <button onClick={openTimeCreateModal} title="Tempo Manual" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#2563eb', background: '#eff6ff', padding: '0', width: '36px', height: '36px', borderRadius: '8px', border: '1px solid #bfdbfe', transition: '0.2s'}} className="hover-shadow">
+                  <Icons.Clock size={16} />
+              </button>
+
+              <button onClick={() => setShowQuickTaskModal(true)} style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: '#2563eb', fontWeight: '700', background: '#eff6ff', padding: '0 15px', height: '36px', borderRadius: '8px', border: '1px solid #bfdbfe', transition: '0.2s'}} className="hover-shadow">
+                  <Icons.Plus size={14} /> Tarefa Rápida
+              </button>
+
+              {activeLog && (
+                  <div onClick={openActiveTimerLocation} className="hover-shadow" title="Clica para ir para a tarefa/atividade em curso" style={{background: 'linear-gradient(to right, #ef4444, #b91c1c)', color: 'white', padding: '8px 15px', borderRadius: '30px', display: 'inline-flex', alignItems: 'center', gap: '8px', border: '2px solid #fecaca', boxShadow: '0 4px 10px rgba(239, 68, 68, 0.35)', cursor: 'pointer', transition: '0.2s', whiteSpace: 'nowrap'}}>
+                      <span className="pulse-dot-white" style={{width: '8px', height: '8px'}}></span>
+                      <span style={{fontWeight: '700', fontSize: '0.8rem', flex: 1, maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis'}}>{getActiveTimerTitle()}</span>
+                      <button type="button" onClick={openStopNoteModal} style={{background: 'white', color:'#ef4444', border:'none', borderRadius:'16px', padding:'4px 10px', cursor:'pointer', fontWeight:'700', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '3px', transition: '0.2s'}}><Icons.Stop size={8} /> Parar</button>
+                  </div>
+              )}
           </div>
       </div>
 
@@ -1030,6 +1255,78 @@ export default function MinhasTarefas() {
           </ModalPortal>
       )}
 
+      {showTimeModal && (
+          <ModalPortal>
+              <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, backdropFilter: 'blur(4px)'}} onClick={() => !timeLogSaving && setShowTimeModal(false)}>
+                  <div style={{background: '#fff', width: '92%', maxWidth: '760px', borderRadius: '16px', padding: '24px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'}} onClick={e => e.stopPropagation()}>
+                      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px'}}>
+                          <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.1rem'}}>{editingTimeLogId ? 'Editar Registo de Tempo' : 'Novo Registo de Tempo'}</h3>
+                          <button onClick={() => !timeLogSaving && setShowTimeModal(false)} style={{background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer'}}><Icons.Close size={20} /></button>
+                      </div>
+
+                      <form onSubmit={handleSaveTimeLog} style={{display: 'grid', gap: '12px', marginBottom: '16px'}}>
+                          <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px'}}>
+                              <div>
+                                  <label style={{display: 'block', marginBottom: '4px', fontSize: '0.78rem', color: '#64748b', fontWeight: '700'}}>Colaborador</label>
+                                  <select value={timeLogForm.user_id} onChange={e => setTimeLogForm(prev => ({...prev, user_id: e.target.value}))} style={{width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1'}} required>
+                                      <option value="">Selecionar...</option>
+                                      {staff.map((s) => <option key={s.id} value={s.id}>{s.nome || s.email}</option>)}
+                                  </select>
+                              </div>
+                              <div>
+                                  <label style={{display: 'block', marginBottom: '4px', fontSize: '0.78rem', color: '#64748b', fontWeight: '700'}}>Tempo (minutos)</label>
+                                  <input type="number" min="1" value={timeLogForm.duration_minutes} onChange={e => setTimeLogForm(prev => ({...prev, duration_minutes: e.target.value}))} style={{width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1'}} required />
+                              </div>
+                          </div>
+                          <div>
+                              <label style={{display: 'block', marginBottom: '4px', fontSize: '0.78rem', color: '#64748b', fontWeight: '700'}}>Tarefa</label>
+                              <select value={timeLogForm.task_id} onChange={e => setTimeLogForm(prev => ({...prev, task_id: e.target.value}))} style={{width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1'}} required>
+                                  <option value="">Selecionar...</option>
+                                  {uniqueTaskOptions.map((opt) => <option key={opt.id} value={opt.id}>{opt.label}</option>)}
+                              </select>
+                          </div>
+                          <div style={{fontSize: '0.78rem', color: '#64748b'}}>Pré-visualização: {formatTime(Math.max(0, parseInt(timeLogForm.duration_minutes || "0", 10) || 0))}</div>
+                          <div style={{display: 'flex', justifyContent: 'flex-end', gap: '10px'}}>
+                              <button type="button" onClick={() => setShowTimeModal(false)} style={{padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white'}}>Cancelar</button>
+                              <button type="submit" disabled={timeLogSaving} style={{padding: '10px 14px', borderRadius: '8px', border: 'none', background: '#2563eb', color: 'white', fontWeight: '700'}}>{timeLogSaving ? 'A guardar...' : 'Guardar'}</button>
+                          </div>
+                      </form>
+
+                      <div style={{borderTop: '1px solid #e2e8f0', paddingTop: '12px', maxHeight: '260px', overflowY: 'auto'}} className="custom-scrollbar">
+                          <table style={{width: '100%', borderCollapse: 'collapse'}}>
+                              <thead>
+                                  <tr style={{fontSize: '0.72rem', color: '#64748b', textTransform: 'uppercase', borderBottom: '1px solid #e2e8f0'}}>
+                                      <th style={{padding: '8px', textAlign: 'left'}}>Data</th>
+                                      <th style={{padding: '8px', textAlign: 'left'}}>Tarefa</th>
+                                      <th style={{padding: '8px', textAlign: 'left'}}>Quem</th>
+                                      <th style={{padding: '8px', textAlign: 'right'}}>Tempo</th>
+                                      <th style={{padding: '8px', textAlign: 'right'}}>Ações</th>
+                                  </tr>
+                              </thead>
+                              <tbody>
+                                  {logs.filter(l => (l.duration_minutes || 0) > 0).map((log) => (
+                                      <tr key={log.id} style={{borderBottom: '1px solid #f1f5f9'}}>
+                                          <td style={{padding: '8px', fontSize: '0.78rem', color: '#64748b'}}>{log.start_time ? new Date(log.start_time).toLocaleString('pt-PT') : '-'}</td>
+                                          <td style={{padding: '8px', fontSize: '0.8rem', color: '#334155'}}>{getTaskLabelById(log.task_id)}</td>
+                                          <td style={{padding: '8px', fontSize: '0.8rem', color: '#334155'}}>{staff.find((s) => String(s.id) === String(log.user_id))?.nome || staff.find((s) => String(s.id) === String(log.user_id))?.email || 'Utilizador'}</td>
+                                          <td style={{padding: '8px', textAlign: 'right', fontWeight: '700'}}>{formatTime(log.duration_minutes || 0)}</td>
+                                          <td style={{padding: '8px', textAlign: 'right'}}>
+                                              <button onClick={() => openTimeEditModal(log)} style={{border: 'none', background: 'transparent', color: '#f97316', cursor: 'pointer', marginRight: '6px'}}>✎</button>
+                                              <button onClick={() => handleDeleteTimeLog(log.id)} style={{border: 'none', background: 'transparent', color: '#ef4444', cursor: 'pointer'}}>🗑</button>
+                                          </td>
+                                      </tr>
+                                  ))}
+                                  {logs.filter(l => (l.duration_minutes || 0) > 0).length === 0 && (
+                                      <tr><td colSpan={5} style={{padding: '12px', textAlign: 'center', color: '#94a3b8'}}>Sem registos de tempo.</td></tr>
+                                  )}
+                              </tbody>
+                          </table>
+                      </div>
+                  </div>
+              </div>
+          </ModalPortal>
+      )}
+
       <TimerSwitchModal
           open={timerSwitchModal.show}
           title="Trocar Cronometro Ativo"
@@ -1048,6 +1345,33 @@ export default function MinhasTarefas() {
           onCancel={closeStopNoteModal}
           onConfirm={confirmStopWithNote}
       />
+
+      {/* MODAL TAREFA RÁPIDA */}
+      {showQuickTaskModal && (
+          <ModalPortal>
+              <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, backdropFilter: 'blur(4px)'}} onClick={() => setShowQuickTaskModal(false)}>
+                  <div style={{background: 'white', borderRadius: '16px', padding: '40px', maxWidth: '420px', width: '90%', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', textAlign: 'center'}} onClick={e => e.stopPropagation()}>
+                      <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#eff6ff', width: '60px', height: '60px', borderRadius: '12px', margin: '0 auto 24px', color: '#2563eb'}}>
+                          <Icons.Flame size={32} />
+                      </div>
+                      <h2 style={{margin: '0 0 8px 0', color: '#0f172a', fontSize: '1.4rem', fontWeight: '900'}}>Nova Tarefa Rápida</h2>
+                      <p style={{margin: '0 0 24px 0', color: '#64748b', fontSize: '0.9rem', fontWeight: '500'}}>Adiciona uma tarefa avulsa rápida ao teu quadro</p>
+                      <form onSubmit={(e) => {
+                          e.preventDefault();
+                          if (!novaTarefaNome.trim()) return;
+                          handleCreatePessoal(e);
+                          setShowQuickTaskModal(false);
+                      }} style={{display: 'flex', flexDirection: 'column', gap: '16px'}}>
+                          <input type="text" placeholder="O que vais fazer?" value={novaTarefaNome} onChange={e => setNovaTarefaNome(e.target.value)} autoFocus style={{padding: '12px 15px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#f8fafc', fontSize: '1rem', outline: 'none', boxSizing: 'border-box', transition: '0.2s'}} className="input-focus" />
+                          <div style={{display: 'flex', gap: '10px', justifyContent: 'center'}}>
+                              <button type="button" onClick={() => setShowQuickTaskModal(false)} style={{background: '#f8fafc', color: '#475569', border: '1px solid #e2e8f0', padding: '10px 24px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', transition: '0.2s', flex: 1}} className="hover-shadow">Cancelar</button>
+                              <button type="submit" style={{background: '#2563eb', color: 'white', border: 'none', padding: '10px 24px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', transition: '0.2s', flex: 1}} className="hover-bg-blue">Adicionar</button>
+                          </div>
+                      </form>
+                  </div>
+              </div>
+          </ModalPortal>
+      )}
 
       {/* NOTIFICAÇÃO (TOAST) */}
       {notification && <div className={`toast-container ${notification.type}`}>{notification.type === 'success' ? '✅' : '⚠️'} {notification.message}</div>}

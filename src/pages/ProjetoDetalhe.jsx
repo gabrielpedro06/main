@@ -52,6 +52,11 @@ const Icons = {
 
 const ModalPortal = ({ children }) => createPortal(children, document.body);
 
+const getClientDisplayName = (client) => {
+    if (!client) return "";
+    return client.sigla?.trim() || client.marca || "";
+};
+
 export default function ProjetoDetalhe() {
   const { id } = useParams(); 
   const navigate = useNavigate();
@@ -104,6 +109,9 @@ export default function ProjetoDetalhe() {
   const [tarefaModal, setTarefaModal] = useState({ show: false, data: null, atividadeNome: '' });
   const [subtarefaModal, setSubtarefaModal] = useState({ show: false, data: null, tarefaNome: '' }); 
     const [parceiroSelecionado, setParceiroSelecionado] = useState("");
+    const [timeLogModal, setTimeLogModal] = useState({ show: false, mode: "create", logId: null });
+    const [timeLogSaving, setTimeLogSaving] = useState(false);
+    const [timeLogForm, setTimeLogForm] = useState({ user_id: "", target_type: "tarefa", target_id: "", duration_minutes: "" });
 
   const normalizeIdsList = (raw) => {
       if (Array.isArray(raw)) return raw.filter(Boolean);
@@ -196,11 +204,11 @@ export default function ProjetoDetalhe() {
   async function fetchProjetoDetails() {
     setLoading(true);
     
-    const { data: projData } = await supabase.from("projetos").select("*, clientes(marca), tipos_projeto(nome), profiles(nome)").eq("id", id).single();
+    const { data: projData } = await supabase.from("projetos").select("*, clientes(marca, sigla), tipos_projeto(nome), profiles(nome)").eq("id", id).single();
     if (projData) { setProjeto(projData); setFormGeral(projData); }
 
     const [{ data: cliData }, { data: staffData }, { data: tiposData }] = await Promise.all([
-        supabase.from("clientes").select("id, marca").order("marca"),
+        supabase.from("clientes").select("id, marca, sigla").order("marca"),
         supabase.from("profiles").select("id, nome, email").order("nome"),
         supabase.from("tipos_projeto").select("id, nome").order("nome")
     ]);
@@ -212,7 +220,7 @@ export default function ProjetoDetalhe() {
     if (entidadeIds.length > 0) {
         const { data: contactosData } = await supabase
             .from("contactos_cliente")
-            .select("id, cliente_id, nome_contacto, cargo, email, clientes(marca)")
+            .select("id, cliente_id, nome_contacto, cargo, email, clientes(marca, sigla)")
             .in("cliente_id", entidadeIds)
             .order("nome_contacto", { ascending: true });
         setEntidadePessoas(contactosData || []);
@@ -259,7 +267,11 @@ export default function ProjetoDetalhe() {
         setAtividades(sortedData);
     }
 
-    const { data: logsData } = await supabase.from("task_logs").select("*, profiles(nome)").eq("projeto_id", id);
+    const { data: logsData } = await supabase
+        .from("task_logs")
+        .select("*, profiles(nome)")
+        .eq("projeto_id", id)
+        .order("start_time", { ascending: false });
     if (logsData) setLogs(logsData);
     
     setLoading(false);
@@ -366,10 +378,170 @@ export default function ProjetoDetalhe() {
   };
 
   const formatTime = (totalMinutes) => {
-      if (totalMinutes === 0) return "0 min";
+      if (totalMinutes === 0) return "0m";
       const h = Math.floor(totalMinutes / 60);
       const m = totalMinutes % 60;
-      return h > 0 ? `${h}h ${m}m` : `${m} min`;
+      return h > 0 ? `${h}h${m}m` : `${m}m`;
+  };
+
+  const activityOptions = atividades.map((ativ) => ({ id: String(ativ.id), label: ativ.titulo }));
+  const taskOptions = atividades.flatMap((ativ) =>
+      (ativ.tarefas || []).map((tar) => ({
+          id: String(tar.id),
+          atividade_id: String(ativ.id),
+          label: `${ativ.titulo} > ${tar.titulo}`
+      }))
+  );
+  const subtaskOptions = atividades.flatMap((ativ) =>
+      (ativ.tarefas || []).flatMap((tar) =>
+          (tar.subtarefas || []).map((sub) => ({
+              id: String(sub.id),
+              task_id: String(tar.id),
+              atividade_id: String(ativ.id),
+              label: `${ativ.titulo} > ${tar.titulo} > ${sub.titulo}`
+          }))
+      )
+  );
+
+  const getTargetOptionByLog = (log) => {
+      if (log?.subtarefa_id) {
+          const option = subtaskOptions.find((s) => String(s.id) === String(log.subtarefa_id));
+          if (option) return { target_type: "subtarefa", target_id: option.id };
+      }
+      if (log?.task_id) {
+          const option = taskOptions.find((t) => String(t.id) === String(log.task_id));
+          if (option) return { target_type: "tarefa", target_id: option.id };
+      }
+      if (log?.atividade_id) {
+          const option = activityOptions.find((a) => String(a.id) === String(log.atividade_id));
+          if (option) return { target_type: "atividade", target_id: option.id };
+      }
+      return { target_type: "tarefa", target_id: "" };
+  };
+
+  const getLogTargetLabel = (log) => {
+      const option = getTargetOptionByLog(log);
+      if (!option.target_id) return "Sem associação";
+      if (option.target_type === "subtarefa") return subtaskOptions.find((s) => s.id === option.target_id)?.label || "Subtarefa";
+      if (option.target_type === "tarefa") return taskOptions.find((t) => t.id === option.target_id)?.label || "Tarefa";
+      return activityOptions.find((a) => a.id === option.target_id)?.label || "Atividade";
+  };
+
+  const getTargetOptions = (targetType) => {
+      if (targetType === "atividade") return activityOptions;
+      if (targetType === "subtarefa") return subtaskOptions;
+      return taskOptions;
+  };
+
+  const buildTimeLogPayload = (formState, existingLog = null) => {
+      const userId = formState.user_id || "";
+      const duration = Math.max(1, parseInt(formState.duration_minutes, 10) || 0);
+      if (!userId || !formState.target_id || duration <= 0) return null;
+
+      let atividadeId = null;
+      let taskId = null;
+      let subtarefaId = null;
+
+      if (formState.target_type === "atividade") {
+          atividadeId = formState.target_id;
+      } else if (formState.target_type === "subtarefa") {
+          const selectedSub = subtaskOptions.find((s) => s.id === formState.target_id);
+          if (!selectedSub) return null;
+          subtarefaId = selectedSub.id;
+          taskId = selectedSub.task_id;
+          atividadeId = selectedSub.atividade_id;
+      } else {
+          const selectedTask = taskOptions.find((t) => t.id === formState.target_id);
+          if (!selectedTask) return null;
+          taskId = selectedTask.id;
+          atividadeId = selectedTask.atividade_id;
+      }
+
+      const referenceStart = existingLog?.start_time ? new Date(existingLog.start_time) : new Date(Date.now() - duration * 60 * 1000);
+      const startTime = isNaN(referenceStart.getTime()) ? new Date(Date.now() - duration * 60 * 1000) : referenceStart;
+      const endTime = new Date(startTime.getTime() + duration * 60 * 1000);
+
+      return {
+          user_id: userId,
+          projeto_id: id,
+          atividade_id: atividadeId,
+          task_id: taskId,
+          subtarefa_id: subtarefaId,
+          duration_minutes: duration,
+          start_time: startTime.toISOString(),
+          end_time: endTime.toISOString()
+      };
+  };
+
+  const openCreateTimeLogModal = () => {
+      const firstTaskId = taskOptions[0]?.id || "";
+      setTimeLogForm({
+          user_id: user?.id || "",
+          target_type: "tarefa",
+          target_id: firstTaskId,
+          duration_minutes: "30"
+      });
+      setTimeLogModal({ show: true, mode: "create", logId: null });
+  };
+
+  const openEditTimeLogModal = (log) => {
+      const targetInfo = getTargetOptionByLog(log);
+      setTimeLogForm({
+          user_id: log.user_id || "",
+          target_type: targetInfo.target_type,
+          target_id: targetInfo.target_id,
+          duration_minutes: String(log.duration_minutes || "")
+      });
+      setTimeLogModal({ show: true, mode: "edit", logId: log.id });
+  };
+
+  const closeTimeLogModal = () => {
+      setTimeLogModal({ show: false, mode: "create", logId: null });
+  };
+
+  const saveTimeLog = async (e) => {
+      e.preventDefault();
+      if (timeLogSaving) return;
+
+      const existingLog = logs.find((l) => String(l.id) === String(timeLogModal.logId));
+      const payload = buildTimeLogPayload(timeLogForm, existingLog);
+      if (!payload) {
+          showToast("Preenche colaborador, item e minutos válidos.", "warning");
+          return;
+      }
+
+      setTimeLogSaving(true);
+      try {
+          if (timeLogModal.mode === "edit" && existingLog) {
+              const { error } = await supabase.from("task_logs").update(payload).eq("id", existingLog.id);
+              if (error) throw error;
+              showToast("Registo de tempo atualizado.", "success");
+          } else {
+              const { error } = await supabase.from("task_logs").insert([payload]);
+              if (error) throw error;
+              showToast("Registo manual criado.", "success");
+          }
+          closeTimeLogModal();
+          fetchProjetoDetails();
+      } catch (err) {
+          showToast(`Erro ao guardar registo: ${err.message}`, "error");
+      } finally {
+          setTimeLogSaving(false);
+      }
+  };
+
+  const deleteTimeLog = async (logId) => {
+      const confirmDelete = window.confirm("Apagar este registo de tempo?");
+      if (!confirmDelete) return;
+
+      try {
+          const { error } = await supabase.from("task_logs").delete().eq("id", logId);
+          if (error) throw error;
+          setLogs((prev) => prev.filter((l) => String(l.id) !== String(logId)));
+          showToast("Registo apagado.", "success");
+      } catch (err) {
+          showToast(`Erro ao apagar registo: ${err.message}`, "error");
+      }
   };
 
   const getPersonLabelById = (personId) => {
@@ -769,7 +941,7 @@ export default function ProjetoDetalhe() {
   const entityAssigneeOptions = (entidadePessoas || [])
       .filter((p) => Boolean(p?.id))
       .map((p) => {
-          const empresa = p.clientes?.marca ? ` - ${p.clientes.marca}` : "";
+          const empresa = getClientDisplayName(p.clientes) ? ` - ${getClientDisplayName(p.clientes)}` : "";
           const cargo = p.cargo ? ` (${p.cargo})` : "";
           const nome = p.nome_contacto || p.email || "Contacto";
           return { id: p.id, label: `${nome}${cargo}${empresa}`, source: "entity" };
@@ -1084,9 +1256,9 @@ export default function ProjetoDetalhe() {
   };
 
   // LÓGICA DO NOME DO CLIENTE / PARCERIA NO CABEÇALHO
-  let clientDisplay = projeto.cliente_texto || projeto.clientes?.marca || 'Não Definido';
+  let clientDisplay = projeto.cliente_texto || getClientDisplayName(projeto.clientes) || 'Não Definido';
   if (projeto.is_parceria && projeto.parceiros_ids?.length > 0) {
-      const parceirosNomes = projeto.parceiros_ids.map(id => clientes.find(c => c.id === id)?.marca).filter(Boolean).join(', ');
+      const parceirosNomes = projeto.parceiros_ids.map(id => getClientDisplayName(clientes.find(c => c.id === id))).filter(Boolean).join(', ');
       clientDisplay = `🤝 Parceria: ${parceirosNomes}`;
   }
 
@@ -1445,7 +1617,12 @@ export default function ProjetoDetalhe() {
         ========================================= */}
         {activeTab === 'relatorio' && (
             <div style={{background: 'white', padding: '30px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0'}}>
-                <h2 style={{margin: '0 0 20px 0', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '10px'}}><Icons.Clock size={24} color="#2563eb" /> Relatório de Execução</h2>
+                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '20px'}}>
+                    <h2 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '10px'}}><Icons.Clock size={24} color="#2563eb" /> Relatório de Execução</h2>
+                    <button onClick={openCreateTimeLogModal} className="btn-primary hover-shadow" style={{display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px'}}>
+                        <Icons.Plus size={14} /> Adicionar Tempo
+                    </button>
+                </div>
                 
                 <div style={{background: '#eff6ff', padding: '20px', borderRadius: '12px', border: '1px solid #bfdbfe', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '30px'}}>
                     <div>
@@ -1498,7 +1675,107 @@ export default function ProjetoDetalhe() {
                         ))}
                     </tbody>
                 </table>
+
+                <div style={{marginTop: '28px', borderTop: '1px solid #e2e8f0', paddingTop: '22px'}}>
+                    <h3 style={{margin: '0 0 12px 0', fontSize: '1rem', color: '#334155'}}>Registos Individuais</h3>
+                    <p style={{margin: '0 0 14px 0', color: '#64748b', fontSize: '0.85rem'}}>Se te esqueceres do cronómetro, podes editar quem fez e quantos minutos foram gastos.</p>
+
+                    <table className="data-table" style={{width: '100%', borderCollapse: 'collapse'}}>
+                        <thead>
+                            <tr style={{background: '#f8fafc', borderBottom: '2px solid #e2e8f0', textAlign: 'left', fontSize: '0.78rem', color: '#64748b', textTransform: 'uppercase'}}>
+                                <th style={{padding: '10px'}}>Data</th>
+                                <th style={{padding: '10px'}}>Item</th>
+                                <th style={{padding: '10px'}}>Colaborador</th>
+                                <th style={{padding: '10px', textAlign: 'right'}}>Tempo</th>
+                                <th style={{padding: '10px', textAlign: 'right'}}>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {logs.filter((l) => (l.duration_minutes || 0) > 0).map((log) => (
+                                <tr key={log.id} style={{borderBottom: '1px solid #f1f5f9'}}>
+                                    <td style={{padding: '10px', color: '#64748b', fontSize: '0.82rem'}}>{log.start_time ? new Date(log.start_time).toLocaleString('pt-PT') : '-'}</td>
+                                    <td style={{padding: '10px', color: '#334155', fontSize: '0.86rem'}}>{getLogTargetLabel(log)}</td>
+                                    <td style={{padding: '10px', color: '#334155', fontSize: '0.86rem'}}>{log.profiles?.nome || 'Utilizador'}</td>
+                                    <td style={{padding: '10px', color: '#1e293b', fontWeight: '700', textAlign: 'right'}}>{formatTime(log.duration_minutes || 0)}</td>
+                                    <td style={{padding: '10px', textAlign: 'right'}}>
+                                        <div style={{display: 'inline-flex', gap: '8px'}}>
+                                            <button onClick={() => openEditTimeLogModal(log)} className="action-btn hover-orange-text" title="Editar registo"><Icons.Edit size={14} /></button>
+                                            <button onClick={() => deleteTimeLog(log.id)} className="action-btn hover-red-text" title="Apagar registo"><Icons.Trash size={14} /></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                            {logs.filter((l) => (l.duration_minutes || 0) > 0).length === 0 && (
+                                <tr>
+                                    <td colSpan={5} style={{padding: '18px', textAlign: 'center', color: '#94a3b8'}}>Sem registos individuais com duração.</td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
+        )}
+
+        {timeLogModal.show && (
+            <ModalPortal>
+                <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(15, 23, 42, 0.7)', backdropFilter:'blur(3px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:99999}} onClick={closeTimeLogModal}>
+                    <div style={{background:'#fff', width:'92%', maxWidth:'560px', borderRadius:'14px', boxShadow:'0 20px 35px rgba(0,0,0,0.2)', overflow:'hidden'}} onClick={(e) => e.stopPropagation()}>
+                        <div style={{padding:'16px 20px', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                            <h3 style={{margin:0, color:'#1e293b', fontSize:'1.05rem'}}>{timeLogModal.mode === 'edit' ? 'Editar Registo de Tempo' : 'Adicionar Registo de Tempo'}</h3>
+                            <button onClick={closeTimeLogModal} style={{background:'transparent', border:'none', cursor:'pointer', color:'#64748b'}}><Icons.Close size={18} /></button>
+                        </div>
+
+                        <form onSubmit={saveTimeLog} style={{padding:'18px 20px', display:'grid', gap:'12px', background:'#f8fafc'}}>
+                            <div>
+                                <label style={{display:'block', marginBottom:'6px', fontSize:'0.8rem', fontWeight:'700', color:'#475569'}}>Colaborador</label>
+                                <select value={timeLogForm.user_id} onChange={(e) => setTimeLogForm((prev) => ({ ...prev, user_id: e.target.value }))} style={{width:'100%', padding:'10px 12px', borderRadius:'8px', border:'1px solid #cbd5e1'}} required>
+                                    <option value="">Selecionar...</option>
+                                    {staff.map((s) => <option key={s.id} value={s.id}>{s.nome || s.email}</option>)}
+                                </select>
+                            </div>
+
+                            <div style={{display:'grid', gridTemplateColumns:'160px 1fr', gap:'10px'}}>
+                                <div>
+                                    <label style={{display:'block', marginBottom:'6px', fontSize:'0.8rem', fontWeight:'700', color:'#475569'}}>Tipo</label>
+                                    <select
+                                        value={timeLogForm.target_type}
+                                        onChange={(e) => {
+                                            const nextType = e.target.value;
+                                            const firstOption = getTargetOptions(nextType)[0]?.id || "";
+                                            setTimeLogForm((prev) => ({ ...prev, target_type: nextType, target_id: firstOption }));
+                                        }}
+                                        style={{width:'100%', padding:'10px 12px', borderRadius:'8px', border:'1px solid #cbd5e1'}}
+                                    >
+                                        <option value="atividade">Atividade</option>
+                                        <option value="tarefa">Tarefa</option>
+                                        <option value="subtarefa">Passo</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style={{display:'block', marginBottom:'6px', fontSize:'0.8rem', fontWeight:'700', color:'#475569'}}>Item</label>
+                                    <select value={timeLogForm.target_id} onChange={(e) => setTimeLogForm((prev) => ({ ...prev, target_id: e.target.value }))} style={{width:'100%', padding:'10px 12px', borderRadius:'8px', border:'1px solid #cbd5e1'}} required>
+                                        <option value="">Selecionar...</option>
+                                        {getTargetOptions(timeLogForm.target_type).map((opt) => <option key={opt.id} value={opt.id}>{opt.label}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label style={{display:'block', marginBottom:'6px', fontSize:'0.8rem', fontWeight:'700', color:'#475569'}}>Tempo (minutos)</label>
+                                <input type="number" min="1" value={timeLogForm.duration_minutes} onChange={(e) => setTimeLogForm((prev) => ({ ...prev, duration_minutes: e.target.value }))} placeholder="Ex: 45" style={{width:'100%', padding:'10px 12px', borderRadius:'8px', border:'1px solid #cbd5e1'}} required />
+                                <div style={{marginTop:'6px', fontSize:'0.78rem', color:'#64748b'}}>Visualização: {formatTime(Math.max(0, parseInt(timeLogForm.duration_minutes || "0", 10) || 0))}</div>
+                            </div>
+
+                            <div style={{display:'flex', justifyContent:'flex-end', gap:'8px', marginTop:'6px'}}>
+                                <button type="button" onClick={closeTimeLogModal} style={{padding:'9px 14px', borderRadius:'8px', border:'1px solid #cbd5e1', background:'white', cursor:'pointer'}}>Cancelar</button>
+                                <button type="submit" disabled={timeLogSaving} className="btn-primary hover-shadow" style={{padding:'9px 14px', display:'flex', alignItems:'center', gap:'6px'}}>
+                                    <Icons.Save size={14} /> {timeLogSaving ? 'A guardar...' : 'Guardar'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </ModalPortal>
         )}
 
         {/* =========================================
@@ -1572,7 +1849,7 @@ export default function ProjetoDetalhe() {
                                 }));
                             }} style={{...inputStyle, cursor: 'pointer'}} className="input-focus" required>
                                 <option value="">- Selecione -</option>
-                                {clientes.map(c => <option key={c.id} value={c.id}>{c.marca}</option>)}
+                                {clientes.map(c => <option key={c.id} value={c.id}>{getClientDisplayName(c) || c.marca}</option>)}
                             </select>
                         </div>
 
@@ -1602,7 +1879,7 @@ export default function ProjetoDetalhe() {
                                     {clientes
                                         .filter(c => String(c.id) !== String(formGeral.cliente_id || ''))
                                             .filter(c => !(formGeral.parceiros_ids || []).includes(c.id))
-                                        .map(c => <option key={c.id} value={c.id}>{c.marca}</option>)}
+                                        .map(c => <option key={c.id} value={c.id}>{getClientDisplayName(c) || c.marca}</option>)}
                                 </select>
                             </div>
                         )}
@@ -1623,7 +1900,7 @@ export default function ProjetoDetalhe() {
                                             className="pill-checkbox selected"
                                             title="Remover parceiro"
                                         >
-                                            {parceiro.marca} ✕
+                                            {getClientDisplayName(parceiro) || parceiro.marca} ✕
                                         </div>
                                     );
                                 })}
