@@ -4,6 +4,7 @@ import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
 import gerarRelatorioRecursosHumanos from "../components/pdfRecursosHumanos";
 import gerarRelatorioIndividual from "../components/pdfIndividual";
+import gerarRelatorioDeslocacoesMensais from "../components/pdfDeslocacoesMensais";
 import CalendarioColaborador from "../components/CalendarioColaborador";
 import {
     calcularDiasUteis as calcularDiasUteisFerias,
@@ -253,6 +254,9 @@ const countMealAllowanceEligibleDays = (attendanceRows = []) => {
 };
 
 export default function RecursosHumanos() {
+    const DEFAULT_KM_RATE = 0.4;
+    const KM_RATE_STORAGE_KEY = "rh_km_reembolso_eur";
+    const KM_RATE_SETTING_KEY = "rh_km_reembolso_eur";
     const KM_REQUEST_TYPE = "Pedido de Km's";
     const TOLERANCIA_TIPO = "Tolerância de Ponto";
     const TOLERANCIA_TIPOS = [
@@ -279,9 +283,13 @@ export default function RecursosHumanos() {
   // UI States
   const [activeView, setActiveView] = useState("gestao"); 
   const [globalSA, setGlobalSA] = useState(10.20); 
+    const [valorKmReembolso, setValorKmReembolso] = useState(String(DEFAULT_KM_RATE.toFixed(2)));
+    const [hasKmRateSettingTable, setHasKmRateSettingTable] = useState(true);
+    const [isSavingKmRate, setIsSavingKmRate] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
     const [isGeneratingRhPdf, setIsGeneratingRhPdf] = useState(false);
     const [isGeneratingIndividualPdf, setIsGeneratingIndividualPdf] = useState(false);
+        const [isGeneratingDeslocacoesPdf, setIsGeneratingDeslocacoesPdf] = useState(false);
 
   // Tolerâncias de Ponto
   const [tolerancias, setTolerancias] = useState([]);
@@ -311,6 +319,7 @@ export default function RecursosHumanos() {
   const [confirmModal, setConfirmModal] = useState({ show: false, pedido: null, acao: null });
   const [detailsModal, setDetailsModal] = useState({ show: false, pedido: null }); // NOVO: Modal de Detalhes
     const [showBulkSAConfirmModal, setShowBulkSAConfirmModal] = useState(false);
+    const [pendingGlobalUpdates, setPendingGlobalUpdates] = useState({ sa: false, km: false });
   const [notification, setNotification] = useState({ show: false, message: '', type: 'success' });
   const [isSubmitting, setIsSubmitting] = useState(false);
     const [isApplyingBulkSA, setIsApplyingBulkSA] = useState(false);
@@ -320,6 +329,54 @@ export default function RecursosHumanos() {
       const month = String(date.getMonth() + 1).padStart(2, '0');
       const day = String(date.getDate()).padStart(2, '0');
       return `${year}-${month}-${day}`;
+  };
+
+  const parseKmRate = (rawValue) => {
+      const normalized = String(rawValue ?? "").replace(",", ".");
+      const parsed = Number(normalized);
+      if (!Number.isFinite(parsed) || parsed <= 0) return DEFAULT_KM_RATE;
+      return parsed;
+  };
+
+  const saveKmRateSetting = async (rawValue, { showError = true } = {}) => {
+      const normalized = String(rawValue ?? "").replace(",", ".").trim();
+      const parsed = Number(normalized);
+
+      if (!Number.isFinite(parsed) || parsed <= 0) {
+          if (showError) showNotification("Introduza um valor €/KM válido.", "error");
+          setValorKmReembolso(DEFAULT_KM_RATE.toFixed(2));
+          localStorage.setItem(KM_RATE_STORAGE_KEY, DEFAULT_KM_RATE.toString());
+          return false;
+      }
+
+      setValorKmReembolso(parsed.toFixed(2));
+      localStorage.setItem(KM_RATE_STORAGE_KEY, parsed.toString());
+
+      if (!hasKmRateSettingTable) return true;
+
+      try {
+          setIsSavingKmRate(true);
+          const { error } = await supabase
+              .from("app_settings")
+              .upsert(
+                  { setting_key: KM_RATE_SETTING_KEY, setting_value: parsed.toString() },
+                  { onConflict: "setting_key" },
+              );
+
+          if (error) {
+              if (isMissingTableError(error)) {
+                  setHasKmRateSettingTable(false);
+                  return true;
+              }
+              throw error;
+          }
+          return true;
+      } catch (error) {
+          if (showError) showNotification("Não foi possível guardar o valor €/KM na Supabase.", "error");
+          return false;
+      } finally {
+          setIsSavingKmRate(false);
+      }
   };
 
   const getAttendanceStartForUser = (userId) => {
@@ -343,6 +400,47 @@ export default function RecursosHumanos() {
 
         initRhData();
     }, []);
+
+  useEffect(() => {
+      const savedRate = localStorage.getItem(KM_RATE_STORAGE_KEY);
+      if (!savedRate) return;
+      const parsed = Number(savedRate);
+      if (!Number.isFinite(parsed) || parsed <= 0) return;
+      setValorKmReembolso(parsed.toFixed(2));
+  }, []);
+
+  useEffect(() => {
+      let isMounted = true;
+
+      const fetchKmRateSetting = async () => {
+          const { data, error } = await supabase
+              .from("app_settings")
+              .select("setting_value")
+              .eq("setting_key", KM_RATE_SETTING_KEY)
+              .maybeSingle();
+
+          if (error) {
+              if (isMissingTableError(error)) {
+                  if (isMounted) setHasKmRateSettingTable(false);
+                  return;
+              }
+              return;
+          }
+
+          const parsed = Number(data?.setting_value);
+          if (!Number.isFinite(parsed) || parsed <= 0) return;
+
+          if (!isMounted) return;
+          setValorKmReembolso(parsed.toFixed(2));
+          localStorage.setItem(KM_RATE_STORAGE_KEY, parsed.toString());
+      };
+
+      fetchKmRateSetting();
+
+      return () => {
+          isMounted = false;
+      };
+  }, []);
 
   useEffect(() => {
             fetchDadosMensais();
@@ -972,37 +1070,70 @@ export default function RecursosHumanos() {
   }
 
   async function handleBulkUpdateSA() {
-      const valorSA = Number(globalSA);
-      if (!Number.isFinite(valorSA) || valorSA < 0) {
-          showNotification("Introduza um valor de S.A. válido.", "error");
+      if (!pendingGlobalUpdates.sa && !pendingGlobalUpdates.km) {
+          showNotification("Não existem alterações por aplicar.", "error");
           return;
+      }
+
+      if (pendingGlobalUpdates.sa) {
+          const valorSA = Number(globalSA);
+          if (!Number.isFinite(valorSA) || valorSA < 0) {
+              showNotification("Introduza um valor de S.A. válido.", "error");
+              return;
+          }
+      }
+
+      if (pendingGlobalUpdates.km) {
+          const valorKm = Number(String(valorKmReembolso).replace(",", "."));
+          if (!Number.isFinite(valorKm) || valorKm <= 0) {
+              showNotification("Introduza um valor €/KM válido.", "error");
+              return;
+          }
       }
 
       setShowBulkSAConfirmModal(true);
   }
 
   async function confirmarBulkUpdateSA() {
-      const valorSA = Number(globalSA);
-      if (!Number.isFinite(valorSA) || valorSA < 0) {
-          showNotification("Introduza um valor de S.A. válido.", "error");
+      if (!pendingGlobalUpdates.sa && !pendingGlobalUpdates.km) {
           setShowBulkSAConfirmModal(false);
           return;
       }
 
       try {
           setIsApplyingBulkSA(true);
-          const { error } = await supabase
-              .from("profiles")
-              .update({ valor_sa: valorSA })
-              .neq('id', '00000000-0000-0000-0000-000000000000');
 
-          if (error) throw error;
+          if (pendingGlobalUpdates.sa) {
+              const valorSA = Number(globalSA);
+              if (!Number.isFinite(valorSA) || valorSA < 0) {
+                  throw new Error("Introduza um valor de S.A. válido.");
+              }
+
+              const { error } = await supabase
+                  .from("profiles")
+                  .update({ valor_sa: valorSA })
+                  .neq('id', '00000000-0000-0000-0000-000000000000');
+
+              if (error) throw error;
+          }
+
+          if (pendingGlobalUpdates.km) {
+              const saved = await saveKmRateSetting(valorKmReembolso, { showError: false });
+              if (!saved) throw new Error("Não foi possível guardar o valor €/KM.");
+          }
 
           setShowBulkSAConfirmModal(false);
-          fetchColaboradores();
-          showNotification("S.A. atualizado para todos!", "success");
+          if (pendingGlobalUpdates.sa) fetchColaboradores();
+          if (pendingGlobalUpdates.sa && pendingGlobalUpdates.km) {
+              showNotification("S.A. e €/KM atualizados com sucesso!", "success");
+          } else if (pendingGlobalUpdates.sa) {
+              showNotification("S.A. atualizado para todos!", "success");
+          } else {
+              showNotification("Valor €/KM atualizado com sucesso!", "success");
+          }
+          setPendingGlobalUpdates({ sa: false, km: false });
       } catch (err) {
-          showNotification("Erro ao atualizar S.A.: " + err.message, "error");
+          showNotification("Erro ao aplicar alterações globais: " + err.message, "error");
       } finally {
           setIsApplyingBulkSA(false);
       }
@@ -1288,6 +1419,42 @@ export default function RecursosHumanos() {
       }
   };
 
+  const downloadSelectedUserDeslocacoesPDF = async () => {
+      if (!selectedUser || isGeneratingDeslocacoesPdf) return;
+
+      try {
+          setIsGeneratingDeslocacoesPdf(true);
+
+          const year = currentDate.getFullYear();
+          const month = currentDate.getMonth() + 1;
+          const startOfMonth = `${year}-${String(month).padStart(2, '0')}-01`;
+          const endOfMonth = toLocalDateString(new Date(year, month, 0));
+
+          const { data: deslocacoesData, error: deslocacoesError } = await supabase
+              .from("ferias")
+              .select("*")
+              .eq("estado", "aprovado")
+              .eq("tipo", KM_REQUEST_TYPE)
+              .eq("user_id", selectedUser)
+              .gte("data_inicio", startOfMonth)
+              .lte("data_inicio", endOfMonth);
+
+          if (deslocacoesError) throw deslocacoesError;
+
+          await gerarRelatorioDeslocacoesMensais({
+              colaboradores,
+              deslocacoes: deslocacoesData || [],
+              ano: year,
+              mes: month,
+              valorPorKm: parseKmRate(valorKmReembolso),
+          });
+      } catch (err) {
+          showNotification("Erro ao gerar PDF de deslocacoes: " + err.message, "error");
+      } finally {
+          setIsGeneratingDeslocacoesPdf(false);
+      }
+  };
+
   const getStats = () => {
       let countTrabalho = 0, countFerias = 0, countFaltas = 0, countBaixas = 0;
       countTrabalho = countMealAllowanceEligibleDays(assiduidadeMes);
@@ -1403,6 +1570,18 @@ export default function RecursosHumanos() {
 
   const stats = getStats();
   const currentUserProfile = colaboradores.find(c => c.id === selectedUser);
+  const modalHasSAUpdate = pendingGlobalUpdates.sa;
+  const modalHasKmUpdate = pendingGlobalUpdates.km;
+  const modalTitle = modalHasSAUpdate && modalHasKmUpdate
+      ? "Aplicar alterações globais"
+      : modalHasKmUpdate
+          ? "Atualizar €/KM Global"
+          : "Atualizar S.A. Global";
+  const modalDescription = modalHasSAUpdate && modalHasKmUpdate
+      ? `Tem a certeza que quer alterar o S.A. de TODOS para ${Number(globalSA).toFixed(2)}€ e o €/KM para ${parseKmRate(valorKmReembolso).toFixed(2)}€?`
+      : modalHasKmUpdate
+          ? `Tem a certeza que quer alterar o €/KM global para ${parseKmRate(valorKmReembolso).toFixed(2)}€?`
+          : `Tem a certeza que quer alterar o S.A. de TODOS para ${Number(globalSA).toFixed(2)}€?`;
 
   const getAusentesHoje = () => {
       const today = new Date().toISOString().split('T')[0];
@@ -1831,7 +2010,29 @@ export default function RecursosHumanos() {
             <div className="rh-toolbar" style={{marginBottom: '20px', background:'white', padding:'15px 20px', borderRadius:'12px', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'15px', border: '1px solid #e2e8f0', boxShadow: '0 2px 5px rgba(0,0,0,0.02)'}}>
                 <div style={{background:'#f8fafc', padding:'10px 15px', borderRadius:'8px', display:'flex', alignItems:'center', gap:'10px', border:'1px solid #e2e8f0'}}>
                     <span style={{fontSize:'0.8rem', fontWeight:'bold', color:'#475569'}}>S.A. GLOBAL:</span>
-                    <input type="number" step="0.01" value={globalSA} onChange={e => setGlobalSA(e.target.value)} style={{width:'60px', padding:'5px', borderRadius:'4px', border:'1px solid #cbd5e1'}}/>
+                    <input
+                        type="number"
+                        step="0.01"
+                        value={globalSA}
+                        onChange={e => {
+                            setGlobalSA(e.target.value);
+                            setPendingGlobalUpdates((prev) => ({ ...prev, sa: true }));
+                        }}
+                        style={{width:'60px', padding:'5px', borderRadius:'4px', border:'1px solid #cbd5e1'}}
+                    />
+                    <span style={{fontSize:'0.8rem', fontWeight:'bold', color:'#475569'}}>€/KM:</span>
+                    <input
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        value={valorKmReembolso}
+                        onChange={e => {
+                            setValorKmReembolso(e.target.value);
+                            setPendingGlobalUpdates((prev) => ({ ...prev, km: true }));
+                        }}
+                        style={{width:'72px', padding:'5px', borderRadius:'4px', border:'1px solid #cbd5e1'}}
+                    />
+                    {isSavingKmRate && <span style={{fontSize:'0.72rem', color:'#64748b'}}>a guardar...</span>}
                     <button onClick={handleBulkUpdateSA} className="btn-small" style={{background:'#2563eb', color:'white', border:'none', padding:'6px 12px', fontWeight:'500'}}>Aplicar</button>
                 </div>
                 <div className="rh-toolbar-actions" style={{display:'flex', gap:'15px', alignItems:'center'}}>
@@ -1842,24 +2043,28 @@ export default function RecursosHumanos() {
                         <option value="">Visão Geral Global</option>
                         {colaboradores.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
                     </select>
-                                        <button
-                                            onClick={downloadRHGeneralPDF}
-                                            disabled={isGeneratingRhPdf || colaboradores.length === 0}
-                                            className="btn-small"
-                                            style={{
-                                                padding: '10px 14px',
-                                                display:'flex',
-                                                alignItems:'center',
-                                                gap:'8px',
-                                                background:'#eff6ff',
-                                                color:'#1d4ed8',
-                                                borderColor:'#bfdbfe',
-                                                opacity: isGeneratingRhPdf ? 0.7 : 1,
-                                                cursor: isGeneratingRhPdf ? 'wait' : 'pointer'
-                                            }}
-                                        >
-                                                <Icons.Download size={16} /> {isGeneratingRhPdf ? 'A gerar PDF...' : 'Exportar PDF RH'}
-                                        </button>
+                    {!selectedUser && (
+                        <>
+                            <button
+                                onClick={downloadRHGeneralPDF}
+                                disabled={isGeneratingRhPdf || colaboradores.length === 0}
+                                className="btn-small"
+                                style={{
+                                    padding: '10px 14px',
+                                    display:'flex',
+                                    alignItems:'center',
+                                    gap:'8px',
+                                    background:'#eff6ff',
+                                    color:'#1d4ed8',
+                                    borderColor:'#bfdbfe',
+                                    opacity: isGeneratingRhPdf ? 0.7 : 1,
+                                    cursor: isGeneratingRhPdf ? 'wait' : 'pointer'
+                                }}
+                            >
+                                <Icons.Download size={16} /> {isGeneratingRhPdf ? 'A gerar PDF...' : 'Exportar PDF RH'}
+                            </button>
+                        </>
+                    )}
                     <button onClick={() => { 
                       setIsEditingAbsence(false);
                       setEditingAbsenceData(null);
@@ -1891,14 +2096,24 @@ export default function RecursosHumanos() {
                                             </div>
                                         </div>
                                     </div>
-                                    <button
-                                        onClick={downloadIndividualPDF}
-                                        disabled={isGeneratingIndividualPdf}
-                                        className="btn-small"
-                                        style={{display:'flex', alignItems:'center', gap:'6px', background:'#f0fdf4', color:'#16a34a', borderColor:'#bbf7d0', opacity: isGeneratingIndividualPdf ? 0.7 : 1, cursor: isGeneratingIndividualPdf ? 'wait' : 'pointer'}}
-                                    >
-                                        <Icons.Download size={14} /> {isGeneratingIndividualPdf ? 'A gerar PDF...' : 'Relatório PDF'}
-                                    </button>
+                                    <div style={{display:'flex', flexDirection:'column', gap:'8px', alignItems:'stretch'}}>
+                                        <button
+                                            onClick={downloadIndividualPDF}
+                                            disabled={isGeneratingIndividualPdf}
+                                            className="btn-small"
+                                            style={{display:'flex', alignItems:'center', gap:'6px', justifyContent:'center', background:'#f0fdf4', color:'#16a34a', borderColor:'#bbf7d0', opacity: isGeneratingIndividualPdf ? 0.7 : 1, cursor: isGeneratingIndividualPdf ? 'wait' : 'pointer'}}
+                                        >
+                                            <Icons.Download size={14} /> {isGeneratingIndividualPdf ? 'A gerar PDF...' : 'Relatório PDF'}
+                                        </button>
+                                        <button
+                                            onClick={downloadSelectedUserDeslocacoesPDF}
+                                            disabled={isGeneratingDeslocacoesPdf}
+                                            className="btn-small"
+                                            style={{display:'flex', alignItems:'center', gap:'6px', justifyContent:'center', background:'#fff7ed', color:'#c2410c', borderColor:'#fed7aa', opacity: isGeneratingDeslocacoesPdf ? 0.7 : 1, cursor: isGeneratingDeslocacoesPdf ? 'wait' : 'pointer'}}
+                                        >
+                                            <Icons.Download size={14} /> {isGeneratingDeslocacoesPdf ? 'A gerar PDF...' : 'Deslocações PDF'}
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <div className="tabs rh-user-tabs" style={{marginBottom:'20px', display:'flex', background:'#f8fafc', padding:'4px', borderRadius:'8px'}}>
@@ -2529,9 +2744,9 @@ export default function RecursosHumanos() {
                       <div style={{display:'flex', justifyContent:'center', marginBottom:'15px'}}>
                           <div style={{background:'#eff6ff', padding:'15px', borderRadius:'50%', color:'#2563eb'}}><Icons.Currency size={30}/></div>
                       </div>
-                      <h3 style={{marginTop:0, color:'#1e293b'}}>Atualizar S.A. Global</h3>
+                      <h3 style={{marginTop:0, color:'#1e293b'}}>{modalTitle}</h3>
                       <p style={{color:'#64748b', marginBottom:'25px', lineHeight:'1.5', fontSize:'0.95rem'}}>
-                          Tem a certeza que quer alterar o S.A. de TODOS para <b>{Number(globalSA).toFixed(2)}€</b>?
+                          {modalDescription}
                       </p>
                       <div style={{display:'flex', gap:'10px', justifyContent:'center'}}>
                           <button
