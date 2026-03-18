@@ -1,0 +1,16 @@
+{
+  "rewrites": [
+    {
+      "source": "/nif-api/(.*)",
+      "destination": "https://www.nif.pt/$1"
+    },
+    {
+      "source": "/nif-api",
+      "destination": "https://www.nif.pt"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

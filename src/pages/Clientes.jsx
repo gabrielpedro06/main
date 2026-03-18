@@ -72,6 +72,8 @@ export default function Clientes() {
   const [moradas, setMoradas] = useState([]);
   const [acessos, setAcessos] = useState([]);
   const [caes, setCaes] = useState([]);
+  const [pendingAutoCaes, setPendingAutoCaes] = useState([]);
+  const [pendingAutoMorada, setPendingAutoMorada] = useState(null);
   
   // Histórico de Projetos do Cliente
   const [projetosCliente, setProjetosCliente] = useState([]);
@@ -127,6 +129,63 @@ export default function Clientes() {
       setTimeout(() => setNotification(null), 3500);
   };
 
+  const extractNifApiErrorMessage = (data) => {
+    if (!data || typeof data !== "object") return null;
+
+    const candidates = [data.error, data.message, data.msg, data.detail, data.status];
+    const found = candidates.find(
+      (value) => typeof value === "string" && value.trim().length > 0
+    );
+
+    return found ? found.trim() : null;
+  };
+
+  const normalizeCaeList = (caeValue) => {
+    if (Array.isArray(caeValue)) return caeValue.map((item) => String(item).trim()).filter(Boolean);
+    if (caeValue === null || caeValue === undefined) return [];
+    const single = String(caeValue).trim();
+    return single ? [single] : [];
+  };
+
+  const buildSiglaFromTitle = (title) => {
+    if (!title || typeof title !== "string") return "";
+
+    const stopWords = new Set(["de", "da", "do", "das", "dos", "e", "a", "o", "the", "and"]);
+    const words = title
+      .replace(/[.,;:()]/g, " ")
+      .split(/\s+/)
+      .map((word) => word.trim())
+      .filter(Boolean)
+      .filter((word) => !stopWords.has(word.toLowerCase()));
+
+    if (!words.length) return "";
+    const sigla = words.slice(0, 5).map((word) => word[0]).join("").toUpperCase();
+    return sigla.slice(0, 20);
+  };
+
+  const buildObjetoSocialFromRecord = (record, currentValue) => {
+    if (currentValue?.trim()) return currentValue;
+
+    const parts = [];
+    if (record?.activity) parts.push(record.activity);
+
+    const nature = record?.structure?.nature;
+    const capital = record?.structure?.capital;
+    const currency = record?.structure?.capital_currency;
+    if (nature || capital) {
+      const details = [
+        nature ? `Natureza jurídica: ${nature}` : null,
+        capital ? `Capital social: ${capital}${currency ? ` ${currency}` : ""}` : null
+      ].filter(Boolean);
+
+      if (details.length) parts.push(details.join(" | "));
+    }
+
+    if (record?.start_date) parts.push(`Início de atividade: ${record.start_date}`);
+
+    return parts.join("\n\n").trim();
+  };
+
   async function fetchClientes() {
     setLoading(true);
     
@@ -152,69 +211,135 @@ export default function Clientes() {
 
   // --- INTEGRAÇÃO NIF.PT ---
   async function handleNifChange(e) {
-    const nifDigitado = e.target.value;
-    setForm({ ...form, nif: nifDigitado });
+    const nifDigitado = e.target.value.replace(/\D/g, "");
+    setForm((prev) => ({ ...prev, nif: nifDigitado }));
+
+    if (nifDigitado.length < 9) {
+      setPendingAutoCaes([]);
+      setPendingAutoMorada(null);
+    }
 
     if (nifDigitado.length === 9 && !isViewOnly) {
       try {
         showToast("A consultar dados no NIF.pt...", "info");
-        
-        const response = await fetch(`/nif-api/?json=1&q=${nifDigitado}&key=9beb59d324c1477245e04e0b5988bdd2`);
+
+        const params = new URLSearchParams({ json: "1", q: nifDigitado });
+        const nifApiKey = (import.meta.env.VITE_NIFPT_KEY || "9beb59d324c1477245e04e0b5988bdd2").trim();
+        if (nifApiKey) params.set("key", nifApiKey);
+
+        const response = await fetch(`/nif-api/?${params.toString()}`);
         if (!response.ok) throw new Error("Erro na comunicação com a API.");
 
+        const contentType = response.headers.get("content-type") || "";
+        if (!contentType.includes("application/json")) {
+          throw new Error("Resposta inválida do serviço NIF. Verifica o proxy /nif-api.");
+        }
+
         const data = await response.json();
+        const apiErrorMessage = extractNifApiErrorMessage(data);
+        if (apiErrorMessage) {
+          showToast(`NIF.pt: ${apiErrorMessage}`, "warning");
+          return;
+        }
+
+        if (data?.credits?.left?.day === 0) {
+          showToast("NIF.pt indisponível: limite diário de consultas atingido.", "warning");
+          return;
+        }
         
         let record = null;
         if (data.records && data.records[nifDigitado]) record = data.records[nifDigitado];
         else if (data[nifDigitado]) record = data[nifDigitado];
 
         if (record) {
+          const caeList = [...new Set(normalizeCaeList(record.cae))];
+          const posto = record.place || {};
+          const postal4 = posto.pc4 || record.pc4;
+          const postal3 = posto.pc3 || record.pc3;
+          const codigoPostal = postal4 && postal3 ? `${postal4}-${postal3}` : "";
+          const generatedSigla = buildSiglaFromTitle(record.title);
+          const website = record.contacts?.website || "";
+          const phone = record.contacts?.phone || "";
+          const email = record.contacts?.email || "";
+          const mainAddress = posto.address || record.address || "";
+          const locality = posto.city || record.city || record.geo?.parish || "";
+          const county = record.geo?.county || "";
+          const region = record.geo?.region || "";
+
           setForm(prev => ({
             ...prev,
             entidade: record.title || prev.entidade || "",
             marca: prev.marca || record.title || "", 
-            website: record.contacts?.website || prev.website || "",
-            objeto_social: record.activity || prev.objeto_social || ""
+            sigla: prev.sigla || generatedSigla || "",
+            website: website || prev.website || "",
+            objeto_social: buildObjetoSocialFromRecord(record, prev.objeto_social)
           }));
 
-          if (record.address || record.pc4) {
+          if (mainAddress || codigoPostal || locality || county || region) {
+             setPendingAutoMorada({
+               morada: mainAddress,
+               codigo_postal: codigoPostal,
+               localidade: locality,
+               concelho: county,
+               distrito: region,
+               regiao: region,
+               notas: "Sede"
+             });
+
              setNovaMorada({
-                 morada: record.address || "",
-                 codigo_postal: (record.pc4 && record.pc3) ? `${record.pc4}-${record.pc3}` : "",
-                 localidade: record.city || record.geo?.parish || "",
-                 concelho: record.geo?.county || "",
-                 distrito: record.geo?.region || "",
-                 regiao: record.geo?.region || "",
+                 morada: mainAddress,
+                 codigo_postal: codigoPostal,
+                 localidade: locality,
+                 concelho: county,
+                 distrito: region,
+                 regiao: region,
                  notas: "Sede"
              });
              setShowAddMorada(true);
+           } else {
+             setPendingAutoMorada(null);
           }
 
-          if (record.cae) {
+          if (caeList.length > 0) {
+             const [principal, ...restantes] = caeList;
+             const caesParaGuardar = caeList.map((codigo, index) => ({
+                codigo,
+                descricao: index === 0
+                 ? (record.activity ? record.activity.split('.')[0] : "Atividade Principal")
+                 : "Atividade secundária importada do NIF.pt",
+                principal: index === 0
+             }));
+
+             setPendingAutoCaes(caesParaGuardar);
+
              setNovoCae({
-                 codigo: record.cae,
-                 descricao: record.activity ? record.activity.split('.')[0] : "Atividade Principal",
+                 codigo: principal,
+                 descricao: restantes.length > 0
+                   ? `Atividade principal. Outros CAE: ${restantes.join(", ")}`
+                   : (record.activity ? record.activity.split('.')[0] : "Atividade Principal"),
                  principal: true
              });
              setShowAddCae(true);
+           } else {
+             setPendingAutoCaes([]);
           }
 
-          if (record.contacts?.email || record.contacts?.phone) {
+          if (email || phone) {
              setNovoContacto({
-                 nome_contacto: "Geral",
+                 nome_contacto: "Contacto Geral",
                  cargo: "",
-                 email: record.contacts?.email || "",
-                 telefone: record.contacts?.phone || ""
+                 email,
+                 telefone: phone
              });
              setShowAddContacto(true);
           }
 
-          showToast("Empresa, Contactos e Moradas pré-preenchidos!", "success");
+          showToast(`Dados pré-preenchidos com sucesso${caeList.length > 1 ? ` (${caeList.length} CAE detetados)` : ""}!`, "success");
         } else {
-          showToast("NIF não encontrado na base de dados.", "warning");
+          showToast("NIF não encontrado na base do NIF.pt.", "warning");
         }
       } catch (err) {
-        showToast("Falha na consulta automática. Preenche manualmente.", "warning");
+        showToast(err?.message || "Falha na consulta automática. Preenche manualmente.", "warning");
       }
     }
   }
@@ -242,6 +367,8 @@ export default function Clientes() {
     setEditId(null); setIsViewOnly(false);
     setForm(initialForm);
     setContactos([]); setMoradas([]); setAcessos([]); setCaes([]); setProjetosCliente([]);
+    setPendingAutoCaes([]);
+    setPendingAutoMorada(null);
     setPodeVerAcessos(true);
     fecharTodosSubForms();
     setActiveTab("geral");
@@ -264,12 +391,126 @@ export default function Clientes() {
         safeData[key] = cliente[key] !== null && cliente[key] !== undefined ? cliente[key] : initialForm[key];
     });
     setForm(safeData);
+    setPendingAutoCaes([]);
+    setPendingAutoMorada(null);
 
     fecharTodosSubForms();
     setActiveTab("geral");
     setShowModal(true);
     fetchSubDados(cliente.id);
     verificarPermissaoAcessos(cliente.id); 
+  }
+
+  async function persistPendingAutoCaes(clienteId) {
+    if (!clienteId || pendingAutoCaes.length === 0) {
+      return { inserted: 0, skipped: 0 };
+    }
+
+    const { data: existentes, error: erroExistentes } = await supabase
+      .from("caes_cliente")
+      .select("codigo")
+      .eq("cliente_id", clienteId);
+
+    if (erroExistentes) throw erroExistentes;
+
+    const codigosExistentes = new Set(
+      (existentes || [])
+        .map((item) => String(item.codigo || "").trim())
+        .filter(Boolean)
+    );
+
+    const caesParaInserir = pendingAutoCaes
+      .filter((item) => item?.codigo)
+      .filter((item) => !codigosExistentes.has(String(item.codigo).trim()))
+      .map((item) => ({
+        cliente_id: clienteId,
+        codigo: String(item.codigo).trim(),
+        descricao: item.descricao || null,
+        principal: Boolean(item.principal)
+      }));
+
+    if (caesParaInserir.length === 0) {
+      return { inserted: 0, skipped: pendingAutoCaes.length };
+    }
+
+    const { data: inseridos, error: erroInsercao } = await supabase
+      .from("caes_cliente")
+      .insert(caesParaInserir)
+      .select();
+
+    if (erroInsercao) throw erroInsercao;
+
+    if (inseridos?.length) {
+      setCaes((prev) => [...prev, ...inseridos]);
+    }
+
+    return {
+      inserted: inseridos?.length || 0,
+      skipped: pendingAutoCaes.length - (inseridos?.length || 0)
+    };
+  }
+
+  async function persistPendingAutoMorada(clienteId) {
+    if (!clienteId || !pendingAutoMorada) {
+      return { inserted: 0, skipped: 0 };
+    }
+
+    const normalizar = (value) => String(value || "").trim().toLowerCase();
+    const novaKey = [
+      normalizar(pendingAutoMorada.morada),
+      normalizar(pendingAutoMorada.codigo_postal),
+      normalizar(pendingAutoMorada.localidade),
+      normalizar(pendingAutoMorada.concelho)
+    ].join("|");
+
+    if (!novaKey.replace(/\|/g, "")) {
+      return { inserted: 0, skipped: 1 };
+    }
+
+    const { data: existentes, error: erroExistentes } = await supabase
+      .from("moradas_cliente")
+      .select("morada, codigo_postal, localidade, concelho")
+      .eq("cliente_id", clienteId);
+
+    if (erroExistentes) throw erroExistentes;
+
+    const existeDuplicado = (existentes || []).some((item) => {
+      const keyExistente = [
+        normalizar(item.morada),
+        normalizar(item.codigo_postal),
+        normalizar(item.localidade),
+        normalizar(item.concelho)
+      ].join("|");
+      return keyExistente === novaKey;
+    });
+
+    if (existeDuplicado) {
+      return { inserted: 0, skipped: 1 };
+    }
+
+    const payload = {
+      cliente_id: clienteId,
+      morada: pendingAutoMorada.morada || null,
+      codigo_postal: pendingAutoMorada.codigo_postal || null,
+      localidade: pendingAutoMorada.localidade || null,
+      concelho: pendingAutoMorada.concelho || null,
+      notas: pendingAutoMorada.notas || null
+    };
+
+    const { data: inserida, error: erroInsercao } = await supabase
+      .from("moradas_cliente")
+      .insert([payload])
+      .select();
+
+    if (erroInsercao) throw erroInsercao;
+
+    if (inserida?.length) {
+      setMoradas((prev) => [...prev, ...inserida]);
+      fetchClientes();
+      return { inserted: 1, skipped: 0 };
+    }
+
+    return { inserted: 0, skipped: 1 };
   }
 
   function fecharTodosSubForms() {
@@ -406,18 +647,47 @@ export default function Clientes() {
     };
 
     try {
+      let clienteId = editId;
+
       if (editId) {
         const { error } = await supabase.from("clientes").update(dbPayload).eq("id", editId);
         if (error) throw error;
         setClientes(clientes.map(c => (c.id === editId ? { ...c, ...dbPayload } : c)));
-        showToast("Empresa atualizada!");
       } else {
         const { data, error } = await supabase.from("clientes").insert([dbPayload]).select();
         if (error) throw error;
         setClientes([{ ...data[0], ativo: true }, ...clientes]); 
         setEditId(data[0].id);
-        showToast("Empresa criada! Verifica as abas que foram pré-preenchidas.");
+        clienteId = data[0].id;
       }
+
+      let msg = editId
+        ? "Empresa atualizada!"
+        : "Empresa criada! Verifica as abas que foram pré-preenchidas.";
+
+      if (pendingAutoCaes.length > 0 && clienteId) {
+        try {
+          const { inserted, skipped } = await persistPendingAutoCaes(clienteId);
+          if (inserted > 0) msg += ` ${inserted} CAE adicionados automaticamente.`;
+          else if (skipped > 0) msg += " Os CAE importados já existiam e não foram duplicados.";
+          setPendingAutoCaes([]);
+        } catch (caeError) {
+          msg += ` Não foi possível gravar os CAE automáticos: ${caeError.message}`;
+        }
+      }
+
+      if (pendingAutoMorada && clienteId) {
+        try {
+          const { inserted, skipped } = await persistPendingAutoMorada(clienteId);
+          if (inserted > 0) msg += " Morada importada automaticamente.";
+          else if (skipped > 0) msg += " Morada importada já existia e não foi duplicada.";
+          setPendingAutoMorada(null);
+        } catch (morError) {
+          msg += ` Não foi possível gravar a morada automática: ${morError.message}`;
+        }
+      }
+
+      showToast(msg, "success");
     } catch (error) { showToast("Erro: " + error.message, "error"); }
   }
 
