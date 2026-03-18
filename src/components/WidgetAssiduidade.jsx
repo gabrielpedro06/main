@@ -155,8 +155,18 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
   useEffect(() => { 
       checkStatus();
       fetchRecentRecords();
-      window.addEventListener('focus', checkStatus);
-      return () => window.removeEventListener('focus', checkStatus);
+            const handleAttendanceUpdated = () => {
+                checkStatus();
+                fetchRecentRecords();
+            };
+
+            window.addEventListener('focus', checkStatus);
+            window.addEventListener('attendance-updated', handleAttendanceUpdated);
+
+            return () => {
+                window.removeEventListener('focus', checkStatus);
+                window.removeEventListener('attendance-updated', handleAttendanceUpdated);
+            };
   }, [checkStatus, fetchRecentRecords]); 
 
   useEffect(() => {

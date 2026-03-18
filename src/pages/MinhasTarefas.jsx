@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
 import TimerSwitchModal from "../components/TimerSwitchModal";
 import StopTimerNoteModal from "../components/StopTimerNoteModal";
+import { hasAttendanceStartedToday, startAttendanceNow } from "../utils/attendanceGuard";
 import "./../styles/dashboard.css";
 
 // --- ÍCONES SVG PROFISSIONAIS (SaaS Premium) ---
@@ -69,7 +70,9 @@ export default function MinhasTarefas() {
   const [completedTasksGroups, setCompletedTasksGroups] = useState({ "Esta Semana": [], "Semana Passada": [], "Mais Antigas": [] });
   const [activeHistoryTab, setActiveHistoryTab] = useState("Esta Semana"); 
     const [timerSwitchModal, setTimerSwitchModal] = useState({ show: false, message: "", pendingTask: null });
+                const [attendanceWarningModal, setAttendanceWarningModal] = useState({ show: false, message: "" });
         const [stopNoteModal, setStopNoteModal] = useState({ show: false });
+        const attendancePendingActionRef = useRef(null);
     const [showTimeModal, setShowTimeModal] = useState(false);
     const [timeLogSaving, setTimeLogSaving] = useState(false);
     const [timeLogForm, setTimeLogForm] = useState({ user_id: "", task_id: "", duration_minutes: "" });
@@ -476,6 +479,34 @@ export default function MinhasTarefas() {
       if (!error) { setActiveLog(data); showToast("Cronómetro em curso!"); }
   }
 
+  async function runActionWithAttendanceWarning(actionFn) {
+      const hasStarted = await hasAttendanceStartedToday(supabase, user?.id);
+      if (hasStarted) {
+          await actionFn();
+          return;
+      }
+
+      attendancePendingActionRef.current = actionFn;
+      setAttendanceWarningModal({
+          show: true,
+          message: "Ainda não iniciaste a picagem de ponto de hoje. Queres iniciar agora?"
+      });
+  }
+
+  async function handleAttendanceWarningChoice(shouldStartAttendance) {
+      const pendingAction = attendancePendingActionRef.current;
+      attendancePendingActionRef.current = null;
+      setAttendanceWarningModal({ show: false, message: "" });
+
+      if (shouldStartAttendance) {
+          const started = await startAttendanceNow(supabase, user?.id);
+          if (started) showToast("Picagem iniciada com sucesso.", "success");
+          else showToast("Não foi possível iniciar a picagem agora. O cronómetro será iniciado na mesma.", "warning");
+      }
+
+      if (pendingAction) await pendingAction();
+  }
+
   async function confirmTimerSwitch() {
       const nextTask = timerSwitchModal.pendingTask;
       setTimerSwitchModal({ show: false, message: "", pendingTask: null });
@@ -486,7 +517,7 @@ export default function MinhasTarefas() {
 
       setActiveLog(null);
       showToast(`Cronómetro anterior terminado (${mins} min).`, "success");
-      await startTaskDirect(nextTask);
+      await runActionWithAttendanceWarning(() => startTaskDirect(nextTask));
   }
 
   function cancelTimerSwitch() {
@@ -532,12 +563,10 @@ export default function MinhasTarefas() {
       setStopNoteModal({ show: false });
   }
 
-  async function confirmStopWithNote(note, shouldComplete) {
-      setStopNoteModal({ show: false });
+  async function finalizeStopWithNote(note, shouldComplete) {
       if (!activeLog) return;
 
       const logToStop = activeLog;
-
       const diffMins = await stopLogById(logToStop, note);
       if (diffMins === null) return;
 
@@ -546,6 +575,18 @@ export default function MinhasTarefas() {
       setActiveLog(null);
       showToast(shouldComplete ? `Tempo guardado: ${diffMins} min. Item concluido.` : `Tempo guardado: ${diffMins} min.`);
       carregarTudo();
+  }
+
+  async function confirmStopWithNote(note, shouldComplete) {
+      setStopNoteModal({ show: false });
+      if (!activeLog) return;
+
+      if (shouldComplete) {
+          await runActionWithAttendanceWarning(() => finalizeStopWithNote(note, shouldComplete));
+          return;
+      }
+
+      await finalizeStopWithNote(note, shouldComplete);
   }
 
   async function handleToggleTimer(task) {
@@ -560,7 +601,7 @@ export default function MinhasTarefas() {
               });
               return;
           }
-          await startTaskDirect(task);
+          await runActionWithAttendanceWarning(() => startTaskDirect(task));
       }
   }
 
@@ -1334,6 +1375,16 @@ export default function MinhasTarefas() {
           onCancel={cancelTimerSwitch}
           onConfirm={confirmTimerSwitch}
       />
+
+            <TimerSwitchModal
+                open={attendanceWarningModal.show}
+                title="Picagem de ponto em falta"
+                message={attendanceWarningModal.message}
+                cancelLabel="Não iniciar agora"
+                confirmLabel="Sim, iniciar ponto"
+                onCancel={() => handleAttendanceWarningChoice(false)}
+                onConfirm={() => handleAttendanceWarningChoice(true)}
+            />
 
       <StopTimerNoteModal
           open={stopNoteModal.show}

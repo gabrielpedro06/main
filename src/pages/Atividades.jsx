@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
 import TimerSwitchModal from "../components/TimerSwitchModal";
 import StopTimerNoteModal from "../components/StopTimerNoteModal";
+import { hasAttendanceStartedToday, startAttendanceNow } from "../utils/attendanceGuard";
 import "./../styles/dashboard.css";
 
 // --- ÍCONES SVG PROFISSIONAIS ---
@@ -39,7 +40,9 @@ export default function Atividades() {
   // Notificações (Toasts)
   const [notification, setNotification] = useState(null);
     const [timerSwitchModal, setTimerSwitchModal] = useState({ show: false, message: "", pendingAtividade: null });
+                const [attendanceWarningModal, setAttendanceWarningModal] = useState({ show: false, message: "" });
         const [stopNoteModal, setStopNoteModal] = useState({ show: false });
+        const attendancePendingActionRef = useRef(null);
 
   // Filtros
   const [busca, setBusca] = useState("");
@@ -164,6 +167,34 @@ export default function Atividades() {
         };
     }
 
+    async function runActionWithAttendanceWarning(actionFn) {
+        const hasStarted = await hasAttendanceStartedToday(supabase, user?.id);
+        if (hasStarted) {
+            await actionFn();
+            return;
+        }
+
+        attendancePendingActionRef.current = actionFn;
+        setAttendanceWarningModal({
+            show: true,
+            message: "Ainda não iniciaste a picagem de ponto de hoje. Queres iniciar agora?"
+        });
+    }
+
+    async function handleAttendanceWarningChoice(shouldStartAttendance) {
+        const pendingAction = attendancePendingActionRef.current;
+        attendancePendingActionRef.current = null;
+        setAttendanceWarningModal({ show: false, message: "" });
+
+        if (shouldStartAttendance) {
+            const started = await startAttendanceNow(supabase, user?.id);
+            if (started) showToast("Picagem iniciada com sucesso.", "success");
+            else showToast("Não foi possível iniciar a picagem agora. O cronómetro será iniciado na mesma.", "warning");
+        }
+
+        if (pendingAction) await pendingAction();
+    }
+
     async function startAtividadeDirect(ativ) {
     const { data, error } = await supabase
         .from("task_logs")
@@ -189,7 +220,7 @@ export default function Atividades() {
         if (mins === null) return;
 
         showToast(`Atividade anterior terminada (${mins} min).`, "success");
-        await startAtividadeDirect(nextAtividade);
+        await runActionWithAttendanceWarning(() => startAtividadeDirect(nextAtividade));
     }
 
     function cancelTimerSwitch() {
@@ -210,7 +241,7 @@ export default function Atividades() {
             return;
         }
 
-        await startAtividadeDirect(ativ);
+        await runActionWithAttendanceWarning(() => startAtividadeDirect(ativ));
     }
 
   async function handleStopLog() {
@@ -260,12 +291,10 @@ export default function Atividades() {
         setStopNoteModal({ show: false });
     }
 
-    async function confirmStopWithNote(note, shouldComplete) {
-        setStopNoteModal({ show: false });
+    async function finalizeStopWithNote(note, shouldComplete) {
         if (!activeLog) return;
 
         const logToStop = activeLog;
-
         const diffMins = await stopLogById(logToStop, note);
         if (diffMins === null) return;
 
@@ -274,6 +303,18 @@ export default function Atividades() {
         setActiveLog(null);
         showToast(shouldComplete ? `Tempo registado: ${diffMins} min. Item concluido.` : `Tempo registado: ${diffMins} min.`, "success");
         fetchData();
+    }
+
+    async function confirmStopWithNote(note, shouldComplete) {
+        setStopNoteModal({ show: false });
+        if (!activeLog) return;
+
+        if (shouldComplete) {
+            await runActionWithAttendanceWarning(() => finalizeStopWithNote(note, shouldComplete));
+            return;
+        }
+
+        await finalizeStopWithNote(note, shouldComplete);
     }
 
   async function handleToggleStatus(ativ) {
@@ -733,6 +774,16 @@ export default function Atividades() {
                 message={timerSwitchModal.message}
                 onCancel={cancelTimerSwitch}
                 onConfirm={confirmTimerSwitch}
+            />
+
+            <TimerSwitchModal
+                open={attendanceWarningModal.show}
+                title="Picagem de ponto em falta"
+                message={attendanceWarningModal.message}
+                cancelLabel="Não iniciar agora"
+                confirmLabel="Sim, iniciar ponto"
+                onCancel={() => handleAttendanceWarningChoice(false)}
+                onConfirm={() => handleAttendanceWarningChoice(true)}
             />
 
             <StopTimerNoteModal

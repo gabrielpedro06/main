@@ -88,8 +88,13 @@ export default function DashboardHome() {
             message: "",
             pendingTask: null
     });
+    const [attendanceWarningModal, setAttendanceWarningModal] = useState({
+        show: false,
+        message: ""
+    });
         const [stopNoteModal, setStopNoteModal] = useState({ show: false });
     const onlineCardRef = useRef(null);
+    const attendancePendingActionRef = useRef(null);
 
     function formatBirthdayDate(proximoAniversario) {
         if (!(proximoAniversario instanceof Date) || isNaN(proximoAniversario.getTime())) return "";
@@ -356,8 +361,81 @@ export default function DashboardHome() {
       }
   }
 
-  async function confirmStopWithNote(note, shouldComplete) {
-      setStopNoteModal({ show: false });
+  async function hasStartedAttendanceToday() {
+      if (!user?.id) return true;
+
+      const today = new Date().toLocaleDateString("en-CA");
+      const { data, error } = await supabase
+          .from("assiduidade")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("data_registo", today)
+          .limit(1);
+
+      if (error) {
+          console.error("Erro ao verificar picagem do dia:", error);
+          return true;
+      }
+
+      return Array.isArray(data) && data.length > 0;
+  }
+
+  async function startAttendanceNow() {
+      if (!user?.id) return;
+
+      const now = new Date();
+      const horaAtual = now.toLocaleTimeString("pt-PT", { hour12: false });
+      const dataAtual = now.toLocaleDateString("en-CA");
+
+      const { error } = await supabase.from("assiduidade").insert([
+          {
+              user_id: user.id,
+              data_registo: dataAtual,
+              hora_entrada: horaAtual,
+              tempo_pausa_acumulado: 0,
+              tarefas_planeadas: JSON.stringify([])
+          }
+      ]);
+
+      if (error) {
+          console.error("Erro ao iniciar picagem:", error);
+          setAlertModal({ show: true, message: "Não foi possível iniciar a picagem agora. O cronómetro da tarefa será iniciado na mesma." });
+          return;
+      }
+
+      setAlertModal({ show: true, message: "Picagem iniciada com sucesso. O cronómetro da tarefa vai avançar." });
+      window.dispatchEvent(new Event("attendance-updated"));
+  }
+
+  async function runActionWithAttendanceWarning(actionFn) {
+      const hasStarted = await hasStartedAttendanceToday();
+      if (hasStarted) {
+          await actionFn();
+          return;
+      }
+
+      attendancePendingActionRef.current = actionFn;
+      setAttendanceWarningModal({
+          show: true,
+          message: "Ainda não iniciaste a picagem de ponto de hoje. Queres iniciar agora?"
+      });
+  }
+
+  async function handleAttendanceWarningChoice(shouldStartAttendance) {
+      const pendingAction = attendancePendingActionRef.current;
+      attendancePendingActionRef.current = null;
+      setAttendanceWarningModal({ show: false, message: "" });
+
+      if (shouldStartAttendance) {
+          await startAttendanceNow();
+      }
+
+      if (pendingAction) {
+          await pendingAction();
+      }
+  }
+
+  async function finalizeStopWithNote(note, shouldComplete) {
       if (!activeLog) return;
 
       const logToStop = activeLog;
@@ -367,6 +445,18 @@ export default function DashboardHome() {
           showToast("Tempo guardado e item concluido.", "success");
           await refreshDashboardWorkItems();
       }
+  }
+
+  async function confirmStopWithNote(note, shouldComplete) {
+      setStopNoteModal({ show: false });
+      if (!activeLog) return;
+
+      if (shouldComplete) {
+          await runActionWithAttendanceWarning(() => finalizeStopWithNote(note, shouldComplete));
+          return;
+      }
+
+      await finalizeStopWithNote(note, shouldComplete);
   }
 
   const isTaskCardRunning = (taskCard) => {
@@ -406,7 +496,7 @@ export default function DashboardHome() {
 
       if (!nextTask) return;
       if (activeLog) await handleStopGlobalLog();
-      await startTaskFromHomeDirect(nextTask);
+      await runActionWithAttendanceWarning(() => startTaskFromHomeDirect(nextTask));
   }
 
   function cancelTimerSwitch() {
@@ -434,7 +524,7 @@ export default function DashboardHome() {
           return;
       }
 
-      await startTaskFromHomeDirect(taskCard);
+      await runActionWithAttendanceWarning(() => startTaskFromHomeDirect(taskCard));
   }
 
   async function fetchAniversarios() {
@@ -1513,6 +1603,16 @@ export default function DashboardHome() {
         onCancel={cancelTimerSwitch}
         onConfirm={confirmTimerSwitch}
       />
+
+            <TimerSwitchModal
+                open={attendanceWarningModal.show}
+                title="Picagem de ponto em falta"
+                message={attendanceWarningModal.message}
+                cancelLabel="Não iniciar agora"
+                confirmLabel="Sim, iniciar ponto"
+                onCancel={() => handleAttendanceWarningChoice(false)}
+                onConfirm={() => handleAttendanceWarningChoice(true)}
+            />
 
             <StopTimerNoteModal
                 open={stopNoteModal.show}

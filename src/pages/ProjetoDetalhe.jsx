@@ -5,6 +5,7 @@ import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
 import TimerSwitchModal from "../components/TimerSwitchModal";
 import StopTimerNoteModal from "../components/StopTimerNoteModal";
+import { hasAttendanceStartedToday, startAttendanceNow } from "../utils/attendanceGuard";
 import "./../styles/dashboard.css";
 
 // 💡 IMPORTAÇÃO CORRIGIDA (SEM CHAVETAS):
@@ -84,7 +85,9 @@ export default function ProjetoDetalhe() {
   
   const [activeLog, setActiveLog] = useState(null);
     const [timerSwitchModal, setTimerSwitchModal] = useState({ show: false, message: "", pendingTarget: null, pendingType: null });
+                const [attendanceWarningModal, setAttendanceWarningModal] = useState({ show: false, message: "" });
         const [stopNoteModal, setStopNoteModal] = useState({ show: false });
+        const attendancePendingActionRef = useRef(null);
 
   // Estados UI - Visão Geral
   const [isEditingGeral, setIsEditingGeral] = useState(false);
@@ -680,6 +683,34 @@ export default function ProjetoDetalhe() {
       if (!error) { setActiveLog(data); showToast("Cronómetro iniciado!"); }
   }
 
+  async function runActionWithAttendanceWarning(actionFn) {
+      const hasStarted = await hasAttendanceStartedToday(supabase, user?.id);
+      if (hasStarted) {
+          await actionFn();
+          return;
+      }
+
+      attendancePendingActionRef.current = actionFn;
+      setAttendanceWarningModal({
+          show: true,
+          message: "Ainda não iniciaste a picagem de ponto de hoje. Queres iniciar agora?"
+      });
+  }
+
+  async function handleAttendanceWarningChoice(shouldStartAttendance) {
+      const pendingAction = attendancePendingActionRef.current;
+      attendancePendingActionRef.current = null;
+      setAttendanceWarningModal({ show: false, message: "" });
+
+      if (shouldStartAttendance) {
+          const started = await startAttendanceNow(supabase, user?.id);
+          if (started) showToast("Picagem iniciada com sucesso.", "success");
+          else showToast("Não foi possível iniciar a picagem agora. O cronómetro será iniciado na mesma.", "warning");
+      }
+
+      if (pendingAction) await pendingAction();
+  }
+
   async function confirmTimerSwitch() {
       const { pendingTarget, pendingType } = timerSwitchModal;
       setTimerSwitchModal({ show: false, message: "", pendingTarget: null, pendingType: null });
@@ -688,7 +719,7 @@ export default function ProjetoDetalhe() {
       const mins = await stopLogById(activeLog);
       if (mins === null) return;
       showToast(`Cronómetro anterior terminado (${mins} min).`, "success");
-      await startTimerDirect(pendingTarget, pendingType);
+      await runActionWithAttendanceWarning(() => startTimerDirect(pendingTarget, pendingType));
   }
 
   function cancelTimerSwitch() {
@@ -733,12 +764,10 @@ export default function ProjetoDetalhe() {
       setStopNoteModal({ show: false });
   }
 
-  async function confirmStopWithNote(note, shouldComplete) {
-      setStopNoteModal({ show: false });
+  async function finalizeStopWithNote(note, shouldComplete) {
       if (!activeLog) return;
 
       const logToStop = activeLog;
-
       const diffMins = await stopLogById(logToStop, note);
       if (diffMins === null) return;
 
@@ -747,6 +776,18 @@ export default function ProjetoDetalhe() {
       setActiveLog(null);
       showToast(shouldComplete ? `Tempo guardado: ${diffMins} min. Item concluido.` : `Tempo guardado: ${diffMins} min.`);
       fetchProjetoDetails();
+  }
+
+  async function confirmStopWithNote(note, shouldComplete) {
+      setStopNoteModal({ show: false });
+      if (!activeLog) return;
+
+      if (shouldComplete) {
+          await runActionWithAttendanceWarning(() => finalizeStopWithNote(note, shouldComplete));
+          return;
+      }
+
+      await finalizeStopWithNote(note, shouldComplete);
   }
 
   async function handleToggleTimer(targetId, type) {
@@ -771,7 +812,7 @@ export default function ProjetoDetalhe() {
           }
       }
 
-      await startTimerDirect(targetId, type);
+      await runActionWithAttendanceWarning(() => startTimerDirect(targetId, type));
   }
 
   async function toggleAtividadeStatus(ativId, estadoAtual) {
@@ -2212,6 +2253,16 @@ export default function ProjetoDetalhe() {
           onCancel={cancelTimerSwitch}
           onConfirm={confirmTimerSwitch}
       />
+
+            <TimerSwitchModal
+                open={attendanceWarningModal.show}
+                title="Picagem de ponto em falta"
+                message={attendanceWarningModal.message}
+                cancelLabel="Não iniciar agora"
+                confirmLabel="Sim, iniciar ponto"
+                onCancel={() => handleAttendanceWarningChoice(false)}
+                onConfirm={() => handleAttendanceWarningChoice(true)}
+            />
 
       <StopTimerNoteModal
           open={stopNoteModal.show}
