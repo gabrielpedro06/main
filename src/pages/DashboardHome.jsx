@@ -1042,7 +1042,7 @@ export default function DashboardHome() {
                     <div style={{padding: '12px 15px', borderBottom: '1px solid #f1f5f9', background: '#f8fafc'}}><span style={{fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 'bold', letterSpacing: '0.5px'}}>A Minha Conta</span></div>
                     <button className="menu-item" onClick={() => navigate("/dashboard/perfil")}><Icons.User /> O Meu Perfil</button>
                     <button className="menu-item" onClick={() => navigate("/dashboard/ferias")}><Icons.Sun /> Férias & Ausências</button>
-                                        <button className="menu-item" onClick={() => navigate("/dashboard/pedido-km")}><Icons.Calendar /> Pedido de Km's</button>
+                                        <button className="menu-item" onClick={() => navigate("/dashboard/pedido-km")}><Icons.Calendar /> Pedido de Deslocação</button>
                     <button className="menu-item logout" onClick={handleLogout} style={{borderTop: '1px solid #f1f5f9'}}><Icons.LogOut /> Terminar Sessão</button>
                   </div>
                 )}

@@ -421,12 +421,12 @@ export default function Ferias({ forcedType = null }) {
         <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
             <div style={{background: '#eff6ff', color: '#2563eb', padding: '12px', borderRadius: '12px', display: 'flex'}}><Icons.Sun size={24} /></div>
             <div>
-                <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>{isKmOnlyMode ? "Pedido de Km's" : "Férias & Ausências"}</h1>
+                <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>{isKmOnlyMode ? "Pedido de Deslocação" : "Férias & Ausências"}</h1>
                 <p style={{color: '#64748b', margin: 0, fontWeight: '500', fontSize: '0.9rem'}}>{isKmOnlyMode ? 'Registo de deslocações extra para aprovação dos RH' : 'Gestão pessoal de tempo e calendário'}</p>
             </div>
         </div>
         <button className="btn-cta" onClick={() => { setIsEditing(false); setEditingId(null); setShowModal(true); }}>
-            <Icons.Plus /> {isKmOnlyMode ? "Novo Pedido de Km's" : 'Novo Pedido'}
+            <Icons.Plus /> {isKmOnlyMode ? "Novo Pedido de Deslocação" : 'Novo Pedido'}
         </button>
       </div>
 
@@ -534,7 +534,7 @@ export default function Ferias({ forcedType = null }) {
               )) : (
                 <tr><td colSpan="6" style={{textAlign: 'center', padding: '50px', color: '#94a3b8'}}>
                     <Icons.Calendar size={40} color="#cbd5e1" />
-                    <p style={{marginTop: '10px', fontWeight: '500'}}>{isKmOnlyMode ? "Ainda não fizeste nenhum pedido de Km's." : 'Ainda não fizeste nenhum pedido.'}</p>
+                    <p style={{marginTop: '10px', fontWeight: '500'}}>{isKmOnlyMode ? "Ainda não fizeste nenhum pedido de Deslocação." : 'Ainda não fizeste nenhum pedido.'}</p>
                 </td></tr>
               )}
             </tbody>
@@ -551,7 +551,7 @@ export default function Ferias({ forcedType = null }) {
                     <div style={{padding:'20px 25px', background:'#f8fafc', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
                         <h3 style={{margin:0, color:'#1e293b', fontSize:'1.25rem', fontWeight:'800', display: 'flex', alignItems: 'center', gap: '10px'}}>
                             <span style={{color: '#2563eb'}}><Icons.Calendar size={22} /></span>
-                            {isEditing ? (isKmOnlyMode ? "Editar Pedido de Km's" : 'Editar Pedido de Ausência') : (isKmOnlyMode ? "Novo Pedido de Km's" : 'Novo Pedido de Ausência')}
+                            {isEditing ? (isKmOnlyMode ? "Editar Pedido de Deslocação" : 'Editar Pedido de Ausência') : (isKmOnlyMode ? "Novo Pedido de Deslocação" : 'Novo Pedido de Ausência')}
                         </h3>
                         <button onClick={handleCloseModal} style={{background:'transparent', border:'none', cursor:'pointer', color:'#94a3b8'}} className="hover-red-text"><Icons.Close size={20} /></button>
                     </div>
@@ -658,7 +658,7 @@ export default function Ferias({ forcedType = null }) {
 
                             {isKmRequest && (
                                 <div style={{background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af', padding: '12px 15px', borderRadius: '8px', marginBottom: '20px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '10px', fontWeight: '500'}}>
-                                    <Icons.Info size={18} /> <span>Este pedido de Km's será enviado para aprovação dos Recursos Humanos e ficará refletido nos relatórios mensal individual e geral.</span>
+                                    <Icons.Info size={18} /> <span>Este pedido de Deslocação será enviado para aprovação dos Recursos Humanos e ficará refletido nos relatórios mensal individual e geral.</span>
                                 </div>
                             )}
 
