@@ -186,6 +186,19 @@ export default function Clientes() {
     return parts.join("\n\n").trim();
   };
 
+  async function findExistingClienteByNif(nif) {
+    if (!nif) return null;
+
+    const { data, error } = await supabase
+      .from("clientes")
+      .select("id, marca, nif")
+      .eq("nif", nif)
+      .limit(1);
+
+    if (error) throw error;
+    return data?.[0] || null;
+  }
+
   async function fetchClientes() {
     setLoading(true);
     
@@ -221,6 +234,15 @@ export default function Clientes() {
 
     if (nifDigitado.length === 9 && !isViewOnly) {
       try {
+        const clienteExistente = await findExistingClienteByNif(nifDigitado);
+        if (clienteExistente && String(clienteExistente.id) !== String(editId || "")) {
+          showToast(
+            `Já existe uma empresa com este NIF: ${clienteExistente.marca || "Sem nome"}.`,
+            "warning"
+          );
+          return;
+        }
+
         showToast("A consultar dados no NIF.pt...", "info");
 
         const params = new URLSearchParams({ json: "1", q: nifDigitado });

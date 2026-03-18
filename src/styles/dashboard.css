@@ -749,7 +749,7 @@ input:focus {
   display: flex;
   align-items: center;
   gap: 10px;
-  z-index: 9999;
+  z-index: 2147483000;
   animation: slideUp 0.3s ease-out;
   font-size: 0.9rem;
 }
@@ -863,7 +863,7 @@ input:checked + .slider:before {
   display: flex;
   align-items: center;
   gap: 12px;
-  z-index: 9999;
+  z-index: 2147483000;
   animation: slideUpFade 0.3s ease-out;
   font-size: 0.95rem;
   font-weight: 500;
@@ -1024,6 +1024,13 @@ input:focus, select:focus, textarea:focus {
 .toast-notification {
   border: 1px solid rgba(255, 255, 255, 0.18);
   backdrop-filter: blur(8px);
+}
+
+/* Keep toasts above every modal/overlay in all pages */
+.toast-container,
+.toast-notification {
+  position: fixed !important;
+  z-index: 2147483000 !important;
 }
 
 @media (max-width: 1024px) {
