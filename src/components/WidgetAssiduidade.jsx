@@ -31,10 +31,8 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
   const [activeRecord, setActiveRecord] = useState(null); 
   const [loading, setLoading] = useState(false);
 
-  // Estados de Tarefas do Dia (MANHÃ)
-  const [availableTasks, setAvailableTasks] = useState([]); 
-  const [selectedTasks, setSelectedTasks] = useState([]); 
-  const [startModalProjectFilter, setStartModalProjectFilter] = useState(""); 
+    // Estados de Tarefas do Dia
+    const [selectedTasks, setSelectedTasks] = useState([]); 
   
   // Estados de Tarefas do Dia (FIM DO DIA)
   const [endOfDayTasks, setEndOfDayTasks] = useState([]); 
@@ -62,6 +60,20 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
     const m = Math.floor((s % 3600) / 60);
     return `${h}h${String(m).padStart(2,'0')}`;
   };
+
+    const getClientDisplayName = (client) => {
+        if (!client) return "";
+        return client.sigla?.trim() || client.marca?.trim() || "";
+    };
+
+    const formatProjectContext = (projectData) => {
+        if (!projectData) return "Avulsa";
+        const codigo = projectData.codigo_projeto ? `[${projectData.codigo_projeto}] ` : "";
+        const titulo = projectData.titulo || "Sem projeto";
+        const cliente = Array.isArray(projectData.clientes) ? projectData.clientes[0] : projectData.clientes;
+        const brand = getClientDisplayName(cliente);
+        return brand ? `${codigo}${titulo} · ${brand}` : `${codigo}${titulo}`;
+    };
 
   const fetchRecentRecords = useCallback(async () => {
     if (!user?.id) return;
@@ -182,70 +194,38 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
     return () => clearInterval(interval);
   }, [status, activeRecord]);
 
-  const getDeadlineBadge = (dateStr) => {
-      if (!dateStr) return { text: "Sem Prazo", bg: "#f8fafc", color: "#94a3b8" };
-      const d = new Date(dateStr); d.setHours(0,0,0,0);
-      const t = new Date(); t.setHours(0,0,0,0);
-      const diff = Math.round((d - t) / (1000 * 60 * 60 * 24));
-      
-      if (diff < 0) return { text: "Atrasada", bg: "#fee2e2", color: "#ef4444" };
-      if (diff === 0) return { text: "Hoje", bg: "#fefce8", color: "#d97706" };
-      if (diff === 1) return { text: "Amanhã", bg: "#eff6ff", color: "#2563eb" };
-      return { text: d.toLocaleDateString('pt-PT').slice(0,5), bg: "#f1f5f9", color: "#64748b" };
-  };
-
   // --- 2. INICIAR DIA DE TRABALHO ---
-  async function fetchMorningTasks() {
-      const { data } = await supabase
-          .from("tarefas")
-          .select(`
-              id, titulo, data_limite,
-              atividades (
-                  projetos ( codigo_projeto, titulo )
-              )
-          `)
-          .eq("responsavel_id", user.id)
-          .neq("estado", "concluido");
-
-      if (data) {
-          const formattedTasks = data.map(t => {
-              let ctx = "Avulsa";
-              const ativ = Array.isArray(t.atividades) ? t.atividades[0] : t.atividades;
-              const proj = ativ?.projetos;
-              
-              if (proj) {
-                  const p = Array.isArray(proj) ? proj[0] : proj;
-                  ctx = p.codigo_projeto ? `[${p.codigo_projeto}] ${p.titulo}` : p.titulo;
-              }
-              return { ...t, contexto: ctx };
-          });
-          
-          formattedTasks.sort((a, b) => {
-              if (!a.data_limite && !b.data_limite) return 0;
-              if (!a.data_limite) return 1; 
-              if (!b.data_limite) return -1;
-              return new Date(a.data_limite) - new Date(b.data_limite);
-          });
-          
-          setAvailableTasks(formattedTasks);
-      }
-  }
-
   async function openStartModal() {
       if (loading) return;
       setLoading(true);
-      await fetchMorningTasks();
-      setSelectedTasks([]); 
-      setStartModalProjectFilter(""); 
-      setLoading(false);
-      setShowStartModal(true);
-  }
+      try {
+        const now = new Date();
+        const horaAtual = now.toLocaleTimeString('pt-PT', { hour12: false });
+        const dataAtual = now.toLocaleDateString('en-CA');
 
-  function toggleTaskSelection(taskObj) {
-      if (selectedTasks.some(t => t.id === taskObj.id)) {
-          setSelectedTasks(selectedTasks.filter(t => t.id !== taskObj.id));
-      } else {
-          setSelectedTasks([...selectedTasks, { id: taskObj.id, titulo: taskObj.titulo, contexto: taskObj.contexto }]);
+        const { data, error } = await supabase
+          .from("assiduidade")
+          .insert([{
+            user_id: user.id,
+            data_registo: dataAtual,
+            hora_entrada: horaAtual,
+            tempo_pausa_acumulado: 0,
+            tarefas_planeadas: JSON.stringify([])
+          }])
+          .select().single();
+
+        if (data && !error) {
+          setActiveRecord(data);
+          setRegistroId(data.id);
+          setStatus("running");
+          setTimer(0);
+          setSelectedTasks([]);
+          setShowStartModal(false);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
       }
   }
 
@@ -322,19 +302,6 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
   async function handleFinishClick() { 
       setLoading(true);
       try {
-          // 1. O que foi planeado de manhã
-          let planeadas = [];
-          if (activeRecord?.tarefas_planeadas) {
-              try { 
-                  const parsed = JSON.parse(activeRecord.tarefas_planeadas);
-                  if (parsed.length > 0 && typeof parsed[0] === 'string') {
-                      planeadas = parsed.map(t => ({ id: t, titulo: t, contexto: "Avulsa" }));
-                  } else {
-                      planeadas = parsed; 
-                  }
-              } catch(e) {}
-          }
-
           // Para sermos à prova de fusos horários:
           const startOfDay = new Date();
           startOfDay.setHours(0,0,0,0);
@@ -355,33 +322,33 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
                   let ctx = "Avulsa";
                   
                   if (log.subtarefa_id) {
-                      const { data } = await supabase.from("subtarefas").select("titulo, tarefas(atividades(projetos(codigo_projeto, titulo)))").eq("id", log.subtarefa_id).maybeSingle();
+                      const { data } = await supabase.from("subtarefas").select("titulo, tarefas(atividades(projetos(codigo_projeto, titulo, clientes(marca, sigla))))").eq("id", log.subtarefa_id).maybeSingle();
                       if (data) {
                           title = data.titulo;
                           const ativ = Array.isArray(data.tarefas?.atividades) ? data.tarefas.atividades[0] : data.tarefas?.atividades;
                           const proj = Array.isArray(ativ?.projetos) ? ativ.projetos[0] : ativ?.projetos;
-                          if (proj) ctx = proj.codigo_projeto ? `[${proj.codigo_projeto}] ${proj.titulo}` : proj.titulo;
+                          if (proj) ctx = formatProjectContext(proj);
                       }
                   } else if (log.task_id) { 
-                      const { data } = await supabase.from("tarefas").select("titulo, atividades(projetos(codigo_projeto, titulo))").eq("id", log.task_id).maybeSingle();
+                      const { data } = await supabase.from("tarefas").select("titulo, atividades(projetos(codigo_projeto, titulo, clientes(marca, sigla)))").eq("id", log.task_id).maybeSingle();
                       if (data) {
                           title = data.titulo;
                           const ativ = Array.isArray(data.atividades) ? data.atividades[0] : data.atividades;
                           const proj = Array.isArray(ativ?.projetos) ? ativ.projetos[0] : ativ?.projetos;
-                          if (proj) ctx = proj.codigo_projeto ? `[${proj.codigo_projeto}] ${proj.titulo}` : proj.titulo;
+                          if (proj) ctx = formatProjectContext(proj);
                       }
                   } else if (log.atividade_id) {
-                      const { data } = await supabase.from("atividades").select("titulo, projetos(codigo_projeto, titulo)").eq("id", log.atividade_id).maybeSingle();
+                      const { data } = await supabase.from("atividades").select("titulo, projetos(codigo_projeto, titulo, clientes(marca, sigla))").eq("id", log.atividade_id).maybeSingle();
                       if (data) {
                           title = data.titulo;
                           const proj = Array.isArray(data.projetos) ? data.projetos[0] : data.projetos;
-                          if (proj) ctx = proj.codigo_projeto ? `[${proj.codigo_projeto}] ${proj.titulo}` : proj.titulo;
+                          if (proj) ctx = formatProjectContext(proj);
                       }
                   } else if (log.projeto_id) {
-                      const { data } = await supabase.from("projetos").select("titulo, codigo_projeto").eq("id", log.projeto_id).maybeSingle();
+                      const { data } = await supabase.from("projetos").select("titulo, codigo_projeto, clientes(marca, sigla)").eq("id", log.projeto_id).maybeSingle();
                       if (data) {
                           title = data.titulo;
-                          ctx = data.codigo_projeto ? `[${data.codigo_projeto}] ${data.titulo}` : data.titulo;
+                          ctx = formatProjectContext(data);
                       }
                   }
                   
@@ -395,7 +362,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
           // Usamos agora o novo campo 'data_conclusao'
           const { data: concluidasHoje, error: concluidasError } = await supabase
               .from("tarefas")
-              .select("id, titulo, atividades(projetos(codigo_projeto, titulo))")
+              .select("id, titulo, atividades(projetos(codigo_projeto, titulo, clientes(marca, sigla)))")
               .eq("responsavel_id", user.id)
               .eq("estado", "concluido")
               .gte("data_conclusao", startOfDayISO);
@@ -406,7 +373,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
                   const ativ = Array.isArray(t.atividades) ? t.atividades[0] : t.atividades;
                   const proj = Array.isArray(ativ?.projetos) ? ativ.projetos[0] : ativ?.projetos;
                   
-                  if (proj) ctx = proj.codigo_projeto ? `[${proj.codigo_projeto}] ${proj.titulo}` : proj.titulo;
+                  if (proj) ctx = formatProjectContext(proj);
                   
                   if (!trabalhadas.some(x => x.titulo === t.titulo)) {
                       trabalhadas.push({ id: t.id, titulo: t.titulo, contexto: ctx });
@@ -414,16 +381,8 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
               });
           }
 
-          // Combina tudo num Array único limpo de duplicados
-          const combinedUniqueTasks = [...planeadas];
-          trabalhadas.forEach(t => {
-              if (!combinedUniqueTasks.some(c => c.titulo === t.titulo)) {
-                  combinedUniqueTasks.push(t);
-              }
-          });
-
-          setEndOfDayTasks(combinedUniqueTasks);
-          setSelectedEndOfDayTasks(combinedUniqueTasks); 
+          setEndOfDayTasks(trabalhadas);
+          setSelectedEndOfDayTasks(trabalhadas); 
           setDailySummary(""); 
 
           setShowClockOutModal(true);
@@ -495,12 +454,6 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
     const sc = (s%60).toString().padStart(2,"0");
     return `${h}:${m}:${sc}`;
   };
-
-  // --- FILTROS PARA O MODAL DA MANHÃ ---
-  const uniqueProjectsForMorning = Array.from(new Set(availableTasks.map(t => t.contexto)));
-  const displayedMorningTasks = startModalProjectFilter 
-      ? availableTasks.filter(t => t.contexto === startModalProjectFilter)
-      : availableTasks;
 
   // --- ESTILOS VISUAIS PREMIUM ---
   const modalOverlayStyle = { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, backdropFilter: 'blur(4px)' };
@@ -579,7 +532,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
       <div style={{ marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
         {status === 'stopped' && (
             <button onClick={openStartModal} disabled={loading} className="btn-primary hover-shadow" style={{ width: '100%', padding: '16px 20px', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', fontSize: '1rem', fontWeight: '800', transition: '0.2s', background: '#2563eb', color: 'white', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}>
-                <Icons.Play size={18} /> {loading ? "A preparar..." : "Iniciar Dia de Trabalho"}
+            <Icons.Play size={18} /> {loading ? "A iniciar..." : "Iniciar Dia de Trabalho"}
             </button>
         )}
         {status === 'running' && (
@@ -656,70 +609,15 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
                       <form onSubmit={confirmStart} style={{display: 'flex', flexDirection: 'column', maxHeight: '80vh'}}>
                           <div style={{padding: '25px', background: '#fff', overflowY: 'auto', flex: 1}} className="custom-scrollbar">
                               <p style={{color: '#64748b', fontSize: '0.95rem', margin: '0 0 15px 0', lineHeight: '1.5'}}>
-                                  Antes de iniciares o tempo, o que pretendes concluir hoje? (Opcional)
+                                  Hoje o registo começa direto. As tarefas aparecem apenas no fecho do dia, com base no que foi realmente realizado.
                               </p>
 
-                              {availableTasks.length > 0 && (
-                                  <div style={{marginBottom: '20px', position: 'relative'}}>
-                                      <span style={{position: 'absolute', left: '12px', top: '10px', color: '#94a3b8'}}><Icons.Filter size={16} /></span>
-                                      <select 
-                                          value={startModalProjectFilter} 
-                                          onChange={e => setStartModalProjectFilter(e.target.value)}
-                                          style={{...inputFieldStyle, padding: '8px 12px 8px 36px', fontSize: '0.85rem', color: '#475569', cursor: 'pointer', background: '#f8fafc'}}
-                                          className="input-focus"
-                                      >
-                                          <option value="">Todos os Projetos e Avulsas</option>
-                                          {uniqueProjectsForMorning.map(proj => (
-                                              <option key={proj} value={proj}>📁 {proj}</option>
-                                          ))}
-                                      </select>
-                                  </div>
-                              )}
-
-                              {displayedMorningTasks.length === 0 ? (
-                                  <div style={{textAlign: 'center', padding: '30px', background: '#f8fafc', borderRadius: '12px', color: '#94a3b8', fontSize: '0.9rem'}}>
-                                      <Icons.Check size={30} color="#cbd5e1" />
-                                      <p style={{marginTop: '10px'}}>
-                                          {startModalProjectFilter ? "Não tens tarefas pendentes neste projeto." : "Não tens tarefas pendentes. Arranca sem stress!"}
-                                      </p>
-                                  </div>
-                              ) : (
-                                  <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
-                                      {displayedMorningTasks.map(task => {
-                                          const isSelected = selectedTasks.some(t => t.id === task.id);
-                                          const badge = getDeadlineBadge(task.data_limite);
-                                          
-                                          return (
-                                              <div 
-                                                  key={task.id} 
-                                                  onClick={() => toggleTaskSelection(task)}
-                                                  style={{
-                                                      display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '12px 15px', borderRadius: '10px',
-                                                      border: `1px solid ${isSelected ? '#3b82f6' : '#e2e8f0'}`,
-                                                      background: isSelected ? '#eff6ff' : 'white', cursor: 'pointer', transition: '0.2s'
-                                                  }}
-                                                  className="hover-shadow"
-                                              >
-                                                  <div style={{width: '20px', height: '20px', borderRadius: '4px', border: `2px solid ${isSelected ? '#2563eb' : '#cbd5e1'}`, background: isSelected ? '#2563eb' : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0, marginTop: '2px'}}>
-                                                      {isSelected && <Icons.Check size={14} />}
-                                                  </div>
-                                                  <div style={{flex: 1}}>
-                                                      <div style={{fontSize: '0.95rem', color: isSelected ? '#1e40af' : '#334155', fontWeight: isSelected ? '700' : '500', lineHeight: '1.4'}}>
-                                                          {task.titulo}
-                                                      </div>
-                                                      <div style={{fontSize: '0.7rem', color: '#64748b', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px'}}>
-                                                          <Icons.Folder size={10} color="#94a3b8" /> 
-                                                          {task.contexto.length > 40 ? task.contexto.slice(0, 40) + '...' : task.contexto}
-                                                      </div>
-                                                  </div>
-                                                  <div style={{background: badge.bg, color: badge.color, padding: '2px 8px', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 'bold', whiteSpace: 'nowrap'}}>
-                                                      {badge.text}
-                                                  </div>
-                                              </div>
-                                          );
-                                      })}
-                                  </div>
-                              )}
+                              <div style={{textAlign: 'center', padding: '30px', background: '#f8fafc', borderRadius: '12px', color: '#64748b', fontSize: '0.9rem'}}>
+                                  <Icons.Check size={30} color="#cbd5e1" />
+                                  <p style={{marginTop: '10px', marginBottom: 0}}>
+                                      Clica em Iniciar Dia para começar. No fim, vais rever apenas o trabalho realizado.
+                                  </p>
+                              </div>
                           </div>
 
                           <div style={{padding: '20px 25px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', gap: '10px'}}>

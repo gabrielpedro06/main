@@ -62,6 +62,12 @@ const formatDuration = (minutes) => {
     return `${formattedHours} h`;
 };
 
+const formatDate = (value) => {
+    if (!value) return '-';
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? '-' : parsed.toLocaleDateString('pt-PT');
+};
+
 const normalizeStatus = (status) => (status || '').toString().trim().toLowerCase();
 const norm = (s) => (s || '').toString().trim().toLowerCase();
 
@@ -134,15 +140,19 @@ export const generateProjectPDF = async (
             .reduce((acc, item) => acc + (item.duration_minutes || 0), 0);
     };
 
-    const getClientDisplay = () => {
-        const principal = projeto.cliente_texto || projeto.clientes?.marca;
-        if (projeto.is_parceria && Array.isArray(projeto.parceiros_ids) && projeto.parceiros_ids.length > 0) {
-            const parceiros = uniqueNames(projeto.parceiros_ids.map((id) => clienteById.get(id)));
-            if (parceiros.length > 0) {
-                return `Parceria: ${parceiros.join(', ')}`;
-            }
+    const getMainEntityDisplay = () => projeto.cliente_texto || projeto.clientes?.marca || 'Não definido';
+
+    const getPartnersDisplay = () => {
+        if (!projeto.is_parceria || !Array.isArray(projeto.parceiros_ids) || projeto.parceiros_ids.length === 0) {
+            return '-';
         }
-        return principal || 'Não definido';
+        const parceiros = uniqueNames(projeto.parceiros_ids.map((id) => clienteById.get(id)));
+        return parceiros.length > 0 ? parceiros.join(', ') : '-';
+    };
+
+    const getProjectTeamDisplay = () => {
+        const team = uniqueNames((projeto.colaboradores || []).map((id) => staffNameById.get(id)));
+        return team.length > 0 ? team.join(', ') : '-';
     };
 
     const totalMinutes = (atividades || []).reduce((acc, atividade) => acc + getActivityTime(atividade), 0);
@@ -268,17 +278,17 @@ export const generateProjectPDF = async (
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
-    const leftPrimaryLines = toWrappedLines(doc, `Entidade: ${getClientDisplay()}`, infoColWidth);
-    const leftSecondaryLines = toWrappedLines(doc, `Responsável: ${getTeamLabel(projeto.responsavel_id, projeto.colaboradores || [])}`, infoColWidth);
-    const rightPrimaryLines = toWrappedLines(doc, `Programa: ${projeto.programa || '-'}`, infoColWidth);
-    const rightSecondaryLines = toWrappedLines(
-        doc,
-        `Prazo: ${projeto.data_fim ? new Date(projeto.data_fim).toLocaleDateString('pt-PT') : 'Sem prazo'}`,
-        infoColWidth
-    );
+    const leftPrimaryLines = toWrappedLines(doc, `Entidade: ${getMainEntityDisplay()}`, infoColWidth);
+    const leftSecondaryLines = toWrappedLines(doc, `Parceiros: ${getPartnersDisplay()}`, infoColWidth);
+    const rightPrimaryLines = toWrappedLines(doc, `Coordenador: ${getNameById(projeto.responsavel_id)}`, infoColWidth);
+    const rightSecondaryLines = toWrappedLines(doc, `Equipa: ${getProjectTeamDisplay()}`, infoColWidth);
+    const rightTertiaryLines = toWrappedLines(doc, `Data de Início: ${formatDate(projeto.data_inicio)}`, infoColWidth);
+    const rightQuaternaryLines = toWrappedLines(doc, `Data de Fim: ${formatDate(projeto.data_fim)}`, infoColWidth);
 
     const leftInfoHeight = ((leftPrimaryLines.length + leftSecondaryLines.length) * infoLineHeight) + infoGapY;
-    const rightInfoHeight = ((rightPrimaryLines.length + rightSecondaryLines.length) * infoLineHeight) + infoGapY;
+    const rightInfoHeight = (
+        (rightPrimaryLines.length + rightSecondaryLines.length + rightTertiaryLines.length + rightQuaternaryLines.length) * infoLineHeight
+    ) + (infoGapY * 3);
     const infoBlockHeight = Math.max(leftInfoHeight, rightInfoHeight);
     const identityCardHeight = Math.max(36, 6 + (projectTitleLines.length * titleLineHeight) + 2 + infoBlockHeight + 4);
 
@@ -302,6 +312,18 @@ export const generateProjectPDF = async (
 
     drawTextLines(rightPrimaryLines, rightColX, infoY, infoLineHeight);
     drawTextLines(rightSecondaryLines, rightColX, infoY + (rightPrimaryLines.length * infoLineHeight) + infoGapY, infoLineHeight);
+    drawTextLines(
+        rightTertiaryLines,
+        rightColX,
+        infoY + ((rightPrimaryLines.length + rightSecondaryLines.length) * infoLineHeight) + (infoGapY * 2),
+        infoLineHeight
+    );
+    drawTextLines(
+        rightQuaternaryLines,
+        rightColX,
+        infoY + ((rightPrimaryLines.length + rightSecondaryLines.length + rightTertiaryLines.length) * infoLineHeight) + (infoGapY * 3),
+        infoLineHeight
+    );
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
@@ -404,7 +426,7 @@ export const generateProjectPDF = async (
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(12);
     doc.setTextColor(...COLORS.brandDark);
-    doc.text('Detalhes Operacionais', marginX, currentY);
+    doc.text('Atividades do projeto', marginX, currentY);
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8.5);
@@ -414,19 +436,22 @@ export const generateProjectPDF = async (
     const tableRows = [];
 
     (atividades || []).forEach((atividade) => {
-        const activityStatus = getStatusMeta(atividade.estado);
         tableRows.push([
             {
                 content: `ATV  ${atividade.titulo || 'Sem título'}`,
                 styles: { fontStyle: 'bold', fillColor: COLORS.surface, textColor: COLORS.brandDark },
             },
             {
-                content: activityStatus.label,
-                styles: { fillColor: COLORS.surface, textColor: activityStatus.color, fontStyle: 'bold', halign: 'center' },
-            },
-            {
                 content: getTeamLabel(atividade.responsavel_id, atividade.colaboradores_extra || atividade.colaboradores || []),
                 styles: { fillColor: COLORS.surface, textColor: COLORS.ink, fontStyle: 'bold' },
+            },
+            {
+                content: formatDate(atividade.data_inicio),
+                styles: { fillColor: COLORS.surface, textColor: COLORS.brandDark, fontStyle: 'bold', halign: 'center' },
+            },
+            {
+                content: formatDate(atividade.data_fim),
+                styles: { fillColor: COLORS.surface, textColor: COLORS.brandDark, fontStyle: 'bold', halign: 'center' },
             },
             {
                 content: formatDuration(getActivityTime(atividade)),
@@ -435,17 +460,20 @@ export const generateProjectPDF = async (
         ]);
 
         (atividade.tarefas || []).forEach((tarefa) => {
-            const taskStatus = getStatusMeta(tarefa.estado);
             const userBreakdown = getTaskTimePerUser(tarefa.id);
             tableRows.push([
                 { content: `- ${tarefa.titulo || 'Sem título'}`, styles: { textColor: COLORS.ink } },
                 {
-                    content: taskStatus.label,
-                    styles: { textColor: taskStatus.color, halign: 'center', fontStyle: normalizeStatus(tarefa.estado) === 'concluido' ? 'bold' : 'normal' },
-                },
-                {
                     content: getTeamLabel(tarefa.responsavel_id, tarefa.colaboradores_extra || []),
                     styles: { textColor: COLORS.slate },
+                },
+                {
+                    content: formatDate(tarefa.data_inicio),
+                    styles: { textColor: COLORS.slate, halign: 'center' },
+                },
+                {
+                    content: formatDate(tarefa.data_fim),
+                    styles: { textColor: COLORS.slate, halign: 'center' },
                 },
                 {
                     content: formatDuration(getTaskTime(tarefa.id)),
@@ -458,12 +486,12 @@ export const generateProjectPDF = async (
                     { content: `      ↳ ${u.nome}`, styles: { textColor: COLORS.slate, fontSize: 7.5, fontStyle: 'italic' } },
                     { content: '', styles: { textColor: COLORS.slate, fontSize: 7.5 } },
                     { content: '', styles: { textColor: COLORS.slate, fontSize: 7.5 } },
+                    { content: '', styles: { textColor: COLORS.slate, fontSize: 7.5 } },
                     { content: formatDuration(u.total), styles: { textColor: COLORS.slate, fontSize: 7.5, halign: 'right', fontStyle: 'italic' } },
                 ]);
             });
 
             (tarefa.subtarefas || []).forEach((passo) => {
-                const passoStatus = getStatusMeta(passo.estado);
                 const isDone = normalizeStatus(passo.estado) === 'concluido';
                 tableRows.push([
                     {
@@ -471,10 +499,11 @@ export const generateProjectPDF = async (
                         styles: { textColor: isDone ? COLORS.success : COLORS.slate, fontStyle: isDone ? 'bold' : 'normal', fontSize: 8 },
                     },
                     {
-                        content: passoStatus.label,
-                        styles: { textColor: isDone ? COLORS.success : COLORS.slate, halign: 'center', fontStyle: isDone ? 'bold' : 'normal', fontSize: 8 },
+                        content: '',
+                        styles: { textColor: COLORS.slate, halign: 'center', fontSize: 8 },
                     },
-                    { content: '', styles: { textColor: COLORS.slate, fontSize: 8 } },
+                    { content: formatDate(passo.data_inicio), styles: { textColor: COLORS.slate, fontSize: 8, halign: 'center' } },
+                    { content: formatDate(passo.data_fim), styles: { textColor: COLORS.slate, fontSize: 8, halign: 'center' } },
                     { content: '', styles: { textColor: COLORS.slate, halign: 'right', fontSize: 8 } },
                 ]);
             });
@@ -484,15 +513,16 @@ export const generateProjectPDF = async (
     if (tableRows.length === 0) {
         tableRows.push([
             { content: 'Sem atividades registadas', styles: { textColor: COLORS.slate, fontStyle: 'italic' } },
-            { content: '-', styles: { textColor: COLORS.slate, halign: 'center' } },
             { content: '-', styles: { textColor: COLORS.slate } },
+            { content: '-', styles: { textColor: COLORS.slate, halign: 'center' } },
+            { content: '-', styles: { textColor: COLORS.slate, halign: 'center' } },
             { content: '-', styles: { textColor: COLORS.slate, halign: 'right' } },
         ]);
     }
 
     autoTable(doc, {
         startY: currentY + 9,
-        head: [['Atividade / Tarefa / Passo', 'Estado', 'Responsável / Equipa', 'Tempo']],
+        head: [['Atividade / Tarefa / Passo', 'Responsável / Equipa', 'Data de Início', 'Data de Fim', 'Tempo']],
         body: tableRows,
         margin: { left: marginX, right: marginX, bottom: 24 },
         theme: 'plain',
@@ -517,10 +547,11 @@ export const generateProjectPDF = async (
             fillColor: [252, 252, 253],
         },
         columnStyles: {
-            0: { cellWidth: 74 },
-            1: { cellWidth: 28 },
-            2: { cellWidth: 56 },
-            3: { cellWidth: 24, halign: 'right' },
+            0: { cellWidth: 56 },
+            1: { cellWidth: 48 },
+            2: { cellWidth: 25, halign: 'center' },
+            3: { cellWidth: 25, halign: 'center' },
+            4: { cellWidth: 28, halign: 'right' },
         },
     });
 
