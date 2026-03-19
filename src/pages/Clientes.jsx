@@ -19,6 +19,7 @@ const Icons = {
   Archive: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>,
   Eye: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>,
   Plus: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>,
+  Copy: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>,
   Close: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>,
   ClipboardList: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4"></path><path d="M12 16h4"></path><path d="M8 11h.01"></path><path d="M8 16h.01"></path></svg>,
   Activity: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>,
@@ -71,6 +72,7 @@ export default function Clientes() {
   const [contactos, setContactos] = useState([]);
   const [moradas, setMoradas] = useState([]);
   const [acessos, setAcessos] = useState([]);
+  const [tiposAcessosCatalogo, setTiposAcessosCatalogo] = useState([]);
   const [caes, setCaes] = useState([]);
   const [pendingAutoCaes, setPendingAutoCaes] = useState([]);
   const [pendingAutoMorada, setPendingAutoMorada] = useState(null);
@@ -84,7 +86,7 @@ export default function Clientes() {
   // SUB-FORMS INICIAIS
   const initContacto = { nome_contacto: "", email: "", telefone: "", cargo: "" };
   const initMorada = { morada: "", localidade: "", codigo_postal: "", concelho: "", distrito: "", regiao: "", notas: "" };
-  const initAcesso = { organismo: "", utilizador: "", codigo: "", url: "" };
+  const initAcesso = { tipo_acesso_id: "", utilizador: "", codigo: "" };
   const initCae = { codigo: "", descricao: "", principal: false };
 
   const [novoContacto, setNovoContacto] = useState(initContacto);
@@ -583,10 +585,17 @@ export default function Clientes() {
   async function fetchSubDados(clienteId) {
     const projectFields = "id, titulo, estado, data_fim, codigo_projeto, cliente_id, parceiros_ids, created_at";
 
-    const [cData, mData, aData, caeData, pData] = await Promise.all([
+    const [cData, mData, aData, tData, caeData, pData] = await Promise.all([
         supabase.from("contactos_cliente").select("*").eq("cliente_id", clienteId),
         supabase.from("moradas_cliente").select("*").eq("cliente_id", clienteId),
-        supabase.from("acessos_cliente").select("*").eq("cliente_id", clienteId),
+        supabase
+          .from("acessos_cliente")
+          .select("*, tipos_acessos(id, nome, url)")
+          .eq("cliente_id", clienteId),
+        supabase
+          .from("tipos_acessos")
+          .select("id, nome, url")
+          .order("nome", { ascending: true }),
         supabase.from("caes_cliente").select("*").eq("cliente_id", clienteId),
         supabase.from("projetos").select(projectFields).order("created_at", { ascending: false })
     ]);
@@ -619,6 +628,7 @@ export default function Clientes() {
     setContactos(cData.data || []); 
     setMoradas(mData.data || []); 
     setAcessos(aData.data || []); 
+    setTiposAcessosCatalogo(tData.data || []);
     setCaes(caeData.data || []);
     setProjetosCliente(projetosAssociados);
   }
@@ -719,6 +729,7 @@ export default function Clientes() {
 
     const payload = { ...dados, cliente_id: editId };
     if (tabela === 'moradas_cliente') { delete payload.distrito; delete payload.regiao; }
+    if (tabela === 'acessos_cliente') { delete payload.tipos_acessos; }
 
     if (payload.id) { 
         const { id, ...updateData } = payload;
@@ -764,6 +775,38 @@ export default function Clientes() {
   function abrirEdicaoSubItem(item, setItemState, setShowForm) {
       setItemState(item);
       setShowForm(true);
+  }
+
+  const getAcessoByTipoId = (tipoId) => {
+    return acessos.find((acesso) => String(acesso.tipo_acesso_id) === String(tipoId)) || null;
+  };
+
+  async function handleCopyCredential(value, label) {
+    const text = String(value || "").trim();
+    if (!text) {
+      showToast(`Sem ${label} para copiar.`, "warning");
+      return;
+    }
+
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const tempInput = document.createElement("textarea");
+        tempInput.value = text;
+        tempInput.setAttribute("readonly", "");
+        tempInput.style.position = "absolute";
+        tempInput.style.left = "-9999px";
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        document.execCommand("copy");
+        document.body.removeChild(tempInput);
+      }
+
+      showToast(`${label} copiado para a área de transferência.`, "success");
+    } catch (err) {
+      showToast(`Não foi possível copiar ${label.toLowerCase()}.`, "error");
+    }
   }
 
   const clientColors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#f43f5e', '#14b8a6', '#0ea5e9'];
@@ -1285,57 +1328,115 @@ export default function Clientes() {
                     </div>
                     
                     <div style={{display:'flex', justifyContent:'space-between', marginBottom:'15px', alignItems:'center'}}>
-                      <h4 style={{margin:0, fontSize:'1.1rem', color: '#1e293b'}}>Credenciais</h4>
-                      {!isViewOnly && !showAddAcesso && <button className="btn-small-add hover-shadow" onClick={() => {setNovoAcesso(initAcesso); setShowAddAcesso(true)}} style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.Plus /> Adicionar Acesso</button>}
+                      <h4 style={{margin:0, fontSize:'1.1rem', color: '#1e293b'}}>Catálogo de Credenciais</h4>
+                      {!isViewOnly && (
+                        <button
+                          className="btn-small-add hover-shadow"
+                          onClick={() => {
+                            setNovoAcesso(initAcesso);
+                            setShowAddAcesso(true);
+                          }}
+                          style={{display: 'flex', alignItems: 'center', gap: '6px'}}
+                        >
+                          <Icons.Plus /> Nova Credencial
+                        </button>
+                      )}
                     </div>
 
-                    {showAddAcesso && (
-                      <div style={{background:'white', padding:'25px', borderRadius:'12px', border:'1px solid #cbd5e1', marginBottom:'20px', boxShadow:'0 4px 6px -1px rgba(0,0,0,0.05)'}}>
-                        <h5 style={{marginTop:0, fontSize:'1.1rem'}}>{novoAcesso.id ? 'Editar Acesso' : 'Novo Acesso'}</h5>
-                        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px'}}>
-                          <div>
-                              <label style={labelStyle}>Plataforma / Organismo *</label>
-                              <input type="text" placeholder="Ex: Portal das Finanças" value={novoAcesso.organismo} onChange={e => setNovoAcesso({...novoAcesso, organismo: e.target.value})} required style={inputStyle} className="input-focus" />
-                          </div>
-                          <div>
-                              <label style={labelStyle}>Link de Login (Opcional)</label>
-                              <input type="text" placeholder="https://..." value={novoAcesso.url} onChange={e => setNovoAcesso({...novoAcesso, url: e.target.value})} style={inputStyle} className="input-focus" />
-                          </div>
-                          <div>
-                              <label style={labelStyle}>Utilizador / NIF *</label>
-                              <input type="text" value={novoAcesso.utilizador} onChange={e => setNovoAcesso({...novoAcesso, utilizador: e.target.value})} required style={inputStyle} className="input-focus" />
-                          </div>
-                          <div>
-                              <label style={labelStyle}>Password *</label>
-                              <input type="text" value={novoAcesso.codigo} onChange={e => setNovoAcesso({...novoAcesso, codigo: e.target.value})} required style={{...inputStyle, fontFamily:'monospace'}} className="input-focus" />
-                          </div>
-                        </div>
-                        <div style={{display:'flex', gap:'10px', marginTop:'15px'}}>
-                            <button onClick={() => saveSubItem('acessos_cliente', novoAcesso, setAcessos, acessos, setNovoAcesso, initAcesso, setShowAddAcesso)} className="btn-primary hover-shadow" style={{padding:'10px 20px', fontWeight: 'bold'}}>{novoAcesso.id ? 'Atualizar' : 'Guardar Acesso'}</button>
-                            <button onClick={() => {setShowAddAcesso(false); setNovoAcesso(initAcesso);}} style={{background:'white', border:'1px solid #cbd5e1', borderRadius: '8px', color:'#64748b', cursor:'pointer', padding: '10px 20px', fontWeight: 'bold'}} className="hover-shadow">Cancelar</button>
-                        </div>
-                      </div>
-                    )}
-
                     <ul style={{listStyle:'none', padding:0, display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(400px, 1fr))', gap:'15px'}}>
-                      {acessos.map(a => (
-                        <li key={a.id} style={{background:'white', padding:'20px', borderRadius:'12px', display:'flex', justifyContent:'space-between', alignItems:'center', borderLeft:'5px solid #3b82f6', boxShadow:'0 2px 4px rgba(0,0,0,0.05)', transition: '0.2s'}} className="hover-shadow">
-                          <div style={{flex: 1, paddingRight:'15px'}}>
-                            <span style={{fontWeight:'800', color:'#1e293b', fontSize:'1.15rem', display:'block', marginBottom:'10px'}}>{a.organismo}</span>
-                            <div style={{fontFamily:'monospace', background:'#f8fafc', border:'1px solid #e2e8f0', padding:'12px', borderRadius:'8px', color:'#334155', fontSize:'0.95rem'}}>
-                              User: <b style={{color:'#2563eb'}}>{a.utilizador}</b> <br/>
-                              Pass: <b style={{color:'#ef4444'}}>{a.codigo}</b>
+                      {[...tiposAcessosCatalogo]
+                        .sort((a, b) => {
+                          const aHas = Boolean(getAcessoByTipoId(a.id));
+                          const bHas = Boolean(getAcessoByTipoId(b.id));
+                          if (aHas !== bHas) return aHas ? -1 : 1;
+                          return (a.nome || "").localeCompare(b.nome || "", "pt-PT", { sensitivity: "base" });
+                        })
+                        .map((tipo) => {
+                        const acesso = getAcessoByTipoId(tipo.id);
+                        const hasAcesso = Boolean(acesso);
+
+                        return (
+                          <li
+                            key={tipo.id}
+                            style={{
+                              background:'white',
+                              padding:'20px',
+                              borderRadius:'12px',
+                              display:'flex',
+                              justifyContent:'space-between',
+                              alignItems:'center',
+                              borderLeft: hasAcesso ? '5px solid #3b82f6' : '5px solid #cbd5e1',
+                              boxShadow:'0 2px 4px rgba(0,0,0,0.05)',
+                              transition: '0.2s'
+                            }}
+                            className="hover-shadow"
+                          >
+                            <div style={{flex: 1, paddingRight:'15px'}}>
+                              <span style={{fontWeight:'800', color:'#1e293b', fontSize:'1.15rem', display:'block', marginBottom:'10px'}}>{tipo.nome}</span>
+
+                              {hasAcesso ? (
+                                <div style={{fontFamily:'monospace', background:'#f8fafc', border:'1px solid #e2e8f0', padding:'12px', borderRadius:'8px', color:'#334155', fontSize:'0.95rem'}}>
+                                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:'10px', marginBottom:'8px'}}>
+                                    <span>User: <b style={{color:'#2563eb'}}>{acesso.utilizador}</b></span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleCopyCredential(acesso.utilizador, 'Utilizador')}
+                                      style={{border:'1px solid #bfdbfe', background:'#eff6ff', color:'#1d4ed8', borderRadius:'6px', padding:'4px 8px', cursor:'pointer', display:'inline-flex', alignItems:'center', gap:'4px', fontWeight:'700', fontSize:'0.75rem'}}
+                                      className="hover-shadow"
+                                      title="Copiar utilizador"
+                                    >
+                                      <Icons.Copy size={12} /> Copiar
+                                    </button>
+                                  </div>
+                                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:'10px'}}>
+                                    <span>Pass: <b style={{color:'#ef4444'}}>{acesso.codigo}</b></span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleCopyCredential(acesso.codigo, 'Password')}
+                                      style={{border:'1px solid #fecaca', background:'#fef2f2', color:'#b91c1c', borderRadius:'6px', padding:'4px 8px', cursor:'pointer', display:'inline-flex', alignItems:'center', gap:'4px', fontWeight:'700', fontSize:'0.75rem'}}
+                                      className="hover-shadow"
+                                      title="Copiar password"
+                                    >
+                                      <Icons.Copy size={12} /> Copiar
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div style={{background:'#f8fafc', border:'1px dashed #cbd5e1', padding:'12px', borderRadius:'8px', color:'#94a3b8', fontSize:'0.9rem'}}>
+                                  Sem credenciais registadas para este tipo de acesso.
+                                </div>
+                              )}
+
+                              {tipo.url && (
+                                <a href={tipo.url.startsWith('http') ? tipo.url : `https://${tipo.url}`} target="_blank" rel="noreferrer" style={{display:'inline-flex', alignItems: 'center', gap: '6px', marginTop:'12px', fontSize:'0.85rem', color:'#2563eb', textDecoration:'none', fontWeight:'bold', background:'#eff6ff', padding:'6px 12px', borderRadius:'6px', border: '1px solid #bfdbfe', transition: '0.2s'}} className="hover-shadow"><Icons.ExternalLink size={14} /> Abrir Portal de Login</a>
+                              )}
                             </div>
-                            {a.url && <a href={a.url.startsWith('http') ? a.url : `https://${a.url}`} target="_blank" rel="noreferrer" style={{display:'inline-flex', alignItems: 'center', gap: '6px', marginTop:'12px', fontSize:'0.85rem', color:'#2563eb', textDecoration:'none', fontWeight:'bold', background:'#eff6ff', padding:'6px 12px', borderRadius:'6px', border: '1px solid #bfdbfe', transition: '0.2s'}} className="hover-shadow"><Icons.ExternalLink size={14} /> Abrir Portal de Login</a>}
-                          </div>
-                          {!isViewOnly && (
-                            <div style={{display:'flex', flexDirection:'column', gap:'6px'}}>
-                               <button onClick={() => abrirEdicaoSubItem(a, setNovoAcesso, setShowAddAcesso)} className="action-btn hover-blue-text"><Icons.Edit /></button>
-                               <button onClick={() => deleteItem('acessos_cliente', a.id, setAcessos, acessos)} className="action-btn hover-red-text"><Icons.Trash /></button>
-                            </div>
-                          )}
-                        </li>
-                      ))}
+
+                            {!isViewOnly && (
+                              <div style={{display:'flex', flexDirection:'column', gap:'6px'}}>
+                                {hasAcesso ? (
+                                  <>
+                                    <button onClick={() => abrirEdicaoSubItem(acesso, setNovoAcesso, setShowAddAcesso)} className="action-btn hover-blue-text"><Icons.Edit /></button>
+                                    <button onClick={() => deleteItem('acessos_cliente', acesso.id, setAcessos, acessos)} className="action-btn hover-red-text"><Icons.Trash /></button>
+                                  </>
+                                ) : (
+                                  <button
+                                    onClick={() => {
+                                      setNovoAcesso({ ...initAcesso, tipo_acesso_id: tipo.id });
+                                      setShowAddAcesso(true);
+                                    }}
+                                    className="action-btn hover-blue-text"
+                                    title="Adicionar credenciais"
+                                    style={{opacity: 1, border: '1px solid #dbeafe', background: '#eff6ff'}}
+                                  >
+                                    <Icons.Plus />
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
                 )}
@@ -1361,6 +1462,101 @@ export default function Clientes() {
                   </div>
               </div>
           </ModalPortal>
+      )}
+
+      {/* --- MODAL DE ACESSO (ADICIONAR / EDITAR) --- */}
+      {showModal && showAddAcesso && activeTab === 'acessos' && podeVerAcessos && !isViewOnly && (
+        <ModalPortal>
+          <div
+            style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.45)', backdropFilter: 'blur(2px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999998}}
+            onClick={() => {
+              setShowAddAcesso(false);
+              setNovoAcesso(initAcesso);
+            }}
+          >
+            <div
+              style={{background:'white', width:'92%', maxWidth:'680px', borderRadius:'14px', border:'1px solid #cbd5e1', boxShadow:'0 25px 50px -12px rgba(0,0,0,0.25)', padding:'24px'}}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'14px'}}>
+                <h5 style={{margin:0, fontSize:'1.12rem', color:'#0f172a'}}>{novoAcesso.id ? 'Editar Credencial' : 'Nova Credencial'}</h5>
+                <button
+                  onClick={() => {
+                    setShowAddAcesso(false);
+                    setNovoAcesso(initAcesso);
+                  }}
+                  style={{background:'#f1f5f9', border:'1px solid #e2e8f0', width:'32px', height:'32px', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#475569'}}
+                  className="hover-shadow"
+                  title="Fechar"
+                >
+                  <Icons.Close size={16} />
+                </button>
+              </div>
+
+              <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px'}}>
+                <div>
+                  <label style={labelStyle}>Tipo de Acesso *</label>
+                  <select
+                    value={novoAcesso.tipo_acesso_id || ""}
+                    onChange={e => setNovoAcesso({...novoAcesso, tipo_acesso_id: e.target.value})}
+                    required
+                    style={inputStyle}
+                    className="input-focus"
+                  >
+                    <option value="">Selecionar tipo...</option>
+                    {tiposAcessosCatalogo.map((tipo) => (
+                      <option key={tipo.id} value={tipo.id}>{tipo.nome}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label style={labelStyle}>Utilizador / NIF *</label>
+                  <input
+                    type="text"
+                    value={novoAcesso.utilizador}
+                    onChange={e => setNovoAcesso({...novoAcesso, utilizador: e.target.value})}
+                    required
+                    style={inputStyle}
+                    className="input-focus"
+                  />
+                </div>
+
+                <div style={{gridColumn:'1 / -1'}}>
+                  <label style={labelStyle}>Password *</label>
+                  <input
+                    type="text"
+                    value={novoAcesso.codigo}
+                    onChange={e => setNovoAcesso({...novoAcesso, codigo: e.target.value})}
+                    required
+                    style={{...inputStyle, fontFamily:'monospace'}}
+                    className="input-focus"
+                  />
+                </div>
+              </div>
+
+              <div style={{display:'flex', gap:'10px', marginTop:'10px', justifyContent:'flex-end'}}>
+                <button
+                  onClick={() => {
+                    setShowAddAcesso(false);
+                    setNovoAcesso(initAcesso);
+                  }}
+                  style={{background:'white', border:'1px solid #cbd5e1', borderRadius: '8px', color:'#64748b', cursor:'pointer', padding: '10px 20px', fontWeight: 'bold'}}
+                  className="hover-shadow"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => saveSubItem('acessos_cliente', novoAcesso, setAcessos, acessos, setNovoAcesso, initAcesso, setShowAddAcesso)}
+                  className="btn-primary hover-shadow"
+                  style={{padding:'10px 20px', fontWeight: 'bold'}}
+                >
+                  {novoAcesso.id ? 'Atualizar' : 'Guardar Acesso'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
       )}
 
       <style>{`
