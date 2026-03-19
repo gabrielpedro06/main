@@ -543,43 +543,8 @@ export default function Clientes() {
   }
 
   async function verificarPermissaoAcessos(clienteId) {
-    if (['admin', 'gestor'].includes(userProfile?.role)) { setPodeVerAcessos(true); return; }
-    try {
-      const { data: equipaData, error: equipaError } = await supabase
-        .from('equipa_projeto')
-        .select('projeto_id')
-        .eq('user_id', user.id);
-
-      if (equipaError || !equipaData || equipaData.length === 0) {
-        setPodeVerAcessos(false);
-        return;
-      }
-
-      const projetoIds = equipaData.map(item => item.projeto_id).filter(Boolean);
-      if (projetoIds.length === 0) {
-        setPodeVerAcessos(false);
-        return;
-      }
-
-      const { data: projetosData, error: projetosError } = await supabase
-        .from('projetos')
-        .select('id, cliente_id, parceiros_ids')
-        .in('id', projetoIds);
-
-      if (projetosError || !projetosData) {
-        setPodeVerAcessos(false);
-        return;
-      }
-
-      const hasAccess = projetosData.some(proj => {
-        const isMainClient = String(proj.cliente_id || '') === String(clienteId);
-        const parceiros = normalizeParceirosIds(proj.parceiros_ids);
-        const isPartner = parceiros.some(parceiroId => String(parceiroId) === String(clienteId));
-        return isMainClient || isPartner;
-      });
-
-      setPodeVerAcessos(hasAccess);
-    } catch (err) { setPodeVerAcessos(false); }
+    // Todos os users registados têm acesso aos acessos/credenciais
+    setPodeVerAcessos(true);
   }
 
   async function fetchSubDados(clienteId) {
