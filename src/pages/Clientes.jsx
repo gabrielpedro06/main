@@ -1311,16 +1311,18 @@ export default function Clientes() {
                     </div>
 
                     <ul style={{listStyle:'none', padding:0, display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(400px, 1fr))', gap:'15px'}}>
-                      {[...tiposAcessosCatalogo]
-                        .filter((tipo) => Boolean(getAcessoByTipoId(tipo.id)))
-                        .sort((a, b) => (a.nome || "").localeCompare(b.nome || "", "pt-PT", { sensitivity: "base" }))
-                        .map((tipo) => {
-                        const acesso = getAcessoByTipoId(tipo.id);
-                        const hasAcesso = Boolean(acesso);
+                      {[...acessos]
+                        .sort((a, b) => {
+                          const tipoA = a.tipos_acessos || tiposAcessosCatalogo.find((t) => String(t.id) === String(a.tipo_acesso_id)) || {};
+                          const tipoB = b.tipos_acessos || tiposAcessosCatalogo.find((t) => String(t.id) === String(b.tipo_acesso_id)) || {};
+                          return (tipoA.nome || "").localeCompare(tipoB.nome || "", "pt-PT", { sensitivity: "base" });
+                        })
+                        .map((acesso) => {
+                        const tipo = acesso.tipos_acessos || tiposAcessosCatalogo.find((t) => String(t.id) === String(acesso.tipo_acesso_id)) || {};
 
                         return (
                           <li
-                            key={tipo.id}
+                            key={acesso.id}
                             style={{
                               background:'white',
                               padding:'20px',
@@ -1328,47 +1330,41 @@ export default function Clientes() {
                               display:'flex',
                               justifyContent:'space-between',
                               alignItems:'center',
-                              borderLeft: hasAcesso ? '5px solid #3b82f6' : '5px solid #cbd5e1',
+                              borderLeft:'5px solid #3b82f6',
                               boxShadow:'0 2px 4px rgba(0,0,0,0.05)',
                               transition: '0.2s'
                             }}
                             className="hover-shadow"
                           >
                             <div style={{flex: 1, paddingRight:'15px'}}>
-                              <span style={{fontWeight:'800', color:'#1e293b', fontSize:'1.15rem', display:'block', marginBottom:'10px'}}>{tipo.nome}</span>
+                              <span style={{fontWeight:'800', color:'#1e293b', fontSize:'1.15rem', display:'block', marginBottom:'10px'}}>{tipo.nome || "Tipo sem nome"}</span>
 
-                              {hasAcesso ? (
-                                <div style={{fontFamily:'monospace', background:'#f8fafc', border:'1px solid #e2e8f0', padding:'12px', borderRadius:'8px', color:'#334155', fontSize:'0.95rem'}}>
-                                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:'10px', marginBottom:'8px'}}>
-                                    <span>User: <b style={{color:'#2563eb'}}>{acesso.utilizador}</b></span>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleCopyCredential(acesso.utilizador, 'Utilizador')}
-                                      style={{border:'1px solid #bfdbfe', background:'#eff6ff', color:'#1d4ed8', borderRadius:'6px', padding:'4px 8px', cursor:'pointer', display:'inline-flex', alignItems:'center', gap:'4px', fontWeight:'700', fontSize:'0.75rem'}}
-                                      className="hover-shadow"
-                                      title="Copiar utilizador"
-                                    >
-                                      <Icons.Copy size={12} /> Copiar
-                                    </button>
-                                  </div>
-                                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:'10px'}}>
-                                    <span>Pass: <b style={{color:'#ef4444'}}>{acesso.codigo}</b></span>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleCopyCredential(acesso.codigo, 'Password')}
-                                      style={{border:'1px solid #fecaca', background:'#fef2f2', color:'#b91c1c', borderRadius:'6px', padding:'4px 8px', cursor:'pointer', display:'inline-flex', alignItems:'center', gap:'4px', fontWeight:'700', fontSize:'0.75rem'}}
-                                      className="hover-shadow"
-                                      title="Copiar password"
-                                    >
-                                      <Icons.Copy size={12} /> Copiar
-                                    </button>
-                                  </div>
+                              <div style={{fontFamily:'monospace', background:'#f8fafc', border:'1px solid #e2e8f0', padding:'12px', borderRadius:'8px', color:'#334155', fontSize:'0.95rem'}}>
+                                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:'10px', marginBottom:'8px'}}>
+                                  <span>User: <b style={{color:'#2563eb'}}>{acesso.utilizador}</b></span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCopyCredential(acesso.utilizador, 'Utilizador')}
+                                    style={{border:'1px solid #bfdbfe', background:'#eff6ff', color:'#1d4ed8', borderRadius:'6px', padding:'4px 8px', cursor:'pointer', display:'inline-flex', alignItems:'center', gap:'4px', fontWeight:'700', fontSize:'0.75rem'}}
+                                    className="hover-shadow"
+                                    title="Copiar utilizador"
+                                  >
+                                    <Icons.Copy size={12} /> Copiar
+                                  </button>
                                 </div>
-                              ) : (
-                                <div style={{background:'#f8fafc', border:'1px dashed #cbd5e1', padding:'12px', borderRadius:'8px', color:'#94a3b8', fontSize:'0.9rem'}}>
-                                  Sem credenciais registadas para este tipo de acesso.
+                                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:'10px'}}>
+                                  <span>Pass: <b style={{color:'#ef4444'}}>{acesso.codigo}</b></span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCopyCredential(acesso.codigo, 'Password')}
+                                    style={{border:'1px solid #fecaca', background:'#fef2f2', color:'#b91c1c', borderRadius:'6px', padding:'4px 8px', cursor:'pointer', display:'inline-flex', alignItems:'center', gap:'4px', fontWeight:'700', fontSize:'0.75rem'}}
+                                    className="hover-shadow"
+                                    title="Copiar password"
+                                  >
+                                    <Icons.Copy size={12} /> Copiar
+                                  </button>
                                 </div>
-                              )}
+                              </div>
 
                               {tipo.url && (
                                 <a href={tipo.url.startsWith('http') ? tipo.url : `https://${tipo.url}`} target="_blank" rel="noreferrer" style={{display:'inline-flex', alignItems: 'center', gap: '6px', marginTop:'12px', fontSize:'0.85rem', color:'#2563eb', textDecoration:'none', fontWeight:'bold', background:'#eff6ff', padding:'6px 12px', borderRadius:'6px', border: '1px solid #bfdbfe', transition: '0.2s'}} className="hover-shadow"><Icons.ExternalLink size={14} /> Abrir Portal de Login</a>
@@ -1377,24 +1373,8 @@ export default function Clientes() {
 
                             {!isViewOnly && (
                               <div style={{display:'flex', flexDirection:'column', gap:'6px'}}>
-                                {hasAcesso ? (
-                                  <>
-                                    <button onClick={() => abrirEdicaoSubItem(acesso, setNovoAcesso, setShowAddAcesso)} className="action-btn hover-blue-text"><Icons.Edit /></button>
-                                    <button onClick={() => deleteItem('acessos_cliente', acesso.id, setAcessos, acessos)} className="action-btn hover-red-text"><Icons.Trash /></button>
-                                  </>
-                                ) : (
-                                  <button
-                                    onClick={() => {
-                                      setNovoAcesso({ ...initAcesso, tipo_acesso_id: tipo.id });
-                                      setShowAddAcesso(true);
-                                    }}
-                                    className="action-btn hover-blue-text"
-                                    title="Adicionar credenciais"
-                                    style={{opacity: 1, border: '1px solid #dbeafe', background: '#eff6ff'}}
-                                  >
-                                    <Icons.Plus />
-                                  </button>
-                                )}
+                                <button onClick={() => abrirEdicaoSubItem(acesso, setNovoAcesso, setShowAddAcesso)} className="action-btn hover-blue-text"><Icons.Edit /></button>
+                                <button onClick={() => deleteItem('acessos_cliente', acesso.id, setAcessos, acessos)} className="action-btn hover-red-text"><Icons.Trash /></button>
                               </div>
                             )}
                           </li>
