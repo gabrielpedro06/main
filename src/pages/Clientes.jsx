@@ -1292,30 +1292,28 @@ export default function Clientes() {
                       <Icons.Alert size={20} color="#b45309" /> Acesso Restrito de Administração. Não partilhe estas credenciais fora da plataforma.
                     </div>
                     
-                    <div style={{display:'flex', justifyContent:'space-between', marginBottom:'15px', alignItems:'center'}}>
-                      <h4 style={{margin:0, fontSize:'1.1rem', color: '#1e293b'}}>Catálogo de Credenciais</h4>
+                    <div style={{display:'flex', justifyContent:'space-between', marginBottom:'20px', alignItems:'center'}}>
+                      <div>
+                        <h4 style={{margin:0, fontSize:'1.1rem', color: '#1e293b'}}>Credenciais Ativas</h4>
+                        <p style={{margin:'4px 0 0 0', fontSize:'0.85rem', color:'#64748b'}}>Acessos com credenciais registadas</p>
+                      </div>
                       {!isViewOnly && (
                         <button
-                          className="btn-small-add hover-shadow"
+                          className="hover-shadow"
                           onClick={() => {
                             setNovoAcesso(initAcesso);
                             setShowAddAcesso(true);
                           }}
-                          style={{display: 'flex', alignItems: 'center', gap: '6px'}}
-                        >
-                          <Icons.Plus /> Nova Credencial
+                          style={{display: 'flex', alignItems: 'center', gap: '8px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '10px', padding: '12px 20px', fontWeight: '700', fontSize: '0.95rem', cursor: 'pointer', transition: '0.2s', boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.3)'}}>
+                          <Icons.Plus size={18} /> Nova Credencial
                         </button>
                       )}
                     </div>
 
                     <ul style={{listStyle:'none', padding:0, display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(400px, 1fr))', gap:'15px'}}>
                       {[...tiposAcessosCatalogo]
-                        .sort((a, b) => {
-                          const aHas = Boolean(getAcessoByTipoId(a.id));
-                          const bHas = Boolean(getAcessoByTipoId(b.id));
-                          if (aHas !== bHas) return aHas ? -1 : 1;
-                          return (a.nome || "").localeCompare(b.nome || "", "pt-PT", { sensitivity: "base" });
-                        })
+                        .filter((tipo) => Boolean(getAcessoByTipoId(tipo.id)))
+                        .sort((a, b) => (a.nome || "").localeCompare(b.nome || "", "pt-PT", { sensitivity: "base" }))
                         .map((tipo) => {
                         const acesso = getAcessoByTipoId(tipo.id);
                         const hasAcesso = Boolean(acesso);
@@ -1433,32 +1431,35 @@ export default function Clientes() {
       {showModal && showAddAcesso && activeTab === 'acessos' && podeVerAcessos && !isViewOnly && (
         <ModalPortal>
           <div
-            style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.45)', backdropFilter: 'blur(2px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999998}}
+            style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.5)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999998}}
             onClick={() => {
               setShowAddAcesso(false);
               setNovoAcesso(initAcesso);
             }}
           >
             <div
-              style={{background:'white', width:'92%', maxWidth:'680px', borderRadius:'14px', border:'1px solid #cbd5e1', boxShadow:'0 25px 50px -12px rgba(0,0,0,0.25)', padding:'24px'}}
+              style={{background:'white', width:'92%', maxWidth:'680px', borderRadius:'16px', border:'1px solid #e2e8f0', boxShadow:'0 25px 50px -12px rgba(0,0,0,0.25)', overflow:'hidden', animation: 'fadeIn 0.2s ease-out'}}
               onClick={(e) => e.stopPropagation()}
             >
-              <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'14px'}}>
-                <h5 style={{margin:0, fontSize:'1.12rem', color:'#0f172a'}}>{novoAcesso.id ? 'Editar Credencial' : 'Nova Credencial'}</h5>
+              <div style={{background: '#eff6ff', padding: '20px 24px', display:'flex', justifyContent:'space-between', alignItems:'center', borderBottom: '1px solid #bfdbfe'}}>
+                <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
+                  <div style={{background: '#dbeafe', padding: '8px', borderRadius: '8px', display: 'flex', color: '#0369a1'}}><Icons.Lock size={20} /></div>
+                  <h5 style={{margin:0, fontSize:'1.2rem', fontWeight: '800', color: '#1e3a8a'}}>{novoAcesso.id ? 'Editar Credencial' : 'Nova Credencial'}</h5>
+                </div>
                 <button
                   onClick={() => {
                     setShowAddAcesso(false);
                     setNovoAcesso(initAcesso);
                   }}
-                  style={{background:'#f1f5f9', border:'1px solid #e2e8f0', width:'32px', height:'32px', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#475569'}}
+                  style={{background:'#f1f5f9', border:'1px solid #e2e8f0', width:'36px', height:'36px', borderRadius:'8px', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#1e293b', transition: '0.2s'}}
                   className="hover-shadow"
                   title="Fechar"
                 >
-                  <Icons.Close size={16} />
+                  <Icons.Close size={20} />
                 </button>
               </div>
 
-              <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px'}}>
+              <div style={{padding:'24px', display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px'}}>
                 <div>
                   <label style={labelStyle}>Tipo de Acesso *</label>
                   <select
@@ -1500,23 +1501,23 @@ export default function Clientes() {
                 </div>
               </div>
 
-              <div style={{display:'flex', gap:'10px', marginTop:'10px', justifyContent:'flex-end'}}>
+              <div style={{display:'flex', gap:'12px', marginTop:'24px', justifyContent:'flex-end', padding: '0 24px 24px 24px', borderTop: '1px solid #e2e8f0', paddingTop: '24px'}}>
                 <button
                   onClick={() => {
                     setShowAddAcesso(false);
                     setNovoAcesso(initAcesso);
                   }}
-                  style={{background:'white', border:'1px solid #cbd5e1', borderRadius: '8px', color:'#64748b', cursor:'pointer', padding: '10px 20px', fontWeight: 'bold'}}
+                  style={{background:'#f8fafc', border:'1px solid #cbd5e1', borderRadius: '8px', color:'#64748b', cursor:'pointer', padding: '12px 24px', fontWeight: '600', fontSize: '0.95rem', transition: '0.2s'}}
                   className="hover-shadow"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={() => saveSubItem('acessos_cliente', novoAcesso, setAcessos, acessos, setNovoAcesso, initAcesso, setShowAddAcesso)}
-                  className="btn-primary hover-shadow"
-                  style={{padding:'10px 20px', fontWeight: 'bold'}}
+                  style={{background: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', cursor:'pointer', padding: '12px 24px', fontWeight: '600', fontSize: '0.95rem', transition: '0.2s', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 2px 4px rgba(37, 99, 235, 0.2)'}}
+                  className="hover-shadow"
                 >
-                  {novoAcesso.id ? 'Atualizar' : 'Guardar Acesso'}
+                  {novoAcesso.id ? <><Icons.Save size={16} /> Atualizar</> : <><Icons.Plus size={16} /> Guardar Acesso</>}
                 </button>
               </div>
             </div>

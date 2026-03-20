@@ -787,7 +787,7 @@ export default function DashboardHome() {
 
   async function fetchStats() {
     const { count: countProjetos } = await supabase.from("projetos").select("*", { count: 'exact', head: true }).neq("estado", "cancelado").neq("estado", "concluido");
-    const { count: countClientes } = await supabase.from("clientes").select("*", { count: 'exact', head: true });
+    const { count: countClientes } = await supabase.from("clientes").select("*", { count: 'exact', head: true }).eq("ativo", true);
     const { count: countForum } = await supabase.from("forum_posts").select("*", { count: 'exact', head: true });
     
     setStats({ projetos: countProjetos || 0, clientes: countClientes || 0, forum: countForum || 0 });
