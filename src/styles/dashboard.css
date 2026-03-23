@@ -852,54 +852,52 @@ input:checked + .slider:before {
 /* --- TOAST NOTIFICATION (Pop-up bonito) --- */
 .toast-container {
   position: fixed;
-  top: 26px;
+  bottom: 22px;
   left: 50%;
   transform: translateX(-50%);
-  width: min(92vw, 760px);
-  min-height: 62px;
+  width: auto;
+  max-width: min(90vw, 460px);
+  min-height: 40px;
   background: linear-gradient(135deg, #0f172a 0%, #1f2937 100%);
-  color: #f8fafc;
-  padding: 14px 22px;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  box-shadow: 0 20px 45px rgba(2, 6, 23, 0.35);
+  color: #ffffff;
+  padding: 9px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.35);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 8px;
   z-index: 2147483000;
-  animation: toastDropFade 0.28s ease-out;
-  font-size: 1rem;
+  animation: toastLiftFade 0.22s ease-out;
+  font-size: 0.86rem;
   font-weight: 700;
   text-align: center;
-  letter-spacing: 0.01em;
-  backdrop-filter: blur(10px);
+  line-height: 1.35;
+  letter-spacing: 0;
+  backdrop-filter: blur(8px);
 }
 
 .toast-container.success {
-  border-left: 6px solid #22c55e;
-  background: linear-gradient(135deg, #064e3b 0%, #14532d 100%);
+  background: linear-gradient(135deg, #166534 0%, #15803d 100%);
 }
 
 .toast-container.error {
-  border-left: 6px solid #f87171;
-  background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%);
+  background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%);
 }
 
 .toast-container.warning {
-  border-left: 6px solid #f59e0b;
-  background: linear-gradient(135deg, #7c2d12 0%, #9a3412 100%);
+  background: linear-gradient(135deg, #b45309 0%, #92400e 100%);
 }
 
 .toast-container.info {
-  border-left: 6px solid #38bdf8;
-  background: linear-gradient(135deg, #0c4a6e 0%, #1e3a8a 100%);
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
 }
 
-@keyframes toastDropFade {
+@keyframes toastLiftFade {
   from {
     opacity: 0;
-    transform: translate(-50%, -10px) scale(0.985);
+    transform: translate(-50%, 8px) scale(0.985);
   }
   to {
     opacity: 1;

@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useNavigate, useLocation } from "react-router-dom"; 
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
+import TimerSwitchModal from "../components/TimerSwitchModal";
 import StopTimerNoteModal from "../components/StopTimerNoteModal";
 import { resolveActiveTimerMeta } from "../utils/activeTimerResolver";
 import "./../styles/dashboard.css";
@@ -36,6 +37,7 @@ const Icons = {
   Inbox: ({ size = 48, color = "#cbd5e1" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path></svg>,
   Phone: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>,
   Mail: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>,
+  Play: ({ size = 12, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>,
   Stop: ({ size = 12, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none"><rect x="6" y="6" width="12" height="12" rx="2" ry="2"></rect></svg>
 };
 
@@ -59,6 +61,15 @@ export default function Clientes() {
   const [activeLogTitle, setActiveLogTitle] = useState("");
   const [activeLogRoute, setActiveLogRoute] = useState("/dashboard/tarefas");
   const [stopNoteModal, setStopNoteModal] = useState({ show: false });
+  const [timerSwitchModal, setTimerSwitchModal] = useState({ show: false, message: "", pending: null });
+  const [projectTimerModal, setProjectTimerModal] = useState({
+    show: false,
+    loading: false,
+    project: null,
+    atividades: [],
+    selectedAtividadeId: "",
+    selectedTaskId: ""
+  });
 
   const [showModal, setShowModal] = useState(false);
   const [isClosingPanel, setIsClosingPanel] = useState(false);
@@ -284,6 +295,165 @@ export default function Clientes() {
 
     setActiveLog(null);
     showToast(`Tempo registado: ${diffMins} min.`, "success");
+  }
+
+  function closeProjectTimerModal() {
+    setProjectTimerModal({
+      show: false,
+      loading: false,
+      project: null,
+      atividades: [],
+      selectedAtividadeId: "",
+      selectedTaskId: ""
+    });
+  }
+
+  async function openProjectTimerModal(project, event) {
+    if (event?.stopPropagation) event.stopPropagation();
+    if (!project?.id) return;
+
+    setProjectTimerModal({
+      show: true,
+      loading: true,
+      project,
+      atividades: [],
+      selectedAtividadeId: "",
+      selectedTaskId: ""
+    });
+
+    const { data, error } = await supabase
+      .from("atividades")
+      .select("id, titulo, estado, ordem, created_at, tarefas(id, titulo, estado, ordem, created_at)")
+      .eq("projeto_id", project.id)
+      .order("ordem", { ascending: true })
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      showToast("Erro ao carregar atividades do projeto.", "error");
+      setProjectTimerModal((prev) => ({ ...prev, loading: false }));
+      return;
+    }
+
+    const atividadesOrdenadas = (data || []).map((atividade) => ({
+      ...atividade,
+      tarefas: [...(atividade.tarefas || [])].sort((a, b) => {
+        if (a.ordem != null && b.ordem != null && a.ordem !== b.ordem) return a.ordem - b.ordem;
+        const da = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const db = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return da - db;
+      })
+    }));
+
+    const atividadeInicial = atividadesOrdenadas.find((a) => a.estado !== "concluido") || atividadesOrdenadas[0] || null;
+
+    setProjectTimerModal((prev) => ({
+      ...prev,
+      loading: false,
+      atividades: atividadesOrdenadas,
+      selectedAtividadeId: atividadeInicial?.id || "",
+      selectedTaskId: ""
+    }));
+  }
+
+  async function startTimerDirect({ targetId, targetType, projectId }) {
+    if (!user?.id || !targetId) return false;
+
+    const payload = {
+      user_id: user.id,
+      projeto_id: projectId,
+      start_time: new Date().toISOString()
+    };
+
+    if (targetType === "task") payload.task_id = targetId;
+    else payload.atividade_id = targetId;
+
+    const { data, error } = await supabase.from("task_logs").insert([payload]).select().single();
+
+    if (error) {
+      showToast("Erro ao iniciar o cronómetro.", "error");
+      return false;
+    }
+
+    setActiveLog(data);
+    showToast("Cronómetro iniciado com sucesso.", "success");
+    return true;
+  }
+
+  async function handleStartTimerFromProjectSelection() {
+    if (projectTimerModal.project?.estado === "concluido") {
+      showToast("Este projeto está concluído e não permite iniciar cronómetro.", "warning");
+      return;
+    }
+
+    const atividadeSelecionada = projectTimerModal.atividades.find(
+      (atividade) => String(atividade.id) === String(projectTimerModal.selectedAtividadeId)
+    );
+
+    if (!atividadeSelecionada) {
+      showToast("Escolhe uma atividade para iniciar o cronómetro.", "warning");
+      return;
+    }
+
+    const tarefaSelecionada = (atividadeSelecionada.tarefas || []).find(
+      (tarefa) => String(tarefa.id) === String(projectTimerModal.selectedTaskId)
+    );
+
+    if (tarefaSelecionada?.estado === "concluido") {
+      showToast("A tarefa selecionada está concluída e não permite iniciar cronómetro.", "warning");
+      return;
+    }
+
+    if (!tarefaSelecionada && atividadeSelecionada.estado === "concluido") {
+      showToast("A atividade selecionada está concluída e não permite iniciar cronómetro.", "warning");
+      return;
+    }
+
+    const pending = {
+      targetId: tarefaSelecionada?.id || atividadeSelecionada.id,
+      targetType: tarefaSelecionada ? "task" : "activity",
+      projectId: projectTimerModal.project?.id,
+      targetLabel: tarefaSelecionada?.titulo || atividadeSelecionada.titulo || "item selecionado"
+    };
+
+    const isSameTarget =
+      (pending.targetType === "task" && String(activeLog?.task_id || "") === String(pending.targetId)) ||
+      (pending.targetType === "activity" && String(activeLog?.atividade_id || "") === String(pending.targetId));
+
+    if (isSameTarget) {
+      showToast("Este cronómetro já está em execução.", "info");
+      return;
+    }
+
+    if (activeLog) {
+      setTimerSwitchModal({
+        show: true,
+        message: `Já tens um cronómetro ativo em "${activeLogTitle || "Tempo a decorrer..."}". Pretendes parar o atual para iniciar "${pending.targetLabel}"?`,
+        pending
+      });
+      return;
+    }
+
+    const started = await startTimerDirect(pending);
+    if (started) closeProjectTimerModal();
+  }
+
+  async function confirmTimerSwitch() {
+    const pending = timerSwitchModal.pending;
+    if (!pending) return;
+
+    const diffMins = await stopLogById(activeLog);
+    if (diffMins === null) return;
+
+    showToast(`Cronómetro anterior terminado (${diffMins} min).`, "success");
+    const started = await startTimerDirect(pending);
+    if (started) closeProjectTimerModal();
+
+    setTimerSwitchModal({ show: false, message: "", pending: null });
+  }
+
+  function cancelTimerSwitch() {
+    setTimerSwitchModal({ show: false, message: "", pending: null });
+    showToast("Mantivemos o cronómetro atual em execução.", "info");
   }
 
   function handleAvatarUpload(e) {
@@ -1319,7 +1489,46 @@ export default function Clientes() {
         </div>
       )}
 
-      {notification && <div className={`toast-container ${notification.type}`}>{notification.type === 'success' ? '✅' : '⚠️'} {notification.message}</div>}
+      {notification && (
+        <div
+          style={{
+            position: 'fixed',
+            left: '50%',
+            bottom: '22px',
+            transform: 'translateX(-50%)',
+            maxWidth: 'min(90vw, 460px)',
+            minHeight: '40px',
+            padding: '9px 14px',
+            borderRadius: '12px',
+            color: '#fff',
+            background:
+              notification.type === 'success'
+                ? 'linear-gradient(135deg, #166534, #15803d)'
+                : notification.type === 'error'
+                  ? 'linear-gradient(135deg, #b91c1c, #991b1b)'
+                  : notification.type === 'warning'
+                    ? 'linear-gradient(135deg, #b45309, #92400e)'
+                    : 'linear-gradient(135deg, #1d4ed8, #1e40af)',
+            border: '1px solid rgba(255,255,255,0.25)',
+            boxShadow: '0 12px 28px rgba(15, 23, 42, 0.35)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            zIndex: 2147483000,
+            fontSize: '0.86rem',
+            fontWeight: 700,
+            lineHeight: 1.35,
+            textAlign: 'center',
+            animation: 'fadeIn 0.2s ease-out'
+          }}
+        >
+          <span style={{fontSize:'0.9rem'}}>
+            {notification.type === 'success' ? '✅' : notification.type === 'error' ? '⛔' : notification.type === 'warning' ? '⚠️' : 'ℹ️'}
+          </span>
+          <span>{notification.message}</span>
+        </div>
+      )}
 
       <StopTimerNoteModal
         open={stopNoteModal.show}
@@ -1330,6 +1539,132 @@ export default function Clientes() {
         onCancel={closeStopNoteModal}
         onConfirm={(note) => confirmStopWithNote(note)}
       />
+
+      <TimerSwitchModal
+        open={timerSwitchModal.show}
+        title="Trocar cronómetro em curso"
+        message={timerSwitchModal.message}
+        cancelLabel="Manter atual"
+        confirmLabel="Parar e iniciar"
+        onCancel={cancelTimerSwitch}
+        onConfirm={confirmTimerSwitch}
+      />
+
+      {projectTimerModal.show && (
+        <ModalPortal>
+          <div
+            onClick={closeProjectTimerModal}
+            style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.72)', backdropFilter:'blur(5px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:100001, padding:'20px'}}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{width:'min(980px, 96vw)', maxHeight:'86vh', overflow:'hidden', borderRadius:'20px', background:'white', border:'1px solid #dbeafe', boxShadow:'0 30px 60px -20px rgba(15, 23, 42, 0.45)', display:'flex', flexDirection:'column'}}
+            >
+              <div style={{padding:'22px 24px', borderBottom:'1px solid #e2e8f0', background:'linear-gradient(135deg, #eff6ff, #f8fafc)', display:'flex', justifyContent:'space-between', alignItems:'center', gap:'20px'}}>
+                <div>
+                  <p style={{margin:'0 0 4px 0', fontSize:'0.75rem', fontWeight:'800', letterSpacing:'0.07em', color:'#2563eb', textTransform:'uppercase'}}>Iniciar Cronómetro</p>
+                  <h3 style={{margin:0, color:'#0f172a', fontSize:'1.35rem', fontWeight:'900'}}>{projectTimerModal.project?.titulo || 'Projeto selecionado'}</h3>
+                  <p style={{margin:'6px 0 0 0', color:'#475569', fontSize:'0.9rem'}}>Escolhe primeiro a atividade e, se quiseres, uma tarefa específica.</p>
+                </div>
+                <button onClick={closeProjectTimerModal} style={{background:'#fff', border:'1px solid #cbd5e1', width:'36px', height:'36px', borderRadius:'10px', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#475569'}} className="hover-shadow">
+                  <Icons.Close size={18} />
+                </button>
+              </div>
+
+              <div style={{padding:'20px', overflowY:'auto', display:'grid', gap:'14px'}}>
+                {projectTimerModal.loading ? (
+                  <div style={{padding:'32px', textAlign:'center', color:'#64748b', fontWeight:'600'}}>A carregar atividades e tarefas...</div>
+                ) : projectTimerModal.atividades.length === 0 ? (
+                  <div style={{padding:'36px', textAlign:'center', border:'1px dashed #cbd5e1', borderRadius:'14px', background:'#f8fafc'}}>
+                    <h4 style={{margin:'0 0 6px 0', color:'#1e293b'}}>Sem atividades neste projeto</h4>
+                    <p style={{margin:0, color:'#64748b'}}>Cria uma atividade no projeto para iniciar o cronómetro a partir desta vista.</p>
+                  </div>
+                ) : (
+                  <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px'}}>
+                    <div style={{border:'1px solid #e2e8f0', borderRadius:'14px', padding:'12px', background:'#f8fafc'}}>
+                      <p style={{margin:'0 0 10px 0', fontSize:'0.8rem', fontWeight:'800', color:'#64748b', textTransform:'uppercase'}}>Atividades</p>
+                      <div style={{display:'grid', gap:'8px'}}>
+                        {projectTimerModal.atividades.map((atividade) => {
+                          const isSelected = String(atividade.id) === String(projectTimerModal.selectedAtividadeId);
+                          const isDone = atividade.estado === 'concluido';
+                          return (
+                            <button
+                              key={atividade.id}
+                              type="button"
+                              disabled={isDone}
+                              onClick={() => setProjectTimerModal((prev) => ({ ...prev, selectedAtividadeId: atividade.id, selectedTaskId: "" }))}
+                              style={{textAlign:'left', border:isSelected ? '1px solid #2563eb' : '1px solid #e2e8f0', background:isDone ? '#f8fafc' : (isSelected ? '#eff6ff' : '#fff'), color:isDone ? '#94a3b8' : '#1e293b', borderRadius:'10px', padding:'10px 12px', cursor:isDone ? 'not-allowed' : 'pointer', opacity:isDone ? 0.75 : 1}}
+                              className="hover-shadow"
+                            >
+                              <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:'8px'}}>
+                                <span style={{fontWeight:'700', fontSize:'0.9rem', textDecoration:isDone ? 'line-through' : 'none'}}>{atividade.titulo || 'Sem título'}</span>
+                                <span style={{fontSize:'0.7rem', borderRadius:'999px', padding:'3px 8px', background:isDone ? '#e2e8f0' : '#dbeafe', color:isDone ? '#64748b' : '#1d4ed8', fontWeight:'800'}}>{isDone ? 'CONCLUÍDA' : 'ATIVA'}</span>
+                              </div>
+                              <p style={{margin:'6px 0 0 0', fontSize:'0.75rem', color:'#64748b'}}>{(atividade.tarefas || []).length} tarefa(s)</p>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div style={{border:'1px solid #e2e8f0', borderRadius:'14px', padding:'12px', background:'#f8fafc'}}>
+                      <p style={{margin:'0 0 10px 0', fontSize:'0.8rem', fontWeight:'800', color:'#64748b', textTransform:'uppercase'}}>Tarefas</p>
+                      <div style={{display:'grid', gap:'8px'}}>
+                        <button
+                          type="button"
+                          onClick={() => setProjectTimerModal((prev) => ({ ...prev, selectedTaskId: "" }))}
+                          disabled={(projectTimerModal.atividades.find((atividade) => String(atividade.id) === String(projectTimerModal.selectedAtividadeId))?.estado === 'concluido')}
+                          style={{textAlign:'left', border:projectTimerModal.selectedTaskId ? '1px solid #e2e8f0' : '1px solid #16a34a', background:(projectTimerModal.atividades.find((atividade) => String(atividade.id) === String(projectTimerModal.selectedAtividadeId))?.estado === 'concluido') ? '#f1f5f9' : (projectTimerModal.selectedTaskId ? '#fff' : '#f0fdf4'), color:(projectTimerModal.atividades.find((atividade) => String(atividade.id) === String(projectTimerModal.selectedAtividadeId))?.estado === 'concluido') ? '#94a3b8' : '#166534', borderRadius:'10px', padding:'10px 12px', cursor:(projectTimerModal.atividades.find((atividade) => String(atividade.id) === String(projectTimerModal.selectedAtividadeId))?.estado === 'concluido') ? 'not-allowed' : 'pointer', fontWeight:'700'}}
+                          className="hover-shadow"
+                        >
+                          Trabalhar ao nível da atividade
+                        </button>
+
+                        {(projectTimerModal.atividades.find((atividade) => String(atividade.id) === String(projectTimerModal.selectedAtividadeId))?.tarefas || []).length > 0 ? (
+                          (projectTimerModal.atividades.find((atividade) => String(atividade.id) === String(projectTimerModal.selectedAtividadeId))?.tarefas || []).map((tarefa) => {
+                            const isSelected = String(tarefa.id) === String(projectTimerModal.selectedTaskId);
+                            const isDone = tarefa.estado === 'concluido';
+                            return (
+                              <button
+                                key={tarefa.id}
+                                type="button"
+                                disabled={isDone}
+                                onClick={() => setProjectTimerModal((prev) => ({ ...prev, selectedTaskId: tarefa.id }))}
+                                style={{textAlign:'left', border:isSelected ? '1px solid #2563eb' : '1px solid #e2e8f0', background:isDone ? '#f8fafc' : (isSelected ? '#eff6ff' : '#fff'), color:isDone ? '#94a3b8' : '#1e293b', borderRadius:'10px', padding:'10px 12px', cursor:isDone ? 'not-allowed' : 'pointer', opacity:isDone ? 0.78 : 1}}
+                                className="hover-shadow"
+                              >
+                                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:'8px'}}>
+                                  <span style={{fontWeight:'700', fontSize:'0.9rem', textDecoration:isDone ? 'line-through' : 'none'}}>{tarefa.titulo || 'Sem título'}</span>
+                                  <span style={{fontSize:'0.68rem', borderRadius:'999px', padding:'3px 7px', background:isDone ? '#fee2e2' : '#dcfce7', color:isDone ? '#991b1b' : '#166534', fontWeight:'800'}}>{isDone ? 'CONCLUÍDA' : 'ABERTA'}</span>
+                                </div>
+                              </button>
+                            );
+                          })
+                        ) : (
+                          <p style={{margin:0, color:'#94a3b8', fontSize:'0.85rem'}}>Esta atividade não tem tarefas registadas.</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div style={{padding:'16px 20px', borderTop:'1px solid #e2e8f0', display:'flex', justifyContent:'flex-end', gap:'10px', background:'#f8fafc'}}>
+                <button type="button" onClick={closeProjectTimerModal} style={{padding:'10px 16px', borderRadius:'10px', border:'1px solid #cbd5e1', background:'white', color:'#475569', fontWeight:'700', cursor:'pointer'}} className="hover-shadow">Cancelar</button>
+                <button
+                  type="button"
+                  onClick={handleStartTimerFromProjectSelection}
+                  disabled={projectTimerModal.loading || projectTimerModal.atividades.length === 0 || projectTimerModal.project?.estado === 'concluido'}
+                  style={{padding:'10px 18px', borderRadius:'10px', border:'none', background:projectTimerModal.loading || projectTimerModal.atividades.length === 0 || projectTimerModal.project?.estado === 'concluido' ? '#94a3b8' : 'linear-gradient(135deg, #16a34a, #15803d)', color:'white', fontWeight:'800', cursor:projectTimerModal.loading || projectTimerModal.atividades.length === 0 || projectTimerModal.project?.estado === 'concluido' ? 'not-allowed' : 'pointer', display:'inline-flex', alignItems:'center', gap:'6px'}}
+                  className="hover-shadow"
+                >
+                  <Icons.Play /> Iniciar
+                </button>
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
 
       {/* --- MEGA MODAL 360º DO CLIENTE --- */}
       {showModal && (
@@ -1520,7 +1855,19 @@ export default function Clientes() {
                                             
                                             <div style={{display: 'flex', alignItems: 'center', justifyContent:'space-between', borderTop:'1px solid #f1f5f9', paddingTop:'10px'}}>
                                                 {p.data_fim ? <span style={{fontSize: '0.85rem', color: '#64748b', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.Calendar /> {new Date(p.data_fim).toLocaleDateString('pt-PT')}</span> : <span style={{fontSize: '0.85rem', color: '#cbd5e1'}}>Sem Prazo</span>}
-                                                <span style={{fontSize: '0.85rem', color: '#2563eb', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}}>Abrir <Icons.ArrowRight /></span>
+                                                <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
+                                                  <button
+                                                    type="button"
+                                                    onClick={(e) => openProjectTimerModal(p, e)}
+                                                    disabled={isDone}
+                                                    style={{border: isDone ? '1px solid #cbd5e1' : '1px solid #bbf7d0', background: isDone ? '#f1f5f9' : '#f0fdf4', color: isDone ? '#94a3b8' : '#166534', borderRadius:'999px', padding:'6px 12px', fontWeight:'700', fontSize:'0.78rem', display:'inline-flex', alignItems:'center', gap:'6px', cursor:isDone ? 'not-allowed' : 'pointer'}}
+                                                    className="hover-shadow"
+                                                    title={isDone ? "Projeto concluído: cronómetro indisponível" : "Iniciar cronómetro neste projeto"}
+                                                  >
+                                                    <Icons.Play size={11} /> Iniciar
+                                                  </button>
+                                                  <span style={{fontSize: '0.85rem', color: '#2563eb', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}}>Abrir <Icons.ArrowRight /></span>
+                                                </div>
                                             </div>
                                         </div>
                                     )
