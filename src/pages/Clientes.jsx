@@ -3,6 +3,8 @@ import { createPortal } from "react-dom";
 import { useNavigate, useLocation } from "react-router-dom"; 
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
+import StopTimerNoteModal from "../components/StopTimerNoteModal";
+import { resolveActiveTimerMeta } from "../utils/activeTimerResolver";
 import "./../styles/dashboard.css";
 
 // --- ÍCONES SVG PROFISSIONAIS (SaaS Premium) ---
@@ -33,7 +35,8 @@ const Icons = {
   Alert: ({ size = 40, color = "#ef4444" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>,
   Inbox: ({ size = 48, color = "#cbd5e1" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path></svg>,
   Phone: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>,
-  Mail: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+  Mail: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>,
+  Stop: ({ size = 12, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none"><rect x="6" y="6" width="12" height="12" rx="2" ry="2"></rect></svg>
 };
 
 const ModalPortal = ({ children }) => {
@@ -52,6 +55,10 @@ export default function Clientes() {
   const [statusTab, setStatusTab] = useState("ativos");
   const [viewMode, setViewMode] = useState("cards");
   const [notification, setNotification] = useState(null);
+  const [activeLog, setActiveLog] = useState(null);
+  const [activeLogTitle, setActiveLogTitle] = useState("");
+  const [activeLogRoute, setActiveLogRoute] = useState("/dashboard/tarefas");
+  const [stopNoteModal, setStopNoteModal] = useState({ show: false });
 
   const [showModal, setShowModal] = useState(false);
   const [isClosingPanel, setIsClosingPanel] = useState(false);
@@ -142,6 +149,51 @@ export default function Clientes() {
   }, []);
 
   useEffect(() => {
+    if (user?.id) checkActiveLog();
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const refresh = () => checkActiveLog();
+    const intervalId = setInterval(refresh, 45000);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [user?.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const resolveActiveTitle = async () => {
+      if (!activeLog) {
+        if (!cancelled) {
+          setActiveLogTitle("");
+          setActiveLogRoute("/dashboard/tarefas");
+        }
+        return;
+      }
+
+      const timerMeta = await resolveActiveTimerMeta(supabase, activeLog);
+      if (cancelled) return;
+
+      setActiveLogTitle(timerMeta.title || "Tempo a decorrer...");
+      setActiveLogRoute(timerMeta.route || "/dashboard/tarefas");
+    };
+
+    resolveActiveTitle();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeLog]);
+
+  useEffect(() => {
     const el = cropContainerRef.current;
     if (!cropModal.show || !el) return;
     const onWheel = (e) => {
@@ -163,6 +215,76 @@ export default function Clientes() {
       setNotification({ message, type });
       setTimeout(() => setNotification(null), 3500);
   };
+
+  async function checkActiveLog() {
+    if (!user?.id) {
+      setActiveLog(null);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("task_logs")
+      .select("*")
+      .eq("user_id", user.id)
+      .is("end_time", null)
+      .order("start_time", { ascending: false })
+      .limit(1);
+
+    if (error) {
+      setActiveLog(null);
+      return;
+    }
+
+    setActiveLog(Array.isArray(data) ? data[0] || null : null);
+  }
+
+  async function stopLogById(logToStop, stopNote = "") {
+    if (!logToStop) return null;
+    const diffMins = Math.max(1, Math.floor((new Date() - new Date(logToStop.start_time)) / 60000));
+    const stopTimestamp = new Date().toISOString();
+    const note = typeof stopNote === "string" ? stopNote.trim() : "";
+    const payload = { end_time: stopTimestamp, duration_minutes: diffMins };
+    if (note) payload.observacoes = note;
+
+    let { error } = await supabase.from("task_logs").update(payload).eq("id", logToStop.id);
+
+    if (error && note) {
+      const retry = await supabase
+        .from("task_logs")
+        .update({ end_time: stopTimestamp, duration_minutes: diffMins })
+        .eq("id", logToStop.id);
+      error = retry.error;
+    }
+
+    if (error) {
+      showToast("Erro ao terminar o cronómetro atual.", "error");
+      return null;
+    }
+
+    return diffMins;
+  }
+
+  function openStopNoteModal(e) {
+    if (e?.stopPropagation) e.stopPropagation();
+    if (!activeLog) return;
+    setStopNoteModal({ show: true });
+  }
+
+  function closeStopNoteModal() {
+    setStopNoteModal({ show: false });
+  }
+
+  async function confirmStopWithNote(note) {
+    setStopNoteModal({ show: false });
+    if (!activeLog) return;
+
+    const logToStop = activeLog;
+    const diffMins = await stopLogById(logToStop, note);
+    if (diffMins === null) return;
+
+    setActiveLog(null);
+    showToast(`Tempo registado: ${diffMins} min.`, "success");
+  }
 
   function handleAvatarUpload(e) {
     if (isViewOnly) return;
@@ -948,7 +1070,7 @@ export default function Clientes() {
 
   return (
     <div className="page-container" style={{maxWidth: '1500px', margin: '0 auto'}}>
-      <div className="page-header" style={{background: 'white', padding: '20px 25px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
+      <div className="page-header" style={{background: 'white', padding: '20px 25px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '15px', flexWrap: 'wrap'}}>
         <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
             <div style={{background: '#eff6ff', color: '#2563eb', padding: '12px', borderRadius: '12px', display: 'flex'}}><Icons.Building size={24} /></div>
             <div>
@@ -956,9 +1078,26 @@ export default function Clientes() {
                 <p style={{color: '#64748b', margin: 0, fontWeight: '500', fontSize: '0.9rem'}}>{statusTab === "ativos" ? "Carteira de Clientes Ativos" : "Arquivo de Clientes"}</p>
             </div>
         </div>
-        <button className="btn-cta" onClick={handleNovo}>
-            <Icons.Plus /> Nova Empresa
-        </button>
+        <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+          {activeLog && (
+            <div
+              onClick={() => navigate(activeLogRoute || '/dashboard/tarefas')}
+              title="Ir para o item com cronómetro em curso"
+              className="hover-shadow"
+              style={{background: 'linear-gradient(to right, #ef4444, #b91c1c)', color: 'white', padding: '10px 20px', borderRadius: '30px', display: 'flex', alignItems: 'center', gap: '15px', border: '2px solid #fecaca', boxShadow: '0 4px 10px rgba(239, 68, 68, 0.4)', transition: '0.2s', whiteSpace: 'nowrap', cursor: 'pointer'}}
+            >
+              <div style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700', fontSize: '0.95rem'}}>
+                <span className="pulse-dot-white"></span>
+                {(activeLogTitle || 'Tempo a decorrer...').length > 30 ? `${(activeLogTitle || 'Tempo a decorrer...').slice(0, 30)}...` : (activeLogTitle || 'Tempo a decorrer...')}
+              </div>
+              <div style={{width: '1px', height: '20px', background: 'rgba(255,255,255,0.3)'}}></div>
+              <button type="button" onClick={openStopNoteModal} style={{background: 'white', color:'#ef4444', border:'none', borderRadius:'20px', padding:'6px 12px', cursor:'pointer', fontWeight:'700', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px', transition: '0.2s'}}><Icons.Stop /> Parar</button>
+            </div>
+          )}
+          <button className="btn-cta" onClick={handleNovo}>
+              <Icons.Plus /> Nova Empresa
+          </button>
+        </div>
       </div>
 
       <div style={{display:'flex', gap:'5px', paddingLeft: '10px'}}>
@@ -1181,6 +1320,16 @@ export default function Clientes() {
       )}
 
       {notification && <div className={`toast-container ${notification.type}`}>{notification.type === 'success' ? '✅' : '⚠️'} {notification.message}</div>}
+
+      <StopTimerNoteModal
+        open={stopNoteModal.show}
+        title="Parar cronometro"
+        message="Se quiseres, adiciona uma nota breve sobre o que foi feito (opcional)."
+        placeholder="Ex: Concluída análise e próximos passos definidos"
+        showCompleteOption={false}
+        onCancel={closeStopNoteModal}
+        onConfirm={(note) => confirmStopWithNote(note)}
+      />
 
       {/* --- MEGA MODAL 360º DO CLIENTE --- */}
       {showModal && (

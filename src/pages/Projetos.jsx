@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import TimerSwitchModal from "../components/TimerSwitchModal";
 import StopTimerNoteModal from "../components/StopTimerNoteModal";
 import { hasAttendanceStartedToday, startAttendanceNow } from "../utils/attendanceGuard";
+import { resolveActiveTimerMeta } from "../utils/activeTimerResolver";
 import "./../styles/dashboard.css";
 
 // --- ÍCONES SVG PROFISSIONAIS (SaaS Premium) ---
@@ -63,6 +64,8 @@ export default function Projetos() {
   const [loading, setLoading] = useState(true);
   
   const [activeLog, setActiveLog] = useState(null); 
+    const [activeLogTitle, setActiveLogTitle] = useState("");
+    const [activeLogRoute, setActiveLogRoute] = useState("/dashboard/projetos");
   const [notification, setNotification] = useState(null);
     const [timerSwitchModal, setTimerSwitchModal] = useState({ show: false, message: "", pendingProject: null });
                 const [attendanceWarningModal, setAttendanceWarningModal] = useState({ show: false, message: "" });
@@ -110,6 +113,32 @@ export default function Projetos() {
     fetchData();
     checkActiveLog();
   }, [user]);
+
+  useEffect(() => {
+      let cancelled = false;
+
+      const resolveActiveTitle = async () => {
+          if (!activeLog) {
+              if (!cancelled) {
+                  setActiveLogTitle("");
+                  setActiveLogRoute("/dashboard/projetos");
+              }
+              return;
+          }
+
+          const timerMeta = await resolveActiveTimerMeta(supabase, activeLog);
+          if (cancelled) return;
+
+          setActiveLogTitle(timerMeta.title || "Projeto em curso");
+          setActiveLogRoute(timerMeta.route || "/dashboard/projetos");
+      };
+
+      resolveActiveTitle();
+
+      return () => {
+          cancelled = true;
+      };
+  }, [activeLog]);
 
   // Efeito para carregar a árvore de atividades quando selecionamos um Tipo de Projeto
   useEffect(() => {
@@ -733,10 +762,14 @@ export default function Projetos() {
         </div>
 
         <div style={{display: 'flex', gap: '15px', alignItems: 'center'}}>
-            {activeLog?.projeto_id && (
-                <div style={{background:'#fee2e2', color:'#ef4444', padding:'6px 12px', borderRadius:'8px', fontSize:'0.8rem', display:'flex', alignItems:'center', gap:'8px', fontWeight: 'bold'}}>
-                <span className="pulse-dot-red"></span> Em curso... 
-                <button onClick={handleStopLog} style={{background:'white', color:'#ef4444', border:'1px solid #fecaca', borderRadius:'4px', padding:'4px 8px', cursor:'pointer', fontWeight:'bold', display:'flex', alignItems:'center', gap:'4px'}}><Icons.Stop /> Parar</button>
+            {activeLog && (
+                <div onClick={() => navigate(activeLogRoute || '/dashboard/projetos')} className="hover-shadow" title="Ir para o item com cronómetro em curso" style={{background: 'linear-gradient(to right, #ef4444, #b91c1c)', color: 'white', padding: '10px 20px', borderRadius: '30px', display: 'flex', alignItems: 'center', gap: '15px', border: '2px solid #fecaca', boxShadow: '0 4px 10px rgba(239, 68, 68, 0.4)', transition: '0.2s', whiteSpace: 'nowrap', cursor: 'pointer'}}>
+                <div style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700', fontSize: '0.95rem'}}>
+                    <span className="pulse-dot-white"></span>
+                    {(activeLogTitle || 'Projeto em curso').length > 30 ? `${(activeLogTitle || 'Projeto em curso').slice(0, 30)}...` : (activeLogTitle || 'Projeto em curso')}
+                </div>
+                <div style={{width: '1px', height: '20px', background: 'rgba(255,255,255,0.3)'}}></div>
+                <button onClick={(e) => { e.stopPropagation(); openStopNoteModal(); }} style={{background: 'white', color:'#ef4444', border:'none', borderRadius:'20px', padding:'6px 12px', cursor:'pointer', fontWeight:'700', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px', transition: '0.2s'}}><Icons.Stop /> Parar</button>
                 </div>
             )}
             <button className="btn-primary hover-shadow" onClick={handleNovo} style={{display:'flex', alignItems:'center', gap:'8px', fontWeight:'bold'}}><Icons.Plus /> Novo Projeto</button>

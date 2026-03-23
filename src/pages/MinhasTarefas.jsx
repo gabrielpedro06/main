@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import TimerSwitchModal from "../components/TimerSwitchModal";
 import StopTimerNoteModal from "../components/StopTimerNoteModal";
 import { hasAttendanceStartedToday, startAttendanceNow } from "../utils/attendanceGuard";
+import { resolveActiveTimerMeta } from "../utils/activeTimerResolver";
 import "./../styles/dashboard.css";
 
 // --- ÍCONES SVG PROFISSIONAIS (SaaS Premium) ---
@@ -98,74 +99,12 @@ export default function MinhasTarefas() {
               return;
           }
 
-          const allTasks = [
-              ...tasks.atrasadas,
-              ...tasks.hoje,
-              ...tasks.amanha,
-              ...tasks.depois,
-              ...tasks.semData
-          ];
+          const timerMeta = await resolveActiveTimerMeta(supabase, activeLog);
+          if (cancelled) return;
 
-          if (activeLog.task_id) {
-              const foundTask = allTasks.find((t) => String(t.id) === String(activeLog.task_id));
-              if (foundTask?.titulo) {
-                  const proj = foundTask.atividades?.projetos;
-                  const atividadeTitulo = foundTask.atividades?.titulo;
-                  const projectLabel = proj ? (proj.codigo_projeto ? `[${proj.codigo_projeto}] ${proj.titulo}` : proj.titulo) : "Avulsa";
-                  if (!cancelled) setActiveTimerTitle(foundTask.titulo);
-                  if (!cancelled) setActiveTimerLocation(proj ? `${projectLabel} > ${atividadeTitulo || 'Atividade'}` : "Tarefa Avulsa");
-                  if (!cancelled) setActiveTimerRoute(proj ? "/dashboard/tarefas" : "/dashboard/minhas-tarefas");
-                  return;
-              }
-
-              const { data } = await supabase
-                  .from("tarefas")
-                  .select("titulo, atividades(titulo, projetos(id, titulo, codigo_projeto))")
-                  .eq("id", activeLog.task_id)
-                  .maybeSingle();
-              const proj = data?.atividades?.projetos;
-              const projectLabel = proj ? (proj.codigo_projeto ? `[${proj.codigo_projeto}] ${proj.titulo}` : proj.titulo) : "Avulsa";
-              if (!cancelled) setActiveTimerTitle(data?.titulo || "Tarefa em curso");
-              if (!cancelled) setActiveTimerLocation(proj ? `${projectLabel} > ${data?.atividades?.titulo || 'Atividade'}` : "Tarefa Avulsa");
-              if (!cancelled) setActiveTimerRoute(proj ? "/dashboard/tarefas" : "/dashboard/minhas-tarefas");
-              return;
-          }
-
-          if (activeLog.atividade_id) {
-              const foundTaskFromActivity = allTasks.find((t) => String(t.atividades?.id) === String(activeLog.atividade_id));
-              if (foundTaskFromActivity?.atividades?.titulo) {
-                  const proj = foundTaskFromActivity.atividades?.projetos;
-                  const projectLabel = proj ? (proj.codigo_projeto ? `[${proj.codigo_projeto}] ${proj.titulo}` : proj.titulo) : "Sem projeto";
-                  if (!cancelled) setActiveTimerTitle(foundTaskFromActivity.atividades.titulo);
-                  if (!cancelled) setActiveTimerLocation(projectLabel);
-                  if (!cancelled) setActiveTimerRoute("/dashboard/atividades");
-                  return;
-              }
-
-              const { data } = await supabase
-                  .from("atividades")
-                  .select("titulo, projetos(id, titulo, codigo_projeto)")
-                  .eq("id", activeLog.atividade_id)
-                  .maybeSingle();
-              const projectLabel = data?.projetos ? (data.projetos.codigo_projeto ? `[${data.projetos.codigo_projeto}] ${data.projetos.titulo}` : data.projetos.titulo) : "Sem projeto";
-              if (!cancelled) setActiveTimerTitle(data?.titulo || "Atividade em curso");
-              if (!cancelled) setActiveTimerLocation(projectLabel);
-              if (!cancelled) setActiveTimerRoute("/dashboard/atividades");
-              return;
-          }
-
-          if (activeLog.projeto_id) {
-              const { data } = await supabase.from("projetos").select("id, titulo, codigo_projeto").eq("id", activeLog.projeto_id).maybeSingle();
-              const projectLabel = data ? (data.codigo_projeto ? `[${data.codigo_projeto}] ${data.titulo}` : data.titulo) : "Projeto em curso";
-              if (!cancelled) setActiveTimerTitle(data?.titulo || "Projeto em curso");
-              if (!cancelled) setActiveTimerLocation(projectLabel);
-              if (!cancelled) setActiveTimerRoute(data?.id ? `/dashboard/projetos/${data.id}` : "/dashboard/projetos");
-              return;
-          }
-
-          if (!cancelled) setActiveTimerTitle("Cronómetro em curso");
-          if (!cancelled) setActiveTimerLocation("Item ativo");
-          if (!cancelled) setActiveTimerRoute("/dashboard/tarefas");
+          setActiveTimerTitle(timerMeta.title || "Cronómetro em curso");
+          setActiveTimerLocation(timerMeta.locationLabel || "Item ativo");
+          setActiveTimerRoute(timerMeta.route || "/dashboard/tarefas");
       };
 
       resolveActiveTimerTitle();
@@ -173,7 +112,7 @@ export default function MinhasTarefas() {
       return () => {
           cancelled = true;
       };
-  }, [activeLog, tasks]);
+    }, [activeLog]);
 
   const showToast = (message, type = 'success') => {
       setNotification({ message, type });
@@ -348,26 +287,6 @@ export default function MinhasTarefas() {
 
   function openActiveTimerLocation() {
       if (!activeLog) return;
-
-      // Match DashboardHome behavior: open project detail when project is known.
-      if (activeLog.projeto_id) {
-          navigate(`/dashboard/projetos/${activeLog.projeto_id}`);
-          return;
-      }
-
-      if (activeLog.task_id) {
-          const samePageCard = document.getElementById(`my-task-card-${activeLog.task_id}`);
-          if (samePageCard) {
-              samePageCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              return;
-          }
-      }
-
-      if (activeLog.atividade_id) {
-          navigate('/dashboard/atividades');
-          return;
-      }
-
       navigate(activeTimerRoute || '/dashboard/minhas-tarefas');
   }
 
@@ -1043,10 +962,13 @@ export default function MinhasTarefas() {
               </button>
 
               {activeLog && (
-                  <div onClick={openActiveTimerLocation} className="hover-shadow" title="Clica para ir para a tarefa/atividade em curso" style={{background: 'linear-gradient(to right, #ef4444, #b91c1c)', color: 'white', padding: '8px 15px', borderRadius: '30px', display: 'inline-flex', alignItems: 'center', gap: '8px', border: '2px solid #fecaca', boxShadow: '0 4px 10px rgba(239, 68, 68, 0.35)', cursor: 'pointer', transition: '0.2s', whiteSpace: 'nowrap'}}>
-                      <span className="pulse-dot-white" style={{width: '8px', height: '8px'}}></span>
-                      <span style={{fontWeight: '700', fontSize: '0.8rem', flex: 1, maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis'}}>{getActiveTimerTitle()}</span>
-                      <button type="button" onClick={openStopNoteModal} style={{background: 'white', color:'#ef4444', border:'none', borderRadius:'16px', padding:'4px 10px', cursor:'pointer', fontWeight:'700', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '3px', transition: '0.2s'}}><Icons.Stop size={8} /> Parar</button>
+                  <div onClick={openActiveTimerLocation} className="hover-shadow" title="Clica para ir para a tarefa/atividade em curso" style={{background: 'linear-gradient(to right, #ef4444, #b91c1c)', color: 'white', padding: '10px 20px', borderRadius: '30px', display: 'inline-flex', alignItems: 'center', gap: '15px', border: '2px solid #fecaca', boxShadow: '0 4px 10px rgba(239, 68, 68, 0.4)', cursor: 'pointer', transition: '0.2s', whiteSpace: 'nowrap'}}>
+                      <div style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700', fontSize: '0.95rem'}}>
+                          <span className="pulse-dot-white" style={{width: '8px', height: '8px'}}></span>
+                          {getActiveTimerTitle().length > 30 ? `${getActiveTimerTitle().slice(0, 30)}...` : getActiveTimerTitle()}
+                      </div>
+                      <div style={{width: '1px', height: '20px', background: 'rgba(255,255,255,0.3)'}}></div>
+                      <button type="button" onClick={openStopNoteModal} style={{background: 'white', color:'#ef4444', border:'none', borderRadius:'20px', padding:'6px 12px', cursor:'pointer', fontWeight:'700', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px', transition: '0.2s'}}><Icons.Stop /> Parar</button>
                   </div>
               )}
           </div>

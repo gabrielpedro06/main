@@ -7,6 +7,7 @@ import { useAuth } from "../context/AuthContext";
 import TimerSwitchModal from "../components/TimerSwitchModal";
 import StopTimerNoteModal from "../components/StopTimerNoteModal";
 import { hasAttendanceStartedToday, startAttendanceNow } from "../utils/attendanceGuard";
+import { resolveActiveTimerMeta } from "../utils/activeTimerResolver";
 import "./../styles/dashboard.css";
 
 const ModalPortal = ({ children }) => {
@@ -42,6 +43,8 @@ export default function Tarefas() {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false); 
   const [activeTask, setActiveTask] = useState(null); 
+    const [activeTaskTitle, setActiveTaskTitle] = useState("");
+    const [activeTaskRoute, setActiveTaskRoute] = useState("/dashboard/tarefas");
   const [notification, setNotification] = useState(null);
 
   const [atividadesBase, setAtividadesBase] = useState([]);
@@ -95,6 +98,32 @@ export default function Tarefas() {
   useEffect(() => {
     if (user && user.id) carregarTudo();
   }, [user]);
+
+  useEffect(() => {
+      let cancelled = false;
+
+      const resolveActiveTitle = async () => {
+          if (!activeTask) {
+              if (!cancelled) {
+                  setActiveTaskTitle("");
+                  setActiveTaskRoute("/dashboard/tarefas");
+              }
+              return;
+          }
+
+          const timerMeta = await resolveActiveTimerMeta(supabase, activeTask);
+          if (cancelled) return;
+
+          setActiveTaskTitle(timerMeta.title || "Tarefa em curso");
+          setActiveTaskRoute(timerMeta.route || "/dashboard/tarefas");
+      };
+
+      resolveActiveTitle();
+
+      return () => {
+          cancelled = true;
+      };
+  }, [activeTask]);
 
   const showToast = (message, type = 'success') => {
       setNotification({ message, type });
@@ -762,19 +791,7 @@ export default function Tarefas() {
   }
 
   function getActiveTaskTitle() {
-      if (activeTask?.atividade_id && !activeTask?.task_id) {
-          const atividadeAtiva = atividadesAgrupadas.find((a) => String(a.id) === String(activeTask.atividade_id));
-          return atividadeAtiva?.titulo || "Atividade em curso";
-      }
-
-      if (!activeTask?.task_id) return "Tarefa em curso";
-
-      for (const ativ of atividadesAgrupadas) {
-          const found = (ativ.tarefas || []).find((t) => String(t.id) === String(activeTask.task_id));
-          if (found) return found.titulo || "Tarefa em curso";
-      }
-
-      return "Tarefa em curso";
+      return activeTaskTitle || "Tarefa em curso";
   }
 
   function getActiveTaskLocationLabel() {
@@ -804,39 +821,7 @@ export default function Tarefas() {
 
     async function focusActiveTaskLocation() {
       if (!activeTask) return;
-
-      // Match DashboardHome behavior: go straight to the project detail when possible.
-      if (activeTask.projeto_id) {
-          navigate(`/dashboard/projetos/${activeTask.projeto_id}`);
-          return;
-      }
-
-      if (activeTask.atividade_id) {
-          navigate('/dashboard/atividades');
-          return;
-      }
-
-      if (activeTask.task_id) {
-          const { data: taskData } = await supabase
-              .from("tarefas")
-              .select("atividade_id, atividades(projeto_id)")
-              .eq("id", activeTask.task_id)
-              .maybeSingle();
-
-          const projectId = taskData?.atividades?.projeto_id;
-          if (projectId) {
-              navigate(`/dashboard/projetos/${projectId}`);
-              return;
-          }
-
-          if (taskData?.atividade_id) {
-              navigate('/dashboard/atividades');
-              return;
-          }
-
-          // Avulsa: open personal tasks board.
-          navigate('/dashboard/minhas-tarefas');
-      }
+      navigate(activeTaskRoute || '/dashboard/tarefas');
   }
 
   function getStopCompleteLabel(logEntry) {
@@ -1265,8 +1250,10 @@ export default function Tarefas() {
       <div style={{background: 'white', padding: '20px 25px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.02)'}}>
         <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
             <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.5rem', fontWeight: '800', letterSpacing: '-0.02em'}}>Tarefas de Projetos</h1>
+        </div>
+        <div style={{display:'flex', gap:'10px', alignItems: 'center'}}>
             {activeTask && (
-                <div onClick={focusActiveTaskLocation} className="hover-shadow" title="Clica para ir para a tarefa/atividade em curso" style={{background: 'linear-gradient(to right, #ef4444, #b91c1c)', color: 'white', padding: '10px 20px', borderRadius: '30px', display: 'flex', alignItems: 'center', gap: '15px', border: '2px solid #fecaca', boxShadow: '0 4px 10px rgba(239, 68, 68, 0.35)', cursor: 'pointer', transition: '0.2s'}}>
+                <div onClick={focusActiveTaskLocation} className="hover-shadow" title="Clica para ir para a tarefa/atividade em curso" style={{background: 'linear-gradient(to right, #ef4444, #b91c1c)', color: 'white', padding: '10px 20px', borderRadius: '30px', display: 'flex', alignItems: 'center', gap: '15px', border: '2px solid #fecaca', boxShadow: '0 4px 10px rgba(239, 68, 68, 0.4)', cursor: 'pointer', transition: '0.2s', whiteSpace: 'nowrap'}}>
                     <div style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700', fontSize: '0.95rem'}}>
                         <span className="pulse-dot-white"></span>
                         {getActiveTaskTitle().length > 30 ? `${getActiveTaskTitle().slice(0, 30)}...` : getActiveTaskTitle()}
@@ -1275,8 +1262,6 @@ export default function Tarefas() {
                     <button type="button" onClick={openStopNoteModal} style={{background: 'white', color:'#ef4444', border:'none', borderRadius:'20px', padding:'6px 12px', cursor:'pointer', fontWeight:'700', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px', transition: '0.2s'}}><Icons.Stop /> Parar</button>
                 </div>
             )}
-        </div>
-        <div style={{display:'flex', gap:'10px'}}>
             <button onClick={openTimeCreateModal} className="btn-soft-cta"><Icons.Clock size={16} /> Tempo Manual</button>
             <button onClick={handleNovo} className="btn-cta">+ Nova Tarefa de Projeto</button>
         </div>

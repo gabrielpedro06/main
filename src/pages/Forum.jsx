@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
+import StopTimerNoteModal from "../components/StopTimerNoteModal";
+import { resolveActiveTimerMeta } from "../utils/activeTimerResolver";
 import "./../styles/dashboard.css";
 
 // --- ÍCONES SVG PROFISSIONAIS ---
@@ -16,7 +19,8 @@ const Icons = {
   AlertTriangle: ({ size = 48, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>,
   Image: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>,
   User: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>,
-  Heart: ({ size = 16, color = "currentColor", fill = "none" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>,
+    Heart: ({ size = 16, color = "currentColor", fill = "none" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>,
+    Stop: ({ size = 12, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none"><rect x="6" y="6" width="12" height="12" rx="2" ry="2"></rect></svg>,
   Edit: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
 };
 
@@ -24,8 +28,13 @@ const ModalPortal = ({ children }) => createPortal(children, document.body);
 
 export default function Forum() {
   const { user, userProfile } = useAuth(); 
+    const navigate = useNavigate();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+    const [activeLog, setActiveLog] = useState(null);
+    const [activeLogTitle, setActiveLogTitle] = useState("");
+    const [activeLogRoute, setActiveLogRoute] = useState("/dashboard/tarefas");
+    const [stopNoteModal, setStopNoteModal] = useState({ show: false });
 
   const [showNewPostModal, setShowNewPostModal] = useState(false);
   const [selectedPost, setSelectedPost] = useState(null); 
@@ -49,10 +58,125 @@ export default function Forum() {
     window.dispatchEvent(new Event('storage')); 
   }, []);
 
+    useEffect(() => {
+        if (user?.id) checkActiveLog();
+    }, [user?.id]);
+
+    useEffect(() => {
+        if (!user?.id) return;
+
+        const refresh = () => checkActiveLog();
+        const intervalId = setInterval(refresh, 45000);
+        window.addEventListener("focus", refresh);
+        document.addEventListener("visibilitychange", refresh);
+
+        return () => {
+            clearInterval(intervalId);
+            window.removeEventListener("focus", refresh);
+            document.removeEventListener("visibilitychange", refresh);
+        };
+    }, [user?.id]);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const resolveActiveTitle = async () => {
+            if (!activeLog) {
+                if (!cancelled) {
+                    setActiveLogTitle("");
+                    setActiveLogRoute("/dashboard/tarefas");
+                }
+                return;
+            }
+
+            const timerMeta = await resolveActiveTimerMeta(supabase, activeLog);
+            if (cancelled) return;
+
+            setActiveLogTitle(timerMeta.title || "Tempo a decorrer...");
+            setActiveLogRoute(timerMeta.route || "/dashboard/tarefas");
+        };
+
+        resolveActiveTitle();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [activeLog]);
+
   const showToast = (message, type = 'success') => {
       setNotification({ show: true, message, type });
       setTimeout(() => setNotification({ show: false, message: '', type: 'success' }), 3000);
   };
+
+    async function checkActiveLog() {
+        if (!user?.id) {
+            setActiveLog(null);
+            return;
+        }
+
+        const { data, error } = await supabase
+            .from("task_logs")
+            .select("*")
+            .eq("user_id", user.id)
+            .is("end_time", null)
+            .order("start_time", { ascending: false })
+            .limit(1);
+
+        if (error) {
+            setActiveLog(null);
+            return;
+        }
+
+        setActiveLog(Array.isArray(data) ? data[0] || null : null);
+    }
+
+    async function stopLogById(logToStop, stopNote = "") {
+        if (!logToStop) return null;
+        const diffMins = Math.max(1, Math.floor((new Date() - new Date(logToStop.start_time)) / 60000));
+        const stopTimestamp = new Date().toISOString();
+        const note = typeof stopNote === "string" ? stopNote.trim() : "";
+        const payload = { end_time: stopTimestamp, duration_minutes: diffMins };
+        if (note) payload.observacoes = note;
+
+        let { error } = await supabase.from("task_logs").update(payload).eq("id", logToStop.id);
+
+        if (error && note) {
+            const retry = await supabase
+                .from("task_logs")
+                .update({ end_time: stopTimestamp, duration_minutes: diffMins })
+                .eq("id", logToStop.id);
+            error = retry.error;
+        }
+
+        if (error) {
+            showToast("Erro ao terminar o cronómetro atual.", "error");
+            return null;
+        }
+
+        return diffMins;
+    }
+
+    function openStopNoteModal(e) {
+        if (e?.stopPropagation) e.stopPropagation();
+        if (!activeLog) return;
+        setStopNoteModal({ show: true });
+    }
+
+    function closeStopNoteModal() {
+        setStopNoteModal({ show: false });
+    }
+
+    async function confirmStopWithNote(note) {
+        setStopNoteModal({ show: false });
+        if (!activeLog) return;
+
+        const logToStop = activeLog;
+        const diffMins = await stopLogById(logToStop, note);
+        if (diffMins === null) return;
+
+        setActiveLog(null);
+        showToast(`Tempo registado: ${diffMins} min.`, "success");
+    }
 
   async function fetchPosts(showLoader = true) {
     if (showLoader) setLoading(true);
@@ -312,9 +436,26 @@ export default function Forum() {
                 <p style={{color: '#64748b', margin: 0, fontWeight: '500', fontSize: '0.9rem'}}>Fórum de partilha de informações e discussões</p>
             </div>
         </div>
-        <button className="btn-cta" onClick={() => setShowNewPostModal(true)}>
-            <Icons.Plus /> Novo Post
-        </button>
+                <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+                    {activeLog && (
+                        <div
+                            onClick={() => navigate(activeLogRoute || '/dashboard/tarefas')}
+                            title="Ir para o item com cronómetro em curso"
+                            className="hover-shadow"
+                            style={{background: 'linear-gradient(to right, #ef4444, #b91c1c)', color: 'white', padding: '10px 20px', borderRadius: '30px', display: 'flex', alignItems: 'center', gap: '15px', border: '2px solid #fecaca', boxShadow: '0 4px 10px rgba(239, 68, 68, 0.4)', transition: '0.2s', whiteSpace: 'nowrap', cursor: 'pointer'}}
+                        >
+                            <div style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700', fontSize: '0.95rem'}}>
+                                <span className="pulse-dot-white" style={{width: '8px', height: '8px'}}></span>
+                                {(activeLogTitle || 'Tempo a decorrer...').length > 30 ? `${(activeLogTitle || 'Tempo a decorrer...').slice(0, 30)}...` : (activeLogTitle || 'Tempo a decorrer...')}
+                            </div>
+                            <div style={{width: '1px', height: '20px', background: 'rgba(255,255,255,0.3)'}}></div>
+                            <button type="button" onClick={openStopNoteModal} style={{background: 'white', color:'#ef4444', border:'none', borderRadius:'20px', padding:'6px 12px', cursor:'pointer', fontWeight:'700', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px', transition: '0.2s'}}><Icons.Stop /> Parar</button>
+                        </div>
+                    )}
+                    <button className="btn-cta" onClick={() => setShowNewPostModal(true)}>
+                            <Icons.Plus /> Novo Post
+                    </button>
+                </div>
       </div>
 
       {/* ALERTA DE FILTRO ATIVO */}
@@ -640,6 +781,16 @@ export default function Forum() {
             </div>
         </ModalPortal>
       )}
+
+            <StopTimerNoteModal
+                open={stopNoteModal.show}
+                title="Parar cronometro"
+                message="Se quiseres, adiciona uma nota breve sobre o que foi feito (opcional)."
+                placeholder="Ex: Concluída análise e próximos passos definidos"
+                showCompleteOption={false}
+                onCancel={closeStopNoteModal}
+                onConfirm={(note) => confirmStopWithNote(note)}
+            />
 
       <style>{`
         .hover-shadow:hover { transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }

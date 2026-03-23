@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
 import TimerSwitchModal from "../components/TimerSwitchModal";
 import StopTimerNoteModal from "../components/StopTimerNoteModal";
 import { hasAttendanceStartedToday, startAttendanceNow } from "../utils/attendanceGuard";
+import { resolveActiveTimerMeta } from "../utils/activeTimerResolver";
 import "./../styles/dashboard.css";
 
 // --- ÍCONES SVG PROFISSIONAIS ---
@@ -31,11 +33,14 @@ const ModalPortal = ({ children }) => {
 
 export default function Atividades() {
   const { user } = useAuth();
+    const navigate = useNavigate();
   const [atividades, setAtividades] = useState([]);
   const [loading, setLoading] = useState(true);
   
   // Time Tracking
   const [activeLog, setActiveLog] = useState(null); 
+    const [activeLogTitle, setActiveLogTitle] = useState("");
+    const [activeLogRoute, setActiveLogRoute] = useState("/dashboard/atividades");
 
   // Notificações (Toasts)
   const [notification, setNotification] = useState(null);
@@ -73,6 +78,32 @@ export default function Atividades() {
     fetchData();
     checkActiveLog();
   }, [user]);
+
+  useEffect(() => {
+      let cancelled = false;
+
+      const resolveActiveTitle = async () => {
+          if (!activeLog) {
+              if (!cancelled) {
+                  setActiveLogTitle("");
+                  setActiveLogRoute("/dashboard/atividades");
+              }
+              return;
+          }
+
+          const timerMeta = await resolveActiveTimerMeta(supabase, activeLog);
+          if (cancelled) return;
+
+          setActiveLogTitle(timerMeta.title || "Atividade em curso");
+          setActiveLogRoute(timerMeta.route || "/dashboard/atividades");
+      };
+
+      resolveActiveTitle();
+
+      return () => {
+          cancelled = true;
+      };
+  }, [activeLog]);
 
   const showToast = (message, type = 'success') => {
       setNotification({ message, type });
@@ -453,7 +484,6 @@ export default function Atividades() {
   const sectionTitleStyle = { display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '15px', marginTop: '20px', borderBottom: '1px solid #e2e8f0', paddingBottom: '5px' };
   const labelStyle = { display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' };
   const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', color: '#1e293b', outline: 'none', boxSizing: 'border-box' };
-
   return (
     <div className="page-container">
       
@@ -465,17 +495,20 @@ export default function Atividades() {
                 <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>Atividades</h1>
                 <p style={{color: '#64748b', margin: 0, fontWeight: '500', fontSize: '0.9rem'}}>Gestão de blocos de trabalho</p>
             </div>
-            
+        </div>
+        <div style={{display:'flex', gap:'10px', alignItems: 'center'}}>
             {activeLog && (
-                <div style={{ background: '#2563eb', color: 'white', padding: '8px 16px', borderRadius: '20px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '10px', boxShadow: '0 4px 10px rgba(37, 99, 235, 0.3)', marginLeft: '15px' }}>
-                    <span className="pulse-dot-white"></span> A contar...
-                    <button onClick={openStopNoteModal} style={{background: 'white', color:'#2563eb', border:'none', borderRadius:'5px', padding:'4px 8px', cursor:'pointer', fontWeight:'bold', display: 'flex', alignItems: 'center', gap: '4px'}}>
+                <div onClick={() => navigate(activeLogRoute || '/dashboard/atividades')} title="Ir para o item com cronómetro em curso" className="hover-shadow" style={{background: 'linear-gradient(to right, #ef4444, #b91c1c)', color: 'white', padding: '10px 20px', borderRadius: '30px', display: 'flex', alignItems: 'center', gap: '15px', border: '2px solid #fecaca', boxShadow: '0 4px 10px rgba(239, 68, 68, 0.4)', transition: '0.2s', whiteSpace: 'nowrap', cursor: 'pointer'}}>
+                    <div style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700', fontSize: '0.95rem'}}>
+                        <span className="pulse-dot-white"></span>
+                        {(activeLogTitle || 'Atividade em curso').length > 30 ? `${(activeLogTitle || 'Atividade em curso').slice(0, 30)}...` : (activeLogTitle || 'Atividade em curso')}
+                    </div>
+                    <div style={{width: '1px', height: '20px', background: 'rgba(255,255,255,0.3)'}}></div>
+                    <button onClick={(e) => { e.stopPropagation(); openStopNoteModal(); }} style={{background: 'white', color:'#ef4444', border:'none', borderRadius:'20px', padding:'6px 12px', cursor:'pointer', fontWeight:'700', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px', transition: '0.2s'}}>
                         <Icons.Stop size={12} /> Parar
                     </button>
                 </div>
             )}
-        </div>
-        <div style={{display:'flex', gap:'10px'}}>
             <button className="btn-soft-cta" onClick={openTimeCreateModal}><Icons.Clock size={16} /> Tempo Manual</button>
             <button className="btn-cta" onClick={handleNovo}>
                 <Icons.Plus /> Nova Atividade
