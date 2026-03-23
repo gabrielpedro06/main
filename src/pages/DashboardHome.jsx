@@ -49,7 +49,7 @@ const ModalPortal = ({ children }) => {
 };
 
 export default function DashboardHome() {
-  const { user } = useAuth(); 
+    const { user, signOut } = useAuth(); 
   const navigate = useNavigate();
   
   const [tarefasHoje, setTarefasHoje] = useState([]);
@@ -83,6 +83,7 @@ export default function DashboardHome() {
   const [recentWorkLogs, setRecentWorkLogs] = useState([]);
     const [recentTasksVisibleCount, setRecentTasksVisibleCount] = useState(2);
   const [alertModal, setAlertModal] = useState({ show: false, message: "" });
+    const [notification, setNotification] = useState(null);
     const [timerSwitchModal, setTimerSwitchModal] = useState({
             show: false,
             message: "",
@@ -95,6 +96,11 @@ export default function DashboardHome() {
         const [stopNoteModal, setStopNoteModal] = useState({ show: false });
     const onlineCardRef = useRef(null);
     const attendancePendingActionRef = useRef(null);
+
+    function showToast(message, type = "success") {
+        setNotification({ message, type });
+        setTimeout(() => setNotification(null), 3000);
+    }
 
     function formatBirthdayDate(proximoAniversario) {
         if (!(proximoAniversario instanceof Date) || isNaN(proximoAniversario.getTime())) return "";
@@ -125,6 +131,10 @@ export default function DashboardHome() {
       const handleWindowFocus = () => {
           refreshDashboardWorkItems();
       };
+
+      const handleTaskLogsUpdated = () => {
+          refreshDashboardWorkItems();
+      };
       
       const hoje = new Date();
       const seed = hoje.getFullYear() * 10000 + (hoje.getMonth() + 1) * 100 + hoje.getDate();
@@ -141,6 +151,7 @@ export default function DashboardHome() {
 
             window.addEventListener('focus', handleWindowFocus);
             document.addEventListener('visibilitychange', handleVisibilityRefresh);
+                        window.addEventListener('task-logs-updated', handleTaskLogsUpdated);
 
       return () => {
           clearInterval(relogioInterval);
@@ -148,6 +159,7 @@ export default function DashboardHome() {
                     clearInterval(workRefreshInterval);
                     window.removeEventListener('focus', handleWindowFocus);
                     document.removeEventListener('visibilitychange', handleVisibilityRefresh);
+                                        window.removeEventListener('task-logs-updated', handleTaskLogsUpdated);
       };
     }
   }, [user]);
@@ -794,8 +806,7 @@ export default function DashboardHome() {
   }
 
   async function handleLogout() {
-    await supabase.auth.signOut();
-    navigate("/"); 
+    await signOut();
   }
 
   async function loadFullHistory() {
@@ -1557,6 +1568,8 @@ export default function DashboardHome() {
             </div>
         </ModalPortal>
       )}
+
+            {notification && <div className={`toast-container ${notification.type}`}>{notification.type === 'success' ? '✅' : '⚠️'} {notification.message}</div>}
 
       {/* --- POP-UP DE PARABÉNS 🎉 --- */}
       {showBirthdayPopup && (

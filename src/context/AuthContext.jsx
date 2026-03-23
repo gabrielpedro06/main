@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from "react"
 import { supabase } from "../services/supabase"
+import { closeAllActiveTaskLogsForUser } from "../utils/taskTimerLifecycle"
 
 const AuthContext = createContext()
 
@@ -52,8 +53,27 @@ export function AuthProvider({ children }) {
   }
 
   // Função para dar Logout (útil para o Navbar/Sidebar)
-  async function signOut() {
+  async function signOut(options = {}) {
+    const forceReload = options.forceReload !== false
+    let closeResult = { closedCount: 0, errors: [] }
+
+    if (user?.id) {
+      closeResult = await closeAllActiveTaskLogsForUser(supabase, user.id, {
+        note: "Cronómetro encerrado automaticamente ao terminar sessão."
+      })
+
+      window.dispatchEvent(new CustomEvent("task-logs-updated", {
+        detail: { reason: "logout", closedCount: closeResult.closedCount || 0 }
+      }))
+      window.dispatchEvent(new Event("attendance-updated"))
+    }
     await supabase.auth.signOut();
+
+    if (forceReload) {
+      window.location.replace("/")
+    }
+
+    return closeResult
   }
 
   return (

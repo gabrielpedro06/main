@@ -4,6 +4,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
+import { closeAllActiveTaskLogsForUser } from "../utils/taskTimerLifecycle";
+import { resolveActiveTimerMeta } from "../utils/activeTimerResolver";
 
 // --- ÍCONES SVG PROFISSIONAIS ---
 const Icons = {
@@ -267,6 +269,18 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
       if (!registroId || loading) return;
       setLoading(true);
       try {
+        const closeResult = await closeAllActiveTaskLogsForUser(supabase, user?.id, {
+          note: "Cronómetro encerrado automaticamente ao pausar a assiduidade."
+        });
+
+        window.dispatchEvent(new CustomEvent("task-logs-updated", {
+          detail: {
+            reason: "attendance-pause",
+            closedCount: closeResult.closedCount || 0
+          }
+        }));
+        window.dispatchEvent(new Event("attendance-updated"));
+
         const horaAtual = new Date().toLocaleTimeString('pt-PT', { hour12: false });
         const { data, error } = await supabase.from("assiduidade").update({ ultima_pausa_inicio: horaAtual }).eq("id", registroId).select().single();
         if (!error) {
@@ -407,6 +421,33 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
       e.preventDefault();
       setLoading(true);
       try {
+        let stoppedTimerTitle = "";
+        const { data: runningLogs } = await supabase
+          .from("task_logs")
+          .select("*")
+          .eq("user_id", user?.id)
+          .is("end_time", null)
+          .order("start_time", { ascending: false })
+          .limit(1);
+
+        const runningLog = Array.isArray(runningLogs) ? runningLogs[0] : null;
+        if (runningLog) {
+          const timerMeta = await resolveActiveTimerMeta(supabase, runningLog);
+          stoppedTimerTitle = timerMeta?.title || "Tempo a decorrer...";
+        }
+
+        const closeResult = await closeAllActiveTaskLogsForUser(supabase, user?.id, {
+          note: "Cronómetro encerrado automaticamente ao terminar a assiduidade."
+        });
+
+        window.dispatchEvent(new CustomEvent("task-logs-updated", {
+          detail: {
+            reason: "attendance-finish",
+            closedCount: closeResult.closedCount || 0,
+            stoppedTimerTitle: stoppedTimerTitle || ""
+          }
+        }));
+
         let finalObservacoes = "";
         
         if (selectedEndOfDayTasks.length > 0) {
