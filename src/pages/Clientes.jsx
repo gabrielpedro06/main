@@ -48,7 +48,8 @@ export default function Clientes() {
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState("");
-  const [mostrarInativos, setMostrarInativos] = useState(false); 
+  const [statusTab, setStatusTab] = useState("ativos");
+  const [viewMode, setViewMode] = useState("cards");
   const [notification, setNotification] = useState(null);
 
   const [showModal, setShowModal] = useState(false);
@@ -372,8 +373,10 @@ export default function Clientes() {
   // --- LÓGICA DE FILTRAGEM DOS CARTÕES ---
   let processedClientes = [...clientes];
 
-  if (!mostrarInativos) {
-      processedClientes = processedClientes.filter(c => c.ativo === true);
+  if (statusTab === "ativos") {
+    processedClientes = processedClientes.filter((c) => c.ativo === true);
+  } else {
+    processedClientes = processedClientes.filter((c) => c.ativo === false);
   }
 
   if (busca) {
@@ -795,7 +798,7 @@ export default function Clientes() {
             <div style={{background: '#eff6ff', color: '#2563eb', padding: '12px', borderRadius: '12px', display: 'flex'}}><Icons.Building size={24} /></div>
             <div>
                 <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>Clientes</h1>
-                <p style={{color: '#64748b', margin: 0, fontWeight: '500', fontSize: '0.9rem'}}>Carteira de Clientes Ativos</p>
+                <p style={{color: '#64748b', margin: 0, fontWeight: '500', fontSize: '0.9rem'}}>{statusTab === "ativos" ? "Carteira de Clientes Ativos" : "Arquivo de Clientes"}</p>
             </div>
         </div>
         <button className="btn-cta" onClick={handleNovo}>
@@ -803,103 +806,224 @@ export default function Clientes() {
         </button>
       </div>
 
-      <div style={{background: '#f8fafc', padding: '12px 20px', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '25px', display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap'}}>
+      <div style={{display:'flex', gap:'5px', paddingLeft: '10px'}}>
+        <button
+          onClick={() => setStatusTab("ativos")}
+          style={{padding: '12px 25px', background: statusTab === 'ativos' ? 'white' : '#e2e8f0', color: statusTab === 'ativos' ? '#2563eb' : '#64748b', border: 'none', borderRadius: '12px 12px 0 0', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display:'flex', alignItems:'center', gap:'8px'}}
+        >
+          <Icons.Building /> Ativos
+        </button>
+        <button
+          onClick={() => setStatusTab("arquivados")}
+          style={{padding: '12px 25px', background: statusTab === 'arquivados' ? 'white' : '#e2e8f0', color: statusTab === 'arquivados' ? '#2563eb' : '#64748b', border: 'none', borderRadius: '12px 12px 0 0', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display:'flex', alignItems:'center', gap:'8px'}}
+        >
+          <Icons.Archive /> Arquivados
+        </button>
+      </div>
+
+      <div style={{background: 'white', padding: '12px 20px', borderRadius: '0 10px 10px 10px', border: '1px solid #e2e8f0', marginBottom: '25px', display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap'}}>
         <div style={{flex: 1, minWidth: '250px', position: 'relative'}}>
             <span style={{position: 'absolute', left: '12px', top: '10px', color: '#94a3b8'}}><Icons.Search /></span>
           <input type="text" placeholder="Procurar por Empresa, Sigla ou NIF..." value={busca} onChange={(e) => setBusca(e.target.value)} style={{width: '100%', padding: '8px 12px 8px 38px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.85rem', boxSizing: 'border-box'}} />
         </div>
-        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#475569', fontSize: '0.9rem', fontWeight: 'bold' }}>
-            <input type="checkbox" checked={mostrarInativos} onChange={e => setMostrarInativos(e.target.checked)} style={{width:'16px', height:'16px', accentColor: '#10b981'}} /> Mostrar Inativos
-        </label>
+        <div style={{display: 'inline-flex', alignItems: 'center', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '4px', marginLeft: 'auto'}}>
+          <button
+            type="button"
+            onClick={() => setViewMode("cards")}
+            className={viewMode === "cards" ? "marketing-view-toggle-btn active" : "marketing-view-toggle-btn"}
+          >
+            Cards
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("list")}
+            className={viewMode === "list" ? "marketing-view-toggle-btn active" : "marketing-view-toggle-btn"}
+          >
+            Lista
+          </button>
+        </div>
       </div>
 
-      <div className="client-grid">
-          {processedClientes.length > 0 ? processedClientes.map(c => {
-              const isInactive = c.ativo === false;
-              const color = getColorForClient(c.nif);
-              const moradaRef = c.moradas_cliente && c.moradas_cliente.length > 0 ? c.moradas_cliente[0] : null;
-              const contactoRef = c.contactos_cliente && c.contactos_cliente.length > 0 ? c.contactos_cliente[0] : null;
+      {viewMode === "cards" ? (
+        <div className="client-grid">
+            {processedClientes.length > 0 ? processedClientes.map(c => {
+                const isInactive = c.ativo === false;
+                const color = getColorForClient(c.nif);
+                const moradaRef = c.moradas_cliente && c.moradas_cliente.length > 0 ? c.moradas_cliente[0] : null;
+                const contactoRef = c.contactos_cliente && c.contactos_cliente.length > 0 ? c.contactos_cliente[0] : null;
 
-              return (
-                  <div 
-                      key={c.id} 
-                      className="client-card hover-shadow"
-                      style={{
-                          background: isInactive ? '#f8fafc' : 'white', borderRadius: '16px', border: '1px solid #e2e8f0', 
-                          display: 'flex', flexDirection: 'column', 
-                          opacity: isInactive ? 0.6 : 1, position: 'relative', overflow: 'hidden',
-                          borderTop: `5px solid ${isInactive ? '#94a3b8' : color}`, transition: 'all 0.2s'
-                      }}
-                  >
-                      <div style={{padding: '20px', flex: 1}}>
-                          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px'}}>
-                              <span style={{background: '#f1f5f9', color: '#64748b', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', fontFamily: 'monospace'}}>{c.nif || 'S/ NIF'}</span>
-                              {isInactive && <span style={{fontSize: '0.65rem', background: '#fee2e2', color: '#ef4444', padding: '2px 8px', borderRadius: '12px', fontWeight: '800'}}>INATIVO</span>}
-                          </div>
-
-                            <div style={{display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px', marginBottom: '10px'}}>
-                              <h2 style={{margin: 0, fontSize: '1.25rem', color: '#1e293b', fontWeight: '800', lineHeight: '1.2'}}>{c.marca || "Sem nome"}</h2>
-                              {c.sigla?.trim() && <span style={{background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '3px 8px', borderRadius: '999px', fontSize: '0.68rem', fontWeight: '800', letterSpacing: '0.04em'}}>{c.sigla}</span>}
+                return (
+                    <div 
+                        key={c.id} 
+                        className="client-card hover-shadow"
+                        style={{
+                            background: isInactive ? '#f8fafc' : 'white', borderRadius: '16px', border: '1px solid #e2e8f0', 
+                            display: 'flex', flexDirection: 'column', 
+                            opacity: isInactive ? 0.6 : 1, position: 'relative', overflow: 'hidden',
+                            borderTop: `5px solid ${isInactive ? '#94a3b8' : color}`, transition: 'all 0.2s'
+                        }}
+                    >
+                        <div style={{padding: '20px', flex: 1}}>
+                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px'}}>
+                                <span style={{background: '#f1f5f9', color: '#64748b', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', fontFamily: 'monospace'}}>{c.nif || 'S/ NIF'}</span>
+                                  {isInactive && <span style={{fontSize: '0.65rem', background: '#fee2e2', color: '#ef4444', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold'}}>ARQUIVADO</span>}
                             </div>
-                          
-                          <div style={{display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '15px'}}>
-                              {moradaRef ? (
-                                  <div style={{fontSize: '0.85rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px'}}>
-                                      <Icons.MapPin /> {moradaRef.concelho ? `${moradaRef.localidade} (${moradaRef.concelho})` : moradaRef.localidade}
-                                  </div>
-                              ) : (
-                                  <div style={{fontSize: '0.85rem', color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.MapPin /> Sem morada registada</div>
-                              )}
 
-                              {contactoRef ? (
-                                  <div style={{fontSize: '0.85rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px'}}>
-                                      <Icons.User /> {contactoRef.nome_contacto} {contactoRef.telefone && `- ${contactoRef.telefone}`}
-                                  </div>
-                              ) : (
-                                  <div style={{fontSize: '0.85rem', color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.User /> Sem contacto registado</div>
-                              )}
+                              <div style={{display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px', marginBottom: '10px'}}>
+                                <h2 style={{margin: 0, fontSize: '1.25rem', color: '#1e293b', fontWeight: '800', lineHeight: '1.2'}}>{c.marca || "Sem nome"}</h2>
+                                {c.sigla?.trim() && <span style={{background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '3px 8px', borderRadius: '999px', fontSize: '0.68rem', fontWeight: '800', letterSpacing: '0.04em'}}>{c.sigla}</span>}
+                              </div>
+                            
+                            <div style={{display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '15px'}}>
+                                {moradaRef ? (
+                                    <div style={{fontSize: '0.85rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px'}}>
+                                        <Icons.MapPin /> {moradaRef.concelho ? `${moradaRef.localidade} (${moradaRef.concelho})` : moradaRef.localidade}
+                                    </div>
+                                ) : (
+                                    <div style={{fontSize: '0.85rem', color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.MapPin /> Sem morada registada</div>
+                                )}
+
+                                {contactoRef ? (
+                                    <div style={{fontSize: '0.85rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px'}}>
+                                        <Icons.User /> {contactoRef.nome_contacto} {contactoRef.telefone && `- ${contactoRef.telefone}`}
+                                    </div>
+                                ) : (
+                                    <div style={{fontSize: '0.85rem', color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.User /> Sem contacto registado</div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div style={{display: 'flex', borderTop: '1px solid #f1f5f9', background: isInactive ? 'transparent' : '#fafaf9'}}>
+                            <button 
+                                onClick={() => handleView(c)} 
+                                style={{flex: 1, padding: '12px', border: 'none', borderRight: '1px solid #f1f5f9', background: 'transparent', color: '#2563eb', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', transition: '0.2s', display:'flex', alignItems:'center', justifyContent:'center', gap:'6px'}}
+                                className="hover-blue-text"
+                            >
+                                <Icons.Eye /> Ver Perfil
+                            </button>
+                            
+                            {!isInactive ? (
+                            <div style={{display: 'flex', alignItems: 'center'}}>
+                              <button 
+                                onClick={() => handleEdit(c)} 
+                                style={{padding: '12px 12px', border: 'none', background: 'transparent', color: '#f59e0b', cursor: 'pointer', transition: '0.2s'}}
+                                className="hover-orange-text"
+                                title="Edição Rápida"
+                              >
+                                <Icons.Edit />
+                              </button>
+                              <button 
+                                onClick={() => handleToggleAtivo(c.id, c.ativo)} 
+                                style={{padding: '12px 12px', border: 'none', background: 'transparent', color: '#ef4444', cursor: 'pointer', transition: '0.2s'}}
+                                className="hover-red-text"
+                                title="Arquivar Empresa"
+                              >
+                                <Icons.Archive />
+                              </button>
+                            </div>
+                            ) : (
+                                <button 
+                                    onClick={() => handleToggleAtivo(c.id, c.ativo)} 
+                                    style={{padding: '12px 20px', border: 'none', background: 'transparent', color: '#16a34a', cursor: 'pointer', transition: '0.2s'}}
+                                    className="hover-green-text"
+                                    title="Reativar Empresa"
+                                >
+                                    <Icons.Restore />
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                );
+            }) : (
+                <div style={{gridColumn: '1 / -1', textAlign: 'center', padding: '60px', background: 'white', borderRadius: '16px', border: '1px dashed #cbd5e1'}}>
+                    <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px', color: '#cbd5e1'}}><Icons.Inbox size={60} /></div>
+                    <h3 style={{color: '#1e293b', margin: '0 0 5px 0', fontSize: '1.2rem'}}>Vazio por aqui.</h3>
+                    <p style={{color: '#64748b', margin: 0}}>Nenhum cliente encontrado com os filtros atuais.</p>
+                </div>
+            )}
+        </div>
+      ) : (
+        <div className="clients-list-wrapper">
+          {processedClientes.length > 0 ? (
+            <div className="table-responsive" style={{borderRadius: '14px'}}>
+              <table className="data-table clients-list-table" style={{minWidth: '980px'}}>
+                <thead>
+                  <tr>
+                    <th>Empresa</th>
+                    <th>Sigla</th>
+                    <th>NIF</th>
+                    <th>Localidade</th>
+                    <th>Contacto</th>
+                    <th>Estado</th>
+                    <th style={{textAlign: 'right'}}>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {processedClientes.map((c) => {
+                    const isInactive = c.ativo === false;
+                    const color = getColorForClient(c.nif);
+                    const moradaRef = c.moradas_cliente && c.moradas_cliente.length > 0 ? c.moradas_cliente[0] : null;
+                    const contactoRef = c.contactos_cliente && c.contactos_cliente.length > 0 ? c.contactos_cliente[0] : null;
+                    const localidade = moradaRef
+                      ? (moradaRef.concelho ? `${moradaRef.localidade} (${moradaRef.concelho})` : moradaRef.localidade)
+                      : "Sem morada";
+
+                    return (
+                      <tr
+                        key={c.id}
+                        className={isInactive ? "row-inactive clients-list-row" : "clients-list-row"}
+                        style={{boxShadow: `inset 4px 0 0 ${color}`}}
+                        onDoubleClick={() => handleView(c)}
+                      >
+                        <td style={{fontWeight: '700'}}>
+                          <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+                            <span className="client-color-dot" style={{background: color, opacity: isInactive ? 0.55 : 1}}></span>
+                            <span>{c.marca || "Sem nome"}</span>
                           </div>
-                      </div>
-
-                      <div style={{display: 'flex', borderTop: '1px solid #f1f5f9', background: isInactive ? 'transparent' : '#fafaf9'}}>
-                          <button 
-                              onClick={() => handleView(c)} 
-                              style={{flex: 1, padding: '12px', border: 'none', borderRight: '1px solid #f1f5f9', background: 'transparent', color: '#2563eb', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', transition: '0.2s', display:'flex', alignItems:'center', justifyContent:'center', gap:'6px'}}
-                              className="hover-blue-text"
-                          >
-                              <Icons.Eye /> Ver Perfil
-                          </button>
-                          
-                          {!isInactive ? (
-                              <button 
-                                  onClick={() => handleEdit(c)} 
-                                  style={{padding: '12px 20px', border: 'none', background: 'transparent', color: '#f59e0b', cursor: 'pointer', transition: '0.2s'}}
-                                  className="hover-orange-text"
-                                  title="Edição Rápida"
-                              >
-                                  <Icons.Edit />
-                              </button>
+                        </td>
+                        <td>{c.sigla?.trim() || "-"}</td>
+                        <td style={{fontFamily: 'monospace'}}>{c.nif || "S/ NIF"}</td>
+                        <td>{localidade}</td>
+                        <td>
+                          {contactoRef
+                            ? `${contactoRef.nome_contacto || "Sem nome"}${contactoRef.telefone ? ` - ${contactoRef.telefone}` : ""}`
+                            : "Sem contacto"}
+                        </td>
+                        <td>
+                          {isInactive ? (
+                            <span className="archive-badge">ARQUIVADO</span>
                           ) : (
-                              <button 
-                                  onClick={() => handleToggleAtivo(c.id, c.ativo)} 
-                                  style={{padding: '12px 20px', border: 'none', background: 'transparent', color: '#16a34a', cursor: 'pointer', transition: '0.2s'}}
-                                  className="hover-green-text"
-                                  title="Reativar Empresa"
-                              >
-                                  <Icons.Restore />
-                              </button>
+                            <span className="active-badge">ATIVO</span>
                           )}
-                      </div>
-                  </div>
-              );
-          }) : (
-              <div style={{gridColumn: '1 / -1', textAlign: 'center', padding: '60px', background: 'white', borderRadius: '16px', border: '1px dashed #cbd5e1'}}>
-                  <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px', color: '#cbd5e1'}}><Icons.Inbox size={60} /></div>
-                  <h3 style={{color: '#1e293b', margin: '0 0 5px 0', fontSize: '1.2rem'}}>Vazio por aqui.</h3>
-                  <p style={{color: '#64748b', margin: 0}}>Nenhum cliente encontrado com os filtros atuais.</p>
-              </div>
+                        </td>
+                        <td>
+                          <div className="list-actions-cell">
+                            <button type="button" onClick={() => handleView(c)} className="list-action-btn view" title="Ver Perfil"><Icons.Eye size={14} /></button>
+                            {!isInactive ? (
+                              <>
+                                <button type="button" onClick={() => handleEdit(c)} className="list-action-btn edit" title="Editar"><Icons.Edit size={14} /></button>
+                                <button type="button" onClick={() => handleToggleAtivo(c.id, c.ativo)} className="list-action-btn archive" title="Arquivar"><Icons.Archive size={14} /></button>
+                              </>
+                            ) : (
+                              <button type="button" onClick={() => handleToggleAtivo(c.id, c.ativo)} className="list-action-btn restore" title="Reativar"><Icons.Restore size={14} /></button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div style={{textAlign: 'center', padding: '60px', background: 'white', borderRadius: '16px', border: '1px dashed #cbd5e1'}}>
+              <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px', color: '#cbd5e1'}}><Icons.Inbox size={60} /></div>
+              <h3 style={{color: '#1e293b', margin: '0 0 5px 0', fontSize: '1.2rem'}}>Vazio por aqui.</h3>
+              <p style={{color: '#64748b', margin: 0}}>Nenhum cliente encontrado com os filtros atuais.</p>
+            </div>
           )}
-      </div>
+        </div>
+      )}
 
       {notification && <div className={`toast-container ${notification.type}`}>{notification.type === 'success' ? '✅' : '⚠️'} {notification.message}</div>}
 
@@ -1520,6 +1644,124 @@ export default function Clientes() {
               border-color: #cbd5e1 !important;
               box-shadow: 0 12px 20px -5px rgba(0,0,0,0.1) !important;
           }
+
+              .marketing-view-toggle-btn {
+              border: none;
+                background: transparent;
+              color: #475569;
+                font-size: 0.8rem;
+              font-weight: 700;
+                padding: 6px 12px;
+                border-radius: 6px;
+              cursor: pointer;
+              transition: 0.2s;
+            }
+
+              .marketing-view-toggle-btn.active {
+                background: #ffffff;
+                color: #2563eb;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            }
+
+              .marketing-view-toggle-btn:not(.active):hover {
+                color: #1e293b;
+            }
+
+            .clients-list-table .row-inactive {
+              opacity: 0.65;
+              background: #f8fafc;
+            }
+
+            .clients-list-row {
+              cursor: pointer;
+            }
+
+              .client-color-dot {
+                width: 10px;
+                height: 10px;
+                border-radius: 999px;
+                border: 1px solid rgba(255, 255, 255, 0.8);
+                box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.08);
+                flex-shrink: 0;
+              }
+
+              .archive-badge,
+              .active-badge {
+              display: inline-flex;
+              align-items: center;
+                border-radius: 4px;
+                padding: 2px 6px;
+                font-size: 0.65rem;
+                font-weight: bold;
+              text-transform: uppercase;
+                letter-spacing: 0.04em;
+            }
+
+              .active-badge {
+              background: #dcfce7;
+              color: #166534;
+            }
+
+              .archive-badge {
+              background: #fee2e2;
+                color: #ef4444;
+            }
+
+            .list-actions-cell {
+              display: flex;
+              gap: 8px;
+              justify-content: flex-end;
+            }
+
+            .list-action-btn {
+                border: 1px solid transparent;
+                background: #ffffff;
+                color: #475569;
+              border-radius: 8px;
+                width: 32px;
+                height: 32px;
+                padding: 0;
+              cursor: pointer;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+              transition: 0.2s;
+            }
+
+            .list-action-btn.view {
+              border-color: #bfdbfe;
+              background: #eff6ff;
+              color: #1d4ed8;
+            }
+
+            .list-action-btn.edit {
+              border-color: #fed7aa;
+              background: #fff7ed;
+              color: #c2410c;
+            }
+
+            .list-action-btn.restore {
+              border-color: #bbf7d0;
+              background: #dcfce7;
+              color: #166534;
+            }
+
+              .list-action-btn.archive {
+                border-color: #fecaca;
+                background: #fee2e2;
+                color: #ef4444;
+              }
+
+            .list-action-btn:hover {
+              transform: translateY(-1px);
+              box-shadow: 0 3px 8px rgba(15, 23, 42, 0.14);
+            }
+
+            @media (max-width: 900px) {
+              .list-actions-cell {
+                justify-content: flex-start;
+              }
+            }
 
           .hover-shadow:hover { box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); transform: translateY(-1px); }
           .hover-blue-text:hover { background: #eff6ff !important; color: #1d4ed8 !important; }
