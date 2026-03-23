@@ -1304,6 +1304,12 @@ export default function ProjetoDetalhe() {
       clientDisplay = `🤝 Parceria: ${parceirosNomes}`;
   }
 
+  const canNavigateToClient = !projeto.is_parceria && Boolean(projeto?.cliente_id);
+  const handleClientHeaderClick = () => {
+      if (!canNavigateToClient) return;
+      navigate('/dashboard/clientes', { state: { openClienteId: projeto.cliente_id } });
+  };
+
   return (
     <div className="page-container" style={{maxWidth: '1200px', margin: '0 auto', paddingBottom: '50px'}}>
       
@@ -1362,7 +1368,24 @@ export default function ProjetoDetalhe() {
                       </div>
                       <div>
                           <div style={{fontSize: '0.65rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', marginBottom: '2px', letterSpacing: '0.05em'}}>Cliente / Local</div>
-                          <div style={{fontSize: '0.95rem', color: '#1e293b', fontWeight: '700'}}>{clientDisplay}</div>
+                          <button
+                              type="button"
+                              onClick={handleClientHeaderClick}
+                              style={{
+                                  fontSize: '0.95rem',
+                                  color: canNavigateToClient ? '#1d4ed8' : '#1e293b',
+                                  fontWeight: '700',
+                                  border: 'none',
+                                  background: 'transparent',
+                                  padding: 0,
+                                  cursor: canNavigateToClient ? 'pointer' : 'default',
+                                  textDecoration: canNavigateToClient ? 'underline' : 'none',
+                                  textUnderlineOffset: '3px'
+                              }}
+                              title={canNavigateToClient ? 'Abrir cliente' : ''}
+                          >
+                              {clientDisplay}
+                          </button>
                       </div>
                   </div>
 

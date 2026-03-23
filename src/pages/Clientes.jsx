@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate } from "react-router-dom"; 
+import { useNavigate, useLocation } from "react-router-dom"; 
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
 import "./../styles/dashboard.css";
@@ -43,6 +43,7 @@ const ModalPortal = ({ children }) => {
 export default function Clientes() {
   const { user, userProfile } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [podeVerAcessos, setPodeVerAcessos] = useState(false);
   const [clientes, setClientes] = useState([]);
@@ -53,9 +54,20 @@ export default function Clientes() {
   const [notification, setNotification] = useState(null);
 
   const [showModal, setShowModal] = useState(false);
+  const [isClosingPanel, setIsClosingPanel] = useState(false);
   const [editId, setEditId] = useState(null); 
   const [isViewOnly, setIsViewOnly] = useState(false);
   const [activeTab, setActiveTab] = useState("geral");
+  const [uploading, setUploading] = useState(false);
+
+  const cropImgRef = useRef(null);
+  const cropContainerRef = useRef(null);
+  const [cropModal, setCropModal] = useState({ show: false, src: null });
+  const [cropScale, setCropScale] = useState(1);
+  const [cropOffset, setCropOffset] = useState({ x: 0, y: 0 });
+  const [cropDragStart, setCropDragStart] = useState(null);
+  const [cropImgNatural, setCropImgNatural] = useState({ w: 1, h: 1 });
+  const [cropContainerSize, setCropContainerSize] = useState({ w: 400, h: 400 });
 
   const [showAddContacto, setShowAddContacto] = useState(false);
   const [showAddMorada, setShowAddMorada] = useState(false);
@@ -67,7 +79,8 @@ export default function Clientes() {
     marca: "", sigla: "", nif: "", entidade: "", website: "",
     objeto_social: "", plano: "Standard",
     certidao_permanente: "", validade_certidao: "",
-    rcbe: "", validade_rcbe: "", ativo: true
+    rcbe: "", validade_rcbe: "", ativo: true,
+    avatar_url: ""
   };
   const [form, setForm] = useState(initialForm);
 
@@ -128,10 +141,115 @@ export default function Clientes() {
     fetchClientes();
   }, []);
 
+  useEffect(() => {
+    const el = cropContainerRef.current;
+    if (!cropModal.show || !el) return;
+    const onWheel = (e) => {
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? 1.1 : 0.9;
+      setCropScale((prev) => {
+        const minScale = Math.max(
+          (cropContainerSize.w * 0.8) / cropImgNatural.w,
+          (cropContainerSize.h * 0.8) / cropImgNatural.h
+        );
+        return Math.max(minScale, Math.min(prev * factor, minScale * 8));
+      });
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [cropModal.show, cropContainerSize, cropImgNatural]);
+
   const showToast = (message, type = 'success') => {
       setNotification({ message, type });
       setTimeout(() => setNotification(null), 3500);
   };
+
+  function handleAvatarUpload(e) {
+    if (isViewOnly) return;
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => setCropModal({ show: true, src: ev.target.result });
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  }
+
+  function handleCropMouseDown(e) {
+    e.preventDefault();
+    setCropDragStart({ mx: e.clientX, my: e.clientY, ox: cropOffset.x, oy: cropOffset.y });
+  }
+
+  function handleCropMouseMove(e) {
+    if (!cropDragStart) return;
+    const dx = e.clientX - cropDragStart.mx;
+    const dy = e.clientY - cropDragStart.my;
+    setCropOffset(clampCropOffset(cropDragStart.ox + dx, cropDragStart.oy + dy, cropScale));
+  }
+
+  function handleCropMouseUp() {
+    setCropDragStart(null);
+  }
+
+  function clampCropOffset(ox, oy, scale) {
+    const { w: cw, h: ch } = cropContainerSize;
+    const { w: iw, h: ih } = cropImgNatural;
+    const cropRadius = Math.round(Math.min(cw, ch) * 0.4);
+    const imgDisplayW = iw * scale;
+    const imgDisplayH = ih * scale;
+    const maxX = cw / 2 - cropRadius - (cw / 2 - imgDisplayW / 2);
+    const minX = cw / 2 + cropRadius - (cw / 2 + imgDisplayW / 2);
+    const maxY = ch / 2 - cropRadius - (ch / 2 - imgDisplayH / 2);
+    const minY = ch / 2 + cropRadius - (ch / 2 + imgDisplayH / 2);
+    return { x: Math.max(minX, Math.min(maxX, ox)), y: Math.max(minY, Math.min(maxY, oy)) };
+  }
+
+  async function confirmCrop() {
+    try {
+      setUploading(true);
+      const img = cropImgRef.current;
+      if (!img) throw new Error("Imagem não encontrada.");
+
+      const { w: cw, h: ch } = cropContainerSize;
+      const cropRadius = Math.round(Math.min(cw, ch) * 0.4);
+      const cropDiameter = cropRadius * 2;
+
+      const imgDispW = cropImgNatural.w * cropScale;
+      const imgDispH = cropImgNatural.h * cropScale;
+      const imgLeft = cw / 2 + cropOffset.x - imgDispW / 2;
+      const imgTop = ch / 2 + cropOffset.y - imgDispH / 2;
+
+      const circleLeft = cw / 2 - cropRadius;
+      const circleTop = ch / 2 - cropRadius;
+
+      const sx = (circleLeft - imgLeft) / cropScale;
+      const sy = (circleTop - imgTop) / cropScale;
+      const sSize = cropDiameter / cropScale;
+
+      const OUTPUT = 400;
+      const canvas = document.createElement("canvas");
+      canvas.width = OUTPUT;
+      canvas.height = OUTPUT;
+      canvas.getContext("2d").drawImage(img, sx, sy, sSize, sSize, 0, 0, OUTPUT, OUTPUT);
+
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
+      if (!blob) throw new Error("Não foi possível gerar a imagem.");
+
+      const fileName = `clientes/${editId || "novo"}-${Date.now()}.jpg`;
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(fileName, blob, { contentType: "image/jpeg", upsert: true });
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(fileName);
+      setForm((prev) => ({ ...prev, avatar_url: publicUrl }));
+      setCropModal({ show: false, src: null });
+      showToast("Foto carregada com sucesso. Guarda para finalizar.", "success");
+    } catch (error) {
+      showToast(`Erro no upload da foto: ${error.message}`, "error");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   const extractNifApiErrorMessage = (data) => {
     if (!data || typeof data !== "object") return null;
@@ -392,6 +510,7 @@ export default function Clientes() {
 
   // --- ABRIR MODAIS ---
   function handleNovo() {
+    setIsClosingPanel(false);
     setEditId(null); setIsViewOnly(false);
     setForm(initialForm);
     setContactos([]); setMoradas([]); setAcessos([]); setCaes([]); setProjetosCliente([]);
@@ -414,6 +533,7 @@ export default function Clientes() {
   }
 
   function loadClienteData(cliente) {
+    setIsClosingPanel(false);
     const safeData = { ...initialForm };
     Object.keys(initialForm).forEach(key => {
         safeData[key] = cliente[key] !== null && cliente[key] !== undefined ? cliente[key] : initialForm[key];
@@ -427,6 +547,30 @@ export default function Clientes() {
     setShowModal(true);
     fetchSubDados(cliente.id);
     verificarPermissaoAcessos(cliente.id); 
+  }
+
+  useEffect(() => {
+    const clienteIdFromState = location.state?.openClienteId;
+    if (!clienteIdFromState || clientes.length === 0) return;
+
+    const clienteToOpen = clientes.find(
+      (cliente) => String(cliente.id) === String(clienteIdFromState)
+    );
+
+    if (clienteToOpen) {
+      handleView(clienteToOpen);
+    }
+
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [location.state, clientes, navigate]);
+
+  function closeClientePanel() {
+    if (isClosingPanel) return;
+    setIsClosingPanel(true);
+    setTimeout(() => {
+      setShowModal(false);
+      setIsClosingPanel(false);
+    }, 360);
   }
 
   async function persistPendingAutoCaes(clienteId) {
@@ -637,6 +781,7 @@ export default function Clientes() {
       marca: form.marca,
       sigla: form.sigla?.trim() || null,
       entidade: form.entidade,
+      avatar_url: form.avatar_url || null,
       objeto_social: form.objeto_social,
       website: form.website,
       plano: form.plano,
@@ -788,6 +933,16 @@ export default function Clientes() {
   const sectionTitleStyle = { fontSize: '0.8rem', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '15px', marginTop: '20px', borderBottom: '1px solid #e2e8f0', paddingBottom: '5px' };
   const labelStyle = { display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' };
   const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', marginBottom: '10px', color: '#1e293b' };
+  const modalTabs = [
+    { id: 'geral', label: 'Geral', icon: Icons.ClipboardList },
+    { id: 'moradas', label: 'Moradas', icon: Icons.MapPin },
+    { id: 'contactos', label: 'Pessoas', icon: Icons.Users },
+    { id: 'projetos', label: 'Projetos', icon: Icons.Rocket },
+    { id: 'atividade', label: 'Atividade', icon: Icons.Activity },
+    { id: 'documentos', label: 'Documentos', icon: Icons.FileText },
+    { id: 'plano', label: 'Plano', icon: Icons.Diamond },
+    { id: 'acessos', label: 'Acessos', icon: Icons.Lock, requiresAcessos: true }
+  ];
 
   if (loading) return <div className="page-container" style={{display:'flex', justifyContent:'center', alignItems:'center', height:'80vh'}}><div className="pulse-dot-white" style={{background:'#2563eb'}}></div></div>;
 
@@ -1030,13 +1185,19 @@ export default function Clientes() {
       {/* --- MEGA MODAL 360º DO CLIENTE --- */}
       {showModal && (
         <ModalPortal>
-          <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(15, 23, 42, 0.7)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:99999}}>
-            <div style={{background:'#fff', width:'96%', maxWidth:'1200px', borderRadius:'16px', boxShadow:'0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow:'hidden', display:'flex', flexDirection:'column', maxHeight:'96vh', animation: 'fadeIn 0.2s ease-out'}} onClick={e => e.stopPropagation()}>
+          <div onClick={closeClientePanel} style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(15, 23, 42, 0.58)', backdropFilter:'blur(3px)', display:'flex', alignItems:'stretch', justifyContent:'flex-end', zIndex:99999}}>
+            <div style={{background:'#fff', width:'min(98vw, 1180px)', height:'100vh', margin:'0', borderRadius:'18px 0 0 18px', boxShadow:'0 25px 50px -12px rgba(0, 0, 0, 0.35)', overflow:'hidden', display:'flex', flexDirection:'column', maxHeight:'100vh', animation: isClosingPanel ? 'sidePanelPullOut 0.36s cubic-bezier(0.4, 0, 0.2, 1) forwards' : 'sidePanelPullIn 0.56s cubic-bezier(0.2, 0.9, 0.2, 1)'}} onClick={e => e.stopPropagation()}>
               
               {/* CABEÇALHO DO MODAL */}
               <div style={{padding:'20px 30px', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center', background:'#f8fafc'}}>
                 <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
-                    <span style={{background:'#eff6ff', color: '#2563eb', padding:'10px', borderRadius:'10px', display: 'flex'}}><Icons.Building size={24} /></span>
+                    <div style={{width:'48px', height:'48px', borderRadius:'50%', overflow:'hidden', border:'1px solid #bfdbfe', background:'#eff6ff', display:'flex', alignItems:'center', justifyContent:'center'}}>
+                      {form.avatar_url ? (
+                        <img src={form.avatar_url} alt="Logo cliente" style={{width:'100%', height:'100%', objectFit:'cover'}} />
+                      ) : (
+                        <Icons.Building size={22} color="#2563eb" />
+                      )}
+                    </div>
                     <h3 style={{margin:0, color:'#1e293b', fontSize:'1.4rem', fontWeight:'800'}}>
                         {isViewOnly ? `Perfil: ${form.marca}` : (editId ? `Editar: ${form.marca}` : "Nova Empresa")}
                     </h3>
@@ -1052,41 +1213,98 @@ export default function Clientes() {
                             {form.ativo === false ? <><Icons.Restore/> Reativar</> : <><Icons.Archive/> Desativar</>}
                         </button>
                     )}
-                    <button onClick={() => setShowModal(false)} style={{background:'#e2e8f0', border:'none', width:'36px', height:'36px', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#475569', transition:'0.2s'}} className="hover-shadow"><Icons.Close/></button>
+                    <button onClick={closeClientePanel} style={{background:'#e2e8f0', border:'none', width:'36px', height:'36px', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#475569', transition:'0.2s'}} className="hover-shadow"><Icons.Close/></button>
                 </div>
               </div>
 
-              {/* TABS DE NAVEGAÇÃO DO MODAL */}
-              {editId && (
-                <div className="tabs" style={{padding: '15px 30px 0 30px', background: '#fff', borderBottom: '1px solid #e2e8f0', display:'flex', flexWrap:'wrap', gap:'5px'}}>
-                  <button className={activeTab === 'geral' ? 'active' : ''} onClick={() => {setActiveTab('geral'); fecharTodosSubForms();}} style={{display:'flex', alignItems:'center', gap:'6px'}}><Icons.ClipboardList /> Geral</button>
-                  <button className={activeTab === 'moradas' ? 'active' : ''} onClick={() => {setActiveTab('moradas'); fecharTodosSubForms();}} style={{display:'flex', alignItems:'center', gap:'6px'}}><Icons.MapPin /> Moradas</button>
-                  <button className={activeTab === 'contactos' ? 'active' : ''} onClick={() => {setActiveTab('contactos'); fecharTodosSubForms();}} style={{display:'flex', alignItems:'center', gap:'6px'}}><Icons.Users /> Pessoas</button>
-                  <button className={activeTab === 'projetos' ? 'active' : ''} onClick={() => {setActiveTab('projetos'); fecharTodosSubForms();}} style={{display:'flex', alignItems:'center', gap:'6px', color: activeTab === 'projetos' ? '#2563eb' : '#3b82f6', fontWeight: '800'}}><Icons.Rocket /> Projetos</button>
-                  <button className={activeTab === 'atividade' ? 'active' : ''} onClick={() => {setActiveTab('atividade'); fecharTodosSubForms();}} style={{display:'flex', alignItems:'center', gap:'6px'}}><Icons.Activity /> Atividade</button>
-                  <button className={activeTab === 'documentos' ? 'active' : ''} onClick={() => {setActiveTab('documentos'); fecharTodosSubForms();}} style={{display:'flex', alignItems:'center', gap:'6px'}}><Icons.FileText /> Documentos</button>
-                  <button className={activeTab === 'plano' ? 'active' : ''} onClick={() => {setActiveTab('plano'); fecharTodosSubForms();}} style={{display:'flex', alignItems:'center', gap:'6px'}}><Icons.Diamond /> Plano</button>
-                  {podeVerAcessos && <button className={activeTab === 'acessos' ? 'active' : ''} onClick={() => {setActiveTab('acessos'); fecharTodosSubForms();}} style={{display:'flex', alignItems:'center', gap:'6px'}}><Icons.Lock /> Acessos</button>}
-                </div>
-              )}
+              <div style={{display:'flex', flex:1, minHeight:0, background:'#f8fafc'}}>
+                {editId && (
+                  <aside style={{width:'215px', borderRight:'1px solid #e2e8f0', background:'#ffffff', padding:'16px 10px', overflowY:'auto'}}>
+                    {modalTabs
+                      .filter((tab) => !tab.requiresAcessos || podeVerAcessos)
+                      .map((tab) => {
+                        const isActive = activeTab === tab.id;
+                        const TabIcon = tab.icon;
+                        return (
+                          <button
+                            key={tab.id}
+                            type="button"
+                            onClick={() => {setActiveTab(tab.id); fecharTodosSubForms();}}
+                            style={{
+                              width:'100%',
+                              border:'none',
+                              borderRadius:'10px',
+                              padding:'10px 12px',
+                              marginBottom:'6px',
+                              display:'flex',
+                              alignItems:'center',
+                              gap:'8px',
+                              cursor:'pointer',
+                              textAlign:'left',
+                              fontSize:'0.95rem',
+                              fontWeight:isActive ? '800' : '700',
+                              color:isActive ? '#1d4ed8' : '#64748b',
+                              background:isActive ? '#eff6ff' : 'transparent',
+                              borderLeft:isActive ? '3px solid #2563eb' : '3px solid transparent',
+                              transition:'0.18s'
+                            }}
+                            className="hover-shadow"
+                          >
+                            <TabIcon size={15} color={isActive ? '#2563eb' : '#64748b'} />
+                            {tab.label}
+                          </button>
+                        );
+                      })}
+                  </aside>
+                )}
 
-              <div style={{padding:'30px', overflowY:'auto', background:'#f8fafc', flex:1}} className="custom-scrollbar">
+                <div style={{padding:'30px', overflowY:'auto', background:'#f8fafc', flex:1}} className="custom-scrollbar">
                 
                 {/* --- ABA GERAL --- */}
                 {activeTab === 'geral' && (
                   <form onSubmit={handleSubmitGeral}>
                      <fieldset disabled={isViewOnly} style={{border: 'none', padding: 0, margin: 0}}>
-                      <div style={{display:'grid', gridTemplateColumns:'1fr 2fr 1fr', gap:'20px'}}>
+                      <div style={{display:'flex', alignItems:'center', gap:'14px', marginBottom:'18px'}}>
+                        {isViewOnly ? (
+                          <div style={{width:'64px', height:'64px', borderRadius:'50%', overflow:'hidden', border:'2px solid #dbeafe', background:'#f1f5f9', display:'flex', alignItems:'center', justifyContent:'center'}}>
+                            {form.avatar_url ? (
+                              <img src={form.avatar_url} alt="Foto cliente" style={{width:'100%', height:'100%', objectFit:'cover'}} />
+                            ) : (
+                              <span style={{fontSize:'1.5rem', color:'#94a3b8'}}>🏢</span>
+                            )}
+                          </div>
+                        ) : (
+                          <label title="Clique para alterar foto" style={{width:'64px', height:'64px', borderRadius:'50%', overflow:'hidden', border:'2px solid #dbeafe', background:'#f1f5f9', display:'flex', alignItems:'center', justifyContent:'center', cursor: uploading ? 'wait' : 'pointer'}}>
+                            {form.avatar_url ? (
+                              <img src={form.avatar_url} alt="Foto cliente" style={{width:'100%', height:'100%', objectFit:'cover'}} />
+                            ) : (
+                              <span style={{fontSize:'1.5rem', color:'#94a3b8'}}>🏢</span>
+                            )}
+                            <input type="file" accept="image/*" hidden onChange={handleAvatarUpload} disabled={uploading} />
+                          </label>
+                        )}
+
+                        <div style={{flex: 1, maxWidth: '420px'}}>
+                          <label style={labelStyle}>Marca / Nome Comercial *</label>
+                          <input
+                            type="text"
+                            value={form.marca}
+                            onChange={e => setForm({...form, marca: e.target.value})}
+                            required
+                            style={{...inputStyle, marginBottom: 0}}
+                            className="input-focus"
+                            disabled={isViewOnly}
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px'}}>
                         <div>
                             <label style={labelStyle}>NIF * <span style={{fontSize:'0.7rem', color:'#2563eb', textTransform: 'none'}}>(Pesquisa Auto)</span></label>
                             <div style={{position: 'relative'}}>
                                 <input type="text" maxLength="9" value={form.nif} onChange={handleNifChange} required style={{...inputStyle, borderColor: '#2563eb', background: '#eff6ff', paddingLeft: '35px'}} placeholder="Ex: 500000000" className="input-focus" />
                                 <span style={{position: 'absolute', left: '12px', top: '10px', color: '#2563eb'}}><Icons.Search /></span>
                             </div>
-                        </div>
-                        <div>
-                            <label style={labelStyle}>Marca / Nome Comercial *</label>
-                            <input type="text" value={form.marca} onChange={e => setForm({...form, marca: e.target.value})} required style={inputStyle} className="input-focus" />
                         </div>
                         <div>
                             <label style={labelStyle}>Sigla</label>
@@ -1114,7 +1332,7 @@ export default function Clientes() {
                   </form>
                 )}
 
-                {/* --- ABA DE PROJETOS DO CLIENTE --- */}
+                {/* --- ABA DE PROJETOS DOZ CLIENTE --- */}
                 {activeTab === 'projetos' && (
                     <div>
                         <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px', background:'white', padding:'20px', borderRadius:'12px', border:'1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)'}}>
@@ -1509,7 +1727,136 @@ export default function Clientes() {
                   </div>
                 )}
 
+                </div>
               </div>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
+
+      {cropModal.show && (
+        <ModalPortal>
+          <div
+            style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.92)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',zIndex:1000000,padding:'16px',boxSizing:'border-box'}}
+            onMouseMove={handleCropMouseMove}
+            onMouseUp={handleCropMouseUp}
+            onMouseLeave={handleCropMouseUp}
+          >
+            <div style={{color:'white',marginBottom:'12px',textAlign:'center'}}>
+              <div style={{fontSize:'1.1rem',fontWeight:'bold'}}>Recortar Foto do Cliente</div>
+              <div style={{fontSize:'0.78rem',color:'rgba(255,255,255,0.55)',marginTop:'3px'}}>Arrasta para mover · Scroll para aproximar/afastar</div>
+            </div>
+
+            <div
+              ref={(el) => {
+                cropContainerRef.current = el;
+                if (el) {
+                  const s = Math.min(el.offsetWidth, el.offsetHeight);
+                  if (s !== cropContainerSize.w) setCropContainerSize({ w: s, h: s });
+                }
+              }}
+              onMouseDown={handleCropMouseDown}
+              style={{
+                position: 'relative',
+                width: 'min(80vw, 80vh, 440px)',
+                height: 'min(80vw, 80vh, 440px)',
+                background: '#111',
+                borderRadius: '12px',
+                overflow: 'hidden',
+                cursor: cropDragStart ? 'grabbing' : 'grab',
+                userSelect: 'none'
+              }}
+            >
+              {cropModal.src && (
+                <img
+                  ref={cropImgRef}
+                  src={cropModal.src}
+                  alt="crop"
+                  draggable={false}
+                  style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: `translate(calc(-50% + ${cropOffset.x}px), calc(-50% + ${cropOffset.y}px)) scale(${cropScale})`,
+                    transformOrigin: 'center center',
+                    width: cropImgNatural.w > 0 ? cropImgNatural.w : 'auto',
+                    height: 'auto',
+                    maxWidth: 'none',
+                    pointerEvents: 'none',
+                    userSelect: 'none'
+                  }}
+                  onLoad={(e) => {
+                    const img = e.target;
+                    const nw = img.naturalWidth;
+                    const nh = img.naturalHeight;
+                    setCropImgNatural({ w: nw, h: nh });
+                    const size = cropContainerRef.current
+                      ? Math.min(cropContainerRef.current.offsetWidth, cropContainerRef.current.offsetHeight)
+                      : 400;
+                    setCropContainerSize({ w: size, h: size });
+                    const cropRadius = Math.round(size * 0.4);
+                    const minScale = Math.max((cropRadius * 2) / nw, (cropRadius * 2) / nh);
+                    setCropScale(minScale);
+                    setCropOffset({ x: 0, y: 0 });
+                  }}
+                />
+              )}
+
+              <svg
+                style={{position:'absolute',top:0,left:0,width:'100%',height:'100%',pointerEvents:'none'}}
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <defs>
+                  <mask id="cropMaskClientes">
+                    <rect width="100%" height="100%" fill="white" />
+                    <circle
+                      cx="50%" cy="50%"
+                      r={`${Math.round(Math.min(cropContainerSize.w, cropContainerSize.h) * 0.4)}px`}
+                      fill="black"
+                    />
+                  </mask>
+                </defs>
+                <rect width="100%" height="100%" fill="rgba(0,0,0,0.58)" mask="url(#cropMaskClientes)" />
+                <circle
+                  cx="50%" cy="50%"
+                  r={Math.round(Math.min(cropContainerSize.w, cropContainerSize.h) * 0.4)}
+                  fill="none" stroke="white" strokeWidth="2"
+                />
+              </svg>
+            </div>
+
+            <div style={{display:'flex',alignItems:'center',gap:'10px',marginTop:'14px',width:'min(80vw,440px)'}}>
+              <span style={{color:'rgba(255,255,255,0.5)',fontSize:'0.8rem'}}>−</span>
+              <input
+                type="range" min={1} max={100} step={1}
+                value={Math.round(
+                  (() => {
+                    const minS = Math.max(
+                      (Math.round(Math.min(cropContainerSize.w,cropContainerSize.h)*0.8)) / Math.max(cropImgNatural.w,1),
+                      (Math.round(Math.min(cropContainerSize.w,cropContainerSize.h)*0.8)) / Math.max(cropImgNatural.h,1)
+                    );
+                    const maxS = minS * 8;
+                    return ((cropScale - minS) / (maxS - minS)) * 99 + 1;
+                  })()
+                )}
+                onChange={(ev) => {
+                  const pct = (Number(ev.target.value) - 1) / 99;
+                  const minS = Math.max(
+                    (Math.round(Math.min(cropContainerSize.w,cropContainerSize.h)*0.8)) / Math.max(cropImgNatural.w,1),
+                    (Math.round(Math.min(cropContainerSize.w,cropContainerSize.h)*0.8)) / Math.max(cropImgNatural.h,1)
+                  );
+                  const newScale = minS + pct * (minS * 7);
+                  setCropScale(newScale);
+                  setCropOffset((prev) => clampCropOffset(prev.x, prev.y, newScale));
+                }}
+                style={{flex:1,accentColor:'white'}}
+              />
+              <span style={{color:'rgba(255,255,255,0.5)',fontSize:'0.8rem'}}>+</span>
+            </div>
+
+            <div style={{display:'flex',gap:'10px',marginTop:'16px'}}>
+              <button type="button" onClick={() => setCropModal({ show: false, src: null })} style={{padding:'10px 22px',borderRadius:'8px',border:'1px solid rgba(255,255,255,0.2)',background:'transparent',color:'white',cursor:'pointer',fontWeight:'bold'}}>Cancelar</button>
+              <button type="button" onClick={confirmCrop} disabled={uploading} style={{padding:'10px 28px',borderRadius:'8px',border:'none',background:'#2563eb',color:'white',cursor:'pointer',fontWeight:'bold',fontSize:'0.95rem'}}>{uploading ? 'A guardar...' : 'Confirmar Recorte'}</button>
             </div>
           </div>
         </ModalPortal>
@@ -1636,6 +1983,32 @@ export default function Clientes() {
               display: grid;
               grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
               gap: 20px;
+          }
+
+          @keyframes sidePanelPullIn {
+            0% {
+              transform: translateX(100%);
+              opacity: 0.72;
+            }
+            72% {
+              transform: translateX(-10px);
+              opacity: 1;
+            }
+            100% {
+              transform: translateX(0);
+              opacity: 1;
+            }
+          }
+
+          @keyframes sidePanelPullOut {
+            0% {
+              transform: translateX(0);
+              opacity: 1;
+            }
+            100% {
+              transform: translateX(100%);
+              opacity: 0.78;
+            }
           }
           
           /* Efeito Interativo no Cartão */
