@@ -1460,6 +1460,13 @@ export default function ProjetoDetalhe() {
                     const hasNoTasks = !ativ.tarefas || ativ.tarefas.length === 0;
                     const isAtivTimerActive = activeLog?.atividade_id === ativ.id;
                     const ativTime = getActivityTime(ativ);
+                    const atividadeResponsavelNome = getPersonLabelById(ativ.responsavel_id);
+                    const atividadeParticipantes = [...new Set(
+                        (Array.isArray(ativ.colaboradores_extra) ? ativ.colaboradores_extra : [])
+                            .filter((cid) => String(cid) !== String(ativ.responsavel_id || ""))
+                            .map((cid) => getPersonLabelById(cid))
+                            .filter(Boolean)
+                    )];
                     
                     const isCollapsed = collapsedAtivs[ativ.id];
 
@@ -1485,15 +1492,30 @@ export default function ProjetoDetalhe() {
                                 <div onClick={() => toggleAtividadeStatus(ativ.id, ativ.estado)} style={{width: '26px', height: '26px', borderRadius: '8px', cursor: 'pointer', background: isAtivDone ? '#2563eb' : '#f8fafc', border: isAtivDone ? 'none' : '2px solid #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', transition: 'all 0.2s'}}>
                                     {isAtivDone && <Icons.Check size={16} />}
                                 </div>
-                                <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
-                                    <h3 style={{margin: 0, color: isAtivDone ? '#94a3b8' : '#0f172a', textDecoration: isAtivDone ? 'line-through' : 'none', fontSize: '1.1rem', fontWeight: '700'}}>
-                                        {ativ.titulo}
-                                    </h3>
-                                    {renderDeadline(ativ.data_fim, isAtivDone, true)}
-                                    
-                                    <button onClick={() => setAtividadeModal({show: true, data: { ...ativ, colaboradores_extra: Array.isArray(ativ.colaboradores_extra) ? ativ.colaboradores_extra : [] }})} style={{background:'none', border:'none', color:'#3b82f6', cursor:'pointer'}} title="Editar Atividade" className="hover-shadow">
-                                        <Icons.Edit size={16} />
-                                    </button>
+                                <div>
+                                    <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+                                        <h3 style={{margin: 0, color: isAtivDone ? '#94a3b8' : '#0f172a', textDecoration: isAtivDone ? 'line-through' : 'none', fontSize: '1.1rem', fontWeight: '700'}}>
+                                            {ativ.titulo}
+                                        </h3>
+                                        {renderDeadline(ativ.data_fim, isAtivDone, true)}
+                                        
+                                        <button onClick={() => setAtividadeModal({show: true, data: { ...ativ, colaboradores_extra: Array.isArray(ativ.colaboradores_extra) ? ativ.colaboradores_extra : [] }})} style={{background:'none', border:'none', color:'#3b82f6', cursor:'pointer'}} title="Editar Atividade" className="hover-shadow">
+                                            <Icons.Edit size={16} />
+                                        </button>
+                                    </div>
+
+                                    <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginTop: '5px', flexWrap: 'wrap'}}>
+                                        <span style={{fontSize: '0.7rem', background: '#eff6ff', color: '#1d4ed8', padding: '2px 8px', borderRadius: '999px', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '5px'}}>
+                                            <Icons.User size={11} />
+                                            Resp: {atividadeResponsavelNome || 'Sem responsável'}
+                                        </span>
+                                        {atividadeParticipantes.length > 0 && (
+                                            <span style={{fontSize: '0.7rem', background: '#f8fafc', color: '#475569', padding: '2px 8px', borderRadius: '999px', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '5px'}} title={atividadeParticipantes.join(', ')}>
+                                                <Icons.Users size={11} />
+                                                Participantes: {atividadeParticipantes.join(', ')}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 
