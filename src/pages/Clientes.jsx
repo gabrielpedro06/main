@@ -1590,14 +1590,22 @@ export default function Clientes() {
                 {/* --- ABA DOCUMENTOS --- */}
                 {activeTab === 'documentos' && (
                   <form onSubmit={handleSubmitGeral}>
-                     <fieldset disabled={isViewOnly} style={{border:'none', padding:0, margin: 0}}>
+                     <div style={{border:'none', padding:0, margin: 0}}>
                       
                       <div style={{background:'white', padding:'30px', borderRadius:'12px', border:'1px solid #e2e8f0', marginBottom:'20px'}}>
                           <div style={{display:'grid', gridTemplateColumns:'2fr 1fr', gap:'20px'}}>
                             <div>
                                 <label style={labelStyle}>Código Certidão Permanente</label>
                                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                    <input type="text" value={form.certidao_permanente} onChange={e => setForm({...form, certidao_permanente: e.target.value})} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} placeholder="Ex: 1234-5678-9012" className="input-focus" />
+                                    <input disabled={isViewOnly} type="text" value={form.certidao_permanente} onChange={e => setForm({...form, certidao_permanente: e.target.value})} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} placeholder="Ex: 1234-5678-9012" className="input-focus" />
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCopyCredential(form.certidao_permanente, 'Certidão Permanente')}
+                                    title="Copiar código da certidão"
+                                    className="btn-icon-link"
+                                  >
+                                    <Icons.Copy />
+                                  </button>
                                     <a href="https://www2.gov.pt/espaco-empresa/empresa-online/consultar-a-certidao-permanente" target="_blank" rel="noopener noreferrer" title="Abrir Portal da Certidão Permanente" className="btn-icon-link">
                                         <Icons.ExternalLink />
                                     </a>
@@ -1605,7 +1613,7 @@ export default function Clientes() {
                             </div>
                             <div>
                                 <label style={labelStyle}>Data de Validade</label>
-                                <input type="date" value={form.validade_certidao || ""} onChange={e => setForm({...form, validade_certidao: e.target.value})} style={inputStyle} className="input-focus" />
+                                <input disabled={isViewOnly} type="date" value={form.validade_certidao || ""} onChange={e => setForm({...form, validade_certidao: e.target.value})} style={inputStyle} className="input-focus" />
                             </div>
                           </div>
                       </div>
@@ -1615,7 +1623,15 @@ export default function Clientes() {
                             <div>
                                 <label style={labelStyle}>Código RCBE</label>
                                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                    <input type="text" value={form.rcbe} onChange={e => setForm({...form, rcbe: e.target.value})} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} placeholder="Código de acesso RCBE" className="input-focus" />
+                                    <input disabled={isViewOnly} type="text" value={form.rcbe} onChange={e => setForm({...form, rcbe: e.target.value})} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} placeholder="Código de acesso RCBE" className="input-focus" />
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCopyCredential(form.rcbe, 'Código RCBE')}
+                                    title="Copiar código RCBE"
+                                    className="btn-icon-link"
+                                  >
+                                    <Icons.Copy />
+                                  </button>
                                     <a href="https://rcbe.justica.gov.pt" target="_blank" rel="noopener noreferrer" title="Abrir Portal RCBE" className="btn-icon-link">
                                         <Icons.ExternalLink />
                                     </a>
@@ -1623,13 +1639,13 @@ export default function Clientes() {
                             </div>
                             <div>
                                 <label style={labelStyle}>Data de Validade</label>
-                                <input type="date" value={form.validade_rcbe || ""} onChange={e => setForm({...form, validade_rcbe: e.target.value})} style={inputStyle} className="input-focus" />
+                                <input disabled={isViewOnly} type="date" value={form.validade_rcbe || ""} onChange={e => setForm({...form, validade_rcbe: e.target.value})} style={inputStyle} className="input-focus" />
                             </div>
                           </div>
                       </div>
 
                       {!isViewOnly && <button type="submit" className="btn-primary hover-shadow" style={{width:'100%', marginTop:'20px', padding:'15px', fontSize:'1.05rem', fontWeight: 'bold'}}>Guardar Documentos</button>}
-                    </fieldset>
+                    </div>
                   </form>
                 )}
 
