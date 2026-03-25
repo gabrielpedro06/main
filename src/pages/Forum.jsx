@@ -26,6 +26,64 @@ const Icons = {
 
 const ModalPortal = ({ children }) => createPortal(children, document.body);
 
+const BLOCKS_PREFIX = "BLOCKS_V1:";
+
+const createTextBlock = (text = "") => ({ id: `${Date.now()}_${Math.random()}`, type: "text", text });
+const createImageBlock = () => ({ id: `${Date.now()}_${Math.random()}`, type: "image", file: null, previewUrl: "", uploadedUrl: "" });
+
+const parsePostBlocks = (post) => {
+    const conteudo = typeof post?.conteudo === "string" ? post.conteudo : "";
+    if (conteudo.startsWith(BLOCKS_PREFIX)) {
+        try {
+            const parsed = JSON.parse(conteudo.slice(BLOCKS_PREFIX.length));
+            if (Array.isArray(parsed)) {
+                const blocks = parsed
+                    .filter((b) => b && (b.type === "text" || b.type === "image"))
+                    .map((b) => {
+                        if (b.type === "text") {
+                            return { id: `${Date.now()}_${Math.random()}`, type: "text", text: String(b.text || "") };
+                        }
+                        return {
+                            id: `${Date.now()}_${Math.random()}`,
+                            type: "image",
+                            file: null,
+                            previewUrl: String(b.url || ""),
+                            uploadedUrl: String(b.url || ""),
+                        };
+                    });
+                if (blocks.length) return blocks;
+            }
+        } catch {
+            // Fall back to legacy format below if parsing fails.
+        }
+    }
+
+    const blocks = [];
+    if (conteudo.trim()) blocks.push(createTextBlock(conteudo));
+    if (post?.image_url) {
+        const img = createImageBlock();
+        img.previewUrl = post.image_url;
+        img.uploadedUrl = post.image_url;
+        blocks.push(img);
+    }
+
+    return blocks.length ? blocks : [createTextBlock("")];
+};
+
+const serializeBlocksToContent = (blocks) => {
+    const normalized = (blocks || [])
+        .map((block) => {
+            if (block.type === "text") {
+                return { type: "text", text: String(block.text || "") };
+            }
+            const url = block.uploadedUrl || block.previewUrl || "";
+            return { type: "image", url: String(url) };
+        })
+        .filter((block) => (block.type === "text" ? block.text.trim().length > 0 : Boolean(block.url)));
+
+    return `${BLOCKS_PREFIX}${JSON.stringify(normalized)}`;
+};
+
 export default function Forum() {
   const { user, userProfile } = useAuth(); 
     const navigate = useNavigate();
@@ -44,8 +102,8 @@ export default function Forum() {
   const [confirmModal, setConfirmModal] = useState({ show: false, id: null, type: null }); 
 
   // Dados Novo Post
-  const [newPost, setNewPost] = useState({ titulo: "", conteudo: "", categoria: "geral" });
-  const [imageFile, setImageFile] = useState(null); 
+    const [newPost, setNewPost] = useState({ titulo: "", categoria: "geral" });
+    const [postBlocks, setPostBlocks] = useState([createTextBlock("")]);
   const [isUploading, setIsUploading] = useState(false);
 
   // Dados Modal Comentários
@@ -199,31 +257,49 @@ export default function Forum() {
     e.preventDefault();
     setIsUploading(true);
 
-    let imageUrl = null;
+    const blocksForUpload = [...postBlocks];
 
     try {
-        if (imageFile) {
-            const fileExt = imageFile.name.split('.').pop();
-            const fileName = `${user.id}_${Date.now()}.${fileExt}`;
-            
-            const { error: uploadError } = await supabase.storage.from("forum_media").upload(fileName, imageFile);
+        for (let i = 0; i < blocksForUpload.length; i += 1) {
+            const block = blocksForUpload[i];
+            if (block.type !== "image") continue;
+            if (!block.file) continue;
+
+            const fileExt = block.file.name.split(".").pop();
+            const fileName = `${user.id}_${Date.now()}_${i}.${fileExt}`;
+
+            const { error: uploadError } = await supabase.storage.from("forum_media").upload(fileName, block.file);
             if (uploadError) {
-                throw new Error("Não foi possível carregar a imagem. Verifica se o bucket 'forum_media' existe.");
+                throw new Error("Nao foi possivel carregar uma das imagens. Verifica se o bucket 'forum_media' existe.");
             }
-            
+
             const { data } = supabase.storage.from("forum_media").getPublicUrl(fileName);
-            imageUrl = data.publicUrl;
+            blocksForUpload[i] = { ...block, uploadedUrl: data.publicUrl, previewUrl: data.publicUrl, file: null };
         }
+
+        const normalizedBlocks = blocksForUpload
+            .map((block) => {
+                if (block.type === "text") return { type: "text", text: String(block.text || "") };
+                const url = block.uploadedUrl || block.previewUrl || "";
+                return { type: "image", url: String(url) };
+            })
+            .filter((block) => (block.type === "text" ? block.text.trim().length > 0 : Boolean(block.url)));
+
+        if (!normalizedBlocks.length) {
+            throw new Error("Adiciona texto ou imagem antes de publicar.");
+        }
+
+        const firstImageUrl = normalizedBlocks.find((b) => b.type === "image")?.url || null;
 
         const payload = {
             titulo: newPost.titulo,
-            conteudo: newPost.conteudo,
+            conteudo: serializeBlocksToContent(blocksForUpload),
             categoria: newPost.categoria,
             user_id: user.id
         };
 
-        if (imageUrl) {
-            payload.image_url = imageUrl;
+        if (firstImageUrl) {
+            payload.image_url = firstImageUrl;
         }
 
         const { error } = await supabase.from("forum_posts").insert([payload]);
@@ -233,9 +309,7 @@ export default function Forum() {
             throw new Error(error.message.includes('image_url') ? 'A coluna image_url ainda não foi criada na base de dados.' : error.message);
         }
 
-        setShowNewPostModal(false);
-        setNewPost({ titulo: "", conteudo: "", categoria: "geral" });
-        setImageFile(null);
+        closeNewPostModal();
         fetchPosts(true);
         showToast("Publicado com sucesso!", "success");
 
@@ -328,6 +402,18 @@ export default function Forum() {
       return user.id === authorId || ['admin', 'gestor'].includes(myRole);
   };
 
+  const openNewPostModal = () => {
+      setNewPost({ titulo: "", categoria: "geral" });
+      setPostBlocks([createTextBlock("")]);
+      setShowNewPostModal(true);
+  };
+
+  const closeNewPostModal = () => {
+      setShowNewPostModal(false);
+      setNewPost({ titulo: "", categoria: "geral" });
+      setPostBlocks([createTextBlock("")]);
+  };
+
   async function handleReact(type, postId, currentReactions) {
       const myExistingReaction = currentReactions.find(r => r.user_id === user.id);
       
@@ -417,73 +503,149 @@ export default function Forum() {
       });
   };
 
+  const addTextBlock = () => {
+      setPostBlocks((prev) => [...prev, createTextBlock("")]);
+  };
+
+  const addImageBlock = () => {
+      setPostBlocks((prev) => [...prev, createImageBlock()]);
+  };
+
+  const updateTextBlock = (blockId, value) => {
+      setPostBlocks((prev) => prev.map((block) => (block.id === blockId ? { ...block, text: value } : block)));
+  };
+
+  const updateImageBlockFile = (blockId, file) => {
+      if (!file) return;
+      const previewUrl = URL.createObjectURL(file);
+      setPostBlocks((prev) =>
+          prev.map((block) => (block.id === blockId ? { ...block, file, previewUrl, uploadedUrl: "" } : block))
+      );
+  };
+
+  const handleComposerPaste = (event) => {
+      const items = Array.from(event.clipboardData?.items || []);
+      const imageFiles = items
+          .filter((item) => item.type && item.type.startsWith("image/"))
+          .map((item) => item.getAsFile())
+          .filter(Boolean);
+
+      if (!imageFiles.length) return;
+
+      event.preventDefault();
+      setPostBlocks((prev) => {
+          const appended = imageFiles.map((file) => {
+              const img = createImageBlock();
+              img.file = file;
+              img.previewUrl = URL.createObjectURL(file);
+              return img;
+          });
+          return [...prev, ...appended];
+      });
+
+      showToast(`${imageFiles.length} imagem(ns) colada(s) no post.`, "success");
+  };
+
+  const moveBlock = (index, direction) => {
+      const nextIndex = index + direction;
+      setPostBlocks((prev) => {
+          if (nextIndex < 0 || nextIndex >= prev.length) return prev;
+          const next = [...prev];
+          const [item] = next.splice(index, 1);
+          next.splice(nextIndex, 0, item);
+          return next;
+      });
+  };
+
+  const removeBlock = (index) => {
+      setPostBlocks((prev) => {
+          const next = prev.filter((_, i) => i !== index);
+          return next.length ? next : [createTextBlock("")];
+      });
+  };
+
+  const renderPostBlocks = (post, options = {}) => {
+      const blocks = parsePostBlocks(post);
+      const imageMaxHeight = options.imageMaxHeight || 350;
+      return (
+          <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              {blocks.map((block, idx) => {
+                  if (block.type === "image") {
+                      const imageUrl = block.previewUrl || block.uploadedUrl;
+                      if (!imageUrl) return null;
+
+                      return (
+                          <div key={`img_${idx}`} style={{ borderRadius: "12px", overflow: "hidden", border: "1px solid #e2e8f0", background: "#f8fafc", display: "flex", justifyContent: "center", padding: "10px" }}>
+                              <img src={imageUrl} alt="Anexo da publicacao" style={{ maxWidth: "100%", maxHeight: `${imageMaxHeight}px`, objectFit: "contain", display: "block", borderRadius: "8px" }} loading="lazy" />
+                          </div>
+                      );
+                  }
+
+                  if (!String(block.text || "").trim()) return null;
+                  return (
+                      <div key={`txt_${idx}`} style={{ fontSize: "0.95rem", color: "#334155", lineHeight: "1.6", whiteSpace: "pre-wrap", overflowWrap: "break-word" }}>
+                          {renderWithLinks(block.text)}
+                      </div>
+                  );
+              })}
+          </div>
+      );
+  };
+
   const inputStyle = { width: '100%', padding: '12px 15px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', color: '#1e293b', outline: 'none', boxSizing: 'border-box', marginBottom: '15px', transition: '0.2s' };
   const labelStyle = { display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' };
   const actionBtnStyle = { background: 'transparent', border: 'none', cursor: 'pointer', padding: '6px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.6, transition: '0.2s' };
 
   const displayedPosts = selectedUserFilter ? posts.filter(p => p.user_id === selectedUserFilter.id) : posts;
 
-  return (
-    // 💡 LARGURA DO FEED AUMENTADA DE 900px PARA 1200px
-    <div className="page-container" style={{maxWidth: '1200px', margin: '0 auto', paddingBottom: '40px'}}>
-      
-      {/* HEADER */}
-      <div className="card" style={{ marginBottom: 25, padding: '25px', display: "flex", justifyContent: "space-between", alignItems: 'center', flexWrap: 'wrap', gap: '15px', background: 'white', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
-        <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
-            <div style={{background: '#eff6ff', color: '#2563eb', padding: '12px', borderRadius: '12px', display: 'flex'}}><Icons.Message size={24} /></div>
-            <div>
-                <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>Comunicação Interna</h1>
-                <p style={{color: '#64748b', margin: 0, fontWeight: '500', fontSize: '0.9rem'}}>Fórum de partilha de informações e discussões</p>
-            </div>
-        </div>
-                <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
-                    {activeLog && (
-                        <div
-                            onClick={() => navigate(activeLogRoute || '/dashboard/tarefas')}
-                            title="Ir para o item com cronómetro em curso"
-                            className="hover-shadow"
-                            style={{background: 'linear-gradient(to right, #ef4444, #b91c1c)', color: 'white', padding: '10px 20px', borderRadius: '30px', display: 'flex', alignItems: 'center', gap: '15px', border: '2px solid #fecaca', boxShadow: '0 4px 10px rgba(239, 68, 68, 0.4)', transition: '0.2s', whiteSpace: 'nowrap', cursor: 'pointer'}}
-                        >
-                            <div style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700', fontSize: '0.95rem'}}>
-                                <span className="pulse-dot-white" style={{width: '8px', height: '8px'}}></span>
-                                {(activeLogTitle || 'Tempo a decorrer...').length > 30 ? `${(activeLogTitle || 'Tempo a decorrer...').slice(0, 30)}...` : (activeLogTitle || 'Tempo a decorrer...')}
-                            </div>
-                            <div style={{width: '1px', height: '20px', background: 'rgba(255,255,255,0.3)'}}></div>
-                            <button type="button" onClick={openStopNoteModal} style={{background: 'white', color:'#ef4444', border:'none', borderRadius:'20px', padding:'6px 12px', cursor:'pointer', fontWeight:'700', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px', transition: '0.2s'}}><Icons.Stop /> Parar</button>
-                        </div>
-                    )}
-                    <button className="btn-cta" onClick={() => setShowNewPostModal(true)}>
-                            <Icons.Plus /> Novo Post
-                    </button>
+    return (
+        <div className="page-container" style={{maxWidth: '1200px', margin: '0 auto', paddingBottom: '40px'}}>
+
+          <div className="card" style={{ marginBottom: 25, padding: '25px', display: "flex", justifyContent: "space-between", alignItems: 'center', flexWrap: 'wrap', gap: '15px', background: 'white', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+            <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
+                <div style={{background: '#eff6ff', color: '#2563eb', padding: '12px', borderRadius: '12px', display: 'flex'}}><Icons.Message size={24} /></div>
+                <div>
+                    <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>Comunicacao Interna</h1>
+                    <p style={{color: '#64748b', margin: 0, fontWeight: '500', fontSize: '0.9rem'}}>Forum de partilha de informacoes e discussoes</p>
                 </div>
-      </div>
-
-      {/* ALERTA DE FILTRO ATIVO */}
-      {selectedUserFilter && (
-         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#eff6ff', padding: '15px 20px', borderRadius: '12px', border: '1px solid #bfdbfe', marginBottom: '25px' }}>
-             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                 <Icons.User color="#2563eb" />
-                 <span style={{ color: '#1e40af', fontWeight: 'bold', fontSize: '1.1rem' }}>A ver o perfil de: {selectedUserFilter.nome}</span>
-             </div>
-             <button onClick={() => setSelectedUserFilter(null)} style={{ background: 'white', border: '1px solid #bfdbfe', color: '#2563eb', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', transition: '0.2s' }} className="hover-shadow">
-                 Ver Tudo
-             </button>
-         </div>
-      )}
-
-      {/* ÁREA DE CRIAR NOVO POST RÁPIDO */}
-      {!selectedUserFilter && (
-          <div className="card" style={{background: 'white', padding: '20px', borderRadius: '16px', border: '1px solid #e2e8f0', marginBottom: '25px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)'}}>
-              <div style={{display: 'flex', gap: '15px', alignItems: 'center'}}>
-                  <div style={{width: '45px', height: '45px', borderRadius: '50%', background: '#2563eb', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.1rem', flexShrink: 0}}>
-                      {getInitials(userProfile?.nome)}
-                  </div>
-                  <button onClick={() => setShowNewPostModal(true)} style={{flex: 1, background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '25px', padding: '15px 20px', textAlign: 'left', color: '#64748b', fontSize: '0.95rem', cursor: 'pointer', transition: '0.2s'}} className="hover-input-fake">
-                      Partilha uma atualização, ficheiro ou ideia com a equipa...
-                  </button>
-              </div>
+            </div>
+            <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+                {activeLog && (
+                    <div onClick={() => navigate(activeLogRoute || '/dashboard/tarefas')} title="Ir para o item com cronometro em curso" className="hover-shadow" style={{background: 'linear-gradient(to right, #ef4444, #b91c1c)', color: 'white', padding: '10px 20px', borderRadius: '30px', display: 'flex', alignItems: 'center', gap: '15px', border: '2px solid #fecaca', boxShadow: '0 4px 10px rgba(239, 68, 68, 0.4)', transition: '0.2s', whiteSpace: 'nowrap', cursor: 'pointer'}}>
+                        <div style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700', fontSize: '0.95rem'}}>
+                            <span className="pulse-dot-white" style={{width: '8px', height: '8px'}}></span>
+                            {(activeLogTitle || 'Tempo a decorrer...').length > 30 ? `${(activeLogTitle || 'Tempo a decorrer...').slice(0, 30)}...` : (activeLogTitle || 'Tempo a decorrer...')}
+                        </div>
+                        <div style={{width: '1px', height: '20px', background: 'rgba(255,255,255,0.3)'}}></div>
+                        <button type="button" onClick={openStopNoteModal} style={{background: 'white', color:'#ef4444', border:'none', borderRadius:'20px', padding:'6px 12px', cursor:'pointer', fontWeight:'700', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px', transition: '0.2s'}}><Icons.Stop /> Parar</button>
+                    </div>
+                )}
+                <button className="btn-cta" onClick={openNewPostModal}><Icons.Plus /> Novo Post</button>
+            </div>
           </div>
-      )}
+
+          {selectedUserFilter && (
+             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#eff6ff', padding: '15px 20px', borderRadius: '12px', border: '1px solid #bfdbfe', marginBottom: '25px' }}>
+                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                     <Icons.User color="#2563eb" />
+                     <span style={{ color: '#1e40af', fontWeight: 'bold', fontSize: '1.1rem' }}>A ver o perfil de: {selectedUserFilter.nome}</span>
+                 </div>
+                 <button onClick={() => setSelectedUserFilter(null)} style={{ background: 'white', border: '1px solid #bfdbfe', color: '#2563eb', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', transition: '0.2s' }} className="hover-shadow">Ver Tudo</button>
+             </div>
+          )}
+
+          {!selectedUserFilter && (
+              <div className="card" style={{background: 'white', padding: '20px', borderRadius: '16px', border: '1px solid #e2e8f0', marginBottom: '25px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)'}}>
+                  <div style={{display: 'flex', gap: '15px', alignItems: 'center'}}>
+                      <div style={{width: '45px', height: '45px', borderRadius: '50%', background: '#2563eb', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.1rem', flexShrink: 0}}>
+                          {getInitials(userProfile?.nome)}
+                      </div>
+                      <button onClick={openNewPostModal} style={{flex: 1, background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '25px', padding: '15px 20px', textAlign: 'left', color: '#64748b', fontSize: '0.95rem', cursor: 'pointer', transition: '0.2s'}} className="hover-input-fake">
+                          Partilha uma atualizacao, ficheiro ou ideia com a equipa...
+                      </button>
+                  </div>
+              </div>
+          )}
 
       {/* --- FEED DE PUBLICAÇÕES --- */}
       <div className="forum-feed" style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
@@ -528,17 +690,8 @@ export default function Forum() {
                 {/* CORPO DO POST */}
                 <div style={{marginBottom: '15px'}}>
                     <h3 style={{margin: '0 0 8px 0', color: '#0f172a', fontSize: '1.15rem', fontWeight: '800'}}>{post.titulo}</h3>
-                    <div style={{ fontSize: '0.95rem', color: '#334155', lineHeight: '1.6', whiteSpace: 'pre-wrap', overflowWrap: 'break-word' }}>
-                        {renderWithLinks(post.conteudo)}
-                    </div>
+                    {renderPostBlocks(post, { imageMaxHeight: 350 })}
                 </div>
-
-                {/* 💡 IMAGEM DO POST (COM ALTURA MÁXIMA CONTROLADA) */}
-                {post.image_url && (
-                    <div style={{marginBottom: '20px', borderRadius: '12px', overflow: 'hidden', border: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', justifyContent: 'center', padding: '10px'}}>
-                        <img src={post.image_url} alt="Anexo da publicação" style={{maxWidth: '100%', maxHeight: '350px', objectFit: 'contain', display: 'block', borderRadius: '8px'}} loading="lazy" />
-                    </div>
-                )}
 
                 {/* RODAPÉ DO POST */}
                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f1f5f9', paddingTop: '15px', color: '#64748b', fontSize: '0.85rem', fontWeight: '600'}}>
@@ -577,53 +730,113 @@ export default function Forum() {
       {/* --- MODAL NOVO POST --- */}
       {showNewPostModal && (
         <ModalPortal>
-            <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:99999}}>
-                <div style={{background:'white', width:'95%', maxWidth:'600px', borderRadius:'16px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow: 'hidden', animation: 'fadeIn 0.2s ease-out'}}>
-                    <div style={{padding:'20px 25px', background:'#f8fafc', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                        <h3 style={{margin:0, color:'#1e293b', fontSize:'1.25rem', fontWeight:'800', display: 'flex', alignItems: 'center', gap: '10px'}}>
-                            <span style={{color: '#2563eb'}}><Icons.Edit size={22} /></span> Criar Publicação
-                        </h3>
-                        <button onClick={() => {setShowNewPostModal(false); setImageFile(null);}} style={{background:'transparent', border:'none', cursor:'pointer', color:'#94a3b8'}} className="hover-red-text"><Icons.Close size={20} /></button>
+            <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.72)', backdropFilter: 'blur(5px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:99999, padding:'16px'}}>
+                <div style={{background:'white', width:'min(1220px, 98vw)', height:'88vh', borderRadius:'18px', boxShadow: '0 30px 60px -20px rgba(15, 23, 42, 0.45)', overflow: 'hidden', animation: 'fadeIn 0.2s ease-out', display:'flex', flexDirection:'column', border:'1px solid #dbeafe'}}>
+                    <div style={{padding:'18px 24px', background:'#f8fafc', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                        <div>
+                            <p style={{margin:'0 0 4px 0', fontSize:'0.72rem', fontWeight:'800', letterSpacing:'0.07em', color:'#2563eb', textTransform:'uppercase'}}>Novo Conteudo</p>
+                            <h3 style={{margin:0, color:'#1e293b', fontSize:'1.35rem', fontWeight:'900', display: 'flex', alignItems: 'center', gap: '10px'}}>
+                                <span style={{color: '#2563eb'}}><Icons.Edit size={22} /></span> Compositor de Publicacao
+                            </h3>
+                        </div>
+                        <button onClick={closeNewPostModal} style={{background:'#fff', border:'1px solid #cbd5e1', cursor:'pointer', color:'#64748b', width:'36px', height:'36px', borderRadius:'10px', display:'flex', alignItems:'center', justifyContent:'center'}} className="hover-red-text"><Icons.Close size={20} /></button>
                     </div>
-                    
-                    <div style={{padding: '25px', background: 'white'}}>
-                        <form onSubmit={handleCreatePost}>
-                            <div style={{display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '15px'}}>
-                                <div>
-                                    <label style={labelStyle}>Título Breve *</label>
-                                    <input type="text" value={newPost.titulo} onChange={e => setNewPost({...newPost, titulo: e.target.value})} required style={inputStyle} className="input-focus" placeholder="Ex: Nova atualização do sistema..." />
-                                </div>
-                                <div>
-                                    <label style={labelStyle}>Categoria *</label>
-                                    <select value={newPost.categoria} onChange={e => setNewPost({...newPost, categoria: e.target.value})} style={{...inputStyle, cursor: 'pointer'}} className="input-focus" required>
-                                        <option value="geral">Geral</option>
-                                        <option value="aviso">Aviso</option>
-                                        <option value="duvida">Dúvida</option>
-                                        <option value="ideia">Ideia</option>
-                                    </select>
+
+                    <form onSubmit={handleCreatePost} onPaste={handleComposerPaste} style={{display:'grid', gridTemplateColumns:'280px 1fr', flex:1, minHeight:0}}>
+                        <aside style={{borderRight:'1px solid #e2e8f0', background:'linear-gradient(180deg, #f8fafc 0%, #ffffff 100%)', padding:'20px 16px', overflowY:'auto'}}>
+                            <div style={{border:'1px solid #dbeafe', borderRadius:'12px', background:'#eff6ff', padding:'12px', marginBottom:'14px'}}>
+                                <p style={{margin:'0 0 6px 0', fontSize:'0.72rem', fontWeight:'800', letterSpacing:'0.06em', color:'#1d4ed8', textTransform:'uppercase'}}>Guia Rapido</p>
+                                <div style={{fontSize:'0.85rem', color:'#1e3a8a', lineHeight:'1.45'}}>
+                                    1. Define titulo e categoria.
+                                    <br />2. Adiciona blocos de texto e imagem.
+                                    <br />3. Podes colar imagem com CTRL+V.
                                 </div>
                             </div>
 
-                            <label style={labelStyle}>A tua mensagem *</label>
-                            <textarea rows="5" value={newPost.conteudo} onChange={e => setNewPost({...newPost, conteudo: e.target.value})} required style={{...inputStyle, resize: 'vertical'}} className="input-focus" placeholder="No que estás a pensar? Podes colar links de sites aqui também!" />
-                            
-                            <div style={{background: '#f8fafc', padding: '15px', borderRadius: '12px', border: '1px dashed #cbd5e1', marginBottom: '25px', transition: '0.2s'}} className="hover-border-blue">
-                                <label style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginBottom: 0, fontWeight: '600', fontSize: '0.9rem'}}>
-                                    <Icons.Image size={18} color="#3b82f6" /> 
-                                    <span style={{color: '#3b82f6', textTransform: 'none'}}>{imageFile ? imageFile.name : "Adicionar Fotografia (Opcional)"}</span>
-                                    <input type="file" accept="image/*" onChange={e => setImageFile(e.target.files[0])} style={{display: 'none'}} />
-                                </label>
-                                {imageFile && <div style={{fontSize: '0.75rem', color: '#64748b', marginTop: '6px', paddingLeft: '26px'}}>Imagem carregada e pronta a enviar.</div>}
+                            <div style={{display:'grid', gap:'8px', marginBottom:'14px'}}>
+                                <button type="button" onClick={addTextBlock} style={{border: '1px solid #cbd5e1', background: 'white', color: '#334155', borderRadius: '10px', padding: '10px 12px', cursor: 'pointer', fontWeight: '700', fontSize: '0.85rem', textAlign:'left'}}>+ Bloco de texto</button>
+                                <button type="button" onClick={addImageBlock} style={{border: '1px solid #bfdbfe', background: '#eff6ff', color: '#2563eb', borderRadius: '10px', padding: '10px 12px', cursor: 'pointer', fontWeight: '700', fontSize: '0.85rem', textAlign:'left'}}>+ Bloco de imagem</button>
                             </div>
 
-                            <div style={{display: 'flex', gap: '10px', justifyContent: 'flex-end', paddingTop: '15px', borderTop: '1px solid #f1f5f9'}}>
-                                <button type="button" onClick={() => {setShowNewPostModal(false); setImageFile(null);}} style={{padding: '12px 20px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white', color: '#64748b', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">Cancelar</button>
-                                <button type="submit" disabled={isUploading} className="btn-primary hover-shadow" style={{padding: '12px 30px', borderRadius: '8px', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                            <div style={{fontSize:'0.8rem', color:'#64748b', lineHeight:'1.5', borderTop:'1px solid #e2e8f0', paddingTop:'12px'}}>
+                                Blocos atuais: <strong>{postBlocks.length}</strong>
+                                <br />
+                                Dica: usa CTRL+V para colar prints diretamente no post.
+                            </div>
+                        </aside>
+
+                        <div style={{display:'flex', flexDirection:'column', minHeight:0}}>
+                            <div style={{padding: '18px 22px 12px 22px', borderBottom:'1px solid #f1f5f9', background:'#fff'}}>
+                                <div style={{display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '14px'}}>
+                                    <div>
+                                        <label style={labelStyle}>Titulo Breve *</label>
+                                        <input type="text" value={newPost.titulo} onChange={e => setNewPost({...newPost, titulo: e.target.value})} required style={inputStyle} className="input-focus" placeholder="Ex: Nova atualização do sistema..." />
+                                    </div>
+                                    <div>
+                                        <label style={labelStyle}>Categoria *</label>
+                                        <select value={newPost.categoria} onChange={e => setNewPost({...newPost, categoria: e.target.value})} style={{...inputStyle, cursor: 'pointer'}} className="input-focus" required>
+                                            <option value="geral">Geral</option>
+                                            <option value="aviso">Aviso</option>
+                                            <option value="duvida">Dúvida</option>
+                                            <option value="ideia">Ideia</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <p style={{margin:'0', fontSize:'0.82rem', color:'#64748b'}}>Compositor em blocos: texto e imagem na ordem que quiseres.</p>
+                            </div>
+
+                            <div style={{padding:'16px 22px 18px 22px', overflowY:'auto', flex:1, background:'#ffffff'}} className="custom-scrollbar">
+                                <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
+                                    {postBlocks.map((block, idx) => (
+                                        <div key={block.id} style={{border: '1px solid #e2e8f0', borderRadius: '12px', background: '#f8fafc', padding: '12px'}}>
+                                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px'}}>
+                                                <div style={{fontSize: '0.75rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em'}}>
+                                                    Bloco {idx + 1}: {block.type === 'text' ? 'Texto' : 'Imagem'}
+                                                </div>
+                                                <div style={{display: 'flex', gap: '6px'}}>
+                                                    <button type="button" onClick={() => moveBlock(idx, -1)} disabled={idx === 0} style={{border: '1px solid #cbd5e1', background: 'white', color: '#334155', borderRadius: '6px', padding: '4px 8px', cursor: idx === 0 ? 'not-allowed' : 'pointer', opacity: idx === 0 ? 0.4 : 1}}>↑</button>
+                                                    <button type="button" onClick={() => moveBlock(idx, 1)} disabled={idx === postBlocks.length - 1} style={{border: '1px solid #cbd5e1', background: 'white', color: '#334155', borderRadius: '6px', padding: '4px 8px', cursor: idx === postBlocks.length - 1 ? 'not-allowed' : 'pointer', opacity: idx === postBlocks.length - 1 ? 0.4 : 1}}>↓</button>
+                                                    <button type="button" onClick={() => removeBlock(idx)} style={{border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', borderRadius: '6px', padding: '4px 8px', cursor: 'pointer'}}>Remover</button>
+                                                </div>
+                                            </div>
+
+                                            {block.type === 'text' ? (
+                                                <textarea
+                                                    rows="4"
+                                                    value={block.text}
+                                                    onChange={(e) => updateTextBlock(block.id, e.target.value)}
+                                                    style={{...inputStyle, marginBottom: 0, resize: 'vertical'}}
+                                                    className="input-focus"
+                                                    placeholder="Escreve o texto deste bloco..."
+                                                />
+                                            ) : (
+                                                <div style={{display: 'grid', gap: '8px'}}>
+                                                    <label style={{display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: '600', color: '#2563eb'}}>
+                                                        <Icons.Image size={18} color="#2563eb" /> Selecionar imagem
+                                                        <input type="file" accept="image/*" onChange={(e) => updateImageBlockFile(block.id, e.target.files?.[0])} style={{display: 'none'}} />
+                                                    </label>
+                                                    {(block.previewUrl || block.uploadedUrl) ? (
+                                                        <div style={{borderRadius: '8px', overflow: 'hidden', border: '1px solid #dbeafe', background: 'white', padding: '8px', display: 'flex', justifyContent: 'center'}}>
+                                                            <img src={block.previewUrl || block.uploadedUrl} alt="Preview do bloco" style={{maxWidth: '100%', maxHeight: '260px', objectFit: 'contain', borderRadius: '6px'}} />
+                                                        </div>
+                                                    ) : (
+                                                        <div style={{fontSize: '0.8rem', color: '#64748b'}}>Sem imagem selecionada neste bloco.</div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div style={{display: 'flex', gap: '10px', justifyContent: 'flex-end', padding:'14px 22px', borderTop: '1px solid #e2e8f0', background:'#f8fafc'}}>
+                                <button type="button" onClick={closeNewPostModal} style={{padding: '11px 18px', borderRadius: '10px', border: '1px solid #cbd5e1', background: 'white', color: '#64748b', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">Cancelar</button>
+                                <button type="submit" disabled={isUploading} className="btn-primary hover-shadow" style={{padding: '11px 24px', borderRadius: '10px', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px'}}>
                                     {isUploading ? "A carregar..." : <><Icons.Send size={16}/> Publicar</>}
                                 </button>
                             </div>
-                        </form>
-                    </div>
+                        </div>
+                    </form>
                 </div>
             </div>
         </ModalPortal>
@@ -661,16 +874,9 @@ export default function Forum() {
                         </div>
                         
                         <h2 style={{margin: '0 0 15px 0', color: '#0f172a', fontSize: '1.6rem', fontWeight: '900', lineHeight: '1.3'}}>{selectedPost.titulo}</h2>
-                        
-                        <div style={{whiteSpace: 'pre-wrap', color: '#334155', lineHeight: '1.6', overflowWrap: 'break-word', wordBreak: 'break-word', fontSize: '1.05rem', marginBottom: '25px'}}>
-                            {renderWithLinks(selectedPost.conteudo)}
+                        <div style={{ marginBottom: '25px' }}>
+                            {renderPostBlocks(selectedPost, { imageMaxHeight: 560 })}
                         </div>
-
-                        {selectedPost.image_url && (
-                            <div style={{marginBottom: '25px', borderRadius: '12px', overflow: 'hidden', border: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', justifyContent: 'center'}}>
-                                <img src={selectedPost.image_url} alt="Anexo" style={{maxWidth: '100%', maxHeight: '60vh', objectFit: 'contain', display: 'block'}} />
-                            </div>
-                        )}
 
                         <div style={{marginTop: 'auto', paddingTop: '20px', borderTop: '1px solid #e2e8f0', display:'flex', gap:'10px', alignItems:'center', flexWrap: 'wrap'}}>
                             {['👍','❤️','💡','🚀','😂','😮','😢'].map(emoji => {
