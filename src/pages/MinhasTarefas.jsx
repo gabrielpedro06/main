@@ -969,7 +969,7 @@ export default function MinhasTarefas() {
           <div style={{display: 'flex', alignItems: 'center', gap: '15px', flex: 1, minWidth: '300px'}}>
               <div style={{background: '#eff6ff', color: '#2563eb', padding: '12px', borderRadius: '12px', display: 'flex'}}><Icons.Kanban /></div>
               <div>
-                  <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>Minhas Tarefas</h1>
+                  <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>Agenda</h1>
                   <p style={{margin: '0', color: '#64748b', fontSize: '0.9rem', fontWeight: '500'}}>O teu quadro de produtividade pessoal. Arrasta os cartões!</p>
               </div>
           </div>
@@ -1000,7 +1000,7 @@ export default function MinhasTarefas() {
               </button>
 
               <button onClick={() => setShowQuickTaskModal(true)} style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: '#2563eb', fontWeight: '700', background: '#eff6ff', padding: '0 15px', height: '36px', borderRadius: '8px', border: '1px solid #bfdbfe', transition: '0.2s'}} className="hover-shadow">
-                  <Icons.Plus size={14} /> Tarefa Rápida
+                  <Icons.Plus size={14} /> Adicionar Tarefa
               </button>
 
               {activeLog && (

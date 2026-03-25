@@ -85,9 +85,9 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
             </li>
 
             <li className={isActive('/dashboard/minhas-tarefas')}>
-              <Link to="/dashboard/minhas-tarefas" title={getSidebarTooltip("Minhas Tarefas")}>
+              <Link to="/dashboard/minhas-tarefas" title={getSidebarTooltip("Agenda")}>
                 <span className="icon"><Icons.Pin /></span> 
-                <span className="link-text">Minhas Tarefas</span>
+                <span className="link-text">Agenda</span>
               </Link>
             </li>
 
