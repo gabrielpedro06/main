@@ -436,6 +436,11 @@ export default function ProjetoDetalhe() {
       return taskOptions;
   };
 
+  const isMissingSubtaskColumnError = (err) => {
+      const message = String(err?.message || "").toLowerCase();
+      return message.includes("subtarefa_id") && (message.includes("schema cache") || message.includes("column"));
+  };
+
   const buildTimeLogPayload = (formState, existingLog = null) => {
       const userId = formState.user_id || "";
       const duration = Math.max(1, parseInt(formState.duration_minutes, 10) || 0);
@@ -516,11 +521,23 @@ export default function ProjetoDetalhe() {
       setTimeLogSaving(true);
       try {
           if (timeLogModal.mode === "edit" && existingLog) {
-              const { error } = await supabase.from("task_logs").update(payload).eq("id", existingLog.id);
+              let { error } = await supabase.from("task_logs").update(payload).eq("id", existingLog.id);
+              if (error && isMissingSubtaskColumnError(error)) {
+                  const retryPayload = { ...payload };
+                  delete retryPayload.subtarefa_id;
+                  const retry = await supabase.from("task_logs").update(retryPayload).eq("id", existingLog.id);
+                  error = retry.error;
+              }
               if (error) throw error;
               showToast("Registo de tempo atualizado.", "success");
           } else {
-              const { error } = await supabase.from("task_logs").insert([payload]);
+              let { error } = await supabase.from("task_logs").insert([payload]);
+              if (error && isMissingSubtaskColumnError(error)) {
+                  const retryPayload = { ...payload };
+                  delete retryPayload.subtarefa_id;
+                  const retry = await supabase.from("task_logs").insert([retryPayload]);
+                  error = retry.error;
+              }
               if (error) throw error;
               showToast("Registo manual criado.", "success");
           }

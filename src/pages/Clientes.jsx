@@ -45,6 +45,34 @@ const ModalPortal = ({ children }) => {
   return createPortal(children, document.body);
 };
 
+const CARGO_OPTIONS = [
+  "Gerente",
+  "Contabilista Certificado(CC)",
+  "Presidente",
+  "Diretor(a)",
+  "Técnico(a) de Contabilidade",
+  "Responsável de Operações",
+  "Comercial",
+  "Sócio(a)",
+  "Gestor(a) de Projetos",
+  "Administrativo(a)",
+  "Diretor(a) Financeiro",
+  "Administrador(a)",
+  "Marketing",
+  "Coordenador(a) de Formação",
+  "Formador(a) Interno",
+];
+
+const OUTRO_CARGO_VALUE = "__outro__";
+
+const isKnownCargo = (cargo) => CARGO_OPTIONS.includes(String(cargo || ""));
+
+const getCargoSelectValue = (cargo) => {
+  const value = String(cargo || "").trim();
+  if (!value) return "";
+  return isKnownCargo(value) ? value : OUTRO_CARGO_VALUE;
+};
+
 export default function Clientes() {
   const { user, userProfile } = useAuth();
   const navigate = useNavigate();
@@ -123,6 +151,7 @@ export default function Clientes() {
   const initCae = { codigo: "", descricao: "", principal: false };
 
   const [novoContacto, setNovoContacto] = useState(initContacto);
+  const [isOutroCargo, setIsOutroCargo] = useState(false);
   const [novaMorada, setNovaMorada] = useState(initMorada);
   const [novoAcesso, setNovoAcesso] = useState(initAcesso);
 
@@ -2016,7 +2045,7 @@ export default function Clientes() {
                   <div>
                     <div style={{display:'flex', justifyContent:'space-between', marginBottom:'15px', alignItems:'center'}}>
                       <h4 style={{margin:0, fontSize:'1.1rem', color:'#1e293b'}}>Equipa do Cliente</h4>
-                      {!isViewOnly && !showAddContacto && <button className="btn-small-add hover-shadow" onClick={() => {setNovoContacto(initContacto); setShowAddContacto(true)}} style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.Plus /> Adicionar Pessoa</button>}
+                      {!isViewOnly && !showAddContacto && <button className="btn-small-add hover-shadow" onClick={() => { setNovoContacto(initContacto); setIsOutroCargo(false); setShowAddContacto(true); }} style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.Plus /> Adicionar Pessoa</button>}
                     </div>
                     
                     {showAddContacto && (
@@ -2029,7 +2058,39 @@ export default function Clientes() {
                           </div>
                           <div>
                               <label style={labelStyle}>Cargo</label>
-                              <input type="text" placeholder="Gerente, Diretor..." value={novoContacto.cargo} onChange={e => setNovoContacto({...novoContacto, cargo: e.target.value})} style={inputStyle} className="input-focus" />
+                              <select
+                                value={getCargoSelectValue(novoContacto.cargo)}
+                                onChange={(e) => {
+                                  const selected = e.target.value;
+                                  if (selected === OUTRO_CARGO_VALUE) {
+                                    setIsOutroCargo(true);
+                                    if (isKnownCargo(novoContacto.cargo)) {
+                                      setNovoContacto({ ...novoContacto, cargo: "" });
+                                    }
+                                  } else {
+                                    setIsOutroCargo(false);
+                                    setNovoContacto({ ...novoContacto, cargo: selected });
+                                  }
+                                }}
+                                style={inputStyle}
+                                className="input-focus"
+                              >
+                                <option value="">Selecionar cargo</option>
+                                {CARGO_OPTIONS.map((cargo) => (
+                                  <option key={cargo} value={cargo}>{cargo}</option>
+                                ))}
+                                <option value={OUTRO_CARGO_VALUE}>Outro</option>
+                              </select>
+                              {isOutroCargo && (
+                                <input
+                                  type="text"
+                                  placeholder="Escreve o cargo"
+                                  value={novoContacto.cargo || ""}
+                                  onChange={e => setNovoContacto({ ...novoContacto, cargo: e.target.value })}
+                                  style={{ ...inputStyle, marginTop: '8px' }}
+                                  className="input-focus"
+                                />
+                              )}
                           </div>
                           <div>
                               <label style={labelStyle}>Email</label>
@@ -2041,8 +2102,8 @@ export default function Clientes() {
                           </div>
                         </div>
                         <div style={{display:'flex', gap:'10px', marginTop:'15px'}}>
-                            <button onClick={() => saveSubItem('contactos_cliente', novoContacto, setContactos, contactos, setNovoContacto, initContacto, setShowAddContacto)} className="btn-primary hover-shadow" style={{padding:'10px 20px', fontWeight: 'bold'}}>{novoContacto.id ? 'Atualizar' : 'Guardar Pessoa'}</button>
-                            <button onClick={() => {setShowAddContacto(false); setNovoContacto(initContacto);}} style={{background:'white', border:'1px solid #cbd5e1', borderRadius: '8px', color:'#64748b', cursor:'pointer', padding: '10px 20px', fontWeight: 'bold'}} className="hover-shadow">Cancelar</button>
+                            <button onClick={() => { saveSubItem('contactos_cliente', novoContacto, setContactos, contactos, setNovoContacto, initContacto, setShowAddContacto); setIsOutroCargo(false); }} className="btn-primary hover-shadow" style={{padding:'10px 20px', fontWeight: 'bold'}}>{novoContacto.id ? 'Atualizar' : 'Guardar Pessoa'}</button>
+                            <button onClick={() => { setShowAddContacto(false); setNovoContacto(initContacto); setIsOutroCargo(false); }} style={{background:'white', border:'1px solid #cbd5e1', borderRadius: '8px', color:'#64748b', cursor:'pointer', padding: '10px 20px', fontWeight: 'bold'}} className="hover-shadow">Cancelar</button>
                         </div>
                       </div>
                     )}
@@ -2059,7 +2120,7 @@ export default function Clientes() {
                           </div>
                           {!isViewOnly && (
                             <div style={{display:'flex', flexDirection:'column', gap:'6px'}}>
-                               <button onClick={() => abrirEdicaoSubItem(c, setNovoContacto, setShowAddContacto)} className="action-btn hover-blue-text"><Icons.Edit /></button>
+                               <button onClick={() => { setNovoContacto(c); setIsOutroCargo(Boolean(c.cargo) && !isKnownCargo(c.cargo)); setShowAddContacto(true); }} className="action-btn hover-blue-text"><Icons.Edit /></button>
                                <button onClick={() => deleteItem('contactos_cliente', c.id, setContactos, contactos)} className="action-btn hover-red-text"><Icons.Trash /></button>
                             </div>
                           )}

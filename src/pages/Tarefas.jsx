@@ -404,6 +404,11 @@ export default function Tarefas() {
       return taskOptions;
   };
 
+  const isMissingSubtaskColumnError = (err) => {
+      const message = String(err?.message || "").toLowerCase();
+      return message.includes("subtarefa_id") && (message.includes("schema cache") || message.includes("column"));
+  };
+
   const getTimeLogTargetLabel = (log) => {
       if (log.subtarefa_id) return subtaskOptions.find((s) => String(s.id) === String(log.subtarefa_id))?.label || "Passo";
       if (log.task_id) return taskOptions.find((t) => String(t.id) === String(log.task_id))?.label || "Tarefa";
@@ -491,11 +496,23 @@ export default function Tarefas() {
       setTimeLogSaving(true);
       try {
           if (editingTimeLogId) {
-              const { error } = await supabase.from("task_logs").update(payload).eq("id", editingTimeLogId);
+              let { error } = await supabase.from("task_logs").update(payload).eq("id", editingTimeLogId);
+              if (error && isMissingSubtaskColumnError(error)) {
+                  const retryPayload = { ...payload };
+                  delete retryPayload.subtarefa_id;
+                  const retry = await supabase.from("task_logs").update(retryPayload).eq("id", editingTimeLogId);
+                  error = retry.error;
+              }
               if (error) throw error;
               showToast("Registo de tempo atualizado.");
           } else {
-              const { error } = await supabase.from("task_logs").insert([payload]);
+              let { error } = await supabase.from("task_logs").insert([payload]);
+              if (error && isMissingSubtaskColumnError(error)) {
+                  const retryPayload = { ...payload };
+                  delete retryPayload.subtarefa_id;
+                  const retry = await supabase.from("task_logs").insert([retryPayload]);
+                  error = retry.error;
+              }
               if (error) throw error;
               showToast("Registo de tempo criado.");
           }
