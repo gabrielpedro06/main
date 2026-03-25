@@ -794,7 +794,8 @@ export default function Clientes() {
       processedClientes = processedClientes.filter(c =>
         c.marca?.toLowerCase().includes(textoBusca) ||
         c.sigla?.toLowerCase().includes(textoBusca) ||
-        c.nif?.includes(textoBusca)
+        c.nif?.includes(textoBusca) ||
+        c.entidade?.toLowerCase().includes(textoBusca)
       );
   }
 
