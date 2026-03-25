@@ -70,7 +70,6 @@ export default function Tarefas() {
     const [timeLogSaving, setTimeLogSaving] = useState(false);
     const [timeLogForm, setTimeLogForm] = useState({ user_id: "", target_type: "tarefa", target_id: "", duration_minutes: "" });
     const [editingTimeLogId, setEditingTimeLogId] = useState(null);
-    const [taskLogsHasExtendedTargets, setTaskLogsHasExtendedTargets] = useState(true);
 
   const [deleteConfirm, setDeleteConfirm] = useState({ show: false, tabela: '', id: null, titulo: '' });
   const [visibleLimits, setVisibleLimits] = useState({}); 
@@ -228,22 +227,14 @@ export default function Tarefas() {
 
   async function fetchData(adminStatus) {
     try {
-        let queryAtivs = supabase.from("atividades").select(`*, projetos!inner(id, titulo, cliente_id, parceiros_ids, clientes(id, marca, sigla)), profiles:criado_por(nome)`).not("projeto_id", "is", null);
-        if (!adminStatus) {
-            queryAtivs = queryAtivs.or(`responsavel_id.eq.${user.id},colaboradores_extra.cs.{${user.id}}`);
-        }
-
-        let queryTarefas = supabase.from("tarefas").select(`*, atividades!inner(*, projetos!inner(id, titulo, cliente_id, parceiros_ids, clientes(id, marca, sigla))), profiles:criado_por(nome)`);
-        if (!adminStatus) {
-            queryTarefas = queryTarefas.or(`responsavel_id.eq.${user.id},colaboradores_extra.cs.{${user.id}}`);
-        }
-
         let querySubtarefas = supabase.from("subtarefas").select(`*, tarefas!inner(*, atividades!inner(*, projetos!inner(id, titulo, clientes(id, marca, sigla))))`);
         if (!adminStatus) querySubtarefas = querySubtarefas.eq("responsavel_id", user.id);
 
         const [
-            { data: ativsData },
-            { data: tarefasData },
+            { data: ativsResp },
+            { data: ativsExtra, error: ativsExtraError },
+            { data: tarefasResp },
+            { data: tarefasExtra, error: tarefasExtraError },
             { data: subtarefasData },
             { data: comboAtiv },
             { data: staffData },
@@ -251,8 +242,18 @@ export default function Tarefas() {
             { data: projData },
             { data: entidadesData }
         ] = await Promise.all([
-            queryAtivs,
-            queryTarefas,
+            adminStatus
+                ? supabase.from("atividades").select(`*, projetos!inner(id, titulo, cliente_id, parceiros_ids, clientes(id, marca, sigla)), profiles:criado_por(nome)`).not("projeto_id", "is", null)
+                : supabase.from("atividades").select(`*, projetos!inner(id, titulo, cliente_id, parceiros_ids, clientes(id, marca, sigla)), profiles:criado_por(nome)`).not("projeto_id", "is", null).eq("responsavel_id", user.id),
+            adminStatus
+                ? Promise.resolve({ data: [], error: null })
+                : supabase.from("atividades").select(`*, projetos!inner(id, titulo, cliente_id, parceiros_ids, clientes(id, marca, sigla)), profiles:criado_por(nome)`).not("projeto_id", "is", null).contains("colaboradores_extra", [user.id]),
+            adminStatus
+                ? supabase.from("tarefas").select(`*, atividades!inner(*, projetos!inner(id, titulo, cliente_id, parceiros_ids, clientes(id, marca, sigla))), profiles:criado_por(nome)`)
+                : supabase.from("tarefas").select(`*, atividades!inner(*, projetos!inner(id, titulo, cliente_id, parceiros_ids, clientes(id, marca, sigla))), profiles:criado_por(nome)`).eq("responsavel_id", user.id),
+            adminStatus
+                ? Promise.resolve({ data: [], error: null })
+                : supabase.from("tarefas").select(`*, atividades!inner(*, projetos!inner(id, titulo, cliente_id, parceiros_ids, clientes(id, marca, sigla))), profiles:criado_por(nome)`).contains("colaboradores_extra", [user.id]),
             querySubtarefas,
             supabase.from("atividades").select("id, titulo, projetos(titulo)").not("projeto_id", "is", null).neq("estado", "cancelado"),
             supabase.from("profiles").select("id, nome, email").order("nome"),
@@ -260,6 +261,23 @@ export default function Tarefas() {
             supabase.from("projetos").select("id, titulo").order("titulo"),
             supabase.from("contactos_cliente").select("id, cliente_id, nome_contacto, cargo, email, clientes(marca, sigla)")
         ]);
+
+        if (ativsExtraError) {
+            console.warn("Filtro por colaboradores_extra (atividades) indisponivel:", ativsExtraError.message);
+        }
+        if (tarefasExtraError) {
+            console.warn("Filtro por colaboradores_extra (tarefas) indisponivel:", tarefasExtraError.message);
+        }
+
+        const ativsData = [
+            ...(ativsResp || []),
+            ...(ativsExtra || []),
+        ].filter((item, idx, arr) => arr.findIndex((x) => x.id === item.id) === idx);
+
+        const tarefasData = [
+            ...(tarefasResp || []),
+            ...(tarefasExtra || []),
+        ].filter((item, idx, arr) => arr.findIndex((x) => x.id === item.id) === idx);
 
         let mapAtividades = new Map();
 
@@ -328,50 +346,18 @@ export default function Tarefas() {
         );
 
         if (taskIds.length > 0) {
-            let logsData = [];
+            const { data: logsData, error: logsError } = await supabase
+                .from("task_logs")
+                .select("id, user_id, task_id, start_time, end_time, duration_minutes")
+                .in("task_id", taskIds)
+                .not("duration_minutes", "is", null);
 
-            if (taskLogsHasExtendedTargets) {
-                const primary = await supabase
-                    .from("task_logs")
-                    .select("id, user_id, task_id, atividade_id, subtarefa_id, start_time, end_time, duration_minutes")
-                    .in("task_id", taskIds)
-                    .not("duration_minutes", "is", null);
-
-                if (!primary.error) {
-                    logsData = primary.data || [];
-                } else {
-                    setTaskLogsHasExtendedTargets(false);
-
-                    // Fallback for deployments where some target columns are not available.
-                    const fallback = await supabase
-                        .from("task_logs")
-                        .select("id, user_id, task_id, start_time, end_time, duration_minutes")
-                        .in("task_id", taskIds)
-                        .not("duration_minutes", "is", null);
-
-                    if (fallback.error) {
-                        console.error("Erro ao carregar logs de tarefa:", fallback.error);
-                        logsData = [];
-                    } else {
-                        logsData = fallback.data || [];
-                    }
-                }
+            if (logsError) {
+                console.error("Erro ao carregar logs de tarefa:", logsError);
+                setLogs([]);
             } else {
-                const fallback = await supabase
-                    .from("task_logs")
-                    .select("id, user_id, task_id, start_time, end_time, duration_minutes")
-                    .in("task_id", taskIds)
-                    .not("duration_minutes", "is", null);
-
-                if (fallback.error) {
-                    console.error("Erro ao carregar logs de tarefa:", fallback.error);
-                    logsData = [];
-                } else {
-                    logsData = fallback.data || [];
-                }
+                setLogs(logsData || []);
             }
-
-            setLogs(logsData);
         } else {
             setLogs([]);
         }

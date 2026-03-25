@@ -151,16 +151,33 @@ export default function MinhasTarefas() {
 
   async function fetchMyTasks() {
       try {
-          // 💡 Atualizado: Puxamos a nova coluna anexos (JSONB)
-          let query = supabase
-              .from("tarefas")
-              .select(`id, titulo, estado, responsavel_id, criado_por, data_limite, data_fim, prioridade, descricao, created_at, atividades(id, titulo, projetos(id, titulo, codigo_projeto)), colaboradores_extra, anexos, arquivo_url, nome_entregavel, data_entregavel, profiles:criado_por(nome)`)
-              .or(`responsavel_id.eq.${user.id},colaboradores_extra.cs.{${user.id}}`)
-              .order("created_at", { ascending: true }); 
+          const baseSelect = `id, titulo, estado, responsavel_id, criado_por, data_limite, data_fim, prioridade, descricao, created_at, atividades(id, titulo, projetos(id, titulo, codigo_projeto)), colaboradores_extra, anexos, arquivo_url, nome_entregavel, data_entregavel, profiles:criado_por(nome)`;
+          const [
+              { data: tarefasResp },
+              { data: tarefasExtra, error: tarefasExtraError },
+          ] = await Promise.all([
+              supabase
+                  .from("tarefas")
+                  .select(baseSelect)
+                  .eq("responsavel_id", user.id)
+                  .order("created_at", { ascending: true }),
+              supabase
+                  .from("tarefas")
+                  .select(baseSelect)
+                  .contains("colaboradores_extra", [user.id])
+                  .order("created_at", { ascending: true }),
+          ]);
 
-          if (!mostrarConcluidos) query = query.neq("estado", "concluido");
+          if (tarefasExtraError) {
+              console.warn("Filtro por colaboradores_extra (MinhasTarefas) indisponivel:", tarefasExtraError.message);
+          }
 
-          const { data: tData } = await query;
+          let tData = [
+              ...(tarefasResp || []),
+              ...(tarefasExtra || []),
+          ].filter((item, idx, arr) => arr.findIndex((x) => x.id === item.id) === idx);
+
+          if (!mostrarConcluidos) tData = tData.filter((t) => t.estado !== "concluido");
           const taskIds = (tData || []).map(t => t.id).filter(Boolean);
           if (taskIds.length > 0) {
               const { data: logsData } = await supabase
@@ -210,12 +227,37 @@ export default function MinhasTarefas() {
   }
 
   async function openCompletedHistory() {
-      const { data } = await supabase
-          .from("tarefas")
-          .select(`id, titulo, estado, responsavel_id, criado_por, data_limite, data_fim, prioridade, descricao, created_at, data_conclusao, atividades(projetos(id, titulo, codigo_projeto)), profiles:criado_por(nome)`)
-          .or(`responsavel_id.eq.${user.id},colaboradores_extra.cs.{${user.id}}`)
-          .eq("estado", "concluido")
-          .order("data_conclusao", { ascending: false, nullsFirst: false });
+      const baseSelect = `id, titulo, estado, responsavel_id, criado_por, data_limite, data_fim, prioridade, descricao, created_at, data_conclusao, atividades(projetos(id, titulo, codigo_projeto)), profiles:criado_por(nome)`;
+      const [
+          { data: concluidasResp },
+          { data: concluidasExtra, error: concluidasExtraError },
+      ] = await Promise.all([
+          supabase
+              .from("tarefas")
+              .select(baseSelect)
+              .eq("responsavel_id", user.id)
+              .eq("estado", "concluido"),
+          supabase
+              .from("tarefas")
+              .select(baseSelect)
+              .contains("colaboradores_extra", [user.id])
+              .eq("estado", "concluido"),
+      ]);
+
+      if (concluidasExtraError) {
+          console.warn("Filtro por colaboradores_extra (historico concluidas) indisponivel:", concluidasExtraError.message);
+      }
+
+      const data = [
+          ...(concluidasResp || []),
+          ...(concluidasExtra || []),
+      ]
+          .filter((item, idx, arr) => arr.findIndex((x) => x.id === item.id) === idx)
+          .sort((a, b) => {
+              const aDate = a.data_conclusao || a.created_at;
+              const bDate = b.data_conclusao || b.created_at;
+              return new Date(bDate) - new Date(aDate);
+          });
 
       if (data) {
           const now = new Date();

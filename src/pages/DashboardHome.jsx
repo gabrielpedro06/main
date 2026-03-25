@@ -589,19 +589,54 @@ export default function DashboardHome() {
   }
 
   async function fetchTarefasPessoais() {
-      const { data: tarefas } = await supabase
-          .from("tarefas")
-          .select(`*, atividades ( titulo, data_fim, projetos ( id, titulo, codigo_projeto, cliente_texto, clientes(marca, sigla) ) )`)
-          .or(`responsavel_id.eq.${user.id},colaboradores_extra.cs.{${user.id}}`)
-          .neq("estado", "concluido")
-          .neq("estado", "cancelado");
+      const [
+          { data: tarefasResp },
+          { data: tarefasExtra, error: tarefasExtraError },
+          { data: atividadesResp },
+          { data: atividadesExtra, error: atividadesExtraError },
+      ] = await Promise.all([
+          supabase
+              .from("tarefas")
+              .select(`*, atividades ( titulo, data_fim, projetos ( id, titulo, codigo_projeto, cliente_texto, clientes(marca, sigla) ) )`)
+              .eq("responsavel_id", user.id)
+              .neq("estado", "concluido")
+              .neq("estado", "cancelado"),
+          supabase
+              .from("tarefas")
+              .select(`*, atividades ( titulo, data_fim, projetos ( id, titulo, codigo_projeto, cliente_texto, clientes(marca, sigla) ) )`)
+              .contains("colaboradores_extra", [user.id])
+              .neq("estado", "concluido")
+              .neq("estado", "cancelado"),
+          supabase
+              .from("atividades")
+              .select(`*, projetos ( id, titulo, codigo_projeto, cliente_texto, clientes(marca, sigla) )`)
+              .eq("responsavel_id", user.id)
+              .neq("estado", "concluido")
+              .neq("estado", "cancelado"),
+          supabase
+              .from("atividades")
+              .select(`*, projetos ( id, titulo, codigo_projeto, cliente_texto, clientes(marca, sigla) )`)
+              .contains("colaboradores_extra", [user.id])
+              .neq("estado", "concluido")
+              .neq("estado", "cancelado"),
+      ]);
 
-      const { data: atividades } = await supabase
-          .from("atividades")
-          .select(`*, projetos ( id, titulo, codigo_projeto, cliente_texto, clientes(marca, sigla) )`)
-          .or(`responsavel_id.eq.${user.id},colaboradores_extra.cs.{${user.id}}`)
-          .neq("estado", "concluido")
-          .neq("estado", "cancelado");
+      if (tarefasExtraError) {
+          console.warn("Filtro por colaboradores_extra (tarefas) indisponível:", tarefasExtraError.message);
+      }
+      if (atividadesExtraError) {
+          console.warn("Filtro por colaboradores_extra (atividades) indisponível:", atividadesExtraError.message);
+      }
+
+      const tarefas = [
+          ...(tarefasResp || []),
+          ...(tarefasExtra || []),
+      ].filter((item, idx, arr) => arr.findIndex((x) => x.id === item.id) === idx);
+
+      const atividades = [
+          ...(atividadesResp || []),
+          ...(atividadesExtra || []),
+      ].filter((item, idx, arr) => arr.findIndex((x) => x.id === item.id) === idx);
 
       let combinedTasks = [];
 
@@ -722,17 +757,59 @@ export default function DashboardHome() {
 
   async function fetchTarefasEmAnalise() {
       try {
-          const { data: tarefas } = await supabase
-              .from("tarefas")
-              .select(`*, atividades ( titulo, data_fim, projetos ( id, titulo, codigo_projeto, cliente_texto, clientes(marca, sigla) ) )`)
-              .or(`responsavel_id.eq.${user.id},colaboradores_extra.cs.{${user.id}}`)
-              .eq("estado", "em_analise");
+          const [
+              { data: tarefasResp },
+              { data: tarefasExtra, error: tarefasExtraError },
+              { data: atividadesResp },
+              { data: atividadesExtra, error: atividadesExtraError },
+          ] = await Promise.all([
+              supabase
+                  .from("tarefas")
+                  .select(`*, atividades ( titulo, data_fim, projetos ( id, titulo, codigo_projeto, cliente_texto, clientes(marca, sigla) ) )`)
+                  .eq("responsavel_id", user.id)
+                  .neq("estado", "concluido")
+                  .neq("estado", "cancelado"),
+              supabase
+                  .from("tarefas")
+                  .select(`*, atividades ( titulo, data_fim, projetos ( id, titulo, codigo_projeto, cliente_texto, clientes(marca, sigla) ) )`)
+                  .contains("colaboradores_extra", [user.id])
+                  .neq("estado", "concluido")
+                  .neq("estado", "cancelado"),
+              supabase
+                  .from("atividades")
+                  .select(`*, projetos ( id, titulo, codigo_projeto, cliente_texto, clientes(marca, sigla) )`)
+                  .eq("responsavel_id", user.id)
+                  .neq("estado", "concluido")
+                  .neq("estado", "cancelado"),
+              supabase
+                  .from("atividades")
+                  .select(`*, projetos ( id, titulo, codigo_projeto, cliente_texto, clientes(marca, sigla) )`)
+                  .contains("colaboradores_extra", [user.id])
+                  .neq("estado", "concluido")
+                  .neq("estado", "cancelado"),
+          ]);
 
-          const { data: atividades } = await supabase
-              .from("atividades")
-              .select(`*, projetos ( id, titulo, codigo_projeto, cliente_texto, clientes(marca, sigla) )`)
-              .or(`responsavel_id.eq.${user.id},colaboradores_extra.cs.{${user.id}}`)
-              .eq("estado", "em_analise");
+          if (tarefasExtraError) {
+              console.warn("Filtro por colaboradores_extra (tarefas em análise) indisponível:", tarefasExtraError.message);
+          }
+          if (atividadesExtraError) {
+              console.warn("Filtro por colaboradores_extra (atividades em análise) indisponível:", atividadesExtraError.message);
+          }
+
+          const tarefas = [
+              ...(tarefasResp || []),
+              ...(tarefasExtra || []),
+          ].filter((item, idx, arr) => arr.findIndex((x) => x.id === item.id) === idx);
+
+          const atividades = [
+              ...(atividadesResp || []),
+              ...(atividadesExtra || []),
+          ].filter((item, idx, arr) => arr.findIndex((x) => x.id === item.id) === idx);
+
+          const isEmAnalise = (estado) => {
+              if (!estado) return false;
+              return String(estado).toLowerCase().replace(/\s+/g, "_") === "em_analise";
+          };
 
           let combinedAnalysis = [];
 
@@ -756,7 +833,7 @@ export default function DashboardHome() {
                       clientLabel,
                       computedDeadline: t.data_fim || t.data_limite || ativ?.data_fim,
                   };
-              });
+              }).filter((t) => isEmAnalise(t.estado));
               combinedAnalysis = [...combinedAnalysis, ...formattedTasks];
           }
 
@@ -780,7 +857,7 @@ export default function DashboardHome() {
                       clientLabel,
                       computedDeadline: a.data_fim,
                   };
-              });
+              }).filter((a) => isEmAnalise(a.estado));
               combinedAnalysis = [...combinedAnalysis, ...formattedAtivs];
           }
 
