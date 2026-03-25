@@ -8,6 +8,7 @@ import TimerSwitchModal from "../components/TimerSwitchModal";
 import StopTimerNoteModal from "../components/StopTimerNoteModal";
 import { hasAttendanceStartedToday, startAttendanceNow } from "../utils/attendanceGuard";
 import { resolveActiveTimerMeta } from "../utils/activeTimerResolver";
+import { concludeActivityWithChildren } from "../utils/activityStatusCascade";
 import "./../styles/dashboard.css";
 
 const ModalPortal = ({ children }) => {
@@ -846,7 +847,7 @@ export default function Tarefas() {
       }
 
       if (logEntry.atividade_id) {
-          await supabase.from("atividades").update({ estado: "concluido" }).eq("id", logEntry.atividade_id);
+          await concludeActivityWithChildren(supabase, logEntry.atividade_id);
           return;
       }
 

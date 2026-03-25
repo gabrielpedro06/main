@@ -7,6 +7,7 @@ import WidgetAssiduidade from "../components/WidgetAssiduidade";
 import TimerSwitchModal from "../components/TimerSwitchModal";
 import StopTimerNoteModal from "../components/StopTimerNoteModal";
 import { frasesMotivacionais } from "../data/frases"; 
+import { concludeActivityWithChildren } from "../utils/activityStatusCascade";
 import "./../styles/dashboard.css";
 
 // --- MEGA ÍCONES SVG PROFISSIONAIS ---
@@ -364,7 +365,7 @@ export default function DashboardHome() {
       }
 
       if (logEntry.atividade_id) {
-          await supabase.from("atividades").update({ estado: "concluido" }).eq("id", logEntry.atividade_id);
+          await concludeActivityWithChildren(supabase, logEntry.atividade_id);
           return;
       }
 

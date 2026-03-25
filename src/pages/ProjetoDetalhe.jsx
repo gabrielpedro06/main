@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import TimerSwitchModal from "../components/TimerSwitchModal";
 import StopTimerNoteModal from "../components/StopTimerNoteModal";
 import { hasAttendanceStartedToday, startAttendanceNow } from "../utils/attendanceGuard";
+import { concludeActivityWithChildren } from "../utils/activityStatusCascade";
 import "./../styles/dashboard.css";
 
 // 💡 IMPORTAÇÃO CORRIGIDA (SEM CHAVETAS):
@@ -763,7 +764,7 @@ export default function ProjetoDetalhe() {
       }
 
       if (logEntry.atividade_id) {
-          await supabase.from("atividades").update({ estado: "concluido" }).eq("id", logEntry.atividade_id);
+          await concludeActivityWithChildren(supabase, logEntry.atividade_id);
           return;
       }
 
@@ -834,7 +835,30 @@ export default function ProjetoDetalhe() {
 
   async function toggleAtividadeStatus(ativId, estadoAtual) {
       const novoEstado = estadoAtual === 'concluido' ? 'pendente' : 'concluido';
-      setAtividades(prev => prev.map(a => a.id === ativId ? {...a, estado: novoEstado} : a));
+      setAtividades(prev => prev.map(a => {
+          if (a.id !== ativId) return a;
+          if (novoEstado !== "concluido") return { ...a, estado: novoEstado };
+
+          return {
+              ...a,
+              estado: "concluido",
+              tarefas: (a.tarefas || []).map((t) => ({
+                  ...t,
+                  estado: "concluido",
+                  subtarefas: (t.subtarefas || []).map((s) => ({ ...s, estado: "concluido" }))
+              }))
+          };
+      }));
+
+      if (novoEstado === "concluido") {
+          const { error } = await concludeActivityWithChildren(supabase, ativId);
+          if (error) {
+              showToast("Erro ao concluir atividade e respetivas tarefas.", "error");
+              fetchProjetoDetails();
+          }
+          return;
+      }
+
       await supabase.from("atividades").update({ estado: novoEstado }).eq("id", ativId);
   }
 

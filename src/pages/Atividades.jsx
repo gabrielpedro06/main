@@ -7,6 +7,7 @@ import TimerSwitchModal from "../components/TimerSwitchModal";
 import StopTimerNoteModal from "../components/StopTimerNoteModal";
 import { hasAttendanceStartedToday, startAttendanceNow } from "../utils/attendanceGuard";
 import { resolveActiveTimerMeta } from "../utils/activeTimerResolver";
+import { concludeActivityWithChildren } from "../utils/activityStatusCascade";
 import "./../styles/dashboard.css";
 
 // --- ÍCONES SVG PROFISSIONAIS ---
@@ -296,7 +297,7 @@ export default function Atividades() {
         if (!logEntry) return;
 
         if (logEntry.atividade_id) {
-            await supabase.from("atividades").update({ estado: "concluido" }).eq("id", logEntry.atividade_id);
+            await concludeActivityWithChildren(supabase, logEntry.atividade_id);
             return;
         }
 
@@ -353,10 +354,22 @@ export default function Atividades() {
     if (novoEstado === 'concluido' && activeLog?.atividade_id === ativ.id) {
         await handleStopLog();
     }
+
+    if (novoEstado === "concluido") {
+        const { error } = await concludeActivityWithChildren(supabase, ativ.id);
+        if (!error) {
+            fetchData();
+            showToast("Atividade, tarefas e subtarefas concluídas!", "success");
+        } else {
+            showToast("Erro ao concluir atividade e respetivas tarefas.", "error");
+        }
+        return;
+    }
+
     const { error } = await supabase.from("atividades").update({ estado: novoEstado }).eq("id", ativ.id);
     if (!error) {
         fetchData();
-        showToast(novoEstado === 'concluido' ? "Atividade concluída!" : "Atividade reaberta.");
+        showToast("Atividade reaberta.");
     }
   }
 

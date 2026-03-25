@@ -7,6 +7,7 @@ import TimerSwitchModal from "../components/TimerSwitchModal";
 import StopTimerNoteModal from "../components/StopTimerNoteModal";
 import { hasAttendanceStartedToday, startAttendanceNow } from "../utils/attendanceGuard";
 import { resolveActiveTimerMeta } from "../utils/activeTimerResolver";
+import { concludeActivityWithChildren } from "../utils/activityStatusCascade";
 import "./../styles/dashboard.css";
 
 // --- ÍCONES SVG PROFISSIONAIS (SaaS Premium) ---
@@ -543,7 +544,7 @@ export default function Projetos() {
           }
 
           if (logEntry.atividade_id) {
-              await supabase.from("atividades").update({ estado: "concluido" }).eq("id", logEntry.atividade_id);
+              await concludeActivityWithChildren(supabase, logEntry.atividade_id);
               return;
           }
 
