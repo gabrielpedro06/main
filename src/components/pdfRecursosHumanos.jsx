@@ -85,27 +85,68 @@ const getEffectiveWorkedSeconds = (attendanceRow) => {
 	return Math.max(0, raw - pauseSeconds);
 };
 
-const countMealAllowanceEligibleDays = (attendanceRows = []) => {
-	const totalSecondsByDay = new Map();
 
+// Conta os dias SA pagos: dias úteis do mês menos só ausências/faltas/<4h, incluindo ausências futuras já marcadas
+const countMealAllowancePaidDays = (
+	attendanceRows = [],
+	ausenciasRows = [],
+	{ startDate = "", endDate = "", feriadosSet = new Set() } = {},
+) => {
+	// 1. Lista de todos os dias úteis do mês
+	const allBusinessDays = [];
+	let d = new Date(startDate);
+	const end = new Date(endDate);
+	while (d <= end) {
+		const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+		const day = d.getDay();
+		if (day !== 0 && day !== 6 && !feriadosSet.has(key)) allBusinessDays.push(key);
+		d.setDate(d.getDate() + 1);
+	}
+
+	// 2. Map de assiduidade por dia
+	const workedSecondsByDay = new Map();
 	(attendanceRows || []).forEach((row) => {
 		if (!row?.data_registo) return;
-
 		const effectiveSeconds = getEffectiveWorkedSeconds(row);
-		if (effectiveSeconds <= 0) return;
-
-		totalSecondsByDay.set(
-			row.data_registo,
-			(totalSecondsByDay.get(row.data_registo) || 0) + effectiveSeconds,
-		);
+		workedSecondsByDay.set(row.data_registo, effectiveSeconds);
 	});
 
-	let eligibleDays = 0;
-	totalSecondsByDay.forEach((totalSeconds) => {
-		if (totalSeconds >= MIN_SA_WORK_SECONDS) eligibleDays += 1;
-	});
+	// 3. Função para saber se há ausência de dia inteiro (não parcial, não rejeitada/cancelada, não KM)
+	const isFullDayAbsence = (dateStr) => {
+		return (ausenciasRows || []).some((a) => {
+			if (a.is_parcial) return false;
+			if (!a.data_inicio || !a.data_fim) return false;
+			const estado = (a.estado || '').toLowerCase();
+			if (estado === 'rejeitado' || estado === 'cancelado') return false;
+			const tipo = (a.tipo || '').toLowerCase();
+			if (tipo.includes('pedido de km')) return false;
+			return a.data_inicio <= dateStr && a.data_fim >= dateStr;
+		});
+	};
 
-	return eligibleDays;
+	// 4. Só considerar como pago:
+	// - Dias úteis com ausência de dia inteiro já marcada: NÃO pago
+	// - Dias anteriores a hoje: só pago se tem registo >=4h
+	// - Dias futuros e o próprio dia: pago, exceto se ausência de dia inteiro
+	let paidDays = 0;
+	const todayStr = new Date().toISOString().split('T')[0];
+	allBusinessDays.forEach((key) => {
+		if (isFullDayAbsence(key)) {
+			// ausência de dia inteiro, não conta como pago
+			return;
+		}
+		if (key < todayStr) {
+			const worked = workedSecondsByDay.get(key);
+			if (worked !== undefined && worked >= MIN_SA_WORK_SECONDS) {
+				paidDays += 1; // trabalhou >=4h
+			}
+			// Dias anteriores a hoje, sem registo ou <4h, não contam como pagos
+		} else {
+			// futuro ou hoje, pago (exceto ausência já tratada acima)
+			paidDays += 1;
+		}
+	});
+	return paidDays;
 };
 
 const formatHours = (seconds) => {
@@ -307,43 +348,77 @@ export const generateRecursosHumanosPDF = async ({
 			const userAssiduidade = (assiduidade || []).filter((a) => a.user_id === employee.id);
 			const userAusencias = (ausencias || []).filter((a) => a.user_id === employee.id);
 
-			const workedDays = countMealAllowanceEligibleDays(userAssiduidade);
+			// Dias SA pagos = dias úteis do mês menos só ausências/faltas/<4h
+			const workedDays = employee.valor_sa === 0 ? 0 : countMealAllowancePaidDays(
+				userAssiduidade,
+				userAusencias,
+				{ startDate: monthStart, endDate: monthEnd, feriadosSet }
+			);
 
 			const totalSeconds = userAssiduidade.reduce((acc, row) => {
 				return acc + getEffectiveWorkedSeconds(row);
 			}, 0);
+
 
 			let faltasJustificadas = 0;
 			let faltasInjustificadas = 0;
 			let ferias = 0;
 			let kmsTotais = 0;
 
-			userAusencias.forEach((ausencia) => {
-				const start = ausencia.data_inicio;
-				const end = ausencia.data_fim || ausencia.data_inicio;
-				if (!overlapsMonth(start, end, monthStart, monthEnd)) return;
+			// Corrigir: somar todos os pedidos de km aprovados do colaborador neste mês
+			kmsTotais = (userAusencias || []).reduce((acc, a) => {
+				const tipo = (a.tipo || '').toLowerCase();
+				const estado = (a.estado || '').toLowerCase();
+				if (!tipo.includes('pedido de km')) return acc;
+				if (estado === 'rejeitado' || estado === 'cancelado') return acc;
+				// Só contar pedidos que abrangem pelo menos 1 dia do mês
+				if (!overlapsMonth(a.data_inicio, a.data_fim || a.data_inicio, monthStart, monthEnd)) return acc;
+				return acc + (Number(a.km_total) || 0);
+			}, 0);
 
-				const rangeStart = start < monthStart ? monthStart : start;
-				const rangeEnd = end > monthEnd ? monthEnd : end;
-				const dias = ausencia.is_parcial ? 0 : calcBusinessDaysInRange(rangeStart, rangeEnd, feriadosSet);
-				const tipo = normalize(ausencia.tipo);
-
-				if (tipo.includes("pedido de km")) {
-					kmsTotais += Number(ausencia.km_total) || 0;
-					return;
+			// Para cada dia útil do mês, verificar se há ausência de dia inteiro e classificar corretamente
+			let d = new Date(monthStart);
+			const end = new Date(monthEnd);
+			const hojeStr = new Date().toISOString().split('T')[0];
+			while (d <= end) {
+				const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+				const day = d.getDay();
+				if (day === 0 || day === 6 || feriadosSet.has(dateStr)) {
+					d.setDate(d.getDate() + 1);
+					continue;
 				}
-
-				if (isVacationType(tipo)) {
-					ferias += dias;
-					return;
+				// 1. Verificar ausência de dia inteiro (não parcial, não rejeitada/cancelada, não KM)
+				const ausencia = (userAusencias || []).find((a) => {
+					if (a.is_parcial) return false;
+					if (!a.data_inicio || !a.data_fim) return false;
+					const estado = (a.estado || '').toLowerCase();
+					if (estado === 'rejeitado' || estado === 'cancelado') return false;
+					const tipo = (a.tipo || '').toLowerCase();
+					if (tipo.includes('pedido de km')) return false;
+					return a.data_inicio <= dateStr && a.data_fim >= dateStr;
+				});
+				if (ausencia) {
+					const tipo = normalize(ausencia.tipo);
+					if (isVacationType(tipo)) ferias += 1;
+					else if (tipo.includes('falta')) {
+						if (tipo.includes('injust')) faltasInjustificadas += 1;
+						else if (tipo.includes('just')) faltasJustificadas += 1;
+						else faltasInjustificadas += 1;
+					} else if (tipo.includes('baixa') || tipo.includes('doenca') || tipo.includes('acidente')) {
+						// Se quiseres contar baixas, podes adicionar aqui
+					}
+				} else {
+					// 2. Se não há ausência, e o dia é anterior a hoje, e não tem registo >=4h, é falta injustificada automática
+					if (dateStr < hojeStr) {
+						const assid = (userAssiduidade || []).find(a => a.data_registo === dateStr);
+						const worked = assid ? getEffectiveWorkedSeconds(assid) : 0;
+						if (worked < MIN_SA_WORK_SECONDS) {
+							faltasInjustificadas += 1;
+						}
+					}
 				}
-
-				if (tipo.includes("falta")) {
-					if (tipo.includes("injust")) faltasInjustificadas += dias;
-					else if (tipo.includes("just")) faltasJustificadas += dias;
-					else faltasInjustificadas += dias;
-				}
-			});
+				d.setDate(d.getDate() + 1);
+			}
 
 			const saDiario = Number(employee.valor_sa) || 0;
 			const subsidioAlimentacao = workedDays * saDiario;

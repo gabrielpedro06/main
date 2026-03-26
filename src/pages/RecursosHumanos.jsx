@@ -253,6 +253,58 @@ const countMealAllowanceEligibleDays = (attendanceRows = []) => {
     return eligibleDays;
 };
 
+const clampDateToRange = (dateValue, startDate, endDate) => {
+    if (!dateValue) return null;
+    if (startDate && dateValue < startDate) return null;
+    if (endDate && dateValue > endDate) return null;
+    return dateValue;
+};
+
+const isBusinessDayDate = (dateValue, holidaySet = new Set()) => {
+    const parsed = parseLocalDate(dateValue);
+    if (!parsed) return false;
+
+    const day = parsed.getDay();
+    if (day === 0 || day === 6) return false;
+
+    return !holidaySet.has(dateValue);
+};
+
+const createHolidaySetForMonth = (year, month) => {
+    return new Set(
+        getFeriados(year)
+            .filter((f) => f.m === month)
+            .map((f) => `${year}-${String(f.m + 1).padStart(2, "0")}-${String(f.d).padStart(2, "0")}`),
+    );
+};
+
+const countMealAllowanceEligibleDaysInPeriod = (
+    attendanceRows = [],
+    { startDate = "", endDate = "", holidaySet = new Set() } = {},
+) => {
+    const totalSecondsByDay = new Map();
+
+    const hojeStr = new Date().toISOString().split('T')[0];
+    (attendanceRows || []).forEach((row) => {
+        const dayKey = clampDateToRange(row?.data_registo, startDate, endDate);
+        if (!dayKey || !isBusinessDayDate(dayKey, holidaySet)) return;
+        // Só considerar dias anteriores ao dia de hoje
+        if (dayKey >= hojeStr) return;
+
+        const effectiveSeconds = getEffectiveWorkedSeconds(row);
+        if (effectiveSeconds <= 0) return;
+
+        totalSecondsByDay.set(dayKey, (totalSecondsByDay.get(dayKey) || 0) + effectiveSeconds);
+    });
+
+    let eligibleDays = 0;
+    totalSecondsByDay.forEach((totalSeconds) => {
+        if (totalSeconds >= MIN_SA_WORK_SECONDS) eligibleDays += 1;
+    });
+
+    return eligibleDays;
+};
+
 export default function RecursosHumanos() {
     const DEFAULT_KM_RATE = 0.4;
     const KM_RATE_STORAGE_KEY = "rh_km_reembolso_eur";
@@ -1457,9 +1509,21 @@ export default function RecursosHumanos() {
 
   const getStats = () => {
       let countTrabalho = 0, countFerias = 0, countFaltas = 0, countBaixas = 0;
-      countTrabalho = countMealAllowanceEligibleDays(assiduidadeMes);
       const year = currentDate.getFullYear();
       const month = currentDate.getMonth();
+      const monthStart = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+      const monthEnd = toLocalDateString(new Date(year, month + 1, 0));
+      const attendanceStart = selectedUser ? getAttendanceStartForUser(selectedUser) : monthStart;
+      const effectiveMonthStart = attendanceStart && attendanceStart > monthStart ? attendanceStart : monthStart;
+      const holidaySet = createHolidaySetForMonth(year, month);
+      const diasUteisMes = calcularDiasUteis(effectiveMonthStart, monthEnd);
+
+      countTrabalho = countMealAllowanceEligibleDaysInPeriod(assiduidadeMes, {
+          startDate: effectiveMonthStart,
+          endDate: monthEnd,
+          holidaySet,
+      });
+
       const toleranciasDoMes = (ausenciasMes || []).filter(
           (a) => !a.is_parcial && isToleranceType(a.tipo),
       );
@@ -1504,13 +1568,44 @@ export default function RecursosHumanos() {
 
       countFaltas += faltasInjustificadasAutomaticas.length;
 
+            // Corrigir: só descontar dias úteis anteriores a hoje, sem registo nem ausência
+            const hojeStr = new Date().toISOString().split('T')[0];
+                        let diasDescontadosSA = 0;
+                        for (let d = 1; d <= new Date(year, month + 1, 0).getDate(); d++) {
+                                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                                const dayOfWeek = new Date(year, month, d).getDay();
+                                const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                                const isHoliday = holidaySet.has(dateStr);
+                                const isAfterAttendanceStart = dateStr >= effectiveMonthStart;
+                                if (!isAfterAttendanceStart || isWeekend || isHoliday) continue;
+                                // Se existe ausência de dia inteiro (não parcial, não rejeitada/cancelada, não KM) já marcada para este dia, desconta já
+                                const ausenciaDiaInteira = (ausenciasMes || []).find((a) => {
+                                    if (a.is_parcial) return false;
+                                    if (a.tipo === KM_REQUEST_TYPE) return false;
+                                    const estado = (a.estado || '').toLowerCase();
+                                    if (estado === 'rejeitado' || estado === 'cancelado') return false;
+                                    return a.data_inicio <= dateStr && a.data_fim >= dateStr;
+                                });
+                                if (ausenciaDiaInteira) {
+                                    diasDescontadosSA++;
+                                    continue;
+                                }
+                                // Para os restantes dias, só descontar se for anterior a hoje e não tiver registo >=4h nem ausência
+                                const isPast = dateStr < hojeStr;
+                                if (!isPast) continue;
+                                const assid = (assiduidadeMes || []).find(a => a.data_registo === dateStr);
+                                const worked = assid ? getEffectiveWorkedSeconds(assid) : 0;
+                                if (worked >= MIN_SA_WORK_SECONDS) continue;
+                                diasDescontadosSA++;
+                        }
+
       let valorSA = "0.00";
       if (selectedUser) {
           const profile = colaboradores.find(c => c.id === selectedUser);
           const diarioSA = Number(profile?.valor_sa) || 0;
-          valorSA = (countTrabalho * diarioSA).toFixed(2);
+          valorSA = ((diasUteisMes - diasDescontadosSA) * diarioSA).toFixed(2);
       }
-      return { countTrabalho, countFerias, countFaltas, countBaixas, valorSA };
+      return { countTrabalho, countFerias, countFaltas, countBaixas, valorSA, diasUteisMes, diasDescontadosSA };
   };
 
   const gerarFaltasInjustificadasAutomaticas = () => {
@@ -1519,7 +1614,7 @@ export default function RecursosHumanos() {
       const year = currentDate.getFullYear();
       const month = currentDate.getMonth();
       const daysInMonth = new Date(year, month + 1, 0).getDate();
-      const hojeStr = new Date().toISOString().split('T')[0];
+    const hojeStr = new Date().toISOString().split('T')[0];
       const dataInicioCalculo = getAttendanceStartForUser(selectedUser);
       const feriadosSet = new Set(
           getFeriados(year)
@@ -1544,10 +1639,10 @@ export default function RecursosHumanos() {
           const dayOfWeek = new Date(year, month, d).getDay();
           const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
           const isHoliday = feriadosSet.has(dateStr);
-          const isPastOrToday = dateStr <= hojeStr;
+          const isPast = dateStr < hojeStr; // Só dias anteriores ao dia de hoje
           const isAfterAttendanceStart = dateStr >= dataInicioCalculo;
 
-          if (!isPastOrToday || !isAfterAttendanceStart || isWeekend || isHoliday) continue;
+          if (!isPast || !isAfterAttendanceStart || isWeekend || isHoliday) continue;
           if (datasComAssiduidade.has(dateStr)) continue;
           if (temJustificacaoNoDia(dateStr)) continue;
 
@@ -2291,10 +2386,12 @@ export default function RecursosHumanos() {
                                     <Icons.Chart size={18} color="#64748b"/>
                                     Processamento {currentDate.toLocaleDateString('pt-PT', {month:'long'})}
                                 </h4>
-                                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'12px', fontSize:'0.9rem', color:'#334155'}}><span>Dias Trabalhados (&gt;=4h) ({stats.countTrabalho})</span><span style={{fontWeight:'600'}}>+ {stats.valorSA} €</span></div>
-                                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'12px', fontSize:'0.9rem', color:'#334155'}}><span>Férias ({stats.countFerias})</span><span style={{color:'#94a3b8'}}>-</span></div>
-                                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'12px', fontSize:'0.9rem', color:'#ef4444', fontWeight:'500'}}><span>Faltas ({stats.countFaltas})</span><span style={{color:'#fca5a5'}}>-</span></div>
-                                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'12px', fontSize:'0.9rem', color:'#8b5cf6'}}><span>Baixas ({stats.countBaixas})</span><span style={{color:'#c4b5fd'}}>-</span></div>
+                                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'12px', fontSize:'0.9rem', color:'#334155'}}><span>Dias úteis do mês</span><span style={{color:'#64748b'}}>{stats.diasUteisMes}</span></div>
+                                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'12px', fontSize:'0.9rem', color:'#334155'}}><span>Dias Trabalhados (&gt;=4h)</span><span style={{fontWeight:'600'}}>{stats.countTrabalho}</span></div>
+                                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'12px', fontSize:'0.9rem', color:'#ef4444', fontWeight:'500'}}><span>Dias Descontados (&lt;4h / ausência)</span><span style={{color:'#fca5a5'}}>{stats.diasDescontadosSA}</span></div>
+                                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'12px', fontSize:'0.9rem', color:'#334155'}}><span>Férias</span><span style={{color:'#94a3b8'}}>{stats.countFerias}</span></div>
+                                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'12px', fontSize:'0.9rem', color:'#ef4444', fontWeight:'500'}}><span>Faltas</span><span style={{color:'#fca5a5'}}>{stats.countFaltas}</span></div>
+                                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'12px', fontSize:'0.9rem', color:'#8b5cf6'}}><span>Baixas</span><span style={{color:'#c4b5fd'}}>{stats.countBaixas}</span></div>
                                 <div style={{marginTop:'20px', paddingTop:'15px', borderTop:'2px dashed #f1f5f9', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
                                     <span style={{fontWeight:'bold', color:'#475569', fontSize:'0.9rem'}}>TOTAL S.A. PAGAR:</span><span style={{fontSize:'1.5rem', fontWeight:'800', color:'#16a34a'}}>{stats.valorSA} €</span>
                                 </div>
