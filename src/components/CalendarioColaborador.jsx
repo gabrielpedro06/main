@@ -28,6 +28,32 @@ export default function CalendarioColaborador({
     observacoes: "",
   });
 
+  // Estado para modal de apagar assiduidade
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteInput, setDeleteInput] = useState("");
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+
+  // Função para apagar assiduidade
+  async function handleDeleteAssiduidade(diaObj) {
+    if (!diaObj?.assidDia?.id) return;
+    setDeleteLoading(true);
+    setSaveFeedback({ show: false, type: "success", message: "" });
+    try {
+      const { error } = await supabase.from("assiduidade").delete().eq("id", diaObj.assidDia.id);
+      if (error) throw error;
+      setSaveFeedback({ show: true, type: "success", message: "Assiduidade apagada com sucesso." });
+      setShowDeleteModal(false);
+      setDeleteInput("");
+      setDeleteTarget(null);
+      fetchDadosMes();
+    } catch (error) {
+      setSaveFeedback({ show: true, type: "error", message: `Erro ao apagar: ${error.message}` });
+    } finally {
+      setDeleteLoading(false);
+    }
+  }
+
   const mesAtual = dataAtual.getMonth();
   const anoAtual = dataAtual.getFullYear();
   const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
@@ -373,15 +399,22 @@ export default function CalendarioColaborador({
     setSaveFeedback({ show: false, type: "success", message: "" });
 
     try {
-      const { data: existente, error: searchError } = await supabase
+      const { data: existentes, error: searchError } = await supabase
         .from("assiduidade")
         .select("id")
         .eq("user_id", userId)
         .eq("data_registo", dataStr)
-        .maybeSingle();
+        .limit(2); // Para detectar múltiplos
 
       if (searchError) throw searchError;
 
+      if ((existentes || []).length > 1) {
+        setSaveFeedback({ show: true, type: "error", message: "Erro: Existem múltiplos registos de assiduidade para este colaborador neste dia. Contacte o administrador para corrigir." });
+        setSavingDay(false);
+        return;
+      }
+
+      const existente = (existentes || [])[0];
       const payload = {
         user_id: userId,
         data_registo: dataStr,
@@ -655,9 +688,7 @@ export default function CalendarioColaborador({
             const diaObj = diasDoMes.find((d) => d && d.dia === diaSelected);
             if (!diaObj) return null;
 
-            if (diaObj.isFimSemana) {
-              return <p style={{ color: "#64748b", margin: 0 }}>Este é um fim de semana.</p>;
-            }
+            // Foi removido o "if (diaObj.isFimSemana)" daqui para não bloquear a leitura de horas extra ao fim de semana!
 
             if (diaObj.ausenciasDiaInteiras.length > 0) {
               const ausencia = diaObj.ausenciasDiaInteiras[0];
@@ -828,13 +859,20 @@ export default function CalendarioColaborador({
                     </div>
                   )}
 
-                  <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "12px" }}>
+                  <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "12px", gap: "8px" }}>
                     <button
                       type="button"
                       onClick={() => openEditForDay(diaObj)}
                       style={{ background: "white", border: "1px solid #cbd5e1", color: "#334155", padding: "8px 12px", borderRadius: "6px", cursor: "pointer", fontWeight: "600" }}
                     >
                       Editar Assiduidade
+                    </button>
+                    <button
+                      type="button"
+                      onClick={e => { e.stopPropagation(); setShowDeleteModal(true); setDeleteTarget(diaObj); setDeleteInput(""); }}
+                      style={{ background: "#ef4444", border: "none", color: "white", padding: "8px 12px", borderRadius: "6px", cursor: "pointer", fontWeight: "600" }}
+                    >
+                      Apagar Assiduidade
                     </button>
                   </div>
 
@@ -886,7 +924,10 @@ export default function CalendarioColaborador({
 
             return (
               <div>
-                <p style={{ color: "#94a3b8", margin: "0 0 10px 0" }}>Sem registos para este dia.</p>
+                {/* Aqui está a mensagem condicional e a garantia de que podes picar manuamente mesmo no fim de semana! */}
+                <p style={{ color: "#94a3b8", margin: "0 0 10px 0" }}>
+                  {diaObj.isFimSemana ? "Este é um fim de semana sem registos." : "Sem registos para este dia."}
+                </p>
                 {saveFeedback.show && (
                   <div style={{ marginBottom: "12px", padding: "10px", borderRadius: "6px", background: saveFeedback.type === "error" ? "#fef2f2" : "#f0fdf4", color: saveFeedback.type === "error" ? "#991b1b" : "#166534", border: `1px solid ${saveFeedback.type === "error" ? "#fecaca" : "#bbf7d0"}` }}>
                     {saveFeedback.message}
@@ -899,6 +940,14 @@ export default function CalendarioColaborador({
                     style={{ background: "white", border: "1px solid #cbd5e1", color: "#334155", padding: "8px 12px", borderRadius: "6px", cursor: "pointer", fontWeight: "600" }}
                   >
                     Registar Assiduidade
+                  </button>
+                  <button
+                    type="button"
+                    onClick={e => { e.stopPropagation(); setShowDeleteModal(true); setDeleteTarget(diaObj); setDeleteInput(""); }}
+                    style={{ background: "#ef4444", border: "none", color: "white", padding: "8px 12px", borderRadius: "6px", cursor: "pointer", fontWeight: "600" }}
+                    disabled={!diaObj.assidDia}
+                  >
+                    Apagar Assiduidade
                   </button>
                   <button
                     type="button"
@@ -986,7 +1035,47 @@ export default function CalendarioColaborador({
           </div>
         )}
       </div>
+
+      {/* Modal de confirmação para apagar assiduidade */}
+      {showDeleteModal && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", background: "rgba(0,0,0,0.25)", zIndex: 9999,
+          display: "flex", alignItems: "center", justifyContent: "center"
+        }}>
+          <div style={{ background: "white", borderRadius: "10px", padding: 32, minWidth: 320, boxShadow: "0 2px 16px rgba(0,0,0,0.15)" }}>
+            <h3 style={{ color: "#ef4444", marginTop: 0 }}>Apagar Assiduidade</h3>
+            <p>Tem a certeza que quer apagar este registo de assiduidade? Esta ação é <b>irreversível</b>.<br/>Para confirmar, escreva <b>APAGAR</b> abaixo:</p>
+            <input
+              type="text"
+              value={deleteInput}
+              onChange={e => setDeleteInput(e.target.value)}
+              placeholder="Digite APAGAR para confirmar"
+              style={{ width: "100%", padding: 8, borderRadius: 6, border: "1px solid #cbd5e1", marginBottom: 16 }}
+              autoFocus
+              disabled={deleteLoading}
+            />
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <button
+                type="button"
+                onClick={() => { setShowDeleteModal(false); setDeleteInput(""); setDeleteTarget(null); }}
+                style={{ background: "white", border: "1px solid #cbd5e1", color: "#475569", padding: "8px 12px", borderRadius: "6px", cursor: "pointer", fontWeight: "600" }}
+                disabled={deleteLoading}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDeleteAssiduidade(deleteTarget)}
+                style={{ background: "#ef4444", border: "none", color: "white", padding: "8px 12px", borderRadius: "6px", cursor: deleteInput !== "APAGAR" || deleteLoading ? "not-allowed" : "pointer", fontWeight: "700", opacity: deleteInput !== "APAGAR" ? 0.6 : 1 }}
+                disabled={deleteInput !== "APAGAR" || deleteLoading}
+              >
+                {deleteLoading ? "A apagar..." : "Apagar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
-

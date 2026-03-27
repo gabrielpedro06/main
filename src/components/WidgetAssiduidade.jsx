@@ -46,6 +46,8 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
   // Modais
   const [showStartModal, setShowStartModal] = useState(false); 
   const [showClockOutModal, setShowClockOutModal] = useState(false);
+  const [showRetomarModal, setShowRetomarModal] = useState(false);
+  const [retomarPromise, setRetomarPromise] = useState(null);
 
   // Registos Recentes
   const [showRecords, setShowRecords] = useState(false);
@@ -200,13 +202,73 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
 
   // --- 2. INICIAR DIA DE TRABALHO ---
   async function openStartModal() {
-      if (loading) return;
-      setLoading(true);
-      try {
-        const now = new Date();
-        const horaAtual = now.toLocaleTimeString('pt-PT', { hour12: false });
-        const dataAtual = now.toLocaleDateString('en-CA');
+    if (loading) return;
+    setLoading(true);
+    try {
+      const now = new Date();
+      const horaAtual = now.toLocaleTimeString('pt-PT', { hour12: false });
+      const dataAtual = now.toLocaleDateString('en-CA');
 
+      // Verificar se já existe registro para o dia
+      const { data: existente, error: searchError } = await supabase
+        .from("assiduidade")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("data_registo", dataAtual)
+        .limit(2);
+      if (searchError) throw searchError;
+
+      if ((existente || []).length > 1) {
+        alert("Erro: Existem múltiplos registos de assiduidade para hoje. Contacte o administrador.");
+        setLoading(false);
+        return;
+      }
+
+      const reg = (existente || [])[0];
+      if (reg) {
+        if (reg.hora_saida) {
+          // Perguntar se quer retomar sessão antiga usando modal
+          const retomar = await new Promise((resolve) => {
+            setRetomarPromise(() => resolve);
+            setShowRetomarModal(true);
+          });
+          if (retomar) {
+            // Calcular pausa
+            const [h1, m1, s1] = reg.hora_saida.split(":").map(Number);
+            const [h2, m2, s2] = horaAtual.split(":").map(Number);
+            const t1 = h1 * 3600 + m1 * 60 + (s1 || 0);
+            const t2 = h2 * 3600 + m2 * 60 + (s2 || 0);
+            let pausa = t2 - t1;
+            if (pausa < 0) pausa += 24 * 3600; // caso passe da meia-noite
+            const novoPausa = (reg.tempo_pausa_acumulado || 0) + pausa;
+            // Mantém hora_entrada original, só atualiza pausa e limpa hora_saida
+            const { data: updated, error: updateError } = await supabase
+              .from("assiduidade")
+              .update({
+                hora_saida: null,
+                tempo_pausa_acumulado: novoPausa
+              })
+              .eq("id", reg.id)
+              .select()
+              .single();
+            if (updateError) throw updateError;
+            setActiveRecord(updated);
+            setRegistroId(updated.id);
+            setStatus("running");
+            setTimer(0);
+            setSelectedTasks([]);
+            setShowStartModal(false);
+          } else {
+            setLoading(false);
+            return;
+          }
+        } else {
+          alert("Já existe um registo de assiduidade aberto para hoje. Não é possível iniciar outro.");
+          setLoading(false);
+          return;
+        }
+      } else {
+        // Não existe, criar novo
         const { data, error } = await supabase
           .from("assiduidade")
           .insert([{
@@ -217,7 +279,6 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
             tarefas_planeadas: JSON.stringify([])
           }])
           .select().single();
-
         if (data && !error) {
           setActiveRecord(data);
           setRegistroId(data.id);
@@ -226,11 +287,18 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
           setSelectedTasks([]);
           setShowStartModal(false);
         }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
       }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }
+  // Handler para resposta do modal de retomar sessão
+  function handleRetomarResponse(confirm) {
+    if (retomarPromise) retomarPromise(confirm);
+    setShowRetomarModal(false);
+    setRetomarPromise(null);
   }
 
   async function confirmStart(e) {
@@ -506,7 +574,116 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
   const inputFieldStyle = { width: '100%', padding: '12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.95rem', background: '#fff', boxSizing: 'border-box', outline: 'none', color: '#1e293b', transition: 'border 0.2s' };
 
   return (
-    <div className="card" style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', minHeight: '360px', padding: '32px 28px', background: '#ffffff' }}>
+    <>
+      {/* Modal de confirmação para retomar sessão antiga - Versão Premium */}
+      {showRetomarModal && (
+        <ModalPortal>
+          <div style={{
+            ...modalOverlayStyle, 
+            backdropFilter: 'blur(8px)', // Efeito de vidro no fundo
+            backgroundColor: 'rgba(15, 23, 42, 0.45)', // Overlay mais escuro e elegante
+            alignItems: 'center', // Centralizado fica mais premium que no topo
+            display: 'flex',
+            justifyContent: 'center'
+          }}>
+            <div style={{
+              ...modalContainerStyle,
+              maxWidth: 420,
+              borderRadius: 24,
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              padding: 0,
+              background: '#ffffff',
+              border: '1px solid rgba(226, 232, 240, 0.8)',
+              overflow: 'hidden',
+              position: 'relative'
+            }}>
+              {/* Botão Fechar Minimalista */}
+              <button 
+                onClick={() => handleRetomarResponse(false)} 
+                style={{
+                  position:'absolute', top:20, right:20, background:'#f1f5f9', border:'none', 
+                  cursor:'pointer', color:'#64748b', width: 32, height: 32, borderRadius: '50%',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '0.2s',
+                  zIndex: 10
+                }} 
+                className="hover-subtle-bg"
+              >
+                <Icons.Close size={18}/>
+              </button>
+
+              <div style={{padding: '48px 32px 32px 32px', textAlign: 'center'}}>
+                {/* Ícone com Gradiente */}
+                <div style={{
+                  background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)', 
+                  borderRadius: '20px', width: 64, height: 64, 
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                  margin: '0 auto 24px auto',
+                  boxShadow: '0 10px 15px -3px rgba(251, 191, 36, 0.2)'
+                }}>
+                  <Icons.Pause size={32} color="#b45309" />
+                </div>
+
+                <h2 style={{
+                  margin: 0, fontSize: '1.5rem', fontWeight: 800, 
+                  color: '#0f172a', letterSpacing: '-0.025em'
+                }}>
+                  Retomar Sessão?
+                </h2>
+
+                <p style={{
+                  marginTop: 16, color: '#475569', fontSize: '1rem', 
+                  lineHeight: 1.6, fontWeight: 400
+                }}>
+                  Identificamos um registo anterior hoje. <br/>
+                  <span style={{color: '#1e293b', fontWeight: 600}}>Deseja continuar onde parou?</span>
+                </p>
+                
+                <div style={{
+                  marginTop: 12, padding: '10px 16px', background: '#f8fafc', 
+                  borderRadius: '12px', fontSize: '0.88rem', color: '#64748b',
+                  border: '1px dashed #e2e8f0'
+                }}>
+                  O intervalo será registado automaticamente como pausa.
+                </div>
+              </div>
+
+              {/* Footer com botões de alta fidelidade */}
+              <div style={{
+                display: 'flex', gap: 12, padding: '24px 32px', 
+                background: '#f8fafc', borderTop: '1px solid #f1f5f9'
+              }}>
+                <button 
+                  type="button" 
+                  onClick={() => handleRetomarResponse(false)} 
+                  style={{
+                    flex: 1, padding: '14px 0', borderRadius: '14px', border: '1px solid #e2e8f0', 
+                    background: '#fff', color: '#475569', fontWeight: 600, fontSize: '0.95rem', 
+                    cursor: 'pointer', transition: '0.2s'
+                  }}
+                >
+                  Agora não
+                </button>
+                
+                <button 
+                  type="button" 
+                  onClick={() => handleRetomarResponse(true)} 
+                  style={{
+                    flex: 1.5, padding: '14px 0', borderRadius: '14px', border: 'none', 
+                    background: '#0f172a', // Azul quase preto (muito premium)
+                    color: '#fff', fontWeight: 600, fontSize: '0.95rem', 
+                    cursor: 'pointer', transition: '0.3s', display: 'flex', 
+                    alignItems: 'center', justifyContent: 'center', gap: '8px',
+                    boxShadow: '0 10px 15px -3px rgba(15, 23, 42, 0.25)'
+                  }}
+                >
+                  <Icons.Pause size={18} /> Confirmar Retoma
+                </button>
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
+      <div className="card" style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', minHeight: '360px', padding: '32px 28px', background: '#ffffff' }}>
 
       {/* Toggle registos */}
       <button onClick={() => { setShowRecords(v => !v); if (!showRecords) fetchRecentRecords(); }} title="Últimos registos" style={{position:'absolute', top:'20px', right:'20px', background: showRecords ? '#eff6ff' : '#f8fafc', border: showRecords ? '1px solid #3b82f6' : '1px solid #e2e8f0', borderRadius:'10px', padding:'8px 10px', cursor:'pointer', color: showRecords ? '#2563eb' : '#94a3b8', display:'flex', alignItems:'center', justifyContent:'center', transition:'all 0.2s', fontWeight: '600'}}>
@@ -769,6 +946,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>
     </div>
+    </>
   );
 });
 
