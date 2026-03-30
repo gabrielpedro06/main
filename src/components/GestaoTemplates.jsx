@@ -46,7 +46,15 @@ export default function GestaoTemplates() {
   const [inputOrdem, setInputOrdem] = useState(1);
   const [inputDias, setInputDias] = useState(0);
   const [inputDescricao, setInputDescricao] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    // Novos estados para info adicional
+    const [exigeInfoAdicional, setExigeInfoAdicional] = useState(false);
+    const [camposInfoAdicional, setCamposInfoAdicional] = useState({
+        investimento: false,
+        financiamento: false,
+        incentivo: false,
+        data_prevista_aprovacao: false
+    });
 
   // --- REFS PARA DRAG AND DROP ---
   const dragItemIndex = useRef(null);
@@ -173,19 +181,35 @@ export default function GestaoTemplates() {
   };
 
   // --- MODAIS ---
-  const openCreateModal = (tipo, parentId = null, parentName = '') => {
-      setInputValue("");
-      setInputDias(0);
-      setInputDescricao("");
-      setModalConfig({ isOpen: true, mode: 'create', tipo, itemId: null, parentId, parentName });
-  };
+    const openCreateModal = (tipo, parentId = null, parentName = '') => {
+            setInputValue("");
+            setInputDias(0);
+            setInputDescricao("");
+            setExigeInfoAdicional(false);
+            setCamposInfoAdicional({
+                investimento: false,
+                financiamento: false,
+                incentivo: false,
+                data_prevista_aprovacao: false
+            });
+            setModalConfig({ isOpen: true, mode: 'create', tipo, itemId: null, parentId, parentName });
+    };
 
-  const openEditModal = (tipo, item) => {
-      setInputValue(item.nome || item.titulo); 
-      setInputDias(item.dias_estimados || 0);
-      setInputDescricao(item.descricao || ""); // 💡 Garante que carrega a nota da subtarefa se houver
-      setModalConfig({ isOpen: true, mode: 'edit', tipo, itemId: item.id, parentId: null, parentName: '' });
-  };
+    const openEditModal = (tipo, item) => {
+            setInputValue(item.nome || item.titulo); 
+            setInputDias(item.dias_estimados || 0);
+            setInputDescricao(item.descricao || "");
+            // Carregar info adicional se existir
+            let info = item.info_adicional || {};
+            setExigeInfoAdicional(!!info.exige);
+            setCamposInfoAdicional({
+                investimento: !!(info.campos && info.campos.includes("investimento")),
+                financiamento: !!(info.campos && info.campos.includes("financiamento")),
+                incentivo: !!(info.campos && info.campos.includes("incentivo")),
+                data_prevista_aprovacao: !!(info.campos && info.campos.includes("data_prevista_aprovacao"))
+            });
+            setModalConfig({ isOpen: true, mode: 'edit', tipo, itemId: item.id, parentId: null, parentName: '' });
+    };
 
   const closeModal = () => {
       setModalConfig({ isOpen: false, mode: 'create', tipo: '', itemId: null, parentId: null, parentName: '' });
@@ -200,7 +224,17 @@ export default function GestaoTemplates() {
       try {
           const isEdit = modalConfig.mode === 'edit';
           const diasNum = parseInt(inputDias, 10) || 0;
-          
+          // Monta info_adicional se for etapa ou tarefa
+          let infoAdicional = null;
+          if (modalConfig.tipo === 'atividade' || modalConfig.tipo === 'tarefa') {
+            if (exigeInfoAdicional) {
+              const campos = Object.entries(camposInfoAdicional).filter(([k, v]) => v).map(([k]) => k);
+              infoAdicional = { exige: true, campos };
+            } else {
+              infoAdicional = { exige: false, campos: [] };
+            }
+          }
+
           if (modalConfig.tipo === 'tipo_projeto') {
               const payload = { nome: inputValue };
               if (isEdit) {
@@ -215,7 +249,7 @@ export default function GestaoTemplates() {
               }
           } 
           else if (modalConfig.tipo === 'atividade') {
-              const payload = { nome: inputValue, dias_estimados: diasNum, descricao: inputDescricao };
+              const payload = { nome: inputValue, dias_estimados: diasNum, descricao: inputDescricao, info_adicional: infoAdicional };
               if (!isEdit) payload.ordem = atividades.length + 1;
 
               if (isEdit) {
@@ -230,7 +264,7 @@ export default function GestaoTemplates() {
               }
           } 
           else if (modalConfig.tipo === 'tarefa') {
-              const payload = { nome: inputValue, dias_estimados: diasNum, descricao: inputDescricao };
+              const payload = { nome: inputValue, dias_estimados: diasNum, descricao: inputDescricao, info_adicional: infoAdicional };
               if (!isEdit) payload.ordem = tarefas.length + 1;
 
               if (isEdit) {
@@ -244,7 +278,6 @@ export default function GestaoTemplates() {
               }
           }
           else if (modalConfig.tipo === 'subtarefa') {
-              // 💡 NOVO: Passos agora também recebem descrição
               const payload = { nome: inputValue, dias_estimados: diasNum, descricao: inputDescricao }; 
               if (!isEdit) payload.ordem = subtarefas.filter(s => s.template_tarefa_id === modalConfig.parentId).length + 1;
 
@@ -587,17 +620,50 @@ export default function GestaoTemplates() {
                               </>
                           )}
 
-                          {modalConfig.tipo !== 'tipo_projeto' && (
-                              <div style={{display: 'flex', gap: '15px'}}>
-                                  <div style={{flex:1}}>
-                                      <label style={styles.label}>Prazo Previsto (Dias)</label>
-                                      <div style={{position: 'relative'}}>
-                                          <span style={{position:'absolute', left:'10px', top:'9px', color:'#94a3b8'}}><Icons.Clock/></span>
-                                          <input type="number" value={inputDias} onChange={(e) => setInputDias(e.target.value)} min="0" required style={{...styles.input, paddingLeft: '28px'}} className="input-focus" />
-                                      </div>
-                                  </div>
-                              </div>
-                          )}
+                                                    {modalConfig.tipo !== 'tipo_projeto' && (
+                                                            <div style={{display: 'flex', gap: '15px'}}>
+                                                                    <div style={{flex:1}}>
+                                                                            <label style={styles.label}>Prazo Previsto (Dias)</label>
+                                                                            <div style={{position: 'relative'}}>
+                                                                                    <span style={{position:'absolute', left:'10px', top:'9px', color:'#94a3b8'}}><Icons.Clock/></span>
+                                                                                    <input type="number" value={inputDias} onChange={(e) => setInputDias(e.target.value)} min="0" required style={{...styles.input, paddingLeft: '28px'}} className="input-focus" />
+                                                                            </div>
+                                                                    </div>
+                                                            </div>
+                                                    )}
+
+                                                    {/* Campos de Informação Adicional para etapas/tarefas */}
+                                                    {(modalConfig.tipo === 'atividade' || modalConfig.tipo === 'tarefa') && (
+                                                        <div style={{margin: '18px 0 10px 0', padding: '10px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0'}}>
+                                                            <label htmlFor="exigeInfoAdicional" style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '0.95rem', color: '#334155', marginBottom: '10px', cursor: 'pointer'}}>
+                                                                <input type="checkbox" id="exigeInfoAdicional" checked={exigeInfoAdicional} onChange={e => setExigeInfoAdicional(e.target.checked)} style={{width:16, height:16, minWidth:16, minHeight:16, maxWidth:16, maxHeight:16, flex:'none'}} />
+                                                                Exige informação adicional?
+                                                            </label>
+                                                            {exigeInfoAdicional && (
+                                                                <div style={{marginLeft: '2px', marginTop: '8px'}}>
+                                                                    <div style={{fontWeight: 700, fontSize: '0.85rem', color: '#64748b', marginBottom: '8px'}}>Campos necessários:</div>
+                                                                    <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
+                                                                        <label htmlFor="campoInvestimento" style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 500, fontSize: '0.95rem', color: '#1e293b', cursor: 'pointer'}}>
+                                                                            <input type="checkbox" id="campoInvestimento" checked={camposInfoAdicional.investimento} onChange={e => setCamposInfoAdicional(v => ({...v, investimento: e.target.checked}))} style={{width:16, height:16, minWidth:16, minHeight:16, maxWidth:16, maxHeight:16, flex:'none'}} />
+                                                                            Valor do Investimento
+                                                                        </label>
+                                                                        <label htmlFor="campoFinanciamento" style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 500, fontSize: '0.95rem', color: '#1e293b', cursor: 'pointer'}}>
+                                                                            <input type="checkbox" id="campoFinanciamento" checked={camposInfoAdicional.financiamento} onChange={e => setCamposInfoAdicional(v => ({...v, financiamento: e.target.checked}))} style={{width:16, height:16, minWidth:16, minHeight:16, maxWidth:16, maxHeight:16, flex:'none'}} />
+                                                                            Valor do Financiamento
+                                                                        </label>
+                                                                        <label htmlFor="campoIncentivo" style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 500, fontSize: '0.95rem', color: '#1e293b', cursor: 'pointer'}}>
+                                                                            <input type="checkbox" id="campoIncentivo" checked={camposInfoAdicional.incentivo} onChange={e => setCamposInfoAdicional(v => ({...v, incentivo: e.target.checked}))} style={{width:16, height:16, minWidth:16, minHeight:16, maxWidth:16, maxHeight:16, flex:'none'}} />
+                                                                            Valor do Incentivo
+                                                                        </label>
+                                                                        <label htmlFor="campoDataPrevista" style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 500, fontSize: '0.95rem', color: '#1e293b', cursor: 'pointer'}}>
+                                                                            <input type="checkbox" id="campoDataPrevista" checked={camposInfoAdicional.data_prevista_aprovacao} onChange={e => setCamposInfoAdicional(v => ({...v, data_prevista_aprovacao: e.target.checked}))} style={{width:16, height:16, minWidth:16, minHeight:16, maxWidth:16, maxHeight:16, flex:'none'}} />
+                                                                            Data prevista de aprovação
+                                                                        </label>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
 
                           <div style={styles.modalFooter}>
                               <button type="button" onClick={closeModal} style={styles.btnCancel} className="hover-btn-secondary">Cancelar</button>

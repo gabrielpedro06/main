@@ -1,3 +1,15 @@
+    // Função utilitária para saber se algum campo é exigido no templateTree
+    function isCampoExigidoNoTemplateTree(campo) {
+        for (const ativ of templateTree) {
+            if (ativ.info_adicional?.exige && ativ.info_adicional.campos?.includes(campo)) return true;
+            if (ativ.tarefas) {
+                for (const tar of ativ.tarefas) {
+                    if (tar.info_adicional?.exige && tar.info_adicional.campos?.includes(campo)) return true;
+                }
+            }
+        }
+        return false;
+    }
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -728,10 +740,16 @@ export default function Projetos() {
                     const ativEnd = (tAtiv.dias_estimados > 0) ? addDays(ativStart, tAtiv.dias_estimados) : (projEndStr || ativStart);
 
                     const { data: realAtiv } = await supabase.from("atividades").insert([{ 
-                        projeto_id: newProj.id, titulo: tAtiv.nome, estado: 'pendente', ordem: tAtiv.ordem,
-                        data_inicio: ativStart, data_fim: ativEnd, 
-                        responsavel_id: payload.responsavel_id || null, colaboradores: payload.colaboradores,
-                        descricao: tAtiv.descricao || null
+                        projeto_id: newProj.id,
+                        titulo: tAtiv.nome,
+                        estado: 'pendente',
+                        ordem: tAtiv.ordem,
+                        data_inicio: ativStart,
+                        data_fim: ativEnd,
+                        responsavel_id: payload.responsavel_id || null,
+                        colaboradores: payload.colaboradores,
+                        descricao: tAtiv.descricao || null,
+                        info_adicional: tAtiv.info_adicional ? tAtiv.info_adicional : {}
                     }]).select().single();
 
                     currentAtivDate = addDays(currentAtivDate, tAtiv.dias_estimados || 0);
@@ -745,14 +763,23 @@ export default function Projetos() {
                             const tarStart = currentTarDate;
                             const tarEnd = (tTar.dias_estimados > 0) ? addDays(tarStart, tTar.dias_estimados) : (projEndStr || tarStart);
 
+                            // Adiciona template_tarefa_id ao criar tarefa
                             const { data: realTar } = await supabase.from("tarefas").insert([{ 
-                                atividade_id: realAtiv.id, titulo: tTar.nome, estado: 'pendente', 
-                                responsavel_id: payload.responsavel_id || null, colaboradores: payload.colaboradores,
-                                ordem: tTar.ordem, data_inicio: tarStart, data_fim: tarEnd, descricao: tTar.descricao || null
+                                atividade_id: realAtiv.id,
+                                titulo: tTar.nome,
+                                estado: 'pendente',
+                                responsavel_id: payload.responsavel_id || null,
+                                colaboradores: payload.colaboradores,
+                                ordem: tTar.ordem,
+                                data_inicio: tarStart,
+                                data_fim: tarEnd,
+                                descricao: tTar.descricao || null,
+                                template_tarefa_id: tTar.id,
+                                info_adicional: tTar.info_adicional ? tTar.info_adicional : {}
                             }]).select().single();
 
                             currentTarDate = addDays(currentTarDate, tTar.dias_estimados || 0);
-                            
+
                             if (realTar && tTar.subtarefas) {
                                 let currentSubDate = tarStart;
                                 const subTarefasParaInserir = [];
@@ -1548,21 +1575,25 @@ export default function Projetos() {
                       </div>
                     )}
 
-                    {activeTab === 'investimento' && (
-                      <div style={{background:'#f8fafc', padding:'30px', borderRadius:'12px', border:'1px solid #e2e8f0'}}>
-                        <h4 style={{marginTop:0, marginBottom:'20px', color:'#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Dollar color="#2563eb" /> Valores Aprovados</h4>
-                        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px'}}>
-                            <div>
-                                <label style={labelStyle}>Investimento Elegível (€)</label>
-                                <input type="number" step="0.01" value={form.investimento} onChange={e => setForm({...form, investimento: e.target.value})} style={{...inputStyle, fontSize:'1.2rem', padding:'15px', borderColor:'#cbd5e1', background: 'white'}} className="input-focus" />
-                            </div>
-                            <div>
-                                <label style={labelStyle}>Incentivo Atribuído (€)</label>
-                                <input type="number" step="0.01" value={form.incentivo} onChange={e => setForm({...form, incentivo: e.target.value})} style={{...inputStyle, fontSize:'1.2rem', padding:'15px', borderColor:'#cbd5e1', background: 'white'}} className="input-focus" />
-                            </div>
-                        </div>
-                      </div>
-                    )}
+                                        {activeTab === 'investimento' && (isCampoExigidoNoTemplateTree('investimento') || isCampoExigidoNoTemplateTree('incentivo')) && (
+                                            <div style={{background:'#f8fafc', padding:'30px', borderRadius:'12px', border:'1px solid #e2e8f0'}}>
+                                                <h4 style={{marginTop:0, marginBottom:'20px', color:'#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Dollar color="#2563eb" /> Valores Aprovados</h4>
+                                                <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px'}}>
+                                                        {isCampoExigidoNoTemplateTree('investimento') && (
+                                                            <div>
+                                                                    <label style={labelStyle}>Investimento Elegível (€)</label>
+                                                                    <input type="number" step="0.01" value={form.investimento} onChange={e => setForm({...form, investimento: e.target.value})} style={{...inputStyle, fontSize:'1.2rem', padding:'15px', borderColor:'#cbd5e1', background: 'white'}} className="input-focus" />
+                                                            </div>
+                                                        )}
+                                                        {isCampoExigidoNoTemplateTree('incentivo') && (
+                                                            <div>
+                                                                    <label style={labelStyle}>Incentivo Atribuído (€)</label>
+                                                                    <input type="number" step="0.01" value={form.incentivo} onChange={e => setForm({...form, incentivo: e.target.value})} style={{...inputStyle, fontSize:'1.2rem', padding:'15px', borderColor:'#cbd5e1', background: 'white'}} className="input-focus" />
+                                                            </div>
+                                                        )}
+                                                </div>
+                                            </div>
+                                        )}
 
                     {activeTab === 'notas' && (
                       <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px'}}>

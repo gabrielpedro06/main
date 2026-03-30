@@ -90,7 +90,9 @@ export default function Tarefas() {
     estado: "pendente", prioridade: "normal",
     data_inicio: "", data_limite: "",
     colaboradores_extra: [], tem_entregavel: false, nome_entregavel: "", data_entregavel: "",
-    criado_por_nome: "", created_at: "", arquivo_url: ""
+    criado_por_nome: "", created_at: "", arquivo_url: "",
+    // 👇 NOVOS CAMPOS ADICIONADOS
+    investimento: 0, incentivo: 0, financiamento: 0, data_prevista_aprovacao: "", info_adicional: null
   };
   
   const [form, setForm] = useState(initialForm);
@@ -403,6 +405,20 @@ export default function Tarefas() {
       if (targetType === "atividade") return activityOptions;
       if (targetType === "subtarefa") return subtaskOptions;
       return taskOptions;
+  };
+
+  const deveMostrarCampoItem = (itemInfoAdicional, nomeCampo) => {
+      if (!itemInfoAdicional) return false; 
+      try {
+          const info = typeof itemInfoAdicional === 'string' ? JSON.parse(itemInfoAdicional) : itemInfoAdicional;
+          if (Object.keys(info).length === 0) return false;
+          if (info?.exige && Array.isArray(info?.campos)) {
+              return info.campos.includes(nomeCampo);
+          }
+      } catch (e) {
+          console.error(`Erro ao validar o campo ${nomeCampo}:`, e);
+      }
+      return false; 
   };
 
   const isMissingSubtaskColumnError = (err) => {
@@ -1068,7 +1084,12 @@ export default function Tarefas() {
         data_entregavel: safeDate(item.data_entregavel),
         criado_por_nome: criadorNome,
         created_at: item.created_at || "",
-        arquivo_url: item.arquivo_url || ""
+        arquivo_url: item.arquivo_url || "",
+        investimento: item.investimento || 0,
+        incentivo: item.incentivo || 0,
+        financiamento: item.financiamento || 0,
+        data_prevista_aprovacao: safeDate(item.data_prevista_aprovacao),
+        info_adicional: item.info_adicional || null
     });
     setShowModal(true);
   }
@@ -1111,6 +1132,10 @@ export default function Tarefas() {
         tabela = 'atividades';
         finalPayload.data_inicio = form.data_inicio || null;
         finalPayload.data_fim = form.data_limite || null;
+        finalPayload.investimento = form.investimento || 0;
+        finalPayload.incentivo = form.incentivo || 0;
+        finalPayload.financiamento = form.financiamento || 0;
+        finalPayload.data_prevista_aprovacao = form.data_prevista_aprovacao || null;
     } else if (editType === 'tarefa') {
         tabela = 'tarefas';
         if (!form.atividade_id) return showToast("A Atividade Pai é obrigatória!", "error");
@@ -1118,6 +1143,10 @@ export default function Tarefas() {
         finalPayload.data_inicio = form.data_inicio || null;
         finalPayload.data_fim = form.data_limite || null;
         finalPayload.prioridade = form.prioridade;
+        finalPayload.investimento = form.investimento || 0;
+        finalPayload.incentivo = form.incentivo || 0;
+        finalPayload.financiamento = form.financiamento || 0;
+        finalPayload.data_prevista_aprovacao = form.data_prevista_aprovacao || null;
     } else {
         tabela = 'subtarefas';
         finalPayload = { titulo: form.titulo, estado: form.estado, responsavel_id: form.responsavel_id || null, data_fim: form.data_limite || null };
@@ -1790,10 +1819,50 @@ export default function Tarefas() {
                         </div>
                     )}
 
-                    <div style={sectionTitleStyle}>📅 Planeamento</div>
-                    <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px'}}>
-                        {(editType === 'tarefa' || editType === 'atividade') && (<div style={inputGroupStyle}><label style={labelStyle}>Início</label><input type="date" value={form.data_inicio} onChange={e => setForm({...form, data_inicio: e.target.value})} style={inputStyle} /></div>)}
-                        <div style={inputGroupStyle}><label style={labelStyle}>Deadline</label><input type="date" value={form.data_limite} onChange={e => setForm({...form, data_limite: e.target.value})} style={{...inputStyle, borderColor: form.data_limite ? '#fca5a5' : '#cbd5e1'}} /></div>
+                    {/* --- PLANEAMENTO (Sempre visível) & FINANCEIRO CONDICIONAL --- */}
+                    <div style={sectionTitleStyle}><Icons.Calendar /> Planeamento & Financeiro</div>
+                    <div style={{display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '15px'}}>
+                        
+                        {/* 👇 SEM CONDIÇÃO - SEMPRE VISÍVEIS */}
+                        {(editType === 'tarefa' || editType === 'atividade') && (
+                            <div style={{flex: '1 1 150px'}}>
+                                <label style={labelStyle}>Data Início</label>
+                                <input type="date" value={form.data_inicio} onChange={e => setForm({...form, data_inicio: e.target.value})} style={inputStyle} className="input-focus" />
+                            </div>
+                        )}
+                        <div style={{flex: '1 1 150px'}}>
+                            <label style={labelStyle}>Deadline / Prazo Limite</label>
+                            <input type="date" value={form.data_limite} onChange={e => setForm({...form, data_limite: e.target.value})} style={{...inputStyle, borderColor: form.data_limite ? '#fca5a5' : '#cbd5e1'}} className="input-focus" />
+                        </div>
+
+                        {/* 👇 COM CONDIÇÃO - SÓ APARECEM SE EXIGIDOS NO TEMPLATE */}
+                        {deveMostrarCampoItem(form.info_adicional, 'investimento') && (
+                            <div style={{flex: '1 1 150px'}}>
+                                <label style={labelStyle}>Investimento (€)</label>
+                                <input type="number" step="0.01" value={form.investimento} onChange={e => setForm({...form, investimento: e.target.value})} style={inputStyle} className="input-focus" />
+                            </div>
+                        )}
+
+                        {deveMostrarCampoItem(form.info_adicional, 'incentivo') && (
+                            <div style={{flex: '1 1 150px'}}>
+                                <label style={labelStyle}>Incentivo (€)</label>
+                                <input type="number" step="0.01" value={form.incentivo} onChange={e => setForm({...form, incentivo: e.target.value})} style={inputStyle} className="input-focus" />
+                            </div>
+                        )}
+
+                        {deveMostrarCampoItem(form.info_adicional, 'financiamento') && (
+                            <div style={{flex: '1 1 150px'}}>
+                                <label style={labelStyle}>Financiamento (€)</label>
+                                <input type="number" step="0.01" value={form.financiamento} onChange={e => setForm({...form, financiamento: e.target.value})} style={inputStyle} className="input-focus" />
+                            </div>
+                        )}
+
+                        {deveMostrarCampoItem(form.info_adicional, 'data_prevista_aprovacao') && (
+                            <div style={{flex: '1 1 150px'}}>
+                                <label style={labelStyle}>Data Prev. Aprov.</label>
+                                <input type="date" value={form.data_prevista_aprovacao} onChange={e => setForm({...form, data_prevista_aprovacao: e.target.value})} style={inputStyle} className="input-focus" />
+                            </div>
+                        )}
                     </div>
 
                     {editType === 'atividade' && editId && (

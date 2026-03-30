@@ -55,13 +55,13 @@ const Icons = {
 const ModalPortal = ({ children }) => createPortal(children, document.body);
 
 const getClientDisplayName = (client) => {
-    if (!client) return "";
-    const nome = client.marca?.trim() || "";
-    const sigla = client.sigla?.trim() || "";
-    if (nome && sigla) return `${nome} (${sigla})`;
-    if (nome) return nome;
-    if (sigla) return sigla;
-    return "";
+  if (!client) return "";
+  const nome = client.marca?.trim() || "";
+  const sigla = client.sigla?.trim() || "";
+  if (nome && sigla) return `${nome} (${sigla})`;
+  if (nome) return nome;
+  if (sigla) return sigla;
+  return "";
 };
 
 export default function ProjetoDetalhe() {
@@ -75,52 +75,52 @@ export default function ProjetoDetalhe() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("atividades");
   const [notification, setNotification] = useState(null);
-    const [projectActionLoading, setProjectActionLoading] = useState(false);
-    const [confirmModal, setConfirmModal] = useState({
-            show: false,
-            action: null,
-            title: "",
-            message: "",
-            confirmLabel: "Confirmar",
-            confirmTone: "warning",
-            requiresText: false,
-            expectedText: "",
-            inputValue: "",
-            payload: null
-    });
+  const [projectActionLoading, setProjectActionLoading] = useState(false);
+  const [confirmModal, setConfirmModal] = useState({
+      show: false,
+      action: null,
+      title: "",
+      message: "",
+      confirmLabel: "Confirmar",
+      confirmTone: "warning",
+      requiresText: false,
+      expectedText: "",
+      inputValue: "",
+      payload: null
+  });
   
   const [activeLog, setActiveLog] = useState(null);
-    const [timerSwitchModal, setTimerSwitchModal] = useState({ show: false, message: "", pendingTarget: null, pendingType: null });
-                const [attendanceWarningModal, setAttendanceWarningModal] = useState({ show: false, message: "" });
-        const [stopNoteModal, setStopNoteModal] = useState({ show: false });
-        const attendancePendingActionRef = useRef(null);
+  const [timerSwitchModal, setTimerSwitchModal] = useState({ show: false, message: "", pendingTarget: null, pendingType: null });
+  const [attendanceWarningModal, setAttendanceWarningModal] = useState({ show: false, message: "" });
+  const [stopNoteModal, setStopNoteModal] = useState({ show: false });
+  const attendancePendingActionRef = useRef(null);
 
   // Estados UI - Visão Geral
   const [isEditingGeral, setIsEditingGeral] = useState(false);
   const [formGeral, setFormGeral] = useState({});
   const [clientes, setClientes] = useState([]);
   const [staff, setStaff] = useState([]);
-    const [entidadePessoas, setEntidadePessoas] = useState([]);
+  const [entidadePessoas, setEntidadePessoas] = useState([]);
   const [tiposProjeto, setTiposProjeto] = useState([]);
 
   // Estados de Expansão
   const [expandedTasks, setExpandedTasks] = useState({});
   const [collapsedAtivs, setCollapsedAtivs] = useState({}); 
-    const [activeSubtarefaComposer, setActiveSubtarefaComposer] = useState(null);
+  const [activeSubtarefaComposer, setActiveSubtarefaComposer] = useState(null);
 
-    const [novaAtividadeNome, setNovaAtividadeNome] = useState("");
-    const [novaAtividadeResponsavel, setNovaAtividadeResponsavel] = useState("");
-    const [novaTarefaNome, setNovaTarefaNome] = useState({ ativId: null, nome: "", responsavel_id: "" });
+  const [novaAtividadeNome, setNovaAtividadeNome] = useState("");
+  const [novaAtividadeResponsavel, setNovaAtividadeResponsavel] = useState("");
+  const [novaTarefaNome, setNovaTarefaNome] = useState({ ativId: null, nome: "", responsavel_id: "" });
   const [novaSubtarefaNome, setNovaSubtarefaNome] = useState({ tarId: null, nome: "" });
 
   // MODAIS
   const [atividadeModal, setAtividadeModal] = useState({ show: false, data: null });
   const [tarefaModal, setTarefaModal] = useState({ show: false, data: null, atividadeNome: '' });
   const [subtarefaModal, setSubtarefaModal] = useState({ show: false, data: null, tarefaNome: '' }); 
-    const [parceiroSelecionado, setParceiroSelecionado] = useState("");
-    const [timeLogModal, setTimeLogModal] = useState({ show: false, mode: "create", logId: null });
-    const [timeLogSaving, setTimeLogSaving] = useState(false);
-    const [timeLogForm, setTimeLogForm] = useState({ user_id: "", target_type: "tarefa", target_id: "", duration_minutes: "" });
+  const [parceiroSelecionado, setParceiroSelecionado] = useState("");
+  const [timeLogModal, setTimeLogModal] = useState({ show: false, mode: "create", logId: null });
+  const [timeLogSaving, setTimeLogSaving] = useState(false);
+  const [timeLogForm, setTimeLogForm] = useState({ user_id: "", target_type: "tarefa", target_id: "", duration_minutes: "" });
 
   const normalizeIdsList = (raw) => {
       if (Array.isArray(raw)) return raw.filter(Boolean);
@@ -164,9 +164,9 @@ export default function ProjetoDetalhe() {
     checkActiveLog();
   }, [id, user]);
 
-    useEffect(() => {
-            setParceiroSelecionado("");
-    }, [formGeral?.cliente_id, formGeral?.is_parceria]);
+  useEffect(() => {
+      setParceiroSelecionado("");
+  }, [formGeral?.cliente_id, formGeral?.is_parceria]);
 
   const showToast = (message, type = 'success') => {
       setNotification({ message, type });
@@ -241,8 +241,8 @@ export default function ProjetoDetalhe() {
         .from("atividades")
         .select(`
             id, titulo, estado, responsavel_id, data_inicio, data_fim, investimento, incentivo, descricao, observacoes, created_at, ordem,
-            colaboradores_extra,
-            tarefas(id, titulo, estado, responsavel_id, colaboradores_extra, data_inicio, data_fim, prioridade, descricao, created_at, ordem,
+            colaboradores_extra, info_adicional,
+            tarefas(id, titulo, estado, responsavel_id, colaboradores_extra, data_inicio, data_fim, prioridade, descricao, created_at, ordem, info_adicional,
                 subtarefas(id, titulo, estado, data_fim, created_at, ordem)
             )
         `)
@@ -1310,6 +1310,27 @@ export default function ProjetoDetalhe() {
       if(estado === 'em_curso') return { bg: '#fefce8', text: '#ca8a04', border: '#fde047', dot: '#eab308' };
       if(estado === 'cancelado') return { bg: '#f1f5f9', text: '#64748b', border: '#e2e8f0', dot: '#64748b' };
       return { bg: '#eff6ff', text: '#2563eb', border: '#bfdbfe', dot: '#2563eb' }; 
+  };
+
+  // --- FUNÇÃO PARA RENDERIZAÇÃO CONDICIONAL DOS MODAIS ---
+  const deveMostrarCampoItem = (itemInfoAdicional, nomeCampo) => {
+      // 1. Se estiver vazio ou for null, esconde os campos extra.
+      if (!itemInfoAdicional) return false; 
+      
+      try {
+          // 2. Tentar ler o JSON (lidar com string ou objeto)
+          const info = typeof itemInfoAdicional === 'string' ? JSON.parse(itemInfoAdicional) : itemInfoAdicional;
+          
+          // 3. Se tiver a array de 'campos', a ÚNICA regra que importa é se o nomeCampo está lá dentro.
+          if (info && Array.isArray(info.campos)) {
+              return info.campos.includes(nomeCampo);
+          }
+      } catch (e) {
+          console.error(`Erro ao validar o campo ${nomeCampo}:`, e);
+      }
+      
+      // 4. Se a leitura falhar por algum motivo, a regra de segurança é ESCONDER.
+      return false; 
   };
 
   if (loading) return <div className="page-container" style={{display:'flex', justifyContent:'center', alignItems:'center', height:'80vh'}}><div className="pulse-dot-white" style={{background:'#2563eb'}}></div></div>;
@@ -2456,21 +2477,52 @@ export default function ProjetoDetalhe() {
                               </div>
                           </div>
 
+                          {/* --- PLANEAMENTO (Sempre visível) & FINANCEIRO CONDICIONAL --- */}
                           <div style={sectionTitleStyle}><Icons.Calendar /> Planeamento & Financeiro</div>
-                          <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '10px', marginBottom: '15px'}}>
-                              <div><label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight: 'bold'}}>Data Início</label><input type="date" value={atividadeModal.data.data_inicio || ''} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, data_inicio: e.target.value}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0}} className="input-focus" /></div>
-                              <div><label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight: 'bold'}}>Data Fim</label><input type="date" value={atividadeModal.data.data_fim || ''} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, data_fim: e.target.value}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0}} className="input-focus" /></div>
-                              <div><label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight: 'bold'}}>Invest. (€)</label><input type="number" step="0.01" value={atividadeModal.data.investimento || 0} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, investimento: e.target.value}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0}} className="input-focus" /></div>
-                              <div><label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight: 'bold'}}>Incentivo (€)</label><input type="number" step="0.01" value={atividadeModal.data.incentivo || 0} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, incentivo: e.target.value}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0}} className="input-focus" /></div>
+                          <div style={{display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '15px'}}>
+                              
+                              {/* 👇 SEM CONDIÇÃO - SEMPRE VISÍVEL */}
+                              <div style={{flex: '1 1 200px'}}>
+                                  <label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight: 'bold'}}>Data Início</label>
+                                  <input type="date" value={atividadeModal.data.data_inicio || ''} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, data_inicio: e.target.value}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0}} className="input-focus" />
+                              </div>
+                              
+                              {/* 👇 SEM CONDIÇÃO - SEMPRE VISÍVEL */}
+                              <div style={{flex: '1 1 200px'}}>
+                                  <label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight: 'bold'}}>Data Fim</label>
+                                  <input type="date" value={atividadeModal.data.data_fim || ''} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, data_fim: e.target.value}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0}} className="input-focus" />
+                              </div>
+                              
+                              {/* 👇 COM CONDIÇÃO - SÓ APARECE SE EXIGIDO NAS CONFIGURAÇÕES */}
+                              {deveMostrarCampoItem(atividadeModal.data.info_adicional, 'investimento') && (
+                                  <div style={{flex: '1 1 200px'}}><label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight: 'bold'}}>Invest. (€)</label><input type="number" step="0.01" value={atividadeModal.data.investimento || 0} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, investimento: e.target.value}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0}} className="input-focus" /></div>
+                              )}
+                              
+                              {deveMostrarCampoItem(atividadeModal.data.info_adicional, 'incentivo') && (
+                                  <div style={{flex: '1 1 200px'}}><label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight: 'bold'}}>Incentivo (€)</label><input type="number" step="0.01" value={atividadeModal.data.incentivo || 0} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, incentivo: e.target.value}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0}} className="input-focus" /></div>
+                              )}
+
+                              {deveMostrarCampoItem(atividadeModal.data.info_adicional, 'financiamento') && (
+                                  <div style={{flex: '1 1 200px'}}><label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight: 'bold'}}>Financiamento (€)</label><input type="number" step="0.01" value={atividadeModal.data.financiamento || 0} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, financiamento: e.target.value}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0}} className="input-focus" /></div>
+                              )}
+
+                              {deveMostrarCampoItem(atividadeModal.data.info_adicional, 'data_prevista_aprovacao') && (
+                                  <div style={{flex: '1 1 200px'}}><label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight: 'bold'}}>Data Prev. Aprovação</label><input type="date" value={atividadeModal.data.data_prevista_aprovacao || ''} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, data_prevista_aprovacao: e.target.value}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0}} className="input-focus" /></div>
+                              )}
                           </div>
 
                           <div style={sectionTitleStyle}><Icons.Activity /> Estado</div>
                           {renderStatePills(atividadeModal.data.estado, (val) => setAtividadeModal({show: true, data: {...atividadeModal.data, estado: val}}))}
 
+                          {/* --- NOTAS (SEM CONDIÇÃO - SEMPRE VISÍVEIS) --- */}
                           <div style={sectionTitleStyle}><Icons.FileText /> Notas</div>
-                          <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
-                              <textarea rows="3" placeholder="Descrição..." value={atividadeModal.data.descricao || ''} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, descricao: e.target.value}})} style={{...inputStyle, resize:'none'}} className="input-focus" />
-                              <textarea rows="3" placeholder="Observações..." value={atividadeModal.data.observacoes || ''} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, observacoes: e.target.value}})} style={{...inputStyle, resize:'none', background:'#fffbeb', borderColor:'#fcd34d'}} className="input-focus-alert" />
+                          <div style={{display: 'flex', flexWrap: 'wrap', gap: '15px'}}>
+                              <div style={{flex: '1 1 250px'}}>
+                                  <textarea rows="3" placeholder="Descrição..." value={atividadeModal.data.descricao || ''} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, descricao: e.target.value}})} style={{...inputStyle, resize:'none', width: '100%'}} className="input-focus" />
+                              </div>
+                              <div style={{flex: '1 1 250px'}}>
+                                  <textarea rows="3" placeholder="Observações..." value={atividadeModal.data.observacoes || ''} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, observacoes: e.target.value}})} style={{...inputStyle, resize:'none', background:'#fffbeb', borderColor:'#fcd34d', width: '100%'}} className="input-focus-alert" />
+                              </div>
                           </div>
 
                           <div style={{display: 'flex', gap: '10px', marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #f1f5f9'}}>
@@ -2559,30 +2611,55 @@ export default function ProjetoDetalhe() {
                               </div>
                           </div>
 
+                          {/* --- PLANEAMENTO (Sempre visível) & FINANCEIRO CONDICIONAL --- */}
                           <div style={sectionTitleStyle}><Icons.Calendar /> Planeamento & Estado</div>
-                          <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '15px'}}>
-                              <div>
+                          <div style={{display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '15px'}}>
+                              
+                              {/* 👇 SEM CONDIÇÃO - SEMPRE VISÍVEL */}
+                              <div style={{flex: '1 1 150px'}}>
                                   <label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight:'bold'}}>Data Início</label>
-                                  <input type="date" value={tarefaModal.data.data_inicio || ''} onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, data_inicio: e.target.value}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0}} className="input-focus" />
+                                  <input type="date" value={tarefaModal.data.data_inicio || ''} onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, data_inicio: e.target.value}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0, width: '100%'}} className="input-focus" />
                               </div>
-                              <div>
+                              
+                              {/* 👇 SEM CONDIÇÃO - SEMPRE VISÍVEL */}
+                              <div style={{flex: '1 1 150px'}}>
                                   <label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight:'bold'}}>Prazo Limite</label>
-                                  <input type="date" value={tarefaModal.data.data_fim || ''} onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, data_fim: e.target.value}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0}} className="input-focus" />
+                                  <input type="date" value={tarefaModal.data.data_fim || ''} onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, data_fim: e.target.value}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0, width: '100%'}} className="input-focus" />
                               </div>
-                              <div>
+
+                              {/* 👇 SEM CONDIÇÃO - SEMPRE VISÍVEL */}
+                              <div style={{flex: '1 1 150px'}}>
                                   <label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight:'bold'}}>Prioridade</label>
-                                  <select value={tarefaModal.data.prioridade || 'Normal'} onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, prioridade: e.target.value}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0}} className="input-focus">
-                                      <option value="Baixa">🔵 Baixa</option>
-                                      <option value="Normal">🟢 Normal</option>
-                                      <option value="Alta">🟠 Alta</option>
-                                      <option value="Urgente">🔴 Urgente</option>
+                                  <select value={tarefaModal.data.prioridade || 'normal'} onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, prioridade: e.target.value}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0, width: '100%'}} className="input-focus">
+                                      <option value="baixa">🔵 Baixa</option>
+                                      <option value="normal">🟢 Normal</option>
+                                      <option value="alta">🟠 Alta</option>
+                                      <option value="urgente">🔴 Urgente</option>
                                   </select>
                               </div>
+
+                              {/* 👇 COM CONDIÇÃO - SÓ APARECEM SE EXIGIDOS */}
+                              {deveMostrarCampoItem(tarefaModal.data.info_adicional, 'investimento') && (
+                                  <div style={{flex: '1 1 150px'}}><label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight:'bold'}}>Investimento (€)</label><input type="number" step="0.01" value={tarefaModal.data.investimento || 0} onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, investimento: e.target.value}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0, width: '100%'}} className="input-focus" /></div>
+                              )}
+
+                              {deveMostrarCampoItem(tarefaModal.data.info_adicional, 'incentivo') && (
+                                  <div style={{flex: '1 1 150px'}}><label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight:'bold'}}>Incentivo (€)</label><input type="number" step="0.01" value={tarefaModal.data.incentivo || 0} onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, incentivo: e.target.value}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0, width: '100%'}} className="input-focus" /></div>
+                              )}
+
+                              {deveMostrarCampoItem(tarefaModal.data.info_adicional, 'financiamento') && (
+                                  <div style={{flex: '1 1 150px'}}><label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight:'bold'}}>Financiamento (€)</label><input type="number" step="0.01" value={tarefaModal.data.financiamento || 0} onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, financiamento: e.target.value}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0, width: '100%'}} className="input-focus" /></div>
+                              )}
+
+                              {deveMostrarCampoItem(tarefaModal.data.info_adicional, 'data_prevista_aprovacao') && (
+                                  <div style={{flex: '1 1 150px'}}><label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight:'bold'}}>Data Prev. Aprov.</label><input type="date" value={tarefaModal.data.data_prevista_aprovacao || ''} onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, data_prevista_aprovacao: e.target.value}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0, width: '100%'}} className="input-focus" /></div>
+                              )}
                           </div>
 
                           <label style={{...labelStyle, marginTop:'15px'}}>Estado Atual</label>
                           {renderStatePills(tarefaModal.data.estado, (val) => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, estado: val}}))}
 
+                          {/* --- DETALHES (Sempre visível) --- */}
                           <div style={sectionTitleStyle}><Icons.FileText /> Detalhes</div>
                           <textarea rows="4" placeholder="Descreva o que é necessário fazer..." value={tarefaModal.data.descricao || ''} onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, descricao: e.target.value}})} style={{...inputStyle, resize:'none'}} className="input-focus" />
 
