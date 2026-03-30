@@ -53,7 +53,12 @@ const addDays = (dateStr, days) => {
 
 const getClientDisplayName = (client) => {
     if (!client) return "";
-    return client.sigla?.trim() || client.marca || "";
+    const nome = client.marca?.trim() || "";
+    const sigla = client.sigla?.trim() || "";
+    if (nome && sigla) return `${nome} (${sigla})`;
+    if (nome) return nome;
+    if (sigla) return sigla;
+    return "";
 };
 
 export default function Projetos() {
