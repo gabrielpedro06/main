@@ -11,6 +11,7 @@ import {
     parseLocalDate,
     validarSaldoFeriasParaIntervalo,
 } from "../utils/feriasSaldo";
+import CalculadoraKm from "../components/CalculadoraKm";
 import "./../styles/dashboard.css";
 
 // --- ÍCONES SVG PROFISSIONAIS ---
@@ -228,11 +229,11 @@ export default function Ferias({ forcedType = null }) {
         }
     }
 
-    if (!form.is_parcial && diasUteis === 0) {
-        if (isKmRequest) return;
+    if (!isKmRequest && !form.is_parcial && diasUteis === 0) {
         setNotification({ show: true, message: "O período selecionado contém apenas fins de semana ou feriados.", type: "error" });
         return;
     }
+    
     if (!isKmRequest && !form.is_parcial && parseLocalDate(form.data_inicio) > parseLocalDate(form.data_fim)) {
         setNotification({ show: true, message: "A data de fim não pode ser anterior à data de início.", type: "error" });
         return;
@@ -594,25 +595,14 @@ export default function Ferias({ forcedType = null }) {
 
                             <div style={{background: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px'}}>
                                 {isKmRequest ? (
-                                    <div>
-                                        <div style={{marginBottom: '15px'}}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                                        <div>
                                             <label style={labelStyle}>Data da Deslocação *</label>
                                             <input type="date" value={form.data_inicio} onChange={e => setForm({...form, data_inicio: e.target.value, data_fim: e.target.value})} style={inputStyle} className="input-focus" required />
                                         </div>
-                                        <div style={{display: 'flex', gap: '15px', marginBottom: '15px'}}>
-                                            <div style={{flex: 1}}>
-                                                <label style={labelStyle}>De *</label>
-                                                <input type="text" value={form.km_origem} onChange={e => setForm({...form, km_origem: e.target.value})} placeholder="Ex: Portimão" style={inputStyle} className="input-focus" required />
-                                            </div>
-                                            <div style={{flex: 1}}>
-                                                <label style={labelStyle}>Para *</label>
-                                                <input type="text" value={form.km_destino} onChange={e => setForm({...form, km_destino: e.target.value})} placeholder="Ex: Faro" style={inputStyle} className="input-focus" required />
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label style={labelStyle}>Km total *</label>
-                                            <input type="number" min="0" step="0.1" value={form.km_total} onChange={e => setForm({...form, km_total: e.target.value})} placeholder="Ex: 72" style={inputStyle} className="input-focus" required />
-                                        </div>
+                                        
+                                        {/* AQUI ENTRA A NOSSA NOVA CALCULADORA INTELIGENTE */}
+                                        <CalculadoraKm form={form} setForm={setForm} />
                                     </div>
                                 ) : !form.is_parcial ? (
                                     <div style={{display: 'flex', gap: '20px'}}>
