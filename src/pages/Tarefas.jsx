@@ -1152,29 +1152,45 @@ export default function Tarefas() {
         finalPayload = { titulo: form.titulo, estado: form.estado, responsavel_id: form.responsavel_id || null, data_fim: form.data_limite || null };
     }
     
-    try {
-      if (editId) {
-          await supabase.from(tabela).update(finalPayload).eq("id", editId); 
-      } else {
-          finalPayload.criado_por = user.id; 
-          await supabase.from(tabela).insert([finalPayload]); 
-      }
-      showToast("Guardado com sucesso!"); setShowModal(false); fetchData(isAdmin);
-    } catch (error) { showToast("Erro: " + error.message, "error"); }
-  }
+        try {
+            if (editId) {
+                    await supabase.from(tabela).update(finalPayload).eq("id", editId); 
+            } else {
+                    finalPayload.criado_por = user.id; 
+                    await supabase.from(tabela).insert([finalPayload]); 
+            }
+            showToast("Alterações guardadas com sucesso!", "success");
+            setShowModal(false);
+            fetchData(isAdmin);
+        } catch (error) {
+            showToast("Erro ao guardar alterações! " + (error?.message || ""), "error");
+        }
+    }
 
   async function handleAddTarefa(e, ativId) {
-      e.preventDefault();
-      if(!novaTarefaNome.nome?.trim()) return;
-      await supabase.from("tarefas").insert([{ atividade_id: ativId, titulo: novaTarefaNome.nome, responsavel_id: user.id, estado: 'pendente', criado_por: user.id }]);
-      setNovaTarefaNome({ ativId: null, nome: "" }); fetchData(isAdmin); showToast("Tarefa adicionada!");
+            e.preventDefault();
+            if(!novaTarefaNome.nome?.trim()) return;
+            try {
+                await supabase.from("tarefas").insert([{ atividade_id: ativId, titulo: novaTarefaNome.nome, responsavel_id: user.id, estado: 'pendente', criado_por: user.id }]);
+                setNovaTarefaNome({ ativId: null, nome: "" });
+                fetchData(isAdmin);
+                showToast("Tarefa adicionada com sucesso!", "success");
+            } catch (error) {
+                showToast("Erro ao adicionar tarefa! " + (error?.message || ""), "error");
+            }
   }
 
   async function handleAddSubtarefa(e, tarId) {
-      e.preventDefault();
-      if(!novaSubtarefaNome.nome?.trim()) return;
-      await supabase.from("subtarefas").insert([{ tarefa_id: tarId, titulo: novaSubtarefaNome.nome, responsavel_id: user.id, estado: 'pendente' }]);
-      setNovaSubtarefaNome({ tarId: null, nome: "" }); fetchData(isAdmin); showToast("Passo adicionado!");
+            e.preventDefault();
+            if(!novaSubtarefaNome.nome?.trim()) return;
+            try {
+                await supabase.from("subtarefas").insert([{ tarefa_id: tarId, titulo: novaSubtarefaNome.nome, responsavel_id: user.id, estado: 'pendente' }]);
+                setNovaSubtarefaNome({ tarId: null, nome: "" });
+                fetchData(isAdmin);
+                showToast("Passo adicionado com sucesso!", "success");
+            } catch (error) {
+                showToast("Erro ao adicionar passo! " + (error?.message || ""), "error");
+            }
   }
 
   const toggleColaboradorExtra = (colabId) => {

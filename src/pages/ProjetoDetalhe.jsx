@@ -240,9 +240,9 @@ export default function ProjetoDetalhe() {
     const { data: ativData, error: ativError } = await supabase
         .from("atividades")
         .select(`
-            id, titulo, estado, responsavel_id, data_inicio, data_fim, investimento, incentivo, descricao, observacoes, created_at, ordem,
+            id, titulo, estado, responsavel_id, data_inicio, data_fim, investimento, incentivo, financiamento, data_prevista_aprovacao, descricao, observacoes, created_at, ordem,
             colaboradores_extra, info_adicional,
-            tarefas(id, titulo, estado, responsavel_id, colaboradores_extra, data_inicio, data_fim, prioridade, descricao, created_at, ordem, info_adicional,
+            tarefas(id, titulo, estado, responsavel_id, colaboradores_extra, data_inicio, data_fim, prioridade, descricao, created_at, ordem, info_adicional, investimento, incentivo, financiamento, data_prevista_aprovacao,
                 subtarefas(id, titulo, estado, data_fim, created_at, ordem)
             )
         `)
@@ -893,6 +893,13 @@ export default function ProjetoDetalhe() {
               .filter(id => id !== atividadeModal.data.responsavel_id)
       };
       delete payload.tarefas; 
+
+      // 💡 Limpeza de dados para não dar erro no Supabase
+      if (payload.investimento === "") payload.investimento = 0;
+      if (payload.incentivo === "") payload.incentivo = 0;
+      if (payload.financiamento === "") payload.financiamento = 0;
+      if (payload.data_prevista_aprovacao === "") payload.data_prevista_aprovacao = null;
+
       const { error } = await supabase.from("atividades").update(payload).eq("id", payload.id);
       if (!error) {
           setAtividadeModal({ show: false, data: null });
@@ -909,6 +916,13 @@ export default function ProjetoDetalhe() {
               .filter(id => id !== tarefaModal.data.responsavel_id)
       };
       delete payload.subtarefas; 
+
+      // 💡 Limpeza de dados para não dar erro no Supabase
+      if (payload.investimento === "") payload.investimento = 0;
+      if (payload.incentivo === "") payload.incentivo = 0;
+      if (payload.financiamento === "") payload.financiamento = 0;
+      if (payload.data_prevista_aprovacao === "") payload.data_prevista_aprovacao = null;
+
       const { error } = await supabase.from("tarefas").update(payload).eq("id", payload.id);
       if (!error) {
           setTarefaModal({ show: false, data: null, atividadeNome: '' });
