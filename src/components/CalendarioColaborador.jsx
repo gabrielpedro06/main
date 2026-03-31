@@ -1,6 +1,18 @@
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
-import { buildToleranciasSkipSet, calcularDiasUteis, calcularDiasUteisNoMes, formatAbsenceTypeLabel, getAnnualVacationLimitFromProfile, getAttendanceCalculationStartDate, getFeriados, isVacationType, normalizeAbsenceType, parseLocalDate, sincronizarSaldoFeriasPerfil } from "../utils/feriasSaldo";
+import {
+  calcularDiasUteis,
+  buildToleranciasSkipSet,
+  formatAbsenceTypeLabel,
+  getAnnualVacationLimitFromProfile,
+  getAttendanceCalculationStartDate,
+  getFeriados,
+  isVacationType,
+  normalizeAbsenceType,
+  parseLocalDate,
+  sincronizarSaldoFeriasPerfil,
+} from "../utils/feriasSaldo";
 
 export default function CalendarioColaborador({
   userId,
@@ -34,25 +46,10 @@ export default function CalendarioColaborador({
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
-  // Função para apagar assiduidade
-  async function handleDeleteAssiduidade(diaObj) {
-    if (!diaObj?.assidDia?.id) return;
-    setDeleteLoading(true);
-    setSaveFeedback({ show: false, type: "success", message: "" });
-    try {
-      const { error } = await supabase.from("assiduidade").delete().eq("id", diaObj.assidDia.id);
-      if (error) throw error;
-      setSaveFeedback({ show: true, type: "success", message: "Assiduidade apagada com sucesso." });
-      setShowDeleteModal(false);
-      setDeleteInput("");
-      setDeleteTarget(null);
-      fetchDadosMes();
-    } catch (error) {
-      setSaveFeedback({ show: true, type: "error", message: `Erro ao apagar: ${error.message}` });
-    } finally {
-      setDeleteLoading(false);
-    }
-  }
+  // 💡 NOVO: Estados para preenchimento em lote do mês
+  const [showBulkModal, setShowBulkModal] = useState(false);
+  const [bulkInput, setBulkInput] = useState("");
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   const mesAtual = dataAtual.getMonth();
   const anoAtual = dataAtual.getFullYear();
@@ -89,6 +86,11 @@ export default function CalendarioColaborador({
   const isMissingColumnError = (error) => {
     if (!error) return false;
     return error.code === "42703" || /column .* does not exist/i.test(error.message || "");
+  };
+
+  // Ícones inline para facilitar
+  const Icons = {
+    Activity: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>,
   };
 
   async function atualizarSaldoFeriasLegacy(data, movimento, excludeToleranceId = null) {
@@ -185,7 +187,6 @@ export default function CalendarioColaborador({
     const inicioAssiduidadeConsulta = inicioMesStr < dataInicioCalculo ? dataInicioCalculo : inicioMesStr;
 
     try {
-      // Buscar assiduidade
       const { data: assiduidadeData } = await supabase
         .from("assiduidade")
         .select("*")
@@ -193,7 +194,6 @@ export default function CalendarioColaborador({
         .gte("data_registo", inicioAssiduidadeConsulta)
         .lte("data_registo", fimMesStr);
 
-      // Buscar ausências
       const { data: ausenciasData } = await supabase
         .from("ferias")
         .select("*")
@@ -208,7 +208,6 @@ export default function CalendarioColaborador({
       setAssiduidade(assiduidadeData || []);
       setAusencias(ausenciasReais);
 
-      // Constrói calendário
       construirCalendario(assiduidadeData || [], ausenciasReais);
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
@@ -224,6 +223,10 @@ export default function CalendarioColaborador({
     const diasVazios = Array(diaInicio).fill(null);
     const diasPreenchidos = Array.from({ length: diasTotais }, (_, i) => i + 1);
 
+
+    // Pré-calcular feriados do mês
+    const feriadosMes = getFeriados(anoAtual).filter((f) => f.m === mesAtual);
+
     const dias = [...diasVazios, ...diasPreenchidos].map((dia) => {
       if (!dia) return null;
 
@@ -232,10 +235,8 @@ export default function CalendarioColaborador({
       const diaSemana = new Date(anoAtual, mesAtual, dia).getDay();
       const isFimSemana = diaSemana === 0 || diaSemana === 6;
 
-      // Buscar assiduidade deste dia
       const assidDia = assidData.find((a) => a.data_registo === dataStr);
 
-      // Buscar ausências deste dia
       const ausenciasDia = ausenciaData.filter((a) => {
         const dataInicio = parseLocalDate(a.data_inicio);
         const dataFim = parseLocalDate(a.data_fim || a.data_inicio);
@@ -248,13 +249,21 @@ export default function CalendarioColaborador({
       const ausenciasDiaParciais = ausenciasDia.filter((a) => a.is_parcial);
       const toleranciaDia = ausenciasDiaInteiras.find((a) => isToleranceType(a.tipo));
 
-      // Calcula tipo de dia
+      // Novo: identificar feriado
+      const feriadoObj = feriadosMes.find((f) => f.d === dia);
+      const isFeriado = !!feriadoObj;
+
       let tipo = "normal";
       let cor = "#f8fafc";
       let textoCor = "#475569";
       let badge = "";
 
-      if (isFimSemana && !assidDia) {
+      if (isFeriado) {
+        tipo = "feriado";
+        cor = "#fef9c3";
+        textoCor = "#b45309";
+        badge = feriadoObj.nome || "Feriado";
+      } else if (isFimSemana && !assidDia) {
         tipo = "fimSemana";
         cor = "#f1f5f9";
         textoCor = "#94a3b8";
@@ -325,10 +334,9 @@ export default function CalendarioColaborador({
         textoCor = "#1e40af";
         badge = `Ausência Parcial ${formatarHora(parcial.hora_inicio)}-${formatarHora(parcial.hora_fim)}`;
       } else {
-        const feriado = getFeriados(anoAtual).some((f) => f.m === mesAtual && f.d === dia);
         const isPassadoOuHoje = dataStr <= hojeStr;
         const isAfterAttendanceStart = dataStr >= dataInicioCalculo;
-        if (isPassadoOuHoje && isAfterAttendanceStart && !feriado) {
+        if (isPassadoOuHoje && isAfterAttendanceStart) {
           tipo = "faltaInjustificada";
           cor = "#fee2e2";
           textoCor = "#991b1b";
@@ -336,18 +344,16 @@ export default function CalendarioColaborador({
         }
       }
 
-      return { dia, dataStr, tipo, cor, textoCor, badge, assidDia, ausenciasDia, ausenciasDiaInteiras, ausenciasDiaParciais, toleranciaDia, isFimSemana };
+      return { dia, dataStr, tipo, cor, textoCor, badge, assidDia, ausenciasDia, ausenciasDiaInteiras, ausenciasDiaParciais, toleranciaDia, isFimSemana, isFeriado, feriadoNome: feriadoObj?.nome };
     });
 
     setDiasDoMes(dias);
   }
 
-  // ====== FORMATADORES ======
   function formatarHora(hora) {
     return hora ? hora.slice(0, 5) : "--:--";
   }
 
-  // ====== NAVEGAÇÃO ======
   function handlePrevMonth() {
     const novaData = new Date(dataAtual);
     novaData.setMonth(novaData.getMonth() - 1);
@@ -357,6 +363,7 @@ export default function CalendarioColaborador({
 
   function handleNextMonth() {
     const novaData = new Date(dataAtual);
+    novaData.setDate(1); // Corrige bug de salto de mês
     novaData.setMonth(novaData.getMonth() + 1);
     setDataAtual(novaData);
     setDiaSelected(null);
@@ -372,11 +379,63 @@ export default function CalendarioColaborador({
     setEditForm({
       hora_entrada: ass?.hora_entrada ? String(ass.hora_entrada).slice(0, 5) : "09:00",
       hora_saida: ass?.hora_saida ? String(ass.hora_saida).slice(0, 5) : "18:00",
-      tempo_pausa: ass?.tempo_pausa_acumulado ? String(formatMinutesFromSeconds(ass.tempo_pausa_acumulado)) : "0",
+      tempo_pausa: ass?.tempo_pausa_acumulado ? String(formatMinutesFromSeconds(ass.tempo_pausa_acumulado)) : "60",
       observacoes: ass?.observacoes || "",
     });
     setIsEditingDay(true);
     setSaveFeedback({ show: false, type: "success", message: "" });
+  }
+
+  // ====== FUNÇÃO PARA PREENCHER MÊS COMPLETO EM LOTE ======
+  async function handleBulkFillMonth() {
+      setBulkLoading(true);
+      setSaveFeedback({ show: false, type: "success", message: "" });
+
+      const dataInicioCalculo = getAttendanceCalculationStartDate(dataAdmissao);
+      const feriadosMes = getFeriados(anoAtual).filter(f => f.m === mesAtual).map(f => f.d);
+
+      // Identifica os dias que podem ser preenchidos
+      const diasParaPreencher = diasDoMes.filter(diaObj => {
+          if (!diaObj) return false;
+          if (diaObj.isFimSemana) return false; // Ignora fins de semana
+          if (feriadosMes.includes(diaObj.dia)) return false; // Ignora feriados
+          if (diaObj.dataStr < dataInicioCalculo) return false; // Ignora antes da admissão
+          if (diaObj.assidDia) return false; // Ignora dias que já têm marcação
+          if (diaObj.ausenciasDiaInteiras?.length > 0) return false; // Ignora dias com ausência justificada/férias
+          return true;
+      });
+
+      if (diasParaPreencher.length === 0) {
+          setSaveFeedback({ show: true, type: "error", message: "Não existem dias úteis livres para preencher neste mês." });
+          setShowBulkModal(false);
+          setBulkLoading(false);
+          setBulkInput("");
+          return;
+      }
+
+      const payload = diasParaPreencher.map(diaObj => ({
+          user_id: userId,
+          data_registo: diaObj.dataStr,
+          hora_entrada: "09:00",
+          hora_saida: "18:00",
+          tempo_pausa_acumulado: 3600, // 60 minutos
+          observacoes: "Preenchimento automático (Mês completo)",
+          motivo_alteracao: "Lançamento em lote RH"
+      }));
+
+      try {
+          const { error } = await supabase.from("assiduidade").insert(payload);
+          if (error) throw error;
+
+          setSaveFeedback({ show: true, type: "success", message: `Sucesso! Foram preenchidos ${payload.length} dias úteis.` });
+          setShowBulkModal(false);
+          setBulkInput("");
+          fetchDadosMes();
+      } catch (error) {
+          setSaveFeedback({ show: true, type: "error", message: `Erro ao preencher o mês: ${error.message}` });
+      } finally {
+          setBulkLoading(false);
+      }
   }
 
   async function handleSaveDayAssiduidade(dataStr) {
@@ -404,12 +463,12 @@ export default function CalendarioColaborador({
         .select("id")
         .eq("user_id", userId)
         .eq("data_registo", dataStr)
-        .limit(2); // Para detectar múltiplos
+        .limit(2);
 
       if (searchError) throw searchError;
 
       if ((existentes || []).length > 1) {
-        setSaveFeedback({ show: true, type: "error", message: "Erro: Existem múltiplos registos de assiduidade para este colaborador neste dia. Contacte o administrador para corrigir." });
+        setSaveFeedback({ show: true, type: "error", message: "Erro: Existem múltiplos registos para este dia. Contacte o administrador." });
         setSavingDay(false);
         return;
       }
@@ -443,6 +502,25 @@ export default function CalendarioColaborador({
       setSaveFeedback({ show: true, type: "error", message: `Erro ao guardar: ${error.message}` });
     } finally {
       setSavingDay(false);
+    }
+  }
+
+  async function handleDeleteAssiduidade(diaObj) {
+    if (!diaObj?.assidDia?.id) return;
+    setDeleteLoading(true);
+    setSaveFeedback({ show: false, type: "success", message: "" });
+    try {
+      const { error } = await supabase.from("assiduidade").delete().eq("id", diaObj.assidDia.id);
+      if (error) throw error;
+      setSaveFeedback({ show: true, type: "success", message: "Assiduidade apagada com sucesso." });
+      setShowDeleteModal(false);
+      setDeleteInput("");
+      setDeleteTarget(null);
+      fetchDadosMes();
+    } catch (error) {
+      setSaveFeedback({ show: true, type: "error", message: `Erro ao apagar: ${error.message}` });
+    } finally {
+      setDeleteLoading(false);
     }
   }
 
@@ -578,10 +656,32 @@ export default function CalendarioColaborador({
 
   return (
     <div style={{ background: "white", borderRadius: "12px", padding: "20px", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-      {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+      {/* Header e Botões de Navegação */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "10px" }}>
         <h3 style={{ margin: 0, color: "#1e293b" }}>Calendário - {userName}</h3>
-        <div style={{ display: "flex", gap: "8px" }}>
+        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+          
+          {/* BOTÃO: Preencher Mês com tooltip global */}
+          <button
+            onClick={() => setShowBulkModal(true)}
+            title="Preencher Mês Completo"
+            style={{
+              background: "#10b981",
+              color: "white",
+              border: "none",
+              padding: "6px 10px",
+              borderRadius: "6px",
+              cursor: "pointer",
+              fontSize: "1.2rem",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              marginRight: "10px"
+            }}
+          >
+            <Icons.Activity size={18} color="white" />
+          </button>
+
           <button
             onClick={handlePrevMonth}
             style={{
@@ -627,6 +727,12 @@ export default function CalendarioColaborador({
           </button>
         </div>
       </div>
+
+      {saveFeedback.show && (
+        <div style={{ marginBottom: "16px", padding: "12px", borderRadius: "6px", background: saveFeedback.type === "error" ? "#fef2f2" : "#f0fdf4", color: saveFeedback.type === "error" ? "#991b1b" : "#166534", border: `1px solid ${saveFeedback.type === "error" ? "#fecaca" : "#bbf7d0"}` }}>
+          {saveFeedback.message}
+        </div>
+      )}
 
       {/* Tabela de Dias da Semana */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "8px", marginBottom: "10px" }}>
@@ -687,8 +793,6 @@ export default function CalendarioColaborador({
           {(() => {
             const diaObj = diasDoMes.find((d) => d && d.dia === diaSelected);
             if (!diaObj) return null;
-
-            // Foi removido o "if (diaObj.isFimSemana)" daqui para não bloquear a leitura de horas extra ao fim de semana!
 
             if (diaObj.ausenciasDiaInteiras.length > 0) {
               const ausencia = diaObj.ausenciasDiaInteiras[0];
@@ -766,12 +870,6 @@ export default function CalendarioColaborador({
                       style={{ width: "100%", marginTop: "5px", padding: "8px", borderRadius: "6px", border: "1px solid #cbd5e1", resize: "vertical" }}
                     />
                   </div>
-
-                  {saveFeedback.show && (
-                    <div style={{ marginBottom: "12px", padding: "10px", borderRadius: "6px", background: saveFeedback.type === "error" ? "#fef2f2" : "#f0fdf4", color: saveFeedback.type === "error" ? "#991b1b" : "#166534", border: `1px solid ${saveFeedback.type === "error" ? "#fecaca" : "#bbf7d0"}` }}>
-                      {saveFeedback.message}
-                    </div>
-                  )}
 
                   <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
                     <button
@@ -890,49 +988,11 @@ export default function CalendarioColaborador({
               );
             }
 
-            if (diaObj.ausenciasDiaParciais.length > 0) {
-              const parcial = diaObj.ausenciasDiaParciais[0];
-              return (
-                <div>
-                  <p style={{ margin: "0 0 8px 0", fontWeight: "bold", color: "#475569" }}>
-                    Ausência Parcial: {parcial.tipo}
-                  </p>
-                  <p style={{ margin: "0 0 8px 0", color: "#64748b", fontSize: "0.9rem" }}>
-                    Horário: {formatarHora(parcial.hora_inicio)} - {formatarHora(parcial.hora_fim)}
-                  </p>
-                  {parcial.motivo && <p style={{ margin: "0 0 12px 0", color: "#64748b", fontSize: "0.9rem" }}>Motivo: {parcial.motivo}</p>}
-                  <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
-                    <button
-                      type="button"
-                      onClick={() => openEditForDay(diaObj)}
-                      style={{ background: "white", border: "1px solid #cbd5e1", color: "#334155", padding: "8px 12px", borderRadius: "6px", cursor: "pointer", fontWeight: "600" }}
-                    >
-                      Registar Assiduidade
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleToggleTolerancia(diaObj)}
-                      style={{ background: "white", border: "1px solid #cbd5e1", color: "#334155", padding: "8px 12px", borderRadius: "6px", cursor: "pointer", fontWeight: "600" }}
-                      disabled={toleranciaLoading}
-                    >
-                      {diaObj.toleranciaDia ? "Remover Tolerância" : "Dar Tolerância"}
-                    </button>
-                  </div>
-                </div>
-              );
-            }
-
             return (
               <div>
-                {/* Aqui está a mensagem condicional e a garantia de que podes picar manuamente mesmo no fim de semana! */}
                 <p style={{ color: "#94a3b8", margin: "0 0 10px 0" }}>
                   {diaObj.isFimSemana ? "Este é um fim de semana sem registos." : "Sem registos para este dia."}
                 </p>
-                {saveFeedback.show && (
-                  <div style={{ marginBottom: "12px", padding: "10px", borderRadius: "6px", background: saveFeedback.type === "error" ? "#fef2f2" : "#f0fdf4", color: saveFeedback.type === "error" ? "#991b1b" : "#166534", border: `1px solid ${saveFeedback.type === "error" ? "#fecaca" : "#bbf7d0"}` }}>
-                    {saveFeedback.message}
-                  </div>
-                )}
                 <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
                   <button
                     type="button"
@@ -1036,7 +1096,7 @@ export default function CalendarioColaborador({
         )}
       </div>
 
-      {/* Modal de confirmação para apagar assiduidade */}
+      {/* Modal de confirmação para apagar assiduidade individual */}
       {showDeleteModal && (
         <div style={{
           position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", background: "rgba(0,0,0,0.25)", zIndex: 9999,
@@ -1070,6 +1130,63 @@ export default function CalendarioColaborador({
                 disabled={deleteInput !== "APAGAR" || deleteLoading}
               >
                 {deleteLoading ? "A apagar..." : "Apagar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de confirmação para preenchimento em lote do mês */}
+      {showBulkModal && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", background: "rgba(0,0,0,0.4)", zIndex: 9999,
+          display: "flex", alignItems: "center", justifyContent: "center"
+        }}>
+          <div style={{ background: "white", borderRadius: "10px", padding: 32, minWidth: 320, maxWidth: 500, boxShadow: "0 2px 16px rgba(0,0,0,0.15)" }}>
+            <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px'}}>
+                <Icons.Activity color="#10b981" size={24} />
+                <h3 style={{ color: "#065f46", margin: 0 }}>Preencher Mês Completo</h3>
+            </div>
+            <p style={{color: '#475569', lineHeight: 1.5, fontSize: '0.95rem'}}>
+                Confirma que quer marcar assiduidade das <b>09:00 - 18:00</b> com <b>60 minutos</b> de pausa para <b>todos os dias úteis</b> do mês de {nomesMeses[mesAtual]} para o colaborador {userName}?
+            </p>
+            <p style={{fontSize: '0.85rem', color: '#64748b'}}>
+                <i>Nota: O sistema ignora fins de semana, feriados, e dias que já tenham ausências ou registos de assiduidade marcados.</i>
+            </p>
+            <p style={{marginTop: '20px', fontWeight: 'bold'}}>Para confirmar, escreva "SIM" ou "CONFIRMO" abaixo:</p>
+            
+            <input
+              type="text"
+              value={bulkInput}
+              onChange={e => setBulkInput(e.target.value)}
+              placeholder="Digite SIM para confirmar"
+              style={{ width: "100%", padding: '10px 12px', borderRadius: 6, border: "1px solid #cbd5e1", marginBottom: 20, fontSize: '1rem' }}
+              autoFocus
+              disabled={bulkLoading}
+            />
+            
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+              <button
+                type="button"
+                onClick={() => { setShowBulkModal(false); setBulkInput(""); }}
+                style={{ flex: 1, background: "white", border: "1px solid #cbd5e1", color: "#475569", padding: "10px 12px", borderRadius: "6px", cursor: "pointer", fontWeight: "600", transition: "0.2s" }}
+                disabled={bulkLoading}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleBulkFillMonth}
+                style={{ 
+                    flex: 1, background: "#10b981", border: "none", color: "white", padding: "10px 12px", borderRadius: "6px", 
+                    cursor: (bulkInput.trim().toUpperCase() !== "SIM" && bulkInput.trim().toUpperCase() !== "CONFIRMO") || bulkLoading ? "not-allowed" : "pointer", 
+                    fontWeight: "700", 
+                    opacity: (bulkInput.trim().toUpperCase() !== "SIM" && bulkInput.trim().toUpperCase() !== "CONFIRMO") ? 0.5 : 1,
+                    transition: "0.2s" 
+                }}
+                disabled={(bulkInput.trim().toUpperCase() !== "SIM" && bulkInput.trim().toUpperCase() !== "CONFIRMO") || bulkLoading}
+              >
+                {bulkLoading ? "A preencher..." : "Confirmar"}
               </button>
             </div>
           </div>
