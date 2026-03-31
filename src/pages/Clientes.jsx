@@ -809,6 +809,107 @@ export default function Clientes() {
     }
   }
 
+// --- PREENCHIMENTO AUTOMÁTICO DE MORADA POR CÓDIGO POSTAL ---
+  async function fetchMoradaByCodigoPostal(cp) {
+      if (!cp || cp.length < 8) return; 
+      
+      showToast("A procurar localização pelo Código Postal...", "info");
+      
+      try {
+          // TENTATIVA 1: API Nacional (GeoAPI) - Super precisa
+          const resGeo = await fetch(`https://json.geoapi.pt/cp/${cp}`);
+          
+          if (resGeo.ok) {
+              const dataGeo = await resGeo.json();
+              if (dataGeo && dataGeo.concelho && dataGeo.distrito) {
+                  setNovaMorada(prev => ({
+                      ...prev,
+                      morada: prev.morada || dataGeo.rua || "", 
+                      localidade: dataGeo.localidade || prev.localidade,
+                      concelho: dataGeo.concelho || prev.concelho,
+                      distrito: dataGeo.distrito || prev.distrito,
+                      regiao: dataGeo.regiao || dataGeo.distrito || prev.regiao
+                  }));
+                  showToast("Morada preenchida com precisão! 📍", "success");
+                  return; // Sucesso, não precisa de ir ao Plano B
+              }
+          }
+      } catch (err) {
+          console.warn("GeoAPI falhou ou não respondeu, a tentar OpenStreetMap...", err);
+      }
+
+      // TENTATIVA 2: Plano B (OpenStreetMap) - Caso a GeoAPI falhe ou atinja limite
+      try {
+          const resOSM = await fetch(`https://nominatim.openstreetmap.org/search?postalcode=${cp}&country=Portugal&format=json&addressdetails=1`);
+          const dataOSM = await resOSM.json();
+          
+          if (dataOSM && dataOSM.length > 0) {
+              const address = dataOSM[0].address;
+              setNovaMorada(prev => ({
+                  ...prev,
+                  morada: address.road || prev.morada, 
+                  localidade: address.village || address.suburb || address.hamlet || address.town || prev.localidade,
+                  concelho: address.city || address.town || address.municipality || prev.concelho,
+                  distrito: address.county || address.state_district || address.state || prev.distrito,
+                  regiao: address.region || address.state || address.county || prev.regiao
+              }));
+              showToast("Morada preenchida (via mapa global)! 📍", "success");
+          } else {
+              showToast("Código postal não encontrado.", "warning");
+          }
+      } catch (error) {
+          console.error("Erro no fallback OSM:", error);
+          showToast("Erro ao comunicar com o serviço de mapas.", "error");
+      }
+  }
+
+  // --- PREENCHIMENTO AUTOMÁTICO DE DISTRITO E REGIÃO PELO CONCELHO ---
+  async function fetchDadosByConcelho(concelhoNome) {
+      if (!concelhoNome || concelhoNome.trim().length < 3) return;
+
+      // Se o distrito e a região já estiverem preenchidos, não vale a pena gastar pedidos à API
+      if (novaMorada.distrito && novaMorada.regiao) return;
+
+      showToast("A procurar detalhes do concelho...", "info");
+      
+      try {
+          // TENTATIVA 1: GeoAPI (Procura direta pelo município)
+          const resGeo = await fetch(`https://json.geoapi.pt/municipio/${encodeURIComponent(concelhoNome)}`);
+          if (resGeo.ok) {
+              const dataGeo = await resGeo.json();
+              if (dataGeo && dataGeo.distrito) {
+                  setNovaMorada(prev => ({
+                      ...prev,
+                      distrito: prev.distrito || dataGeo.distrito,
+                      regiao: prev.regiao || dataGeo.regiao || dataGeo.distrito
+                  }));
+                  showToast("Distrito e Região preenchidos! 📍", "success");
+                  return; // Sucesso, sai da função
+              }
+          }
+      } catch (err) {
+          console.warn("GeoAPI falhou na busca por concelho, a tentar OpenStreetMap...", err);
+      }
+
+      // TENTATIVA 2: OpenStreetMap (Plano B)
+      try {
+          const resOSM = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(concelhoNome)},+Portugal&format=json&addressdetails=1`);
+          const dataOSM = await resOSM.json();
+          
+          if (dataOSM && dataOSM.length > 0) {
+              const address = dataOSM[0].address;
+              setNovaMorada(prev => ({
+                  ...prev,
+                  distrito: prev.distrito || address.state_district || address.county || address.state || "",
+                  regiao: prev.regiao || address.region || address.state || ""
+              }));
+              showToast("Distrito e Região preenchidos! 📍", "success");
+          }
+      } catch (error) {
+          console.error("Erro no fallback do concelho:", error);
+      }
+  }
+
   // --- LÓGICA DE FILTRAGEM DOS CARTÕES ---
   let processedClientes = [...clientes];
 
@@ -2147,8 +2248,28 @@ export default function Clientes() {
                         
                         <div style={{display:'grid', gridTemplateColumns:'1fr 2fr', gap:'20px'}}>
                             <div>
-                                <label style={labelStyle}>Cód. Postal</label>
-                                <input type="text" placeholder="Ex: 8000-000" value={novaMorada.codigo_postal} onChange={e => setNovaMorada({...novaMorada, codigo_postal: e.target.value})} style={inputStyle} className="input-focus" />
+                                <label style={labelStyle}>Cód. Postal <span style={{fontSize:'0.7rem', color:'#2563eb', textTransform: 'none'}}>(Preenchimento Auto)</span></label>
+                                <input 
+                                    type="text" 
+                                    placeholder="Ex: 8000-000" 
+                                    maxLength="8"
+                                    value={novaMorada.codigo_postal || ""} 
+                                    onChange={e => {
+                                        let val = e.target.value;
+                                        // Auto-formatação: mete o tracinho sozinho
+                                        if (val.length === 4 && !val.includes('-') && (novaMorada.codigo_postal || "").length < 4) {
+                                            val += '-';
+                                        }
+                                        setNovaMorada({...novaMorada, codigo_postal: val});
+                                        
+                                        // Dispara a pesquisa mal chega aos 8 caracteres
+                                        if (val.length === 8 && val.includes('-')) {
+                                            fetchMoradaByCodigoPostal(val);
+                                        }
+                                    }} 
+                                    style={{...inputStyle, borderColor: '#2563eb', background: '#eff6ff'}} 
+                                    className="input-focus" 
+                                />
                             </div>
                             <div>
                                 <label style={labelStyle}>Localidade</label>
@@ -2158,8 +2279,16 @@ export default function Clientes() {
                         
                         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'20px'}}>
                             <div>
-                                <label style={labelStyle}>Concelho</label>
-                                <input type="text" value={novaMorada.concelho} onChange={e => setNovaMorada({...novaMorada, concelho: e.target.value})} style={inputStyle} className="input-focus" />
+                                <label style={labelStyle}>Concelho <span style={{fontSize:'0.7rem', color:'#2563eb', textTransform: 'none'}}>(Preenche o resto)</span></label>
+                                <input 
+                                    type="text" 
+                                    value={novaMorada.concelho || ""} 
+                                    onChange={e => setNovaMorada({...novaMorada, concelho: e.target.value})} 
+                                    onBlur={e => fetchDadosByConcelho(e.target.value)}
+                                    placeholder="Ex: Albufeira"
+                                    style={{...inputStyle, borderColor: '#2563eb', background: '#eff6ff'}} 
+                                    className="input-focus" 
+                                />
                             </div>
                             <div>
                                 <label style={labelStyle}>Distrito</label>
