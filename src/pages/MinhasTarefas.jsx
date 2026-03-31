@@ -438,7 +438,15 @@ export default function MinhasTarefas() {
           .insert([{ user_id: user.id, task_id: task.id, start_time: new Date().toISOString() }])
           .select()
           .single();
-      if (!error) { setActiveLog(data); showToast("Cronómetro em curso!"); }
+      if (!error) {
+          // Atualiza o estado da tarefa para 'em_curso' ao iniciar o cronómetro
+          await supabase
+              .from("tarefas")
+              .update({ estado: "em_curso" })
+              .eq("id", task.id);
+          setActiveLog(data);
+          showToast("Cronómetro em curso!");
+      }
   }
 
   async function runActionWithAttendanceWarning(actionFn) {

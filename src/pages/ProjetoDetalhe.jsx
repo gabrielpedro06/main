@@ -703,7 +703,14 @@ export default function ProjetoDetalhe() {
       else payload.atividade_id = targetId;
 
       const { data, error } = await supabase.from("task_logs").insert([payload]).select().single();
-      if (!error) { setActiveLog(data); showToast("Cronómetro iniciado!"); }
+      if (!error) {
+          // Se for tarefa, atualiza o estado para 'em_curso'
+          if (type === 'task') {
+              await supabase.from('tarefas').update({ estado: 'em_curso' }).eq('id', targetId);
+          }
+          setActiveLog(data);
+          showToast("Cronómetro iniciado!");
+      }
   }
 
   async function runActionWithAttendanceWarning(actionFn) {
