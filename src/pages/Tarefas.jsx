@@ -1266,7 +1266,7 @@ export default function Tarefas() {
   );
 
   const modalOverlayStyle = { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.5)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999 };
-  const modalStyle = { background: '#fff', width: '95%', maxWidth: '650px', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', display: 'flex', flexDirection: 'column', maxHeight: '90vh', overflow: 'hidden' };
+  const modalStyle = { background: '#fff', width: '9500%', maxWidth: '81965px', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', display: 'flex', flexDirection: 'column', maxHeight: '90vh', overflow: 'hidden' };
   const modalHeaderStyle = { padding: '16px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff' };
   const modalBodyStyle = { padding: '24px', overflowY: 'auto', background: '#f8fafc' };
   const sectionTitleStyle = { fontSize: '0.75rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '12px', marginTop: '16px', borderBottom: '1px solid #e2e8f0', paddingBottom: '4px' };
@@ -2078,7 +2078,7 @@ export default function Tarefas() {
                     <div style={{marginBottom: '15px'}}>
                         <label style={labelStyle}>Estado Atual</label>
                         <div style={{display: 'flex', gap: '8px'}}>
-                            {['pendente', 'em_analise', 'em_curso', 'concluido', 'cancelado'].map(st => (
+                            {['pendente', 'em_curso', 'em_analise', 'concluido', 'cancelado'].map(st => (
                                 <div key={st} onClick={() => !isViewOnly && setForm({...form, estado: st})} style={{flex: 1, textAlign: 'center', padding: '8px', borderRadius: '6px', cursor: isViewOnly ? 'default' : 'pointer', fontSize: '0.8rem', fontWeight: '700', background: form.estado === st ? '#2563eb' : '#fff', color: form.estado === st ? 'white' : '#64748b', border: form.estado === st ? '1px solid #2563eb' : '1px solid #cbd5e1', transition: 'all 0.2s', textTransform: 'uppercase'}}>
                                     {st.replace('_', ' ')}
                                 </div>

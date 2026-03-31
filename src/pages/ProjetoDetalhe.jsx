@@ -1358,8 +1358,8 @@ export default function ProjetoDetalhe() {
   const renderStatePills = (currentState, onChange) => {
       const states = [
           { val: 'pendente', label: 'PENDENTE', color: '#3b82f6' },
-          { val: 'em_analise', label: 'EM ANÁLISE', color: '#ec4899' },
           { val: 'em_curso', label: 'EM CURSO', color: '#f59e0b' },
+          { val: 'em_analise', label: 'EM ANÁLISE', color: '#ec4899' },
           { val: 'concluido', label: 'CONCLUÍDO', color: '#2563eb' },
           { val: 'cancelado', label: 'CANCELADO', color: '#64748b' }
       ];
@@ -2553,7 +2553,7 @@ export default function ProjetoDetalhe() {
       {tarefaModal.show && tarefaModal.data && (
           <ModalPortal>
               <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999}}>
-                  <div className="custom-scrollbar" style={{background: 'white', padding: '24px', borderRadius: '16px', width: 'min(500px, 92vw)', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out'}}>
+                  <div className="custom-scrollbar" style={{background: 'white', padding: '32px', borderRadius: '18px', width: 'min(700px, 98vw)', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out'}}>
                       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
                           <h3 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Eye size={20} color="#2563eb" /> Detalhes da Tarefa</h3>
                           <button onClick={() => setTarefaModal({show:false, data:null, atividadeNome:''})} style={{background:'none', border:'none', cursor:'pointer'}} className="hover-red-text"><Icons.Close size={20} /></button>
