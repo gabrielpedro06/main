@@ -186,34 +186,34 @@ export const generateDeslocacoesMensaisPDF = async ({
 
         doc.setDrawColor(...COLORS.border);
         doc.setFillColor(255, 255, 255);
-        doc.roundedRect(marginX, 42, pageWidth - marginX * 2, 28, 2.5, 2.5, "FD");
+        doc.roundedRect(marginX, 42, pageWidth - marginX * 2, 38, 2.5, 2.5, "FD");
 
         const companyLabel = getCompanyLabel(colaborador);
-        const morada = colaborador?.morada || "-";
-        
+        // const morada = colaborador?.morada || "-"; // Removido conforme pedido
         // 💡 Recolhe todas as viaturas usadas nestes pedidos específicos
         const viaturasUsadas = [...new Set(rows.map(r => r.veiculo).filter(Boolean))];
         const viatura = viaturasUsadas.length > 0 ? viaturasUsadas.join(" • ") : "-";
+        const nif = colaborador?.nif || "-";
 
         doc.setFont("helvetica", "bold");
         doc.setFontSize(9);
         doc.setTextColor(...COLORS.ink);
-        doc.text("Empresa", marginX + 4, 50);
-        doc.text("Morada", marginX + 4, 57);
-        doc.text("Colaborador", marginX + 4, 64);
+        doc.text("Colaborador:", marginX + 4, 50);
+        doc.text("NIF:", marginX + 4, 57);
+        doc.text("Empresa:", marginX + 4, 64);
 
         const rightColX = pageWidth / 2 + 6;
-        doc.text("Mes/Ano", rightColX, 50);
-        doc.text("Viatura", rightColX, 57);
-        doc.text("Valor por km", rightColX, 64);
+        doc.text("Mês/ano:", rightColX, 50);
+        doc.text("Viatura:", rightColX, 57);
+        doc.text("Valor por Km:", rightColX, 64);
 
         doc.setFont("helvetica", "normal");
         doc.setTextColor(...COLORS.slate);
-        doc.text(companyLabel, marginX + 30, 50, { maxWidth: pageWidth / 2 - 34 });
-        doc.text(morada, marginX + 30, 57, { maxWidth: pageWidth / 2 - 34 });
-        doc.text(colaborador?.nome || "-", marginX + 30, 64, { maxWidth: pageWidth / 2 - 34 });
+        doc.text(colaborador?.nome || "-", marginX + 30, 50, { maxWidth: pageWidth / 2 - 34 });
+        doc.text(nif, marginX + 30, 57, { maxWidth: pageWidth / 2 - 34 });
+        doc.text(companyLabel, marginX + 30, 64, { maxWidth: pageWidth / 2 - 34 });
 
-        doc.text(monthRef, rightColX + 22, 50);
+        doc.text(monthLabel, rightColX + 22, 50);
         doc.text(viatura, rightColX + 22, 57, { maxWidth: pageWidth - rightColX - 26 });
         doc.text(`${Number(valorPorKm).toFixed(2)} EUR`, rightColX + 22, 64);
 

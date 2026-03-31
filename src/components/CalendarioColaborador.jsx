@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import {
   calcularDiasUteis,
+  calcularDiasUteisNoMes,
   buildToleranciasSkipSet,
   formatAbsenceTypeLabel,
   getAnnualVacationLimitFromProfile,
@@ -19,6 +20,7 @@ export default function CalendarioColaborador({
   userName = "Colaborador",
   dataAdmissao = null,
   onVacationBalanceUpdated = null,
+  onMonthChange = null,
 }) {
   const KM_REQUEST_TYPE = "Pedido de Km's";
   const TOLERANCIA_TIPO = "Tolerância de Ponto";
@@ -359,6 +361,7 @@ export default function CalendarioColaborador({
     novaData.setMonth(novaData.getMonth() - 1);
     setDataAtual(novaData);
     setDiaSelected(null);
+    if (typeof onMonthChange === 'function') onMonthChange(novaData);
   }
 
   function handleNextMonth() {
@@ -367,11 +370,14 @@ export default function CalendarioColaborador({
     novaData.setMonth(novaData.getMonth() + 1);
     setDataAtual(novaData);
     setDiaSelected(null);
+    if (typeof onMonthChange === 'function') onMonthChange(novaData);
   }
 
   function handleToday() {
-    setDataAtual(new Date());
+    const today = new Date();
+    setDataAtual(today);
     setDiaSelected(null);
+    if (typeof onMonthChange === 'function') onMonthChange(today);
   }
 
   function openEditForDay(diaObj) {

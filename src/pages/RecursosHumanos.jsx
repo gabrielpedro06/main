@@ -1830,7 +1830,12 @@ export default function RecursosHumanos() {
       return days;
   };
 
-  const changeMonth = (delta) => setCurrentDate(new Date(currentDate.setMonth(currentDate.getMonth() + delta)));
+    const changeMonth = (delta) => {
+        const newDate = new Date(currentDate);
+        newDate.setDate(1); // Evita problemas com meses de menos dias
+        newDate.setMonth(newDate.getMonth() + delta);
+        setCurrentDate(newDate);
+    };
   
     const readOnlyGridStyle = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', columnGap: '20px', rowGap: '10px', fontSize: '0.9rem', color: '#334151' };
   const readOnlyItemStyle = { display: 'flex', flexDirection: 'column', borderBottom: '1px solid #f1f5f9', paddingBottom: '5px' };
@@ -2459,6 +2464,7 @@ export default function RecursosHumanos() {
                                 if (selectedUser) await fetchHistoricoUser(selectedUser);
                                 await fetchDadosMensais();
                             }}
+                            onMonthChange={(date) => setCurrentDate(date)}
                         />
                     ) : (
                         <div className="card" style={{padding:'25px', background:'white', borderRadius:'12px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
