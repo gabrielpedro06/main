@@ -159,6 +159,32 @@ export default function ProjetoDetalhe() {
   const dragTarItem = useRef();
   const dragTarOverItem = useRef();
 
+    // 💡 Monitoriza o progresso e conclui o projeto automaticamente
+    useEffect(() => {
+        if (!projeto || projeto.estado === 'concluido' || atividades.length === 0) return;
+
+        const todasConcluidas = atividades.every(ativ => ativ.estado === 'concluido');
+    
+        if (todasConcluidas) {
+            const concluirProjetoAuto = async () => {
+                const { error } = await supabase
+                    .from("projetos")
+                    .update({ estado: "concluido" })
+                    .eq("id", id);
+        
+                if (!error) {
+                    setProjeto(prev => ({ ...prev, estado: "concluido" }));
+                    setNotification({ 
+                        message: "Projeto finalizado! Queres iniciar a próxima etapa (ex: Gestão)?", 
+                        type: 'success',
+                        isTransition: true // Flag para mostrar o botão de transição
+                    });
+                }
+            };
+            concluirProjetoAuto();
+        }
+    }, [atividades]);
+
   useEffect(() => {
     fetchProjetoDetails();
     checkActiveLog();
@@ -203,6 +229,31 @@ export default function ProjetoDetalhe() {
           payload: null
       });
   }
+
+    // 💡 Transmitir projeto para nova etapa (ex: Gestão)
+    const handleTransmitirProjeto = () => {
+        const dadosParaClonar = {
+            titulo: `${projeto.titulo} - GESTÃO`,
+            cliente_id: projeto.cliente_id,
+            is_parceria: projeto.is_parceria,
+            parceiros_ids: projeto.parceiros_ids,
+            responsavel_id: projeto.responsavel_id,
+            colaboradores: projeto.colaboradores,
+            codigo_projeto: projeto.codigo_projeto,
+            investimento: projeto.investimento,
+            incentivo: projeto.incentivo,
+            descricao: projeto.descricao,
+            // Deixamos o tipo_projeto_id vazio para a pessoa escolher o novo modelo (ex: Gestão)
+        };
+
+        // Navega e passa o estado para o componente pai
+        navigate('/dashboard/projetos', { 
+            state: { 
+                prefillData: dadosParaClonar, 
+                openModal: true 
+            } 
+        });
+    };
 
   async function checkActiveLog() {
       if(!user?.id) return;
@@ -1399,7 +1450,21 @@ export default function ProjetoDetalhe() {
   };
 
   return (
-    <div className="page-container" style={{maxWidth: '1200px', margin: '0 auto', paddingBottom: '50px'}}>
+        <div className="page-container" style={{maxWidth: '1200px', margin: '0 auto', paddingBottom: '50px'}}>
+
+            {notification && (
+                <div className={`toast-container ${notification.type}`} style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center' }}>
+                    <div>{notification.type === 'success' ? '✅' : '⚠️'} {notification.message}</div>
+                    {notification.isTransition && (
+                        <button 
+                            onClick={handleTransmitirProjeto}
+                            style={{ background: 'white', color: '#2563eb', border: 'none', padding: '5px 12px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.8rem' }}
+                        >
+                            🚀 Iniciar Próxima Etapa
+                        </button>
+                    )}
+                </div>
+            )}
       
       {/* =========================================
           CABEÇALHO DO PROJETO 

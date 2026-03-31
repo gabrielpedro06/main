@@ -1,15 +1,21 @@
-    // Função utilitária para saber se algum campo é exigido no templateTree
-    function isCampoExigidoNoTemplateTree(campo) {
-        for (const ativ of templateTree) {
-            if (ativ.info_adicional?.exige && ativ.info_adicional.campos?.includes(campo)) return true;
-            if (ativ.tarefas) {
-                for (const tar of ativ.tarefas) {
-                    if (tar.info_adicional?.exige && tar.info_adicional.campos?.includes(campo)) return true;
-                }
-            }
-        }
-        return false;
-    }
+// --- FUNÇÃO PARA RENDERIZAÇÃO CONDICIONAL NOS MODAIS DE EDIÇÃO ---
+  const deveMostrarCampoItem = (itemInfoAdicional, nomeCampo) => {
+      if (!itemInfoAdicional) return false; 
+      try {
+          const info = typeof itemInfoAdicional === 'string' 
+              ? JSON.parse(itemInfoAdicional) 
+              : itemInfoAdicional;
+          
+          // Verifica se o template exige campos e se este campo específico está na lista
+          if (info && info.exige === true && Array.isArray(info.campos)) {
+              return info.campos.includes(nomeCampo);
+          }
+      } catch (e) {
+          console.error(`Erro ao validar o campo ${nomeCampo}:`, e);
+      }
+      return false; 
+  };
+
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -166,10 +172,33 @@ export default function Projetos() {
       };
   }, [activeLog]);
 
-  // Efeito para carregar a árvore de atividades quando selecionamos um Tipo de Projeto
-  useEffect(() => {
-      if (!editId && form.tipo_projeto_id) {
-          loadTemplateData(form.tipo_projeto_id);
+    // Efeito para abrir modal com dados pré-preenchidos vindos de outra página
+    useEffect(() => {
+        if (location.state?.openModal) {
+            if (location.state.prefillData) {
+                setForm({ 
+                    ...initialForm, 
+                    ...location.state.prefillData 
+                });
+            } else if (location.state.prefillClienteId) {
+                setForm({ 
+                    ...initialForm, 
+                    cliente_id: location.state.prefillClienteId 
+                });
+            }
+            setEditId(null);
+            setIsViewOnly(false);
+            setActiveTab("geral");
+            setShowModal(true); 
+            // Limpa para não repetir ao atualizar a página
+            navigate(location.pathname, { replace: true, state: {} });
+        }
+    }, [location.state]);
+
+    // Efeito para carregar a árvore de atividades quando selecionamos um Tipo de Projeto
+    useEffect(() => {
+            if (!editId && form.tipo_projeto_id) {
+                    loadTemplateData(form.tipo_projeto_id);
       } else {
           setTemplateTree([]);
           setTemplateSelection({});
@@ -1575,23 +1604,53 @@ export default function Projetos() {
                       </div>
                     )}
 
-                                        {activeTab === 'investimento' && (isCampoExigidoNoTemplateTree('investimento') || isCampoExigidoNoTemplateTree('incentivo')) && (
-                                            <div style={{background:'#f8fafc', padding:'30px', borderRadius:'12px', border:'1px solid #e2e8f0'}}>
-                                                <h4 style={{marginTop:0, marginBottom:'20px', color:'#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Dollar color="#2563eb" /> Valores Aprovados</h4>
-                                                <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px'}}>
-                                                        {isCampoExigidoNoTemplateTree('investimento') && (
-                                                            <div>
-                                                                    <label style={labelStyle}>Investimento Elegível (€)</label>
-                                                                    <input type="number" step="0.01" value={form.investimento} onChange={e => setForm({...form, investimento: e.target.value})} style={{...inputStyle, fontSize:'1.2rem', padding:'15px', borderColor:'#cbd5e1', background: 'white'}} className="input-focus" />
-                                                            </div>
-                                                        )}
-                                                        {isCampoExigidoNoTemplateTree('incentivo') && (
-                                                            <div>
-                                                                    <label style={labelStyle}>Incentivo Atribuído (€)</label>
-                                                                    <input type="number" step="0.01" value={form.incentivo} onChange={e => setForm({...form, incentivo: e.target.value})} style={{...inputStyle, fontSize:'1.2rem', padding:'15px', borderColor:'#cbd5e1', background: 'white'}} className="input-focus" />
-                                                            </div>
-                                                        )}
+                                        {activeTab === 'investimento' && (
+                                            <div className="fade-in" style={{background:'#f8fafc', padding:'30px', borderRadius:'12px', border:'1px solid #e2e8f0'}}>
+                                                <div style={{marginBottom: '25px'}}>
+                                                    <h4 style={{margin:0, color:'#1e293b', fontSize: '1.1rem', fontWeight: '800'}}>
+                                                        Valores de Investimento
+                                                    </h4>
                                                 </div>
+
+                                                <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px'}}>
+                                                    <div>
+                                                        <label style={labelStyle}>Investimento Elegível (€)</label>
+                                                        <input 
+                                                            type="number" 
+                                                            step="0.01" 
+                                                            value={form.investimento || 0} 
+                                                            onChange={e => setForm({...form, investimento: e.target.value})} 
+                                                            style={{
+                                                                width: '100%', 
+                                                                padding: '10px 12px', 
+                                                                borderRadius: '8px', 
+                                                                border: '1px solid #cbd5e1', 
+                                                                fontSize:'1.2rem', 
+                                                                background: 'white'
+                                                            }} 
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label style={labelStyle}>Incentivo Atribuído (€)</label>
+                                                        <input 
+                                                            type="number" 
+                                                            step="0.01" 
+                                                            value={form.incentivo || 0} 
+                                                            onChange={e => setForm({...form, incentivo: e.target.value})} 
+                                                            style={{
+                                                                width: '100%', 
+                                                                padding: '10px 12px', 
+                                                                borderRadius: '8px', 
+                                                                border: '1px solid #cbd5e1', 
+                                                                fontSize:'1.2rem', 
+                                                                background: 'white'
+                                                            }} 
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <p style={{marginTop: '20px', fontSize: '0.85rem', color: '#64748b'}}>
+                                                    Estes valores podem ser ajustados mais tarde nos detalhes do projeto.
+                                                </p>
                                             </div>
                                         )}
 
