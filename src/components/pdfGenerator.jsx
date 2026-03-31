@@ -2,20 +2,19 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 const C = {
-            navy:    [27,  41,  82],
-            blue:    [70,  159, 97],
-            gold:    [136, 191, 104],
-            ink:     [36,  53,  79],
-            muted:   [96,  113, 133],
-            subtle:  [244, 249, 243],
-            line:    [218, 229, 217],
-            success: [70,  159, 97],
-            warning: [136, 191, 104],
-            danger:  [204, 92,  92],
-            white:   [255, 255, 255],
-        };
+    navy:    [27,  41,  82],
+    blue:    [70,  159, 97],
+    gold:    [136, 191, 104],
+    ink:     [36,  53,  79],
+    muted:   [96,  113, 133],
+    subtle:  [244, 249, 243],
+    line:    [218, 229, 217],
+    success: [70,  159, 97],
+    warning: [136, 191, 104],
+    danger:  [204, 92,  92],
+    white:   [255, 255, 255],
+};
 
-// Backward-compatible palette alias used by the generator body.
 const COLORS = {
     brandDark: C.navy,
     brand: C.blue,
@@ -48,18 +47,12 @@ const loadLogo = (url) =>
     });
 
 const clampPercent = (value) => Math.max(0, Math.min(100, Math.round(value || 0)));
-const clamp  = (v) => Math.max(0, Math.min(100, Math.round(v || 0)));
 
 const formatDuration = (minutes) => {
     const safeMinutes = Number.isFinite(minutes) ? Math.max(0, minutes) : 0;
     const hours = Math.round((safeMinutes / 60) * 100) / 100;
     const fractionDigits = Number.isInteger(hours) ? 0 : Number.isInteger(hours * 10) ? 1 : 2;
-    const formattedHours = hours.toLocaleString('pt-PT', {
-        minimumFractionDigits: fractionDigits,
-        maximumFractionDigits: fractionDigits,
-    });
-
-    return `${formattedHours} h`;
+    return `${hours.toLocaleString('pt-PT', { minimumFractionDigits: fractionDigits, maximumFractionDigits: fractionDigits })} h`;
 };
 
 const formatDate = (value) => {
@@ -68,55 +61,86 @@ const formatDate = (value) => {
     return Number.isNaN(parsed.getTime()) ? '-' : parsed.toLocaleDateString('pt-PT');
 };
 
+const formatCurrency = (value) => {
+    const num = Number(value);
+    if (Number.isNaN(num) || num === 0) return '0,00 €';
+    return num.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' });
+};
+
 const normalizeStatus = (status) => (status || '').toString().trim().toLowerCase();
-const norm = (s) => (s || '').toString().trim().toLowerCase();
 
 const getStatusMeta = (status) => {
-    const v = norm(status);
+    const v = normalizeStatus(status);
     if (v === 'concluido')    return { label: 'Concluído',    color: C.success };
-    if (v === 'em_progresso') return { label: 'Em Progresso', color: C.blue    };
+    if (v === 'em_progresso' || v === 'em_curso') return { label: 'Em Progresso', color: C.blue    };
     if (v === 'bloqueado')    return { label: 'Bloqueado',    color: C.danger  };
     if (v === 'pausado')      return { label: 'Pausado',      color: C.warning };
-    if (v === 'em_validacao') return { label: 'Em Validação', color: C.warning };
+    if (v === 'em_validacao' || v === 'em_analise') return { label: 'Em Análise', color: C.warning };
     if (!v)                   return { label: '—',            color: C.muted   };
     return { label: v.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()), color: C.muted };
 };
 
 const uniqueNames = (values) => [...new Set(values.filter(Boolean))];
-const unique = (arr) => [...new Set(arr.filter(Boolean))];
 const toWrappedLines = (doc, value, width) => {
     const lines = doc.splitTextToSize((value ?? '-').toString(), width);
     return Array.isArray(lines) ? lines : [lines];
 };
 
+// Extrator de Iniciais Inteligente (Ex: João Pedro Silva -> JS)
+const getInitials = (name) => {
+    if (!name) return '';
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return '';
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+};
+
 export const generateProjectPDF = async (
-    projeto    = {},
+    projeto = {},
     atividades = [],
-    logs       = [],
-    staff      = [],
-    clientes   = [],
+    logs = [],
+    staff = [],
+    clientes = [],
+    entidadePessoas = [] // NOVO PARÂMETRO
 ) => {
     const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const marginX = 14;
 
-    const staffNameById = new Map((staff || []).map((item) => [item.id, item.nome]));
-    const clienteById = new Map((clientes || []).map((item) => [item.id, item.marca]));
+    // --- LÓGICA INTELIGENTE DE NOMES E SIGLAS ---
+    const formatClientName = (client) => {
+        if (!client) return '';
+        const marca = client.marca?.trim() || '';
+        const sigla = client.sigla?.trim() || '';
+        if (marca && sigla) return `${marca} (${sigla})`;
+        return marca || sigla;
+    };
 
-    const getNameById = (id) => staffNameById.get(id) || 'Não atribuído';
+    const clienteById = new Map((clientes || []).map((item) => [item.id, formatClientName(item)]));
+
+    // Mapeamento de pessoas para o formato "Nome (SIGLA)" ou "Nome (INICIAIS)"
+    const personLabelById = new Map();
+    (staff || []).forEach(s => {
+        personLabelById.set(s.id, `${s.nome || s.email} (${getInitials(s.nome || s.email)})`);
+    });
+    (entidadePessoas || []).forEach(p => {
+        const siglaEntidade = p.clientes?.sigla || getInitials(p.clientes?.marca) || getInitials(p.nome_contacto);
+        personLabelById.set(p.id, `${p.nome_contacto || p.email} (${siglaEntidade})`);
+    });
+
+    const getNameById = (id) => personLabelById.get(id) || 'Não atribuído';
 
     const getTeamLabel = (responsavelId, extras = []) => {
         const responsavel = getNameById(responsavelId);
-        const extrasNames = uniqueNames((extras || []).map((id) => staffNameById.get(id)));
+        const extrasNames = uniqueNames((extras || []).map((id) => personLabelById.get(id)));
         if (extrasNames.length === 0) return responsavel;
         return `${responsavel} (+ ${extrasNames.join(', ')})`;
     };
 
+    // --- TEMPOS E PROGRESSO ---
     const getTaskTime = (taskId) => {
-        return (logs || [])
-            .filter((log) => log.task_id === taskId)
-            .reduce((acc, item) => acc + (item.duration_minutes || 0), 0);
+        return (logs || []).filter((log) => log.task_id === taskId).reduce((acc, item) => acc + (item.duration_minutes || 0), 0);
     };
 
     const getTaskTimePerUser = (taskId) => {
@@ -134,24 +158,19 @@ export const generateProjectPDF = async (
         if ((atividade?.tarefas || []).length > 0) {
             return (atividade.tarefas || []).reduce((acc, tarefa) => acc + getTaskTime(tarefa.id), 0);
         }
-
-        return (logs || [])
-            .filter((log) => log.atividade_id === atividade.id)
-            .reduce((acc, item) => acc + (item.duration_minutes || 0), 0);
+        return (logs || []).filter((log) => log.atividade_id === atividade.id).reduce((acc, item) => acc + (item.duration_minutes || 0), 0);
     };
 
-    const getMainEntityDisplay = () => projeto.cliente_texto || projeto.clientes?.marca || 'Não definido';
+    const getMainEntityDisplay = () => projeto.cliente_texto || formatClientName(projeto.clientes) || 'Não definido';
 
     const getPartnersDisplay = () => {
-        if (!projeto.is_parceria || !Array.isArray(projeto.parceiros_ids) || projeto.parceiros_ids.length === 0) {
-            return '-';
-        }
+        if (!projeto.is_parceria || !Array.isArray(projeto.parceiros_ids) || projeto.parceiros_ids.length === 0) return '-';
         const parceiros = uniqueNames(projeto.parceiros_ids.map((id) => clienteById.get(id)));
         return parceiros.length > 0 ? parceiros.join(', ') : '-';
     };
 
     const getProjectTeamDisplay = () => {
-        const team = uniqueNames((projeto.colaboradores || []).map((id) => staffNameById.get(id)));
+        const team = uniqueNames((projeto.colaboradores || []).map((id) => personLabelById.get(id)));
         return team.length > 0 ? team.join(', ') : '-';
     };
 
@@ -166,16 +185,16 @@ export const generateProjectPDF = async (
 
     const teamMembers = uniqueNames([
         getNameById(projeto.responsavel_id),
-        ...(projeto.colaboradores || []).map((id) => staffNameById.get(id)),
+        ...(projeto.colaboradores || []).map((id) => personLabelById.get(id)),
         ...(atividades || []).flatMap((atividade) => [
-            staffNameById.get(atividade.responsavel_id),
-            ...((atividade.colaboradores_extra || atividade.colaboradores || []).map((id) => staffNameById.get(id))),
+            personLabelById.get(atividade.responsavel_id),
+            ...((atividade.colaboradores_extra || atividade.colaboradores || []).map((id) => personLabelById.get(id))),
             ...((atividade.tarefas || []).flatMap((task) => [
-                staffNameById.get(task.responsavel_id),
-                ...((task.colaboradores_extra || []).map((id) => staffNameById.get(id))),
+                personLabelById.get(task.responsavel_id),
+                ...((task.colaboradores_extra || []).map((id) => personLabelById.get(id))),
             ])),
         ]),
-    ]);
+    ]).filter(n => n !== 'Não atribuído');
 
     const projectStatus = getStatusMeta(projeto.estado);
     const issueDate = new Date();
@@ -218,7 +237,7 @@ export const generateProjectPDF = async (
         currentY = nextPageTopY;
     };
 
-    // Banner principal
+    // --- BANNER PRINCIPAL ---
     doc.setFillColor(...COLORS.brandDark);
     doc.rect(0, 0, pageWidth, 36, 'F');
     doc.setFillColor(...COLORS.brand);
@@ -251,7 +270,7 @@ export const generateProjectPDF = async (
 
     currentY = 46;
 
-    // Cartão de identidade do projeto
+    // --- CARTÃO DE IDENTIDADE ---
     const identityCardX = marginX;
     const identityCardY = currentY;
     const identityCardWidth = pageWidth - marginX * 2;
@@ -270,15 +289,11 @@ export const generateProjectPDF = async (
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(16);
     doc.setTextColor(...COLORS.brandDark);
-    const projectTitleLines = toWrappedLines(
-        doc,
-        projeto.titulo || 'Projeto sem título',
-        Math.max(48, identityCardWidth - identityPadding * 2 - statusBadgeWidth - 4)
-    );
+    const projectTitleLines = toWrappedLines(doc, projeto.titulo || 'Projeto sem título', Math.max(48, identityCardWidth - identityPadding * 2 - statusBadgeWidth - 4));
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
-    const leftPrimaryLines = toWrappedLines(doc, `Entidade: ${getMainEntityDisplay()}`, infoColWidth);
+    const leftPrimaryLines = toWrappedLines(doc, `Entidade Responsável: ${getMainEntityDisplay()}`, infoColWidth);
     const leftSecondaryLines = toWrappedLines(doc, `Parceiros: ${getPartnersDisplay()}`, infoColWidth);
     const rightPrimaryLines = toWrappedLines(doc, `Coordenador: ${getNameById(projeto.responsavel_id)}`, infoColWidth);
     const rightSecondaryLines = toWrappedLines(doc, `Equipa: ${getProjectTeamDisplay()}`, infoColWidth);
@@ -286,9 +301,7 @@ export const generateProjectPDF = async (
     const rightQuaternaryLines = toWrappedLines(doc, `Data de Fim: ${formatDate(projeto.data_fim)}`, infoColWidth);
 
     const leftInfoHeight = ((leftPrimaryLines.length + leftSecondaryLines.length) * infoLineHeight) + infoGapY;
-    const rightInfoHeight = (
-        (rightPrimaryLines.length + rightSecondaryLines.length + rightTertiaryLines.length + rightQuaternaryLines.length) * infoLineHeight
-    ) + (infoGapY * 3);
+    const rightInfoHeight = ((rightPrimaryLines.length + rightSecondaryLines.length + rightTertiaryLines.length + rightQuaternaryLines.length) * infoLineHeight) + (infoGapY * 3);
     const infoBlockHeight = Math.max(leftInfoHeight, rightInfoHeight);
     const identityCardHeight = Math.max(36, 6 + (projectTitleLines.length * titleLineHeight) + 2 + infoBlockHeight + 4);
 
@@ -312,18 +325,8 @@ export const generateProjectPDF = async (
 
     drawTextLines(rightPrimaryLines, rightColX, infoY, infoLineHeight);
     drawTextLines(rightSecondaryLines, rightColX, infoY + (rightPrimaryLines.length * infoLineHeight) + infoGapY, infoLineHeight);
-    drawTextLines(
-        rightTertiaryLines,
-        rightColX,
-        infoY + ((rightPrimaryLines.length + rightSecondaryLines.length) * infoLineHeight) + (infoGapY * 2),
-        infoLineHeight
-    );
-    drawTextLines(
-        rightQuaternaryLines,
-        rightColX,
-        infoY + ((rightPrimaryLines.length + rightSecondaryLines.length + rightTertiaryLines.length) * infoLineHeight) + (infoGapY * 3),
-        infoLineHeight
-    );
+    drawTextLines(rightTertiaryLines, rightColX, infoY + ((rightPrimaryLines.length + rightSecondaryLines.length) * infoLineHeight) + (infoGapY * 2), infoLineHeight);
+    drawTextLines(rightQuaternaryLines, rightColX, infoY + ((rightPrimaryLines.length + rightSecondaryLines.length + rightTertiaryLines.length) * infoLineHeight) + (infoGapY * 3), infoLineHeight);
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
@@ -333,71 +336,65 @@ export const generateProjectPDF = async (
     doc.text(projectStatus.label.toUpperCase(), identityCardX + identityCardWidth - identityPadding - (statusBadgeWidth / 2), identityCardY + 8.8, { align: 'center' });
 
     currentY += identityCardHeight + 8;
-
-    ensureSpace(31);
+    ensureSpace(62);
 
     doc.setFillColor(...COLORS.surfaceBlue);
     doc.roundedRect(marginX, currentY - 5.3, 43, 4.7, 1.4, 1.4, 'F');
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7.2);
     doc.setTextColor(...COLORS.brand);
-    doc.text('RESUMO', marginX + 2, currentY - 2.2);
+    doc.text('RESUMO E FINANCEIRO', marginX + 2, currentY - 2.2);
 
+    // --- CARTÕES DE MÉTRICAS (Agora em 2 Linhas) ---
     const cardGap = 4;
     const cardWidth = (pageWidth - marginX * 2 - cardGap * 3) / 4;
     const cardHeight = 24;
 
-    const drawMetricCard = (x, title, value, detail, highlight) => {
+    const drawMetricCard = (x, y, title, value, detail, highlight) => {
         doc.setFillColor(...COLORS.surface);
         doc.setDrawColor(...COLORS.border);
-        doc.roundedRect(x, currentY, cardWidth, cardHeight, 2, 2, 'FD');
-
+        doc.roundedRect(x, y, cardWidth, cardHeight, 2, 2, 'FD');
         doc.setFillColor(...highlight);
-        doc.rect(x, currentY, cardWidth, 1.4, 'F');
+        doc.rect(x, y, cardWidth, 1.4, 'F');
 
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(7.5);
         doc.setTextColor(...COLORS.slate);
-        doc.text(title.toUpperCase(), x + 2.5, currentY + 6.5);
+        doc.text(title.toUpperCase(), x + 2.5, y + 6.5);
 
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(13);
+        doc.setFontSize(11.5);
         doc.setTextColor(...COLORS.brandDark);
-        doc.text(value, x + 2.5, currentY + 14);
+        doc.text(value, x + 2.5, y + 14);
 
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8);
+        doc.setFontSize(7.5);
         doc.setTextColor(...COLORS.slate);
-        doc.text(detail, x + 2.5, currentY + 19.5);
+        doc.text(detail, x + 2.5, y + 19.5);
     };
 
-    drawMetricCard(marginX, 'Tempo registado', formatDuration(totalMinutes), 'acumulado no projeto', COLORS.brand);
-    drawMetricCard(
-        marginX + (cardWidth + cardGap),
-        'Atividades',
-        `${atividadesConcluidas}/${totalAtividades}`,
-        `${progressAtividades}% concluídas`,
-        COLORS.success
-    );
-    drawMetricCard(
-        marginX + (cardWidth + cardGap) * 2,
-        'Tarefas',
-        `${tarefasConcluidas}/${totalTarefas}`,
-        `${progressTarefas}% concluídas`,
-        COLORS.brand
-    );
-    drawMetricCard(
-        marginX + (cardWidth + cardGap) * 3,
-        'Equipa envolvida',
-        `${teamMembers.length}`,
-        teamMembers.length > 1 ? 'colaboradores ativos' : 'colaborador ativo',
-        COLORS.accent
-    );
+    // Linha 1: Métricas de Operação
+    drawMetricCard(marginX, currentY, 'Tempo registado', formatDuration(totalMinutes), 'acumulado no projeto', COLORS.brand);
+    drawMetricCard(marginX + (cardWidth + cardGap), currentY, 'Atividades', `${atividadesConcluidas}/${totalAtividades}`, `${progressAtividades}% concluídas`, COLORS.success);
+    drawMetricCard(marginX + (cardWidth + cardGap) * 2, currentY, 'Tarefas', `${tarefasConcluidas}/${totalTarefas}`, `${progressTarefas}% concluídas`, COLORS.brand);
+    drawMetricCard(marginX + (cardWidth + cardGap) * 3, currentY, 'Equipa envolvida', `${teamMembers.length}`, teamMembers.length === 1 ? 'pessoa alocada' : 'pessoas alocadas', COLORS.accent);
+
+    currentY += cardHeight + cardGap;
+
+    // Linha 2: Métricas Financeiras e de Execução
+    const inv = Number(projeto.investimento || 0);
+    const inc = Number(projeto.incentivo || 0);
+    const financRate = inv > 0 ? clampPercent((inc / inv) * 100) + '%' : '-';
+    
+    drawMetricCard(marginX, currentY, 'Investimento', formatCurrency(inv), 'Valor global do projeto', COLORS.ink);
+    drawMetricCard(marginX + (cardWidth + cardGap), currentY, 'Incentivo', formatCurrency(inc), 'Apoio aprovado', COLORS.brand);
+    drawMetricCard(marginX + (cardWidth + cardGap) * 2, currentY, 'Financiamento', financRate, 'Taxa de financiamento', COLORS.accent);
+    drawMetricCard(marginX + (cardWidth + cardGap) * 3, currentY, 'Execução Global', `${progressTarefas}%`, 'Taxa de execução física', COLORS.success);
 
     currentY += 31;
-
     ensureSpace(26);
 
+    // --- BARRAS DE PROGRESSO ---
     const drawProgressBar = (y, label, pct, color) => {
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(8.5);
@@ -421,6 +418,95 @@ export const generateProjectPDF = async (
 
     currentY += 26;
 
+    // --- GRÁFICO GANTT ---
+    ensureSpace(50);
+    
+    // 1. Agrupar Atividades e Tarefas que tenham datas válidas
+    const ganttItems = [];
+    (atividades || []).forEach((ativ) => {
+        if (ativ.data_inicio && ativ.data_fim) {
+            ganttItems.push({ ...ativ, type: 'atividade' });
+        }
+        (ativ.tarefas || []).forEach((tar) => {
+            if (tar.data_inicio && tar.data_fim) {
+                ganttItems.push({ ...tar, type: 'tarefa' });
+            }
+        });
+    });
+    
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.setTextColor(...COLORS.brandDark);
+    doc.text('Cronograma (Gantt)', marginX, currentY);
+    currentY += 6;
+
+    if (ganttItems.length === 0) {
+        doc.setFont('helvetica', 'italic');
+        doc.setFontSize(8.5);
+        doc.setTextColor(...COLORS.slate);
+        doc.text('Não existem atividades ou tarefas com datas de início e fim para desenhar o gráfico.', marginX, currentY);
+        currentY += 12;
+    } else {
+        // Encontrar a data mais antiga e a mais recente de TODOS os itens
+        let minTime = Math.min(...ganttItems.map(item => new Date(item.data_inicio).getTime()));
+        let maxTime = Math.max(...ganttItems.map(item => new Date(item.data_fim).getTime()));
+        if (minTime === maxTime) maxTime += 86400000 * 30; // Garante uma janela de 30 dias se for igual
+        const totalDuration = maxTime - minTime;
+
+        const chartX = marginX + 60;
+        const chartW = pageWidth - marginX - chartX;
+
+        // Desenhar Eixo do Tempo (Datas)
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7);
+        doc.setTextColor(...COLORS.slate);
+        doc.text(new Date(minTime).toLocaleDateString('pt-PT', { month: 'short', year: 'numeric' }), chartX, currentY - 1);
+        doc.text(new Date(maxTime).toLocaleDateString('pt-PT', { month: 'short', year: 'numeric' }), chartX + chartW, currentY - 1, { align: 'right' });
+        
+        doc.setDrawColor(...COLORS.border);
+        doc.line(chartX, currentY, chartX + chartW, currentY);
+        currentY += 4;
+
+        ganttItems.forEach((item) => {
+            ensureSpace(12);
+            const isTask = item.type === 'tarefa';
+            const isDone = normalizeStatus(item.estado) === 'concluido';
+
+            // Estilo do texto (Tarefas são mais pequenas e indentadas)
+            doc.setFont('helvetica', isTask ? 'normal' : 'bold');
+            doc.setFontSize(isTask ? 7.2 : 7.5);
+            doc.setTextColor(...(isTask ? COLORS.slate : COLORS.ink));
+            
+            const indent = isTask ? 4 : 0;
+            const prefix = isTask ? '- ' : '';
+            const itemNameLines = doc.splitTextToSize(prefix + (item.titulo || 'Sem título'), 55 - indent);
+            doc.text(itemNameLines[0] + (itemNameLines.length > 1 ? '...' : ''), marginX + indent, currentY + 3);
+
+            // Calha de Fundo Cinzenta
+            doc.setFillColor(...COLORS.surface);
+            doc.rect(chartX, currentY, chartW, 4, 'F');
+
+            // Calcular a Posição e o Tamanho da Barra
+            const sTime = new Date(item.data_inicio).getTime();
+            const eTime = new Date(item.data_fim).getTime();
+            const sX = chartX + ((sTime - minTime) / totalDuration) * chartW;
+            const eX = chartX + ((eTime - minTime) / totalDuration) * chartW;
+            const bW = Math.max(eX - sX, 1.5); // Largura mínima para ser visível
+
+            // Diferenciação Visual (Atividade = Barra grossa; Tarefa = Barra fina e centrada)
+            const barHeight = isTask ? 1.6 : 4;
+            const barY = isTask ? currentY + 1.2 : currentY;
+            const barColor = isDone ? COLORS.success : (isTask ? COLORS.slate : COLORS.brand);
+
+            doc.setFillColor(...barColor);
+            doc.roundedRect(sX, barY, bW, barHeight, isTask ? 0.5 : 1, isTask ? 0.5 : 1, 'F');
+
+            currentY += isTask ? 6 : 8; // Tarefas têm um espaçamento ligeiramente menor
+        });
+        currentY += 8;
+    }
+
+    // --- LISTAGEM DE ATIVIDADES ---
     ensureSpace(18);
 
     doc.setFont('helvetica', 'bold');
@@ -483,7 +569,7 @@ export const generateProjectPDF = async (
 
             userBreakdown.forEach((u) => {
                 tableRows.push([
-                    { content: `      ↳ ${u.nome}`, styles: { textColor: COLORS.slate, fontSize: 7.5, fontStyle: 'italic' } },
+                    { content: `      > ${u.nome}`, styles: { textColor: COLORS.slate, fontSize: 7.5, fontStyle: 'italic' } },
                     { content: '', styles: { textColor: COLORS.slate, fontSize: 7.5 } },
                     { content: '', styles: { textColor: COLORS.slate, fontSize: 7.5 } },
                     { content: '', styles: { textColor: COLORS.slate, fontSize: 7.5 } },
@@ -498,10 +584,7 @@ export const generateProjectPDF = async (
                         content: `    · ${passo.titulo || 'Sem título'}`,
                         styles: { textColor: isDone ? COLORS.success : COLORS.slate, fontStyle: isDone ? 'bold' : 'normal', fontSize: 8 },
                     },
-                    {
-                        content: '',
-                        styles: { textColor: COLORS.slate, halign: 'center', fontSize: 8 },
-                    },
+                    { content: '', styles: { textColor: COLORS.slate, halign: 'center', fontSize: 8 } },
                     { content: formatDate(passo.data_inicio), styles: { textColor: COLORS.slate, fontSize: 8, halign: 'center' } },
                     { content: formatDate(passo.data_fim), styles: { textColor: COLORS.slate, fontSize: 8, halign: 'center' } },
                     { content: '', styles: { textColor: COLORS.slate, halign: 'right', fontSize: 8 } },
@@ -522,7 +605,7 @@ export const generateProjectPDF = async (
 
     autoTable(doc, {
         startY: currentY + 9,
-        head: [['Atividade / Tarefa / Passo', 'Responsável / Equipa', 'Data de Início', 'Data de Fim', 'Tempo']],
+        head: [['Atividade / Tarefa / Passo', 'Responsável / Equipa', 'Data Início', 'Data Fim', 'Tempo']],
         body: tableRows,
         margin: { left: marginX, right: marginX, bottom: 24 },
         theme: 'plain',
@@ -543,9 +626,7 @@ export const generateProjectPDF = async (
         },
         showHead: 'everyPage',
         rowPageBreak: 'avoid',
-        alternateRowStyles: {
-            fillColor: [252, 252, 253],
-        },
+        alternateRowStyles: { fillColor: [252, 252, 253] },
         columnStyles: {
             0: { cellWidth: 56 },
             1: { cellWidth: 48 },
@@ -555,6 +636,7 @@ export const generateProjectPDF = async (
         },
     });
 
+    // --- RODAPÉ ---
     const pageCount = doc.internal.getNumberOfPages();
     for (let page = 1; page <= pageCount; page += 1) {
         doc.setPage(page);
@@ -589,8 +671,8 @@ export const generateProjectPDF = async (
     doc.save(`Relatorio_Projeto_${safeName}.pdf`);
 };
 
-const gerarRelatorioProjeto = async (projeto, atividades, logs, staff, clientes) => {
-    return generateProjectPDF(projeto, atividades, logs, staff, clientes);
+const gerarRelatorioProjeto = async (projeto, atividades, logs, staff, clientes, entidadePessoas) => {
+    return generateProjectPDF(projeto, atividades, logs, staff, clientes, entidadePessoas);
 };
 
 export default gerarRelatorioProjeto;

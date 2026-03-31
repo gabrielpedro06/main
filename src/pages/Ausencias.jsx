@@ -64,6 +64,9 @@ export default function Ferias({ forcedType = null }) {
     const [hasDiasFeriasTotalColumn, setHasDiasFeriasTotalColumn] = useState(true);
   const [tolerancias, setTolerancias] = useState([]);
   
+  // 💡 NOVO: Estado para guardar os veículos do perfil
+  const [meusVeiculos, setMeusVeiculos] = useState([]);
+  
   const [showModal, setShowModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notification, setNotification] = useState({ show: false, message: '', type: 'success' });
@@ -88,7 +91,8 @@ export default function Ferias({ forcedType = null }) {
       motivo: "",
       km_origem: "",
       km_destino: "",
-      km_total: ""
+      km_total: "",
+      veiculo: "" // 💡 Adicionado campo de veículo
   });
   const [file, setFile] = useState(null); 
   const [diasUteis, setDiasUteis] = useState(0); 
@@ -119,7 +123,7 @@ export default function Ferias({ forcedType = null }) {
 
       ({ data, error } = await supabase
           .from('profiles')
-          .select('dias_ferias, dias_ferias_total')
+          .select('dias_ferias, dias_ferias_total, veiculos') // 💡 Adicionada query de veiculos
           .eq('id', user.id)
           .single());
 
@@ -127,7 +131,7 @@ export default function Ferias({ forcedType = null }) {
           setHasDiasFeriasTotalColumn(false);
           ({ data, error } = await supabase
               .from('profiles')
-              .select('dias_ferias')
+              .select('dias_ferias, veiculos') // Mantém veiculos no fallback
               .eq('id', user.id)
               .single());
       } else {
@@ -142,6 +146,7 @@ export default function Ferias({ forcedType = null }) {
       if (data) {
           setDiasFerias(data.dias_ferias);
           setDiasFeriasTotal(getAnnualVacationLimitFromProfile(data));
+          setMeusVeiculos(Array.isArray(data.veiculos) ? data.veiculos : []); // 💡 Guarda veículos
       }
   }
 
@@ -195,7 +200,8 @@ export default function Ferias({ forcedType = null }) {
           motivo: pedido.motivo || "",
           km_origem: pedido.km_origem || "",
           km_destino: pedido.km_destino || "",
-          km_total: pedido.km_total ?? ""
+          km_total: pedido.km_total ?? "",
+          veiculo: pedido.veiculo || "" // 💡 Recupera o veículo ao editar
       });
       setShowModal(true);
   };
@@ -205,7 +211,7 @@ export default function Ferias({ forcedType = null }) {
       setIsEditing(false);
       setEditingId(null);
       setFile(null);
-      setForm({ tipo: forcedType || "Férias", data_inicio: "", data_fim: "", is_parcial: false, hora_inicio: "", hora_fim: "", motivo: "", km_origem: "", km_destino: "", km_total: "" });
+      setForm({ tipo: forcedType || "Férias", data_inicio: "", data_fim: "", is_parcial: false, hora_inicio: "", hora_fim: "", motivo: "", km_origem: "", km_destino: "", km_total: "", veiculo: "" });
   };
 
   async function handleSubmit(e) {
@@ -217,6 +223,10 @@ export default function Ferias({ forcedType = null }) {
         const kmTotal = Number(form.km_total);
         if (!form.data_inicio) {
             setNotification({ show: true, message: "Selecione a data da deslocação.", type: "error" });
+            return;
+        }
+        if (!form.veiculo) { // 💡 Bloqueia se não escolheu carro
+            setNotification({ show: true, message: "Selecione o veículo utilizado.", type: "error" });
             return;
         }
         if (!form.km_origem.trim() || !form.km_destino.trim()) {
@@ -298,7 +308,8 @@ export default function Ferias({ forcedType = null }) {
           motivo: form.motivo,
           km_origem: isKmRequest ? form.km_origem.trim() : null,
           km_destino: isKmRequest ? form.km_destino.trim() : null,
-          km_total: isKmRequest ? Number(form.km_total) : null
+          km_total: isKmRequest ? Number(form.km_total) : null,
+          veiculo: isKmRequest ? form.veiculo : null // 💡 Adiciona o carro ao gravar
       };
 
       if (anexo_url) payload.anexo_url = anexo_url;
@@ -490,9 +501,10 @@ export default function Ferias({ forcedType = null }) {
                     )}
                   </td>
 
+                  {/* 💡 Exibição do Veículo na Lista de Km's */}
                   <td style={{padding: '15px', maxWidth: '150px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#64748b', fontSize: '0.9rem'}} title={p.motivo}>
                                             {p.tipo === KM_REQUEST_TYPE
-                                                ? `De: ${p.km_origem || '-'} | Para: ${p.km_destino || '-'} | Km: ${p.km_total ?? '-'}${p.motivo ? ` | ${p.motivo}` : ''}`
+                                                ? `De: ${p.km_origem || '-'} | Para: ${p.km_destino || '-'} | Km: ${p.km_total ?? '-'}${p.veiculo ? ` | Viatura: ${p.veiculo}` : ''}${p.motivo ? ` | ${p.motivo}` : ''}`
                                                 : (p.motivo || '-')}
                   </td>
                   
@@ -596,12 +608,32 @@ export default function Ferias({ forcedType = null }) {
                             <div style={{background: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px'}}>
                                 {isKmRequest ? (
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                                        <div>
-                                            <label style={labelStyle}>Data da Deslocação *</label>
-                                            <input type="date" value={form.data_inicio} onChange={e => setForm({...form, data_inicio: e.target.value, data_fim: e.target.value})} style={inputStyle} className="input-focus" required />
+                                        <div style={{ display: 'flex', gap: '15px' }}>
+                                            <div style={{ flex: 1 }}>
+                                                <label style={labelStyle}>Data da Deslocação *</label>
+                                                <input type="date" value={form.data_inicio} onChange={e => setForm({...form, data_inicio: e.target.value, data_fim: e.target.value})} style={inputStyle} className="input-focus" required />
+                                            </div>
+                                            
+                                            {/* 💡 NOVO: Dropdown de Veículos */}
+                                            <div style={{ flex: 1 }}>
+                                                <label style={labelStyle}>Veículo Utilizado *</label>
+                                                <select 
+                                                    value={form.veiculo} 
+                                                    onChange={e => setForm({...form, veiculo: e.target.value})} 
+                                                    style={{...inputStyle, cursor: 'pointer', fontFamily: 'monospace', fontWeight: 'bold'}} 
+                                                    className="input-focus" 
+                                                    required
+                                                >
+                                                    <option value="">-- Selecione a Matrícula --</option>
+                                                    {meusVeiculos.map((v, idx) => (
+                                                        <option key={idx} value={v.matricula}>{v.matricula} - {v.marca}</option>
+                                                    ))}
+                                                    <option value="Outro (Não registado)">Outro (Não registado)</option>
+                                                </select>
+                                            </div>
                                         </div>
                                         
-                                        {/* AQUI ENTRA A NOSSA NOVA CALCULADORA INTELIGENTE */}
+                                        {/* CALCULADORA INTELIGENTE */}
                                         <CalculadoraKm form={form} setForm={setForm} />
                                     </div>
                                 ) : !form.is_parcial ? (

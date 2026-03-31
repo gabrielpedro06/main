@@ -22,15 +22,31 @@ const Icons = {
   Copy: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>,
   Close: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>,
   Alert: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>,
-  Doc: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+  Doc: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>,
+  FolderOpen: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path><line x1="12" y1="11" x2="12" y2="17"></line><line x1="9" y1="14" x2="15" y2="14"></line></svg>,
+  ArrowRight: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>,
+  ArrowLeft: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>,
+  Plus: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>,
+  Inbox: ({ size = 48, color = "#cbd5e1" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path></svg>,
 };
 
 const ModalPortal = ({ children }) => createPortal(children, document.body);
+
+// Cores Dinâmicas para Setores
+const setorColors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#f43f5e', '#14b8a6', '#0ea5e9', '#6366f1'];
+const getColorForSetor = (nome) => {
+    if (!nome) return '#94a3b8';
+    const hash = String(nome).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return setorColors[hash % setorColors.length];
+};
 
 export default function GestaoLeads() {
   const [dataList, setDataList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("leads");
+  
+  // 💡 NOVO: Estado para a Categoria/Setor Selecionado
+  const [selectedSetor, setSelectedSetor] = useState(null);
   const [viewMode, setViewMode] = useState("kanban"); 
 
   const [notification, setNotification] = useState(null);
@@ -39,7 +55,6 @@ export default function GestaoLeads() {
   const [draggedItemId, setDraggedItemId] = useState(null);
 
   const [filterLocalidade, setFilterLocalidade] = useState("");
-  const [filterSetor, setFilterSetor] = useState("");
   const [filterCae, setFilterCae] = useState(""); 
   const [searchTerm, setSearchTerm] = useState(""); 
   const [mostrarInativos, setMostrarInativos] = useState(false); 
@@ -54,6 +69,9 @@ export default function GestaoLeads() {
   const [importing, setImporting] = useState(false);
   const [importSetor, setImportSetor] = useState(""); 
 
+  // Estado para controlo do Setor "Outro" no Formulário
+  const [isOutroSetor, setIsOutroSetor] = useState(false);
+
   const initialForm = { nome: "", nif: "", localidade: "", contacto: "", email: "", titular: "", cae: "", setor: "", estado: "novo", ativo: true };
 
   const statusOptions = [
@@ -65,11 +83,14 @@ export default function GestaoLeads() {
     { value: "perdido", label: "Perdido", color: "#64748b", bg: "#f1f5f9", border: "#e2e8f0" },
   ];
 
-  const setorOptions = ["Industria", "Saúde", "Tecnologia", "AudioVisual", "Turismo", "Comércio", "Serviços"];
+  // 💡 Geração Dinâmica de Setores (Junta os base com os que já existem na BD)
+  const baseSetores = ["Indústria", "Saúde", "Tecnologia", "Audiovisual", "Turismo", "Comércio", "Serviços"];
+  const dynamicSetores = [...new Set([...baseSetores, ...dataList.map(d => d.setor).filter(Boolean)])].sort();
 
   useEffect(() => {
     fetchData();
     setCurrentPage(1);
+    setSelectedSetor(null); // Reseta a vista de setor ao mudar de tab
     if (activeTab === "leads" && viewMode === "grid") setViewMode("kanban");
     if (activeTab === "prospects" && viewMode === "kanban") setViewMode("grid");
   }, [activeTab]);
@@ -166,6 +187,7 @@ export default function GestaoLeads() {
   }
 
   function openForm(isEdit = false, data = null) {
+      setIsOutroSetor(false); // Reseta a flag ao abrir o form
       setModalForm({ show: true, isEdit, data: data ? { ...data } : { ...initialForm } });
   }
 
@@ -224,7 +246,6 @@ export default function GestaoLeads() {
       showToast(`${emails.length} emails copiados!`);
   }
 
-  // 💡 LÓGICA DE IMPORTAÇÃO CORRIGIDA (LIMITES DE URL E DELIMITADOR DE PONTO E VÍRGULA)
   async function handleFileUpload(e) {
     e.preventDefault();
     if (!file) return showToast("Escolhe um ficheiro CSV primeiro.", "warning");
@@ -236,8 +257,6 @@ export default function GestaoLeads() {
       try {
           const lines = target.result.split("\n");
           const rawData = [];
-          
-          // 💡 AGORA SEPARA POR PONTO E VÍRGULA (;) NO LUGAR DA VÍRGULA (,)
           const regexSplit = /;(?=(?:(?:[^"]*"){2})*[^"]*$)/;
 
           for (let i = 1; i < lines.length; i++) {
@@ -266,12 +285,10 @@ export default function GestaoLeads() {
             const nifsToCheck = rawData.map(item => item.nif).filter(nif => nif && nif.trim() !== "");
             let existingNifs = new Set();
 
-            // 💡 VERIFICAÇÃO EM LOTES (CHUNKS DE 100) PARA NÃO REBENTAR O URL LIMIT DO BROWSER
             if (nifsToCheck.length > 0) {
                 const chunkSize = 100;
                 for (let i = 0; i < nifsToCheck.length; i += chunkSize) {
                     const chunk = nifsToCheck.slice(i, i + chunkSize);
-                    
                     const { data: existingRecords, error: checkError } = await supabase
                         .from(tableName)
                         .select('nif')
@@ -293,7 +310,6 @@ export default function GestaoLeads() {
             const duplicateCount = rawData.length - newRecords.length;
 
             if (newRecords.length > 0) {
-                // 💡 INSERÇÃO EM LOTES (CHUNKS DE 200) PARA EVITAR LIMITES DE PAYLOAD
                 const insertChunkSize = 200;
                 for (let i = 0; i < newRecords.length; i += insertChunkSize) {
                     const insertChunk = newRecords.slice(i, i + insertChunkSize);
@@ -320,13 +336,33 @@ export default function GestaoLeads() {
     reader.readAsText(file);
   }
 
+  // 💡 LÓGICA DE CONTAGEM PARA OS CARTÕES DE SETORES
+  const countsPerSetor = {};
+  dataList.forEach(item => {
+      if (!mostrarInativos && item.ativo === false) return;
+      const matchLocalidade = filterLocalidade ? item.localidade?.toLowerCase().includes(filterLocalidade.toLowerCase()) : true;
+      const matchCae = filterCae ? item.cae?.toLowerCase().includes(filterCae.toLowerCase()) : true;
+      const matchSearch = searchTerm ? item.nome?.toLowerCase().includes(searchTerm.toLowerCase()) || item.nif?.includes(searchTerm) : true;
+      
+      if (matchLocalidade && matchCae && matchSearch) {
+          const s = item.setor || 'sem-setor';
+          countsPerSetor[s] = (countsPerSetor[s] || 0) + 1;
+      }
+  });
+
+  // 💡 FILTRAGEM FINAL DA LISTA
   const filteredList = dataList.filter((item) => {
     if (!mostrarInativos && item.ativo === false) return false;
     const matchLocalidade = filterLocalidade ? item.localidade?.toLowerCase().includes(filterLocalidade.toLowerCase()) : true;
-    const matchSetor = filterSetor ? item.setor?.toLowerCase() === filterSetor.toLowerCase() : true;
     const matchCae = filterCae ? item.cae?.toLowerCase().includes(filterCae.toLowerCase()) : true;
     const matchSearch = searchTerm ? item.nome?.toLowerCase().includes(searchTerm.toLowerCase()) || item.nif?.includes(searchTerm) : true;
-    return matchLocalidade && matchSetor && matchCae && matchSearch;
+    
+    if (selectedSetor) {
+        if (selectedSetor === 'sem-setor' && item.setor) return false;
+        if (selectedSetor !== 'sem-setor' && item.setor !== selectedSetor) return false;
+    }
+
+    return matchLocalidade && matchCae && matchSearch;
   });
 
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -384,269 +420,335 @@ export default function GestaoLeads() {
           <button onClick={() => {setActiveTab("prospects"); setViewMode('table'); setCurrentPage(1);}} style={{padding: '12px 25px', background: activeTab === 'prospects' ? 'white' : '#e2e8f0', color: activeTab === 'prospects' ? '#2563eb' : '#64748b', border: 'none', borderRadius: '12px 12px 0 0', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display:'flex', alignItems:'center', gap:'8px'}}><Icons.Building /> Prospects</button>
       </div>
 
-      <div className="card" style={{ padding: '20px', borderRadius: '0 12px 12px 12px', background: viewMode === 'kanban' ? 'transparent' : 'white', border: viewMode === 'kanban' ? 'none' : '1px solid #e2e8f0', boxShadow: viewMode === 'kanban' ? 'none' : '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+      <div className="card" style={{ padding: '20px', borderRadius: '0 12px 12px 12px', background: (!selectedSetor && viewMode === 'kanban') ? 'transparent' : 'white', border: (!selectedSetor && viewMode === 'kanban') ? 'none' : '1px solid #e2e8f0', boxShadow: (!selectedSetor && viewMode === 'kanban') ? 'none' : '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
         
-        {/* FILTROS E ALTERNADOR DE VISTA */}
-        <div style={{ display: "flex", flexWrap: 'wrap', gap: 15, marginBottom: 20, paddingBottom: 20, borderBottom: viewMode === 'kanban' ? 'none' : '1px solid #f1f5f9', alignItems: 'center', background: viewMode==='kanban' ? 'white' : 'transparent', padding: viewMode==='kanban' ? '20px' : '0', borderRadius: viewMode==='kanban' ? '12px' : '0', border: viewMode==='kanban' ? '1px solid #e2e8f0' : 'none' }}>
+        {/* FILTROS */}
+        <div style={{ display: "flex", flexWrap: 'wrap', gap: 15, marginBottom: 20, paddingBottom: 20, borderBottom: (!selectedSetor && viewMode === 'kanban') ? 'none' : '1px solid #f1f5f9', alignItems: 'center', background: (!selectedSetor && viewMode==='kanban') ? 'white' : 'transparent', padding: (!selectedSetor && viewMode==='kanban') ? '20px' : '0', borderRadius: (!selectedSetor && viewMode==='kanban') ? '12px' : '0', border: (!selectedSetor && viewMode==='kanban') ? '1px solid #e2e8f0' : 'none' }}>
           <div style={{flex: 1, minWidth: '250px', position: 'relative'}}>
             <span style={{position: 'absolute', left: '12px', top: '12px', color: '#94a3b8'}}><Icons.Search /></span>
             <input placeholder="Pesquisar empresa ou NIF..." value={searchTerm} onChange={e => {setSearchTerm(e.target.value); setCurrentPage(1);}} style={{...inputStyle, width: '100%', paddingLeft: '38px'}} />
           </div>
           <input placeholder="Localidade..." value={filterLocalidade} onChange={(e) => {setFilterLocalidade(e.target.value); setCurrentPage(1);}} style={{...inputStyle, width: '150px'}} />
           <input placeholder="CAE..." value={filterCae} onChange={(e) => {setFilterCae(e.target.value); setCurrentPage(1);}} style={{...inputStyle, width: '100px'}} />
-          <select value={filterSetor} onChange={(e) => {setFilterSetor(e.target.value); setCurrentPage(1);}} style={{...inputStyle, background: 'white', width: '160px', cursor:'pointer'}}>
-            <option value="">Setor...</option>
-            {setorOptions.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
+          
           <label style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold', color: '#475569', background: '#f8fafc', padding: '10px 15px', borderRadius: '8px', border: '1px solid #e2e8f0'}}>
               <input type="checkbox" checked={mostrarInativos} onChange={e => {setMostrarInativos(e.target.checked); setCurrentPage(1);}} style={{accentColor:'#1e293b', width:'14px', height:'14px'}} /> Arquivo
           </label>
           
-          <div style={{display: 'flex', background: '#f1f5f9', borderRadius: '8px', padding: '4px', border: '1px solid #e2e8f0', marginLeft: 'auto'}}>
-              <button onClick={() => setViewMode("table")} style={{padding: '6px 12px', borderRadius: '6px', border: 'none', background: viewMode === "table" ? 'white' : 'transparent', color: viewMode === "table" ? '#2563eb' : '#64748b', boxShadow: viewMode === "table" ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: '0.2s', fontWeight: 'bold'}}>
-                  Lista
-              </button>
-              {activeTab === 'prospects' ? (
-                  <button onClick={() => setViewMode("grid")} style={{padding: '6px 12px', borderRadius: '6px', border: 'none', background: viewMode === "grid" ? 'white' : 'transparent', color: viewMode === "grid" ? '#2563eb' : '#64748b', boxShadow: viewMode === "grid" ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: '0.2s', fontWeight: 'bold'}}>
-                      Cartões
+          {selectedSetor && (
+              <div style={{display: 'flex', background: '#f1f5f9', borderRadius: '8px', padding: '4px', border: '1px solid #e2e8f0', marginLeft: 'auto'}}>
+                  <button onClick={() => setViewMode("table")} style={{padding: '6px 12px', borderRadius: '6px', border: 'none', background: viewMode === "table" ? 'white' : 'transparent', color: viewMode === "table" ? '#2563eb' : '#64748b', boxShadow: viewMode === "table" ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: '0.2s', fontWeight: 'bold'}}>
+                      Lista
                   </button>
-              ) : (
-                  <button onClick={() => setViewMode("kanban")} style={{padding: '6px 12px', borderRadius: '6px', border: 'none', background: viewMode === "kanban" ? 'white' : 'transparent', color: viewMode === "kanban" ? '#2563eb' : '#64748b', boxShadow: viewMode === "kanban" ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: '0.2s', fontWeight: 'bold'}}>
-                      Cartões
-                  </button>
-              )}
-          </div>
+                  {activeTab === 'prospects' ? (
+                      <button onClick={() => setViewMode("grid")} style={{padding: '6px 12px', borderRadius: '6px', border: 'none', background: viewMode === "grid" ? 'white' : 'transparent', color: viewMode === "grid" ? '#2563eb' : '#64748b', boxShadow: viewMode === "grid" ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: '0.2s', fontWeight: 'bold'}}>
+                          Cartões
+                      </button>
+                  ) : (
+                      <button onClick={() => setViewMode("kanban")} style={{padding: '6px 12px', borderRadius: '6px', border: 'none', background: viewMode === "kanban" ? 'white' : 'transparent', color: viewMode === "kanban" ? '#2563eb' : '#64748b', boxShadow: viewMode === "kanban" ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: '0.2s', fontWeight: 'bold'}}>
+                          Cartões
+                      </button>
+                  )}
+              </div>
+          )}
         </div>
 
-        {/* 💡 VISTA 1: KANBAN BOARD */}
-        {viewMode === "kanban" && activeTab === "leads" && (
-            <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '20px', minHeight: '600px', alignItems: 'flex-start' }} className="custom-scrollbar">
-                {statusOptions.map(col => {
-                    const colItems = filteredList.filter(item => item.estado === col.value); 
-                    
-                    return (
-                        <div 
-                            key={col.value}
-                            onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.background = col.bg; }}
-                            onDragLeave={(e) => { e.currentTarget.style.background = '#f8fafc'; }}
-                            onDrop={(e) => {
-                                e.preventDefault();
-                                e.currentTarget.style.background = '#f8fafc';
-                                if (draggedItemId) {
-                                    updateStatus(draggedItemId, col.value);
-                                    setDraggedItemId(null);
-                                }
-                            }}
-                            style={{ flex: 1, minWidth: '220px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', transition: 'background 0.2s', overflow: 'hidden' }}
-                        >
-                            <div style={{ padding: '12px 15px', borderBottom: `2px solid ${col.color}`, background: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <h4 style={{ margin: 0, color: col.color, fontSize: '0.85rem', fontWeight: '800', textTransform: 'uppercase' }}>
-                                    {col.label}
-                                </h4>
-                                <span style={{background: col.bg, color: col.color, padding: '2px 6px', borderRadius: '12px', fontSize: '0.7rem', fontWeight: 'bold', border: `1px solid ${col.border}`}}>{colItems.length}</span>
-                            </div>
-                            
-                            <div style={{ padding: '10px', display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, overflowY: 'auto', maxHeight: '70vh' }} className="custom-scrollbar hide-scrollbar-kanban">
-                                {colItems.map(item => {
-                                    const isInactive = item.ativo === false;
-                                    const isMissingData = !item.email && !item.contacto;
-                                    
-                                    return (
-                                    <div
-                                        key={item.id}
-                                        draggable={!isInactive}
-                                        onDragStart={() => setDraggedItemId(item.id)}
-                                        onDragEnd={() => setDraggedItemId(null)}
-                                        style={{ 
-                                            background: isInactive ? '#f1f5f9' : 'white', padding: '12px', borderRadius: '8px', 
-                                            border: '1px solid #cbd5e1', cursor: isInactive ? 'default' : 'grab', opacity: draggedItemId === item.id ? 0.4 : (isInactive ? 0.6 : 1), 
-                                            boxShadow: draggedItemId === item.id ? 'none' : '0 2px 4px rgba(0,0,0,0.04)',
-                                            transition: 'transform 0.1s', position: 'relative'
-                                        }}
-                                        className={isInactive ? "" : "hover-shadow-kanban drag-item"}
-                                    >
-                                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px'}}>
-                                            <strong style={{color: '#1e293b', fontSize: '0.9rem', lineHeight: '1.2'}}>{item.nome}</strong>
-                                            <button onClick={() => openForm(true, item)} style={{background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: '0 0 0 5px'}} className="hover-blue-text"><Icons.Edit/></button>
-                                        </div>
-                                        
-                                        <div style={{fontSize: '0.7rem', color: '#64748b', display: 'flex', flexDirection: 'column', gap: '4px'}}>
-                                            {item.localidade && <span style={{display:'flex', alignItems:'center', gap:'4px'}}><Icons.MapPin/> {item.localidade}</span>}
-                                            {item.setor && <span style={{display:'flex', alignItems:'center', gap:'4px'}}><Icons.Building/> {item.setor}</span>}
-                                            {item.contacto && <span style={{display:'flex', alignItems:'center', gap:'4px'}}><Icons.Phone/> {item.contacto}</span>}
-                                            {isMissingData && <span style={{color: '#b45309', background: '#fef3c7', padding: '2px 4px', borderRadius: '4px', width: 'fit-content', fontWeight: 'bold', display:'flex', alignItems:'center', gap:'4px'}}><Icons.Alert/> Faltam Contactos</span>}
-                                        </div>
-
-                                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px', paddingTop: '8px', borderTop: '1px solid #f1f5f9'}}>
-                                            <span style={{fontFamily: 'monospace', fontSize: '0.65rem', background: '#f8fafc', padding: '2px 6px', borderRadius: '4px', color: '#94a3b8'}}>{item.nif || 'S/ NIF'}</span>
-                                            
-                                            {item.estado === 'convertido' && !isInactive && (
-                                                <button onClick={() => promoteToClient(item)} title="Criar Cliente Oficial" style={{background: '#dcfce7', color: '#16a34a', border: '1px solid #bbf7d0', padding: '4px 6px', borderRadius: '6px', fontSize: '0.65rem', fontWeight: 'bold', cursor: 'pointer', display:'flex', alignItems:'center', gap:'4px'}}><Icons.Rocket /> Cliente</button>
-                                            )}
-                                        </div>
-                                    </div>
-                                )})}
-                                {colItems.length === 0 && <div style={{textAlign: 'center', padding: '15px', color: '#cbd5e1', fontSize: '0.75rem', fontStyle: 'italic', border: '1px dashed #e2e8f0', borderRadius: '8px'}}>Larga aqui...</div>}
-                            </div>
-                        </div>
-                    )
-                })}
-            </div>
-        )}
-
-        {/* 💡 VISTA 2: GRID DE CARTÕES */}
-        {viewMode === "grid" && (
-            <div className="leads-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '15px' }}>
-                {currentItems.map((item) => {
-                    const isInactive = item.ativo === false;
-                    const isMissingData = !item.email && !item.contacto;
-                    const statusObj = statusOptions.find(o => o.value === item.estado) || {};
-
-                    return (
-                        <div key={item.id} className="lead-card hover-shadow" style={{background: isInactive ? '#f8fafc' : 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '15px', display: 'flex', flexDirection: 'column', opacity: isInactive ? 0.6 : 1, transition: 'all 0.2s', borderTop: `4px solid ${activeTab === 'leads' ? statusObj.color : '#cbd5e1'}`}}>
-                            
-                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px'}}>
-                                <div style={{display: 'flex', gap: '6px', alignItems: 'center'}}>
-                                    {item.nif && <span style={{fontFamily: 'monospace', fontSize: '0.7rem', background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', color: '#64748b'}}>{item.nif}</span>}
-                                    {isInactive && <span style={{fontSize: '0.65rem', background: '#fee2e2', color: '#ef4444', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold'}}>ARQUIVADO</span>}
-                                </div>
-                                {activeTab === "leads" && (
-                                    <span style={{fontSize: '0.65rem', background: statusObj.bg, color: statusObj.color, padding: '2px 8px', borderRadius: '12px', fontWeight: '800', textTransform: 'uppercase'}}>{statusObj.label}</span>
-                                )}
-                            </div>
-
-                            <h3 style={{margin: '0 0 8px 0', fontSize: '1.1rem', color: '#1e293b', fontWeight: '800', lineHeight: '1.2'}}>{item.nome}</h3>
-                            
-                            <div style={{display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '15px', flex: 1}}>
-                                <div style={{fontSize: '0.8rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.MapPin/> {item.localidade || 'Sem Localidade'}</div>
-                                <div style={{display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center'}}>
-                                    {item.setor && <span style={{fontSize: '0.7rem', background: '#eff6ff', color: '#2563eb', padding: '2px 6px', borderRadius: '8px', fontWeight: 'bold', border: '1px solid #bfdbfe'}}>{item.setor}</span>}
-                                    {item.cae && <span style={{fontSize: '0.7rem', color: '#64748b', fontWeight: '600'}}>CAE: {item.cae}</span>}
-                                </div>
-                            </div>
-
-                            <CardActions item={item} isInactive={isInactive} isMissingData={isMissingData} />
-                        </div>
-                    );
-                })}
-            </div>
-        )}
-
-        {/* 💡 VISTA 3: TABELA CLÁSSICA */}
-        {viewMode === "table" && (
-            <div className="table-responsive" style={{overflowX: 'auto'}}>
-                <table className="data-table" style={{ width: "100%", borderCollapse: 'collapse', minWidth: '900px' }}>
-                <thead>
-                    <tr style={{color: '#64748b', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em', borderBottom: '2px solid #f1f5f9'}}>
-                        <th style={{padding: '15px', textAlign: 'left', width: '30%'}}>Empresa / Local</th>
-                        <th style={{padding: '15px', textAlign: 'left', width: '25%'}}>Contactos</th>
-                        <th style={{padding: '15px', textAlign: 'left', width: '15%'}}>Setor & CAE</th>
-                        {activeTab === "leads" && <th style={{padding: '15px', textAlign: 'left', width: '15%'}}>Estado</th>}
-                        <th style={{padding: '15px', textAlign: 'right', width: '15%'}}>Ações</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {currentItems.map((item) => {
-                        const isInactive = item.ativo === false;
-                        const isMissingData = !item.email && !item.contacto;
+        {/* 💡 VISTA DE CATEGORIAS (SETORES) - Inicial */}
+        {!selectedSetor ? (
+            <div className="fade-in">
+                <h2 style={{fontSize: '1.2rem', color: '#475569', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.FolderOpen /> Áreas de Negócio (Setores)</h2>
+                
+                <div className="category-grid">
+                    {dynamicSetores.map(setor => {
+                        const count = countsPerSetor[setor] || 0;
+                        const color = getColorForSetor(setor);
+                        if (count === 0 && !searchTerm && !mostrarInativos && !filterLocalidade && !filterCae) return null; 
 
                         return (
-                        <tr key={item.id} style={{borderBottom: '1px solid #f8fafc', opacity: isInactive ? 0.6 : 1, background: isInactive ? '#f8fafc' : 'white', transition: '0.2s'}} className={!isInactive ? "table-row-hover" : ""}>
-                            <td style={{padding: '15px'}}>
-                                <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                                    <span style={{fontWeight: '800', color: isInactive ? '#94a3b8' : '#1e293b', fontSize: '0.95rem'}}>{item.nome}</span>
-                                    {isInactive && <span style={{fontSize: '0.6rem', background: '#fee2e2', color: '#ef4444', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold'}}>ARQUIVADO</span>}
+                            <div 
+                                key={setor} 
+                                onClick={() => setSelectedSetor(setor)}
+                                className="category-card"
+                                style={{ borderTop: `5px solid ${color}` }}
+                            >
+                                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                                    <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.2rem'}}>{setor}</h3>
+                                    <span style={{background: `${color}20`, color: color, padding: '4px 12px', borderRadius: '20px', fontWeight: 'bold', fontSize: '0.85rem'}}>{count}</span>
                                 </div>
-                                <div style={{display: 'flex', gap: '10px', fontSize: '0.8rem', color: '#64748b', marginTop: '4px', alignItems: 'center'}}>
-                                    {item.nif && <span style={{background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px', fontFamily: 'monospace', fontWeight: 'bold'}}>{item.nif}</span>}
-                                    {item.localidade && <span style={{display:'flex', alignItems:'center', gap:'4px'}}><Icons.MapPin/> {item.localidade}</span>}
-                                </div>
-                            </td>
+                                <p style={{margin: '15px 0 0 0', fontSize: '0.85rem', color: '#94a3b8', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px'}}>Ver Mais <Icons.ArrowRight /></p>
+                            </div>
+                        );
+                    })}
 
-                            <td style={{padding: '15px'}}>
-                                <div style={{display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.85rem'}}>
-                                    {item.titular && <span style={{fontWeight: '600', color: '#475569', display:'flex', alignItems:'center', gap:'4px'}}><Icons.User/> {item.titular}</span>}
-                                    {item.contacto && <span style={{display:'flex', alignItems:'center', gap:'4px'}}><Icons.Phone/> {item.contacto}</span>}
-                                    {item.email && <span style={{color: '#2563eb', display:'flex', alignItems:'center', gap:'4px'}}><Icons.Mail/> <a href={`mailto:${item.email}`} style={{color: 'inherit', textDecoration: 'none'}}>{item.email}</a></span>}
-                                    {isMissingData && <span style={{fontSize: '0.7rem', color: '#b45309', background: '#fef3c7', padding: '2px 6px', borderRadius: '4px', alignSelf: 'flex-start', fontWeight: 'bold', display:'flex', alignItems:'center', gap:'4px'}}><Icons.Alert/> Faltam Contactos</span>}
-                                </div>
-                            </td>
-
-                            <td style={{padding: '15px'}}>
-                                <div style={{display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-start'}}>
-                                    {item.setor ? <span style={{fontSize: '0.7rem', background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe', padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold'}}>{item.setor}</span> : <span style={{color: '#cbd5e1'}}>-</span>}
-                                    {item.cae && <span style={{fontSize: '0.7rem', color: '#64748b', fontWeight: '600'}}>CAE: {item.cae}</span>}
-                                </div>
-                            </td>
-
-                            {activeTab === "leads" && (
-                            <td style={{padding: '15px'}}>
-                                <select
-                                    value={item.estado}
-                                    onChange={(e) => updateStatus(item.id, e.target.value)}
-                                    disabled={isInactive}
-                                    style={{
-                                        padding: '6px 12px', borderRadius: '8px', border: '1px solid transparent', fontSize: '0.8rem', fontWeight: 'bold', cursor: isInactive ? 'not-allowed' : 'pointer',
-                                        background: statusOptions.find(o => o.value === item.estado)?.bg || '#f1f5f9',
-                                        color: statusOptions.find(o => o.value === item.estado)?.color || '#64748b',
-                                    }}
-                                >
-                                {statusOptions.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
-                                </select>
-                            </td>
-                            )}
-
-                            <td style={{padding: '15px', textAlign: 'right'}}>
-                                <div style={{display: 'flex', justifyContent: 'flex-end', gap: '6px'}}>
-                                    <button onClick={() => openForm(true, item)} title="Ver / Completar Dados" style={{background: 'white', border: '1px solid #cbd5e1', color: '#475569', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s', position: 'relative'}} className="hover-shadow">
-                                        <Icons.Eye />
-                                        {isMissingData && <span style={{position: 'absolute', top: '-4px', right: '-4px', width: '10px', height: '10px', background: '#ef4444', borderRadius: '50%', border: '2px solid white'}}></span>}
-                                    </button>
-
-                                    {!isInactive && activeTab === "prospects" && (
-                                        <button onClick={() => promoteToLead(item)} title="Mover para Leads" style={{background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow"><Icons.Rocket /></button>
-                                    )}
-                                    {!isInactive && activeTab === "leads" && item.estado === 'convertido' && (
-                                        <button onClick={() => promoteToClient(item)} title="Criar Cliente Oficial" style={{background: '#dcfce7', color: '#16a34a', border: '1px solid #bbf7d0', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow"><Icons.Rocket /></button>
-                                    )}
-
-                                    <button onClick={() => toggleAtivo(item.id, item.ativo)} title={isInactive ? "Restaurar" : "Arquivar"} style={{background: isInactive ? '#dcfce7' : '#fee2e2', color: isInactive ? '#16a34a' : '#ef4444', border: 'none', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">
-                                        {isInactive ? <Icons.Restore /> : <Icons.Archive />}
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                    )})}
-                </tbody>
-                </table>
-            </div>
-        )}
-        
-        {/* MENSAGEM VAZIA */}
-        {filteredList.length === 0 && viewMode !== "kanban" && (
-            <div style={{textAlign: 'center', padding: '60px', color: '#94a3b8'}}>
-                <span style={{display: 'block', marginBottom: '10px', opacity: 0.5}}><Icons.Search /></span>
-                <p style={{margin: 0, fontWeight: '500'}}>Nenhum registo encontrado com estes filtros.</p>
-            </div>
-        )}
-
-        {/* CONTROLOS DE PAGINAÇÃO */}
-        {totalPages > 1 && viewMode !== "kanban" && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #e2e8f0', flexWrap: 'wrap', gap: '15px' }}>
-                <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
-                    <span style={{ fontSize: '0.85rem', color: '#64748b' }}>Mostrar:</span>
-                    <select value={itemsPerPage} onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }} style={{ padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none', background: 'white', fontSize: '0.85rem' }}>
-                        <option value={10}>10</option>
-                        <option value={50}>50</option>
-                        <option value={100}>100</option>
-                    </select>
+                    {(countsPerSetor['sem-setor'] > 0) && (
+                        <div 
+                            onClick={() => setSelectedSetor('sem-setor')}
+                            className="category-card"
+                            style={{ borderTop: `5px solid #94a3b8` }}
+                        >
+                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                                <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.2rem'}}>Sem Setor Definido</h3>
+                                <span style={{background: `#f1f5f9`, color: '#64748b', padding: '4px 12px', borderRadius: '20px', fontWeight: 'bold', fontSize: '0.85rem'}}>{countsPerSetor['sem-setor']}</span>
+                            </div>
+                            <p style={{margin: '15px 0 0 0', fontSize: '0.85rem', color: '#94a3b8', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px'}}>Ver não categorizados <Icons.ArrowRight /></p>
+                        </div>
+                    )}
                 </div>
                 
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                    <button disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} className="btn-small" style={{ opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? 'not-allowed' : 'pointer', background: 'white', border: '1px solid #cbd5e1' }}>◀ Ant</button>
-                    <span style={{ fontSize: '0.85rem', color: '#334155', fontWeight: 'bold' }}>Pág {currentPage} de {totalPages}</span>
-                    <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(prev => prev + 1)} className="btn-small" style={{ opacity: currentPage === totalPages ? 0.5 : 1, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', background: 'white', border: '1px solid #cbd5e1' }}>Seg ▶</button>
+                {Object.keys(countsPerSetor).length === 0 && (
+                    <div style={{textAlign: 'center', padding: '60px', background: 'white', borderRadius: '16px', border: '1px dashed #cbd5e1'}}>
+                        <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px', color: '#cbd5e1'}}><Icons.Inbox size={48} /></div>
+                        <h3 style={{color: '#1e293b', margin: '0 0 5px 0'}}>Nenhuma empresa encontrada.</h3>
+                        <p style={{color: '#64748b', margin: 0}}>Verifica os teus filtros ou importa novos contactos.</p>
+                    </div>
+                )}
+            </div>
+        ) : (
+            <div className="fade-in">
+                <div style={{display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px', borderBottom: '1px solid #cbd5e1', paddingBottom: '15px'}}>
+                    <button 
+                        onClick={() => setSelectedSetor(null)}
+                        style={{background: 'white', border: '1px solid #cbd5e1', padding: '8px 15px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', color: '#475569', display: 'flex', alignItems: 'center', gap: '6px', transition: '0.2s'}}
+                        className="hover-shadow"
+                    >
+                        <Icons.ArrowLeft /> Voltar aos Setores
+                    </button>
+                    <h2 style={{margin: 0, fontSize: '1.4rem', color: '#1e293b', fontWeight: '800'}}>
+                        {selectedSetor === 'sem-setor' ? 'Sem Setor Definido' : selectedSetor}
+                    </h2>
                 </div>
+
+                {/* 💡 VISTA 1: KANBAN BOARD */}
+                {viewMode === "kanban" && activeTab === "leads" && (
+                    <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '20px', minHeight: '600px', alignItems: 'flex-start' }} className="custom-scrollbar">
+                        {statusOptions.map(col => {
+                            const colItems = filteredList.filter(item => item.estado === col.value); 
+                            
+                            return (
+                                <div 
+                                    key={col.value}
+                                    onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.background = col.bg; }}
+                                    onDragLeave={(e) => { e.currentTarget.style.background = '#f8fafc'; }}
+                                    onDrop={(e) => {
+                                        e.preventDefault();
+                                        e.currentTarget.style.background = '#f8fafc';
+                                        if (draggedItemId) {
+                                            updateStatus(draggedItemId, col.value);
+                                            setDraggedItemId(null);
+                                        }
+                                    }}
+                                    style={{ flex: 1, minWidth: '220px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', transition: 'background 0.2s', overflow: 'hidden' }}
+                                >
+                                    <div style={{ padding: '12px 15px', borderBottom: `2px solid ${col.color}`, background: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <h4 style={{ margin: 0, color: col.color, fontSize: '0.85rem', fontWeight: '800', textTransform: 'uppercase' }}>
+                                            {col.label}
+                                        </h4>
+                                        <span style={{background: col.bg, color: col.color, padding: '2px 6px', borderRadius: '12px', fontSize: '0.7rem', fontWeight: 'bold', border: `1px solid ${col.border}`}}>{colItems.length}</span>
+                                    </div>
+                                    
+                                    <div style={{ padding: '10px', display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, overflowY: 'auto', maxHeight: '70vh' }} className="custom-scrollbar hide-scrollbar-kanban">
+                                        {colItems.map(item => {
+                                            const isInactive = item.ativo === false;
+                                            const isMissingData = !item.email && !item.contacto;
+                                            
+                                            return (
+                                            <div
+                                                key={item.id}
+                                                draggable={!isInactive}
+                                                onDragStart={() => setDraggedItemId(item.id)}
+                                                onDragEnd={() => setDraggedItemId(null)}
+                                                style={{ 
+                                                    background: isInactive ? '#f1f5f9' : 'white', padding: '12px', borderRadius: '8px', 
+                                                    border: '1px solid #cbd5e1', cursor: isInactive ? 'default' : 'grab', opacity: draggedItemId === item.id ? 0.4 : (isInactive ? 0.6 : 1), 
+                                                    boxShadow: draggedItemId === item.id ? 'none' : '0 2px 4px rgba(0,0,0,0.04)',
+                                                    transition: 'transform 0.1s', position: 'relative'
+                                                }}
+                                                className={isInactive ? "" : "hover-shadow-kanban drag-item"}
+                                            >
+                                                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px'}}>
+                                                    <strong style={{color: '#1e293b', fontSize: '0.9rem', lineHeight: '1.2'}}>{item.nome}</strong>
+                                                    <button onClick={() => openForm(true, item)} style={{background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: '0 0 0 5px'}} className="hover-blue-text"><Icons.Edit/></button>
+                                                </div>
+                                                
+                                                <div style={{fontSize: '0.7rem', color: '#64748b', display: 'flex', flexDirection: 'column', gap: '4px'}}>
+                                                    {item.localidade && <span style={{display:'flex', alignItems:'center', gap:'4px'}}><Icons.MapPin/> {item.localidade}</span>}
+                                                    {item.setor && <span style={{display:'flex', alignItems:'center', gap:'4px'}}><Icons.Building/> {item.setor}</span>}
+                                                    {item.contacto && <span style={{display:'flex', alignItems:'center', gap:'4px'}}><Icons.Phone/> {item.contacto}</span>}
+                                                    {isMissingData && <span style={{color: '#b45309', background: '#fef3c7', padding: '2px 4px', borderRadius: '4px', width: 'fit-content', fontWeight: 'bold', display:'flex', alignItems:'center', gap:'4px'}}><Icons.Alert/> Faltam Contactos</span>}
+                                                </div>
+
+                                                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px', paddingTop: '8px', borderTop: '1px solid #f1f5f9'}}>
+                                                    <span style={{fontFamily: 'monospace', fontSize: '0.65rem', background: '#f8fafc', padding: '2px 6px', borderRadius: '4px', color: '#94a3b8'}}>{item.nif || 'S/ NIF'}</span>
+                                                    
+                                                    {item.estado === 'convertido' && !isInactive && (
+                                                        <button onClick={() => promoteToClient(item)} title="Criar Cliente Oficial" style={{background: '#dcfce7', color: '#16a34a', border: '1px solid #bbf7d0', padding: '4px 6px', borderRadius: '6px', fontSize: '0.65rem', fontWeight: 'bold', cursor: 'pointer', display:'flex', alignItems:'center', gap:'4px'}}><Icons.Rocket /> Cliente</button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )})}
+                                        {colItems.length === 0 && <div style={{textAlign: 'center', padding: '15px', color: '#cbd5e1', fontSize: '0.75rem', fontStyle: 'italic', border: '1px dashed #e2e8f0', borderRadius: '8px'}}>Larga aqui...</div>}
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
+                )}
+
+                {/* 💡 VISTA 2: GRID DE CARTÕES */}
+                {viewMode === "grid" && (
+                    <div className="leads-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '15px' }}>
+                        {currentItems.map((item) => {
+                            const isInactive = item.ativo === false;
+                            const isMissingData = !item.email && !item.contacto;
+                            const statusObj = statusOptions.find(o => o.value === item.estado) || {};
+
+                            return (
+                                <div key={item.id} className="lead-card hover-shadow" style={{background: isInactive ? '#f8fafc' : 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '15px', display: 'flex', flexDirection: 'column', opacity: isInactive ? 0.6 : 1, transition: 'all 0.2s', borderTop: `4px solid ${activeTab === 'leads' ? statusObj.color : '#cbd5e1'}`}}>
+                                    
+                                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px'}}>
+                                        <div style={{display: 'flex', gap: '6px', alignItems: 'center'}}>
+                                            {item.nif && <span style={{fontFamily: 'monospace', fontSize: '0.7rem', background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', color: '#64748b'}}>{item.nif}</span>}
+                                            {isInactive && <span style={{fontSize: '0.65rem', background: '#fee2e2', color: '#ef4444', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold'}}>ARQUIVADO</span>}
+                                        </div>
+                                        {activeTab === "leads" && (
+                                            <span style={{fontSize: '0.65rem', background: statusObj.bg, color: statusObj.color, padding: '2px 8px', borderRadius: '12px', fontWeight: '800', textTransform: 'uppercase'}}>{statusObj.label}</span>
+                                        )}
+                                    </div>
+
+                                    <h3 style={{margin: '0 0 8px 0', fontSize: '1.1rem', color: '#1e293b', fontWeight: '800', lineHeight: '1.2'}}>{item.nome}</h3>
+                                    
+                                    <div style={{display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '15px', flex: 1}}>
+                                        <div style={{fontSize: '0.8rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.MapPin/> {item.localidade || 'Sem Localidade'}</div>
+                                        <div style={{display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center'}}>
+                                            {item.setor && <span style={{fontSize: '0.7rem', background: '#eff6ff', color: '#2563eb', padding: '2px 6px', borderRadius: '8px', fontWeight: 'bold', border: '1px solid #bfdbfe'}}>{item.setor}</span>}
+                                            {item.cae && <span style={{fontSize: '0.7rem', color: '#64748b', fontWeight: '600'}}>CAE: {item.cae}</span>}
+                                        </div>
+                                    </div>
+
+                                    <CardActions item={item} isInactive={isInactive} isMissingData={isMissingData} />
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+
+                {/* 💡 VISTA 3: TABELA CLÁSSICA */}
+                {viewMode === "table" && (
+                    <div className="table-responsive" style={{overflowX: 'auto'}}>
+                        <table className="data-table" style={{ width: "100%", borderCollapse: 'collapse', minWidth: '900px' }}>
+                        <thead>
+                            <tr style={{color: '#64748b', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em', borderBottom: '2px solid #f1f5f9'}}>
+                                <th style={{padding: '15px', textAlign: 'left', width: '30%'}}>Empresa / Local</th>
+                                <th style={{padding: '15px', textAlign: 'left', width: '25%'}}>Contactos</th>
+                                <th style={{padding: '15px', textAlign: 'left', width: '15%'}}>Setor & CAE</th>
+                                {activeTab === "leads" && <th style={{padding: '15px', textAlign: 'left', width: '15%'}}>Estado</th>}
+                                <th style={{padding: '15px', textAlign: 'right', width: '15%'}}>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {currentItems.map((item) => {
+                                const isInactive = item.ativo === false;
+                                const isMissingData = !item.email && !item.contacto;
+
+                                return (
+                                <tr key={item.id} style={{borderBottom: '1px solid #f8fafc', opacity: isInactive ? 0.6 : 1, background: isInactive ? '#f8fafc' : 'white', transition: '0.2s'}} className={!isInactive ? "table-row-hover" : ""}>
+                                    <td style={{padding: '15px'}}>
+                                        <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                            <span style={{fontWeight: '800', color: isInactive ? '#94a3b8' : '#1e293b', fontSize: '0.95rem'}}>{item.nome}</span>
+                                            {isInactive && <span style={{fontSize: '0.6rem', background: '#fee2e2', color: '#ef4444', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold'}}>ARQUIVADO</span>}
+                                        </div>
+                                        <div style={{display: 'flex', gap: '10px', fontSize: '0.8rem', color: '#64748b', marginTop: '4px', alignItems: 'center'}}>
+                                            {item.nif && <span style={{background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px', fontFamily: 'monospace', fontWeight: 'bold'}}>{item.nif}</span>}
+                                            {item.localidade && <span style={{display:'flex', alignItems:'center', gap:'4px'}}><Icons.MapPin/> {item.localidade}</span>}
+                                        </div>
+                                    </td>
+
+                                    <td style={{padding: '15px'}}>
+                                        <div style={{display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.85rem'}}>
+                                            {item.titular && <span style={{fontWeight: '600', color: '#475569', display:'flex', alignItems:'center', gap:'4px'}}><Icons.User/> {item.titular}</span>}
+                                            {item.contacto && <span style={{display:'flex', alignItems:'center', gap:'4px'}}><Icons.Phone/> {item.contacto}</span>}
+                                            {item.email && <span style={{color: '#2563eb', display:'flex', alignItems:'center', gap:'4px'}}><Icons.Mail/> <a href={`mailto:${item.email}`} style={{color: 'inherit', textDecoration: 'none'}}>{item.email}</a></span>}
+                                            {isMissingData && <span style={{fontSize: '0.7rem', color: '#b45309', background: '#fef3c7', padding: '2px 6px', borderRadius: '4px', alignSelf: 'flex-start', fontWeight: 'bold', display:'flex', alignItems:'center', gap:'4px'}}><Icons.Alert/> Faltam Contactos</span>}
+                                        </div>
+                                    </td>
+
+                                    <td style={{padding: '15px'}}>
+                                        <div style={{display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-start'}}>
+                                            {item.setor ? <span style={{fontSize: '0.7rem', background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe', padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold'}}>{item.setor}</span> : <span style={{color: '#cbd5e1'}}>-</span>}
+                                            {item.cae && <span style={{fontSize: '0.7rem', color: '#64748b', fontWeight: '600'}}>CAE: {item.cae}</span>}
+                                        </div>
+                                    </td>
+
+                                    {activeTab === "leads" && (
+                                    <td style={{padding: '15px'}}>
+                                        <select
+                                            value={item.estado}
+                                            onChange={(e) => updateStatus(item.id, e.target.value)}
+                                            disabled={isInactive}
+                                            style={{
+                                                padding: '6px 12px', borderRadius: '8px', border: '1px solid transparent', fontSize: '0.8rem', fontWeight: 'bold', cursor: isInactive ? 'not-allowed' : 'pointer',
+                                                background: statusOptions.find(o => o.value === item.estado)?.bg || '#f1f5f9',
+                                                color: statusOptions.find(o => o.value === item.estado)?.color || '#64748b',
+                                            }}
+                                        >
+                                        {statusOptions.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
+                                        </select>
+                                    </td>
+                                    )}
+
+                                    <td style={{padding: '15px', textAlign: 'right'}}>
+                                        <div style={{display: 'flex', justifyContent: 'flex-end', gap: '6px'}}>
+                                            <button onClick={() => openForm(true, item)} title="Ver / Completar Dados" style={{background: 'white', border: '1px solid #cbd5e1', color: '#475569', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s', position: 'relative'}} className="hover-shadow">
+                                                <Icons.Eye />
+                                                {isMissingData && <span style={{position: 'absolute', top: '-4px', right: '-4px', width: '10px', height: '10px', background: '#ef4444', borderRadius: '50%', border: '2px solid white'}}></span>}
+                                            </button>
+
+                                            {!isInactive && activeTab === "prospects" && (
+                                                <button onClick={() => promoteToLead(item)} title="Mover para Leads" style={{background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow"><Icons.Rocket /></button>
+                                            )}
+                                            {!isInactive && activeTab === "leads" && item.estado === 'convertido' && (
+                                                <button onClick={() => promoteToClient(item)} title="Criar Cliente Oficial" style={{background: '#dcfce7', color: '#16a34a', border: '1px solid #bbf7d0', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow"><Icons.Handshake /></button>
+                                            )}
+
+                                            <button onClick={() => toggleAtivo(item.id, item.ativo)} title={isInactive ? "Restaurar" : "Arquivar"} style={{background: isInactive ? '#dcfce7' : '#fee2e2', color: isInactive ? '#16a34a' : '#ef4444', border: 'none', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">
+                                                {isInactive ? <Icons.Restore /> : <Icons.Archive />}
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            )})}
+                        </tbody>
+                        </table>
+                    </div>
+                )}
+                
+                {/* MENSAGEM VAZIA */}
+                {filteredList.length === 0 && viewMode !== "kanban" && (
+                    <div style={{textAlign: 'center', padding: '60px', color: '#94a3b8'}}>
+                        <span style={{display: 'block', marginBottom: '10px', opacity: 0.5}}><Icons.Search /></span>
+                        <p style={{margin: 0, fontWeight: '500'}}>Nenhum registo encontrado com estes filtros.</p>
+                    </div>
+                )}
+
+                {/* CONTROLOS DE PAGINAÇÃO */}
+                {totalPages > 1 && viewMode !== "kanban" && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #e2e8f0', flexWrap: 'wrap', gap: '15px' }}>
+                        <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+                            <span style={{ fontSize: '0.85rem', color: '#64748b' }}>Mostrar:</span>
+                            <select value={itemsPerPage} onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }} style={{ padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none', background: 'white', fontSize: '0.85rem' }}>
+                                <option value={10}>10</option>
+                                <option value={50}>50</option>
+                                <option value={100}>100</option>
+                            </select>
+                        </div>
+                        
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                            <button disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} className="btn-small" style={{ opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? 'not-allowed' : 'pointer', background: 'white', border: '1px solid #cbd5e1' }}>◀ Ant</button>
+                            <span style={{ fontSize: '0.85rem', color: '#334155', fontWeight: 'bold' }}>Pág {currentPage} de {totalPages}</span>
+                            <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(prev => prev + 1)} className="btn-small" style={{ opacity: currentPage === totalPages ? 0.5 : 1, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', background: 'white', border: '1px solid #cbd5e1' }}>Seg ▶</button>
+                        </div>
+                    </div>
+                )}
             </div>
         )}
       </div>
@@ -686,10 +788,35 @@ export default function GestaoLeads() {
                               <div><label style={labelStyle}>Localidade</label><input type="text" value={modalForm.data.localidade || ''} onChange={e => setModalForm({...modalForm, data: {...modalForm.data, localidade: e.target.value}})} style={{...inputStyle, width: '100%'}} /></div>
                               <div>
                                   <label style={labelStyle}>Setor</label>
-                                  <select value={modalForm.data.setor || ''} onChange={e => setModalForm({...modalForm, data: {...modalForm.data, setor: e.target.value}})} style={{...inputStyle, width: '100%', background: 'white'}}>
+                                  {/* 💡 MODIFICADO: PERMITE SELECIONAR SETOR OU INSERIR NOVO */}
+                                  <select 
+                                      value={isOutroSetor ? "__outro__" : (modalForm.data.setor || "")} 
+                                      onChange={e => {
+                                          const selected = e.target.value;
+                                          if (selected === "__outro__") {
+                                              setIsOutroSetor(true);
+                                              setModalForm({...modalForm, data: {...modalForm.data, setor: ""}});
+                                          } else {
+                                              setIsOutroSetor(false);
+                                              setModalForm({...modalForm, data: {...modalForm.data, setor: selected}});
+                                          }
+                                      }} 
+                                      style={{...inputStyle, width: '100%', background: 'white'}}
+                                  >
                                       <option value="">-- Selecione --</option>
-                                      {setorOptions.map(s => <option key={s} value={s}>{s}</option>)}
+                                      {dynamicSetores.map(s => <option key={s} value={s}>{s}</option>)}
+                                      <option value="__outro__">Outro (Criar novo)...</option>
                                   </select>
+                                  {isOutroSetor && (
+                                      <input 
+                                          type="text" 
+                                          autoFocus
+                                          placeholder="Escreva o novo setor" 
+                                          value={modalForm.data.setor || ""} 
+                                          onChange={e => setModalForm({...modalForm, data: {...modalForm.data, setor: e.target.value}})} 
+                                          style={{...inputStyle, width: '100%', marginTop: '8px', borderColor: '#3b82f6', background: '#eff6ff'}} 
+                                      />
+                                  )}
                               </div>
                               <div><label style={labelStyle}>Código CAE</label><input type="text" value={modalForm.data.cae || ''} onChange={e => setModalForm({...modalForm, data: {...modalForm.data, cae: e.target.value}})} style={{...inputStyle, width: '100%'}} /></div>
                           </div>
@@ -734,7 +861,7 @@ export default function GestaoLeads() {
                         <label style={labelStyle}>Atribuir Setor em Lote (Opcional)</label>
                         <select value={importSetor} onChange={(e) => setImportSetor(e.target.value)} style={{...inputStyle, background: 'white', width: '100%'}}>
                             <option value="">-- Deixar em branco --</option>
-                            {setorOptions.map((s) => <option key={s} value={s}>{s}</option>)}
+                            {dynamicSetores.map((s) => <option key={s} value={s}>{s}</option>)}
                         </select>
                     </div>
 
@@ -768,7 +895,7 @@ export default function GestaoLeads() {
           <ModalPortal>
               <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999}}>
                   <div style={{background: 'white', padding: '30px', borderRadius: '16px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out'}}>
-                      <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px'}}><Icons.Alert /></div>
+                      <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px'}}><Icons.Alert color={confirmDialog.isDanger ? "#ef4444" : "#3b82f6"} /></div>
                       <h3 style={{margin: '0 0 10px 0', color: '#1e293b', fontSize: '1.25rem'}}>Confirmação</h3>
                       <p style={{color: '#64748b', fontSize: '0.95rem', marginBottom: '25px', lineHeight: '1.5', whiteSpace: 'pre-line'}}>{confirmDialog.message}</p>
                       <div style={{display: 'flex', gap: '10px'}}>
@@ -796,14 +923,23 @@ export default function GestaoLeads() {
         .hide-scrollbar-kanban::-webkit-scrollbar { display: none; }
         
         /* Outline Buttons */
-        .btn-outline { background: white; border: 1px solid #cbd5e1; color: #475569; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; display: flex; alignItems: center; gap: 8px; transition: 0.2s; }
+        .btn-outline { background: white; border: 1px solid #cbd5e1; color: #475569; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.2s; }
         .btn-outline:hover { background: #f8fafc; border-color: #94a3b8; color: #1e293b; }
         
         /* Action Buttons */
         .action-btn { background: transparent; border: none; cursor: pointer; opacity: 0.5; transition: 0.2s; display: flex; align-items: center; justify-content: center; padding: 4px; }
         .action-btn:hover { opacity: 1; transform: scale(1.1); }
 
+        .fade-in { animation: fadeIn 0.4s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .category-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+        .category-card {
+            background: white; padding: 25px; border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;
+            cursor: pointer; transition: all 0.2s ease;
+        }
+        .category-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); border-color: #cbd5e1; }
       `}</style>
     </div>
   );

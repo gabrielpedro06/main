@@ -190,7 +190,10 @@ export const generateDeslocacoesMensaisPDF = async ({
 
         const companyLabel = getCompanyLabel(colaborador);
         const morada = colaborador?.morada || "-";
-        const viatura = colaborador?.viatura || colaborador?.matricula || "-";
+        
+        // 💡 Recolhe todas as viaturas usadas nestes pedidos específicos
+        const viaturasUsadas = [...new Set(rows.map(r => r.veiculo).filter(Boolean))];
+        const viatura = viaturasUsadas.length > 0 ? viaturasUsadas.join(" • ") : "-";
 
         doc.setFont("helvetica", "bold");
         doc.setFontSize(9);
@@ -217,9 +220,15 @@ export const generateDeslocacoesMensaisPDF = async ({
         const bodyRows = rows.map((item) => {
             const kms = Number(item.km_total) || 0;
             const reembolso = kms * Number(valorPorKm || 0);
+            
+            // 💡 Junta o trajeto com o carro utilizado por baixo
+            const percursoEVeiculo = item.veiculo 
+                ? `${item.km_origem || "-"} - ${item.km_destino || "-"}\n(Viatura: ${item.veiculo})`
+                : `${item.km_origem || "-"} - ${item.km_destino || "-"}`;
+
             return [
                 toDateLabel(item.data_inicio),
-                `${item.km_origem || "-"} / ${item.km_destino || "-"}`,
+                percursoEVeiculo,
                 kms.toFixed(1),
                 `${reembolso.toFixed(2)} EUR`,
             ];
