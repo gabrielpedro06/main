@@ -8,6 +8,7 @@ import TimerSwitchModal from "../components/TimerSwitchModal";
 import StopTimerNoteModal from "../components/StopTimerNoteModal";
 import { hasAttendanceStartedToday, startAttendanceNow } from "../utils/attendanceGuard";
 import { resolveActiveTimerMeta } from "../utils/activeTimerResolver";
+import { buildDependencyMaps, getActivityBlockReason, getTaskBlockReason } from "../utils/dependencyGuards";
 import "./../styles/dashboard.css";
 
 const ModalPortal = ({ children }) => {
@@ -477,6 +478,49 @@ export default function Tarefas() {
             return { ...a, tarefas: arrTarefas };
         });
         listaAtividades.sort((a1, a2) => sortMaster(a1, a2, 'data_fim'));
+
+        const projectIds = Array.from(
+            new Set(
+                listaAtividades
+                    .map((a) => a.projetoId || a.projetos?.id)
+                    .filter(Boolean)
+            )
+        );
+
+        if (projectIds.length > 0) {
+            const { data: allProjectActivities } = await supabase
+                .from("atividades")
+                .select("id, projeto_id, titulo, estado, depende_de_atividade_id, ignorar_dependencia")
+                .in("projeto_id", projectIds);
+
+            const allActivityIds = (allProjectActivities || []).map((a) => a.id).filter(Boolean);
+            let allProjectTasks = [];
+
+            if (allActivityIds.length > 0) {
+                const { data: tasksData } = await supabase
+                    .from("tarefas")
+                    .select("id, atividade_id, titulo, estado, depende_de_tarefa_id, ignorar_dependencia")
+                    .in("atividade_id", allActivityIds);
+                allProjectTasks = tasksData || [];
+            }
+
+            const { activityById, taskById } = buildDependencyMaps(allProjectActivities || [], allProjectTasks || []);
+
+            listaAtividades = listaAtividades
+                .map((a) => {
+                    const activityReason = getActivityBlockReason(a, activityById);
+                    if (activityReason) return null;
+
+                    const tarefasVisiveis = (a.tarefas || []).filter((t) => !getTaskBlockReason(t, taskById, activityById));
+                    if (tarefasVisiveis.length === 0 && (a.tarefas || []).length > 0) return null;
+
+                    return {
+                        ...a,
+                        tarefas: tarefasVisiveis
+                    };
+                })
+                .filter(Boolean);
+        }
 
         const taskIds = Array.from(
             new Set(

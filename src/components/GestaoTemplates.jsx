@@ -46,6 +46,8 @@ export default function GestaoTemplates() {
   const [inputOrdem, setInputOrdem] = useState(1);
   const [inputDias, setInputDias] = useState(0);
   const [inputDescricao, setInputDescricao] = useState("");
+        const [inputDepAtividadeId, setInputDepAtividadeId] = useState("");
+        const [inputDepTarefaId, setInputDepTarefaId] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
     // Novos estados para info adicional
     const [exigeInfoAdicional, setExigeInfoAdicional] = useState(false);
@@ -79,6 +81,25 @@ export default function GestaoTemplates() {
   const showToast = (message, type = 'success') => {
       setNotification({ message, type });
       setTimeout(() => setNotification(null), 3000);
+  };
+
+  const createsCircularDependency = (items, currentId, dependencyId, dependencyKey) => {
+      if (!currentId || !dependencyId) return false;
+
+      let cursor = dependencyId;
+      const visited = new Set([String(currentId)]);
+
+      while (cursor) {
+          const normalized = String(cursor);
+          if (visited.has(normalized)) return true;
+          visited.add(normalized);
+
+          const node = items.find((entry) => String(entry.id) === normalized);
+          if (!node) return false;
+          cursor = node[dependencyKey] || null;
+      }
+
+      return false;
   };
 
   async function fetchTipos() {
@@ -185,6 +206,8 @@ export default function GestaoTemplates() {
             setInputValue("");
             setInputDias(0);
             setInputDescricao("");
+            setInputDepAtividadeId("");
+            setInputDepTarefaId("");
             setExigeInfoAdicional(false);
             setCamposInfoAdicional({
                 investimento: false,
@@ -199,6 +222,8 @@ export default function GestaoTemplates() {
             setInputValue(item.nome || item.titulo); 
             setInputDias(item.dias_estimados || 0);
             setInputDescricao(item.descricao || "");
+            setInputDepAtividadeId(item.depende_de_template_atividade_id || "");
+            setInputDepTarefaId(item.depende_de_template_tarefa_id || "");
             // Carregar info adicional se existir
             let info = item.info_adicional || {};
             setExigeInfoAdicional(!!info.exige);
@@ -214,6 +239,7 @@ export default function GestaoTemplates() {
   const closeModal = () => {
       setModalConfig({ isOpen: false, mode: 'create', tipo: '', itemId: null, parentId: null, parentName: '' });
       setInputValue(""); setInputDias(0); setInputDescricao("");
+      setInputDepAtividadeId(""); setInputDepTarefaId("");
   };
 
   async function handleModalSubmit(e) {
@@ -249,8 +275,14 @@ export default function GestaoTemplates() {
               }
           } 
           else if (modalConfig.tipo === 'atividade') {
-              const payload = { nome: inputValue, dias_estimados: diasNum, descricao: inputDescricao, info_adicional: infoAdicional };
+              const dependencyId = inputDepAtividadeId || null;
+              const payload = { nome: inputValue, dias_estimados: diasNum, descricao: inputDescricao, info_adicional: infoAdicional, depende_de_template_atividade_id: dependencyId };
               if (!isEdit) payload.ordem = atividades.length + 1;
+
+              if (isEdit && dependencyId && createsCircularDependency(atividades, modalConfig.itemId, dependencyId, 'depende_de_template_atividade_id')) {
+                  showToast("Dependência inválida: gera ciclo entre etapas.", "error");
+                  return;
+              }
 
               if (isEdit) {
                   await supabase.from("template_atividades").update(payload).eq("id", modalConfig.itemId);
@@ -264,8 +296,14 @@ export default function GestaoTemplates() {
               }
           } 
           else if (modalConfig.tipo === 'tarefa') {
-              const payload = { nome: inputValue, dias_estimados: diasNum, descricao: inputDescricao, info_adicional: infoAdicional };
+              const dependencyId = inputDepTarefaId || null;
+              const payload = { nome: inputValue, dias_estimados: diasNum, descricao: inputDescricao, info_adicional: infoAdicional, depende_de_template_tarefa_id: dependencyId };
               if (!isEdit) payload.ordem = tarefas.length + 1;
+
+              if (isEdit && dependencyId && createsCircularDependency(tarefas, modalConfig.itemId, dependencyId, 'depende_de_template_tarefa_id')) {
+                  showToast("Dependência inválida: gera ciclo entre tarefas.", "error");
+                  return;
+              }
 
               if (isEdit) {
                   await supabase.from("template_tarefas").update(payload).eq("id", modalConfig.itemId);
@@ -617,6 +655,44 @@ export default function GestaoTemplates() {
                               <>
                                 <label style={{...styles.label, display:'flex', justifyContent:'space-between'}}>Guia / Notas <span style={{fontWeight:'400', opacity:0.7}}>(Opcional)</span></label>
                                 <textarea value={inputDescricao} onChange={(e) => setInputDescricao(e.target.value)} rows="3" style={styles.textarea} placeholder="Instruções ou procedimentos..." className="input-focus" />
+                              </>
+                          )}
+
+                          {modalConfig.tipo === 'atividade' && (
+                              <>
+                                  <label style={styles.label}>Depende da Etapa</label>
+                                  <select
+                                      value={inputDepAtividadeId}
+                                      onChange={(e) => setInputDepAtividadeId(e.target.value)}
+                                      style={styles.input}
+                                      className="input-focus"
+                                  >
+                                      <option value="">Sem dependência</option>
+                                      {atividades
+                                          .filter((a) => String(a.id) !== String(modalConfig.itemId || ''))
+                                          .map((a) => (
+                                              <option key={a.id} value={a.id}>{a.ordem}. {a.nome}</option>
+                                          ))}
+                                  </select>
+                              </>
+                          )}
+
+                          {modalConfig.tipo === 'tarefa' && (
+                              <>
+                                  <label style={styles.label}>Depende da Tarefa (mesma etapa)</label>
+                                  <select
+                                      value={inputDepTarefaId}
+                                      onChange={(e) => setInputDepTarefaId(e.target.value)}
+                                      style={styles.input}
+                                      className="input-focus"
+                                  >
+                                      <option value="">Sem dependência</option>
+                                      {tarefas
+                                          .filter((t) => String(t.id) !== String(modalConfig.itemId || ''))
+                                          .map((t) => (
+                                              <option key={t.id} value={t.id}>{t.ordem}. {t.nome}</option>
+                                          ))}
+                                  </select>
                               </>
                           )}
 

@@ -813,6 +813,7 @@ export default function Projetos() {
                 let projDateStr = payload.data_inicio || new Date().toISOString().split('T')[0];
                 const projEndStr = payload.data_fim || null; 
                 let currentAtivDate = projDateStr;
+                const templateToRealAtividade = new Map();
 
                 for (const tAtiv of templateTree) {
                     if (!templateSelection[`a_${tAtiv.id}`]) continue; 
@@ -833,10 +834,15 @@ export default function Projetos() {
                         info_adicional: tAtiv.info_adicional ? tAtiv.info_adicional : {}
                     }]).select().single();
 
+                    if (realAtiv) {
+                        templateToRealAtividade.set(String(tAtiv.id), String(realAtiv.id));
+                    }
+
                     currentAtivDate = addDays(currentAtivDate, tAtiv.dias_estimados || 0);
 
                     if (realAtiv && tAtiv.tarefas) {
                         let currentTarDate = ativStart;
+                        const templateToRealTarefa = new Map();
                         
                         for (const tTar of tAtiv.tarefas) {
                             if (!templateSelection[`t_${tTar.id}`]) continue;
@@ -858,6 +864,10 @@ export default function Projetos() {
                                 template_tarefa_id: tTar.id,
                                 info_adicional: tTar.info_adicional ? tTar.info_adicional : {}
                             }]).select().single();
+
+                            if (realTar) {
+                                templateToRealTarefa.set(String(tTar.id), String(realTar.id));
+                            }
 
                             currentTarDate = addDays(currentTarDate, tTar.dias_estimados || 0);
 
@@ -883,8 +893,43 @@ export default function Projetos() {
                                 }
                             }
                         }
+
+                        for (const tTar of tAtiv.tarefas) {
+                            if (!templateSelection[`t_${tTar.id}`]) continue;
+
+                            const realTarId = templateToRealTarefa.get(String(tTar.id));
+                            if (!realTarId) continue;
+
+                            const dependeTemplateTarefaId = tTar.depende_de_template_tarefa_id ? String(tTar.depende_de_template_tarefa_id) : null;
+                            const dependeRealTarefaId = dependeTemplateTarefaId ? templateToRealTarefa.get(dependeTemplateTarefaId) : null;
+
+                            if (!dependeRealTarefaId) continue;
+
+                            await supabase
+                                .from("tarefas")
+                                .update({ depende_de_tarefa_id: dependeRealTarefaId })
+                                .eq("id", realTarId);
+                        }
                     }
                 }
+
+                for (const tAtiv of templateTree) {
+                    if (!templateSelection[`a_${tAtiv.id}`]) continue;
+
+                    const realAtivId = templateToRealAtividade.get(String(tAtiv.id));
+                    if (!realAtivId) continue;
+
+                    const dependeTemplateAtivId = tAtiv.depende_de_template_atividade_id ? String(tAtiv.depende_de_template_atividade_id) : null;
+                    const dependeRealAtivId = dependeTemplateAtivId ? templateToRealAtividade.get(dependeTemplateAtivId) : null;
+
+                    if (!dependeRealAtivId) continue;
+
+                    await supabase
+                        .from("atividades")
+                        .update({ depende_de_atividade_id: dependeRealAtivId })
+                        .eq("id", realAtivId);
+                }
+
                 if (!payload.data_fim) await supabase.from("projetos").update({ data_fim: currentAtivDate }).eq("id", newProj.id);
             }
             

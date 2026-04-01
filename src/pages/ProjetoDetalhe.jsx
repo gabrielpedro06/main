@@ -7,6 +7,7 @@ import TimerSwitchModal from "../components/TimerSwitchModal";
 import StopTimerNoteModal from "../components/StopTimerNoteModal";
 import { hasAttendanceStartedToday, startAttendanceNow } from "../utils/attendanceGuard";
 import { concludeActivityWithChildren } from "../utils/activityStatusCascade";
+import { buildDependencyMaps, getActivityBlockReason } from "../utils/dependencyGuards";
 import "./../styles/dashboard.css";
 
 // 💡 IMPORTAÇÃO CORRIGIDA (SEM CHAVETAS):
@@ -47,6 +48,8 @@ const Icons = {
     ExternalLink: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>,
   GripVertical: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="19" r="1"></circle></svg>,
   Plus: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>,
+    Lock: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>,
+    Unlock: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>,
   Rocket: ({ size = 20, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"></path><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"></path><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"></path><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"></path></svg>,
   Search: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>,
   Globe: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>,
@@ -142,6 +145,8 @@ export default function ProjetoDetalhe() {
   const [novaAtividadeResponsavel, setNovaAtividadeResponsavel] = useState("");
   const [novaTarefaNome, setNovaTarefaNome] = useState({ ativId: null, nome: "", responsavel_id: "" });
   const [novaSubtarefaNome, setNovaSubtarefaNome] = useState({ tarId: null, nome: "" });
+        const [unlockedTasks, setUnlockedTasks] = useState({});
+        const [unlockedActivities, setUnlockedActivities] = useState({});
 
   // MODAIS
   const [atividadeModal, setAtividadeModal] = useState({ show: false, data: null });
@@ -230,6 +235,11 @@ export default function ProjetoDetalhe() {
     fetchProjetoDetails();
     checkActiveLog();
   }, [id, user]);
+
+    useEffect(() => {
+            setUnlockedTasks({});
+            setUnlockedActivities({});
+    }, [id]);
 
   useEffect(() => {
       setParceiroSelecionado("");
@@ -334,9 +344,9 @@ export default function ProjetoDetalhe() {
     const { data: ativData, error: ativError } = await supabase
         .from("atividades")
         .select(`
-            id, titulo, estado, responsavel_id, data_inicio, data_fim, investimento, incentivo, financiamento, data_prevista_aprovacao, descricao, observacoes, created_at, ordem,
+            id, titulo, estado, responsavel_id, data_inicio, data_fim, investimento, incentivo, financiamento, data_prevista_aprovacao, descricao, observacoes, created_at, ordem, depende_de_atividade_id, ignorar_dependencia,
             colaboradores_extra, info_adicional,
-            tarefas(id, titulo, estado, responsavel_id, colaboradores_extra, data_inicio, data_fim, prioridade, descricao, created_at, ordem, info_adicional, investimento, incentivo, financiamento, data_prevista_aprovacao, tem_entregavel, nome_entregavel, data_entregavel, arquivo_url,
+            tarefas(id, titulo, estado, responsavel_id, colaboradores_extra, data_inicio, data_fim, prioridade, descricao, created_at, ordem, info_adicional, investimento, incentivo, financiamento, data_prevista_aprovacao, tem_entregavel, nome_entregavel, data_entregavel, arquivo_url, depende_de_tarefa_id, ignorar_dependencia,
                 subtarefas(id, titulo, estado, data_fim, created_at, ordem)
             )
         `)
@@ -1193,6 +1203,76 @@ export default function ProjetoDetalhe() {
 
   const assigneeOptions = [...internalAssigneeOptions, ...entityAssigneeOptions];
 
+  const allTasksInProject = atividades.flatMap((a) => a.tarefas || []);
+  const { activityById, taskById } = buildDependencyMaps(atividades, allTasksInProject);
+
+  const isActivityBlocked = (activity) => {
+      const reason = getActivityBlockReason(activity, activityById);
+      if (!reason) return false;
+      return !unlockedActivities[String(activity.id)];
+  };
+
+  const getTaskDependencyReason = (task, parentActivity) => {
+      const parentReason = getActivityBlockReason(parentActivity, activityById);
+      if (parentReason && !unlockedActivities[String(parentActivity?.id)]) {
+          return parentReason;
+      }
+
+      const dependencyId = task?.depende_de_tarefa_id;
+      if (!dependencyId) return null;
+
+      const dependency = taskById.get(String(dependencyId));
+      if (!dependency) return null;
+      if (String(dependency.estado || "").toLowerCase() === "concluido") return null;
+
+      return `Depende da tarefa "${dependency.titulo || "sem titulo"}"`;
+  };
+
+  const isTaskBlocked = (task, parentActivity) => {
+      const reason = getTaskDependencyReason(task, parentActivity);
+      if (!reason) return false;
+      return !unlockedTasks[String(task.id)];
+  };
+
+  const unlockTaskForNow = async (taskId) => {
+      const normalized = String(taskId);
+      setUnlockedTasks((prev) => ({ ...prev, [normalized]: true }));
+
+      await supabase
+          .from("tarefas")
+          .update({ ignorar_dependencia: true })
+          .eq("id", taskId);
+
+      setAtividades((prev) =>
+          prev.map((atividade) => ({
+              ...atividade,
+              tarefas: (atividade.tarefas || []).map((tarefa) =>
+                  String(tarefa.id) === normalized
+                      ? { ...tarefa, ignorar_dependencia: true }
+                      : tarefa
+              )
+          }))
+      );
+  };
+
+  const unlockActivityForNow = async (activityId) => {
+      const normalized = String(activityId);
+      setUnlockedActivities((prev) => ({ ...prev, [normalized]: true }));
+
+      await supabase
+          .from("atividades")
+          .update({ ignorar_dependencia: true })
+          .eq("id", activityId);
+
+      setAtividades((prev) =>
+          prev.map((atividade) =>
+              String(atividade.id) === normalized
+                  ? { ...atividade, ignorar_dependencia: true }
+                  : atividade
+          )
+      );
+  };
+
   const renderAssigneeOptionGroups = () => (
       <>
           {internalAssigneeOptions.length > 0 && (
@@ -1696,6 +1776,8 @@ export default function ProjetoDetalhe() {
                 {atividades.map((ativ, aIndex) => {
                     const isAtivDone = ativ.estado === 'concluido';
                     const progresso = ativ.tarefas?.length > 0 ? Math.round((ativ.tarefas.filter(t => t.estado === 'concluido').length / ativ.tarefas.length) * 100) : 0;
+                    const atividadeDependencyReason = getActivityBlockReason(ativ, activityById);
+                    const blockedActivity = isActivityBlocked(ativ);
                     
                     const hasNoTasks = !ativ.tarefas || ativ.tarefas.length === 0;
                     const isAtivTimerActive = activeLog?.atividade_id === ativ.id;
@@ -1729,7 +1811,7 @@ export default function ProjetoDetalhe() {
                             
                             <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
                                 <div style={{cursor: 'grab', color: '#cbd5e1', display:'flex'}} title="Arraste para reordenar" className="hover-blue-text"><Icons.GripVertical /></div>
-                                <div onClick={() => toggleAtividadeStatus(ativ.id, ativ.estado)} style={{width: '26px', height: '26px', borderRadius: '8px', cursor: 'pointer', background: isAtivDone ? '#2563eb' : '#f8fafc', border: isAtivDone ? 'none' : '2px solid #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', transition: 'all 0.2s'}}>
+                                <div onClick={() => !blockedActivity && toggleAtividadeStatus(ativ.id, ativ.estado)} style={{width: '26px', height: '26px', borderRadius: '8px', cursor: blockedActivity ? 'not-allowed' : 'pointer', background: isAtivDone ? '#2563eb' : '#f8fafc', border: isAtivDone ? 'none' : '2px solid #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', transition: 'all 0.2s'}}>
                                     {isAtivDone && <Icons.Check size={16} />}
                                 </div>
                                 <div>
@@ -1749,6 +1831,11 @@ export default function ProjetoDetalhe() {
                                             <Icons.User size={11} />
                                             Resp: {atividadeResponsavelNome || 'Sem responsável'}
                                         </span>
+                                        {atividadeDependencyReason && (
+                                            <span style={{fontSize: '0.7rem', background: '#fff7ed', color: '#c2410c', padding: '2px 8px', borderRadius: '999px', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '5px'}} title={atividadeDependencyReason}>
+                                                <Icons.Lock size={11} /> Bloqueada por dependência
+                                            </span>
+                                        )}
                                         {atividadeParticipantes.length > 0 && (
                                             <span style={{fontSize: '0.7rem', background: '#f8fafc', color: '#475569', padding: '2px 8px', borderRadius: '999px', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '5px'}} title={atividadeParticipantes.join(', ')}>
                                                 <Icons.Users size={11} />
@@ -1767,8 +1854,18 @@ export default function ProjetoDetalhe() {
                                 </span>
                                 
                                 {hasNoTasks && !isAtivDone && (
-                                    <button onClick={() => handleToggleTimer(ativ.id, 'activity')} style={{ background: isAtivTimerActive ? '#fee2e2' : '#f1f5f9', color: isAtivTimerActive ? '#ef4444' : '#64748b', border: 'none', padding: '6px 12px', borderRadius: '20px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', animation: isAtivTimerActive ? 'pulse 1.5s infinite' : 'none'}} className="hover-shadow">
+                                    <button onClick={() => !blockedActivity && handleToggleTimer(ativ.id, 'activity')} style={{ background: isAtivTimerActive ? '#fee2e2' : '#f1f5f9', color: isAtivTimerActive ? '#ef4444' : '#64748b', border: 'none', padding: '6px 12px', borderRadius: '20px', cursor: blockedActivity ? 'not-allowed' : 'pointer', fontSize: '0.75rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', animation: isAtivTimerActive ? 'pulse 1.5s infinite' : 'none', opacity: blockedActivity ? 0.6 : 1}} className="hover-shadow">
                                         {isAtivTimerActive ? <><Icons.Stop size={12} /> Parar</> : <><Icons.Play size={12} /> Play</>}
+                                    </button>
+                                )}
+
+                                {blockedActivity && (
+                                    <button
+                                        onClick={() => unlockActivityForNow(ativ.id)}
+                                        style={{background: '#fff7ed', border: '1px solid #fdba74', color: '#c2410c', width: '32px', height: '32px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'}}
+                                        title={atividadeDependencyReason ? `${atividadeDependencyReason}. Clique para desbloquear manualmente.` : 'Desbloquear atividade manualmente'}
+                                    >
+                                        <Icons.Unlock size={14} />
                                     </button>
                                 )}
 
@@ -1806,6 +1903,8 @@ export default function ProjetoDetalhe() {
                                     const hasSubs = tar.subtarefas?.length > 0;
                                     const subsDone = hasSubs ? tar.subtarefas.filter(s => s.estado === 'concluido').length : 0;
                                     const isExpanded = expandedTasks[tar.id];
+                                    const dependencyReason = getTaskDependencyReason(tar, ativ);
+                                    const blockedByDependency = isTaskBlocked(tar, ativ);
                                     
                                     const isTimerActive = activeLog?.task_id === tar.id;
                                     const taskTime = getTaskTime(tar.id);
@@ -1825,10 +1924,10 @@ export default function ProjetoDetalhe() {
                                         onDragOver={(e) => e.preventDefault()}
                                         style={{background: 'white', border: isTimerActive ? '1px solid #3b82f6' : '1px solid #e2e8f0', borderRadius: '8px', marginBottom: '8px', overflow: 'hidden', boxShadow: isTimerActive ? '0 0 0 2px rgba(59, 130, 246, 0.2)' : 'none', transition: 'all 0.2s'}}
                                     >
-                                        <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 15px', opacity: tar.estado === 'concluido' ? 0.6 : 1}}>
+                                        <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 15px', opacity: tar.estado === 'concluido' ? 0.6 : (blockedByDependency ? 0.75 : 1)}}>
                                             <div style={{display: 'flex', alignItems: 'center', gap: '12px', flex: 1}}>
                                                 <div style={{cursor: 'grab', color: '#cbd5e1', display:'flex'}} title="Arraste para reordenar"><Icons.GripVertical /></div>
-                                                <div onClick={() => toggleTarefaStatus(tar.id, tar.estado)} style={{ width: '20px', height: '20px', borderRadius: '50%', cursor: 'pointer', border: tar.estado === 'concluido' ? 'none' : '2px solid #cbd5e1', background: tar.estado === 'concluido' ? '#2563eb' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0 }}>
+                                                <div onClick={() => !blockedByDependency && toggleTarefaStatus(tar.id, tar.estado)} style={{ width: '20px', height: '20px', borderRadius: '50%', cursor: blockedByDependency ? 'not-allowed' : 'pointer', border: tar.estado === 'concluido' ? 'none' : '2px solid #cbd5e1', background: tar.estado === 'concluido' ? '#2563eb' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0 }}>
                                                     {tar.estado === 'concluido' && <Icons.Check size={12} />}
                                                 </div>
                                                 
@@ -1855,6 +1954,11 @@ export default function ProjetoDetalhe() {
                                                     {respName && <span style={{fontSize: '0.65rem', background: '#eff6ff', color: '#2563eb', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold'}}>{respName.split(' ')[0]}</span>}
                                                     {extraColabsCount > 0 && <span style={{fontSize: '0.65rem', background: '#f3e8ff', color: '#7e22ce', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}} title={extraColabsNames}><Icons.Users size={10} /> +{extraColabsCount}</span>}
                                                     {renderDeadline(tar.data_fim, isTarDone)}
+                                                    {dependencyReason && (
+                                                        <span style={{fontSize: '0.65rem', background: '#fff7ed', color: '#c2410c', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '4px'}} title={dependencyReason}>
+                                                            <Icons.Lock size={10} /> Dependência
+                                                        </span>
+                                                    )}
                                                     {hasSubs && <span style={{fontSize: '0.65rem', background: subsDone === tar.subtarefas.length ? '#dbeafe' : '#f1f5f9', color: subsDone === tar.subtarefas.length ? '#2563eb' : '#64748b', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.ClipboardList size={10} /> {subsDone}/{tar.subtarefas.length}</span>}
                                                 </div>
                                             </div>
@@ -1862,9 +1966,18 @@ export default function ProjetoDetalhe() {
                                             <div style={{display: 'flex', gap: '15px', alignItems: 'center'}}>
                                                 <span style={{fontSize: '0.75rem', color: '#64748b', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.Clock size={12} /> {formatTime(taskTime)}</span>
 
-                                                <button onClick={() => handleToggleTimer(tar.id, 'task')} style={{ background: isTimerActive ? '#fee2e2' : '#f1f5f9', color: isTimerActive ? '#ef4444' : '#64748b', border: 'none', padding: '4px 10px', borderRadius: '20px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', animation: isTimerActive ? 'pulse 1.5s infinite' : 'none'}} className="hover-shadow">
+                                                <button onClick={() => !blockedByDependency && handleToggleTimer(tar.id, 'task')} style={{ background: isTimerActive ? '#fee2e2' : '#f1f5f9', color: isTimerActive ? '#ef4444' : '#64748b', border: 'none', padding: '4px 10px', borderRadius: '20px', cursor: blockedByDependency ? 'not-allowed' : 'pointer', fontSize: '0.75rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', animation: isTimerActive ? 'pulse 1.5s infinite' : 'none', opacity: blockedByDependency ? 0.6 : 1 }} className="hover-shadow">
                                                     {isTimerActive ? <><Icons.Stop /> Parar</> : <><Icons.Play /> Play</>}
                                                 </button>
+                                                {blockedByDependency && (
+                                                    <button
+                                                        onClick={() => unlockTaskForNow(tar.id)}
+                                                        style={{background: '#fff7ed', border: '1px solid #fdba74', color: '#c2410c', width: '30px', height: '30px', borderRadius: '999px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'}}
+                                                        title={dependencyReason ? `${dependencyReason}. Clique para desbloquear manualmente.` : 'Desbloquear tarefa manualmente'}
+                                                    >
+                                                        <Icons.Unlock size={13} />
+                                                    </button>
+                                                )}
                                                 {!isTarDone && (
                                                     <button onClick={() => toggleSubtarefaComposer(tar.id)} style={{background:'none', border:'none', color: isComposerOpen ? '#2563eb' : '#94a3b8', cursor:'pointer', display: 'flex'}} className="hover-blue-text" title={isComposerOpen ? 'Fechar novo passo' : 'Adicionar novo passo'}>
                                                         {isComposerOpen ? <Icons.Close size={14} /> : <Icons.Plus size={14} />}

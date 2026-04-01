@@ -8,6 +8,7 @@ import TimerSwitchModal from "../components/TimerSwitchModal";
 import StopTimerNoteModal from "../components/StopTimerNoteModal";
 import { frasesMotivacionais } from "../data/frases"; 
 import { concludeActivityWithChildren } from "../utils/activityStatusCascade";
+import { buildDependencyMaps, getActivityBlockReason, getTaskBlockReason } from "../utils/dependencyGuards";
 import "./../styles/dashboard.css";
 
 // --- MEGA ÍCONES SVG PROFISSIONAIS ---
@@ -204,6 +205,55 @@ export default function DashboardHome() {
       if (!client) return "";
       return client.sigla?.trim() || client.marca || "";
   };
+
+  async function filterBlockedItemsByDependencies(tarefas = [], atividades = []) {
+      const projectIds = Array.from(
+          new Set(
+              [...tarefas, ...atividades]
+                  .map((item) => {
+                      if (item?.projeto_id) {
+                          return item.projeto_id;
+                      }
+
+                      if (item?.isActivity) {
+                          const proj = Array.isArray(item.projetos) ? item.projetos[0] : item.projetos;
+                          return item.projectId || proj?.id || null;
+                      }
+
+                      const ativ = Array.isArray(item?.atividades) ? item.atividades[0] : item?.atividades;
+                      const proj = ativ ? (Array.isArray(ativ.projetos) ? ativ.projetos[0] : ativ.projetos) : null;
+                      return item.projectId || proj?.id || null;
+                  })
+                  .filter(Boolean)
+          )
+      );
+
+      if (projectIds.length === 0) {
+          return { tarefasFiltradas: tarefas, atividadesFiltradas: atividades };
+      }
+
+      const { data: allProjectActivities } = await supabase
+          .from("atividades")
+          .select("id, projeto_id, titulo, estado, depende_de_atividade_id, ignorar_dependencia")
+          .in("projeto_id", projectIds);
+
+      const allActivityIds = (allProjectActivities || []).map((a) => a.id).filter(Boolean);
+      let allProjectTasks = [];
+      if (allActivityIds.length > 0) {
+          const { data: tasksData } = await supabase
+              .from("tarefas")
+              .select("id, atividade_id, titulo, estado, depende_de_tarefa_id, ignorar_dependencia")
+              .in("atividade_id", allActivityIds);
+          allProjectTasks = tasksData || [];
+      }
+
+      const { activityById, taskById } = buildDependencyMaps(allProjectActivities || [], allProjectTasks || []);
+
+      const atividadesFiltradas = (atividades || []).filter((atividade) => !getActivityBlockReason(atividade, activityById));
+      const tarefasFiltradas = (tarefas || []).filter((tarefa) => !getTaskBlockReason(tarefa, taskById, activityById));
+
+      return { tarefasFiltradas, atividadesFiltradas };
+  }
 
   async function fetchUserProfile() {
     try {
@@ -639,10 +689,12 @@ export default function DashboardHome() {
           ...(atividadesExtra || []),
       ].filter((item, idx, arr) => arr.findIndex((x) => x.id === item.id) === idx);
 
+      const { tarefasFiltradas, atividadesFiltradas } = await filterBlockedItemsByDependencies(tarefas, atividades);
+
       let combinedTasks = [];
 
-      if (tarefas) {
-          const formattedTasks = tarefas.map(t => {
+      if (tarefasFiltradas) {
+          const formattedTasks = tarefasFiltradas.map(t => {
               const ativ = Array.isArray(t.atividades) ? t.atividades[0] : t.atividades;
               const proj = ativ ? (Array.isArray(ativ.projetos) ? ativ.projetos[0] : ativ.projetos) : null;
               
@@ -670,8 +722,8 @@ export default function DashboardHome() {
           combinedTasks = [...combinedTasks, ...formattedTasks];
       }
 
-      if (atividades) {
-          const formattedAtivs = atividades.map(a => {
+      if (atividadesFiltradas) {
+          const formattedAtivs = atividadesFiltradas.map(a => {
               const proj = Array.isArray(a.projetos) ? a.projetos[0] : a.projetos;
               
               let clientLabel = "GERAL / AVULSA";
@@ -807,6 +859,8 @@ export default function DashboardHome() {
               ...(atividadesExtra || []),
           ].filter((item, idx, arr) => arr.findIndex((x) => x.id === item.id) === idx);
 
+          const { tarefasFiltradas, atividadesFiltradas } = await filterBlockedItemsByDependencies(tarefas, atividades);
+
           const isEmAnalise = (estado) => {
               if (!estado) return false;
               return String(estado).toLowerCase().replace(/\s+/g, "_") === "em_analise";
@@ -814,8 +868,8 @@ export default function DashboardHome() {
 
           let combinedAnalysis = [];
 
-          if (tarefas) {
-              const formattedTasks = tarefas.map((t) => {
+          if (tarefasFiltradas) {
+              const formattedTasks = tarefasFiltradas.map((t) => {
                   const ativ = Array.isArray(t.atividades) ? t.atividades[0] : t.atividades;
                   const proj = ativ ? (Array.isArray(ativ.projetos) ? ativ.projetos[0] : ativ.projetos) : null;
 
@@ -838,8 +892,8 @@ export default function DashboardHome() {
               combinedAnalysis = [...combinedAnalysis, ...formattedTasks];
           }
 
-          if (atividades) {
-              const formattedAtivs = atividades.map((a) => {
+          if (atividadesFiltradas) {
+              const formattedAtivs = atividadesFiltradas.map((a) => {
                   const proj = Array.isArray(a.projetos) ? a.projetos[0] : a.projetos;
 
                   let clientLabel = "GERAL / AVULSA";
