@@ -75,6 +75,7 @@ export default function ProjetoDetalhe() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("atividades");
   const [notification, setNotification] = useState(null);
+    const [transitionPromptOpen, setTransitionPromptOpen] = useState(false);
   const [projectActionLoading, setProjectActionLoading] = useState(false);
   const [confirmModal, setConfirmModal] = useState({
       show: false,
@@ -144,6 +145,15 @@ export default function ProjetoDetalhe() {
       return [];
   };
 
+  const normalizeBoolean = (raw) => {
+      if (typeof raw === "boolean") return raw;
+      if (typeof raw === "string") {
+          const parsed = raw.trim().toLowerCase();
+          return parsed === "true" || parsed === "1" || parsed === "sim";
+      }
+      return Boolean(raw);
+  };
+
   const getProjetoClientIds = (projLike) => {
       if (!projLike) return [];
       const ids = [];
@@ -176,9 +186,9 @@ export default function ProjetoDetalhe() {
                     setProjeto(prev => ({ ...prev, estado: "concluido" }));
                     setNotification({ 
                         message: "Projeto finalizado! Queres iniciar a próxima etapa (ex: Gestão)?", 
-                        type: 'success',
-                        isTransition: true // Flag para mostrar o botão de transição
+                        type: 'success'
                     });
+                    setTransitionPromptOpen(true);
                 }
             };
             concluirProjetoAuto();
@@ -233,12 +243,14 @@ export default function ProjetoDetalhe() {
     // 💡 Transmitir projeto para nova etapa (ex: Gestão)
     const handleTransmitirProjeto = () => {
         const dadosParaClonar = {
-            titulo: `${projeto.titulo} - GESTÃO`,
+            titulo: `${projeto.titulo}`,
             cliente_id: projeto.cliente_id,
-            is_parceria: projeto.is_parceria,
-            parceiros_ids: projeto.parceiros_ids,
+            is_parceria: normalizeBoolean(projeto.is_parceria),
+            parceiros_ids: normalizeIdsList(projeto.parceiros_ids),
             responsavel_id: projeto.responsavel_id,
-            colaboradores: projeto.colaboradores,
+            colaboradores: normalizeIdsList(projeto.colaboradores),
+            programa: projeto.programa,
+            aviso: projeto.aviso,
             codigo_projeto: projeto.codigo_projeto,
             investimento: projeto.investimento,
             incentivo: projeto.incentivo,
@@ -1455,14 +1467,6 @@ export default function ProjetoDetalhe() {
             {notification && (
                 <div className={`toast-container ${notification.type}`} style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center' }}>
                     <div>{notification.type === 'success' ? '✅' : '⚠️'} {notification.message}</div>
-                    {notification.isTransition && (
-                        <button 
-                            onClick={handleTransmitirProjeto}
-                            style={{ background: 'white', color: '#2563eb', border: 'none', padding: '5px 12px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.8rem' }}
-                        >
-                            🚀 Iniciar Próxima Etapa
-                        </button>
-                    )}
                 </div>
             )}
       
@@ -2798,7 +2802,93 @@ export default function ProjetoDetalhe() {
           </ModalPortal>
       )}
 
-      {notification && <div className={`toast-container ${notification.type}`}>{notification.type === 'success' ? '✅' : '⚠️'} {notification.message}</div>}
+      {transitionPromptOpen && (
+          <ModalPortal>
+              <div
+                  style={{
+                      position: 'fixed',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      background: 'rgba(15, 23, 42, 0.55)',
+                      backdropFilter: 'blur(4px)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      zIndex: 10000,
+                      padding: '16px'
+                  }}
+                  onClick={(e) => {
+                      if (e.target === e.currentTarget) setTransitionPromptOpen(false);
+                  }}
+              >
+                  <div
+                      style={{
+                          width: 'min(520px, 100%)',
+                          background: '#ffffff',
+                          borderRadius: '16px',
+                          border: '1px solid #bfdbfe',
+                          boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.25)',
+                          overflow: 'hidden'
+                      }}
+                  >
+                      <div
+                          style={{
+                              padding: '16px 18px',
+                              background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+                              borderBottom: '1px solid #bfdbfe',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: '12px'
+                          }}
+                      >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <span style={{ fontSize: '1.2rem' }}>✅</span>
+                              <h3 style={{ margin: 0, color: '#1e40af', fontSize: '1.05rem', fontWeight: '800' }}>Projeto concluído</h3>
+                          </div>
+                          <button
+                              onClick={() => setTransitionPromptOpen(false)}
+                              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#1d4ed8' }}
+                              aria-label="Fechar"
+                          >
+                              <Icons.Close size={18} color="currentColor" />
+                          </button>
+                      </div>
+
+                      <div style={{ padding: '20px 18px' }}>
+                          <p style={{ margin: 0, color: '#334155', lineHeight: 1.55 }}>
+                              Queres criar um novo projeto já pré-preenchido com esta informação para iniciar a próxima etapa (ex: Gestão)?
+                          </p>
+
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '18px', flexWrap: 'wrap' }}>
+                              <button
+                                  type="button"
+                                  onClick={() => setTransitionPromptOpen(false)}
+                                  className="btn-small"
+                                  style={{ padding: '10px 14px', borderRadius: '10px', fontWeight: '700' }}
+                              >
+                                  Agora não
+                              </button>
+                              <button
+                                  type="button"
+                                  onClick={() => {
+                                      setTransitionPromptOpen(false);
+                                      handleTransmitirProjeto();
+                                  }}
+                                  className="btn-primary"
+                                  style={{ padding: '10px 14px', borderRadius: '10px', fontWeight: '800' }}
+                              >
+                                  <Icons.Rocket size={16} color="#ffffff" />
+                                  Iniciar próxima etapa
+                              </button>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </ModalPortal>
+      )}
       
       <style>{`
           .hover-blue-text:hover { color: #2563eb !important; }

@@ -79,6 +79,49 @@ const getClientDisplayName = (client) => {
     return "";
 };
 
+const normalizeIdsList = (raw) => {
+    if (Array.isArray(raw)) {
+        return raw
+            .map((item) => String(item || "").trim())
+            .filter(Boolean);
+    }
+
+    if (typeof raw === "string") {
+        const trimmed = raw.trim();
+        if (!trimmed) return [];
+
+        if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+            return trimmed
+                .slice(1, -1)
+                .split(",")
+                .map((item) => item.replace(/^"|"$/g, "").trim())
+                .filter(Boolean);
+        }
+
+        try {
+            const parsed = JSON.parse(trimmed);
+            if (Array.isArray(parsed)) {
+                return parsed
+                    .map((item) => String(item || "").trim())
+                    .filter(Boolean);
+            }
+        } catch {
+            return [];
+        }
+    }
+
+    return [];
+};
+
+const normalizeBoolean = (raw) => {
+    if (typeof raw === "boolean") return raw;
+    if (typeof raw === "string") {
+        const parsed = raw.trim().toLowerCase();
+        return parsed === "true" || parsed === "1" || parsed === "sim";
+    }
+    return Boolean(raw);
+};
+
 export default function Projetos() {
   const { user } = useAuth();
   const navigate = useNavigate(); 
@@ -176,9 +219,14 @@ export default function Projetos() {
     useEffect(() => {
         if (location.state?.openModal) {
             if (location.state.prefillData) {
+                const prefill = location.state.prefillData;
                 setForm({ 
                     ...initialForm, 
-                    ...location.state.prefillData 
+                    ...prefill,
+                    is_parceria: normalizeBoolean(prefill.is_parceria),
+                    parceiros_ids: normalizeIdsList(prefill.parceiros_ids),
+                    colaboradores: normalizeIdsList(prefill.colaboradores),
+                    data_inicio: prefill.data_inicio || new Date().toISOString().split('T')[0]
                 });
             } else if (location.state.prefillClienteId) {
                 setForm({ 
@@ -661,9 +709,9 @@ export default function Projetos() {
     setForm({
         titulo: proj.titulo || "", descricao: proj.descricao || "", 
         cliente_id: proj.cliente_id || "", cliente_texto: proj.cliente_texto || "",
-        is_parceria: proj.is_parceria || false, parceiros_ids: proj.parceiros_ids || [],
+        is_parceria: normalizeBoolean(proj.is_parceria), parceiros_ids: normalizeIdsList(proj.parceiros_ids),
         tipo_projeto_id: proj.tipo_projeto_id || "", 
-        responsavel_id: proj.responsavel_id || "", colaboradores: proj.colaboradores || [],
+        responsavel_id: proj.responsavel_id || "", colaboradores: normalizeIdsList(proj.colaboradores),
         estado: proj.estado || "pendente", data_inicio: proj.data_inicio || "",
         data_fim: proj.data_fim || "", observacoes: proj.observacoes || "",
         programa: proj.programa || "", aviso: proj.aviso || "",
@@ -726,6 +774,10 @@ export default function Projetos() {
     e.preventDefault();
     setIsSubmitting(true);
     const payload = { ...form };
+
+        payload.is_parceria = normalizeBoolean(payload.is_parceria);
+        payload.parceiros_ids = normalizeIdsList(payload.parceiros_ids);
+        payload.colaboradores = normalizeIdsList(payload.colaboradores);
 
     if (payload.cliente_id === "") payload.cliente_id = null;
     if (payload.tipo_projeto_id === "") payload.tipo_projeto_id = null;

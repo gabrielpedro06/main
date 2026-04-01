@@ -8,7 +8,6 @@ import TimerSwitchModal from "../components/TimerSwitchModal";
 import StopTimerNoteModal from "../components/StopTimerNoteModal";
 import { hasAttendanceStartedToday, startAttendanceNow } from "../utils/attendanceGuard";
 import { resolveActiveTimerMeta } from "../utils/activeTimerResolver";
-import { concludeActivityWithChildren } from "../utils/activityStatusCascade";
 import "./../styles/dashboard.css";
 
 const ModalPortal = ({ children }) => {
@@ -47,6 +46,8 @@ export default function Tarefas() {
     const [activeTaskTitle, setActiveTaskTitle] = useState("");
     const [activeTaskRoute, setActiveTaskRoute] = useState("/dashboard/tarefas");
   const [notification, setNotification] = useState(null);
+    const [transitionPromptOpen, setTransitionPromptOpen] = useState(false);
+    const [transitionPrefillData, setTransitionPrefillData] = useState(null);
 
   const [atividadesBase, setAtividadesBase] = useState([]);
   const [staff, setStaff] = useState([]);
@@ -213,6 +214,113 @@ export default function Tarefas() {
           }
       }
       return [];
+  };
+
+  const normalizeBoolean = (raw) => {
+      if (typeof raw === "boolean") return raw;
+      if (typeof raw === "string") {
+          const parsed = raw.trim().toLowerCase();
+          return parsed === "true" || parsed === "1" || parsed === "sim";
+      }
+      return Boolean(raw);
+  };
+
+  const findProjectIdFromTaskId = (taskId) => {
+      if (!taskId) return null;
+      const atividade = atividadesAgrupadas.find((a) => (a.tarefas || []).some((t) => String(t.id) === String(taskId)));
+      return atividade?.projetoId || null;
+  };
+
+  const findProjectIdFromSubtaskId = (subtaskId) => {
+      if (!subtaskId) return null;
+      const atividade = atividadesAgrupadas.find((a) =>
+          (a.tarefas || []).some((t) => (t.subtarefas || []).some((s) => String(s.id) === String(subtaskId)))
+      );
+      return atividade?.projetoId || null;
+  };
+
+  const findProjectIdFromActivityId = (activityId) => {
+      if (!activityId) return null;
+      return atividadesAgrupadas.find((a) => String(a.id) === String(activityId))?.projetoId || null;
+  };
+
+  const getProjectIdFromLogEntry = (logEntry) => {
+      if (!logEntry) return null;
+      if (logEntry.projeto_id) return logEntry.projeto_id;
+      if (logEntry.task_id) return findProjectIdFromTaskId(logEntry.task_id);
+      if (logEntry.atividade_id) return findProjectIdFromActivityId(logEntry.atividade_id);
+      return null;
+  };
+
+  const buildTransitionPrefill = (projectData) => {
+      if (!projectData) return null;
+      return {
+          titulo: `${projectData.titulo || ""}`,
+          cliente_id: projectData.cliente_id || "",
+          is_parceria: normalizeBoolean(projectData.is_parceria),
+          parceiros_ids: normalizeIdsList(projectData.parceiros_ids),
+          responsavel_id: projectData.responsavel_id || "",
+          colaboradores: normalizeIdsList(projectData.colaboradores),
+          programa: projectData.programa || "",
+          aviso: projectData.aviso || "",
+          codigo_projeto: projectData.codigo_projeto || "",
+          investimento: projectData.investimento || 0,
+          incentivo: projectData.incentivo || 0,
+          descricao: projectData.descricao || ""
+      };
+  };
+
+  const openTransitionPrompt = (projectData) => {
+      const prefill = buildTransitionPrefill(projectData);
+      if (!prefill) return;
+      setTransitionPrefillData(prefill);
+      setTransitionPromptOpen(true);
+  };
+
+  const handleTransmitirProjeto = () => {
+      if (!transitionPrefillData) return;
+      navigate('/dashboard/projetos', {
+          state: {
+              prefillData: transitionPrefillData,
+              openModal: true
+          }
+      });
+  };
+
+  const maybeConcludeProjectAndPrompt = async (projectId) => {
+      if (!projectId) return;
+
+      const { data: projectData, error: projectError } = await supabase
+          .from("projetos")
+          .select("id, titulo, estado, cliente_id, is_parceria, parceiros_ids, responsavel_id, colaboradores, codigo_projeto, investimento, incentivo, descricao, programa, aviso")
+          .eq("id", projectId)
+          .maybeSingle();
+
+      if (projectError || !projectData || projectData.estado === "concluido") return;
+
+      const { data: atividadesProjeto, error: atividadesError } = await supabase
+          .from("atividades")
+          .select("id, estado")
+          .eq("projeto_id", projectId);
+
+      if (atividadesError || !Array.isArray(atividadesProjeto) || atividadesProjeto.length === 0) return;
+
+      const allActivitiesConcluded = atividadesProjeto.every((atividade) => atividade.estado === "concluido");
+      if (!allActivitiesConcluded) return;
+
+      const { data: updatedProject, error: updateError } = await supabase
+          .from("projetos")
+          .update({ estado: "concluido" })
+          .eq("id", projectId)
+          .neq("estado", "concluido")
+          .select("id")
+          .maybeSingle();
+
+      if (updateError || !updatedProject) return;
+
+      showToast("Projeto finalizado! Queres iniciar a próxima etapa (ex: Gestão)?", "success");
+      openTransitionPrompt(projectData);
+      fetchData(isAdmin);
   };
 
   const getPersonLabelById = (personId) => {
@@ -863,7 +971,16 @@ export default function Tarefas() {
       }
 
       if (logEntry.atividade_id) {
-          await concludeActivityWithChildren(supabase, logEntry.atividade_id);
+          const dataConclusao = new Date().toISOString();
+          await supabase
+              .from("atividades")
+              .update({ estado: "concluido" })
+              .eq("id", logEntry.atividade_id);
+
+          await supabase
+              .from("tarefas")
+              .update({ estado: "concluido", data_conclusao: dataConclusao })
+              .eq("atividade_id", logEntry.atividade_id);
           return;
       }
 
@@ -889,6 +1006,7 @@ export default function Tarefas() {
       if (!activeTask) return;
 
       const logToStop = activeTask;
+            const impactedProjectId = logToStop?.atividade_id ? getProjectIdFromLogEntry(logToStop) : null;
       const diffMins = await stopTaskLogById(logToStop, note);
       if (diffMins === null) return;
 
@@ -897,6 +1015,10 @@ export default function Tarefas() {
       setActiveTask(null);
       showToast(shouldComplete ? `Tempo guardado: ${diffMins} min. Item concluido.` : `Tempo guardado: ${diffMins} min.`, "success");
       fetchData(isAdmin);
+
+      if (shouldComplete && impactedProjectId) {
+          await maybeConcludeProjectAndPrompt(impactedProjectId);
+      }
   }
 
   async function confirmStopWithNote(note, shouldComplete) {
@@ -914,6 +1036,14 @@ export default function Tarefas() {
   async function handleToggleStatus(tabela, id, estadoAtual, taskIdParaTimer = null) {
       const novoEstado = estadoAtual === 'concluido' ? 'pendente' : 'concluido';
       const dataConclusao = new Date().toISOString();
+      const projectIdFromItem =
+          tabela === 'atividades'
+              ? findProjectIdFromActivityId(id)
+              : tabela === 'tarefas'
+                  ? findProjectIdFromTaskId(id)
+                  : tabela === 'subtarefas'
+                      ? findProjectIdFromSubtaskId(id)
+                      : null;
 
       if (novoEstado === 'concluido' && activeTask && activeTask.task_id === taskIdParaTimer) await handleStopTask();
 
@@ -924,28 +1054,18 @@ export default function Tarefas() {
               return;
           }
 
-          const atividadeLocal = atividadesAgrupadas.find((a) => String(a.id) === String(id));
-          let taskIds = (atividadeLocal?.tarefas || []).map((t) => t.id).filter(Boolean);
+          const { error: tarefasError } = await supabase
+              .from('tarefas')
+              .update({ estado: 'concluido', data_conclusao: dataConclusao })
+              .eq('atividade_id', id);
 
-          if (!taskIds.length) {
-              const { data: tarefasAtividade } = await supabase.from('tarefas').select('id').eq('atividade_id', id);
-              taskIds = (tarefasAtividade || []).map((t) => t.id).filter(Boolean);
-          }
-
-          if (taskIds.length) {
-              await supabase
-                  .from('tarefas')
-                  .update({ estado: 'concluido', data_conclusao: dataConclusao })
-                  .in('id', taskIds);
-
-              await supabase
-                  .from('subtarefas')
-                  .update({ estado: 'concluido' })
-                  .in('tarefa_id', taskIds);
+          if (tarefasError) {
+              showToast("Atividade concluída, mas houve erro ao concluir tarefas dessa atividade.", "warning");
           }
 
           fetchData(isAdmin);
-          showToast("Atividade, tarefas e subtarefas concluídas! 🎉");
+          showToast("Atividade e tarefas associadas concluídas.");
+          if (projectIdFromItem) await maybeConcludeProjectAndPrompt(projectIdFromItem);
           return;
       }
 
@@ -962,6 +1082,9 @@ export default function Tarefas() {
 
       fetchData(isAdmin);
       showToast(novoEstado === 'concluido' ? "Feito! 🎉" : "Reaberto.");
+      if (tabela === 'atividades' && novoEstado === 'concluido' && projectIdFromItem) {
+          await maybeConcludeProjectAndPrompt(projectIdFromItem);
+      }
   }
 
   function openDeleteConfirm(tabela, id, titulo) {
@@ -1294,6 +1417,11 @@ export default function Tarefas() {
 
   return (
     <div className="page-container" style={{maxWidth: '1400px', margin: '0 auto', padding: '15px'}}>
+      {notification && (
+          <div className={`toast-container ${notification.type}`}>
+              {notification.type === 'success' ? '✅' : '⚠️'} {notification.message}
+          </div>
+      )}
       
       {/* CABEÇALHO */}
       <div style={{background: 'white', padding: '20px 25px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.02)'}}>
@@ -2105,6 +2233,93 @@ export default function Tarefas() {
             </div>
           </div>
         </ModalPortal>
+      )}
+
+      {transitionPromptOpen && (
+          <ModalPortal>
+              <div
+                  style={{
+                      position: 'fixed',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      background: 'rgba(15, 23, 42, 0.55)',
+                      backdropFilter: 'blur(4px)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      zIndex: 100000,
+                      padding: '16px'
+                  }}
+                  onClick={(e) => {
+                      if (e.target === e.currentTarget) setTransitionPromptOpen(false);
+                  }}
+              >
+                  <div
+                      style={{
+                          width: 'min(520px, 100%)',
+                          background: '#ffffff',
+                          borderRadius: '16px',
+                          border: '1px solid #bfdbfe',
+                          boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.25)',
+                          overflow: 'hidden'
+                      }}
+                  >
+                      <div
+                          style={{
+                              padding: '16px 18px',
+                              background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+                              borderBottom: '1px solid #bfdbfe',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: '12px'
+                          }}
+                      >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <span style={{ fontSize: '1.2rem' }}>✅</span>
+                              <h3 style={{ margin: 0, color: '#1e40af', fontSize: '1.05rem', fontWeight: '800' }}>Projeto concluído</h3>
+                          </div>
+                          <button
+                              onClick={() => setTransitionPromptOpen(false)}
+                              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#1d4ed8' }}
+                              aria-label="Fechar"
+                          >
+                              <Icons.Close size={18} color="currentColor" />
+                          </button>
+                      </div>
+
+                      <div style={{ padding: '20px 18px' }}>
+                          <p style={{ margin: 0, color: '#334155', lineHeight: 1.55 }}>
+                              Queres criar um novo projeto já pré-preenchido com esta informação para iniciar a próxima etapa (ex: Gestão)?
+                          </p>
+
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '18px', flexWrap: 'wrap' }}>
+                              <button
+                                  type="button"
+                                  onClick={() => setTransitionPromptOpen(false)}
+                                  className="btn-small"
+                                  style={{ padding: '10px 14px', borderRadius: '10px', fontWeight: '700' }}
+                              >
+                                  Agora não
+                              </button>
+                              <button
+                                  type="button"
+                                  onClick={() => {
+                                      setTransitionPromptOpen(false);
+                                      handleTransmitirProjeto();
+                                  }}
+                                  className="btn-primary"
+                                  style={{ padding: '10px 14px', borderRadius: '10px', fontWeight: '800' }}
+                              >
+                                  Iniciar próxima etapa
+                              </button>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </ModalPortal>
       )}
 
       <style>{`
