@@ -19,6 +19,33 @@ const getClientDisplayName = (client) => {
     return client.sigla?.trim() || client.marca || "";
 };
 
+const sanitizeFileName = (rawName = "documento") => {
+    const normalized = String(rawName)
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+
+    const cleaned = normalized
+        .replace(/[^a-zA-Z0-9._-]+/g, "_")
+        .replace(/_+/g, "_")
+        .replace(/^_+|_+$/g, "");
+
+    return cleaned || "documento";
+};
+
+const getFileExtension = (fileName = "") => {
+    const parts = String(fileName).split(".");
+    return parts.length > 1 ? (parts.pop() || "").toLowerCase() : "";
+};
+
+const getFileBaseName = (fileName = "") => {
+    const normalized = String(fileName || "").trim();
+    if (!normalized) return "documento";
+    const parts = normalized.split(".");
+    if (parts.length <= 1) return normalized;
+    parts.pop();
+    return parts.join(".") || "documento";
+};
+
 // --- ÍCONES SVG ---
 const Icons = {
   Trash: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>,
@@ -83,6 +110,7 @@ export default function Tarefas() {
   // 💡 ESTADOS DO UPLOAD
   const [fileToUpload, setFileToUpload] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
+    const [isDeliverableDragOver, setIsDeliverableDragOver] = useState(false);
   const [searchAtivText, setSearchAtivText] = useState("");
   const [showAtivDropdown, setShowAtivDropdown] = useState(false);
 
@@ -1226,9 +1254,13 @@ export default function Tarefas() {
 
     if (fileToUpload) {
         setIsUploading(true);
-        const fileExt = fileToUpload.name.split('.').pop();
-        const fileName = `${Math.random()}.${fileExt}`;
-        const filePath = `${user.id}/${fileName}`;
+        const preferredName = form.nome_entregavel?.trim() || getFileBaseName(fileToUpload.name);
+        const safeBaseName = sanitizeFileName(preferredName);
+        const extension = getFileExtension(fileToUpload.name);
+        const fileName = extension && !safeBaseName.toLowerCase().endsWith(`.${extension}`)
+            ? `${safeBaseName}.${extension}`
+            : safeBaseName;
+        const filePath = `${user.id}/${Date.now()}/${fileName}`;
 
         const { error: uploadError } = await supabase.storage.from('documentos').upload(filePath, fileToUpload);
 
@@ -1242,6 +1274,7 @@ export default function Tarefas() {
         finalArquivoUrl = publicUrlData.publicUrl;
         setIsUploading(false);
     }
+
 
     let finalPayload = {
         titulo: form.titulo, estado: form.estado, descricao: form.descricao, 
@@ -1302,6 +1335,16 @@ export default function Tarefas() {
                 showToast("Erro ao adicionar tarefa! " + (error?.message || ""), "error");
             }
   }
+
+  const applyDeliverableFile = (file) => {
+      if (!file) return;
+      setFileToUpload(file);
+      const detectedName = getFileBaseName(file.name);
+      setForm((prev) => ({
+          ...prev,
+          nome_entregavel: detectedName
+      }));
+  };
 
   async function handleAddSubtarefa(e, tarId) {
             e.preventDefault();
@@ -2162,7 +2205,31 @@ export default function Tarefas() {
                                         </div>
                                     </div>
                                     
-                                    <div style={{background: '#f8fafc', border: '1px dashed #cbd5e1', padding: '15px', borderRadius: '8px', textAlign: 'center'}}>
+                                    <div
+                                        style={{
+                                            background: isDeliverableDragOver ? '#eff6ff' : '#f8fafc',
+                                            border: isDeliverableDragOver ? '1px dashed #2563eb' : '1px dashed #cbd5e1',
+                                            padding: '15px',
+                                            borderRadius: '8px',
+                                            textAlign: 'center',
+                                            transition: 'all 0.15s ease'
+                                        }}
+                                        onDragOver={(e) => {
+                                            e.preventDefault();
+                                            setIsDeliverableDragOver(true);
+                                        }}
+                                        onDragEnter={(e) => {
+                                            e.preventDefault();
+                                            setIsDeliverableDragOver(true);
+                                        }}
+                                        onDragLeave={() => setIsDeliverableDragOver(false)}
+                                        onDrop={(e) => {
+                                            e.preventDefault();
+                                            setIsDeliverableDragOver(false);
+                                            const droppedFile = e.dataTransfer?.files?.[0];
+                                            applyDeliverableFile(droppedFile);
+                                        }}
+                                    >
                                         {form.arquivo_url ? (
                                             <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px'}}>
                                                 <a href={form.arquivo_url} target="_blank" rel="noopener noreferrer" style={{display: 'flex', alignItems: 'center', gap: '6px', color: '#2563eb', fontWeight: 'bold', textDecoration: 'none', fontSize: '0.85rem'}}>
@@ -2181,7 +2248,7 @@ export default function Tarefas() {
                                                     </span>
                                                     <input 
                                                         type="file" 
-                                                        onChange={(e) => setFileToUpload(e.target.files[0])} 
+                                                        onChange={(e) => applyDeliverableFile(e.target.files?.[0] || null)} 
                                                         style={{display: 'none'}} 
                                                     />
                                                 </label>

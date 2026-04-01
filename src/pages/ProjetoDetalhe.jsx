@@ -43,6 +43,8 @@ const Icons = {
   Layers: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 12 12 17 22 12"></polyline><polyline points="2 17 12 22 22 17"></polyline></svg>,
   Activity: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>,
   Download: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>,
+    UploadCloud: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 16 12 12 8 16"></polyline><line x1="12" y1="12" x2="12" y2="21"></line><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"></path><polyline points="16 16 12 12 8 16"></polyline></svg>,
+    ExternalLink: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>,
   GripVertical: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="19" r="1"></circle></svg>,
   Plus: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>,
   Rocket: ({ size = 20, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"></path><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"></path><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"></path><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"></path></svg>,
@@ -62,6 +64,33 @@ const getClientDisplayName = (client) => {
   if (nome) return nome;
   if (sigla) return sigla;
   return "";
+};
+
+const sanitizeFileName = (rawName = "documento") => {
+    const normalized = String(rawName)
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+
+    const cleaned = normalized
+        .replace(/[^a-zA-Z0-9._-]+/g, "_")
+        .replace(/_+/g, "_")
+        .replace(/^_+|_+$/g, "");
+
+    return cleaned || "documento";
+};
+
+const getFileExtension = (fileName = "") => {
+    const parts = String(fileName).split(".");
+    return parts.length > 1 ? (parts.pop() || "").toLowerCase() : "";
+};
+
+const getFileBaseName = (fileName = "") => {
+    const normalized = String(fileName || "").trim();
+    if (!normalized) return "documento";
+    const parts = normalized.split(".");
+    if (parts.length <= 1) return normalized;
+    parts.pop();
+    return parts.join(".") || "documento";
 };
 
 export default function ProjetoDetalhe() {
@@ -118,6 +147,8 @@ export default function ProjetoDetalhe() {
   const [atividadeModal, setAtividadeModal] = useState({ show: false, data: null });
   const [tarefaModal, setTarefaModal] = useState({ show: false, data: null, atividadeNome: '' });
   const [subtarefaModal, setSubtarefaModal] = useState({ show: false, data: null, tarefaNome: '' }); 
+    const [tarefaFileToUpload, setTarefaFileToUpload] = useState(null);
+    const [isTarefaDeliverableDragOver, setIsTarefaDeliverableDragOver] = useState(false);
   const [parceiroSelecionado, setParceiroSelecionado] = useState("");
   const [timeLogModal, setTimeLogModal] = useState({ show: false, mode: "create", logId: null });
   const [timeLogSaving, setTimeLogSaving] = useState(false);
@@ -305,7 +336,7 @@ export default function ProjetoDetalhe() {
         .select(`
             id, titulo, estado, responsavel_id, data_inicio, data_fim, investimento, incentivo, financiamento, data_prevista_aprovacao, descricao, observacoes, created_at, ordem,
             colaboradores_extra, info_adicional,
-            tarefas(id, titulo, estado, responsavel_id, colaboradores_extra, data_inicio, data_fim, prioridade, descricao, created_at, ordem, info_adicional, investimento, incentivo, financiamento, data_prevista_aprovacao,
+            tarefas(id, titulo, estado, responsavel_id, colaboradores_extra, data_inicio, data_fim, prioridade, descricao, created_at, ordem, info_adicional, investimento, incentivo, financiamento, data_prevista_aprovacao, tem_entregavel, nome_entregavel, data_entregavel, arquivo_url,
                 subtarefas(id, titulo, estado, data_fim, created_at, ordem)
             )
         `)
@@ -980,8 +1011,33 @@ export default function ProjetoDetalhe() {
 
   async function handleSaveTarefa(e) {
       e.preventDefault();
+      let finalArquivoUrl = tarefaModal.data.arquivo_url || "";
+
+      if (tarefaFileToUpload) {
+          const preferredName = tarefaModal.data.nome_entregavel?.trim() || getFileBaseName(tarefaFileToUpload.name);
+          const safeBaseName = sanitizeFileName(preferredName);
+          const extension = getFileExtension(tarefaFileToUpload.name);
+          const fileName = extension && !safeBaseName.toLowerCase().endsWith(`.${extension}`)
+              ? `${safeBaseName}.${extension}`
+              : safeBaseName;
+          const filePath = `${user.id}/${Date.now()}/${fileName}`;
+
+          const { error: uploadError } = await supabase.storage.from("documentos").upload(filePath, tarefaFileToUpload);
+          if (uploadError) {
+              showToast("Erro ao fazer upload do documento.", "error");
+              return;
+          }
+
+          const { data: publicUrlData } = supabase.storage.from("documentos").getPublicUrl(filePath);
+          finalArquivoUrl = publicUrlData?.publicUrl || "";
+      }
+
       const payload = {
           ...tarefaModal.data,
+          arquivo_url: finalArquivoUrl,
+          tem_entregavel: Boolean(tarefaModal.data.tem_entregavel),
+          nome_entregavel: tarefaModal.data.nome_entregavel || "",
+          data_entregavel: tarefaModal.data.data_entregavel || null,
           colaboradores_extra: (Array.isArray(tarefaModal.data.colaboradores_extra) ? tarefaModal.data.colaboradores_extra : [])
               .filter(id => id !== tarefaModal.data.responsavel_id)
       };
@@ -996,10 +1052,27 @@ export default function ProjetoDetalhe() {
       const { error } = await supabase.from("tarefas").update(payload).eq("id", payload.id);
       if (!error) {
           setTarefaModal({ show: false, data: null, atividadeNome: '' });
+          setTarefaFileToUpload(null);
           fetchProjetoDetails();
           showToast("Tarefa atualizada com sucesso!");
       } else showToast(error.message, "error");
   }
+
+  const applyTarefaDeliverableFile = (file) => {
+      if (!file) return;
+      setTarefaFileToUpload(file);
+      const detectedName = getFileBaseName(file.name);
+      setTarefaModal((prev) => {
+          if (!prev?.data) return prev;
+          return {
+              ...prev,
+              data: {
+                  ...prev.data,
+                  nome_entregavel: detectedName
+              }
+          };
+      });
+  };
 
   async function handleSaveSubtarefa(e) {
       e.preventDefault();
@@ -1759,7 +1832,21 @@ export default function ProjetoDetalhe() {
                                                     {tar.estado === 'concluido' && <Icons.Check size={12} />}
                                                 </div>
                                                 
-                                                <span onClick={() => setTarefaModal({ show: true, data: { ...tar, colaboradores_extra: Array.isArray(tar.colaboradores_extra) ? tar.colaboradores_extra : [] }, atividadeNome: ativ.titulo })} style={{textDecoration: tar.estado === 'concluido' ? 'line-through' : 'none', color: '#334155', fontWeight: '600', cursor: 'pointer', fontSize: '0.95rem'}} className="hover-underline" title="Clique para editar detalhes">
+                                                <span onClick={() => {
+                                                    setTarefaFileToUpload(null);
+                                                    setTarefaModal({
+                                                        show: true,
+                                                        data: {
+                                                            ...tar,
+                                                            colaboradores_extra: Array.isArray(tar.colaboradores_extra) ? tar.colaboradores_extra : [],
+                                                            tem_entregavel: Boolean(tar.tem_entregavel),
+                                                            nome_entregavel: tar.nome_entregavel || "",
+                                                            data_entregavel: tar.data_entregavel || "",
+                                                            arquivo_url: tar.arquivo_url || ""
+                                                        },
+                                                        atividadeNome: ativ.titulo
+                                                    });
+                                                }} style={{textDecoration: tar.estado === 'concluido' ? 'line-through' : 'none', color: '#334155', fontWeight: '600', cursor: 'pointer', fontSize: '0.95rem'}} className="hover-underline" title="Clique para editar detalhes">
                                                     {tar.titulo}
                                                 </span>
                                                 
@@ -2632,7 +2719,7 @@ export default function ProjetoDetalhe() {
                   <div className="custom-scrollbar" style={{background: 'white', padding: '32px', borderRadius: '18px', width: 'min(700px, 98vw)', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out'}}>
                       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
                           <h3 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Eye size={20} color="#2563eb" /> Detalhes da Tarefa</h3>
-                          <button onClick={() => setTarefaModal({show:false, data:null, atividadeNome:''})} style={{background:'none', border:'none', cursor:'pointer'}} className="hover-red-text"><Icons.Close size={20} /></button>
+                          <button onClick={() => { setTarefaModal({show:false, data:null, atividadeNome:''}); setTarefaFileToUpload(null); }} style={{background:'none', border:'none', cursor:'pointer'}} className="hover-red-text"><Icons.Close size={20} /></button>
                       </div>
                       
                       <form onSubmit={handleSaveTarefa}>
@@ -2749,12 +2836,123 @@ export default function ProjetoDetalhe() {
                           <label style={{...labelStyle, marginTop:'15px'}}>Estado Atual</label>
                           {renderStatePills(tarefaModal.data.estado, (val) => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, estado: val}}))}
 
+                          <div style={sectionTitleStyle}><Icons.FileText /> Entregaveis</div>
+                          <div style={{background: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '12px', marginBottom: '12px'}}>
+                              <label style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700', color: '#1e293b', cursor: 'pointer', fontSize: '0.82rem', marginBottom: '8px'}}>
+                                  <input
+                                      type="checkbox"
+                                      checked={Boolean(tarefaModal.data.tem_entregavel)}
+                                      onChange={(e) => setTarefaModal({
+                                          ...tarefaModal,
+                                          data: { ...tarefaModal.data, tem_entregavel: e.target.checked }
+                                      })}
+                                      style={{accentColor: '#2563eb', width: '15px', height: '15px'}}
+                                  />
+                                  Requer documento entregavel?
+                              </label>
+
+                              {Boolean(tarefaModal.data.tem_entregavel) && (
+                                  <>
+                                      <div style={{display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '10px', marginBottom: '10px'}}>
+                                          <div>
+                                              <label style={{fontSize: '0.72rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight:'bold'}}>Nome / Tipo de Documento</label>
+                                              <input
+                                                  type="text"
+                                                  placeholder="Ex: Relatorio Final PDF"
+                                                  value={tarefaModal.data.nome_entregavel || ''}
+                                                  onChange={(e) => setTarefaModal({
+                                                      ...tarefaModal,
+                                                      data: { ...tarefaModal.data, nome_entregavel: e.target.value }
+                                                  })}
+                                                  style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0, width: '100%'}}
+                                                  className="input-focus"
+                                              />
+                                          </div>
+                                          <div>
+                                              <label style={{fontSize: '0.72rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight:'bold'}}>Data p/ Entrega</label>
+                                              <input
+                                                  type="date"
+                                                  value={tarefaModal.data.data_entregavel || ''}
+                                                  onChange={(e) => setTarefaModal({
+                                                      ...tarefaModal,
+                                                      data: { ...tarefaModal.data, data_entregavel: e.target.value }
+                                                  })}
+                                                  style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0, width: '100%'}}
+                                                  className="input-focus"
+                                              />
+                                          </div>
+                                      </div>
+
+                                      <div
+                                          style={{
+                                              background: isTarefaDeliverableDragOver ? '#eff6ff' : '#f8fafc',
+                                              border: isTarefaDeliverableDragOver ? '1px dashed #2563eb' : '1px dashed #cbd5e1',
+                                              borderRadius: '8px',
+                                              padding: '12px',
+                                              transition: 'all 0.15s ease'
+                                          }}
+                                          onDragOver={(e) => {
+                                              e.preventDefault();
+                                              setIsTarefaDeliverableDragOver(true);
+                                          }}
+                                          onDragEnter={(e) => {
+                                              e.preventDefault();
+                                              setIsTarefaDeliverableDragOver(true);
+                                          }}
+                                          onDragLeave={() => setIsTarefaDeliverableDragOver(false)}
+                                          onDrop={(e) => {
+                                              e.preventDefault();
+                                              setIsTarefaDeliverableDragOver(false);
+                                              const droppedFile = e.dataTransfer?.files?.[0];
+                                              applyTarefaDeliverableFile(droppedFile);
+                                          }}
+                                      >
+                                          {tarefaModal.data.arquivo_url ? (
+                                              <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap'}}>
+                                                  <a
+                                                      href={tarefaModal.data.arquivo_url}
+                                                      target="_blank"
+                                                      rel="noopener noreferrer"
+                                                      style={{display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#2563eb', fontWeight: '700', textDecoration: 'none', fontSize: '0.82rem'}}
+                                                  >
+                                                      <Icons.ExternalLink size={14} /> Ver documento atual
+                                                  </a>
+                                                  <button
+                                                      type="button"
+                                                      onClick={() => setTarefaModal({
+                                                          ...tarefaModal,
+                                                          data: { ...tarefaModal.data, arquivo_url: "" }
+                                                      })}
+                                                      style={{background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700'}}
+                                                      className="hover-red-text"
+                                                  >
+                                                      Remover ficheiro
+                                                  </button>
+                                              </div>
+                                          ) : (
+                                              <label style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', cursor: 'pointer'}}>
+                                                  <Icons.UploadCloud size={22} color={tarefaFileToUpload ? '#2563eb' : '#94a3b8'} />
+                                                  <span style={{fontSize: '0.8rem', color: tarefaFileToUpload ? '#2563eb' : '#64748b', fontWeight: '700'}}>
+                                                      {tarefaFileToUpload ? tarefaFileToUpload.name : 'Clique para anexar um documento'}
+                                                  </span>
+                                                  <input
+                                                      type="file"
+                                                      onChange={(e) => applyTarefaDeliverableFile(e.target.files?.[0] || null)}
+                                                      style={{display: 'none'}}
+                                                  />
+                                              </label>
+                                          )}
+                                      </div>
+                                  </>
+                              )}
+                          </div>
+
                           {/* --- DETALHES (Sempre visível) --- */}
                           <div style={sectionTitleStyle}><Icons.FileText /> Detalhes</div>
                           <textarea rows="4" placeholder="Descreva o que é necessário fazer..." value={tarefaModal.data.descricao || ''} onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, descricao: e.target.value}})} style={{...inputStyle, resize:'none'}} className="input-focus" />
 
                           <div style={{display: 'flex', gap: '10px', marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #f1f5f9'}}>
-                              <button type="button" onClick={() => setTarefaModal({show:false, data:null, atividadeNome:''})} style={{flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', background: 'white', color: '#64748b', fontWeight: 'bold', cursor:'pointer'}} className="hover-shadow">Cancelar</button>
+                              <button type="button" onClick={() => { setTarefaModal({show:false, data:null, atividadeNome:''}); setTarefaFileToUpload(null); }} style={{flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', background: 'white', color: '#64748b', fontWeight: 'bold', cursor:'pointer'}} className="hover-shadow">Cancelar</button>
                               <button type="submit" style={{flex: 2, padding: '12px', borderRadius: '10px', border: 'none', background: '#2563eb', color: 'white', fontWeight: 'bold', cursor:'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'}} className="hover-shadow"><Icons.Save /> Guardar Tarefa</button>
                           </div>
                       </form>
