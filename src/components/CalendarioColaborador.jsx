@@ -93,6 +93,14 @@ export default function CalendarioColaborador({
   // Ícones inline para facilitar
   const Icons = {
     Activity: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>,
+    Calendar: ({ size = 14, color = "currentColor" }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+        <line x1="16" y1="2" x2="16" y2="6"></line>
+        <line x1="8" y1="2" x2="8" y2="6"></line>
+        <line x1="3" y1="10" x2="21" y2="10"></line>
+      </svg>
+    ),
   };
 
   async function atualizarSaldoFeriasLegacy(data, movimento, excludeToleranceId = null) {
@@ -685,7 +693,7 @@ export default function CalendarioColaborador({
               marginRight: "10px"
             }}
           >
-            <Icons.Activity size={18} color="white" />
+            <Icons.Calendar size={18} color="white" />
           </button>
 
           <button
@@ -1150,7 +1158,7 @@ export default function CalendarioColaborador({
         }}>
           <div style={{ background: "white", borderRadius: "10px", padding: 32, minWidth: 320, maxWidth: 500, boxShadow: "0 2px 16px rgba(0,0,0,0.15)" }}>
             <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px'}}>
-                <Icons.Activity color="#10b981" size={24} />
+                <Icons.Calendar color="#10b981" size={24} />
                 <h3 style={{ color: "#065f46", margin: 0 }}>Preencher Mês Completo</h3>
             </div>
             <p style={{color: '#475569', lineHeight: 1.5, fontSize: '0.95rem'}}>
