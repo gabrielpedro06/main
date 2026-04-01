@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
+import { checkMarketingApiHealth, sendMarketingCampaign } from "../services/marketingSender";
 import "./../styles/dashboard.css";
 
 // --- ÍCONES SVG PROFISSIONAIS ---
@@ -63,7 +64,19 @@ export default function GestaoLeads() {
   const [itemsPerPage, setItemsPerPage] = useState(50);
 
   const [showImportModal, setShowImportModal] = useState(false);
+    const [showSendModal, setShowSendModal] = useState(false);
   const [modalForm, setModalForm] = useState({ show: false, isEdit: false, data: {} });
+    const [sendingCampaign, setSendingCampaign] = useState(false);
+    const [lastCampaignSummary, setLastCampaignSummary] = useState(null);
+    const [campaignForm, setCampaignForm] = useState({
+        mode: "template",
+        templateId: "",
+        subject: "",
+        htmlContent: "",
+        batchSize: 75,
+        batchDelayMs: 1200,
+        maxRetries: 3,
+    });
   
   const [file, setFile] = useState(null);
   const [importing, setImporting] = useState(false);
@@ -246,6 +259,119 @@ export default function GestaoLeads() {
       showToast(`${emails.length} emails copiados!`);
   }
 
+  function getFilteredEmailsForCampaign() {
+      const normalized = filteredList
+          .map(item => String(item.email || "").trim().toLowerCase())
+          .filter(Boolean);
+
+      return [...new Set(normalized)];
+  }
+
+  function getFirstFailureReason(summary) {
+      const firstFailure = summary?.failedRecipients?.[0];
+      return firstFailure?.reason || "Motivo desconhecido.";
+  }
+
+  async function handleSendCampaign() {
+      const emails = getFilteredEmailsForCampaign();
+      const isTemplateMode = campaignForm.mode === "template";
+
+      if (emails.length === 0) {
+          showToast("Sem emails válidos na lista filtrada.", "warning");
+          return;
+      }
+
+      let templateId = null;
+            let params = undefined;
+    let recipientParamsByEmail = null;
+
+      if (isTemplateMode) {
+          const parsedTemplateId = Number(campaignForm.templateId);
+          if (!parsedTemplateId || parsedTemplateId <= 0) {
+              showToast("Define um Template ID válido.", "warning");
+              return;
+          }
+
+          templateId = parsedTemplateId;
+          const map = {};
+          filteredList.forEach((item) => {
+              const email = String(item.email || "").trim().toLowerCase();
+              if (!email || map[email]) return;
+
+              const bestName = String(item.titular || item.nome || "Cliente").trim();
+              if (bestName) {
+                  map[email] = {
+                      nome: bestName,
+                      firstName: bestName,
+                      FIRSTNAME: bestName,
+                  };
+              }
+          });
+
+          if (Object.keys(map).length > 0) {
+              recipientParamsByEmail = map;
+          }
+
+          if (!params && !recipientParamsByEmail) {
+              showToast("Faltam variáveis do template e não foi possível gerar o nome automático dos contactos.", "warning");
+              return;
+          }
+      } else {
+          if (!campaignForm.subject.trim()) {
+              showToast("Define um assunto para a campanha.", "warning");
+              return;
+          }
+
+          if (!campaignForm.htmlContent.trim()) {
+              showToast("Define o conteúdo HTML da campanha.", "warning");
+              return;
+          }
+      }
+
+      setSendingCampaign(true);
+      setLastCampaignSummary(null);
+
+      try {
+          await checkMarketingApiHealth();
+
+          const summary = await sendMarketingCampaign({
+              emails,
+              templateId,
+              params,
+              recipientParamsByEmail,
+              subject: isTemplateMode ? undefined : campaignForm.subject.trim(),
+              htmlContent: isTemplateMode ? undefined : campaignForm.htmlContent,
+              batchSize: Number(campaignForm.batchSize),
+              batchDelayMs: Number(campaignForm.batchDelayMs),
+              maxRetries: Number(campaignForm.maxRetries),
+          });
+
+          setLastCampaignSummary(summary);
+
+          const failedCount = summary?.failedRecipients?.length || 0;
+          if (failedCount > 0) {
+              const reason = getFirstFailureReason(summary);
+              if (reason.toLowerCase().includes("unrecognised ip address")) {
+                  showToast("Falha Brevo: IP não autorizado. Adiciona este IP em Brevo > Security > Authorised IPs.", "error");
+              } else if (reason.toLowerCase().includes("params is blank")) {
+                  showToast("Falha Brevo: este template exige variáveis. O sistema envia nome automático; reinicia o backend e tenta novamente.", "error");
+              } else {
+                  showToast(`Campanha com falhas (${failedCount}): ${reason}`, "warning");
+              }
+          } else {
+              showToast(`Campanha enviada com sucesso para ${summary?.sentRecipients || 0} contactos.`);
+          }
+      } catch (error) {
+          if (String(error.message || "").includes("API de marketing indisponivel")) {
+              showToast("Backend de marketing offline. Inicia 'npm run dev:full' e tenta novamente.", "error");
+          } else {
+              showToast(`Erro no envio: ${error.message}`, "error");
+          }
+      } finally {
+          setSendingCampaign(false);
+      }
+  }
+
   async function handleFileUpload(e) {
     e.preventDefault();
     if (!file) return showToast("Escolhe um ficheiro CSV primeiro.", "warning");
@@ -407,6 +533,7 @@ export default function GestaoLeads() {
           <p style={{color: '#64748b', margin: 0, fontWeight: '500'}}>Gestão de {activeTab === 'leads' ? 'Leads Comerciais' : 'Prospects'}</p>
         </div>
         <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap'}}>
+            <button className="btn-outline hover-shadow" onClick={() => setShowSendModal(true)}><Icons.Mail /> Campanha</button>
             <button className="btn-outline hover-shadow" onClick={copyAllEmails}><Icons.Copy /> Copiar Emails</button>
             <button className="btn-outline hover-shadow" onClick={exportToCSV}><Icons.Upload /> Exportar CSV</button>
             <button className="btn-outline hover-shadow" onClick={() => setShowImportModal(true)}><Icons.Download /> Importar</button>
@@ -883,6 +1010,167 @@ export default function GestaoLeads() {
                         <button onClick={() => setShowImportModal(false)} style={{flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white', color: '#64748b', fontWeight: 'bold', cursor: 'pointer'}}>Cancelar</button>
                         <button className="btn-primary" onClick={handleFileUpload} disabled={importing} style={{flex: 1, borderRadius: '8px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px'}}>
                             {importing ? "A processar..." : "Carregar Dados"}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </ModalPortal>
+      )}
+
+      {showSendModal && (
+        <ModalPortal>
+            <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999}}>
+                <div style={{background: 'white', width: '95%', maxWidth: '760px', borderRadius: '16px', padding: '24px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'}}>
+                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px'}}>
+                        <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.35rem'}}>Enviar Campanha por Email</h3>
+                        <button onClick={() => setShowSendModal(false)} style={{background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer'}}><Icons.Close /></button>
+                    </div>
+
+                    <div style={{background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '12px 15px', marginBottom: '15px', fontSize: '0.85rem', color: '#475569'}}>
+                        Destino atual: <b>{getFilteredEmailsForCampaign().length}</b> emails únicos da lista filtrada.
+                    </div>
+
+                    <div style={{display: 'flex', gap: '8px', marginBottom: '12px'}}>
+                        <button
+                            onClick={() => setCampaignForm(prev => ({ ...prev, mode: "template" }))}
+                            style={{padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: campaignForm.mode === "template" ? '#2563eb' : 'white', color: campaignForm.mode === "template" ? 'white' : '#475569', fontWeight: '700', cursor: 'pointer'}}
+                        >
+                            Template Brevo (principal)
+                        </button>
+                        <button
+                            onClick={() => setCampaignForm(prev => ({ ...prev, mode: "html" }))}
+                            style={{padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: campaignForm.mode === "html" ? '#2563eb' : 'white', color: campaignForm.mode === "html" ? 'white' : '#475569', fontWeight: '700', cursor: 'pointer'}}
+                        >
+                            HTML (secundário)
+                        </button>
+                    </div>
+
+                    {campaignForm.mode === "template" ? (
+                        <>
+                            <div style={{display: 'grid', gridTemplateColumns: '180px 1fr 130px 130px 120px', gap: '10px', marginBottom: '12px'}}>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    value={campaignForm.templateId}
+                                    onChange={(e) => setCampaignForm(prev => ({ ...prev, templateId: e.target.value }))}
+                                    placeholder="Template ID"
+                                    style={{...inputStyle, width: '100%'}}
+                                />
+                                <input
+                                    type="text"
+                                    disabled
+                                    value="Template gerido no Brevo"
+                                    style={{...inputStyle, width: '100%', background: '#f8fafc', color: '#94a3b8'}}
+                                />
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max="100"
+                                    value={campaignForm.batchSize}
+                                    onChange={(e) => setCampaignForm(prev => ({ ...prev, batchSize: e.target.value }))}
+                                    style={{...inputStyle, width: '100%'}}
+                                    title="Batch size"
+                                />
+                                <input
+                                    type="number"
+                                    min="0"
+                                    value={campaignForm.batchDelayMs}
+                                    onChange={(e) => setCampaignForm(prev => ({ ...prev, batchDelayMs: e.target.value }))}
+                                    style={{...inputStyle, width: '100%'}}
+                                    title="Delay ms"
+                                />
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="10"
+                                    value={campaignForm.maxRetries}
+                                    onChange={(e) => setCampaignForm(prev => ({ ...prev, maxRetries: e.target.value }))}
+                                    style={{...inputStyle, width: '100%'}}
+                                    title="Retries"
+                                />
+                            </div>
+
+                            <div style={{display: 'grid', gridTemplateColumns: '180px 1fr 130px 130px 120px', gap: '10px', marginBottom: '8px', fontSize: '0.72rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase'}}>
+                                <span>Template ID</span>
+                                <span>Conteúdo</span>
+                                <span>Batch size</span>
+                                <span>Delay (ms)</span>
+                                <span>Retries</span>
+                            </div>
+
+                            <div style={{padding: '10px 12px', borderRadius: '8px', border: '1px solid #bae6fd', background: '#ecfeff', color: '#155e75', fontSize: '0.82rem', fontWeight: '700', marginBottom: '12px'}}>
+                                Nome automático ativo: cada email recebe o nome do titular ou da empresa sem configuração manual.
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <div style={{display: 'grid', gridTemplateColumns: '1fr 130px 130px 120px', gap: '10px', marginBottom: '12px'}}>
+                                <input
+                                    type="text"
+                                    value={campaignForm.subject}
+                                    onChange={(e) => setCampaignForm(prev => ({ ...prev, subject: e.target.value }))}
+                                    placeholder="Assunto da campanha"
+                                    style={{...inputStyle, width: '100%'}}
+                                />
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max="100"
+                                    value={campaignForm.batchSize}
+                                    onChange={(e) => setCampaignForm(prev => ({ ...prev, batchSize: e.target.value }))}
+                                    style={{...inputStyle, width: '100%'}}
+                                    title="Batch size"
+                                />
+                                <input
+                                    type="number"
+                                    min="0"
+                                    value={campaignForm.batchDelayMs}
+                                    onChange={(e) => setCampaignForm(prev => ({ ...prev, batchDelayMs: e.target.value }))}
+                                    style={{...inputStyle, width: '100%'}}
+                                    title="Delay ms"
+                                />
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="10"
+                                    value={campaignForm.maxRetries}
+                                    onChange={(e) => setCampaignForm(prev => ({ ...prev, maxRetries: e.target.value }))}
+                                    style={{...inputStyle, width: '100%'}}
+                                    title="Retries"
+                                />
+                            </div>
+
+                            <div style={{display: 'grid', gridTemplateColumns: '1fr 130px 130px 120px', gap: '10px', marginBottom: '8px', fontSize: '0.72rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase'}}>
+                                <span>Assunto</span>
+                                <span>Batch size</span>
+                                <span>Delay (ms)</span>
+                                <span>Retries</span>
+                            </div>
+
+                            <textarea
+                                value={campaignForm.htmlContent}
+                                onChange={(e) => setCampaignForm(prev => ({ ...prev, htmlContent: e.target.value }))}
+                                placeholder="Cole aqui o HTML da campanha..."
+                                style={{...inputStyle, width: '100%', minHeight: '180px', resize: 'vertical', marginBottom: '14px', fontFamily: 'monospace'}}
+                            />
+                        </>
+                    )}
+
+                    {lastCampaignSummary && (
+                        <div style={{background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '12px 15px', marginBottom: '15px', fontSize: '0.85rem', color: '#334155'}}>
+                            <b>Resumo:</b> enviados {lastCampaignSummary.sentRecipients}/{lastCampaignSummary.acceptedRecipients} | inválidos {lastCampaignSummary.invalidEmails?.length || 0} | repetidos {lastCampaignSummary.duplicates?.length || 0} | falhados {lastCampaignSummary.failedRecipients?.length || 0}
+                            {(lastCampaignSummary.failedRecipients?.length || 0) > 0 && (
+                                <div style={{marginTop: '8px', background: '#fff1f2', border: '1px solid #fecdd3', color: '#9f1239', padding: '8px 10px', borderRadius: '8px'}}>
+                                    <b>Motivo principal:</b> {getFirstFailureReason(lastCampaignSummary)}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    <div style={{display: 'flex', justifyContent: 'flex-end', gap: '10px'}}>
+                        <button onClick={() => setShowSendModal(false)} style={{padding: '12px 18px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white', color: '#64748b', fontWeight: 'bold', cursor: 'pointer'}}>Fechar</button>
+                        <button onClick={handleSendCampaign} disabled={sendingCampaign} className="btn-primary" style={{padding: '12px 20px', borderRadius: '8px'}}>
+                            {sendingCampaign ? "A enviar..." : "Enviar Agora"}
                         </button>
                     </div>
                 </div>
