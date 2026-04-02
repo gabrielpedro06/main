@@ -115,7 +115,7 @@ export default function Forum() {
   const [selectedUserFilter, setSelectedUserFilter] = useState(null); 
 
   const [notification, setNotification] = useState({ show: false, message: '', type: 'success' });
-  const [confirmModal, setConfirmModal] = useState({ show: false, id: null, type: null }); 
+    const [confirmModal, setConfirmModal] = useState({ show: false, id: null, type: null, postId: null }); 
 
   // Dados Novo Post
     const [newPost, setNewPost] = useState({ titulo: "", categoria: "geral" });
@@ -127,6 +127,14 @@ export default function Forum() {
   // Dados Modal Comentários
   const [comments, setComments] = useState([]);
   const [newCommentText, setNewCommentText] = useState("");
+    const [postCommentsByPost, setPostCommentsByPost] = useState({});
+    const [inlineCommentDrafts, setInlineCommentDrafts] = useState({});
+    const [inlineCommentOpen, setInlineCommentOpen] = useState({});
+    const [inlineCommentExpanded, setInlineCommentExpanded] = useState({});
+    const [loadingInlineComments, setLoadingInlineComments] = useState({});
+    const [replyTargetByPost, setReplyTargetByPost] = useState({});
+    const [modalReplyTarget, setModalReplyTarget] = useState(null);
+    const [chatModal, setChatModal] = useState({ show: false, target: null });
 
   useEffect(() => {
     fetchPosts();
@@ -338,27 +346,40 @@ export default function Forum() {
     }
   }
 
-  function requestDelete(id, type) {
-      setConfirmModal({ show: true, id, type });
+  function requestDelete(id, type, postId = null) {
+      setConfirmModal({ show: true, id, type, postId });
   }
 
   async function confirmDelete() {
-      const { id, type } = confirmModal;
+      const { id, type, postId } = confirmModal;
       try {
           if (type === 'post') {
               const { error } = await supabase.from("forum_posts").delete().eq("id", id);
               if (error) throw error;
               setPosts(posts.filter(p => p.id !== id));
               if (selectedPost?.id === id) setSelectedPost(null);
+              setPostCommentsByPost((prev) => {
+                  const next = { ...prev };
+                  delete next[id];
+                  return next;
+              });
               showToast("Publicação apagada.", "success");
           } 
           else if (type === 'comment') {
               const { error } = await supabase.from("forum_comments").delete().eq("id", id);
               if (error) throw error;
               setComments(comments.filter(c => c.id !== id));
-              
+
+              if (postId) {
+                  setPostCommentsByPost((prev) => ({
+                      ...prev,
+                      [postId]: (prev[postId] || []).filter((c) => c.id !== id),
+                  }));
+              }
+
               setPosts(posts.map(p => {
-                  if (p.id === selectedPost.id) {
+                  const shouldUpdate = postId ? p.id === postId : p.id === selectedPost?.id;
+                  if (shouldUpdate) {
                       const currCount = p.forum_comments?.[0]?.count || 1;
                       return { ...p, forum_comments: [{ count: currCount - 1 }] };
                   }
@@ -370,8 +391,74 @@ export default function Forum() {
       } catch (err) {
           showToast("Erro ao apagar: " + err.message, "error");
       } finally {
-          setConfirmModal({ show: false, id: null, type: null }); 
+          setConfirmModal({ show: false, id: null, type: null, postId: null }); 
       }
+  }
+
+  async function fetchCommentsForPost(postId) {
+      if (!postId) return;
+      setLoadingInlineComments((prev) => ({ ...prev, [postId]: true }));
+      const { data, error } = await supabase
+          .from("forum_comments")
+          .select(`*, profiles ( nome )`)
+          .eq("post_id", postId)
+          .order("created_at", { ascending: true });
+
+      if (!error) {
+          setPostCommentsByPost((prev) => ({ ...prev, [postId]: data || [] }));
+      }
+      setLoadingInlineComments((prev) => ({ ...prev, [postId]: false }));
+  }
+
+  function toggleInlineComments(postId) {
+      setInlineCommentOpen((prev) => {
+          const nextOpen = !prev[postId];
+          if (nextOpen && !postCommentsByPost[postId]) {
+              fetchCommentsForPost(postId);
+          }
+          return { ...prev, [postId]: nextOpen };
+      });
+  }
+
+  async function handleSendInlineComment(e, postId) {
+      e.preventDefault();
+      const draft = String(inlineCommentDrafts[postId] || "").trim();
+      if (!draft) return;
+      const replyTarget = replyTargetByPost[postId];
+      const payloadText = replyTarget?.nome ? `@${replyTarget.nome} ${draft}` : draft;
+
+      setInlineCommentDrafts((prev) => ({ ...prev, [postId]: "" }));
+
+      const { data, error } = await supabase
+          .from("forum_comments")
+          .insert([{ post_id: postId, user_id: user.id, conteudo: payloadText }])
+          .select(`*, profiles ( nome )`)
+          .single();
+
+      if (error || !data) {
+          setInlineCommentDrafts((prev) => ({ ...prev, [postId]: draft }));
+          showToast("Erro ao comentar.", "error");
+          return;
+      }
+
+      setPostCommentsByPost((prev) => {
+          const existing = prev[postId] || [];
+          return { ...prev, [postId]: [...existing, data] };
+      });
+
+      if (selectedPost?.id === postId) {
+          setComments((prev) => [...prev, data]);
+      }
+
+      setPosts((prev) =>
+          prev.map((p) => {
+              if (p.id !== postId) return p;
+              const currentCount = p.forum_comments?.[0]?.count || 0;
+              return { ...p, forum_comments: [{ count: currentCount + 1 }] };
+          })
+      );
+
+      setReplyTargetByPost((prev) => ({ ...prev, [postId]: null }));
   }
 
   async function handleOpenPost(post) {
@@ -389,11 +476,12 @@ export default function Forum() {
     if(!newCommentText.trim()) return;
 
     const textoComentario = newCommentText;
+    const payloadText = modalReplyTarget?.nome ? `@${modalReplyTarget.nome} ${textoComentario}` : textoComentario;
     setNewCommentText(""); 
 
     const { data, error } = await supabase
         .from("forum_comments")
-        .insert([{ post_id: selectedPost.id, user_id: user.id, conteudo: textoComentario }])
+        .insert([{ post_id: selectedPost.id, user_id: user.id, conteudo: payloadText }])
         .select(`*, profiles ( nome )`)
         .single();
 
@@ -407,6 +495,13 @@ export default function Forum() {
             }
             return p;
         }));
+
+        setPostCommentsByPost((prev) => {
+            const existing = prev[selectedPost.id] || [];
+            return { ...prev, [selectedPost.id]: [...existing, data] };
+        });
+
+        setModalReplyTarget(null);
         
         fetchPosts(false);
     } else {
@@ -730,7 +825,8 @@ export default function Forum() {
               </div>
           )}
 
-      {/* --- FEED DE PUBLICAÇÕES --- */}
+      {/* --- FEED DE PUBLICAÇÕES + CHAT LATERAL --- */}
+      <div className="forum-main-layout">
       <div className="forum-feed" style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
         {displayedPosts.length === 0 && !loading && (
             <div style={{textAlign: 'center', padding: '60px', background: 'white', borderRadius: '12px', border: '1px dashed #cbd5e1'}}>
@@ -740,8 +836,15 @@ export default function Forum() {
             </div>
         )}
         
-        {displayedPosts.map(post => (
-            <div key={post.id} className="card hover-shadow" onClick={() => handleOpenPost(post)} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', transition: 'all 0.2s', width: '100%', boxSizing: 'border-box', padding: '25px', borderRadius: '16px', border: '1px solid #e2e8f0', background: 'white', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.03)' }}>
+        {displayedPosts.map((post) => {
+            const postComments = postCommentsByPost[post.id] || [];
+            const commentsLoaded = Boolean(postCommentsByPost[post.id]);
+            const showCommentBox = Boolean(inlineCommentOpen[post.id]);
+            const showAllComments = Boolean(inlineCommentExpanded[post.id]);
+            const visibleComments = showAllComments ? postComments : postComments.slice(0, 3);
+
+            return (
+            <div key={post.id} className="card" style={{ display: 'flex', flexDirection: 'column', transition: 'all 0.2s', width: '100%', boxSizing: 'border-box', padding: '25px', borderRadius: '16px', border: '1px solid #e2e8f0', background: 'white', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.03)' }}>
                 
                 {/* CABEÇALHO DO POST */}
                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '15px'}}>
@@ -772,8 +875,8 @@ export default function Forum() {
                 
                 {/* CORPO DO POST */}
                 <div style={{marginBottom: '15px'}}>
-                    <h3 style={{margin: '0 0 8px 0', color: '#0f172a', fontSize: '1.15rem', fontWeight: '800'}}>{post.titulo}</h3>
-                    {renderPostBlocks(post, { imageMaxHeight: 350 })}
+                    <h3 style={{margin: '0 0 10px 0', color: '#0f172a', fontSize: '1.2rem', fontWeight: '800'}}>{post.titulo}</h3>
+                    {renderPostBlocks(post, { imageMaxHeight: 560 })}
                 </div>
 
                 {/* RODAPÉ DO POST */}
@@ -802,12 +905,126 @@ export default function Forum() {
                         })}
                     </div>
                     
-                    <button onClick={() => handleOpenPost(post)} style={{background: 'transparent', border: 'none', color: '#64748b', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '20px'}} className="hover-bg-light">
+                    <button onClick={() => toggleInlineComments(post.id)} style={{background: 'transparent', border: 'none', color: '#64748b', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '20px'}} className="hover-bg-light">
                         <Icons.Message size={14} /> {post.forum_comments?.[0]?.count || 0} Comentários
                     </button>
                 </div>
+
+                {showCommentBox && (
+                    <div style={{ marginTop: '14px', borderTop: '1px solid #e2e8f0', paddingTop: '14px' }}>
+                        {loadingInlineComments[post.id] && (
+                            <div style={{ color: '#94a3b8', fontSize: '0.88rem', marginBottom: '8px' }}>A carregar comentários...</div>
+                        )}
+
+                        {!loadingInlineComments[post.id] && commentsLoaded && postComments.length === 0 && (
+                            <div style={{ color: '#94a3b8', fontSize: '0.88rem', marginBottom: '10px' }}>Ainda sem comentários neste post.</div>
+                        )}
+
+                        {!loadingInlineComments[post.id] && visibleComments.length > 0 && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '10px' }}>
+                                {visibleComments.map((c) => (
+                                    <div key={c.id} className="comment-bubble-row">
+                                        <div className="comment-avatar-mini">{getInitials(c.profiles?.nome)}</div>
+                                        <div className="comment-bubble">
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                                <div style={{ fontSize: '0.8rem', color: '#334155', fontWeight: '800' }}>
+                                                    {c.profiles?.nome} <span style={{ color: '#94a3b8', fontWeight: '600' }}>· {formatDate(c.created_at)}</span>
+                                                </div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                    <button
+                                                        onClick={() => setReplyTargetByPost((prev) => ({ ...prev, [post.id]: { id: c.id, nome: c.profiles?.nome || 'Utilizador' } }))}
+                                                        style={{ background: 'transparent', border: 'none', color: 'var(--color-btnPrimary)', fontWeight: '700', cursor: 'pointer', fontSize: '0.78rem' }}
+                                                    >
+                                                        Responder
+                                                    </button>
+                                                    {canDelete(c.user_id) && (
+                                                        <button onClick={() => requestDelete(c.id, 'comment', post.id)} style={actionBtnStyle} className="hover-red-btn" title="Apagar Comentário">
+                                                            <Icons.Trash size={14} />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div style={{ fontSize: '0.9rem', color: '#475569', whiteSpace: 'pre-wrap', overflowWrap: 'break-word' }}>
+                                                {renderWithLinks(c.conteudo)}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+
+                                {postComments.length > 3 && (
+                                    <button
+                                        onClick={() => setInlineCommentExpanded((prev) => ({ ...prev, [post.id]: !showAllComments }))}
+                                        style={{ background: 'transparent', border: 'none', color: 'var(--color-btnPrimary)', fontWeight: '700', cursor: 'pointer', textAlign: 'left', padding: '2px 0' }}
+                                    >
+                                        {showAllComments ? 'Mostrar menos comentários' : `Ver mais ${postComments.length - 3} comentário(s)`}
+                                    </button>
+                                )}
+                            </div>
+                        )}
+
+                        {replyTargetByPost[post.id]?.nome && (
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '8px', padding: '6px 10px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '10px', color: '#1e3a8a', fontSize: '0.82rem' }}>
+                                <span>A responder a <strong>{replyTargetByPost[post.id].nome}</strong></span>
+                                <button onClick={() => setReplyTargetByPost((prev) => ({ ...prev, [post.id]: null }))} style={{ background: 'transparent', border: 'none', color: '#1e3a8a', cursor: 'pointer', fontWeight: '700' }}>Cancelar</button>
+                            </div>
+                        )}
+
+                        <form onSubmit={(e) => handleSendInlineComment(e, post.id)} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: '#e2e8f0', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: '800', flexShrink: 0 }}>
+                                {getInitials(userProfile?.nome)}
+                            </div>
+                            <input
+                                type="text"
+                                value={inlineCommentDrafts[post.id] || ''}
+                                onChange={(e) => setInlineCommentDrafts((prev) => ({ ...prev, [post.id]: e.target.value }))}
+                                placeholder={replyTargetByPost[post.id]?.nome ? `Responder a ${replyTargetByPost[post.id].nome}...` : 'Escreve um comentário...'}
+                                className="input-focus"
+                                style={{ flex: 1, padding: '10px 14px', borderRadius: '999px', border: '1px solid #cbd5e1', background: '#f8fafc', fontSize: '0.9rem', outline: 'none' }}
+                            />
+                            <button
+                                type="submit"
+                                disabled={!String(inlineCommentDrafts[post.id] || '').trim()}
+                                className="btn-primary"
+                                style={{ borderRadius: '999px', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: '5px', opacity: String(inlineCommentDrafts[post.id] || '').trim() ? 1 : 0.6 }}
+                            >
+                                <Icons.Send size={14} />
+                            </button>
+                        </form>
+                    </div>
+                )}
             </div>
-        ))}
+            );
+        })}
+      </div>
+
+      <aside className="forum-chat-sidebar card" style={{ position: 'sticky', top: '24px', alignSelf: 'start', padding: '18px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+              <h4 style={{ margin: 0, color: '#0f172a', fontSize: '1rem', fontWeight: '900' }}>Chats Internos</h4>
+              <span style={{ fontSize: '0.68rem', fontWeight: '800', color: '#64748b', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '999px', padding: '3px 8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Preview</span>
+          </div>
+          <p style={{ margin: '0 0 12px 0', color: '#64748b', fontSize: '0.84rem' }}>Espaço reservado para P2P e Group Chat.</p>
+
+          {[
+              { id: 'p2p-gabriel', title: 'Gabriel Pedro', subtitle: 'Chat P2P' },
+              { id: 'group-comercial', title: 'Equipa Comercial', subtitle: 'Group Chat' },
+              { id: 'group-operacoes', title: 'Operações', subtitle: 'Group Chat' },
+          ].map((chat) => (
+              <button
+                  key={chat.id}
+                  onClick={() => setChatModal({ show: true, target: chat })}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', textAlign: 'left', marginBottom: '8px', border: '1px solid #e2e8f0', borderRadius: '10px', background: '#fff', padding: '10px', cursor: 'pointer' }}
+                  className="hover-shadow"
+              >
+                  <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800' }}>
+                      {getInitials(chat.title)}
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                      <div style={{ color: '#1e293b', fontWeight: '800', fontSize: '0.9rem' }}>{chat.title}</div>
+                      <div style={{ color: '#94a3b8', fontSize: '0.78rem' }}>{chat.subtitle}</div>
+                  </div>
+              </button>
+          ))}
+      </aside>
       </div>
 
       {/* --- MODAL NOVO POST --- */}
@@ -1057,10 +1274,11 @@ export default function Forum() {
                                         </div>
                                         
                                         {canDelete(c.user_id) && (
-                                            <button onClick={() => requestDelete(c.id, 'comment')} style={actionBtnStyle} className="hover-red-btn" title="Apagar Comentário">
+                                            <button onClick={() => requestDelete(c.id, 'comment', selectedPost?.id || null)} style={actionBtnStyle} className="hover-red-btn" title="Apagar Comentário">
                                                 <Icons.Trash />
                                             </button>
                                         )}
+                                        <button onClick={() => setModalReplyTarget({ id: c.id, nome: c.profiles?.nome || 'Utilizador' })} style={{background:'transparent', border:'none', color:'var(--color-btnPrimary)', fontWeight:'700', cursor:'pointer', fontSize:'0.78rem'}}>Responder</button>
                                     </div>
                                     <div style={{fontSize: '0.95rem', color: '#475569', overflowWrap: 'break-word', whiteSpace: 'pre-wrap', lineHeight: '1.5', paddingLeft: '38px'}}>
                                         {renderWithLinks(c.conteudo)}
@@ -1076,8 +1294,14 @@ export default function Forum() {
                         </div>
 
                         <div style={{padding: '20px 25px', borderTop: '1px solid #e2e8f0', background: 'white'}}>
+                            {modalReplyTarget?.nome && (
+                                <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'8px', padding:'8px 10px', borderRadius:'10px', border:'1px solid #bfdbfe', background:'#eff6ff', color:'#1e3a8a', fontSize:'0.84rem'}}>
+                                    <span>A responder a <strong>{modalReplyTarget.nome}</strong></span>
+                                    <button onClick={() => setModalReplyTarget(null)} style={{background:'transparent', border:'none', color:'#1e3a8a', cursor:'pointer', fontWeight:'700'}}>Cancelar</button>
+                                </div>
+                            )}
                             <form onSubmit={handleSendComment} style={{display:'flex', gap:'10px', alignItems: 'center'}}>
-                                <input type="text" placeholder="Escreve uma resposta..." value={newCommentText} onChange={e => setNewCommentText(e.target.value)} style={{ flex: 1, padding: '15px 20px', borderRadius: '30px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.95rem', background: '#f1f5f9', transition: '0.2s' }} className="input-focus" />
+                                <input type="text" placeholder={modalReplyTarget?.nome ? `Responder a ${modalReplyTarget.nome}...` : 'Escreve uma resposta...'} value={newCommentText} onChange={e => setNewCommentText(e.target.value)} style={{ flex: 1, padding: '15px 20px', borderRadius: '30px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.95rem', background: '#f1f5f9', transition: '0.2s' }} className="input-focus" />
                                 <button type="submit" className="btn-primary hover-shadow" style={{width: '48px', height: '48px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0}} disabled={!newCommentText.trim()}>
                                     <Icons.Send size={20} />
                                 </button>
@@ -1087,6 +1311,25 @@ export default function Forum() {
                     </div>
                 </div>
             </div>
+            </div>
+        </ModalPortal>
+      )}
+
+      {chatModal.show && (
+        <ModalPortal>
+            <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:999999}} onClick={() => setChatModal({ show: false, target: null })}>
+                <div style={{background:'white', width:'92%', maxWidth:'460px', borderRadius:'16px', border:'1px solid #e2e8f0', boxShadow:'0 25px 50px -12px rgba(0, 0, 0, 0.25)', padding:'24px'}} onClick={(e) => e.stopPropagation()}>
+                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'14px'}}>
+                        <h3 style={{margin:0, color:'#0f172a', fontSize:'1.15rem'}}>Chat com {chatModal.target?.title || 'utilizador'}</h3>
+                        <button onClick={() => setChatModal({ show: false, target: null })} style={{background:'#f1f5f9', border:'none', width: '34px', height: '34px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor:'pointer', color:'#64748b'}} className="hover-red-btn"><Icons.Close size={16} /></button>
+                    </div>
+                    <div style={{padding:'16px', border:'1px dashed #cbd5e1', borderRadius:'12px', background:'#f8fafc', color:'#475569', lineHeight:'1.5'}}>
+                        <strong style={{color:'#0f172a'}}>Em construção</strong>
+                        <br />
+                        O chat interno P2P/GroupChat vai entrar nesta área. Já deixei a estrutura visual preparada.
+                    </div>
+                    <button onClick={() => setChatModal({ show: false, target: null })} className="btn-primary" style={{marginTop:'14px', width:'100%', borderRadius:'10px', padding:'10px 14px'}}>Fechar</button>
+                </div>
             </div>
         </ModalPortal>
       )}
@@ -1121,7 +1364,7 @@ export default function Forum() {
                     <br/>Esta ação não pode ser desfeita.
                 </p>
                 <div style={{display: 'flex', gap: '10px'}}>
-                    <button onClick={() => setConfirmModal({ show: false, id: null, type: null })} style={{flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', background: 'white', fontWeight: 'bold', color: '#475569', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">Cancelar</button>
+                    <button onClick={() => setConfirmModal({ show: false, id: null, type: null, postId: null })} style={{flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', background: 'white', fontWeight: 'bold', color: '#475569', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">Cancelar</button>
                     <button onClick={confirmDelete} style={{flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: '#ef4444', color: 'white', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">Sim, Apagar</button>
                 </div>
             </div>
@@ -1156,6 +1399,43 @@ export default function Forum() {
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
 
+        .forum-main-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 300px;
+            gap: 20px;
+            align-items: start;
+        }
+
+        .comment-bubble-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .comment-avatar-mini {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #e2e8f0;
+            color: #475569;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 0.68rem;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .comment-bubble {
+            flex: 1;
+            min-width: 0;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 8px 10px;
+        }
+
         /* Layout Split Screen do Modal */
         .post-modal-layout { display: flex; flex-direction: row; height: calc(100% - 77px); }
         .post-modal-left { flex: 1.5; border-right: 1px solid #e2e8f0; }
@@ -1165,6 +1445,15 @@ export default function Forum() {
             .post-modal-layout { flex-direction: column; overflow-y: auto; }
             .post-modal-left { flex: none; height: auto; border-right: none; }
             .post-modal-right { flex: none; height: 500px; border-top: 1px solid #e2e8f0; }
+
+            .forum-main-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .forum-chat-sidebar {
+                position: static !important;
+                top: auto !important;
+            }
         }
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
