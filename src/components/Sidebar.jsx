@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../services/supabase"; 
@@ -7,6 +7,7 @@ import "./../styles/dashboard.css";
 
 const logoFull = "/logo4.png"; 
 const logoIcon = "/logo3.png"; 
+const getChatSeenStorageKey = (userId) => `chat_seen_rooms_${userId}`;
 
 // --- ÍCONES SVG PROFISSIONAIS (SaaS Style) ---
 const Icons = {
@@ -27,10 +28,19 @@ const Icons = {
 
 export default function Sidebar({ menuOpen, setMenuOpen }) {
   const location = useLocation();
-  const { userProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [forumUnreadCount, setForumUnreadCount] = useState(0);
+  const [chatUnreadCount, setChatUnreadCount] = useState(0);
+  const [myChatRoomIds, setMyChatRoomIds] = useState([]);
+  const myChatRoomIdsRef = useRef([]);
   const [showCalendarModal, setShowCalendarModal] = useState(false); // 💡 Estado para o Modal do Calendário
+
+  const updateTrackedRoomIds = (nextRoomIds) => {
+    const normalized = Array.isArray(nextRoomIds) ? nextRoomIds : [];
+    myChatRoomIdsRef.current = normalized;
+    setMyChatRoomIds(normalized);
+  };
 
   const checkUnreadPosts = async () => {
       const lastVisit = localStorage.getItem('lastForumVisit');
@@ -41,8 +51,62 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
           .select('*', { count: 'exact', head: true })
           .gt('created_at', queryDate); 
 
-      if(!error) setUnreadCount(count || 0);
+        if(!error) setForumUnreadCount(count || 0);
   };
+
+      const checkUnreadChats = async (roomIdsOverride = null) => {
+        if (!user?.id) {
+          setChatUnreadCount(0);
+          setMyChatRoomIds([]);
+          return;
+        }
+
+        let roomIds = Array.isArray(roomIdsOverride) ? roomIdsOverride : null;
+        if (!roomIds) {
+          const { data: myParticipants, error: participantsError } = await supabase
+            .from('chat_participants')
+            .select('room_id')
+            .eq('user_id', user.id);
+
+          if (participantsError) return;
+          roomIds = (myParticipants || []).map((row) => row.room_id);
+        }
+
+        updateTrackedRoomIds(roomIds);
+        if (!roomIds.length) {
+          setChatUnreadCount(0);
+          return;
+        }
+
+        let seenMap = {};
+        try {
+          const raw = localStorage.getItem(getChatSeenStorageKey(user.id));
+          const parsed = raw ? JSON.parse(raw) : {};
+          if (parsed && typeof parsed === 'object') seenMap = parsed;
+        } catch {
+          seenMap = {};
+        }
+
+        const { data: msgs, error: msgsError } = await supabase
+          .from('chat_messages')
+          .select('room_id, sender_id, created_at')
+          .in('room_id', roomIds)
+          .order('created_at', { ascending: false })
+          .limit(500);
+
+        if (msgsError) return;
+
+        let totalUnread = 0;
+        (msgs || []).forEach((msg) => {
+          if (!msg?.room_id) return;
+          if (msg.sender_id === user.id) return;
+          const seenAt = seenMap[msg.room_id];
+          if (seenAt && new Date(msg.created_at) <= new Date(seenAt)) return;
+          totalUnread += 1;
+        });
+
+        setChatUnreadCount(totalUnread);
+      };
   
   useEffect(() => {
       checkUnreadPosts();
@@ -54,6 +118,81 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
           clearInterval(interval);
       };
   }, []);
+
+        useEffect(() => {
+          checkUnreadChats();
+          const interval = setInterval(checkUnreadChats, 20000);
+
+          return () => {
+            clearInterval(interval);
+          };
+        }, [user?.id]);
+
+        useEffect(() => {
+          if (!user?.id) return;
+
+          const channel = supabase
+            .channel(`sidebar_chat_badges_${user.id}`)
+            .on(
+              'postgres_changes',
+              {
+                event: 'INSERT',
+                schema: 'public',
+                table: 'chat_messages',
+              },
+              async (payload) => {
+                const incoming = payload.new;
+                if (!incoming?.room_id) return;
+                if (incoming.sender_id === user.id) return;
+
+                const knownRoomIds = myChatRoomIdsRef.current || [];
+                if (knownRoomIds.includes(incoming.room_id)) {
+                  setChatUnreadCount((prev) => prev + 1);
+                  setTimeout(() => checkUnreadChats(), 800);
+                  return;
+                }
+
+                // Optimistic update for faster UX; corrected by sync if not applicable.
+                setChatUnreadCount((prev) => prev + 1);
+
+                const { data: membership, error: membershipError } = await supabase
+                  .from('chat_participants')
+                  .select('room_id')
+                  .eq('room_id', incoming.room_id)
+                  .eq('user_id', user.id)
+                  .maybeSingle();
+
+                if (membershipError || !membership?.room_id) {
+                  setTimeout(() => checkUnreadChats(), 300);
+                  return;
+                }
+
+                if (!knownRoomIds.includes(incoming.room_id)) {
+                  updateTrackedRoomIds([...knownRoomIds, incoming.room_id]);
+                }
+                setTimeout(() => checkUnreadChats(), 800);
+              }
+            )
+            .on(
+              'postgres_changes',
+              {
+                event: 'INSERT',
+                schema: 'public',
+                table: 'chat_participants',
+                filter: `user_id=eq.${user.id}`,
+              },
+              () => {
+                checkUnreadChats();
+              }
+            )
+            .subscribe();
+
+          return () => {
+            supabase.removeChannel(channel);
+          };
+        }, [user?.id]);
+
+        const totalCommsUnread = Number(forumUnreadCount || 0) + Number(chatUnreadCount || 0);
 
   const isActive = (path) => {
     if (path === '/dashboard' && location.pathname === '/dashboard') return 'active';
@@ -115,11 +254,11 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
             <li className={isActive('/dashboard/forum')}>
               <Link to="/dashboard/forum" title={getSidebarTooltip("Fórum")} onClick={() => {
                   localStorage.setItem('lastForumVisit', new Date().toISOString());
-                  setUnreadCount(0);
+                  setForumUnreadCount(0);
               }}>
                 <span className="icon" style={{position: 'relative', display: 'flex', alignItems: 'center'}}>
                     <Icons.Message />
-                    {unreadCount > 0 && (
+                    {totalCommsUnread > 0 && (
                         <span style={{
                             position: 'absolute', top: '-6px', right: '-8px',
                             background: '#ef4444', color: 'white',
@@ -128,7 +267,7 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
                             border: '1px solid white',
                             animation: 'pulse 2s infinite'
                         }}>
-                            {unreadCount}
+                            {totalCommsUnread}
                         </span>
                     )}
                 </span> 

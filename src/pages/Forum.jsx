@@ -249,9 +249,8 @@ export default function Forum() {
     }, [user?.id, chatRlsNeedsFix]);
 
     useEffect(() => {
-        if (!user?.id || !chatRooms.length) return;
+        if (!user?.id) return;
 
-        const roomIdSet = new Set(chatRooms.map((room) => room.id));
         let noticeTimeoutId = null;
 
         const channel = supabase
@@ -263,10 +262,31 @@ export default function Forum() {
                     schema: "public",
                     table: "chat_messages",
                 },
-                (payload) => {
+                async (payload) => {
                     const incoming = payload.new;
-                    if (!incoming?.room_id || !roomIdSet.has(incoming.room_id)) return;
+                    if (!incoming?.room_id) return;
                     if (incoming.sender_id === user.id) return;
+
+                    const roomIdSet = new Set(chatRooms.map((room) => room.id));
+                    let canSeeRoom = roomIdSet.has(incoming.room_id);
+
+                    if (!canSeeRoom) {
+                        // Always confirm membership when the room is not yet loaded locally.
+                        const { data: membership, error: membershipError } = await supabase
+                            .from("chat_participants")
+                            .select("room_id")
+                            .eq("room_id", incoming.room_id)
+                            .eq("user_id", user.id)
+                            .maybeSingle();
+
+                        if (membershipError || !membership?.room_id) return;
+                        canSeeRoom = true;
+                        if (!chatRlsNeedsFix) {
+                            loadMyChatRooms();
+                        }
+                    }
+
+                    if (!canSeeRoom) return;
 
                     if (activeChatRoom?.id === incoming.room_id) {
                         markRoomAsSeen(incoming.room_id);
@@ -293,7 +313,7 @@ export default function Forum() {
             if (noticeTimeoutId) clearTimeout(noticeTimeoutId);
             supabase.removeChannel(channel);
         };
-    }, [user?.id, chatRooms, activeChatRoom?.id]);
+    }, [user?.id, chatRooms, activeChatRoom?.id, chatRlsNeedsFix]);
 
     useEffect(() => {
         if (!user?.id || chatRlsNeedsFix) return;
@@ -308,10 +328,10 @@ export default function Forum() {
                     table: "chat_participants",
                     filter: `user_id=eq.${user.id}`,
                 },
-                async () => {
-                    await loadMyChatRooms();
+                () => {
                     setChatNotice({ show: true, text: "Foste adicionado a uma nova conversa." });
                     setTimeout(() => setChatNotice({ show: false, text: "" }), 3000);
+                    loadMyChatRooms();
                 }
             )
             .subscribe();
