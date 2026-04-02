@@ -268,7 +268,7 @@ export default function Forum() {
       .from("forum_posts")
       .select(`
         *,
-        profiles ( nome, empresa_interna ),
+                profiles ( nome, empresa_interna, avatar_url ),
         forum_comments ( count ),
         forum_reactions ( id, reaction_type, user_id )
       `)
@@ -400,7 +400,7 @@ export default function Forum() {
       setLoadingInlineComments((prev) => ({ ...prev, [postId]: true }));
       const { data, error } = await supabase
           .from("forum_comments")
-          .select(`*, profiles ( nome )`)
+          .select(`*, profiles ( nome, avatar_url )`)
           .eq("post_id", postId)
           .order("created_at", { ascending: true });
 
@@ -432,7 +432,7 @@ export default function Forum() {
       const { data, error } = await supabase
           .from("forum_comments")
           .insert([{ post_id: postId, user_id: user.id, conteudo: payloadText }])
-          .select(`*, profiles ( nome )`)
+          .select(`*, profiles ( nome, avatar_url )`)
           .single();
 
       if (error || !data) {
@@ -465,7 +465,7 @@ export default function Forum() {
     setSelectedPost(post);
     const { data: cData } = await supabase
       .from("forum_comments")
-      .select(`*, profiles ( nome )`)
+            .select(`*, profiles ( nome, avatar_url )`)
       .eq("post_id", post.id)
       .order("created_at", { ascending: true });
     setComments(cData || []);
@@ -482,7 +482,7 @@ export default function Forum() {
     const { data, error } = await supabase
         .from("forum_comments")
         .insert([{ post_id: selectedPost.id, user_id: user.id, conteudo: payloadText }])
-        .select(`*, profiles ( nome )`)
+        .select(`*, profiles ( nome, avatar_url )`)
         .single();
 
     if (!error && data) {
@@ -597,6 +597,24 @@ export default function Forum() {
       const parts = name.split(" ");
       if (parts.length > 1) return (parts[0][0] + parts[parts.length-1][0]).toUpperCase();
       return name.substring(0, 2).toUpperCase();
+  };
+
+  const renderAvatar = (name, avatarUrl, size = 40, fontSize = "1rem") => {
+      if (avatarUrl) {
+          return (
+              <img
+                  src={avatarUrl}
+                  alt={name || "Avatar"}
+                  style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", display: "block", borderRadius: "50%" }}
+              />
+          );
+      }
+
+      return (
+          <span style={{ fontWeight: "bold", fontSize }}>
+              {getInitials(name)}
+          </span>
+      );
   };
 
   const renderWithLinks = (text) => {
@@ -798,7 +816,6 @@ export default function Forum() {
                         <button type="button" onClick={openStopNoteModal} style={{background: 'white', color:'#ef4444', border:'none', borderRadius:'20px', padding:'6px 12px', cursor:'pointer', fontWeight:'700', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px', transition: '0.2s'}}><Icons.Stop /> Parar</button>
                     </div>
                 )}
-                <button className="btn-cta" onClick={openNewPostModal}><Icons.Plus /> Novo Post</button>
             </div>
           </div>
 
@@ -812,18 +829,21 @@ export default function Forum() {
              </div>
           )}
 
-          {!selectedUserFilter && (
-              <div className="card" style={{background: 'white', padding: '20px', borderRadius: '16px', border: '1px solid #e2e8f0', marginBottom: '25px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)'}}>
-                  <div style={{display: 'flex', gap: '15px', alignItems: 'center'}}>
-                      <div style={{width: '45px', height: '45px', borderRadius: '50%', background: 'var(--color-btnPrimary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.1rem', flexShrink: 0}}>
-                          {getInitials(userProfile?.nome)}
+          <div className="card forum-collab-bar" style={{background: 'white', padding: '16px 20px', borderRadius: '16px', border: '1px solid #e2e8f0', marginBottom: '18px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)'}}>
+              <div style={{display: 'flex', gap: '14px', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap'}}>
+                  <div style={{display: 'flex', gap: '12px', alignItems: 'center', minWidth: 0}}>
+                      <div style={{width: '44px', height: '44px', borderRadius: '50%', overflow: 'hidden', background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0}}>
+                          {renderAvatar(userProfile?.nome, userProfile?.avatar_url, 44, '1rem')}
                       </div>
-                      <button onClick={openNewPostModal} style={{flex: 1, background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '25px', padding: '15px 20px', textAlign: 'left', color: '#64748b', fontSize: '0.95rem', cursor: 'pointer', transition: '0.2s'}} className="hover-input-fake">
-                          Partilha uma atualizacao, ficheiro ou ideia com a equipa...
-                      </button>
+                      <div style={{minWidth: 0}}>
+                          <div style={{fontSize: '0.78rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: '800', letterSpacing: '0.05em'}}>Colaborador</div>
+                          <div style={{fontSize: '1.02rem', color: '#1e293b', fontWeight: '800', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>{userProfile?.nome || 'Utilizador'}</div>
+                      </div>
                   </div>
+
+                  <button className="btn-cta" onClick={openNewPostModal} style={{ marginRight: '6px' }}><Icons.Plus /> Novo Post</button>
               </div>
-          )}
+          </div>
 
       {/* --- FEED DE PUBLICAÇÕES + CHAT LATERAL --- */}
       <div className="forum-main-layout">
@@ -855,7 +875,7 @@ export default function Forum() {
                             className="hover-avatar"
                             title={`Ver publicações de ${post.profiles?.nome}`}
                         >
-                            {getInitials(post.profiles?.nome)}
+                            {renderAvatar(post.profiles?.nome, post.profiles?.avatar_url, 40, '0.95rem')}
                         </div>
                         <div>
                             <div style={{fontWeight: '800', color: '#1e293b', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px'}}>
@@ -924,7 +944,7 @@ export default function Forum() {
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '10px' }}>
                                 {visibleComments.map((c) => (
                                     <div key={c.id} className="comment-bubble-row">
-                                        <div className="comment-avatar-mini">{getInitials(c.profiles?.nome)}</div>
+                                        <div className="comment-avatar-mini" style={{overflow:'hidden'}}>{renderAvatar(c.profiles?.nome, c.profiles?.avatar_url, 28, '0.68rem')}</div>
                                         <div className="comment-bubble">
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                                                 <div style={{ fontSize: '0.8rem', color: '#334155', fontWeight: '800' }}>
@@ -970,8 +990,8 @@ export default function Forum() {
                         )}
 
                         <form onSubmit={(e) => handleSendInlineComment(e, post.id)} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                            <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: '#e2e8f0', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: '800', flexShrink: 0 }}>
-                                {getInitials(userProfile?.nome)}
+                            <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: '#e2e8f0', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: '800', flexShrink: 0, overflow:'hidden', border:'1px solid #cbd5e1' }}>
+                                {renderAvatar(userProfile?.nome, userProfile?.avatar_url, 30, '0.75rem')}
                             </div>
                             <input
                                 type="text"
@@ -1005,9 +1025,9 @@ export default function Forum() {
           <p style={{ margin: '0 0 12px 0', color: '#64748b', fontSize: '0.84rem' }}>Espaço reservado para P2P e Group Chat.</p>
 
           {[
-              { id: 'p2p-gabriel', title: 'Gabriel Pedro', subtitle: 'Chat P2P' },
-              { id: 'group-comercial', title: 'Equipa Comercial', subtitle: 'Group Chat' },
-              { id: 'group-operacoes', title: 'Operações', subtitle: 'Group Chat' },
+              { id: 'p2p-gabriel', title: 'Gabriel Pedro', subtitle: 'Chat P2P', avatar_url: null },
+              { id: 'group-comercial', title: 'Equipa Comercial', subtitle: 'Group Chat', avatar_url: null },
+              { id: 'group-operacoes', title: 'Operações', subtitle: 'Group Chat', avatar_url: null },
           ].map((chat) => (
               <button
                   key={chat.id}
@@ -1015,8 +1035,8 @@ export default function Forum() {
                   style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', textAlign: 'left', marginBottom: '8px', border: '1px solid #e2e8f0', borderRadius: '10px', background: '#fff', padding: '10px', cursor: 'pointer' }}
                   className="hover-shadow"
               >
-                  <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800' }}>
-                      {getInitials(chat.title)}
+                  <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', overflow:'hidden' }}>
+                      {renderAvatar(chat.title, chat.avatar_url, 34, '0.78rem')}
                   </div>
                   <div style={{ minWidth: 0 }}>
                       <div style={{ color: '#1e293b', fontWeight: '800', fontSize: '0.9rem' }}>{chat.title}</div>
@@ -1218,7 +1238,7 @@ export default function Forum() {
                     <div className="post-modal-left custom-scrollbar" style={{padding: '30px', overflowY: 'auto'}}>
                         <div style={{display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px'}}>
                             <div style={{width: '50px', height: '50px', borderRadius: '50%', background: '#f1f5f9', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem', border: '1px solid #e2e8f0'}}>
-                                {getInitials(selectedPost.profiles?.nome)}
+                                {renderAvatar(selectedPost.profiles?.nome, selectedPost.profiles?.avatar_url, 50, '1rem')}
                             </div>
                             <div>
                                 <div style={{fontSize: '1.1rem', color: '#1e293b', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '10px'}}>
@@ -1266,8 +1286,8 @@ export default function Forum() {
                                 <div key={c.id} style={{background: 'white', padding: '15px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.02)'}}>
                                     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px'}}>
                                         <div style={{display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.85rem'}}>
-                                            <div style={{width: '28px', height: '28px', borderRadius: '50%', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.75rem', border: '1px solid var(--color-borderColor)'}}>
-                                                {getInitials(c.profiles?.nome)}
+                                            <div style={{width: '28px', height: '28px', borderRadius: '50%', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.75rem', border: '1px solid var(--color-borderColor)', overflow:'hidden'}}>
+                                                {renderAvatar(c.profiles?.nome, c.profiles?.avatar_url, 28, '0.7rem')}
                                             </div>
                                             <span style={{fontWeight: '800', color: '#1e293b', fontSize: '0.95rem'}}>{c.profiles?.nome}</span>
                                             <span style={{color: '#94a3b8', fontWeight: '500'}}>{formatDate(c.created_at)}</span>
@@ -1406,6 +1426,14 @@ export default function Forum() {
             align-items: start;
         }
 
+        .forum-collab-bar {
+            max-width: calc(100% - 362px);
+        }
+
+        .forum-chat-sidebar {
+            margin-top: -96px;
+        }
+
         .comment-bubble-row {
             display: flex;
             align-items: flex-start;
@@ -1450,9 +1478,14 @@ export default function Forum() {
                 grid-template-columns: 1fr;
             }
 
+            .forum-collab-bar {
+                max-width: 100%;
+            }
+
             .forum-chat-sidebar {
                 position: static !important;
                 top: auto !important;
+                margin-top: 0;
             }
         }
 
