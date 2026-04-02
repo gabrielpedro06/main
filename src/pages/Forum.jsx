@@ -155,6 +155,10 @@ export default function Forum() {
     const [selectedUserForChat, setSelectedUserForChat] = useState(null);
     const [selectedUsersForGroupChat, setSelectedUsersForGroupChat] = useState([]);
     const [newChatLoading, setNewChatLoading] = useState(false);
+    const [showAddGroupMembersModal, setShowAddGroupMembersModal] = useState(false);
+    const [existingGroupMemberIds, setExistingGroupMemberIds] = useState([]);
+    const [selectedUsersToAddInGroup, setSelectedUsersToAddInGroup] = useState([]);
+    const [addingGroupMembers, setAddingGroupMembers] = useState(false);
 
   useEffect(() => {
     fetchPosts();
@@ -290,6 +294,32 @@ export default function Forum() {
             supabase.removeChannel(channel);
         };
     }, [user?.id, chatRooms, activeChatRoom?.id]);
+
+    useEffect(() => {
+        if (!user?.id || chatRlsNeedsFix) return;
+
+        const channel = supabase
+            .channel(`chat_membership_${user.id}`)
+            .on(
+                "postgres_changes",
+                {
+                    event: "INSERT",
+                    schema: "public",
+                    table: "chat_participants",
+                    filter: `user_id=eq.${user.id}`,
+                },
+                async () => {
+                    await loadMyChatRooms();
+                    setChatNotice({ show: true, text: "Foste adicionado a uma nova conversa." });
+                    setTimeout(() => setChatNotice({ show: false, text: "" }), 3000);
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [user?.id, chatRlsNeedsFix]);
 
   const showToast = (message, type = 'success') => {
       setNotification({ show: true, message, type });
@@ -697,6 +727,9 @@ export default function Forum() {
       setChatMessages([]);
       setChatDraft("");
       setChatError("");
+      setShowAddGroupMembersModal(false);
+      setExistingGroupMemberIds([]);
+      setSelectedUsersToAddInGroup([]);
   };
 
   async function loadChatMessages(roomId) {
@@ -1062,6 +1095,69 @@ export default function Forum() {
       setSelectedUsersForGroupChat([]);
   }
 
+  function closeAddGroupMembersModal() {
+      setShowAddGroupMembersModal(false);
+      setExistingGroupMemberIds([]);
+      setSelectedUsersToAddInGroup([]);
+  }
+
+  function toggleUserToAddInGroup(userId) {
+      setSelectedUsersToAddInGroup((prev) =>
+          prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+      );
+  }
+
+  async function openAddGroupMembersModal() {
+      if (!activeChatRoom?.id || !activeChatRoom?.is_group) return;
+
+      try {
+          const { data, error } = await supabase
+              .from("chat_participants")
+              .select("user_id")
+              .eq("room_id", activeChatRoom.id);
+
+          if (error) throw error;
+
+          setExistingGroupMemberIds((data || []).map((row) => row.user_id));
+          setSelectedUsersToAddInGroup([]);
+          setShowAddGroupMembersModal(true);
+      } catch (err) {
+          setChatError(err?.message || "Não foi possível carregar os membros atuais do grupo.");
+      }
+  }
+
+  async function addSelectedUsersToGroup() {
+      if (!activeChatRoom?.id || !activeChatRoom?.is_group) return;
+      if (!selectedUsersToAddInGroup.length) {
+          setChatError("Seleciona pelo menos 1 colaborador para adicionar.");
+          return;
+      }
+
+      setAddingGroupMembers(true);
+      try {
+          const payload = selectedUsersToAddInGroup.map((userId) => ({
+              room_id: activeChatRoom.id,
+              user_id: userId,
+          }));
+
+          const { error } = await supabase
+              .from("chat_participants")
+              .upsert(payload, { onConflict: "room_id,user_id" });
+
+          if (error) throw error;
+
+          closeAddGroupMembersModal();
+          showToast("Membros adicionados ao grupo.", "success");
+          if (!chatRlsNeedsFix) {
+              await loadMyChatRooms();
+          }
+      } catch (err) {
+          setChatError(err?.message || "Não foi possível adicionar membros ao grupo.");
+      } finally {
+          setAddingGroupMembers(false);
+      }
+  }
+
   function toggleGroupParticipant(userId) {
       setSelectedUsersForGroupChat((prev) =>
           prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
@@ -1197,6 +1293,14 @@ export default function Forum() {
               {getInitials(name)}
           </span>
       );
+  };
+
+  const getChatSenderDisplayName = (senderId) => {
+      if (!senderId) return "Utilizador";
+      if (senderId === user?.id) return userProfile?.nome || "Tu";
+
+      const collaborator = chatCollaborators.find((profile) => profile.id === senderId);
+      return collaborator?.nome || "Utilizador";
   };
 
   const renderWithLinks = (text) => {
@@ -2175,6 +2279,16 @@ export default function Forum() {
                                 <h3 style={{margin:'0 0 3px 0', color:'#0f172a', fontSize:'1.15rem', fontWeight:'900'}}>{chatModal.target?.title || 'Seleciona um chat'}</h3>
                                 <p style={{margin:0, color:'#94a3b8', fontSize:'0.82rem'}}>{activeChatRoom?.id ? `Sala: ${activeChatRoom.id.slice(0, 8)}...` : 'Sem sala ativa'}</p>
                             </div>
+                            {activeChatRoom?.is_group && (
+                                <button
+                                    type="button"
+                                    onClick={openAddGroupMembersModal}
+                                    style={{border:'1px solid #cbd5e1', background:'#fff', color:'#1e293b', borderRadius:'10px', padding:'8px 12px', cursor:'pointer', fontWeight:'700', fontSize:'0.82rem'}}
+                                    className="hover-shadow"
+                                >
+                                    + Adicionar pessoas
+                                </button>
+                            )}
                         </div>
 
                         {chatError && (
@@ -2193,9 +2307,15 @@ export default function Forum() {
 
                             {!chatLoading && chatMessages.map((msg) => {
                                 const mine = msg.sender_id === user.id;
+                                const showSenderName = Boolean(activeChatRoom?.is_group);
                                 return (
                                     <div key={msg.id} style={{display:'flex', justifyContent: mine ? 'flex-end' : 'flex-start'}}>
                                         <div style={{maxWidth:'72%', background: mine ? '#eff6ff' : '#f1f5f9', border:'1px solid #e2e8f0', borderRadius:'12px', padding:'9px 12px'}}>
+                                            {showSenderName && (
+                                                <div style={{marginBottom:'6px', fontSize:'0.76rem', fontWeight:'800', color: mine ? '#1d4ed8' : '#475569'}}>
+                                                    {mine ? (userProfile?.nome || 'Tu') : getChatSenderDisplayName(msg.sender_id)}
+                                                </div>
+                                            )}
                                             {msg.file_url ? (
                                                 <div style={{display:'grid', gap:'6px'}}>
                                                     <a href={msg.file_url} target="_blank" rel="noreferrer" style={{color:'var(--color-btnPrimary)', fontWeight:'700', textDecoration:'none'}}>📄 {msg.file_name || 'Ficheiro'}</a>
@@ -2259,6 +2379,72 @@ export default function Forum() {
                 </div>
             </div>
         </ModalPortal>
+      )}
+
+      {showAddGroupMembersModal && (
+          <ModalPortal>
+              <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.72)', backdropFilter:'blur(5px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000003, padding:'16px'}}>
+                  <div style={{background:'white', width:'min(500px, 96vw)', borderRadius:'16px', border:'1px solid #e2e8f0', boxShadow:'0 30px 60px -20px rgba(15, 23, 42, 0.45)', overflow:'hidden'}}>
+                      <div style={{padding:'16px 20px', borderBottom:'1px solid #e2e8f0', display:'flex', alignItems:'center', justifyContent:'space-between', background:'#f8fafc'}}>
+                          <div>
+                              <p style={{margin:'0 0 3px 0', fontSize:'0.72rem', fontWeight:'800', letterSpacing:'0.05em', color:'var(--color-btnPrimary)', textTransform:'uppercase'}}>Grupo</p>
+                              <h3 style={{margin:0, color:'#0f172a', fontSize:'1.1rem', fontWeight:'900'}}>Adicionar pessoas</h3>
+                          </div>
+                          <button onClick={closeAddGroupMembersModal} style={{background:'#fff', border:'1px solid #cbd5e1', cursor:'pointer', color:'#64748b', width:'34px', height:'34px', borderRadius:'10px', display:'flex', alignItems:'center', justifyContent:'center'}} className="hover-red-text"><Icons.Close size={18} /></button>
+                      </div>
+
+                      <div style={{padding:'18px 20px'}}>
+                          <p style={{margin:'0 0 10px 0', color:'#475569', fontSize:'0.87rem'}}>Seleciona quem queres adicionar à conversa.</p>
+                          <div style={{maxHeight:'260px', overflowY:'auto', border:'1px solid #e2e8f0', borderRadius:'10px', padding:'8px', display:'grid', gap:'8px', background:'#fff'}}>
+                              {chatCollaborators.filter((collab) => !existingGroupMemberIds.includes(collab.id)).length === 0 && (
+                                  <div style={{fontSize:'0.85rem', color:'#94a3b8', padding:'10px'}}>Todos os colaboradores já estão neste grupo.</div>
+                              )}
+
+                              {chatCollaborators
+                                  .filter((collab) => !existingGroupMemberIds.includes(collab.id))
+                                  .map((collab) => {
+                                      const selected = selectedUsersToAddInGroup.includes(collab.id);
+                                      return (
+                                          <button
+                                              key={collab.id}
+                                              type="button"
+                                              onClick={() => toggleUserToAddInGroup(collab.id)}
+                                              style={{
+                                                  width:'100%',
+                                                  display:'flex',
+                                                  alignItems:'center',
+                                                  justifyContent:'space-between',
+                                                  gap:'10px',
+                                                  border: selected ? '1px solid #93c5fd' : '1px solid #e2e8f0',
+                                                  borderRadius:'8px',
+                                                  padding:'10px',
+                                                  background: selected ? '#eff6ff' : '#fff',
+                                                  cursor:'pointer',
+                                                  textAlign:'left'
+                                              }}
+                                          >
+                                              <span style={{fontWeight:'700', color:'#1e293b', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{collab.nome}</span>
+                                              <span style={{fontSize:'0.75rem', fontWeight:'800', color: selected ? '#1d4ed8' : '#94a3b8'}}>{selected ? 'Selecionado' : 'Selecionar'}</span>
+                                          </button>
+                                      );
+                                  })}
+                          </div>
+
+                          <div style={{display:'flex', gap:'10px', marginTop:'16px'}}>
+                              <button onClick={closeAddGroupMembersModal} style={{flex:1, padding:'11px 14px', borderRadius:'8px', border:'1px solid #cbd5e1', background:'#fff', color:'#1e293b', fontWeight:'700', cursor:'pointer'}} className="hover-shadow">Cancelar</button>
+                              <button
+                                  onClick={addSelectedUsersToGroup}
+                                  disabled={addingGroupMembers || !selectedUsersToAddInGroup.length}
+                                  style={{flex:1, padding:'11px 14px', borderRadius:'8px', border:'none', background:'var(--color-btnPrimary)', color:'#fff', fontWeight:'700', cursor: addingGroupMembers || !selectedUsersToAddInGroup.length ? 'not-allowed' : 'pointer', opacity: addingGroupMembers || !selectedUsersToAddInGroup.length ? 0.6 : 1}}
+                                  className="hover-shadow"
+                              >
+                                  {addingGroupMembers ? 'A adicionar...' : `Adicionar (${selectedUsersToAddInGroup.length})`}
+                              </button>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </ModalPortal>
       )}
 
       {/* --- NOTIFICAÇÃO GLOBAL --- */}
