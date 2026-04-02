@@ -274,6 +274,21 @@ export default function Forum() {
                     delete typingTimersRef.current[typingUserId];
                 }
             })
+            .on("broadcast", { event: "read_receipt" }, ({ payload }) => {
+                const roomId = payload?.roomId;
+                const readerId = payload?.userId;
+                const lastReadAt = payload?.lastReadAt;
+
+                if (!roomId || !readerId || !lastReadAt) return;
+
+                setReadReceiptsByRoom((prev) => ({
+                    ...prev,
+                    [roomId]: {
+                        ...(prev[roomId] || {}),
+                        [readerId]: lastReadAt,
+                    },
+                }));
+            })
             .subscribe();
 
         activeRoomChannelRef.current = channel;
@@ -537,6 +552,19 @@ export default function Forum() {
       current[roomId] = nowIso;
       saveSeenRoomsMap(current);
       setUnreadByRoom((prev) => ({ ...prev, [roomId]: 0 }));
+
+      if (activeChatRoom?.id === roomId && activeRoomChannelRef.current && user?.id) {
+          activeRoomChannelRef.current.send({
+              type: "broadcast",
+              event: "read_receipt",
+              payload: {
+                  roomId,
+                  userId: user.id,
+                  lastReadAt: nowIso,
+              },
+          });
+      }
+
       upsertRoomReadReceipt(roomId, nowIso);
   }
 
