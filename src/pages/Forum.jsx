@@ -10,6 +10,7 @@ import "./../styles/dashboard.css";
 // --- ÍCONES SVG PROFISSIONAIS ---
 const Icons = {
   Message: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>,
+    Paperclip: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-8.49 8.49a5 5 0 0 1-7.07-7.07l8.49-8.49a3 3 0 1 1 4.24 4.24l-8.5 8.49a1 1 0 0 1-1.41-1.41l7.79-7.78"></path></svg>,
   Plus: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>,
   Close: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>,
   Trash: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>,
@@ -26,6 +27,7 @@ const Icons = {
 };
 
 const ModalPortal = ({ children }) => createPortal(children, document.body);
+const getChatSeenStorageKey = (userId) => `chat_seen_rooms_${userId}`;
 
 const BLOCKS_PREFIX = "BLOCKS_V1:";
 const IMAGE_SIZE_OPTIONS = [
@@ -135,6 +137,24 @@ export default function Forum() {
     const [replyTargetByPost, setReplyTargetByPost] = useState({});
     const [modalReplyTarget, setModalReplyTarget] = useState(null);
     const [chatModal, setChatModal] = useState({ show: false, target: null });
+    const [chatRooms, setChatRooms] = useState([]);
+    const [activeChatRoom, setActiveChatRoom] = useState(null);
+    const [chatMessages, setChatMessages] = useState([]);
+    const [chatDraft, setChatDraft] = useState("");
+    const [chatLoading, setChatLoading] = useState(false);
+    const [chatSending, setChatSending] = useState(false);
+    const [chatUploadingFile, setChatUploadingFile] = useState(false);
+    const [chatError, setChatError] = useState("");
+    const [chatRlsNeedsFix, setChatRlsNeedsFix] = useState(false);
+    const [chatCollaborators, setChatCollaborators] = useState([]);
+    const [unreadByRoom, setUnreadByRoom] = useState({});
+    const [chatNotice, setChatNotice] = useState({ show: false, text: "" });
+    const [showNewChatModal, setShowNewChatModal] = useState(false);
+    const [newChatType, setNewChatType] = useState("private"); // "private" or "group"
+    const [newChatName, setNewChatName] = useState("");
+    const [selectedUserForChat, setSelectedUserForChat] = useState(null);
+    const [selectedUsersForGroupChat, setSelectedUsersForGroupChat] = useState([]);
+    const [newChatLoading, setNewChatLoading] = useState(false);
 
   useEffect(() => {
     fetchPosts();
@@ -187,10 +207,154 @@ export default function Forum() {
         };
     }, [activeLog]);
 
+    useEffect(() => {
+        if (!chatModal.show || !activeChatRoom?.id) return;
+
+        // Criamos o canal para a sala específica
+        const channel = supabase
+            .channel(`room_${activeChatRoom.id}`)
+            .on(
+                "postgres_changes",
+                {
+                    event: "INSERT",
+                    schema: "public",
+                    table: "chat_messages",
+                    filter: `room_id=eq.${activeChatRoom.id}`,
+                },
+                (payload) => {
+                    const incoming = payload.new;
+                    setChatMessages((prev) => {
+                        // Verifica se a mensagem já existe no estado (evita duplicados se o insert retornar antes do realtime)
+                        if (prev.some((m) => m.id === incoming.id)) return prev;
+                        return [...prev, incoming];
+                    });
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [chatModal.show, activeChatRoom?.id]);
+
+    // Load chat data for current user
+    useEffect(() => {
+        if (!user?.id) return;
+        loadChatCollaborators();
+        if (!chatRlsNeedsFix) loadMyChatRooms();
+    }, [user?.id, chatRlsNeedsFix]);
+
+    useEffect(() => {
+        if (!user?.id || !chatRooms.length) return;
+
+        const roomIdSet = new Set(chatRooms.map((room) => room.id));
+        let noticeTimeoutId = null;
+
+        const channel = supabase
+            .channel(`chat_notice_${user.id}`)
+            .on(
+                "postgres_changes",
+                {
+                    event: "INSERT",
+                    schema: "public",
+                    table: "chat_messages",
+                },
+                (payload) => {
+                    const incoming = payload.new;
+                    if (!incoming?.room_id || !roomIdSet.has(incoming.room_id)) return;
+                    if (incoming.sender_id === user.id) return;
+
+                    if (activeChatRoom?.id === incoming.room_id) {
+                        markRoomAsSeen(incoming.room_id);
+                        return;
+                    }
+
+                    setUnreadByRoom((prev) => ({
+                        ...prev,
+                        [incoming.room_id]: (prev[incoming.room_id] || 0) + 1,
+                    }));
+
+                    const roomName = chatRooms.find((room) => room.id === incoming.room_id)?.display_title || "Chat";
+                    setChatNotice({ show: true, text: `Nova mensagem em ${roomName}` });
+
+                    if (noticeTimeoutId) clearTimeout(noticeTimeoutId);
+                    noticeTimeoutId = setTimeout(() => {
+                        setChatNotice({ show: false, text: "" });
+                    }, 3000);
+                }
+            )
+            .subscribe();
+
+        return () => {
+            if (noticeTimeoutId) clearTimeout(noticeTimeoutId);
+            supabase.removeChannel(channel);
+        };
+    }, [user?.id, chatRooms, activeChatRoom?.id]);
+
   const showToast = (message, type = 'success') => {
       setNotification({ show: true, message, type });
       setTimeout(() => setNotification({ show: false, message: '', type: 'success' }), 3000);
   };
+
+  function getSeenRoomsMap() {
+      if (!user?.id) return {};
+      try {
+          const raw = localStorage.getItem(getChatSeenStorageKey(user.id));
+          const parsed = raw ? JSON.parse(raw) : {};
+          return parsed && typeof parsed === "object" ? parsed : {};
+      } catch {
+          return {};
+      }
+  }
+
+  function saveSeenRoomsMap(nextMap) {
+      if (!user?.id) return;
+      localStorage.setItem(getChatSeenStorageKey(user.id), JSON.stringify(nextMap || {}));
+  }
+
+  function markRoomAsSeen(roomId) {
+      if (!roomId) return;
+      const nowIso = new Date().toISOString();
+      const current = getSeenRoomsMap();
+      current[roomId] = nowIso;
+      saveSeenRoomsMap(current);
+      setUnreadByRoom((prev) => ({ ...prev, [roomId]: 0 }));
+  }
+
+  async function refreshUnreadCounts(roomIds = []) {
+      if (!user?.id || !roomIds.length) {
+          setUnreadByRoom({});
+          return;
+      }
+
+      const seenMap = getSeenRoomsMap();
+
+      const { data, error } = await supabase
+          .from("chat_messages")
+          .select("room_id, sender_id, created_at")
+          .in("room_id", roomIds)
+          .order("created_at", { ascending: false })
+          .limit(500);
+
+      if (error) return;
+
+      const nextCounts = {};
+      roomIds.forEach((id) => {
+          nextCounts[id] = 0;
+      });
+
+      (data || []).forEach((msg) => {
+          if (!msg?.room_id) return;
+          if (msg.sender_id === user.id) return;
+
+          const seenAt = seenMap[msg.room_id];
+          if (seenAt && new Date(msg.created_at) <= new Date(seenAt)) return;
+
+          nextCounts[msg.room_id] = (nextCounts[msg.room_id] || 0) + 1;
+      });
+
+      setUnreadByRoom(nextCounts);
+  }
 
     async function checkActiveLog() {
         if (!user?.id) {
@@ -527,6 +691,424 @@ export default function Forum() {
       setPostBlocks([createTextBlock("")]);
   };
 
+  const closeInternalChatModal = () => {
+      setChatModal({ show: false, target: null });
+      setActiveChatRoom(null);
+      setChatMessages([]);
+      setChatDraft("");
+      setChatError("");
+  };
+
+  async function loadChatMessages(roomId) {
+      if (!roomId) {
+          setChatMessages([]);
+          return;
+      }
+
+      const { data, error } = await supabase
+          .from("chat_messages")
+          .select("*")
+          .eq("room_id", roomId)
+          .order("created_at", { ascending: true });
+
+      if (error) throw error;
+      setChatMessages(data || []);
+  }
+
+  async function getOrCreateGroupRoom(groupName) {
+      const { data: existing, error: existingError } = await supabase
+          .from("chat_rooms")
+          .select("*")
+          .eq("is_group", true)
+          .eq("nome", groupName)
+          .limit(1)
+          .maybeSingle();
+
+      if (existingError) throw existingError;
+      if (existing) {
+          await supabase.from("chat_participants").upsert(
+              [{ room_id: existing.id, user_id: user.id }],
+              { onConflict: "room_id,user_id" }
+          );
+          return existing;
+      }
+
+      const { data: created, error: createError } = await supabase
+          .from("chat_rooms")
+          .insert([{ nome: groupName, is_group: true }])
+          .select("*")
+          .single();
+
+      if (createError) throw createError;
+
+      await supabase.from("chat_participants").upsert(
+          [{ room_id: created.id, user_id: user.id }],
+          { onConflict: "room_id,user_id" }
+      );
+
+      return created;
+  }
+
+  async function createGroupRoomWithParticipants(groupName, participantIds = []) {
+      const { data: created, error: createError } = await supabase
+          .from("chat_rooms")
+          .insert([{ nome: groupName, is_group: true }])
+          .select("*")
+          .single();
+
+      if (createError) throw createError;
+
+      const uniqueUserIds = Array.from(new Set([user.id, ...(participantIds || [])]));
+      const participantsPayload = uniqueUserIds.map((userId) => ({ room_id: created.id, user_id: userId }));
+
+      const { error: participantsError } = await supabase
+          .from("chat_participants")
+          .upsert(participantsPayload, { onConflict: "room_id,user_id" });
+
+      if (participantsError) throw participantsError;
+      return created;
+  }
+
+  async function getOrCreatePrivateRoomByName(targetName) {
+      const { data: targetProfile, error: targetProfileError } = await supabase
+          .from("profiles")
+          .select("id, nome")
+          .eq("nome", targetName)
+          .limit(1)
+          .maybeSingle();
+
+      if (targetProfileError) throw targetProfileError;
+      if (!targetProfile?.id) {
+          throw new Error("Não encontrei o utilizador para iniciar chat privado.");
+      }
+
+      const { data: myParts, error: myPartsError } = await supabase
+          .from("chat_participants")
+          .select("room_id")
+          .eq("user_id", user.id);
+
+      if (myPartsError) throw myPartsError;
+      const myRoomIds = (myParts || []).map((p) => p.room_id);
+
+      if (myRoomIds.length) {
+          const { data: targetParts, error: targetPartsError } = await supabase
+              .from("chat_participants")
+              .select("room_id")
+              .eq("user_id", targetProfile.id)
+              .in("room_id", myRoomIds);
+
+          if (targetPartsError) throw targetPartsError;
+
+          const commonRoomIds = (targetParts || []).map((p) => p.room_id);
+          if (commonRoomIds.length) {
+              const { data: existingRoom, error: existingRoomError } = await supabase
+                  .from("chat_rooms")
+                  .select("*")
+                  .eq("is_group", false)
+                  .in("id", commonRoomIds)
+                  .limit(1)
+                  .maybeSingle();
+
+              if (existingRoomError) throw existingRoomError;
+              if (existingRoom) return existingRoom;
+          }
+      }
+
+      const { data: created, error: createError } = await supabase
+          .from("chat_rooms")
+          .insert([{ nome: null, is_group: false }])
+          .select("*")
+          .single();
+
+      if (createError) throw createError;
+
+      const { error: participantsError } = await supabase.from("chat_participants").upsert(
+          [
+              { room_id: created.id, user_id: user.id },
+              { room_id: created.id, user_id: targetProfile.id },
+          ],
+          { onConflict: "room_id,user_id" }
+      );
+
+      if (participantsError) throw participantsError;
+      return created;
+  }
+
+  async function openInternalChat(target) {
+      if (!target) return;
+
+      setChatModal({ show: true, target });
+      setChatLoading(true);
+      setChatError("");
+
+      try {
+          const isGroup = String(target.subtitle || "").toLowerCase().includes("group");
+          const room = isGroup
+              ? await getOrCreateGroupRoom(target.title)
+              : await getOrCreatePrivateRoomByName(target.title);
+
+          setActiveChatRoom(room);
+          setChatRooms((prev) => {
+              const others = prev.filter((r) => r.id !== room.id);
+              return [room, ...others];
+          });
+          await loadChatMessages(room.id);
+          markRoomAsSeen(room.id);
+      } catch (err) {
+          setChatError(err?.message || "Não foi possível abrir o chat. Verifica se as tabelas de chat já existem.");
+      } finally {
+          setChatLoading(false);
+      }
+  }
+
+  async function handleSendChatText(e) {
+      e.preventDefault();
+      const content = String(chatDraft || "").trim();
+      if (!content || !activeChatRoom?.id) return;
+
+      setChatSending(true);
+      try {
+          const { data, error } = await supabase
+              .from("chat_messages")
+              .insert([
+                  {
+                      room_id: activeChatRoom.id,
+                      sender_id: user.id,
+                      content,
+                  },
+              ])
+              .select("*")
+              .single();
+
+          if (error) throw error;
+          setChatDraft("");
+
+          if (data) {
+              setChatMessages((prev) => (prev.some((m) => m.id === data.id) ? prev : [...prev, data]));
+          }
+      } catch (err) {
+          setChatError(err?.message || "Erro ao enviar mensagem.");
+      } finally {
+          setChatSending(false);
+      }
+  }
+
+    async function uploadChatFile(file) {
+      if (!file || !activeChatRoom?.id) return;
+
+      setChatUploadingFile(true);
+      try {
+          const fileExt = file.name.split(".").pop();
+          const fileName = `${user.id}_${Date.now()}_${Math.random().toString(36).slice(2)}.${fileExt}`;
+          const filePath = `chat-files/${fileName}`;
+
+          const { error: uploadError } = await supabase.storage
+              .from("documents")
+              .upload(filePath, file);
+
+          if (uploadError) throw uploadError;
+
+          const {
+              data: { publicUrl },
+          } = supabase.storage.from("documents").getPublicUrl(filePath);
+
+          const { data, error } = await supabase
+              .from("chat_messages")
+              .insert([
+                  {
+                      room_id: activeChatRoom.id,
+                      sender_id: user.id,
+                      file_url: publicUrl,
+                      file_name: file.name,
+                  },
+              ])
+              .select("*")
+              .single();
+
+          if (error) throw error;
+          if (data) {
+              setChatMessages((prev) => (prev.some((m) => m.id === data.id) ? prev : [...prev, data]));
+          }
+      } catch (err) {
+          setChatError(err?.message || "Erro no envio de ficheiro.");
+      } finally {
+          setChatUploadingFile(false);
+      }
+  }
+
+  async function loadChatCollaborators() {
+      try {
+          const { data, error } = await supabase
+              .from("profiles")
+              .select("id, nome, avatar_url")
+              .order("nome", { ascending: true });
+
+          if (error) throw error;
+          const others = (data || []).filter((profile) => profile.id !== user?.id);
+          setChatCollaborators(others);
+      } catch (err) {
+          console.error("Erro ao carregar colaboradores:", err?.message);
+      }
+  }
+
+  async function loadMyChatRooms() {
+      if (!user?.id) {
+          setChatRooms([]);
+          return;
+      }
+
+      try {
+          const { data: myParticipants, error: participantsError } = await supabase
+              .from("chat_participants")
+              .select("room_id")
+              .eq("user_id", user.id);
+
+          if (participantsError) throw participantsError;
+
+          const roomIds = (myParticipants || []).map((row) => row.room_id);
+          if (!roomIds.length) {
+              setChatRooms([]);
+              return;
+          }
+
+          const { data: rooms, error: roomsError } = await supabase
+              .from("chat_rooms")
+              .select("*")
+              .in("id", roomIds)
+              .order("created_at", { ascending: false });
+
+          if (roomsError) throw roomsError;
+
+          const { data: peerParticipants, error: peersError } = await supabase
+              .from("chat_participants")
+              .select("room_id, user_id, profiles(nome, avatar_url)")
+              .in("room_id", roomIds)
+              .neq("user_id", user.id);
+
+          if (peersError) throw peersError;
+
+          const peerByRoom = new Map();
+          (peerParticipants || []).forEach((row) => {
+              if (!peerByRoom.has(row.room_id)) {
+                  peerByRoom.set(row.room_id, row);
+              }
+          });
+
+          const normalizedRooms = (rooms || []).map((room) => {
+              if (room.is_group) {
+                  return {
+                      ...room,
+                      display_title: room.nome || "Grupo",
+                      display_avatar_url: null,
+                      display_subtitle: "Group Chat",
+                  };
+              }
+
+              const peer = peerByRoom.get(room.id);
+              const peerName = peer?.profiles?.nome || "Conversa privada";
+              const peerAvatar = peer?.profiles?.avatar_url || null;
+
+              return {
+                  ...room,
+                  display_title: peerName,
+                  display_avatar_url: peerAvatar,
+                  display_subtitle: "Chat",
+              };
+          });
+
+          setChatRooms(normalizedRooms);
+          setChatRlsNeedsFix(false);
+          await refreshUnreadCounts(roomIds);
+      } catch (err) {
+          if (String(err?.message || "").includes("infinite recursion detected in policy for relation \"chat_participants\"")) {
+              setChatRlsNeedsFix(true);
+              setChatError("Falha de permissões no chat (RLS). Executa a migration 014_fix_chat_participants_rls_recursion.sql no Supabase.");
+              return;
+          }
+          console.error("Erro ao carregar chats do utilizador:", err?.message);
+      }
+  }
+
+  async function openExistingRoom(room) {
+      if (!room?.id) return;
+
+      const target = {
+          id: room.id,
+          title: room.display_title || room.nome || "Conversa privada",
+          subtitle: room.display_subtitle || (room.is_group ? "Group Chat" : "Chat"),
+          avatar_url: room.display_avatar_url || null,
+      };
+
+      setChatModal({ show: true, target });
+      setChatLoading(true);
+      setChatError("");
+
+      try {
+          setActiveChatRoom(room);
+          await loadChatMessages(room.id);
+          markRoomAsSeen(room.id);
+      } catch (err) {
+          setChatError(err?.message || "Não foi possível abrir o chat.");
+      } finally {
+          setChatLoading(false);
+      }
+  }
+
+  function closeNewChatModal() {
+      setShowNewChatModal(false);
+      setNewChatName("");
+      setNewChatType("private");
+      setSelectedUserForChat(null);
+      setSelectedUsersForGroupChat([]);
+  }
+
+  function toggleGroupParticipant(userId) {
+      setSelectedUsersForGroupChat((prev) =>
+          prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+      );
+  }
+
+  async function createNewChat() {
+      if (!user?.id) return;
+
+      setNewChatLoading(true);
+      try {
+          if (newChatType === "group") {
+              if (!newChatName.trim()) {
+                  setChatError("Por favor, insira um nome para o grupo.");
+                  return;
+              }
+              if (!selectedUsersForGroupChat.length) {
+                  setChatError("Seleciona pelo menos 1 colaborador para o grupo.");
+                  return;
+              }
+              const room = await createGroupRoomWithParticipants(newChatName.trim(), selectedUsersForGroupChat);
+              closeNewChatModal();
+              await openExistingRoom({
+                  ...room,
+                  display_title: room.nome || "Grupo",
+                  display_subtitle: "Group Chat",
+                  display_avatar_url: null,
+              });
+          } else {
+              if (!selectedUserForChat?.nome) {
+                  setChatError("Por favor, selecione um utilizador.");
+                  return;
+              }
+              const room = await getOrCreatePrivateRoomByName(selectedUserForChat.nome);
+              closeNewChatModal();
+              await openInternalChat({ title: selectedUserForChat.nome, subtitle: "Chat", avatar_url: selectedUserForChat.avatar_url });
+          }
+      } catch (err) {
+          setChatError(err?.message || "Erro ao criar chat.");
+      } finally {
+          if (!chatRlsNeedsFix) {
+              await loadMyChatRooms();
+          }
+          setNewChatLoading(false);
+      }
+  }
+
   async function handleReact(type, postId, currentReactions) {
       const myExistingReaction = currentReactions.find(r => r.user_id === user.id);
       
@@ -793,6 +1375,7 @@ export default function Forum() {
   const actionBtnStyle = { background: 'transparent', border: 'none', cursor: 'pointer', padding: '6px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.6, transition: '0.2s' };
 
   const displayedPosts = selectedUserFilter ? posts.filter(p => p.user_id === selectedUserFilter.id) : posts;
+    const totalUnreadChats = Object.values(unreadByRoom).reduce((acc, value) => acc + Number(value || 0), 0);
 
     return (
         <div className="page-container" style={{maxWidth: '1200px', margin: '0 auto', paddingBottom: '40px'}}>
@@ -1017,35 +1600,219 @@ export default function Forum() {
         })}
       </div>
 
-      <aside className="forum-chat-sidebar card" style={{ position: 'sticky', top: '24px', alignSelf: 'start', padding: '18px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+      <aside className="forum-chat-sidebar card" style={{ position: 'sticky', top: '24px', alignSelf: 'start', padding: '18px', maxHeight: 'calc(100vh - 120px)', overflowY: 'auto', display: 'flex', flexDirection: 'column', backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '15px' }}>
               <h4 style={{ margin: 0, color: '#0f172a', fontSize: '1rem', fontWeight: '900' }}>Chats Internos</h4>
-              <span style={{ fontSize: '0.68rem', fontWeight: '800', color: '#64748b', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '999px', padding: '3px 8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Preview</span>
+              {totalUnreadChats > 0 && (
+                  <span style={{padding:'4px 10px', borderRadius:'999px', fontSize:'0.72rem', fontWeight:'900', color:'#fff', background:'linear-gradient(135deg, #ef4444, #f97316)', boxShadow:'0 6px 14px rgba(239,68,68,0.35)'}}>
+                      {totalUnreadChats} nova(s)
+                  </span>
+              )}
           </div>
-          <p style={{ margin: '0 0 12px 0', color: '#64748b', fontSize: '0.84rem' }}>Espaço reservado para P2P e Group Chat.</p>
 
-          {[
-              { id: 'p2p-gabriel', title: 'Gabriel Pedro', subtitle: 'Chat P2P', avatar_url: null },
-              { id: 'group-comercial', title: 'Equipa Comercial', subtitle: 'Group Chat', avatar_url: null },
-              { id: 'group-operacoes', title: 'Operações', subtitle: 'Group Chat', avatar_url: null },
-          ].map((chat) => (
-              <button
-                  key={chat.id}
-                  onClick={() => setChatModal({ show: true, target: chat })}
-                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', textAlign: 'left', marginBottom: '8px', border: '1px solid #e2e8f0', borderRadius: '10px', background: '#fff', padding: '10px', cursor: 'pointer' }}
-                  className="hover-shadow"
-              >
-                  <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', overflow:'hidden' }}>
-                      {renderAvatar(chat.title, chat.avatar_url, 34, '0.78rem')}
-                  </div>
-                  <div style={{ minWidth: 0 }}>
-                      <div style={{ color: '#1e293b', fontWeight: '800', fontSize: '0.9rem' }}>{chat.title}</div>
-                      <div style={{ color: '#94a3b8', fontSize: '0.78rem' }}>{chat.subtitle}</div>
-                  </div>
-              </button>
-          ))}
+          {totalUnreadChats > 0 && (
+              <div style={{marginBottom:'12px', padding:'10px 12px', borderRadius:'10px', border:'1px solid #fecaca', background:'linear-gradient(135deg, #fff1f2, #fff7ed)', color:'#9f1239', fontSize:'0.82rem', fontWeight:'700'}}>
+                  Tens {totalUnreadChats} mensagem(ns) nova(s) por ler.
+              </div>
+          )}
+          
+          <button
+              onClick={() => setShowNewChatModal(true)}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center', marginBottom: '12px', border: '1px solid #d1d5db', borderRadius: '10px', background: 'var(--color-btnPrimary)', color: '#fff', padding: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '0.9rem', transition: '0.2s' }}
+              className="hover-shadow"
+          >
+              <Icons.Plus size={16} /> Novo Chat
+          </button>
+
+          <p style={{ margin: '0 0 10px 0', color: '#64748b', fontSize: '0.84rem' }}>Meus Chats</p>
+
+          {chatRooms.length > 0 ? (
+              chatRooms.map((room) => {
+                  const unreadCount = unreadByRoom[room.id] || 0;
+                  return (
+                      <button
+                          key={room.id}
+                          onClick={() => openExistingRoom(room)}
+                          style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', textAlign: 'left', marginBottom: '8px', border: unreadCount ? '1px solid #fca5a5' : '1px solid #e2e8f0', borderRadius: '10px', background: activeChatRoom?.id === room.id ? '#eff6ff' : '#fff', padding: '10px', cursor: 'pointer', transition: '0.2s', boxShadow: unreadCount ? '0 6px 16px rgba(239,68,68,0.12)' : 'none' }}
+                          className="hover-shadow"
+                      >
+                          <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', overflow:'hidden' }}>
+                              {renderAvatar(room.display_title || room.nome || 'Conversa privada', room.display_avatar_url || null, 34, '0.78rem')}
+                          </div>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                              <div style={{ color: '#1e293b', fontWeight: '800', fontSize: '0.9rem', display:'flex', alignItems:'center', gap:'8px' }}>
+                                  <span style={{minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{room.display_title || room.nome || 'Conversa privada'}</span>
+                                  {unreadCount > 0 && <span style={{width:'8px', height:'8px', borderRadius:'999px', background:'#ef4444', boxShadow:'0 0 0 4px rgba(239,68,68,0.2)', flexShrink:0}}></span>}
+                              </div>
+                              <div style={{ color: '#94a3b8', fontSize: '0.78rem', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'8px' }}>
+                                  <span>{room.display_subtitle || (room.is_group ? 'Group Chat' : 'Chat')}</span>
+                                  {unreadCount > 0 && <span style={{padding:'2px 7px', borderRadius:'999px', fontSize:'0.7rem', fontWeight:'900', color:'#fff', background:'#ef4444'}}>{unreadCount}</span>}
+                              </div>
+                          </div>
+                      </button>
+                  );
+              })
+          ) : (
+              <p style={{ margin: '8px 0', color: '#94a3b8', fontSize: '0.85rem' }}>Ainda não criaste chats.</p>
+          )}
       </aside>
       </div>
+
+      {/* --- MODAL NOVO CHAT --- */}
+      {showNewChatModal && (
+          <ModalPortal>
+              <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.72)', backdropFilter: 'blur(5px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000001, padding:'16px'}}>
+                  <div style={{background:'white', width:'min(480px, 95vw)', borderRadius:'18px', boxShadow: '0 30px 60px -20px rgba(15, 23, 42, 0.45)', overflow: 'hidden', border:'1px solid var(--color-borderColorLight)'}}>
+                      <div style={{padding:'18px 24px', background:'#f8fafc', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                          <div>
+                              <p style={{margin:'0 0 4px 0', fontSize:'0.72rem', fontWeight:'800', letterSpacing:'0.07em', color:'var(--color-btnPrimary)', textTransform:'uppercase'}}>Novo Chat</p>
+                              <h3 style={{margin:0, color:'#1e293b', fontSize:'1.25rem', fontWeight:'900'}}>Criar Conversa</h3>
+                          </div>
+                          <button onClick={closeNewChatModal} style={{background:'#fff', border:'1px solid #cbd5e1', cursor:'pointer', color:'#64748b', width:'36px', height:'36px', borderRadius:'10px', display:'flex', alignItems:'center', justifyContent:'center'}} className="hover-red-text"><Icons.Close size={20} /></button>
+                      </div>
+
+                      <div style={{padding:'24px'}}>
+                          {chatError && (
+                              <div style={{padding:'12px', background:'#fee2e2', border:'1px solid #fecaca', borderRadius:'8px', color:'#991b1b', marginBottom:'16px', fontSize:'0.9rem'}}>
+                                  {chatError}
+                              </div>
+                          )}
+
+                          <div style={{marginBottom:'20px'}}>
+                              <label style={{display:'block', marginBottom:'10px', fontSize:'0.85rem', fontWeight:'700', color:'#1e293b', textTransform:'uppercase', letterSpacing:'0.05em'}}>Tipo de Chat</label>
+                              <div style={{display:'flex', gap:'12px'}}>
+                                  <button
+                                      type="button"
+                                      onClick={() => {
+                                          setNewChatType('private');
+                                          setSelectedUsersForGroupChat([]);
+                                      }}
+                                      style={{
+                                          flex:1,
+                                          padding:'12px',
+                                          border:'1px solid #cbd5e1',
+                                          borderRadius:'10px',
+                                          background: newChatType === 'private' ? '#e0e7ff' : '#fff',
+                                          color:'#1e293b',
+                                          fontWeight:'800',
+                                          cursor:'pointer',
+                                          transition:'0.2s'
+                                      }}
+                                  >
+                                      Chat Privado
+                                  </button>
+                                  <button
+                                      type="button"
+                                      onClick={() => {
+                                          setNewChatType('group');
+                                          setSelectedUserForChat(null);
+                                      }}
+                                      style={{
+                                          flex:1,
+                                          padding:'12px',
+                                          border:'1px solid #cbd5e1',
+                                          borderRadius:'10px',
+                                          background: newChatType === 'group' ? '#e0e7ff' : '#fff',
+                                          color:'#1e293b',
+                                          fontWeight:'800',
+                                          cursor:'pointer',
+                                          transition:'0.2s'
+                                      }}
+                                  >
+                                      Grupo
+                                  </button>
+                              </div>
+                          </div>
+
+                          {newChatType === 'group' ? (
+                              <div style={{marginBottom:'20px', display:'grid', gap:'14px'}}>
+                                  <label style={{display:'block', marginBottom:'8px', fontSize:'0.85rem', fontWeight:'700', color:'#1e293b', textTransform:'uppercase', letterSpacing:'0.05em'}}>Nome do Grupo</label>
+                                  <input
+                                      type="text"
+                                      value={newChatName}
+                                      onChange={(e) => setNewChatName(e.target.value)}
+                                      placeholder="Ex: Equipa de Vendas"
+                                      style={{width:'100%', padding:'12px 15px', borderRadius:'8px', border:'1px solid #cbd5e1', background:'#fff', fontSize:'0.95rem', color:'#1e293b', outline:'none', boxSizing:'border-box'}}
+                                  />
+
+                                  <div>
+                                      <label style={{display:'block', marginBottom:'8px', fontSize:'0.85rem', fontWeight:'700', color:'#1e293b', textTransform:'uppercase', letterSpacing:'0.05em'}}>
+                                          Membros do Grupo ({selectedUsersForGroupChat.length} selecionado(s))
+                                      </label>
+                                      <div style={{maxHeight:'220px', overflowY:'auto', border:'1px solid #e2e8f0', borderRadius:'10px', padding:'8px', display:'grid', gap:'8px', background:'#fff'}}>
+                                          {chatCollaborators.length === 0 && (
+                                              <div style={{fontSize:'0.85rem', color:'#94a3b8', padding:'8px'}}>Sem colaboradores disponíveis.</div>
+                                          )}
+                                          {chatCollaborators.map((collab) => {
+                                              const selected = selectedUsersForGroupChat.includes(collab.id);
+                                              return (
+                                                  <button
+                                                      key={collab.id}
+                                                      type="button"
+                                                      onClick={() => toggleGroupParticipant(collab.id)}
+                                                      style={{
+                                                          width:'100%',
+                                                          display:'flex',
+                                                          alignItems:'center',
+                                                          justifyContent:'space-between',
+                                                          gap:'10px',
+                                                          border: selected ? '1px solid #93c5fd' : '1px solid #e2e8f0',
+                                                          borderRadius:'8px',
+                                                          padding:'10px',
+                                                          background: selected ? '#eff6ff' : '#fff',
+                                                          cursor:'pointer',
+                                                          textAlign:'left'
+                                                      }}
+                                                  >
+                                                      <span style={{fontWeight:'700', color:'#1e293b', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{collab.nome}</span>
+                                                      <span style={{fontSize:'0.75rem', fontWeight:'800', color: selected ? '#1d4ed8' : '#94a3b8'}}>{selected ? 'Selecionado' : 'Selecionar'}</span>
+                                                  </button>
+                                              );
+                                          })}
+                                      </div>
+                                  </div>
+                              </div>
+                          ) : (
+                              <div style={{marginBottom:'20px'}}>
+                                  <label style={{display:'block', marginBottom:'8px', fontSize:'0.85rem', fontWeight:'700', color:'#1e293b', textTransform:'uppercase', letterSpacing:'0.05em'}}>Selecionar Utilizador</label>
+                                  <select
+                                      value={selectedUserForChat?.id || ''}
+                                      onChange={(e) => {
+                                          const user = chatCollaborators.find(u => u.id === e.target.value);
+                                          setSelectedUserForChat(user);
+                                      }}
+                                      style={{width:'100%', padding:'12px 15px', borderRadius:'8px', border:'1px solid #cbd5e1', background:'#fff', fontSize:'0.95rem', color:'#1e293b', outline:'none', boxSizing:'border-box'}}
+                                  >
+                                      <option value="">-- Escolha um utilizador --</option>
+                                      {chatCollaborators.map(collab => (
+                                          <option key={collab.id} value={collab.id}>{collab.nome}</option>
+                                      ))}
+                                  </select>
+                              </div>
+                          )}
+
+                          <div style={{display:'flex', gap:'12px', marginTop:'24px'}}>
+                              <button
+                                  onClick={closeNewChatModal}
+                                  style={{flex:1, padding:'12px 20px', borderRadius:'8px', border:'1px solid #cbd5e1', background:'#fff', color:'#1e293b', fontWeight:'700', cursor:'pointer', transition:'0.2s'}}
+                                  className="hover-shadow"
+                              >
+                                  Cancelar
+                              </button>
+                              <button
+                                  onClick={createNewChat}
+                                  disabled={newChatLoading || (newChatType === 'group' && !newChatName.trim()) || (newChatType === 'private' && !selectedUserForChat)}
+                                  style={{flex:1, padding:'12px 20px', borderRadius:'8px', border:'none', background:'var(--color-btnPrimary)', color:'#fff', fontWeight:'700', cursor: newChatLoading || (newChatType === 'group' && !newChatName.trim()) || (newChatType === 'private' && !selectedUserForChat) ? 'not-allowed' : 'pointer', opacity: newChatLoading || (newChatType === 'group' && !newChatName.trim()) || (newChatType === 'private' && !selectedUserForChat) ? 0.6 : 1, transition:'0.2s'}}
+                                  className="hover-shadow"
+                              >
+                                  {newChatLoading ? 'Criando...' : 'Criar Chat'}
+                              </button>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </ModalPortal>
+      )}
 
       {/* --- MODAL NOVO POST --- */}
       {showNewPostModal && (
@@ -1337,18 +2104,158 @@ export default function Forum() {
 
       {chatModal.show && (
         <ModalPortal>
-            <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:999999}} onClick={() => setChatModal({ show: false, target: null })}>
-                <div style={{background:'white', width:'92%', maxWidth:'460px', borderRadius:'16px', border:'1px solid #e2e8f0', boxShadow:'0 25px 50px -12px rgba(0, 0, 0, 0.25)', padding:'24px'}} onClick={(e) => e.stopPropagation()}>
-                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'14px'}}>
-                        <h3 style={{margin:0, color:'#0f172a', fontSize:'1.15rem'}}>Chat com {chatModal.target?.title || 'utilizador'}</h3>
-                        <button onClick={() => setChatModal({ show: false, target: null })} style={{background:'#f1f5f9', border:'none', width: '34px', height: '34px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor:'pointer', color:'#64748b'}} className="hover-red-btn"><Icons.Close size={16} /></button>
+            <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.72)', backdropFilter: 'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:999999, padding:'14px'}} onClick={closeInternalChatModal}>
+                <div style={{background:'white', width:'min(1420px, 98vw)', height:'92vh', borderRadius:'18px', border:'1px solid #e2e8f0', boxShadow:'0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow:'hidden', display:'grid', gridTemplateColumns:'320px 1fr'}} onClick={(e) => e.stopPropagation()}>
+                    <div style={{borderRight:'1px solid #e2e8f0', background:'#f8fafc', display:'flex', flexDirection:'column', minHeight:0}}>
+                        <div style={{padding:'16px', borderBottom:'1px solid #e2e8f0', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'8px'}}>
+                            <h3 style={{margin:0, color:'#0f172a', fontSize:'1rem', fontWeight:'900'}}>Chats Internos</h3>
+                            <button onClick={closeInternalChatModal} style={{background:'#fff', border:'1px solid #cbd5e1', width: '30px', height: '30px', borderRadius: '999px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor:'pointer', color:'#64748b'}} className="hover-red-btn"><Icons.Close size={15} /></button>
+                        </div>
+
+                        <div style={{padding:'12px', overflowY:'auto', minHeight:0}} className="custom-scrollbar">
+                            <button
+                                onClick={() => {
+                                    setShowNewChatModal(true);
+                                }}
+                                style={{width:'100%', display:'flex', alignItems:'center', gap:'10px', justifyContent:'center', marginBottom:'12px', border:'1px solid #d1d5db', borderRadius:'10px', background:'var(--color-btnPrimary)', color:'#fff', padding:'10px', cursor:'pointer', fontWeight:'700', fontSize:'0.9rem', transition:'0.2s'}}
+                                className="hover-shadow"
+                            >
+                                <Icons.Plus size={16} /> Novo Chat
+                            </button>
+
+                            {chatRooms.length > 0 ? (
+                                chatRooms.map((room) => {
+                                    const unreadCount = unreadByRoom[room.id] || 0;
+                                    return (
+                                        <button
+                                            key={room.id}
+                                            onClick={() => openExistingRoom(room)}
+                                            className="hover-shadow"
+                                            style={{
+                                                width:'100%',
+                                                display:'flex',
+                                                alignItems:'center',
+                                                gap:'10px',
+                                                textAlign:'left',
+                                                border: unreadCount ? '1px solid #fca5a5' : '1px solid #e2e8f0',
+                                                borderRadius:'10px',
+                                                background: activeChatRoom?.id === room.id ? '#eff6ff' : '#fff',
+                                                marginBottom:'8px',
+                                                padding:'10px',
+                                                cursor:'pointer',
+                                                boxShadow: unreadCount ? '0 6px 16px rgba(239,68,68,0.12)' : 'none',
+                                            }}
+                                        >
+                                            <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', overflow:'hidden' }}>
+                                                {renderAvatar(room.display_title || room.nome || 'Conversa privada', room.display_avatar_url || null, 34, '0.78rem')}
+                                            </div>
+                                            <div style={{minWidth:0, flex:1}}>
+                                                <div style={{color:'#0f172a', fontWeight:'800', fontSize:'0.95rem', display:'flex', alignItems:'center', gap:'8px'}}>
+                                                    <span style={{minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{room.display_title || room.nome || 'Conversa privada'}</span>
+                                                    {unreadCount > 0 && <span style={{width:'8px', height:'8px', borderRadius:'999px', background:'#ef4444', boxShadow:'0 0 0 4px rgba(239,68,68,0.2)', flexShrink:0}}></span>}
+                                                </div>
+                                                <div style={{color:'#94a3b8', fontSize:'0.8rem', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'8px'}}>
+                                                    <span>{room.display_subtitle || (room.is_group ? 'Group Chat' : 'Chat')}</span>
+                                                    {unreadCount > 0 && <span style={{padding:'2px 7px', borderRadius:'999px', fontSize:'0.7rem', fontWeight:'900', color:'#fff', background:'#ef4444'}}>{unreadCount}</span>}
+                                                </div>
+                                            </div>
+                                        </button>
+                                    );
+                                })
+                            ) : (
+                                <div style={{padding:'12px', color:'#94a3b8', fontSize:'0.85rem', textAlign:'center'}}>Ainda não criaste chats.</div>
+                            )}
+
+                        </div>
                     </div>
-                    <div style={{padding:'16px', border:'1px dashed #cbd5e1', borderRadius:'12px', background:'#f8fafc', color:'#475569', lineHeight:'1.5'}}>
-                        <strong style={{color:'#0f172a'}}>Em construção</strong>
-                        <br />
-                        O chat interno P2P/GroupChat vai entrar nesta área. Já deixei a estrutura visual preparada.
+
+                    <div style={{display:'flex', flexDirection:'column', minHeight:0}}>
+                        <div style={{padding:'16px 18px', borderBottom:'1px solid #e2e8f0', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'12px'}}>
+                            <div>
+                                <h3 style={{margin:'0 0 3px 0', color:'#0f172a', fontSize:'1.15rem', fontWeight:'900'}}>{chatModal.target?.title || 'Seleciona um chat'}</h3>
+                                <p style={{margin:0, color:'#94a3b8', fontSize:'0.82rem'}}>{activeChatRoom?.id ? `Sala: ${activeChatRoom.id.slice(0, 8)}...` : 'Sem sala ativa'}</p>
+                            </div>
+                        </div>
+
+                        {chatError && (
+                            <div style={{margin:'10px 16px 0 16px', padding:'10px 12px', border:'1px solid #fecaca', background:'#fef2f2', color:'#991b1b', borderRadius:'10px', fontSize:'0.85rem'}}>{chatError}</div>
+                        )}
+
+                        <div style={{flex:1, overflowY:'auto', padding:'14px 16px', display:'flex', flexDirection:'column', gap:'10px'}} className="custom-scrollbar">
+                            {chatLoading && <div style={{color:'#94a3b8', fontSize:'0.9rem'}}>A carregar mensagens...</div>}
+
+                            {!chatLoading && chatMessages.length === 0 && (
+                                <div style={{margin:'auto', textAlign:'center', color:'#94a3b8'}}>
+                                    <Icons.Message size={42} />
+                                    <div style={{marginTop:'8px'}}>Sem mensagens nesta conversa.</div>
+                                </div>
+                            )}
+
+                            {!chatLoading && chatMessages.map((msg) => {
+                                const mine = msg.sender_id === user.id;
+                                return (
+                                    <div key={msg.id} style={{display:'flex', justifyContent: mine ? 'flex-end' : 'flex-start'}}>
+                                        <div style={{maxWidth:'72%', background: mine ? '#eff6ff' : '#f1f5f9', border:'1px solid #e2e8f0', borderRadius:'12px', padding:'9px 12px'}}>
+                                            {msg.file_url ? (
+                                                <div style={{display:'grid', gap:'6px'}}>
+                                                    <a href={msg.file_url} target="_blank" rel="noreferrer" style={{color:'var(--color-btnPrimary)', fontWeight:'700', textDecoration:'none'}}>📄 {msg.file_name || 'Ficheiro'}</a>
+                                                    {msg.requires_sig && !msg.is_signed && <span style={{fontSize:'0.78rem', color:'#b45309'}}>Aguarda assinatura</span>}
+                                                    {msg.is_signed && <span style={{fontSize:'0.78rem', color:'#16a34a'}}>Assinado</span>}
+                                                </div>
+                                            ) : (
+                                                <div style={{color:'#334155', whiteSpace:'pre-wrap', overflowWrap:'break-word'}}>{msg.content}</div>
+                                            )}
+                                            <div style={{marginTop:'5px', fontSize:'0.72rem', color:'#94a3b8'}}>{formatDate(msg.created_at || new Date().toISOString())}</div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        <form onSubmit={handleSendChatText} style={{padding:'12px 16px', borderTop:'1px solid #e2e8f0', display:'flex', gap:'8px', alignItems:'center'}}>
+                            <input
+                                type="text"
+                                value={chatDraft}
+                                onChange={(e) => setChatDraft(e.target.value)}
+                                placeholder="Escreve uma mensagem..."
+                                className="input-focus"
+                                style={{flex:1, padding:'12px 14px', borderRadius:'10px', border:'1px solid #cbd5e1', outline:'none'}}
+                                disabled={!activeChatRoom?.id || chatSending || chatUploadingFile}
+                            />
+                            <label
+                                className="hover-shadow"
+                                title="Anexar ficheiro"
+                                style={{
+                                    border:'1px solid #cbd5e1',
+                                    borderRadius:'999px',
+                                    width:'38px',
+                                    height:'38px',
+                                    cursor: !activeChatRoom?.id || chatSending || chatUploadingFile ? 'not-allowed' : 'pointer',
+                                    color:'#334155',
+                                    background:'#fff',
+                                    display:'inline-flex',
+                                    alignItems:'center',
+                                    justifyContent:'center',
+                                    opacity: !activeChatRoom?.id || chatSending || chatUploadingFile ? 0.6 : 1
+                                }}
+                            >
+                                <Icons.Paperclip size={17} />
+                                <input
+                                    type="file"
+                                    style={{display:'none'}}
+                                    disabled={!activeChatRoom?.id || chatSending || chatUploadingFile}
+                                    onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) uploadChatFile(file);
+                                        e.target.value = '';
+                                    }}
+                                />
+                            </label>
+                            <button type="submit" className="btn-primary" style={{borderRadius:'10px', padding:'10px 14px', opacity: chatDraft.trim() && activeChatRoom?.id ? 1 : 0.6}} disabled={!chatDraft.trim() || !activeChatRoom?.id || chatSending || chatUploadingFile}>
+                                {chatSending ? '...' : 'Enviar'}
+                            </button>
+                        </form>
                     </div>
-                    <button onClick={() => setChatModal({ show: false, target: null })} className="btn-primary" style={{marginTop:'14px', width:'100%', borderRadius:'10px', padding:'10px 14px'}}>Fechar</button>
                 </div>
             </div>
         </ModalPortal>
@@ -1392,6 +2299,20 @@ export default function Forum() {
         </ModalPortal>
       )}
 
+      {chatNotice.show && (
+          <ModalPortal>
+              <div style={{position:'fixed', right:'22px', bottom:'22px', zIndex:1000002, pointerEvents:'none'}}>
+                  <div style={{minWidth:'260px', maxWidth:'360px', padding:'12px 14px', borderRadius:'12px', background:'linear-gradient(135deg, #111827, #1f2937)', color:'#fff', boxShadow:'0 18px 35px rgba(15,23,42,0.35)', border:'1px solid rgba(255,255,255,0.14)'}}>
+                      <div style={{display:'flex', alignItems:'center', gap:'8px', fontWeight:'800', fontSize:'0.86rem'}}>
+                          <span style={{width:'8px', height:'8px', borderRadius:'999px', background:'#22c55e', boxShadow:'0 0 0 5px rgba(34,197,94,0.25)'}}></span>
+                          Nova mensagem interna
+                      </div>
+                      <div style={{marginTop:'6px', fontSize:'0.84rem', color:'#cbd5e1'}}>{chatNotice.text}</div>
+                  </div>
+              </div>
+          </ModalPortal>
+      )}
+
             <StopTimerNoteModal
                 open={stopNoteModal.show}
                 title="Parar cronometro"
@@ -1432,6 +2353,26 @@ export default function Forum() {
 
         .forum-chat-sidebar {
             margin-top: -96px;
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 #f1f5f9;
+        }
+
+        .forum-chat-sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .forum-chat-sidebar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 3px;
+        }
+
+        .forum-chat-sidebar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+
+        .forum-chat-sidebar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
         }
 
         .comment-bubble-row {
