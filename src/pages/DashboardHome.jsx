@@ -625,7 +625,7 @@ export default function DashboardHome() {
     const hoje = new Date().toISOString().split('T')[0];
         const { data, error } = await supabase
             .from("assiduidade")
-            .select("*, profiles(nome, avatar_url, funcao, empresa_interna, telemovel, email, data_nascimento)")
+            .select("*, profiles(nome, avatar_url, funcao, empresa_interna, telemovel, email, email_pessoal, data_nascimento)")
             .eq("data_registo", hoje)
             .is("hora_saida", null)
             .order("hora_entrada", { ascending: true }); 
@@ -1113,6 +1113,12 @@ export default function DashboardHome() {
   }, [tarefasRecentesCards.length]);
 
   const userFirstName = getSafeFirstName(userProfile?.nome, userProfile?.email);
+    const greetingByHour = (() => {
+            const currentHour = new Date().getHours();
+            if (currentHour >= 7 && currentHour < 13) return "Bom dia";
+            if (currentHour >= 13 && currentHour < 20) return "Boa tarde";
+            return "Boa noite";
+    })();
 
   return (
     <div className="dashboard-home modern-boom factorial-like">
@@ -1121,7 +1127,7 @@ export default function DashboardHome() {
     <div className="dashboard-hero boom-reveal" style={{ '--d': '20ms', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', background: 'white', padding: '18px 24px', borderRadius: '16px', boxShadow: '0 2px 10px rgba(15,23,42,0.04)', border: '1px solid #ebe7df', flexWrap: 'wrap', gap: '16px', position: 'relative', zIndex: 40, overflow: 'visible' }}>
         <div>
            <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
-               <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: '800', letterSpacing: '-0.02em', color: '#22242a' }}>Bom Dia, {userFirstName}</h1>
+               <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: '800', letterSpacing: '-0.02em', color: '#22242a' }}>{greetingByHour}, {userFirstName}</h1>
                <span style={{background: '#f7f4ee', color: '#6b7280', padding: '4px 10px', borderRadius: '10px', fontWeight: '700', fontSize: '0.84rem', display: 'flex', alignItems: 'center', gap: '6px', border: '1px solid #ebe7df'}}>
                    <Icons.Clock /> {horaAtual}
                </span>
@@ -1894,12 +1900,24 @@ export default function DashboardHome() {
                   <span style={{fontSize:'0.82rem', color:'#334155'}}>{selectedOnlineUser.profiles.telemovel}</span>
                 </div>
               )}
-              {selectedOnlineUser.profiles?.email && (
-                <div style={{display:'flex', alignItems:'center', gap:'8px', background:'#f8fafc', borderRadius:'10px', padding:'8px 12px'}}>
-                  <Icons.Mail size={15} color="#64748b" />
-                  <span style={{fontSize:'0.82rem', color:'#334155', wordBreak:'break-all'}}>{selectedOnlineUser.profiles.email}</span>
-                </div>
-              )}
+                            {selectedOnlineUser.profiles?.email && (
+                                <div style={{display:'flex', alignItems:'center', gap:'8px', background:'#f8fafc', borderRadius:'10px', padding:'8px 12px'}}>
+                                    <Icons.Mail size={15} color="#64748b" />
+                                    <div style={{display:'flex', flexDirection:'column', gap:'2px', minWidth: 0}}>
+                                        <span style={{fontSize:'0.7rem', color:'#64748b', fontWeight:'700', textTransform:'uppercase'}}>Email Empresa</span>
+                                        <span style={{fontSize:'0.82rem', color:'#334155', wordBreak:'break-all'}}>{selectedOnlineUser.profiles.email}</span>
+                                    </div>
+                                </div>
+                            )}
+                            {selectedOnlineUser.profiles?.email_pessoal && (
+                                <div style={{display:'flex', alignItems:'center', gap:'8px', background:'#f8fafc', borderRadius:'10px', padding:'8px 12px'}}>
+                                    <Icons.Mail size={15} color="#64748b" />
+                                    <div style={{display:'flex', flexDirection:'column', gap:'2px', minWidth: 0}}>
+                                        <span style={{fontSize:'0.7rem', color:'#64748b', fontWeight:'700', textTransform:'uppercase'}}>Email Pessoal</span>
+                                        <span style={{fontSize:'0.82rem', color:'#334155', wordBreak:'break-all'}}>{selectedOnlineUser.profiles.email_pessoal}</span>
+                                    </div>
+                                </div>
+                            )}
               {selectedOnlineUser.profiles?.data_nascimento && (
                 <div style={{display:'flex', alignItems:'center', gap:'8px', background:'#fff7ed', borderRadius:'10px', padding:'8px 12px'}}>
                   <Icons.Cake size={15} color="#c2410c" />

@@ -1056,6 +1056,7 @@ export default function RecursosHumanos() {
               estado_civil: tempUserProfile.estado_civil,
               morada: tempUserProfile.morada,
               telemovel: tempUserProfile.telemovel,
+              email_pessoal: tempUserProfile.email_pessoal,
               data_nascimento: tempUserProfile.data_nascimento,
               data_admissao: tempUserProfile.data_admissao || null,
               tipo_contrato: tempUserProfile.tipo_contrato,
@@ -2303,6 +2304,8 @@ export default function RecursosHumanos() {
                                             <div style={{...readOnlyItemStyle, marginTop:'10px'}}><span style={labelStyle}>Morada</span><b>{currentUserProfile?.morada || '-'}</b></div>
                                             <div style={{display:'flex', justifyContent:'space-between', marginTop:'15px', paddingBottom:'8px', borderBottom:'1px dashed #e2e8f0', fontSize:'0.9rem'}}><span style={labelStyle}>Concelho:</span> <b style={{color:'#1e293b'}}>{currentUserProfile?.concelho || '-'}</b></div>
                                             <div style={{display:'flex', justifyContent:'space-between', marginTop:'8px', paddingBottom:'8px', borderBottom:'1px dashed #e2e8f0', fontSize:'0.9rem'}}><span style={labelStyle}>Empresas:</span> <b style={{color:'#1e293b'}}>{formatCompaniesLabel(currentUserProfile)}</b></div>
+                                            <div style={{display:'flex', justifyContent:'space-between', marginTop:'8px', paddingBottom:'8px', borderBottom:'1px dashed #e2e8f0', fontSize:'0.9rem'}}><span style={labelStyle}>Email Institucional:</span> <b style={{color:'#1e293b'}}>{currentUserProfile?.email || '-'}</b></div>
+                                            <div style={{display:'flex', justifyContent:'space-between', marginTop:'8px', paddingBottom:'8px', borderBottom:'1px dashed #e2e8f0', fontSize:'0.9rem'}}><span style={labelStyle}>Email Pessoal:</span> <b style={{color:'#1e293b'}}>{currentUserProfile?.email_pessoal || '-'}</b></div>
                                             <div style={{display:'flex', justifyContent:'space-between', marginTop:'8px', fontSize:'0.9rem'}}><span style={labelStyle}>Contrato:</span> <b style={{color:'#1e293b'}}>{currentUserProfile?.tipo_contrato || '-'}</b></div>
                                             <button type="button" onClick={openUserEditor} style={{width:'100%', marginTop:'20px', padding:'10px', borderRadius:'8px', border:'1px solid #cbd5e1', background:'white', cursor:'pointer', color:'#475569', fontWeight:'600', display:'flex', justifyContent:'center', alignItems:'center', gap:'8px', transition:'0.2s'}}>
                                                 <Icons.Edit size={16} /> Editar Informações
@@ -2331,6 +2334,17 @@ export default function RecursosHumanos() {
                                             </div>
                                             <label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Morada</label>
                                             <input type="text" value={tempUserProfile.morada || ''} onChange={e => setTempUserProfile({...tempUserProfile, morada: e.target.value})} style={{width:'100%', marginBottom:'10px', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} />
+
+                                            <div className="rh-user-form-grid" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'10px'}}>
+                                                <div>
+                                                    <label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Email Institucional</label>
+                                                    <input type="email" value={tempUserProfile.email || ''} disabled readOnly style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px', background:'#f8fafc', color:'#64748b', cursor:'not-allowed'}} />
+                                                </div>
+                                                <div>
+                                                    <label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Email Pessoal</label>
+                                                    <input type="email" value={tempUserProfile.email_pessoal || ''} onChange={e => setTempUserProfile({...tempUserProfile, email_pessoal: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} />
+                                                </div>
+                                            </div>
                                             
                                             <div className="rh-user-form-grid" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'10px'}}>
                                                 <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Telemóvel</label><input type="text" value={tempUserProfile.telemovel || ''} onChange={e => setTempUserProfile({...tempUserProfile, telemovel: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>

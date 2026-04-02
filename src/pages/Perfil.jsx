@@ -26,6 +26,7 @@ export default function Perfil() {
   const [formData, setFormData] = useState({
     nome: "",
     email: "", 
+        email_pessoal: "",
     data_nascimento: "",
     avatar_url: "",
     
@@ -67,6 +68,7 @@ export default function Perfil() {
       setFormData({
         nome: userProfile.nome || "",
         email: user.email || "",
+                email_pessoal: userProfile.email_pessoal || "",
         data_nascimento: userProfile.data_nascimento || "",
         avatar_url: userProfile.avatar_url || "",
         
@@ -232,6 +234,7 @@ export default function Perfil() {
                 nome: formData.nome,
                 data_nascimento: formData.data_nascimento,
                 avatar_url: formData.avatar_url,
+                email_pessoal: formData.email_pessoal,
                 nome_completo: formData.nome_completo,
                 telemovel: formData.telemovel,
                 morada: formData.morada,
@@ -309,6 +312,10 @@ export default function Perfil() {
                           <div>
                               <label style={labelStyle}>Email (Login)</label>
                               <input type="email" value={formData.email} disabled style={{...inputStyle, background: '#f1f5f9', color:'#94a3b8', cursor:'not-allowed'}} />
+                          </div>
+                          <div>
+                              <label style={labelStyle}>Email Pessoal</label>
+                              <input type="email" value={formData.email_pessoal} onChange={e => setFormData({...formData, email_pessoal: e.target.value})} style={inputStyle} className="input-focus" placeholder="teuemail@exemplo.pt" />
                           </div>
                       </div>
                       <label style={labelStyle}>Nome Completo (Oficial)</label>
