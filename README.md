@@ -1,16 +1,49 @@
-# React + Vite
+# Bizin Manager
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Environment variables
 
-Currently, two official plugins are available:
+Do not commit `.env`.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Use `.env.example` as the template for local development, then create your own `.env` on your machine with the real values.
 
-## React Compiler
+Local example:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```env
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+BREVO_API_KEY=your-brevo-api-key
+BREVO_SENDER_EMAIL=marketing@your-domain.pt
+BREVO_SENDER_NAME=Your Brand
+```
 
-## Expanding the ESLint configuration
+## Local development
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Start both the frontend and the marketing API with:
+
+```bash
+npm run dev:full
+```
+
+If you only need the frontend, use:
+
+```bash
+npm run dev
+```
+
+## Vercel deploy
+
+Vercel does not read your local `.env` file automatically.
+
+Add the same variables in the Vercel project settings under Environment Variables:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+- `BREVO_API_KEY`
+- `BREVO_SENDER_EMAIL`
+- `BREVO_SENDER_NAME` if you use it
+
+For production, `BREVO_API_KEY` must exist in Vercel because the serverless function reads it with `process.env.BREVO_API_KEY`.
+
+## Notes
+
+The React + Vite template text was removed from this README because this repository now has its own setup and deployment workflow.

@@ -12,6 +12,10 @@ app.get("/api/health", (_req, res) => {
   res.json({ ok: true, service: "marketing-email-sender" });
 });
 
+app.get("/.well-known/appspecific/com.chrome.devtools.json", (_req, res) => {
+  res.status(204).end();
+});
+
 app.post("/api/marketing/send", async (req, res) => {
   const {
     emails,
