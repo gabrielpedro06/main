@@ -2581,11 +2581,16 @@ export default function Forum() {
                             <div style={{margin:'10px 16px 0 16px', padding:'10px 12px', border:'1px solid #fecaca', background:'#fef2f2', color:'#991b1b', borderRadius:'10px', fontSize:'0.85rem'}}>{chatError}</div>
                         )}
 
-                        {Object.keys(typingUsersById).length > 0 && (
-                            <div style={{margin:'10px 16px 0 16px', color:'#64748b', fontSize:'0.82rem', fontStyle:'italic'}}>
-                                {Object.keys(typingUsersById).map((typingUserId) => getChatSenderDisplayName(typingUserId)).join(', ')} a escrever...
-                            </div>
-                        )}
+                        <div style={{margin:'10px 16px 0 16px', minHeight:'20px', color:'#64748b', fontSize:'0.82rem', fontStyle:'italic'}}>
+                            {(() => {
+                                const typingNames = Object.keys(typingUsersById)
+                                    .map((typingUserId) => getChatSenderDisplayName(typingUserId))
+                                    .filter(Boolean);
+
+                                if (!typingNames.length) return null;
+                                return `${typingNames.join(', ') || 'Alguém'} a escrever...`;
+                            })()}
+                        </div>
 
                         <div ref={chatMessagesContainerRef} style={{flex:1, overflowY:'auto', padding:'14px 16px', display:'flex', flexDirection:'column', gap:'10px'}} className="custom-scrollbar">
                             {chatLoading && <div style={{color:'#94a3b8', fontSize:'0.9rem'}}>A carregar mensagens...</div>}

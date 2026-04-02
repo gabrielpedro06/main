@@ -78,6 +78,20 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
           return;
         }
 
+        const { data: roomReads, error: roomReadsError } = await supabase
+          .from('chat_room_reads')
+          .select('room_id, last_read_at')
+          .eq('user_id', user.id)
+          .in('room_id', roomIds);
+
+        if (roomReadsError) return;
+
+        const dbReadAtByRoom = {};
+        (roomReads || []).forEach((row) => {
+          if (!row?.room_id) return;
+          dbReadAtByRoom[row.room_id] = row.last_read_at;
+        });
+
         let seenMap = {};
         try {
           const raw = localStorage.getItem(getChatSeenStorageKey(user.id));
@@ -100,8 +114,18 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
         (msgs || []).forEach((msg) => {
           if (!msg?.room_id) return;
           if (msg.sender_id === user.id) return;
-          const seenAt = seenMap[msg.room_id];
-          if (seenAt && new Date(msg.created_at) <= new Date(seenAt)) return;
+
+          const localSeenAt = seenMap[msg.room_id] || null;
+          const dbSeenAt = dbReadAtByRoom[msg.room_id] || null;
+          const effectiveSeenAt = !localSeenAt
+            ? dbSeenAt
+            : !dbSeenAt
+            ? localSeenAt
+            : new Date(localSeenAt) > new Date(dbSeenAt)
+            ? localSeenAt
+            : dbSeenAt;
+
+          if (effectiveSeenAt && new Date(msg.created_at) <= new Date(effectiveSeenAt)) return;
           totalUnread += 1;
         });
 
@@ -179,6 +203,18 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
                 event: 'INSERT',
                 schema: 'public',
                 table: 'chat_participants',
+                filter: `user_id=eq.${user.id}`,
+              },
+              () => {
+                checkUnreadChats();
+              }
+            )
+            .on(
+              'postgres_changes',
+              {
+                event: '*',
+                schema: 'public',
+                table: 'chat_room_reads',
                 filter: `user_id=eq.${user.id}`,
               },
               () => {
