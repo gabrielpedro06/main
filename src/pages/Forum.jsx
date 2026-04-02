@@ -275,7 +275,7 @@ export default function Forum() {
         if (!chatModal.show || !activeChatRoom?.id || !chatMessages.length) return;
 
         const latest = chatMessages[chatMessages.length - 1];
-        emitReadReceipt(latest?.created_at || new Date().toISOString());
+        markRoomAsSeen(activeChatRoom.id, latest?.created_at || new Date().toISOString());
 
         const container = chatMessagesContainerRef.current;
         if (container) {
@@ -284,6 +284,57 @@ export default function Forum() {
             }, 40);
         }
     }, [chatMessages, chatModal.show, activeChatRoom?.id]);
+
+    useEffect(() => {
+        if (!chatModal.show || !activeChatRoom?.id) return;
+
+        loadRoomReadReceipts(activeChatRoom.id);
+    }, [chatModal.show, activeChatRoom?.id]);
+
+    useEffect(() => {
+        if (!chatModal.show || !activeChatRoom?.id) return;
+
+        const channel = supabase
+            .channel(`chat_room_reads_${activeChatRoom.id}`)
+            .on(
+                "postgres_changes",
+                {
+                    event: "*",
+                    schema: "public",
+                    table: "chat_room_reads",
+                    filter: `room_id=eq.${activeChatRoom.id}`,
+                },
+                (payload) => {
+                    const row = payload.new || payload.old;
+                    if (!row?.room_id || !row?.user_id) return;
+
+                    if (payload.eventType === "DELETE") {
+                        setReadReceiptsByRoom((prev) => {
+                            const roomReads = { ...(prev[row.room_id] || {}) };
+                            delete roomReads[row.user_id];
+                            return {
+                                ...prev,
+                                [row.room_id]: roomReads,
+                            };
+                        });
+                        return;
+                    }
+
+                    setReadReceiptsByRoom((prev) => ({
+                        ...prev,
+                        [row.room_id]: {
+                            ...(prev[row.room_id] || {}),
+                            [row.user_id]: row.last_read_at,
+                        },
+                    }));
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [chatModal.show, activeChatRoom?.id]);
 
     useEffect(() => {
         setTypingUsersById({});
@@ -413,13 +464,63 @@ export default function Forum() {
       localStorage.setItem(getChatSeenStorageKey(user.id), JSON.stringify(nextMap || {}));
   }
 
-  function markRoomAsSeen(roomId) {
+  function markRoomAsSeen(roomId, lastReadAt = null) {
       if (!roomId) return;
-      const nowIso = new Date().toISOString();
+      const nowIso = lastReadAt || new Date().toISOString();
       const current = getSeenRoomsMap();
       current[roomId] = nowIso;
       saveSeenRoomsMap(current);
       setUnreadByRoom((prev) => ({ ...prev, [roomId]: 0 }));
+      upsertRoomReadReceipt(roomId, nowIso);
+  }
+
+  async function upsertRoomReadReceipt(roomId, lastReadAt) {
+      if (!roomId || !user?.id) return;
+
+      const readAt = lastReadAt || new Date().toISOString();
+
+      const { error } = await supabase.from("chat_room_reads").upsert(
+          [
+              {
+                  room_id: roomId,
+                  user_id: user.id,
+                  last_read_at: readAt,
+              },
+          ],
+          { onConflict: "room_id,user_id" }
+      );
+
+      if (error) return;
+
+      setReadReceiptsByRoom((prev) => ({
+          ...prev,
+          [roomId]: {
+              ...(prev[roomId] || {}),
+              [user.id]: readAt,
+          },
+      }));
+  }
+
+  async function loadRoomReadReceipts(roomId) {
+      if (!roomId) return;
+
+      const { data, error } = await supabase
+          .from("chat_room_reads")
+          .select("room_id, user_id, last_read_at")
+          .eq("room_id", roomId);
+
+      if (error) return;
+
+      const roomReadMap = {};
+      (data || []).forEach((row) => {
+          if (!row?.user_id) return;
+          roomReadMap[row.user_id] = row.last_read_at;
+      });
+
+      setReadReceiptsByRoom((prev) => ({
+          ...prev,
+          [roomId]: roomReadMap,
+      }));
   }
 
   async function refreshUnreadCounts(roomIds = []) {
@@ -849,20 +950,6 @@ export default function Forum() {
       });
   }
 
-  function emitReadReceipt(lastReadAt) {
-      if (!activeChatRoom?.id || !activeRoomChannelRef.current || !user?.id) return;
-
-      activeRoomChannelRef.current.send({
-          type: "broadcast",
-          event: "read_receipt",
-          payload: {
-              roomId: activeChatRoom.id,
-              userId: user.id,
-              lastReadAt: lastReadAt || new Date().toISOString(),
-          },
-      });
-  }
-
   function getMessageReadTick(msg) {
       if (!msg || msg.sender_id !== user?.id || !activeChatRoom?.id) return "";
 
@@ -1069,6 +1156,7 @@ export default function Forum() {
               return [room, ...others];
           });
           await loadChatMessages(room.id);
+          await loadRoomReadReceipts(room.id);
           markRoomAsSeen(room.id);
       } catch (err) {
           setChatError(err?.message || "Não foi possível abrir o chat. Verifica se as tabelas de chat já existem.");
@@ -1264,8 +1352,8 @@ export default function Forum() {
       try {
           setActiveChatRoom(room);
           await loadChatMessages(room.id);
+          await loadRoomReadReceipts(room.id);
           markRoomAsSeen(room.id);
-          emitReadReceipt(new Date().toISOString());
       } catch (err) {
           setChatError(err?.message || "Não foi possível abrir o chat.");
       } finally {
