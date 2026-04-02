@@ -1,0 +1,138 @@
+/* =========================================
+   THEME SELECTOR STYLES
+   ========================================= */
+
+.theme-selector-container {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  border: 1px solid var(--color-borderColorLight);
+}
+
+.theme-selector-header {
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.theme-selector-header h3 {
+  margin: 0 0 8px 0;
+  font-size: 1.4rem;
+  color: var(--color-textPrimary);
+  font-weight: 700;
+}
+
+.theme-current {
+  margin: 0;
+  color: var(--color-textSecondary);
+  font-size: 0.95rem;
+}
+
+.theme-current strong {
+  color: var(--color-btnPrimary);
+  font-weight: 700;
+}
+
+/* Grid de Temas */
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.theme-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px;
+  background: var(--color-bgSecondary);
+  border: 2px solid var(--color-borderColorLight);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.theme-card:hover {
+  border-color: var(--color-btnPrimary);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.theme-card.active {
+  border-color: var(--color-btnPrimary);
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.08), rgba(37, 99, 235, 0.04));
+  box-shadow: 0 0 0 1px var(--color-btnPrimary), 0 8px 16px rgba(37, 99, 235, 0.15);
+}
+
+/* Preview da cor */
+.theme-preview {
+  width: 100%;
+  height: 60px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  transition: transform 0.2s ease;
+}
+
+.theme-card:hover .theme-preview {
+  transform: scale(1.05);
+}
+
+/* Info do tema */
+.theme-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.theme-name {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-textPrimary);
+  text-align: center;
+  line-height: 1.2;
+}
+
+.theme-badge {
+  padding: 2px 8px;
+  background: var(--color-btnPrimary);
+  color: white;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Disclaimer */
+.theme-disclaimer {
+  padding: 12px 16px;
+  background: linear-gradient(135deg, var(--color-bgPrimary), var(--color-bgSecondary));
+  border: 1px solid var(--color-borderColorLight);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.theme-disclaimer p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-textSecondary);
+  font-weight: 500;
+}
+
+/* Responsivo */
+@media (max-width: 768px) {
+  .theme-grid {
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 12px;
+  }
+
+  .theme-selector-container {
+    padding: 16px;
+  }
+}
+

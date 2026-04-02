@@ -39,14 +39,14 @@
   margin-top: 10px;
   border: none;
   border-radius: 6px;
-  background: #2563eb;
+  background: var(--color-btnPrimary);
   color: white;
   font-weight: bold;
   cursor: pointer;
 }
 
 .login-box button:hover {
-  background: #1d4ed8;
+  background: var(--color-btnPrimaryDark);
 }
 
 .signup-text {
@@ -55,7 +55,7 @@
 }
 
 .signup-text a {
-  color: #2563eb;
+  color: var(--color-btnPrimary);
   text-decoration: none;
   font-weight: bold;
 }
@@ -78,3 +78,4 @@
 .forgot-password a:hover {
   text-decoration: underline;
 }
+

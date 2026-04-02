@@ -754,7 +754,7 @@ export default function Tarefas() {
   };
 
   const renderStatusTag = (estado) => {
-      if (estado === 'em_curso') return <span style={{fontSize: '0.6rem', background: '#dbeafe', color: '#2563eb', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', textTransform: 'uppercase'}}>▶ Em Curso</span>;
+      if (estado === 'em_curso') return <span style={{fontSize: '0.6rem', background: 'var(--color-borderColorLight)', color: 'var(--color-btnPrimary)', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', textTransform: 'uppercase'}}>▶ Em Curso</span>;
       if (estado === 'pendente') return <span style={{fontSize: '0.6rem', background: '#f1f5f9', color: '#64748b', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', textTransform: 'uppercase'}}>⏳ Pendente</span>;
       return null;
   };
@@ -819,7 +819,13 @@ export default function Tarefas() {
       return diffMins;
   }
 
-    const projectColors = ['#2563eb', '#3b82f6', '#1d4ed8', '#60a5fa', '#0ea5e9', '#0284c7', '#6366f1', '#4f46e5', '#1e40af'];
+        const projectColors = [
+            'var(--color-btnPrimary)',
+            'var(--color-btnPrimaryDark)',
+            'var(--color-accentColor)',
+            'var(--color-textSecondary)',
+            'var(--color-textLight)'
+        ];
   const getColorForProject = (id) => {
       if (!id) return '#94a3b8'; 
       const hash = String(id).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
@@ -1500,7 +1506,7 @@ export default function Tarefas() {
     const timeLogEditBtnStyle = { ...timeLogActionBtnBaseStyle, color: '#334155' };
     const timeLogDeleteBtnStyle = { ...timeLogActionBtnBaseStyle, color: '#b91c1c' };
 
-  if (loading) return <div className="page-container" style={{display:'flex', justifyContent:'center', alignItems:'center', height:'80vh'}}><div className="pulse-dot-white" style={{background:'#2563eb'}}></div></div>;
+  if (loading) return <div className="page-container" style={{display:'flex', justifyContent:'center', alignItems:'center', height:'80vh'}}><div className="pulse-dot-white" style={{background:'var(--color-btnPrimary)'}}></div></div>;
 
   return (
     <div className="page-container" style={{maxWidth: '1400px', margin: '0 auto', padding: '15px'}}>
@@ -1545,7 +1551,7 @@ export default function Tarefas() {
             </>
         )}
         <label style={{display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.85rem', color: '#475569', fontWeight: '600', background: 'white', padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1'}}>
-            <input type="checkbox" checked={mostrarConcluidos} onChange={(e) => setMostrarConcluidos(e.target.checked)} style={{width: '14px', height: '14px', accentColor: '#2563eb', cursor: 'pointer'}} /> Mostrar Concluídos
+            <input type="checkbox" checked={mostrarConcluidos} onChange={(e) => setMostrarConcluidos(e.target.checked)} style={{width: '14px', height: '14px', accentColor: 'var(--color-btnPrimary)', cursor: 'pointer'}} /> Mostrar Concluídos
         </label>
       </div>
 
@@ -1560,7 +1566,7 @@ export default function Tarefas() {
                 return (
                     <div key={proj.id} style={{marginBottom: '45px'}}>
                         
-                        <div style={{display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px', paddingBottom: '8px', borderBottom: `2px solid ${proj.color}40`}}>
+                        <div style={{display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px', paddingBottom: '8px', borderBottom: '2px solid var(--color-borderColor)'}}>
                             <div style={{width: '12px', height: '12px', borderRadius: '50%', backgroundColor: proj.color}}></div>
                             
                             <button
@@ -1595,7 +1601,7 @@ export default function Tarefas() {
                                 const ativTime = getActivityTime(ativ);
 
                                 return (
-                                    <div id={`atividade-card-${ativ.id}`} key={ativ.id} style={{background: 'white', borderRadius: '10px', border: `1px solid ${isAtivCompleted ? '#e2e8f0' : proj.color}60`, borderTop: `4px solid ${isAtivCompleted ? '#cbd5e1' : proj.color}`, boxShadow: '0 2px 5px rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column', opacity: isAtivCompleted ? 0.6 : 1, transition: '0.2s', maxHeight: '400px'}}>
+                                    <div id={`atividade-card-${ativ.id}`} key={ativ.id} style={{background: 'white', borderRadius: '10px', border: isAtivCompleted ? '1px solid var(--color-borderColorLight)' : '1px solid var(--color-borderColor)', borderTop: `4px solid ${isAtivCompleted ? 'var(--color-borderColor)' : proj.color}`, boxShadow: '0 2px 5px rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column', opacity: isAtivCompleted ? 0.6 : 1, transition: '0.2s', maxHeight: '400px'}}>
                                         
                                         <div style={{padding: '12px 15px', background: isAtivCompleted ? '#f8fafc' : 'white', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
                                             <div style={{flex: 1, paddingRight: '10px'}}>
@@ -1607,7 +1613,7 @@ export default function Tarefas() {
                                                             handleToggleStatus('atividades', ativ.id, ativ.estado);
                                                         }}
                                                         title={isAtivCompleted ? 'Reabrir atividade' : 'Concluir atividade'}
-                                                        style={{width: '18px', height: '18px', borderRadius: '4px', border: isAtivCompleted ? 'none' : `2px solid ${proj.color}80`, background: isAtivCompleted ? '#2563eb' : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', cursor: 'pointer', flexShrink: 0, fontSize: '0.7rem', padding: 0, lineHeight: 1}}
+                                                        style={{width: '18px', height: '18px', borderRadius: '4px', border: isAtivCompleted ? 'none' : '2px solid var(--color-borderColor)', background: isAtivCompleted ? 'var(--color-btnPrimary)' : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', cursor: 'pointer', flexShrink: 0, fontSize: '0.7rem', padding: 0, lineHeight: 1}}
                                                     >
                                                         {isAtivCompleted && '✓'}
                                                     </button>
@@ -1621,7 +1627,7 @@ export default function Tarefas() {
                                                     {renderStatusTag(ativ.estado)}
                                                     {renderDeadline(ativ.data_fim, isAtivCompleted)}
                                                     {ativTime > 0 && <span style={{fontSize: '0.65rem', color: '#94a3b8', fontWeight: 'bold'}}>⏱ {formatTime(ativTime)}</span>}
-                                                    {ativ.tem_entregavel && <span title="Tem Documento Entregável" style={{fontSize: '0.7rem', color: '#3b82f6'}}>📄</span>}
+                                                    {ativ.tem_entregavel && <span title="Tem Documento Entregável" style={{fontSize: '0.7rem', color: 'var(--color-btnPrimary)'}}>📄</span>}
                                                 </div>
                                             </div>
                                             {!isAtivCompleted && (
@@ -1659,7 +1665,7 @@ export default function Tarefas() {
                                                                                 handleToggleStatus('tarefas', tar.id, tar.estado, tar.id);
                                                                             }}
                                                                             title={isTarCompleted ? 'Reabrir tarefa' : 'Concluir tarefa'}
-                                                                            style={{ width: '16px', height: '16px', borderRadius: '50%', cursor: 'pointer', border: isTarCompleted ? 'none' : '2px solid #cbd5e1', background: isTarCompleted ? '#2563eb' : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '0.6rem', flexShrink: 0, marginTop: '1px', padding: 0, lineHeight: 1 }}
+                                                                            style={{ width: '16px', height: '16px', borderRadius: '50%', cursor: 'pointer', border: isTarCompleted ? 'none' : '2px solid #cbd5e1', background: isTarCompleted ? 'var(--color-btnPrimary)' : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '0.6rem', flexShrink: 0, marginTop: '1px', padding: 0, lineHeight: 1 }}
                                                                         >
                                                                             {isTarCompleted && '✓'}
                                                                         </button>
@@ -1670,7 +1676,7 @@ export default function Tarefas() {
                                                                             <div style={{display: 'flex', gap: '4px', flexWrap: 'wrap', alignItems: 'center'}}>
                                                                                 {renderStatusTag(tar.estado)}
                                                                                 {renderDeadline(tar.data_fim || tar.data_limite, isTarCompleted)}
-                                                                                {tar.tem_entregavel && <span title="Tem Documento Entregável" style={{fontSize: '0.7rem', color: '#3b82f6'}}>📄</span>}
+                                                                                {tar.tem_entregavel && <span title="Tem Documento Entregável" style={{fontSize: '0.7rem', color: 'var(--color-btnPrimary)'}}>📄</span>}
                                                                                 {subsToRender.length > 0 && (
                                                                                     <span onClick={() => toggleExpand(tar.id)} style={{fontSize: '0.6rem', background: '#e2e8f0', color: '#475569', padding: '2px 4px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold'}}>
                                                                                         📋 {subsToRender.filter(s=>s.estado==='concluido').length}/{subsToRender.length} {isExpanded ? '▲' : '▼'}
@@ -1695,7 +1701,7 @@ export default function Tarefas() {
                                                                             const isSubCompleted = sub.estado === 'concluido';
                                                                             return (
                                                                                 <div key={sub.id} style={{display: 'flex', alignItems: 'flex-start', gap: '6px', marginBottom: '4px', opacity: isSubCompleted ? 0.6 : 1}}>
-                                                                                    <input type="checkbox" checked={isSubCompleted} onChange={() => handleToggleStatus('subtarefas', sub.id, sub.estado, tar.id)} style={{width: '12px', height: '12px', cursor: 'pointer', accentColor: '#3b82f6', marginTop: '2px'}} />
+                                                                                    <input type="checkbox" checked={isSubCompleted} onChange={() => handleToggleStatus('subtarefas', sub.id, sub.estado, tar.id)} style={{width: '12px', height: '12px', cursor: 'pointer', accentColor: 'var(--color-btnPrimary)', marginTop: '2px'}} />
                                                                                     <div style={{flex: 1}}>
                                                                                         <span onClick={() => handleEdit(sub, 'subtarefa')} style={{textDecoration: isSubCompleted ? 'line-through' : 'none', color: '#475569', fontWeight: '500', cursor: 'pointer', fontSize: '0.75rem', lineHeight: '1.2', display: 'block'}} className="hover-underline">
                                                                                             {sub.titulo}
@@ -1727,7 +1733,7 @@ export default function Tarefas() {
                         {(hasMore || canCollapse) && (
                             <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginTop: '15px' }}>
                                 {hasMore && (
-                                    <button onClick={() => setVisibleLimits(prev => ({...prev, [proj.id]: limit + 5}))} style={{ background: 'white', color: proj.color, border: `1px solid ${proj.color}40`, padding: '8px 20px', borderRadius: '20px', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', transition: '0.2s' }} className="hover-shadow">
+                                    <button onClick={() => setVisibleLimits(prev => ({...prev, [proj.id]: limit + 5}))} style={{ background: 'white', color: proj.color, border: '1px solid var(--color-borderColor)', padding: '8px 20px', borderRadius: '20px', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', transition: '0.2s' }} className="hover-shadow">
                                         ↓ Ver mais ({proj.atividades.length - limit})
                                     </button>
                                 )}
@@ -1912,7 +1918,7 @@ export default function Tarefas() {
             <div style={modalStyle}>
               <div style={modalHeaderStyle}>
                 <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
-                    <span style={{background: '#eff6ff', padding: '6px', borderRadius: '8px', fontSize: '1.1rem'}}>{isViewOnly ? '👁️' : (editId ? '✎' : '✨')}</span>
+                    <span style={{background: 'var(--color-bgSecondary)', padding: '6px', borderRadius: '8px', fontSize: '1.1rem'}}>{isViewOnly ? '👁️' : (editId ? '✎' : '✨')}</span>
                     <div>
                         <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.1rem'}}>{isViewOnly ? "Detalhes" : (editId ? `Editar ${editType.charAt(0).toUpperCase() + editType.slice(1)}` : "Nova Tarefa")}</h3>
                     </div>
@@ -2011,9 +2017,9 @@ export default function Tarefas() {
                                                     key={`extra-int-${s.id}`} 
                                                     onClick={() => toggleColaboradorExtra(s.id)}
                                                     style={{
-                                                        background: isChecked ? '#eff6ff' : '#f8fafc',
-                                                        color: isChecked ? '#2563eb' : '#64748b',
-                                                        border: `1px solid ${isChecked ? '#3b82f6' : '#e2e8f0'}`,
+                                                        background: isChecked ? 'var(--color-bgSecondary)' : '#f8fafc',
+                                                        color: isChecked ? 'var(--color-btnPrimary)' : '#64748b',
+                                                        border: `1px solid ${isChecked ? 'var(--color-btnPrimary)' : '#e2e8f0'}`,
                                                         padding: '4px 10px', borderRadius: '15px', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', gap: '4px'
                                                     }}
                                                 >
@@ -2034,9 +2040,9 @@ export default function Tarefas() {
                                                     key={`extra-ent-${s.id}`} 
                                                     onClick={() => toggleColaboradorExtra(s.id)}
                                                     style={{
-                                                        background: isChecked ? '#eff6ff' : '#f8fafc',
-                                                        color: isChecked ? '#2563eb' : '#64748b',
-                                                        border: `1px solid ${isChecked ? '#3b82f6' : '#e2e8f0'}`,
+                                                        background: isChecked ? 'var(--color-bgSecondary)' : '#f8fafc',
+                                                        color: isChecked ? 'var(--color-btnPrimary)' : '#64748b',
+                                                        border: `1px solid ${isChecked ? 'var(--color-btnPrimary)' : '#e2e8f0'}`,
                                                         padding: '4px 10px', borderRadius: '15px', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', gap: '4px'
                                                     }}
                                                 >
@@ -2142,7 +2148,7 @@ export default function Tarefas() {
                                                                     width: '20px',
                                                                     height: '20px',
                                                                     border: task.estado === 'concluido' ? 'none' : '2px solid #cbd5e1',
-                                                                    background: task.estado === 'concluido' ? '#2563eb' : '#ffffff',
+                                                                    background: task.estado === 'concluido' ? 'var(--color-btnPrimary)' : '#ffffff',
                                                                     color: '#ffffff',
                                                                     borderRadius: '50%',
                                                                     padding: 0,
@@ -2205,9 +2211,9 @@ export default function Tarefas() {
                                                             type="button"
                                                             onClick={() => handleEdit(task, 'tarefa')}
                                                             style={{
-                                                                border: '1px solid #dbeafe',
-                                                                background: '#eff6ff',
-                                                                color: '#2563eb',
+                                                                border: '1px solid var(--color-borderColorLight)',
+                                                                background: 'var(--color-bgSecondary)',
+                                                                color: 'var(--color-btnPrimary)',
                                                                 borderRadius: '999px',
                                                                 padding: '6px 10px',
                                                                 cursor: 'pointer',
@@ -2232,7 +2238,7 @@ export default function Tarefas() {
                     {(editType === 'tarefa' || editType === 'atividade') && (
                         <div style={{background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '15px', marginBottom: '15px'}}>
                             <label style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', color: '#1e293b', cursor: 'pointer', fontSize: '0.85rem'}}>
-                                <input type="checkbox" checked={form.tem_entregavel} onChange={e => setForm({...form, tem_entregavel: e.target.checked})} style={{accentColor: '#2563eb', width: '16px', height: '16px'}} />
+                                <input type="checkbox" checked={form.tem_entregavel} onChange={e => setForm({...form, tem_entregavel: e.target.checked})} style={{accentColor: 'var(--color-btnPrimary)', width: '16px', height: '16px'}} />
                                 Requer Documento Entregável?
                             </label>
                             
@@ -2251,8 +2257,8 @@ export default function Tarefas() {
                                     
                                     <div
                                         style={{
-                                            background: isDeliverableDragOver ? '#eff6ff' : '#f8fafc',
-                                            border: isDeliverableDragOver ? '1px dashed #2563eb' : '1px dashed #cbd5e1',
+                                            background: isDeliverableDragOver ? 'var(--color-bgSecondary)' : '#f8fafc',
+                                            border: isDeliverableDragOver ? '1px dashed var(--color-btnPrimary)' : '1px dashed #cbd5e1',
                                             padding: '15px',
                                             borderRadius: '8px',
                                             textAlign: 'center',
@@ -2276,7 +2282,7 @@ export default function Tarefas() {
                                     >
                                         {form.arquivo_url ? (
                                             <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px'}}>
-                                                <a href={form.arquivo_url} target="_blank" rel="noopener noreferrer" style={{display: 'flex', alignItems: 'center', gap: '6px', color: '#2563eb', fontWeight: 'bold', textDecoration: 'none', fontSize: '0.85rem'}}>
+                                                <a href={form.arquivo_url} target="_blank" rel="noopener noreferrer" style={{display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-btnPrimary)', fontWeight: 'bold', textDecoration: 'none', fontSize: '0.85rem'}}>
                                                     <Icons.ExternalLink /> Ver Documento Atual
                                                 </a>
                                                 <button type="button" onClick={() => { setForm({...form, arquivo_url: ""}); setFileToUpload(null); }} style={{background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold'}} className="hover-red-text">
@@ -2286,8 +2292,8 @@ export default function Tarefas() {
                                         ) : (
                                             <div>
                                                 <label style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', cursor: 'pointer'}}>
-                                                    <Icons.UploadCloud size={24} color={fileToUpload ? "#2563eb" : "#94a3b8"} />
-                                                    <span style={{fontSize: '0.85rem', color: fileToUpload ? '#2563eb' : '#64748b', fontWeight: 'bold'}}>
+                                                    <Icons.UploadCloud size={24} color={fileToUpload ? "var(--color-btnPrimary)" : "#94a3b8"} />
+                                                    <span style={{fontSize: '0.85rem', color: fileToUpload ? 'var(--color-btnPrimary)' : '#64748b', fontWeight: 'bold'}}>
                                                         {fileToUpload ? fileToUpload.name : "Clique para anexar um documento (PDF, Excel, Word)"}
                                                     </span>
                                                     <input 
@@ -2318,7 +2324,7 @@ export default function Tarefas() {
                         <label style={labelStyle}>Estado Atual</label>
                         <div style={{display: 'flex', gap: '8px'}}>
                             {['pendente', 'em_curso', 'em_analise', 'concluido', 'cancelado'].map(st => (
-                                <div key={st} onClick={() => !isViewOnly && setForm({...form, estado: st})} style={{flex: 1, textAlign: 'center', padding: '8px', borderRadius: '6px', cursor: isViewOnly ? 'default' : 'pointer', fontSize: '0.8rem', fontWeight: '700', background: form.estado === st ? '#2563eb' : '#fff', color: form.estado === st ? 'white' : '#64748b', border: form.estado === st ? '1px solid #2563eb' : '1px solid #cbd5e1', transition: 'all 0.2s', textTransform: 'uppercase'}}>
+                                <div key={st} onClick={() => !isViewOnly && setForm({...form, estado: st})} style={{flex: 1, textAlign: 'center', padding: '8px', borderRadius: '6px', cursor: isViewOnly ? 'default' : 'pointer', fontSize: '0.8rem', fontWeight: '700', background: form.estado === st ? 'var(--color-btnPrimary)' : '#fff', color: form.estado === st ? 'white' : '#64748b', border: form.estado === st ? '1px solid var(--color-btnPrimary)' : '1px solid #cbd5e1', transition: 'all 0.2s', textTransform: 'uppercase'}}>
                                     {st.replace('_', ' ')}
                                 </div>
                             ))}
@@ -2333,7 +2339,7 @@ export default function Tarefas() {
                       {!isViewOnly && (
                           <div style={{display: 'flex', gap: '10px'}}>
                               <button type="button" onClick={() => setShowModal(false)} style={{padding: '10px 20px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white', color: '#64748b', fontWeight: '700', cursor: 'pointer', fontSize: '0.9rem'}} className="hover-shadow">Cancelar</button>
-                              <button type="submit" disabled={isUploading} style={{padding: '10px 20px', borderRadius: '8px', border: 'none', background: '#2563eb', color: 'white', fontWeight: '700', cursor: isUploading ? 'wait' : 'pointer', fontSize: '0.9rem', opacity: isUploading ? 0.7 : 1}} className="hover-shadow">
+                              <button type="submit" disabled={isUploading} style={{padding: '10px 20px', borderRadius: '8px', border: 'none', background: 'var(--color-btnPrimary)', color: 'white', fontWeight: '700', cursor: isUploading ? 'wait' : 'pointer', fontSize: '0.9rem', opacity: isUploading ? 0.7 : 1}} className="hover-shadow">
                                   {isUploading ? "A carregar..." : (editId ? "💾 Guardar Alterações" : "🚀 Criar")}
                               </button>
                           </div>
@@ -2372,7 +2378,7 @@ export default function Tarefas() {
                           width: 'min(520px, 100%)',
                           background: '#ffffff',
                           borderRadius: '16px',
-                          border: '1px solid #bfdbfe',
+                          border: '1px solid var(--color-borderColor)',
                           boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.25)',
                           overflow: 'hidden'
                       }}
@@ -2380,8 +2386,8 @@ export default function Tarefas() {
                       <div
                           style={{
                               padding: '16px 18px',
-                              background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
-                              borderBottom: '1px solid #bfdbfe',
+                              background: 'linear-gradient(135deg, var(--color-bgSecondary) 0%, var(--color-borderColorLight) 100%)',
+                              borderBottom: '1px solid var(--color-borderColor)',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'space-between',
@@ -2390,11 +2396,11 @@ export default function Tarefas() {
                       >
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                               <span style={{ fontSize: '1.2rem' }}>✅</span>
-                              <h3 style={{ margin: 0, color: '#1e40af', fontSize: '1.05rem', fontWeight: '800' }}>Projeto concluído</h3>
+                              <h3 style={{ margin: 0, color: 'var(--color-textPrimary)', fontSize: '1.05rem', fontWeight: '800' }}>Projeto concluído</h3>
                           </div>
                           <button
                               onClick={() => setTransitionPromptOpen(false)}
-                              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#1d4ed8' }}
+                              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-btnPrimaryDark)' }}
                               aria-label="Fechar"
                           >
                               <Icons.Close size={18} color="currentColor" />
@@ -2448,12 +2454,12 @@ export default function Tarefas() {
 
           @keyframes pulse { 0% {box-shadow:0 0 0 0 rgba(239,68,68,0.7)} 70% {box-shadow:0 0 0 6px rgba(239,68,68,0)} 100% {box-shadow:0 0 0 0 rgba(239,68,68,0)}} 
           
-          .hover-underline:hover {text-decoration: underline !important; color: #2563eb !important} 
-          .hover-text-blue:hover { color: #2563eb !important; }
+          .hover-underline:hover {text-decoration: underline !important; color: var(--color-btnPrimary) !important} 
+          .hover-text-blue:hover { color: var(--color-btnPrimary) !important; }
 
           .time-log-action-btn:hover { transform: translateY(-1px); box-shadow: 0 2px 6px rgba(15, 23, 42, 0.15); }
           .time-log-action-btn:active { transform: translateY(0); }
-          .time-log-action-btn:focus-visible { outline: 2px solid #93c5fd; outline-offset: 1px; }
+          .time-log-action-btn:focus-visible { outline: 2px solid var(--color-borderColorLight); outline-offset: 1px; }
           
           .icon-btn-red {background: transparent; border: none; cursor: pointer; color: #f87171; font-size: 1.1rem; padding: 2px 6px; border-radius: 4px; transition: 0.2s;}
           .icon-btn-red:hover {background: #fef2f2; color: #dc2626; transform: scale(1.1);}
@@ -2461,3 +2467,4 @@ export default function Tarefas() {
     </div>
   );
 }
+

@@ -86,8 +86,8 @@ export default function TimerSwitchModal({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              background: "#eff6ff",
-              color: "#2563eb",
+              background: "var(--color-bgSecondary)",
+              color: "var(--color-btnPrimary)",
               marginBottom: "4px"
             }}
           >
@@ -137,7 +137,7 @@ export default function TimerSwitchModal({
                 height: "50px",
                 borderRadius: "14px",
                 border: "none",
-                background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
+                background: "linear-gradient(135deg, var(--color-btnPrimary), var(--color-btnPrimaryDark))",
                 color: "white",
                 fontWeight: 600,
                 fontSize: "1rem",
@@ -154,3 +154,4 @@ export default function TimerSwitchModal({
     document.body
   );
 }
+

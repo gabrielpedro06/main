@@ -503,7 +503,7 @@ export default function Atividades() {
       {/* HEADER */}
       <div className="card" style={{ marginBottom: 20, padding: '25px', display: "flex", justifyContent: "space-between", alignItems: 'center', flexWrap: 'wrap', gap: '15px', background: 'white', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
         <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
-            <div style={{background: '#eff6ff', color: '#2563eb', padding: '10px', borderRadius: '10px', display: 'flex'}}><Icons.ClipboardList /></div>
+            <div style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '10px', borderRadius: '10px', display: 'flex'}}><Icons.ClipboardList /></div>
             <div>
                 <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>Atividades</h1>
                 <p style={{color: '#64748b', margin: 0, fontWeight: '500', fontSize: '0.9rem'}}>Gestão de blocos de trabalho</p>
@@ -563,7 +563,7 @@ export default function Atividades() {
                         const isExpired = a.data_fim && new Date(a.data_fim) < new Date() && !isCompleted;
 
                         return (
-                            <tr key={a.id} style={{ borderBottom: '1px solid #f8fafc', background: isRunning ? '#eff6ff' : (isCompleted ? '#f8fafc' : 'white'), opacity: isCompleted ? 0.6 : 1, transition: '0.2s' }} className={!isCompleted && !isRunning ? "table-row-hover" : ""}>
+                            <tr key={a.id} style={{ borderBottom: '1px solid #f8fafc', background: isRunning ? 'var(--color-bgSecondary)' : (isCompleted ? '#f8fafc' : 'white'), opacity: isCompleted ? 0.6 : 1, transition: '0.2s' }} className={!isCompleted && !isRunning ? "table-row-hover" : ""}>
                                 <td style={{padding: '15px', textAlign: 'center'}}>
                                     <div style={{display:'flex', alignItems:'center', justifyContent:'center', gap:'12px'}}>
                                         {isRunning ? (
@@ -571,7 +571,7 @@ export default function Atividades() {
                                                 <Icons.Stop size={14} />
                                             </button>
                                         ) : (
-                                            <button onClick={() => handleStartAtividade(a)} disabled={isCompleted} title="Iniciar Timer" style={{border:'none', background: isCompleted ? '#f1f5f9' : '#dbeafe', color: isCompleted ? '#cbd5e1' : '#2563eb', borderRadius:'50%', width:'32px', height:'32px', cursor: isCompleted ? 'default' : 'pointer', display:'flex', alignItems:'center', justifyContent:'center', transition: '0.2s'}} className={!isCompleted ? "hover-shadow" : ""}>
+                                            <button onClick={() => handleStartAtividade(a)} disabled={isCompleted} title="Iniciar Timer" style={{border:'none', background: isCompleted ? '#f1f5f9' : 'var(--color-borderColorLight)', color: isCompleted ? '#cbd5e1' : 'var(--color-btnPrimary)', borderRadius:'50%', width:'32px', height:'32px', cursor: isCompleted ? 'default' : 'pointer', display:'flex', alignItems:'center', justifyContent:'center', transition: '0.2s'}} className={!isCompleted ? "hover-shadow" : ""}>
                                                 <Icons.Play size={14} />
                                             </button>
                                         )}
@@ -582,7 +582,7 @@ export default function Atividades() {
                                     </div>
                                 </td>
                                 
-                                <td style={{padding: '15px', fontWeight: "bold", color: isRunning ? "#2563eb" : "#1e293b", fontSize: '0.95rem'}}>
+                                <td style={{padding: '15px', fontWeight: "bold", color: isRunning ? "var(--color-btnPrimary)" : "#1e293b", fontSize: '0.95rem'}}>
                                     <span style={{textDecoration: isCompleted ? 'line-through' : 'none'}}>{a.titulo}</span>
                                     {a.investimento > 0 && <div style={{fontSize: '0.75rem', fontWeight:'600', color: '#64748b', marginTop: '4px'}}>Orçamento: {a.investimento}€</div>}
                                 </td>
@@ -646,7 +646,7 @@ export default function Atividades() {
               
               <div style={{padding:'20px 25px', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center', background:'#f8fafc'}}>
                 <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
-                    <span style={{background: '#eff6ff', color: '#2563eb', padding: '8px', borderRadius: '8px', display: 'flex'}}><Icons.ClipboardList /></span>
+                    <span style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '8px', borderRadius: '8px', display: 'flex'}}><Icons.ClipboardList /></span>
                     <h3 style={{margin: 0, color: '#0f172a', fontSize: '1.25rem', fontWeight: '800'}}>
                         {isViewOnly ? "Ver Atividade" : (editId ? "Editar Atividade" : "Nova Atividade")}
                     </h3>
@@ -702,9 +702,9 @@ export default function Atividades() {
                                 style={{
                                     flex: 1, textAlign: 'center', padding: '10px', borderRadius: '8px', cursor: isViewOnly ? 'default' : 'pointer',
                                     fontSize: '0.8rem', fontWeight: '700',
-                                    background: form.estado === st.val ? '#2563eb' : '#f8fafc',
+                                    background: form.estado === st.val ? 'var(--color-btnPrimary)' : '#f8fafc',
                                     color: form.estado === st.val ? 'white' : '#64748b',
-                                    border: form.estado === st.val ? '1px solid #2563eb' : '1px solid #e2e8f0',
+                                    border: form.estado === st.val ? '1px solid var(--color-btnPrimary)' : '1px solid #e2e8f0',
                                     transition: 'all 0.2s', textTransform: 'uppercase', letterSpacing: '0.05em'
                                 }}
                             >
@@ -729,7 +729,7 @@ export default function Atividades() {
                   {!isViewOnly && (
                       <div style={{display:'flex', gap:'10px', marginTop:'30px', paddingTop:'20px', borderTop:'1px solid #f1f5f9', justifyContent: 'flex-end'}}>
                           <button type="button" onClick={() => setShowModal(false)} style={{padding:'12px 20px', borderRadius:'8px', border:'1px solid #cbd5e1', background:'white', color:'#64748b', fontWeight:'700', cursor:'pointer', transition: '0.2s'}} className="hover-shadow">Cancelar</button>
-                          <button type="submit" style={{padding:'12px 30px', borderRadius:'8px', border:'none', background:'#2563eb', color:'white', fontWeight:'700', cursor:'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: '0.2s'}} className="hover-shadow">
+                          <button type="submit" style={{padding:'12px 30px', borderRadius:'8px', border:'none', background:'var(--color-btnPrimary)', color:'white', fontWeight:'700', cursor:'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: '0.2s'}} className="hover-shadow">
                               {editId ? <><Icons.Save /> Guardar Alterações</> : <><Icons.Plus /> Criar Atividade</>}
                           </button>
                       </div>
@@ -850,7 +850,7 @@ export default function Atividades() {
         .hover-shadow:hover { transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
         .hover-orange-text:hover { color: #f97316 !important; opacity: 1 !important; }
         .hover-red-text:hover { color: #ef4444 !important; opacity: 1 !important; }
-        .input-focus:focus { border-color: #3b82f6 !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
+        .input-focus:focus { border-color: var(--color-btnPrimary) !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
         .pulse-dot-white { width: 8px; height: 8px; background-color: white; border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { transform: scale(0.95); opacity: 0.7; } 70% { transform: scale(1); opacity: 0; } 100% { transform: scale(0.95); opacity: 0; } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }

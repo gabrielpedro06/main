@@ -141,10 +141,10 @@ const ModernTooltip = ({ content, children }) => {
                         maxWidth: "300px",
                         padding: "8px 10px",
                         borderRadius: "8px",
-                        border: "1px solid #bfdbfe",
-                        background: "#eff6ff",
+                        border: "1px solid var(--color-borderColor)",
+                        background: "var(--color-bgSecondary)",
                         boxShadow: "0 10px 22px rgba(29, 78, 216, 0.14)",
-                        color: "#1d4ed8",
+                        color: "var(--color-btnPrimaryDark)",
                         fontSize: "0.75rem",
                         fontWeight: 500,
                         lineHeight: 1.35,
@@ -160,8 +160,8 @@ const ModernTooltip = ({ content, children }) => {
                             width: "9px",
                             height: "9px",
                             borderRadius: "1px",
-                            border: "1px solid #bfdbfe",
-                            background: "#eff6ff",
+                            border: "1px solid var(--color-borderColor)",
+                            background: "var(--color-bgSecondary)",
                             transform: "translateX(-50%) rotate(45deg)",
                             ...(position.placement === "top"
                                 ? { bottom: "-5px", borderTop: "none", borderLeft: "none" }
@@ -1735,8 +1735,8 @@ export default function RecursosHumanos() {
               cellBorderColor = '#fca5a5';
           }
           else if (toleranciaGlobalNoDia) {
-              cellStyle.background = '#dbeafe';
-              cellBorderColor = '#93c5fd';
+              cellStyle.background = 'var(--color-borderColorLight)';
+              cellBorderColor = 'var(--color-borderColorLight)';
           }
 
           if (selectedUser) {
@@ -1751,9 +1751,9 @@ export default function RecursosHumanos() {
               else if (ausencia) {
                   const tipoNormalizado = normalizeAbsenceType(ausencia.tipo);
                   if (isToleranceType(tipoNormalizado)) {
-                      cellStyle.background = '#eff6ff';
-                      cellBorderColor = '#bfdbfe';
-                      content = <div style={{display:'flex', justifyContent:'center'}}><Icons.Clock color="#3b82f6" size={20}/></div>;
+                      cellStyle.background = 'var(--color-bgSecondary)';
+                      cellBorderColor = 'var(--color-borderColor)';
+                      content = <div style={{display:'flex', justifyContent:'center'}}><Icons.Clock color="var(--color-btnPrimary)" size={20}/></div>;
                   }
                   else if (isVacationType(tipoNormalizado)) { 
                       cellStyle.background = '#fefce8'; 
@@ -1781,7 +1781,7 @@ export default function RecursosHumanos() {
                       const user = colaboradores.find(c => c.id === a.user_id);
                       const tipoNormalizado = normalizeAbsenceType(a.tipo);
                       let barColor = '#fcd34d'; 
-                      if (isToleranceType(tipoNormalizado)) barColor = '#3b82f6';
+                      if (isToleranceType(tipoNormalizado)) barColor = 'var(--color-btnPrimary)';
                       if (tipoNormalizado.includes('falta')) barColor = '#fca5a5';
                       if (tipoNormalizado.includes('baixa') || tipoNormalizado.includes('doenca') || tipoNormalizado.includes('acidente')) barColor = '#d8b4fe';
                       if (a.is_parcial) barColor = '#94a3b8';
@@ -1802,8 +1802,8 @@ export default function RecursosHumanos() {
                       )}
                       {toleranciaGlobalNoDia && (
                           <ModernTooltip content={toleranciaGlobalNoDia.motivo || formatAbsenceTypeLabel(toleranciaGlobalNoDia.tipo)}>
-                              <div style={{fontSize: '0.7rem', color: '#1d4ed8', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display:'flex', alignItems:'center', gap:'4px'}}>
-                                  <Icons.Flag size={10} color="#1d4ed8"/> {toleranciaGlobalNoDia.motivo || 'Tolerância de Ponto'}
+                              <div style={{fontSize: '0.7rem', color: 'var(--color-btnPrimaryDark)', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display:'flex', alignItems:'center', gap:'4px'}}>
+                                  <Icons.Flag size={10} color="var(--color-btnPrimaryDark)"/> {toleranciaGlobalNoDia.motivo || 'Tolerância de Ponto'}
                               </div>
                           </ModernTooltip>
                       )}
@@ -1817,7 +1817,7 @@ export default function RecursosHumanos() {
               : (toleranciaGlobalNoDia
                     ? `Global: ${toleranciaGlobalNoDia.motivo || formatAbsenceTypeLabel(toleranciaGlobalNoDia.tipo)}`
                     : '');
-          const numeroDiaCor = feriado ? '#ef4444' : (toleranciaGlobalNoDia ? '#2563eb' : '#94a3b8');
+          const numeroDiaCor = feriado ? '#ef4444' : (toleranciaGlobalNoDia ? 'var(--color-btnPrimary)' : '#94a3b8');
           
           days.push(
               <ModernTooltip key={d} content={tituloDia}>
@@ -1849,8 +1849,8 @@ export default function RecursosHumanos() {
       <div style={{marginBottom: '20px', background:'white', padding:'20px', borderRadius:'12px', boxShadow:'0 2px 5px rgba(0,0,0,0.05)'}}>
         <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'20px'}}>
             <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
-                <div style={{background:'#eff6ff', padding:'12px', borderRadius:'10px', display:'flex', alignItems:'center', justifyContent:'center'}}>
-                    <Icons.Users size={28} color="#2563eb" />
+                <div style={{background:'var(--color-bgSecondary)', padding:'12px', borderRadius:'10px', display:'flex', alignItems:'center', justifyContent:'center'}}>
+                    <Icons.Users size={28} color="var(--color-btnPrimary)" />
                 </div>
                 <div>
                     <h1 style={{margin:0, fontSize:'1.4rem', color:'#1e293b'}}>Gestão de RH</h1>
@@ -1896,7 +1896,7 @@ export default function RecursosHumanos() {
                             <tbody>
                                 {pedidosPendentes.map(p => (
                                     <tr key={p.id} style={{background: p.estado === 'pedido_cancelamento' ? '#fefce8' : 'transparent', borderBottom: '1px solid #f1f5f9'}}>
-                                        <td style={{padding: '12px', fontWeight: 'bold', color: '#2563eb'}}>{p.profiles?.nome}</td>
+                                        <td style={{padding: '12px', fontWeight: 'bold', color: 'var(--color-btnPrimary)'}}>{p.profiles?.nome}</td>
                                         <td style={{padding: '12px', color: '#334155'}}>{formatAbsenceTypeLabel(p.tipo)}</td>
                                         <td style={{padding: '12px', color: '#334155'}}>
                                           {p.is_parcial ? (
@@ -1911,7 +1911,7 @@ export default function RecursosHumanos() {
                                         <td style={{padding: '12px'}}>{p.is_parcial ? <span style={{color: '#94a3b8', fontSize:'0.85rem'}}>Horas</span> : <span style={{fontSize:'0.9rem', fontWeight:'500'}}>{calcularDiasUteis(p.data_inicio, p.data_fim)} dias</span>}</td>
                                         <td style={{padding: '12px'}}>
                                             {p.estado === 'pendente' ? 
-                                                <span style={{background: '#dbeafe', color: '#2563eb', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold'}}>Novo Pedido</span> : 
+                                                <span style={{background: 'var(--color-borderColorLight)', color: 'var(--color-btnPrimary)', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold'}}>Novo Pedido</span> : 
                                                 <span style={{background: '#fef08a', color: '#854d0e', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', display:'flex', alignItems:'center', gap:'4px', width:'max-content'}}><Icons.Alert size={12}/> Cancelamento</span>
                                             }
                                         </td>
@@ -1982,14 +1982,14 @@ export default function RecursosHumanos() {
                             <tbody>
                                 {pedidosKmPendentes.map(p => (
                                     <tr key={p.id} style={{background: p.estado === 'pedido_cancelamento' ? '#fefce8' : 'transparent', borderBottom: '1px solid #f1f5f9'}}>
-                                        <td style={{padding: '12px', fontWeight: 'bold', color: '#2563eb'}}>{p.profiles?.nome}</td>
+                                        <td style={{padding: '12px', fontWeight: 'bold', color: 'var(--color-btnPrimary)'}}>{p.profiles?.nome}</td>
                                         <td style={{padding: '12px', color: '#334155', fontWeight: '500'}}>{p.km_origem || '-'}</td>
                                         <td style={{padding: '12px', color: '#334155', fontWeight: '500'}}>{p.km_destino || '-'}</td>
                                         <td style={{padding: '12px'}}><span style={{fontSize:'0.95rem', fontWeight:'600', color: '#16a34a'}}>{p.km_total ?? 0} km</span></td>
                                         <td style={{padding: '12px', color: '#334155'}}>{new Date(p.data_inicio).toLocaleDateString('pt-PT')}</td>
                                         <td style={{padding: '12px'}}>
                                             {p.estado === 'pendente' ? 
-                                                <span style={{background: '#dbeafe', color: '#2563eb', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold'}}>Novo Pedido</span> : 
+                                                <span style={{background: 'var(--color-borderColorLight)', color: 'var(--color-btnPrimary)', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold'}}>Novo Pedido</span> : 
                                                 <span style={{background: '#fef08a', color: '#854d0e', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', display:'flex', alignItems:'center', gap:'4px', width:'max-content'}}><Icons.Alert size={12}/> Cancelamento</span>
                                             }
                                         </td>
@@ -2078,7 +2078,7 @@ export default function RecursosHumanos() {
                                                           <Icons.User size={12} /> {colab?.nome || 'Individual'}
                                                       </span>
                                                   ) : (
-                                                      <span style={{background: '#eff6ff', color: '#1d4ed8', padding: '4px 10px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: '600', display:'inline-flex', alignItems:'center', gap:'4px'}}>
+                                                      <span style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimaryDark)', padding: '4px 10px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: '600', display:'inline-flex', alignItems:'center', gap:'4px'}}>
                                                           <Icons.Users size={12} /> Global
                                                       </span>
                                                   )}
@@ -2134,7 +2134,7 @@ export default function RecursosHumanos() {
                         style={{width:'72px', padding:'5px', borderRadius:'4px', border:'1px solid #cbd5e1'}}
                     />
                     {isSavingKmRate && <span style={{fontSize:'0.72rem', color:'#64748b'}}>a guardar...</span>}
-                    <button onClick={handleBulkUpdateSA} className="btn-small" style={{background:'#2563eb', color:'white', border:'none', padding:'6px 12px', fontWeight:'500'}}>Aplicar</button>
+                    <button onClick={handleBulkUpdateSA} className="btn-small" style={{background:'var(--color-btnPrimary)', color:'white', border:'none', padding:'6px 12px', fontWeight:'500'}}>Aplicar</button>
                 </div>
                 <div className="rh-toolbar-actions" style={{display:'flex', gap:'15px', alignItems:'center'}}>
                     <select className="rh-user-select" value={selectedUser || ""} onChange={(e) => {
@@ -2155,9 +2155,9 @@ export default function RecursosHumanos() {
                                     display:'flex',
                                     alignItems:'center',
                                     gap:'8px',
-                                    background:'#eff6ff',
-                                    color:'#1d4ed8',
-                                    borderColor:'#bfdbfe',
+                                    background:'var(--color-bgSecondary)',
+                                    color:'var(--color-btnPrimaryDark)',
+                                    borderColor:'var(--color-borderColor)',
                                     opacity: isGeneratingRhPdf ? 0.7 : 1,
                                     cursor: isGeneratingRhPdf ? 'wait' : 'pointer'
                                 }}
@@ -2182,11 +2182,11 @@ export default function RecursosHumanos() {
                 <div style={{minWidth: 0}}>
                     {selectedUser ? (
                         <>
-                            <div className="card" style={{marginBottom: '20px', padding:'25px', background:'white', borderRadius:'12px', borderTop:'4px solid #2563eb', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
+                            <div className="card" style={{marginBottom: '20px', padding:'25px', background:'white', borderRadius:'12px', borderTop:'4px solid var(--color-btnPrimary)', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
                                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'start', marginBottom:'20px'}}>
                                     <div style={{display:'flex', gap:'15px', alignItems:'center'}}>
-                                        <div style={{background:'#eff6ff', width:'45px', height:'45px', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center'}}>
-                                            <Icons.User size={24} color="#2563eb" />
+                                        <div style={{background:'var(--color-bgSecondary)', width:'45px', height:'45px', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center'}}>
+                                            <Icons.User size={24} color="var(--color-btnPrimary)" />
                                         </div>
                                         <div>
                                             <h3 style={{margin:0, color:'#1e293b', fontSize:'1.2rem'}}>{currentUserProfile?.nome}</h3>
@@ -2218,10 +2218,10 @@ export default function RecursosHumanos() {
                                 </div>
 
                                 <div className="tabs rh-user-tabs" style={{marginBottom:'20px', display:'flex', background:'#f8fafc', padding:'4px', borderRadius:'8px'}}>
-                                    <button type="button" className={userTab === 'financeiro' ? 'active' : ''} onClick={() => setUserTab('financeiro')} style={{flex:1, borderRadius:'6px', padding:'8px', display:'flex', justifyContent:'center', alignItems:'center', gap:'6px', background: userTab === 'financeiro' ? 'white' : 'transparent', border: userTab === 'financeiro' ? '1px solid #e2e8f0' : 'none', color: userTab === 'financeiro' ? '#2563eb' : '#64748b', fontWeight:'bold', boxShadow: userTab === 'financeiro' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', transition:'0.2s'}}>
+                                    <button type="button" className={userTab === 'financeiro' ? 'active' : ''} onClick={() => setUserTab('financeiro')} style={{flex:1, borderRadius:'6px', padding:'8px', display:'flex', justifyContent:'center', alignItems:'center', gap:'6px', background: userTab === 'financeiro' ? 'white' : 'transparent', border: userTab === 'financeiro' ? '1px solid #e2e8f0' : 'none', color: userTab === 'financeiro' ? 'var(--color-btnPrimary)' : '#64748b', fontWeight:'bold', boxShadow: userTab === 'financeiro' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', transition:'0.2s'}}>
                                         <Icons.Currency size={16} /> Financeiro
                                     </button>
-                                    <button type="button" className={userTab === 'dados' ? 'active' : ''} onClick={() => setUserTab('dados')} style={{flex:1, borderRadius:'6px', padding:'8px', display:'flex', justifyContent:'center', alignItems:'center', gap:'6px', background: userTab === 'dados' ? 'white' : 'transparent', border: userTab === 'dados' ? '1px solid #e2e8f0' : 'none', color: userTab === 'dados' ? '#2563eb' : '#64748b', fontWeight:'bold', boxShadow: userTab === 'dados' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', transition:'0.2s'}}>
+                                    <button type="button" className={userTab === 'dados' ? 'active' : ''} onClick={() => setUserTab('dados')} style={{flex:1, borderRadius:'6px', padding:'8px', display:'flex', justifyContent:'center', alignItems:'center', gap:'6px', background: userTab === 'dados' ? 'white' : 'transparent', border: userTab === 'dados' ? '1px solid #e2e8f0' : 'none', color: userTab === 'dados' ? 'var(--color-btnPrimary)' : '#64748b', fontWeight:'bold', boxShadow: userTab === 'dados' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', transition:'0.2s'}}>
                                         <Icons.FileText size={16} /> Pessoal
                                     </button>
                                 </div>
@@ -2233,9 +2233,9 @@ export default function RecursosHumanos() {
                                                 <span style={{color:'#64748b', fontSize:'0.9rem', display:'flex', alignItems:'center', gap:'6px'}}><Icons.Currency size={16}/> Valor S.A. Diário</span>
                                                 <span style={{fontWeight:'bold', fontSize:'1.1rem'}}>{Number(currentUserProfile?.valor_sa || 0).toFixed(2)} €</span>
                                             </div>
-                                            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px', padding:'10px', background:'#eff6ff', borderRadius:'8px', border:'1px dashed #bfdbfe'}}>
-                                                <span style={{color:'#1e40af', fontSize:'0.9rem', display:'flex', alignItems:'center', gap:'6px'}}><Icons.Sun size={16}/> Férias Disponíveis</span>
-                                                <span style={{fontWeight:'bold', color:'#2563eb', fontSize:'1.1rem'}}>{currentUserProfile?.dias_ferias ?? '--'} dias</span>
+                                            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px', padding:'10px', background:'var(--color-bgSecondary)', borderRadius:'8px', border:'1px dashed var(--color-borderColor)'}}>
+                                                <span style={{color:'var(--color-btnPrimaryHover)', fontSize:'0.9rem', display:'flex', alignItems:'center', gap:'6px'}}><Icons.Sun size={16}/> Férias Disponíveis</span>
+                                                <span style={{fontWeight:'bold', color:'var(--color-btnPrimary)', fontSize:'1.1rem'}}>{currentUserProfile?.dias_ferias ?? '--'} dias</span>
                                             </div>
                                             <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px', padding:'10px', background:'#ecfeff', borderRadius:'8px', border:'1px dashed #a5f3fc'}}>
                                                 <span style={{color:'#0e7490', fontSize:'0.9rem', display:'flex', alignItems:'center', gap:'6px'}}><Icons.Flag size={16}/> Limite Anual de Férias</span>
@@ -2273,7 +2273,7 @@ export default function RecursosHumanos() {
                                             
                                             <div style={{display:'flex', gap:'10px'}}>
                                                 <button type="button" onClick={() => setIsEditingUser(false)} style={{flex:1, padding:'10px', border:'1px solid #cbd5e1', borderRadius:'6px', background:'white', color:'#475569', fontWeight:'600'}}>Cancelar</button>
-                                                <button type="button" onClick={handleUpdateUserProfile} style={{flex:1, padding:'10px', background:'#2563eb', borderRadius:'6px', color:'white', border:'none', fontWeight:'bold'}}>Guardar</button>
+                                                <button type="button" onClick={handleUpdateUserProfile} style={{flex:1, padding:'10px', background:'var(--color-btnPrimary)', borderRadius:'6px', color:'white', border:'none', fontWeight:'bold'}}>Guardar</button>
                                             </div>
                                         </div>
                                     )
@@ -2366,9 +2366,9 @@ export default function RecursosHumanos() {
                                                                 fontWeight:'600',
                                                                 cursor:'pointer',
                                                                 transition:'all 0.2s ease',
-                                                                border: isSelected ? '1px solid #3b82f6' : '1px solid #e2e8f0',
-                                                                background: isSelected ? '#eff6ff' : '#f8fafc',
-                                                                color: isSelected ? '#2563eb' : '#64748b',
+                                                                border: isSelected ? '1px solid var(--color-btnPrimary)' : '1px solid #e2e8f0',
+                                                                background: isSelected ? 'var(--color-bgSecondary)' : '#f8fafc',
+                                                                color: isSelected ? 'var(--color-btnPrimary)' : '#64748b',
                                                                 userSelect:'none'
                                                             }}
                                                         >
@@ -2388,7 +2388,7 @@ export default function RecursosHumanos() {
                                             
                                             <div style={{display:'flex', gap:'10px'}}>
                                                 <button type="button" onClick={() => setIsEditingUser(false)} style={{flex:1, padding:'10px', border:'1px solid #cbd5e1', borderRadius:'6px', background:'white', color:'#475569', fontWeight:'600'}}>Cancelar</button>
-                                                <button type="button" onClick={handleUpdateUserProfile} style={{flex:1, padding:'10px', background:'#2563eb', color:'white', border:'none', borderRadius:'6px', fontWeight:'bold'}}>Gravar</button>
+                                                <button type="button" onClick={handleUpdateUserProfile} style={{flex:1, padding:'10px', background:'var(--color-btnPrimary)', color:'white', border:'none', borderRadius:'6px', fontWeight:'bold'}}>Gravar</button>
                                             </div>
                                             <div style={{marginTop: '25px', paddingTop: '15px', borderTop: '1px solid #e2e8f0', textAlign: 'center'}}>
                                                 <button type="button" onClick={() => handleDeleteUser(selectedUser)} style={{background: '#fee2e2', color: '#ef4444', border: 'none', padding: '10px 15px', borderRadius: '6px', fontSize: '0.85rem', fontWeight:'bold', cursor: 'pointer', width: '100%', display:'flex', alignItems:'center', justifyContent:'center', gap:'8px'}}>
@@ -2419,7 +2419,7 @@ export default function RecursosHumanos() {
                     ) : (
                         <div className="card" style={{padding:'30px', background:'white', borderRadius:'12px', color:'#64748b', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
                             <h3 style={{margin:'0', color:'#1e293b', display:'flex', alignItems:'center', gap:'10px', fontSize:'1.2rem'}}>
-                                <Icons.Chart size={24} color="#3b82f6"/> 
+                                <Icons.Chart size={24} color="var(--color-btnPrimary)"/> 
                                 Resumo Global do Mês
                             </h3>
                             <ul style={{listStyle:'none', padding:0, marginTop:'25px'}}>
@@ -2534,7 +2534,7 @@ export default function RecursosHumanos() {
                                                   )}
                                                 </td>
                                                 <td style={{padding:'10px', textAlign:'center'}}>
-                                                    {h.anexo_url ? <a href={h.anexo_url} target="_blank" rel="noreferrer" style={{color:'#2563eb', display:'inline-flex', alignItems:'center', gap:'4px', background:'#eff6ff', padding:'4px 8px', borderRadius:'6px', textDecoration:'none', fontSize:'0.8rem', fontWeight:'600'}}><Icons.Paperclip size={14}/> Ver</a> : <span style={{color:'#cbd5e1'}}>-</span>}
+                                                    {h.anexo_url ? <a href={h.anexo_url} target="_blank" rel="noreferrer" style={{color:'var(--color-btnPrimary)', display:'inline-flex', alignItems:'center', gap:'4px', background:'var(--color-bgSecondary)', padding:'4px 8px', borderRadius:'6px', textDecoration:'none', fontSize:'0.8rem', fontWeight:'600'}}><Icons.Paperclip size={14}/> Ver</a> : <span style={{color:'#cbd5e1'}}>-</span>}
                                                 </td>
                                                 <td style={{padding:'10px', textAlign:'center'}}>
                                                     <span style={{background: h.estado === 'aprovado' ? '#dcfce7' : '#fee2e2', color: h.estado === 'aprovado' ? '#166534' : '#991b1b', padding:'4px 8px', borderRadius:'6px', fontSize:'0.75rem', fontWeight:'700', textTransform:'uppercase'}}>
@@ -2544,7 +2544,7 @@ export default function RecursosHumanos() {
                                                 <td style={{padding:'10px', textAlign: 'center'}}>
                                                     <div style={{display:'flex', gap:'5px', justifyContent:'center'}}>
                                                         <ModernTooltip content="Editar Registo">
-                                                            <button className="btn-small" style={{color:'#3b82f6', background:'#eff6ff', borderColor:'#bfdbfe', padding:'6px'}} onClick={() => handleEditClick(h)}>
+                                                            <button className="btn-small" style={{color:'var(--color-btnPrimary)', background:'var(--color-bgSecondary)', borderColor:'var(--color-borderColor)', padding:'6px'}} onClick={() => handleEditClick(h)}>
                                                                 <Icons.Edit size={14} />
                                                             </button>
                                                         </ModernTooltip>
@@ -2578,7 +2578,7 @@ export default function RecursosHumanos() {
                   <div style={{background:'white', padding:'30px', borderRadius:'16px', width:'500px', maxWidth:'90%', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', maxHeight:'90vh', overflowY:'auto'}}>
                       <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px', borderBottom:'1px solid #f1f5f9', paddingBottom:'15px'}}>
                           <h3 style={{margin: 0, color: '#1e293b', display:'flex', alignItems:'center', gap:'8px'}}>
-                              <Icons.FileText size={20} color="#3b82f6" />
+                              <Icons.FileText size={20} color="var(--color-btnPrimary)" />
                               Detalhes do Pedido
                           </h3>
                           <button onClick={() => setDetailsModal({show: false, pedido: null})} style={{background:'transparent', border:'none', cursor:'pointer', color:'#94a3b8'}}><Icons.X size={20}/></button>
@@ -2598,31 +2598,31 @@ export default function RecursosHumanos() {
                               <div>
                                   <div style={{fontSize:'0.8rem', color:'#64748b', fontWeight:'600'}}>Estado Atual</div>
                                   <div style={{marginTop:'2px'}}>
-                                      <span style={{background: detailsModal.pedido.estado === 'pendente' ? '#dbeafe' : (detailsModal.pedido.estado === 'pedido_cancelamento' ? '#fef08a' : '#f1f5f9'), color: detailsModal.pedido.estado === 'pendente' ? '#1e40af' : (detailsModal.pedido.estado === 'pedido_cancelamento' ? '#854d0e' : '#475569'), padding:'2px 8px', borderRadius:'6px', fontSize:'0.8rem', fontWeight:'700'}}>
+                                      <span style={{background: detailsModal.pedido.estado === 'pendente' ? 'var(--color-borderColorLight)' : (detailsModal.pedido.estado === 'pedido_cancelamento' ? '#fef08a' : '#f1f5f9'), color: detailsModal.pedido.estado === 'pendente' ? 'var(--color-btnPrimaryHover)' : (detailsModal.pedido.estado === 'pedido_cancelamento' ? '#854d0e' : '#475569'), padding:'2px 8px', borderRadius:'6px', fontSize:'0.8rem', fontWeight:'700'}}>
                                           {detailsModal.pedido.estado.replace('_', ' ')}
                                       </span>
                                   </div>
                               </div>
                           </div>
 
-                          <div style={{background:'#eff6ff', padding:'15px', borderRadius:'8px', border:'1px solid #bfdbfe', display:'flex', gap:'15px'}}>
+                          <div style={{background:'var(--color-bgSecondary)', padding:'15px', borderRadius:'8px', border:'1px solid var(--color-borderColor)', display:'flex', gap:'15px'}}>
                               <div style={{flex:1}}>
-                                  <div style={{fontSize:'0.8rem', color:'#1e40af', fontWeight:'600'}}>Período</div>
-                                  <div style={{fontWeight:'bold', color:'#1e3a8a', marginTop:'4px'}}>
+                                  <div style={{fontSize:'0.8rem', color:'var(--color-btnPrimaryHover)', fontWeight:'600'}}>Período</div>
+                                  <div style={{fontWeight:'bold', color:'var(--color-btnPrimaryDark)', marginTop:'4px'}}>
                                       {detailsModal.pedido.is_parcial 
                                         ? new Date(detailsModal.pedido.data_inicio).toLocaleDateString('pt-PT')
                                         : `${new Date(detailsModal.pedido.data_inicio).toLocaleDateString('pt-PT')} a ${new Date(detailsModal.pedido.data_fim).toLocaleDateString('pt-PT')}`
                                       }
                                   </div>
                                   {detailsModal.pedido.is_parcial && (
-                                      <div style={{fontSize:'0.85rem', color:'#3b82f6', marginTop:'4px', display:'flex', alignItems:'center', gap:'4px'}}>
+                                      <div style={{fontSize:'0.85rem', color:'var(--color-btnPrimary)', marginTop:'4px', display:'flex', alignItems:'center', gap:'4px'}}>
                                           <Icons.Clock size={14}/> {detailsModal.pedido.hora_inicio?.slice(0,5)} às {detailsModal.pedido.hora_fim?.slice(0,5) || '?'}
                                       </div>
                                   )}
                               </div>
-                              <div style={{borderLeft:'1px solid #93c5fd', paddingLeft:'15px', display:'flex', flexDirection:'column', justifyContent:'center'}}>
-                                  <div style={{fontSize:'0.8rem', color:'#1e40af', fontWeight:'600'}}>Duração</div>
-                                  <div style={{fontWeight:'bold', color:'#1e3a8a', fontSize:'1.1rem'}}>
+                              <div style={{borderLeft:'1px solid var(--color-borderColorLight)', paddingLeft:'15px', display:'flex', flexDirection:'column', justifyContent:'center'}}>
+                                  <div style={{fontSize:'0.8rem', color:'var(--color-btnPrimaryHover)', fontWeight:'600'}}>Duração</div>
+                                  <div style={{fontWeight:'bold', color:'var(--color-btnPrimaryDark)', fontSize:'1.1rem'}}>
                                       {detailsModal.pedido.tipo === KM_REQUEST_TYPE ? `${detailsModal.pedido.km_total ?? 0} km` : (detailsModal.pedido.is_parcial ? 'Horas' : `${calcularDiasUteis(detailsModal.pedido.data_inicio, detailsModal.pedido.data_fim)} dias úteis`)}
                                   </div>
                               </div>
@@ -2690,7 +2690,7 @@ export default function RecursosHumanos() {
                 <div style={{background:'white', padding:'30px', borderRadius:'16px', width:'500px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'}}>
                     <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px'}}>
                         <h3 style={{margin: 0, display:'flex', alignItems:'center', gap:'8px', color:'#1e293b'}}>
-                            {isEditingAbsence ? <Icons.Edit size={20} color="#3b82f6"/> : <Icons.Sun size={20} color="#3b82f6"/>}
+                            {isEditingAbsence ? <Icons.Edit size={20} color="var(--color-btnPrimary)"/> : <Icons.Sun size={20} color="var(--color-btnPrimary)"/>}
                             {isEditingAbsence ? 'Editar Ausência' : 'Registar Ausência'}
                         </h3>
                         <button type="button" onClick={closeAbsenceModal} style={{background:'none', border:'none', cursor:'pointer', color: '#94a3b8'}}><Icons.X size={20}/></button>
@@ -2721,14 +2721,14 @@ export default function RecursosHumanos() {
                         </select>
                         
                         {newAbsence.tipo !== KM_REQUEST_TYPE && (
-                        <label style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginBottom: '15px', color: '#1e293b', fontWeight: '600', fontSize: '0.9rem', background: newAbsence.is_parcial ? '#eff6ff' : '#f8fafc', padding: '12px', borderRadius: '8px', border: newAbsence.is_parcial ? '1px solid #bfdbfe' : '1px solid #e2e8f0', transition:'0.2s'}}>
+                        <label style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginBottom: '15px', color: '#1e293b', fontWeight: '600', fontSize: '0.9rem', background: newAbsence.is_parcial ? 'var(--color-bgSecondary)' : '#f8fafc', padding: '12px', borderRadius: '8px', border: newAbsence.is_parcial ? '1px solid var(--color-borderColor)' : '1px solid #e2e8f0', transition:'0.2s'}}>
                             <input 
                                 type="checkbox" 
                                 checked={newAbsence.is_parcial} 
                                 onChange={e => setNewAbsence({...newAbsence, is_parcial: e.target.checked, data_fim: e.target.checked ? newAbsence.data_inicio : newAbsence.data_fim})} 
-                                style={{width: '18px', height: '18px', accentColor:'#2563eb'}} 
+                                style={{width: '18px', height: '18px', accentColor:'var(--color-btnPrimary)'}} 
                             />
-                            <Icons.Clock size={18} color={newAbsence.is_parcial ? '#2563eb' : '#64748b'}/> 
+                            <Icons.Clock size={18} color={newAbsence.is_parcial ? 'var(--color-btnPrimary)' : '#64748b'}/> 
                             Ausência Parcial (Apenas algumas horas)
                         </label>
                         )}
@@ -2781,7 +2781,7 @@ export default function RecursosHumanos() {
                         )}
 
                         {newAbsence.tipo !== KM_REQUEST_TYPE && !newAbsence.is_parcial && newAbsence.data_inicio && newAbsence.data_fim && (
-                            <div style={{background: diasUteisModal > 0 ? '#eff6ff' : '#fee2e2', color: diasUteisModal > 0 ? '#1e40af' : '#991b1b', padding: '12px 15px', borderRadius: '8px', marginBottom: '15px', fontSize: '0.85rem', display: 'flex', gap: '10px', border: diasUteisModal > 0 ? '1px solid #bfdbfe' : '1px solid #fecaca'}}>
+                            <div style={{background: diasUteisModal > 0 ? 'var(--color-bgSecondary)' : '#fee2e2', color: diasUteisModal > 0 ? 'var(--color-btnPrimaryHover)' : '#991b1b', padding: '12px 15px', borderRadius: '8px', marginBottom: '15px', fontSize: '0.85rem', display: 'flex', gap: '10px', border: diasUteisModal > 0 ? '1px solid var(--color-borderColor)' : '1px solid #fecaca'}}>
                                 <span style={{marginTop:'2px'}}>{diasUteisModal > 0 ? <Icons.Info size={16}/> : <Icons.Alert size={16}/>}</span>
                                 <span>
                                     {diasUteisModal > 0 
@@ -2793,14 +2793,14 @@ export default function RecursosHumanos() {
                             </div>
                         )}
                         {newAbsence.tipo !== KM_REQUEST_TYPE && newAbsence.is_parcial && newAbsence.data_inicio && (
-                            <div style={{background: '#eff6ff', color: '#1e40af', padding: '12px 15px', borderRadius: '8px', marginBottom: '15px', fontSize: '0.85rem', display: 'flex', gap: '10px', border:'1px solid #bfdbfe'}}>
+                            <div style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimaryHover)', padding: '12px 15px', borderRadius: '8px', marginBottom: '15px', fontSize: '0.85rem', display: 'flex', gap: '10px', border:'1px solid var(--color-borderColor)'}}>
                                 <span style={{marginTop:'2px'}}><Icons.Info size={16}/></span>
                                 <span>Ausência parcial de horas. <b>Não será deduzido nenhum dia de férias ao colaborador.</b></span>
                             </div>
                         )}
 
                         {newAbsence.tipo === KM_REQUEST_TYPE && (
-                            <div style={{background: '#eff6ff', color: '#1e40af', padding: '12px 15px', borderRadius: '8px', marginBottom: '15px', fontSize: '0.85rem', display: 'flex', gap: '10px', border:'1px solid #bfdbfe'}}>
+                            <div style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimaryHover)', padding: '12px 15px', borderRadius: '8px', marginBottom: '15px', fontSize: '0.85rem', display: 'flex', gap: '10px', border:'1px solid var(--color-borderColor)'}}>
                                 <span style={{marginTop:'2px'}}><Icons.Info size={16}/></span>
                                 <span>Este pedido de Km's entra no fluxo de aprovação e no relatório mensal.</span>
                             </div>
@@ -2810,12 +2810,12 @@ export default function RecursosHumanos() {
                         <input type="text" placeholder="Mais detalhes (Opcional)..." value={newAbsence.motivo} onChange={e=>setNewAbsence({...newAbsence, motivo: e.target.value})} style={inputStyle}/>
                         
                         <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Anexar Documento (Atestados, PDFs - Opcional)</label>
-                        {isEditingAbsence && editingAbsenceData?.anexo_url && <div style={{fontSize:'0.8rem', color:'#64748b', marginBottom:'8px', display:'flex', alignItems:'center', gap:'6px'}}><Icons.Paperclip size={14}/> Ficheiro atual: <a href={editingAbsenceData.anexo_url} target="_blank" rel="noreferrer" style={{color:'#2563eb'}}>Ver documento</a></div>}
+                        {isEditingAbsence && editingAbsenceData?.anexo_url && <div style={{fontSize:'0.8rem', color:'#64748b', marginBottom:'8px', display:'flex', alignItems:'center', gap:'6px'}}><Icons.Paperclip size={14}/> Ficheiro atual: <a href={editingAbsenceData.anexo_url} target="_blank" rel="noreferrer" style={{color:'var(--color-btnPrimary)'}}>Ver documento</a></div>}
                         <input type="file" accept=".pdf, image/*" onChange={e => setAbsenceFile(e.target.files[0])} style={{...inputStyle, background: '#f8fafc'}} />
                         
                         <div style={{display:'flex', gap:'10px', marginTop:'15px', paddingTop:'15px', borderTop:'1px solid #e2e8f0'}}>
                             <button type="button" onClick={closeAbsenceModal} style={{flex:1, padding:'12px', background:'white', border:'1px solid #cbd5e1', borderRadius:'8px', cursor:'pointer', color: '#475569', fontWeight:'bold'}}>Cancelar</button>
-                            <button type="submit" style={{flex:2, padding:'12px', background:'#2563eb', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'bold', opacity: isSubmitting || (newAbsence.tipo !== KM_REQUEST_TYPE && !newAbsence.is_parcial && diasUteisModal === 0) ? 0.7 : 1}} disabled={isSubmitting || (newAbsence.tipo !== KM_REQUEST_TYPE && !newAbsence.is_parcial && diasUteisModal === 0)}>
+                            <button type="submit" style={{flex:2, padding:'12px', background:'var(--color-btnPrimary)', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'bold', opacity: isSubmitting || (newAbsence.tipo !== KM_REQUEST_TYPE && !newAbsence.is_parcial && diasUteisModal === 0) ? 0.7 : 1}} disabled={isSubmitting || (newAbsence.tipo !== KM_REQUEST_TYPE && !newAbsence.is_parcial && diasUteisModal === 0)}>
                                 {isSubmitting ? "A Gravar..." : (isEditingAbsence ? "Atualizar Registo" : "Gravar e Aprovar Automaticamente")}
                             </button>
                         </div>
@@ -2859,7 +2859,7 @@ export default function RecursosHumanos() {
               <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999}}>
                   <div style={{background:'white', padding:'30px', borderRadius:'16px', width:'430px', maxWidth:'92%', textAlign:'center', boxShadow:'0 25px 50px -12px rgba(0, 0, 0, 0.25)'}}>
                       <div style={{display:'flex', justifyContent:'center', marginBottom:'15px'}}>
-                          <div style={{background:'#eff6ff', padding:'15px', borderRadius:'50%', color:'#2563eb'}}><Icons.Currency size={30}/></div>
+                          <div style={{background:'var(--color-bgSecondary)', padding:'15px', borderRadius:'50%', color:'var(--color-btnPrimary)'}}><Icons.Currency size={30}/></div>
                       </div>
                       <h3 style={{marginTop:0, color:'#1e293b'}}>{modalTitle}</h3>
                       <p style={{color:'#64748b', marginBottom:'25px', lineHeight:'1.5', fontSize:'0.95rem'}}>
@@ -2878,7 +2878,7 @@ export default function RecursosHumanos() {
                               type="button"
                               onClick={confirmarBulkUpdateSA}
                               disabled={isApplyingBulkSA}
-                              style={{padding:'12px', borderRadius:'8px', border:'none', flex:1, color:'white', background:'#2563eb', fontWeight:'bold', cursor:'pointer', opacity: isApplyingBulkSA ? 0.7 : 1}}
+                              style={{padding:'12px', borderRadius:'8px', border:'none', flex:1, color:'white', background:'var(--color-btnPrimary)', fontWeight:'bold', cursor:'pointer', opacity: isApplyingBulkSA ? 0.7 : 1}}
                           >
                               {isApplyingBulkSA ? 'A aplicar...' : 'Confirmar'}
                           </button>
@@ -2900,7 +2900,7 @@ export default function RecursosHumanos() {
                       </div>
                       <h3 style={{marginTop: 0, color:'#1e293b'}}>{notification.type === 'success' ? 'Sucesso!' : 'Erro'}</h3>
                       <p style={{color:'#475569', fontSize:'0.95rem', marginBottom:'25px'}}>{notification.message}</p>
-                      <button onClick={() => setNotification({ show: false, message: '', type: 'success' })} style={{width: '100%', padding:'12px', background:'#2563eb', color:'white', border:'none', borderRadius:'8px', fontWeight:'bold', cursor:'pointer'}}>Fechar</button>
+                      <button onClick={() => setNotification({ show: false, message: '', type: 'success' })} style={{width: '100%', padding:'12px', background:'var(--color-btnPrimary)', color:'white', border:'none', borderRadius:'8px', fontWeight:'bold', cursor:'pointer'}}>Fechar</button>
                   </div>
               </div>
           </ModalPortal>
@@ -2913,7 +2913,7 @@ export default function RecursosHumanos() {
                   <div style={{background:'white', padding:'30px', borderRadius:'16px', width:'460px', maxWidth:'90%', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'}}>
                       <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px'}}>
                           <h3 style={{margin: 0, display:'flex', alignItems:'center', gap:'8px', color:'#1e293b'}}>
-                              <Icons.Clock size={20} color="#3b82f6"/> Nova Tolerância de Ponto
+                              <Icons.Clock size={20} color="var(--color-btnPrimary)"/> Nova Tolerância de Ponto
                           </h3>
                           <button type="button" onClick={() => setShowToleranciaModal(false)} style={{background:'none', border:'none', cursor:'pointer', color: '#94a3b8'}}><Icons.X size={20}/></button>
                       </div>
@@ -2926,8 +2926,8 @@ export default function RecursosHumanos() {
 
                           <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569', display:'block', marginBottom:'8px'}}>Âmbito</label>
                           <div style={{display:'flex', gap:'10px', marginBottom:'15px'}}>
-                              <button type="button" onClick={() => setNewTolerancia({...newTolerancia, tipo: 'global', user_id: ''})} style={{flex:1, padding:'12px 10px', borderRadius:'8px', border: newTolerancia.tipo === 'global' ? '2px solid #2563eb' : '1px solid #e2e8f0', background: newTolerancia.tipo === 'global' ? '#eff6ff' : '#f8fafc', color: newTolerancia.tipo === 'global' ? '#1d4ed8' : '#475569', fontWeight:'600', cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', gap:'4px', transition:'0.2s'}}>
-                                  <Icons.Users size={18} color={newTolerancia.tipo === 'global' ? '#2563eb' : '#94a3b8'}/>
+                              <button type="button" onClick={() => setNewTolerancia({...newTolerancia, tipo: 'global', user_id: ''})} style={{flex:1, padding:'12px 10px', borderRadius:'8px', border: newTolerancia.tipo === 'global' ? '2px solid var(--color-btnPrimary)' : '1px solid #e2e8f0', background: newTolerancia.tipo === 'global' ? 'var(--color-bgSecondary)' : '#f8fafc', color: newTolerancia.tipo === 'global' ? 'var(--color-btnPrimaryDark)' : '#475569', fontWeight:'600', cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', gap:'4px', transition:'0.2s'}}>
+                                  <Icons.Users size={18} color={newTolerancia.tipo === 'global' ? 'var(--color-btnPrimary)' : '#94a3b8'}/>
                                   <span style={{fontSize:'0.85rem'}}>Global</span>
                                   <span style={{fontSize:'0.72rem', opacity:0.7}}>Toda a empresa</span>
                               </button>
@@ -2950,7 +2950,7 @@ export default function RecursosHumanos() {
 
                           <div style={{display:'flex', gap:'10px', marginTop:'10px', paddingTop:'15px', borderTop:'1px solid #e2e8f0'}}>
                               <button type="button" onClick={() => setShowToleranciaModal(false)} style={{flex:1, padding:'12px', background:'white', border:'1px solid #cbd5e1', borderRadius:'8px', cursor:'pointer', color: '#475569', fontWeight:'bold'}}>Cancelar</button>
-                              <button type="submit" disabled={isSubmittingTolerancia} style={{flex:2, padding:'12px', background:'#2563eb', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'bold', opacity: isSubmittingTolerancia ? 0.7 : 1}}>
+                              <button type="submit" disabled={isSubmittingTolerancia} style={{flex:2, padding:'12px', background:'var(--color-btnPrimary)', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'bold', opacity: isSubmittingTolerancia ? 0.7 : 1}}>
                                   {isSubmittingTolerancia ? 'A guardar...' : 'Guardar Tolerância'}
                               </button>
                           </div>

@@ -280,8 +280,8 @@ export default function CalendarioColaborador({
         badge = "Fim de Semana";
       } else if (toleranciaDia) {
         tipo = "tolerancia";
-        cor = "#dbeafe";
-        textoCor = "#1e40af";
+        cor = "var(--color-borderColorLight)";
+        textoCor = "var(--color-btnPrimaryHover)";
         badge = "Tolerância de Ponto";
       } else if (ausenciasDiaInteiras.length > 0) {
         tipo = "ausencia";
@@ -340,8 +340,8 @@ export default function CalendarioColaborador({
       } else if (ausenciasDiaParciais.length > 0) {
         const parcial = ausenciasDiaParciais[0];
         tipo = "ausenciaParcial";
-        cor = "#eff6ff";
-        textoCor = "#1e40af";
+        cor = "var(--color-bgSecondary)";
+        textoCor = "var(--color-btnPrimaryHover)";
         badge = `Ausência Parcial ${formatarHora(parcial.hora_inicio)}-${formatarHora(parcial.hora_fim)}`;
       } else {
         const isPassadoOuHoje = dataStr <= hojeStr;
@@ -713,7 +713,7 @@ export default function CalendarioColaborador({
           <button
             onClick={handleToday}
             style={{
-              background: "#2563eb",
+              background: "var(--color-btnPrimary)",
               color: "white",
               border: "none",
               padding: "6px 12px",
@@ -772,7 +772,7 @@ export default function CalendarioColaborador({
               onClick={() => setDiaSelected(isSelected ? null : dia.dia)}
               style={{
                 background: dia.cor,
-                border: isSelected ? "2px solid #2563eb" : "1px solid #e2e8f0",
+                border: isSelected ? "2px solid var(--color-btnPrimary)" : "1px solid #e2e8f0",
                 borderRadius: "8px",
                 padding: "8px",
                 cursor: "pointer",
@@ -799,8 +799,8 @@ export default function CalendarioColaborador({
 
       {/* Detalhes do Dia Selecionado */}
       {diaSelected && (
-        <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "8px", padding: "15px", marginBottom: "20px" }}>
-          <h4 style={{ margin: "0 0 12px 0", color: "#1e40af", display: "flex", alignItems: "center", gap: "8px" }}>
+        <div style={{ background: "var(--color-bgSecondary)", border: "1px solid var(--color-borderColor)", borderRadius: "8px", padding: "15px", marginBottom: "20px" }}>
+          <h4 style={{ margin: "0 0 12px 0", color: "var(--color-btnPrimaryHover)", display: "flex", alignItems: "center", gap: "8px" }}>
             Dia {diaSelected} de {nomesMeses[mesAtual]} de {anoAtual}
           </h4>
 
@@ -905,7 +905,7 @@ export default function CalendarioColaborador({
                     <button
                       type="button"
                       onClick={() => handleSaveDayAssiduidade(diaObj.dataStr)}
-                      style={{ background: "#2563eb", border: "none", color: "white", padding: "8px 12px", borderRadius: "6px", cursor: "pointer", fontWeight: "700" }}
+                      style={{ background: "var(--color-btnPrimary)", border: "none", color: "white", padding: "8px 12px", borderRadius: "6px", cursor: "pointer", fontWeight: "700" }}
                       disabled={savingDay}
                     >
                       {savingDay ? "A guardar..." : "Guardar"}
@@ -927,7 +927,7 @@ export default function CalendarioColaborador({
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "12px" }}>
                     <div>
                       <span style={{ fontSize: "0.75rem", fontWeight: "bold", color: "#64748b" }}>Entrada</span>
-                      <p style={{ margin: "4px 0 0 0", fontSize: "1rem", fontWeight: "bold", color: "#2563eb" }}>
+                      <p style={{ margin: "4px 0 0 0", fontSize: "1rem", fontWeight: "bold", color: "var(--color-btnPrimary)" }}>
                         {formatarHora(ass.hora_entrada)}
                       </p>
                     </div>
@@ -941,7 +941,7 @@ export default function CalendarioColaborador({
 
                   <div style={{ background: "white", borderRadius: "6px", padding: "10px", marginBottom: "12px", textAlign: "center" }}>
                     <span style={{ fontSize: "0.75rem", fontWeight: "bold", color: "#64748b", display: "block" }}>Total de Horas</span>
-                    <span style={{ fontSize: "1.3rem", fontWeight: "bold", color: "#2563eb" }}>{formatDurationFromSeconds(totalLiquidoSeg)}</span>
+                    <span style={{ fontSize: "1.3rem", fontWeight: "bold", color: "var(--color-btnPrimary)" }}>{formatDurationFromSeconds(totalLiquidoSeg)}</span>
                   </div>
 
                   {pausaSeg > 0 && (
@@ -961,8 +961,8 @@ export default function CalendarioColaborador({
                   )}
 
                   {diaObj.ausenciasDiaParciais.length > 0 && (
-                    <div style={{ marginTop: "12px", padding: "10px", borderRadius: "6px", background: "#eff6ff", border: "1px solid #bfdbfe" }}>
-                      <span style={{ fontSize: "0.75rem", fontWeight: "bold", color: "#1e40af", display: "block", marginBottom: "6px" }}>Ausência Parcial</span>
+                    <div style={{ marginTop: "12px", padding: "10px", borderRadius: "6px", background: "var(--color-bgSecondary)", border: "1px solid var(--color-borderColor)" }}>
+                      <span style={{ fontSize: "0.75rem", fontWeight: "bold", color: "var(--color-btnPrimaryHover)", display: "block", marginBottom: "6px" }}>Ausência Parcial</span>
                       {diaObj.ausenciasDiaParciais.map((a) => (
                         <div key={a.id} style={{ fontSize: "0.9rem", color: "#334155", marginBottom: "4px" }}>
                           {a.tipo} - {formatarHora(a.hora_inicio)} às {formatarHora(a.hora_fim)}
@@ -1044,11 +1044,11 @@ export default function CalendarioColaborador({
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "12px" }}>
           <div style={{ background: "white", padding: "10px", borderRadius: "6px", textAlign: "center" }}>
             <span style={{ fontSize: "0.75rem", fontWeight: "bold", color: "#64748b", display: "block" }}>Total de Horas</span>
-            <span style={{ fontSize: "1.3rem", fontWeight: "bold", color: "#2563eb" }}>{formatDurationFromSeconds(totais.totalHorasSeg)}</span>
+            <span style={{ fontSize: "1.3rem", fontWeight: "bold", color: "var(--color-btnPrimary)" }}>{formatDurationFromSeconds(totais.totalHorasSeg)}</span>
           </div>
           <div style={{ background: "white", padding: "10px", borderRadius: "6px", textAlign: "center" }}>
             <span style={{ fontSize: "0.75rem", fontWeight: "bold", color: "#64748b", display: "block" }}>Dias Trabalhados</span>
-            <span style={{ fontSize: "1.3rem", fontWeight: "bold", color: "#2563eb" }}>{totais.diasTrabalhados}</span>
+            <span style={{ fontSize: "1.3rem", fontWeight: "bold", color: "var(--color-btnPrimary)" }}>{totais.diasTrabalhados}</span>
           </div>
           {totais.totalPausasSeg > 0 && (
             <div style={{ background: "white", padding: "10px", borderRadius: "6px", textAlign: "center" }}>

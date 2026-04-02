@@ -1,7 +1,8 @@
 import { HashRouter, Routes, Route } from "react-router-dom";
 
-// Contexto de Autenticação
+// Contexto de Autenticação e Tema
 import { AuthProvider } from "./context/AuthContext"; // 👈 IMPORTADO AQUI
+import { ThemeProvider } from "./context/ThemeContext"; // 👈 IMPORTADO AQUI
 
 // Páginas de Autenticação
 import Login from "./pages/Login";
@@ -32,10 +33,11 @@ import GestaoTemplates from "./components/GestaoTemplates";
 
 export default function App() {
   return (
-    // 👈 O AUTH PROVIDER ENVOLVE AGORA TODA A APP
-    <AuthProvider>
-      <GlobalTooltipProvider>
-        <HashRouter>
+    // 👈 O AUTH PROVIDER E THEME PROVIDER ENVOLVEM AGORA TODA A APP
+    <ThemeProvider>
+      <AuthProvider>
+        <GlobalTooltipProvider>
+          <HashRouter>
           <Routes>
           {/* === ROTAS PÚBLICAS === */}
           <Route path="/" element={<Login />} />
@@ -75,7 +77,7 @@ export default function App() {
               <h1 style={{ fontSize: '3rem', margin: 0, color: '#0f172a' }}>404</h1>
               <h2>Oops! Página não encontrada 🚧</h2>
               <p>O link que tentaste aceder não existe.</p>
-              <a href="/" style={{ display: 'inline-block', marginTop: '20px', padding: '10px 20px', background: '#2563eb', color: 'white', textDecoration: 'none', borderRadius: '8px', fontWeight: 'bold' }}>
+              <a href="/" style={{ display: 'inline-block', marginTop: '20px', padding: '10px 20px', background: 'var(--color-btnPrimary)', color: 'white', textDecoration: 'none', borderRadius: '8px', fontWeight: 'bold' }}>
                 Voltar ao Início
               </a>
             </div>
@@ -85,5 +87,6 @@ export default function App() {
         </HashRouter>
       </GlobalTooltipProvider>
     </AuthProvider>
+    </ThemeProvider>
   );
 }

@@ -395,14 +395,14 @@ export default function Ferias({ forcedType = null }) {
     const tipoLabel = formatAbsenceTypeLabel(tipo);
     let icon, color;
     switch (tipoLabel) {
-        case KM_REQUEST_TYPE: icon = <Icons.Briefcase color="#0ea5e9" />; color = "#0369a1"; break;
+        case KM_REQUEST_TYPE: icon = <Icons.Briefcase color="var(--color-primary)" />; color = "var(--color-btnPrimary)"; break;
       case 'Férias': icon = <Icons.Sun color="#d97706" />; color = "#b45309"; break;
-      case 'Assistência à família': icon = <Icons.Users color="#2563eb" />; color = "#1d4ed8"; break;
+      case 'Assistência à família': icon = <Icons.Users color="var(--color-btnPrimary)" />; color = "var(--color-btnPrimaryDark)"; break;
       case 'Outros - Assuntos pessoais': icon = <Icons.User color="#475569" />; color = "#334155"; break;
       case 'Ausência sem motivo - injustificada': icon = <Icons.AlertTriangle color="#ef4444" />; color = "#b91c1c"; break;
       case 'Doença, acidente e obrigação legal': icon = <Icons.Activity color="#8b5cf6" />; color = "#7e22ce"; break;
       case 'Casamento': icon = <Icons.Heart color="#ec4899" />; color = "#be185d"; break;
-      case 'Deslocação a estabelecimento de ensino': icon = <Icons.BookOpen color="#0ea5e9" />; color = "#0369a1"; break;
+      case 'Deslocação a estabelecimento de ensino': icon = <Icons.BookOpen color="var(--color-primary)" />; color = "var(--color-btnPrimary)"; break;
       case 'Licença maternal/paternal': icon = <Icons.Heart color="#f43f5e" />; color = "#e11d48"; break;
       case 'Licença sem vencimento': icon = <Icons.MinusCircle color="#64748b" />; color = "#475569"; break;
       case 'Falecimento de familiar': icon = <Icons.MinusCircle color="#1e293b" />; color = "#0f172a"; break;
@@ -431,7 +431,7 @@ export default function Ferias({ forcedType = null }) {
       {/* HEADER */}
       <div className="card" style={{ marginBottom: 25, padding: '25px', display: "flex", justifyContent: "space-between", alignItems: 'center', flexWrap: 'wrap', gap: '15px', background: 'white', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
         <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
-            <div style={{background: '#eff6ff', color: '#2563eb', padding: '12px', borderRadius: '12px', display: 'flex'}}><Icons.Sun size={24} /></div>
+            <div style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '12px', borderRadius: '12px', display: 'flex'}}><Icons.Sun size={24} /></div>
             <div>
                 <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>{isKmOnlyMode ? "Pedido de Deslocação" : "Férias & Ausências"}</h1>
                 <p style={{color: '#64748b', margin: 0, fontWeight: '500', fontSize: '0.9rem'}}>{isKmOnlyMode ? 'Registo de deslocações extra para aprovação dos RH' : 'Gestão pessoal de tempo e calendário'}</p>
@@ -445,7 +445,7 @@ export default function Ferias({ forcedType = null }) {
       <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '25px'}}>
         {!isKmOnlyMode && (
         <div className="card" style={{padding: '25px', display: 'flex', alignItems: 'center', gap: '20px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)'}}>
-            <div style={{background: '#eff6ff', color: '#2563eb', padding: '15px', borderRadius: '50%'}}><Icons.Sun size={24} /></div>
+            <div style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '15px', borderRadius: '50%'}}><Icons.Sun size={24} /></div>
             <div>
                 <h3 style={{margin: '0 0 5px 0', fontSize: '0.9rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Dias Disponíveis</h3>
                 <p style={{margin: 0, color: '#1e293b', fontSize: '1.8rem', fontWeight: '900'}}>{diasFerias ?? '--'}</p>
@@ -511,7 +511,7 @@ export default function Ferias({ forcedType = null }) {
                   <td style={{padding: '15px', textAlign: 'center'}}>
                       {p.anexo_url ? (
                           <div style={{display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center'}}>
-                              <a href={p.anexo_url} target="_blank" rel="noreferrer" className="action-btn hover-blue-text hover-shadow" style={{background: '#eff6ff', color: '#2563eb', padding: '6px', borderRadius: '6px'}} title="Ver Documento"><Icons.Eye size={16} /></a>
+                              <a href={p.anexo_url} target="_blank" rel="noreferrer" className="action-btn hover-blue-text hover-shadow" style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '6px', borderRadius: '6px'}} title="Ver Documento"><Icons.Eye size={16} /></a>
                               <button onClick={() => setUploadModal({ show: true, pedido: p })} className="action-btn hover-orange-text hover-shadow" style={{background: '#f8fafc', color: '#64748b', padding: '6px', borderRadius: '6px'}} title="Substituir Documento"><Icons.Refresh size={16} /></button>
                           </div>
                       ) : (
@@ -563,7 +563,7 @@ export default function Ferias({ forcedType = null }) {
                     
                     <div style={{padding:'20px 25px', background:'#f8fafc', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
                         <h3 style={{margin:0, color:'#1e293b', fontSize:'1.25rem', fontWeight:'800', display: 'flex', alignItems: 'center', gap: '10px'}}>
-                            <span style={{color: '#2563eb'}}><Icons.Calendar size={22} /></span>
+                            <span style={{color: 'var(--color-btnPrimary)'}}><Icons.Calendar size={22} /></span>
                             {isEditing ? (isKmOnlyMode ? "Editar Pedido de Deslocação" : 'Editar Pedido de Ausência') : (isKmOnlyMode ? "Novo Pedido de Deslocação" : 'Novo Pedido de Ausência')}
                         </h3>
                         <button onClick={handleCloseModal} style={{background:'transparent', border:'none', cursor:'pointer', color:'#94a3b8'}} className="hover-red-text"><Icons.Close size={20} /></button>
@@ -599,8 +599,8 @@ export default function Ferias({ forcedType = null }) {
                             </div>
                             
                             {!isKmRequest && (
-                            <label style={{display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', marginBottom: '20px', color: '#1e40af', fontWeight: 'bold', fontSize: '0.9rem', background: '#eff6ff', padding: '15px', borderRadius: '10px', border: '1px solid #bfdbfe', transition: '0.2s'}}>
-                                <input type="checkbox" checked={form.is_parcial} onChange={e => setForm({...form, is_parcial: e.target.checked, data_fim: e.target.checked ? form.data_inicio : form.data_fim})} style={{width: '18px', height: '18px', accentColor: '#2563eb'}} />
+                            <label style={{display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', marginBottom: '20px', color: 'var(--color-btnPrimaryHover)', fontWeight: 'bold', fontSize: '0.9rem', background: 'var(--color-bgSecondary)', padding: '15px', borderRadius: '10px', border: '1px solid var(--color-borderColor)', transition: '0.2s'}}>
+                                <input type="checkbox" checked={form.is_parcial} onChange={e => setForm({...form, is_parcial: e.target.checked, data_fim: e.target.checked ? form.data_inicio : form.data_fim})} style={{width: '18px', height: '18px', accentColor: 'var(--color-btnPrimary)'}} />
                                 <Icons.Clock size={18} /> Ausência Parcial (Apenas algumas horas no próprio dia)
                             </label>
                             )}
@@ -666,20 +666,20 @@ export default function Ferias({ forcedType = null }) {
                             </div>
 
                             {!isKmRequest && form.data_inicio && form.data_fim && !form.is_parcial && (
-                                <div style={{background: diasUteis > 0 ? '#eff6ff' : '#fef2f2', color: diasUteis > 0 ? '#1e40af' : '#b91c1c', border: `1px solid ${diasUteis > 0 ? '#bfdbfe' : '#fecaca'}`, padding: '12px 15px', borderRadius: '8px', marginBottom: '20px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '10px', fontWeight: '500'}}>
+                                <div style={{background: diasUteis > 0 ? 'var(--color-bgSecondary)' : '#fef2f2', color: diasUteis > 0 ? 'var(--color-btnPrimaryHover)' : '#b91c1c', border: `1px solid ${diasUteis > 0 ? 'var(--color-borderColor)' : '#fecaca'}`, padding: '12px 15px', borderRadius: '8px', marginBottom: '20px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '10px', fontWeight: '500'}}>
                                     {diasUteis > 0 ? <Icons.Info size={18} /> : <Icons.AlertTriangle size={18} />}
                                     <span>{diasUteis > 0 ? (isVacationType(form.tipo) ? `Este pedido consumirá ${diasUteis} dia(s) útil(eis) do seu saldo de férias.` : `Este pedido corresponde a ${diasUteis} dia(s) útil(eis). Tratando-se de justificação legal, não desconta férias.`) : `Atenção: O período selecionado calha num fim de semana ou feriado. Não é necessário marcar.`}</span>
                                 </div>
                             )}
                             
                             {!isKmRequest && form.data_inicio && form.is_parcial && (
-                                <div style={{background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af', padding: '12px 15px', borderRadius: '8px', marginBottom: '20px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '10px', fontWeight: '500'}}>
+                                <div style={{background: 'var(--color-bgSecondary)', border: '1px solid var(--color-borderColor)', color: 'var(--color-btnPrimaryHover)', padding: '12px 15px', borderRadius: '8px', marginBottom: '20px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '10px', fontWeight: '500'}}>
                                     <Icons.Info size={18} /> <span>Ausência parcial de algumas horas. <b>Este registo não consome saldo de férias.</b></span>
                                 </div>
                             )}
 
                             {isKmRequest && (
-                                <div style={{background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af', padding: '12px 15px', borderRadius: '8px', marginBottom: '20px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '10px', fontWeight: '500'}}>
+                                <div style={{background: 'var(--color-bgSecondary)', border: '1px solid var(--color-borderColor)', color: 'var(--color-btnPrimaryHover)', padding: '12px 15px', borderRadius: '8px', marginBottom: '20px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '10px', fontWeight: '500'}}>
                                     <Icons.Info size={18} /> <span>Este pedido de Deslocação será enviado para aprovação dos Recursos Humanos e ficará refletido nos relatórios mensal individual e geral.</span>
                                 </div>
                             )}
@@ -717,7 +717,7 @@ export default function Ferias({ forcedType = null }) {
               <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:99999}}>
                   <div style={{background:'white', padding:'30px', borderRadius:'16px', width:'90%', maxWidth: '450px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', animation: 'fadeIn 0.2s ease-out'}}>
                       <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px'}}>
-                          <h3 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '10px'}}><Icons.Paperclip size={24} color="#2563eb" /> Anexar Documento</h3>
+                          <h3 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '10px'}}><Icons.Paperclip size={24} color="var(--color-btnPrimary)" /> Anexar Documento</h3>
                           <button onClick={() => {setUploadModal({show: false, pedido: null}); setUploadFile(null);}} style={{background:'none', border:'none', cursor:'pointer', color:'#94a3b8'}} className="hover-red-text"><Icons.Close size={20} /></button>
                       </div>
                       
@@ -783,10 +783,10 @@ export default function Ferias({ forcedType = null }) {
         .table-row-hover:hover { background-color: #f8fafc !important; }
         .hover-shadow:hover { transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
         .hover-orange-text:hover { color: #f97316 !important; opacity: 1 !important; }
-        .hover-blue-text:hover { color: #3b82f6 !important; opacity: 1 !important; }
+        .hover-blue-text:hover { color: var(--color-btnPrimary) !important; opacity: 1 !important; }
         .hover-red-text:hover { color: #ef4444 !important; opacity: 1 !important; }
         
-        .input-focus:focus { border-color: #3b82f6 !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
+        .input-focus:focus { border-color: var(--color-btnPrimary) !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
         
         .action-btn { background: transparent; border: none; cursor: pointer; opacity: 0.5; transition: 0.2s; display: flex; align-items: center; justify-content: center; padding: 4px; }
         .action-btn:hover { opacity: 1; transform: scale(1.1); }

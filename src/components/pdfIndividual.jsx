@@ -477,3 +477,4 @@ export const generateIndividualRHPDF = async ({
 const gerarRelatorioIndividual = (payload) => generateIndividualRHPDF(payload);
 
 export default gerarRelatorioIndividual;
+

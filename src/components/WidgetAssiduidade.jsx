@@ -686,7 +686,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
       <div className="card" style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', minHeight: '360px', padding: '32px 28px', background: '#ffffff' }}>
 
       {/* Toggle registos */}
-      <button onClick={() => { setShowRecords(v => !v); if (!showRecords) fetchRecentRecords(); }} title="Últimos registos" style={{position:'absolute', top:'20px', right:'20px', background: showRecords ? '#eff6ff' : '#f8fafc', border: showRecords ? '1px solid #3b82f6' : '1px solid #e2e8f0', borderRadius:'10px', padding:'8px 10px', cursor:'pointer', color: showRecords ? '#2563eb' : '#94a3b8', display:'flex', alignItems:'center', justifyContent:'center', transition:'all 0.2s', fontWeight: '600'}}>
+      <button onClick={() => { setShowRecords(v => !v); if (!showRecords) fetchRecentRecords(); }} title="Últimos registos" style={{position:'absolute', top:'20px', right:'20px', background: showRecords ? 'var(--color-bgSecondary)' : '#f8fafc', border: showRecords ? '1px solid var(--color-btnPrimary)' : '1px solid #e2e8f0', borderRadius:'10px', padding:'8px 10px', cursor:'pointer', color: showRecords ? 'var(--color-btnPrimary)' : '#94a3b8', display:'flex', alignItems:'center', justifyContent:'center', transition:'all 0.2s', fontWeight: '600'}}>
         <Icons.Calendar size={18} />
       </button>
 
@@ -696,7 +696,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
         {/* Status Label */}
         {status !== 'stopped' && (
           <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px'}}>
-            <div style={{ fontSize: '0.75rem', color: status === 'paused' ? '#eab308' : '#2563eb', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+            <div style={{ fontSize: '0.75rem', color: status === 'paused' ? '#eab308' : 'var(--color-btnPrimary)', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
               {status === 'paused' ? '⏸ EM PAUSA' : '▶ A TRABALHAR'}
             </div>
             {activeRecord && (
@@ -714,7 +714,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
           const radius = 75;
           const circumference = 2 * Math.PI * radius;
           const offset = circumference * (1 - progress);
-          const color = status === 'paused' ? '#eab308' : (status === 'running' ? '#2563eb' : '#cbd5e1');
+          const color = status === 'paused' ? '#eab308' : (status === 'running' ? 'var(--color-btnPrimary)' : '#cbd5e1');
           const h = Math.floor(timer / 3600);
           const m = Math.floor((timer % 3600) / 60);
           const timeLabel = `${h}h ${String(m).padStart(2,'0')}m`;
@@ -751,7 +751,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
       {/* BOTÕES DE AÇÃO */}
       <div style={{ marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
         {status === 'stopped' && (
-            <button onClick={openStartModal} disabled={loading} className="btn-primary hover-shadow" style={{ width: '100%', padding: '16px 20px', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', fontSize: '1rem', fontWeight: '800', transition: '0.2s', background: '#2563eb', color: 'white', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}>
+            <button onClick={openStartModal} disabled={loading} className="btn-primary hover-shadow" style={{ width: '100%', padding: '16px 20px', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', fontSize: '1rem', fontWeight: '800', transition: '0.2s', background: 'var(--color-btnPrimary)', color: 'white', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}>
             <Icons.Play size={18} /> {loading ? "A iniciar..." : "Iniciar Dia de Trabalho"}
             </button>
         )}
@@ -777,7 +777,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
         )}
       </div>
 
-    {status === 'running' && <div style={{textAlign: 'center', fontSize:'0.85rem', color:'#2563eb', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '4px', letterSpacing: '0.02em'}}><span className="pulse-dot"></span> Tempo a decorrer</div>}
+    {status === 'running' && <div style={{textAlign: 'center', fontSize:'0.85rem', color:'var(--color-btnPrimary)', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '4px', letterSpacing: '0.02em'}}><span className="pulse-dot"></span> Tempo a decorrer</div>}
       {status === 'paused' && <div style={{textAlign: 'center', fontSize:'0.85rem', color:'#eab308', fontWeight: '700', marginTop: '4px', letterSpacing: '0.02em'}}>⏸ Pausa em curso</div>}
 
       {/* Painel de Registos Recentes */}
@@ -785,7 +785,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
         <div style={{marginTop:'20px', borderTop:'1px solid #f1f5f9', paddingTop:'16px', textAlign:'left'}}>
           <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'10px'}}>
             <span style={{fontSize:'0.78rem', fontWeight:'700', color:'#64748b', textTransform:'uppercase', letterSpacing:'0.05em'}}>Últimos Registos</span>
-            {onViewHistory && <button onClick={onViewHistory} style={{background:'none', border:'none', color:'#2563eb', fontSize:'0.78rem', fontWeight:'600', cursor:'pointer', padding:0}}>Ver histórico →</button>}
+            {onViewHistory && <button onClick={onViewHistory} style={{background:'none', border:'none', color:'var(--color-btnPrimary)', fontSize:'0.78rem', fontWeight:'600', cursor:'pointer', padding:0}}>Ver histórico →</button>}
           </div>
           {recentRecords.length === 0 ? (
             <div style={{textAlign:'center', color:'#94a3b8', fontSize:'0.82rem', padding:'8px 0'}}>Sem registos este mês.</div>
@@ -803,9 +803,9 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
                 {recentRecords.map(r => (
                   <tr key={r.id} style={{borderBottom:'1px solid #f8fafc'}}>
                     <td style={{padding:'7px 0', fontWeight:'600', color:'#334155'}}>{new Date(r.data_registo).toLocaleDateString('pt-PT').slice(0,5)}</td>
-                    <td style={{padding:'7px 0', color:'#2563eb', fontWeight:'500', textAlign:'center'}}>{r.hora_entrada?.slice(0,5)}</td>
+                    <td style={{padding:'7px 0', color:'var(--color-btnPrimary)', fontWeight:'500', textAlign:'center'}}>{r.hora_entrada?.slice(0,5)}</td>
                     <td style={{padding:'7px 0', color: r.hora_saida ? '#ef4444' : '#94a3b8', fontWeight:'500', textAlign:'center'}}>{r.hora_saida?.slice(0,5) || '—'}</td>
-                    <td style={{padding:'7px 0', textAlign:'right', fontWeight:'700', color:'#2563eb'}}>{fmtHrs(calcSec(r.hora_entrada, r.hora_saida, r.tempo_pausa_acumulado))}</td>
+                    <td style={{padding:'7px 0', textAlign:'right', fontWeight:'700', color:'var(--color-btnPrimary)'}}>{fmtHrs(calcSec(r.hora_entrada, r.hora_saida, r.tempo_pausa_acumulado))}</td>
                   </tr>
                 ))}
               </tbody>
@@ -822,7 +822,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
               <div style={modalOverlayStyle}>
                   <div style={{...modalContainerStyle, maxWidth: '600px'}}>
                       <div style={modalHeaderStyle}>
-                          <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.2rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Target size={20} color="#2563eb" /> Bom dia! Vamos focar?</h3>
+                          <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.2rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Target size={20} color="var(--color-btnPrimary)" /> Bom dia! Vamos focar?</h3>
                           <button onClick={() => setShowStartModal(false)} style={{background:'transparent', border:'none', cursor:'pointer', color:'#94a3b8'}} className="hover-red-text"><Icons.Close size={20}/></button>
                       </div>
                       
@@ -842,7 +842,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
 
                           <div style={{padding: '20px 25px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', gap: '10px'}}>
                               <button type="button" onClick={() => setShowStartModal(false)} style={{flex: 1, padding: '14px', borderRadius: '10px', border: '1px solid #cbd5e1', background: 'white', color: '#64748b', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">Agora Não</button>
-                              <button type="submit" style={{flex: 2, padding: '14px', borderRadius: '10px', border: 'none', background: '#2563eb', color: 'white', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'}} className="hover-shadow">
+                              <button type="submit" style={{flex: 2, padding: '14px', borderRadius: '10px', border: 'none', background: 'var(--color-btnPrimary)', color: 'white', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'}} className="hover-shadow">
                                   <Icons.Play size={18} /> Iniciar Dia
                               </button>
                           </div>
@@ -924,19 +924,19 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
         .pulse-dot { width: 10px; height: 10px; background-color: #16a34a; border-radius: 50%; display: inline-block; animation: pulse 2s infinite; box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.7); } 
         @keyframes pulse { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.7); } 50% { box-shadow: 0 0 0 8px rgba(22, 163, 74, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); } }
         
-        .btn-primary { background: #2563eb; color: white; border: none; cursor: pointer; }
-        .btn-primary:hover:not(:disabled) { background: #1d4ed8; transform: translateY(-2px); box-shadow: 0 8px 16px rgba(37, 99, 235, 0.25) !important; }
+        .btn-primary { background: var(--color-btnPrimary); color: white; border: none; cursor: pointer; }
+        .btn-primary:hover:not(:disabled) { background: var(--color-btnPrimaryDark); transform: translateY(-2px); box-shadow: 0 8px 16px rgba(37, 99, 235, 0.25) !important; }
         .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
         
         .hover-shadow { box-shadow: 0 2px 4px rgba(0,0,0,0.08); }
         .hover-shadow:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(0,0,0,0.12) !important; }
         .hover-shadow:active:not(:disabled) { transform: translateY(0); }
         
-        .hover-blue-btn:hover { background-color: #eff6ff !important; color: #2563eb !important; }
+        .hover-blue-btn:hover { background-color: var(--color-bgSecondary) !important; color: var(--color-btnPrimary) !important; }
         .hover-red-btn:hover { background-color: #fef2f2 !important; color: #ef4444 !important; }
         .hover-red-text:hover { color: #ef4444 !important; }
         
-        .input-focus:focus { border-color: #3b82f6 !important; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+        .input-focus:focus { border-color: var(--color-btnPrimary) !important; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
         .input-focus-alert:focus { border-color: #f59e0b !important; box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1); }
         
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
@@ -951,3 +951,4 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
 });
 
 export default WidgetAssiduidade;
+

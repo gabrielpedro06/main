@@ -1543,10 +1543,10 @@ export default function ProjetoDetalhe() {
   };
 
   const getProjectStatusTheme = (estado) => {
-    if(estado === 'concluido') return { bg: '#dbeafe', text: '#2563eb', border: '#bfdbfe', dot: '#2563eb' };
+    if(estado === 'concluido') return { bg: 'var(--color-borderColorLight)', text: 'var(--color-btnPrimary)', border: 'var(--color-borderColor)', dot: 'var(--color-btnPrimary)' };
       if(estado === 'em_curso') return { bg: '#fefce8', text: '#ca8a04', border: '#fde047', dot: '#eab308' };
       if(estado === 'cancelado') return { bg: '#f1f5f9', text: '#64748b', border: '#e2e8f0', dot: '#64748b' };
-      return { bg: '#eff6ff', text: '#2563eb', border: '#bfdbfe', dot: '#2563eb' }; 
+      return { bg: 'var(--color-bgSecondary)', text: 'var(--color-btnPrimary)', border: 'var(--color-borderColor)', dot: 'var(--color-btnPrimary)' }; 
   };
 
   // --- FUNÇÃO PARA RENDERIZAÇÃO CONDICIONAL DOS MODAIS ---
@@ -1570,7 +1570,7 @@ export default function ProjetoDetalhe() {
       return false; 
   };
 
-  if (loading) return <div className="page-container" style={{display:'flex', justifyContent:'center', alignItems:'center', height:'80vh'}}><div className="pulse-dot-white" style={{background:'#2563eb'}}></div></div>;
+  if (loading) return <div className="page-container" style={{display:'flex', justifyContent:'center', alignItems:'center', height:'80vh'}}><div className="pulse-dot-white" style={{background:'var(--color-btnPrimary)'}}></div></div>;
   if (!projeto) return <div className="page-container"><p>Projeto não encontrado.</p><button onClick={() => navigate(-1)}>Voltar</button></div>;
 
   const statusTheme = getProjectStatusTheme(projeto.estado);
@@ -1580,10 +1580,10 @@ export default function ProjetoDetalhe() {
 
   const renderStatePills = (currentState, onChange) => {
       const states = [
-          { val: 'pendente', label: 'PENDENTE', color: '#3b82f6' },
+          { val: 'pendente', label: 'PENDENTE', color: 'var(--color-btnPrimary)' },
           { val: 'em_curso', label: 'EM CURSO', color: '#f59e0b' },
           { val: 'em_analise', label: 'EM ANÁLISE', color: '#ec4899' },
-          { val: 'concluido', label: 'CONCLUÍDO', color: '#2563eb' },
+          { val: 'concluido', label: 'CONCLUÍDO', color: 'var(--color-btnPrimary)' },
           { val: 'cancelado', label: 'CANCELADO', color: '#64748b' }
       ];
       return (
@@ -1647,7 +1647,7 @@ export default function ProjetoDetalhe() {
                   </button>
 
                   <div style={{display: 'flex', gap: '12px', alignItems: 'center'}}>
-                      <button onClick={() => gerarRelatorioProjeto(projeto, atividades, logs, staff, clientes)} className="btn-small hover-shadow" style={{display:'flex', alignItems:'center', gap:'6px', background:'white', color:'#1e40af', border:'1px solid #bfdbfe'}}>
+                      <button onClick={() => gerarRelatorioProjeto(projeto, atividades, logs, staff, clientes)} className="btn-small hover-shadow" style={{display:'flex', alignItems:'center', gap:'6px', background:'white', color:'var(--color-btnPrimaryHover)', border:'1px solid var(--color-borderColor)'}}>
                           <Icons.Download size={14}/> Gerar PDF
                       </button>
                       
@@ -1688,7 +1688,7 @@ export default function ProjetoDetalhe() {
                                                                     onClick={handleClientHeaderClick}
                                                                     style={{
                                                                         fontSize: '0.95rem',
-                                                                        color: canNavigateToClient ? '#1d4ed8' : '#1e293b',
+                                                                        color: canNavigateToClient ? 'var(--color-btnPrimaryDark)' : '#1e293b',
                                                                         fontWeight: '700',
                                                                         border: 'none',
                                                                         background: 'transparent',
@@ -1752,17 +1752,17 @@ export default function ProjetoDetalhe() {
 
       {/* NAVEGAÇÃO INTERNA */}
       <div style={{display: 'flex', gap: '5px', marginBottom: '25px', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px', overflowX: 'auto', whiteSpace: 'nowrap'}} className="custom-scrollbar">
-        <button style={{background: 'none', border: 'none', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: activeTab === 'atividades' ? '800' : '600', color: activeTab === 'atividades' ? '#2563eb' : '#64748b', cursor: 'pointer', padding: '10px 20px', position: 'relative', transition: '0.2s'}} onClick={() => setActiveTab('atividades')} className="tab-hover">
+        <button style={{background: 'none', border: 'none', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: activeTab === 'atividades' ? '800' : '600', color: activeTab === 'atividades' ? 'var(--color-btnPrimary)' : '#64748b', cursor: 'pointer', padding: '10px 20px', position: 'relative', transition: '0.2s'}} onClick={() => setActiveTab('atividades')} className="tab-hover">
             <Icons.ClipboardList /> Board de Atividades
-            {activeTab === 'atividades' && <div style={{position:'absolute', bottom:'-12px', left:0, right:0, height:'3px', background:'#2563eb', borderRadius:'3px 3px 0 0'}} />}
+            {activeTab === 'atividades' && <div style={{position:'absolute', bottom:'-12px', left:0, right:0, height:'3px', background:'var(--color-btnPrimary)', borderRadius:'3px 3px 0 0'}} />}
         </button>
-        <button style={{background: 'none', border: 'none', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: activeTab === 'relatorio' ? '800' : '600', color: activeTab === 'relatorio' ? '#2563eb' : '#64748b', cursor: 'pointer', padding: '10px 20px', position: 'relative', transition: '0.2s'}} onClick={() => setActiveTab('relatorio')} className="tab-hover">
+        <button style={{background: 'none', border: 'none', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: activeTab === 'relatorio' ? '800' : '600', color: activeTab === 'relatorio' ? 'var(--color-btnPrimary)' : '#64748b', cursor: 'pointer', padding: '10px 20px', position: 'relative', transition: '0.2s'}} onClick={() => setActiveTab('relatorio')} className="tab-hover">
             <Icons.Clock /> Relatório de Tempos
-            {activeTab === 'relatorio' && <div style={{position:'absolute', bottom:'-12px', left:0, right:0, height:'3px', background:'#2563eb', borderRadius:'3px 3px 0 0'}} />}
+            {activeTab === 'relatorio' && <div style={{position:'absolute', bottom:'-12px', left:0, right:0, height:'3px', background:'var(--color-btnPrimary)', borderRadius:'3px 3px 0 0'}} />}
         </button>
-        <button style={{background: 'none', border: 'none', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: activeTab === 'geral' ? '800' : '600', color: activeTab === 'geral' ? '#2563eb' : '#64748b', cursor: 'pointer', padding: '10px 20px', position: 'relative', transition: '0.2s'}} onClick={() => setActiveTab('geral')} className="tab-hover">
+        <button style={{background: 'none', border: 'none', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: activeTab === 'geral' ? '800' : '600', color: activeTab === 'geral' ? 'var(--color-btnPrimary)' : '#64748b', cursor: 'pointer', padding: '10px 20px', position: 'relative', transition: '0.2s'}} onClick={() => setActiveTab('geral')} className="tab-hover">
             <Icons.Settings /> Configurações e Dados
-            {activeTab === 'geral' && <div style={{position:'absolute', bottom:'-12px', left:0, right:0, height:'3px', background:'#2563eb', borderRadius:'3px 3px 0 0'}} />}
+            {activeTab === 'geral' && <div style={{position:'absolute', bottom:'-12px', left:0, right:0, height:'3px', background:'var(--color-btnPrimary)', borderRadius:'3px 3px 0 0'}} />}
         </button>
       </div>
 
@@ -1806,12 +1806,12 @@ export default function ProjetoDetalhe() {
                         {/* CABEÇALHO DA ATIVIDADE */}
                         <div style={{padding: '15px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: isAtivDone ? '#f8fafc' : 'white', position: 'relative'}}>
                             <div style={{position: 'absolute', bottom: 0, left: 0, height: '3px', background: '#f1f5f9', width: '100%'}}>
-                                <div style={{height: '100%', background: '#3b82f6', width: `${progresso}%`, transition: 'width 0.4s ease-in-out'}}></div>
+                                <div style={{height: '100%', background: 'var(--color-btnPrimary)', width: `${progresso}%`, transition: 'width 0.4s ease-in-out'}}></div>
                             </div>
                             
                             <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
                                 <div style={{cursor: 'grab', color: '#cbd5e1', display:'flex'}} title="Arraste para reordenar" className="hover-blue-text"><Icons.GripVertical /></div>
-                                <div onClick={() => !blockedActivity && toggleAtividadeStatus(ativ.id, ativ.estado)} style={{width: '26px', height: '26px', borderRadius: '8px', cursor: blockedActivity ? 'not-allowed' : 'pointer', background: isAtivDone ? '#2563eb' : '#f8fafc', border: isAtivDone ? 'none' : '2px solid #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', transition: 'all 0.2s'}}>
+                                <div onClick={() => !blockedActivity && toggleAtividadeStatus(ativ.id, ativ.estado)} style={{width: '26px', height: '26px', borderRadius: '8px', cursor: blockedActivity ? 'not-allowed' : 'pointer', background: isAtivDone ? 'var(--color-btnPrimary)' : '#f8fafc', border: isAtivDone ? 'none' : '2px solid #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', transition: 'all 0.2s'}}>
                                     {isAtivDone && <Icons.Check size={16} />}
                                 </div>
                                 <div>
@@ -1821,13 +1821,13 @@ export default function ProjetoDetalhe() {
                                         </h3>
                                         {renderDeadline(ativ.data_fim, isAtivDone, true)}
                                         
-                                        <button onClick={() => setAtividadeModal({show: true, data: { ...ativ, colaboradores_extra: Array.isArray(ativ.colaboradores_extra) ? ativ.colaboradores_extra : [] }})} style={{background:'none', border:'none', color:'#3b82f6', cursor:'pointer'}} title="Editar Atividade" className="hover-shadow">
+                                        <button onClick={() => setAtividadeModal({show: true, data: { ...ativ, colaboradores_extra: Array.isArray(ativ.colaboradores_extra) ? ativ.colaboradores_extra : [] }})} style={{background:'none', border:'none', color:'var(--color-btnPrimary)', cursor:'pointer'}} title="Editar Atividade" className="hover-shadow">
                                             <Icons.Edit size={16} />
                                         </button>
                                     </div>
 
                                     <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginTop: '5px', flexWrap: 'wrap'}}>
-                                        <span style={{fontSize: '0.7rem', background: '#eff6ff', color: '#1d4ed8', padding: '2px 8px', borderRadius: '999px', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '5px'}}>
+                                        <span style={{fontSize: '0.7rem', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimaryDark)', padding: '2px 8px', borderRadius: '999px', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '5px'}}>
                                             <Icons.User size={11} />
                                             Resp: {atividadeResponsavelNome || 'Sem responsável'}
                                         </span>
@@ -1849,7 +1849,7 @@ export default function ProjetoDetalhe() {
                             <div style={{display: 'flex', gap: '15px', alignItems: 'center'}}>
                                 {!isAtivDone && <span style={{fontSize: '0.75rem', color: '#64748b', background: '#f1f5f9', padding: '4px 10px', borderRadius: '12px', fontWeight: '600'}}>{progresso}% Concluído</span>}
                                 
-                                <span style={{fontSize: '0.8rem', color: '#3b82f6', fontWeight: 'bold', background: '#eff6ff', padding: '4px 10px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '4px'}}>
+                                <span style={{fontSize: '0.8rem', color: 'var(--color-btnPrimary)', fontWeight: 'bold', background: 'var(--color-bgSecondary)', padding: '4px 10px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '4px'}}>
                                     <Icons.Clock size={12} /> {formatTime(ativTime)}
                                 </span>
                                 
@@ -1882,7 +1882,7 @@ export default function ProjetoDetalhe() {
 
                                 <button
                                     onClick={() => handleReuseActivityBlock(ativ.id)}
-                                    style={{background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1d4ed8', cursor: 'pointer', padding: '5px 10px', borderRadius: '12px', fontSize: '0.72rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px'}}
+                                    style={{background: 'var(--color-bgSecondary)', border: '1px solid var(--color-borderColor)', color: 'var(--color-btnPrimaryDark)', cursor: 'pointer', padding: '5px 10px', borderRadius: '12px', fontSize: '0.72rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px'}}
                                     className="hover-shadow"
                                     title="Reaproveitar este bloco de atividade"
                                 >
@@ -1922,12 +1922,12 @@ export default function ProjetoDetalhe() {
                                         onDragEnter={(e) => handleDragEnterTar(e, aIndex, tIndex)}
                                         onDragEnd={(e) => handleDropTar(e, aIndex)}
                                         onDragOver={(e) => e.preventDefault()}
-                                        style={{background: 'white', border: isTimerActive ? '1px solid #3b82f6' : '1px solid #e2e8f0', borderRadius: '8px', marginBottom: '8px', overflow: 'hidden', boxShadow: isTimerActive ? '0 0 0 2px rgba(59, 130, 246, 0.2)' : 'none', transition: 'all 0.2s'}}
+                                        style={{background: 'white', border: isTimerActive ? '1px solid var(--color-btnPrimary)' : '1px solid #e2e8f0', borderRadius: '8px', marginBottom: '8px', overflow: 'hidden', boxShadow: isTimerActive ? '0 0 0 2px rgba(59, 130, 246, 0.2)' : 'none', transition: 'all 0.2s'}}
                                     >
                                         <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 15px', opacity: tar.estado === 'concluido' ? 0.6 : (blockedByDependency ? 0.75 : 1)}}>
                                             <div style={{display: 'flex', alignItems: 'center', gap: '12px', flex: 1}}>
                                                 <div style={{cursor: 'grab', color: '#cbd5e1', display:'flex'}} title="Arraste para reordenar"><Icons.GripVertical /></div>
-                                                <div onClick={() => !blockedByDependency && toggleTarefaStatus(tar.id, tar.estado)} style={{ width: '20px', height: '20px', borderRadius: '50%', cursor: blockedByDependency ? 'not-allowed' : 'pointer', border: tar.estado === 'concluido' ? 'none' : '2px solid #cbd5e1', background: tar.estado === 'concluido' ? '#2563eb' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0 }}>
+                                                <div onClick={() => !blockedByDependency && toggleTarefaStatus(tar.id, tar.estado)} style={{ width: '20px', height: '20px', borderRadius: '50%', cursor: blockedByDependency ? 'not-allowed' : 'pointer', border: tar.estado === 'concluido' ? 'none' : '2px solid #cbd5e1', background: tar.estado === 'concluido' ? 'var(--color-btnPrimary)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0 }}>
                                                     {tar.estado === 'concluido' && <Icons.Check size={12} />}
                                                 </div>
                                                 
@@ -1951,7 +1951,7 @@ export default function ProjetoDetalhe() {
                                                 
                                                 <div style={{display: 'flex', gap: '6px', marginLeft: '10px'}}>
                                                     {tar.prioridade === 'Alta' || tar.prioridade === 'Urgente' ? <span style={{fontSize: '0.65rem', background: '#fee2e2', color: '#ef4444', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold'}}>{tar.prioridade}</span> : null}
-                                                    {respName && <span style={{fontSize: '0.65rem', background: '#eff6ff', color: '#2563eb', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold'}}>{respName.split(' ')[0]}</span>}
+                                                    {respName && <span style={{fontSize: '0.65rem', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold'}}>{respName.split(' ')[0]}</span>}
                                                     {extraColabsCount > 0 && <span style={{fontSize: '0.65rem', background: '#f3e8ff', color: '#7e22ce', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}} title={extraColabsNames}><Icons.Users size={10} /> +{extraColabsCount}</span>}
                                                     {renderDeadline(tar.data_fim, isTarDone)}
                                                     {dependencyReason && (
@@ -1959,7 +1959,7 @@ export default function ProjetoDetalhe() {
                                                             <Icons.Lock size={10} /> Dependência
                                                         </span>
                                                     )}
-                                                    {hasSubs && <span style={{fontSize: '0.65rem', background: subsDone === tar.subtarefas.length ? '#dbeafe' : '#f1f5f9', color: subsDone === tar.subtarefas.length ? '#2563eb' : '#64748b', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.ClipboardList size={10} /> {subsDone}/{tar.subtarefas.length}</span>}
+                                                    {hasSubs && <span style={{fontSize: '0.65rem', background: subsDone === tar.subtarefas.length ? 'var(--color-borderColorLight)' : '#f1f5f9', color: subsDone === tar.subtarefas.length ? 'var(--color-btnPrimary)' : '#64748b', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.ClipboardList size={10} /> {subsDone}/{tar.subtarefas.length}</span>}
                                                 </div>
                                             </div>
 
@@ -1979,7 +1979,7 @@ export default function ProjetoDetalhe() {
                                                     </button>
                                                 )}
                                                 {!isTarDone && (
-                                                    <button onClick={() => toggleSubtarefaComposer(tar.id)} style={{background:'none', border:'none', color: isComposerOpen ? '#2563eb' : '#94a3b8', cursor:'pointer', display: 'flex'}} className="hover-blue-text" title={isComposerOpen ? 'Fechar novo passo' : 'Adicionar novo passo'}>
+                                                    <button onClick={() => toggleSubtarefaComposer(tar.id)} style={{background:'none', border:'none', color: isComposerOpen ? 'var(--color-btnPrimary)' : '#94a3b8', cursor:'pointer', display: 'flex'}} className="hover-blue-text" title={isComposerOpen ? 'Fechar novo passo' : 'Adicionar novo passo'}>
                                                         {isComposerOpen ? <Icons.Close size={14} /> : <Icons.Plus size={14} />}
                                                     </button>
                                                 )}
@@ -1997,7 +1997,7 @@ export default function ProjetoDetalhe() {
                                                     return (
                                                         <div key={sub.id} style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', opacity: sub.estado === 'concluido' ? 0.5 : 1}}>
                                                             <div style={{display: 'flex', alignItems: 'center', gap: '10px', flex: 1}}>
-                                                                <input type="checkbox" checked={sub.estado === 'concluido'} onChange={() => toggleSubtarefaStatus(sub.id, sub.estado)} style={{width: '14px', height: '14px', cursor: 'pointer', accentColor: '#3b82f6'}} />
+                                                                <input type="checkbox" checked={sub.estado === 'concluido'} onChange={() => toggleSubtarefaStatus(sub.id, sub.estado)} style={{width: '14px', height: '14px', cursor: 'pointer', accentColor: 'var(--color-btnPrimary)'}} />
                                                                 
                                                                 <span onClick={() => setSubtarefaModal({show: true, data: sub, tarefaNome: tar.titulo})} style={{fontSize: '0.85rem', color: '#475569', textDecoration: sub.estado === 'concluido' ? 'line-through' : 'none', cursor: 'pointer'}} className="hover-underline" title="Editar Sub-tarefa">
                                                                     {sub.titulo}
@@ -2072,18 +2072,18 @@ export default function ProjetoDetalhe() {
         {activeTab === 'relatorio' && (
             <div style={{background: 'white', padding: '30px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0'}}>
                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '20px'}}>
-                    <h2 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '10px'}}><Icons.Clock size={24} color="#2563eb" /> Relatório de Execução</h2>
+                    <h2 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '10px'}}><Icons.Clock size={24} color="var(--color-btnPrimary)" /> Relatório de Execução</h2>
                     <button onClick={openCreateTimeLogModal} className="btn-primary hover-shadow" style={{display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px'}}>
                         <Icons.Plus size={14} /> Adicionar Tempo
                     </button>
                 </div>
                 
-                <div style={{background: '#eff6ff', padding: '20px', borderRadius: '12px', border: '1px solid #bfdbfe', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '30px'}}>
+                <div style={{background: 'var(--color-bgSecondary)', padding: '20px', borderRadius: '12px', border: '1px solid var(--color-borderColor)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '30px'}}>
                     <div>
-                        <h4 style={{margin: 0, color: '#1e40af'}}>Tempo Total Gasto no Projeto</h4>
-                        <p style={{margin: '5px 0 0 0', color: '#3b82f6', fontSize: '0.85rem'}}>Soma de todas as sessões do cronómetro.</p>
+                        <h4 style={{margin: 0, color: 'var(--color-btnPrimaryHover)'}}>Tempo Total Gasto no Projeto</h4>
+                        <p style={{margin: '5px 0 0 0', color: 'var(--color-btnPrimary)', fontSize: '0.85rem'}}>Soma de todas as sessões do cronómetro.</p>
                     </div>
-                    <div style={{fontSize: '2.5rem', fontWeight: '900', color: '#1d4ed8'}}>
+                    <div style={{fontSize: '2.5rem', fontWeight: '900', color: 'var(--color-btnPrimaryDark)'}}>
                         {formatTime(getProjectTotalTime())}
                     </div>
                 </div>
@@ -2102,7 +2102,7 @@ export default function ProjetoDetalhe() {
                                 <tr style={{background: '#f1f5f9', borderBottom: '1px solid #e2e8f0'}}>
                                     <td style={{padding: '12px', fontWeight: 'bold', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Folder size={16} /> {ativ.titulo}</td>
                                     <td style={{padding: '12px', color: '#64748b', fontSize: '0.85rem'}}>{getStaffNames(ativ.responsavel_id, ativ.colaboradores_extra)}</td>
-                                    <td style={{padding: '12px', textAlign: 'right', fontWeight: 'bold', color: '#3b82f6'}}>{formatTime(getActivityTime(ativ))}</td>
+                                    <td style={{padding: '12px', textAlign: 'right', fontWeight: 'bold', color: 'var(--color-btnPrimary)'}}>{formatTime(getActivityTime(ativ))}</td>
                                 </tr>
                                 {ativ.tarefas?.map(tar => {
                                     const time = getTaskTime(tar.id);
@@ -2437,11 +2437,11 @@ export default function ProjetoDetalhe() {
                         </div>
 
                         <div>
-                            <div style={{background: '#eff6ff', padding: '20px', borderRadius: '12px', border: '1px solid #bfdbfe', marginBottom: '20px'}}>
-                                <h4 style={{margin: '0 0 15px 0', color: '#1e40af', display: 'flex', alignItems: 'center', gap: '8px', fontSize:'1rem'}}><Icons.Dollar /> Financeiro</h4>
+                            <div style={{background: 'var(--color-bgSecondary)', padding: '20px', borderRadius: '12px', border: '1px solid var(--color-borderColor)', marginBottom: '20px'}}>
+                                <h4 style={{margin: '0 0 15px 0', color: 'var(--color-btnPrimaryHover)', display: 'flex', alignItems: 'center', gap: '8px', fontSize:'1rem'}}><Icons.Dollar /> Financeiro</h4>
                                 <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
-                                    <div><label style={{...labelStyle, color: '#1e3a8a'}}>Investimento (€)</label><input type="number" step="0.01" value={formGeral.investimento || 0} onChange={e => setFormGeral({...formGeral, investimento: e.target.value})} style={{...inputStyle, borderColor: '#bfdbfe', marginBottom:0}} className="input-focus" /></div>
-                                    <div><label style={{...labelStyle, color: '#1e3a8a'}}>Incentivo (€)</label><input type="number" step="0.01" value={formGeral.incentivo || 0} onChange={e => setFormGeral({...formGeral, incentivo: e.target.value})} style={{...inputStyle, borderColor: '#bfdbfe', color: '#2563eb', marginBottom:0}} className="input-focus" /></div>
+                                    <div><label style={{...labelStyle, color: 'var(--color-btnPrimaryDark)'}}>Investimento (€)</label><input type="number" step="0.01" value={formGeral.investimento || 0} onChange={e => setFormGeral({...formGeral, investimento: e.target.value})} style={{...inputStyle, borderColor: 'var(--color-borderColor)', marginBottom:0}} className="input-focus" /></div>
+                                    <div><label style={{...labelStyle, color: 'var(--color-btnPrimaryDark)'}}>Incentivo (€)</label><input type="number" step="0.01" value={formGeral.incentivo || 0} onChange={e => setFormGeral({...formGeral, incentivo: e.target.value})} style={{...inputStyle, borderColor: 'var(--color-borderColor)', color: 'var(--color-btnPrimary)', marginBottom:0}} className="input-focus" /></div>
                                 </div>
                             </div>
                             <label style={labelStyle}>Descrição Pública</label>
@@ -2697,7 +2697,7 @@ export default function ProjetoDetalhe() {
               <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999}}>
                   <div className="custom-scrollbar" style={{background: 'white', padding: '24px', borderRadius: '16px', width: 'min(600px, 92vw)', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'}}>
                       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
-                          <h3 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.ClipboardList size={20} color="#2563eb" /> Editar Atividade</h3>
+                          <h3 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.ClipboardList size={20} color="var(--color-btnPrimary)" /> Editar Atividade</h3>
                           <button onClick={() => setAtividadeModal({show:false, data:null})} style={{background:'none', border:'none', fontSize:'1.2rem', color:'#94a3b8', cursor:'pointer'}}>✕</button>
                       </div>
                       
@@ -2817,7 +2817,7 @@ export default function ProjetoDetalhe() {
 
                           <div style={{display: 'flex', gap: '10px', marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #f1f5f9'}}>
                               <button type="button" onClick={() => setAtividadeModal({show:false, data:null})} style={{flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', background: 'white', color: '#64748b', fontWeight: 'bold', cursor:'pointer'}} className="hover-shadow">Cancelar</button>
-                              <button type="submit" style={{flex: 2, padding: '12px', borderRadius: '10px', border: 'none', background: '#2563eb', color: 'white', fontWeight: 'bold', cursor:'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'}} className="hover-shadow"><Icons.Save /> Guardar Alterações</button>
+                              <button type="submit" style={{flex: 2, padding: '12px', borderRadius: '10px', border: 'none', background: 'var(--color-btnPrimary)', color: 'white', fontWeight: 'bold', cursor:'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'}} className="hover-shadow"><Icons.Save /> Guardar Alterações</button>
                           </div>
                       </form>
                   </div>
@@ -2831,7 +2831,7 @@ export default function ProjetoDetalhe() {
               <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999}}>
                   <div className="custom-scrollbar" style={{background: 'white', padding: '32px', borderRadius: '18px', width: 'min(700px, 98vw)', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out'}}>
                       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
-                          <h3 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Eye size={20} color="#2563eb" /> Detalhes da Tarefa</h3>
+                          <h3 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Eye size={20} color="var(--color-btnPrimary)" /> Detalhes da Tarefa</h3>
                           <button onClick={() => { setTarefaModal({show:false, data:null, atividadeNome:''}); setTarefaFileToUpload(null); }} style={{background:'none', border:'none', cursor:'pointer'}} className="hover-red-text"><Icons.Close size={20} /></button>
                       </div>
                       
@@ -2959,7 +2959,7 @@ export default function ProjetoDetalhe() {
                                           ...tarefaModal,
                                           data: { ...tarefaModal.data, tem_entregavel: e.target.checked }
                                       })}
-                                      style={{accentColor: '#2563eb', width: '15px', height: '15px'}}
+                                      style={{accentColor: 'var(--color-btnPrimary)', width: '15px', height: '15px'}}
                                   />
                                   Requer documento entregavel?
                               </label>
@@ -2998,8 +2998,8 @@ export default function ProjetoDetalhe() {
 
                                       <div
                                           style={{
-                                              background: isTarefaDeliverableDragOver ? '#eff6ff' : '#f8fafc',
-                                              border: isTarefaDeliverableDragOver ? '1px dashed #2563eb' : '1px dashed #cbd5e1',
+                                              background: isTarefaDeliverableDragOver ? 'var(--color-bgSecondary)' : '#f8fafc',
+                                              border: isTarefaDeliverableDragOver ? '1px dashed var(--color-btnPrimary)' : '1px dashed #cbd5e1',
                                               borderRadius: '8px',
                                               padding: '12px',
                                               transition: 'all 0.15s ease'
@@ -3026,7 +3026,7 @@ export default function ProjetoDetalhe() {
                                                       href={tarefaModal.data.arquivo_url}
                                                       target="_blank"
                                                       rel="noopener noreferrer"
-                                                      style={{display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#2563eb', fontWeight: '700', textDecoration: 'none', fontSize: '0.82rem'}}
+                                                      style={{display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'var(--color-btnPrimary)', fontWeight: '700', textDecoration: 'none', fontSize: '0.82rem'}}
                                                   >
                                                       <Icons.ExternalLink size={14} /> Ver documento atual
                                                   </a>
@@ -3044,8 +3044,8 @@ export default function ProjetoDetalhe() {
                                               </div>
                                           ) : (
                                               <label style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', cursor: 'pointer'}}>
-                                                  <Icons.UploadCloud size={22} color={tarefaFileToUpload ? '#2563eb' : '#94a3b8'} />
-                                                  <span style={{fontSize: '0.8rem', color: tarefaFileToUpload ? '#2563eb' : '#64748b', fontWeight: '700'}}>
+                                                  <Icons.UploadCloud size={22} color={tarefaFileToUpload ? 'var(--color-btnPrimary)' : '#94a3b8'} />
+                                                  <span style={{fontSize: '0.8rem', color: tarefaFileToUpload ? 'var(--color-btnPrimary)' : '#64748b', fontWeight: '700'}}>
                                                       {tarefaFileToUpload ? tarefaFileToUpload.name : 'Clique para anexar um documento'}
                                                   </span>
                                                   <input
@@ -3066,7 +3066,7 @@ export default function ProjetoDetalhe() {
 
                           <div style={{display: 'flex', gap: '10px', marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #f1f5f9'}}>
                               <button type="button" onClick={() => { setTarefaModal({show:false, data:null, atividadeNome:''}); setTarefaFileToUpload(null); }} style={{flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', background: 'white', color: '#64748b', fontWeight: 'bold', cursor:'pointer'}} className="hover-shadow">Cancelar</button>
-                              <button type="submit" style={{flex: 2, padding: '12px', borderRadius: '10px', border: 'none', background: '#2563eb', color: 'white', fontWeight: 'bold', cursor:'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'}} className="hover-shadow"><Icons.Save /> Guardar Tarefa</button>
+                              <button type="submit" style={{flex: 2, padding: '12px', borderRadius: '10px', border: 'none', background: 'var(--color-btnPrimary)', color: 'white', fontWeight: 'bold', cursor:'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'}} className="hover-shadow"><Icons.Save /> Guardar Tarefa</button>
                           </div>
                       </form>
                   </div>
@@ -3080,7 +3080,7 @@ export default function ProjetoDetalhe() {
               <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999}}>
                   <div style={{background: 'white', padding: '30px', borderRadius: '16px', width: '400px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'}}>
                       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
-                          <h3 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Check size={20} color="#2563eb" /> Detalhes do Passo</h3>
+                          <h3 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Check size={20} color="var(--color-btnPrimary)" /> Detalhes do Passo</h3>
                           <button onClick={() => setSubtarefaModal({show:false, data:null, tarefaNome:''})} style={{background:'none', border:'none', cursor:'pointer'}} className="hover-red-text"><Icons.Close size={20} /></button>
                       </div>
                       
@@ -3105,7 +3105,7 @@ export default function ProjetoDetalhe() {
 
                           <div style={{display: 'flex', gap: '10px', marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #f1f5f9'}}>
                               <button type="button" onClick={() => setSubtarefaModal({show:false, data:null, tarefaNome:''})} style={{flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', background: 'white', color: '#64748b', fontWeight: 'bold', cursor:'pointer'}} className="hover-shadow">Cancelar</button>
-                              <button type="submit" style={{flex: 2, padding: '12px', borderRadius: '10px', border: 'none', background: '#2563eb', color: 'white', fontWeight: 'bold', cursor:'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'}} className="hover-shadow"><Icons.Save /> Guardar</button>
+                              <button type="submit" style={{flex: 2, padding: '12px', borderRadius: '10px', border: 'none', background: 'var(--color-btnPrimary)', color: 'white', fontWeight: 'bold', cursor:'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'}} className="hover-shadow"><Icons.Save /> Guardar</button>
                           </div>
                       </form>
                   </div>
@@ -3139,7 +3139,7 @@ export default function ProjetoDetalhe() {
                           width: 'min(520px, 100%)',
                           background: '#ffffff',
                           borderRadius: '16px',
-                          border: '1px solid #bfdbfe',
+                          border: '1px solid var(--color-borderColor)',
                           boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.25)',
                           overflow: 'hidden'
                       }}
@@ -3147,8 +3147,8 @@ export default function ProjetoDetalhe() {
                       <div
                           style={{
                               padding: '16px 18px',
-                              background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
-                              borderBottom: '1px solid #bfdbfe',
+                              background: 'linear-gradient(135deg, var(--color-bgSecondary) 0%, var(--color-borderColorLight) 100%)',
+                              borderBottom: '1px solid var(--color-borderColor)',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'space-between',
@@ -3157,11 +3157,11 @@ export default function ProjetoDetalhe() {
                       >
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                               <span style={{ fontSize: '1.2rem' }}>✅</span>
-                              <h3 style={{ margin: 0, color: '#1e40af', fontSize: '1.05rem', fontWeight: '800' }}>Projeto concluído</h3>
+                              <h3 style={{ margin: 0, color: 'var(--color-btnPrimaryHover)', fontSize: '1.05rem', fontWeight: '800' }}>Projeto concluído</h3>
                           </div>
                           <button
                               onClick={() => setTransitionPromptOpen(false)}
-                              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#1d4ed8' }}
+                              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-btnPrimaryDark)' }}
                               aria-label="Fechar"
                           >
                               <Icons.Close size={18} color="currentColor" />
@@ -3202,8 +3202,8 @@ export default function ProjetoDetalhe() {
       )}
       
       <style>{`
-          .hover-blue-text:hover { color: #2563eb !important; }
-          .hover-blue-text:hover span { background: #e0f2fe !important; color: #2563eb !important; }
+          .hover-blue-text:hover { color: var(--color-btnPrimary) !important; }
+          .hover-blue-text:hover span { background: var(--color-bgTertiary) !important; color: var(--color-btnPrimary) !important; }
           .tab-hover:hover { color: #0f172a !important; }
           .hover-red:hover { opacity: 1 !important; color: #dc2626 !important; }
           .hover-red-text:hover { color: #ef4444 !important; }
@@ -3212,14 +3212,14 @@ export default function ProjetoDetalhe() {
           /* Animação suave para os botões e painéis */
           .hover-shadow:hover { transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
           
-          .input-focus:focus { border-color: #3b82f6 !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
+          .input-focus:focus { border-color: var(--color-btnPrimary) !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
           .input-focus-alert:focus { border-color: #f59e0b !important; box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.1); }
 
           /* PILL CONTAINER & CHECKBOX (Para Parceiros e Colaboradores) */
           .pill-container { display: flex; flex-wrap: wrap; gap: 8px; padding: 15px; background: #ffffff; border-radius: 8px; border: 1px solid #cbd5e1; }
           .pill-checkbox { padding: 8px 18px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease; border: 1px solid #e2e8f0; background: #f8fafc; color: #64748b; user-select: none; }
           .pill-checkbox:hover { border-color: #cbd5e1; background: #f1f5f9; }
-          .pill-checkbox.selected { background: #eff6ff; border-color: #3b82f6; color: #2563eb; box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1); }
+          .pill-checkbox.selected { background: var(--color-bgSecondary); border-color: var(--color-btnPrimary); color: var(--color-btnPrimary); box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1); }
 
           /* Scrollbar Limpa */
           .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }

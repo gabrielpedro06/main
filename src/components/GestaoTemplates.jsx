@@ -401,16 +401,16 @@ export default function GestaoTemplates() {
     columnTitle: { margin: 0, color: '#334155', fontSize: '0.85rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' },
     columnContext: { fontSize: '0.7rem', color: '#94a3b8', fontWeight: '500', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '150px' },
     
-    addButton: { background: 'transparent', color: '#2563eb', border: '1px solid transparent', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', gap: '4px' },
+    addButton: { background: 'transparent', color: 'var(--color-btnPrimary)', border: '1px solid transparent', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', gap: '4px' },
     
     listContainer: { flex: 1, overflowY: 'auto', padding: '8px' },
     
     listItem: (isSelected) => ({
         padding: '8px 10px', marginBottom: '4px', borderRadius: '8px', cursor: 'pointer',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        background: isSelected ? '#eff6ff' : 'transparent',
-        border: isSelected ? '1px solid #bfdbfe' : '1px solid transparent',
-        color: isSelected ? '#1e40af' : '#475569',
+        background: isSelected ? 'var(--color-bgSecondary)' : 'transparent',
+        border: isSelected ? '1px solid var(--color-borderColor)' : '1px solid transparent',
+        color: isSelected ? 'var(--color-btnPrimaryHover)' : '#475569',
         transition: 'all 0.15s ease-in-out', fontSize: '0.9rem', fontWeight: isSelected ? '600' : '500'
     }),
 
@@ -442,7 +442,7 @@ export default function GestaoTemplates() {
     textarea: { width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #e2e8f0', background: '#fffbeb', fontSize: '0.85rem', marginBottom: '15px', outline: 'none', boxSizing: 'border-box', color: '#78350f', resize: 'vertical', minHeight: '60px' },
     modalFooter: { display: 'flex', gap: '10px', paddingTop: '10px', borderTop: '1px solid #f1f5f9' },
     btnCancel: { flex: 1, padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', background: 'white', color: '#64748b', fontWeight: '600', cursor: 'pointer', fontSize: '0.85rem' },
-    btnSubmit: { flex: 1, padding: '10px', borderRadius: '6px', border: 'none', background: '#2563eb', color: 'white', fontWeight: '600', cursor: 'pointer', fontSize: '0.85rem' },
+    btnSubmit: { flex: 1, padding: '10px', borderRadius: '6px', border: 'none', background: 'var(--color-btnPrimary)', color: 'white', fontWeight: '600', cursor: 'pointer', fontSize: '0.85rem' },
 
     // Alert Modal
     alertBox: { background: 'white', padding: '25px', borderRadius: '12px', width: '90%', maxWidth: '350px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' },
@@ -451,7 +451,7 @@ export default function GestaoTemplates() {
     btnDanger: { flex: 1, padding: '10px', borderRadius: '6px', border: 'none', background: '#ef4444', color: 'white', fontWeight: '600', cursor: 'pointer', fontSize: '0.85rem' }
   };
 
-  if (loading) return <div className="page-container" style={{display:'flex', justifyContent:'center', alignItems:'center', height:'80vh'}}><div className="pulse-dot-white" style={{background:'#2563eb'}}></div></div>;
+  if (loading) return <div className="page-container" style={{display:'flex', justifyContent:'center', alignItems:'center', height:'80vh'}}><div className="pulse-dot-white" style={{background:'var(--color-btnPrimary)'}}></div></div>;
 
   return (
     <div className="page-container" style={styles.container}>
@@ -486,7 +486,7 @@ export default function GestaoTemplates() {
                         className="hover-list-item"
                     >
                         <div style={{display: 'flex', alignItems: 'center', gap: '8px', flex: 1, overflow: 'hidden'}}>
-                            <span style={{color: isSelected ? '#2563eb' : '#94a3b8', opacity: isSelected ? 1 : 0.7}}><Icons.Folder/></span>
+                            <span style={{color: isSelected ? 'var(--color-btnPrimary)' : '#94a3b8', opacity: isSelected ? 1 : 0.7}}><Icons.Folder/></span>
                             <span style={{flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{t.nome}</span>
                         </div>
                         <div style={styles.actionsGroup} className="actions-group">
@@ -526,7 +526,7 @@ export default function GestaoTemplates() {
                             <span style={{marginTop: '2px'}}><Icons.Grip/></span>
                             <div style={{flex: 1}}>
                                 <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
-                                    <span style={{fontSize:'0.7rem', color: isSelected ? '#2563eb' : '#64748b', fontWeight:'700', minWidth:'15px'}}>{a.ordem}.</span> 
+                                    <span style={{fontSize:'0.7rem', color: isSelected ? 'var(--color-btnPrimary)' : '#64748b', fontWeight:'700', minWidth:'15px'}}>{a.ordem}.</span> 
                                     <span style={{whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{a.nome}</span>
                                 </div>
                                 <div style={{display:'flex', gap:'5px', marginTop:'4px', paddingLeft:'20px'}}>
@@ -773,12 +773,12 @@ export default function GestaoTemplates() {
       <style>{`
           .hover-list-item:hover { background-color: #f8fafc !important; border-color: #e2e8f0 !important; }
           .hover-list-item:hover .actions-group { opacity: 1 !important; }
-          .hover-btn-primary:hover { background-color: #1d4ed8 !important; }
+          .hover-btn-primary:hover { background-color: var(--color-btnPrimaryDark) !important; }
           .hover-btn-secondary:hover { background-color: #f1f5f9 !important; color: #1e293b !important; border-color: #cbd5e1 !important; }
           .hover-btn-danger:hover { background-color: #dc2626 !important; }
-          .hover-icon-blue:hover { color: #2563eb !important; background: #eff6ff !important; }
+          .hover-icon-blue:hover { color: var(--color-btnPrimary) !important; background: var(--color-bgSecondary) !important; }
           .hover-icon-red:hover { color: #ef4444 !important; background: #fee2e2 !important; }
-          .input-focus:focus { border-color: #3b82f6 !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
+          .input-focus:focus { border-color: var(--color-btnPrimary) !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
           .custom-scrollbar::-webkit-scrollbar { width: 5px; }
           .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
           .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }

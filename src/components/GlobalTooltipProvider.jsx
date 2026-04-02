@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+﻿import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 const TOOLTIP_GAP = 10;
@@ -203,10 +203,10 @@ export default function GlobalTooltipProvider({ children }) {
                         maxWidth: `${TOOLTIP_MAX_WIDTH}px`,
                         padding: "8px 10px",
                         borderRadius: "8px",
-                        border: "1px solid #bfdbfe",
-                        background: "#eff6ff",
+                        border: "1px solid var(--color-borderColor)",
+                        background: "var(--color-bgSecondary)",
                         boxShadow: "0 10px 22px rgba(29, 78, 216, 0.14)",
-                        color: "#1d4ed8",
+                        color: "var(--color-btnPrimaryDark)",
                         fontSize: "0.75rem",
                         fontWeight: 500,
                         lineHeight: 1.35,
@@ -223,8 +223,8 @@ export default function GlobalTooltipProvider({ children }) {
                             width: "9px",
                             height: "9px",
                             borderRadius: "1px",
-                            border: "1px solid #bfdbfe",
-                            background: "#eff6ff",
+                            border: "1px solid var(--color-borderColor)",
+                            background: "var(--color-bgSecondary)",
                             transform: `translateX(calc(-50% + ${tooltip.arrowOffset}px)) rotate(45deg)`,
                             ...(tooltip.placement === "top"
                                 ? { bottom: "-5px", borderTop: "none", borderLeft: "none" }
@@ -237,3 +237,4 @@ export default function GlobalTooltipProvider({ children }) {
         </>
     );
 }
+

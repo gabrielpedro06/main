@@ -220,7 +220,7 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
               <div style={{background: 'white', padding: '25px', borderRadius: '18px', width: '100%', maxWidth: '1000px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', animation: 'fadeIn 0.2s ease-out', display: 'flex', flexDirection: 'column', maxHeight: '90vh'}}>
                   <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid #e2e8f0', paddingBottom: '15px'}}>
                       <h3 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.2rem'}}>
-                          <div style={{background: '#eff6ff', color: '#2563eb', padding: '8px', borderRadius: '10px', display: 'flex'}}><Icons.Calendar /></div>
+                          <div style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '8px', borderRadius: '10px', display: 'flex'}}><Icons.Calendar /></div>
                           Calendário
                       </h3>
                       <button onClick={() => setShowCalendarModal(false)} style={{background:'none', border:'none', color:'#94a3b8', cursor:'pointer', display: 'flex'}} className="hover-red">

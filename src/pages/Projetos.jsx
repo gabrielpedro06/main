@@ -1008,7 +1008,7 @@ export default function Projetos() {
     return <span style={{background: bg, color: color, padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}}>{icon} {text}</span>;
   };
 
-  const projectColors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#f43f5e', '#14b8a6', '#0ea5e9', '#6366f1'];
+  const projectColors = ['var(--color-btnPrimary)', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#f43f5e', '#14b8a6', 'var(--color-primary)', '#6366f1'];
   const getColorForCategory = (id) => {
       if (!id) return '#94a3b8'; 
       const hash = String(id).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
@@ -1023,26 +1023,26 @@ export default function Projetos() {
   const tipoSelecionadoUI = tipos.find(t => String(t.id) === String(form.tipo_projeto_id));
   const isFormacaoSelected = tipoSelecionadoUI?.nome?.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes('forma');
 
-  if (loading) return <div className="page-container" style={{display:'flex', justifyContent:'center', alignItems:'center', height:'80vh'}}><div className="pulse-dot-white" style={{background:'#2563eb'}}></div></div>;
+  if (loading) return <div className="page-container" style={{display:'flex', justifyContent:'center', alignItems:'center', height:'80vh'}}><div className="pulse-dot-white" style={{background:'var(--color-btnPrimary)'}}></div></div>;
 
   return (
     <div className="page-container" style={{maxWidth: '1400px', margin: '0 auto', padding: '15px'}}>
       
       <div style={{background: 'white', padding: '20px 25px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', flexWrap: 'wrap', gap: '15px'}}>
         <div style={{display:'flex', alignItems:'center', gap:'20px'}}>
-            <div style={{background: '#eff6ff', color: '#2563eb', padding: '12px', borderRadius: '12px', display: 'flex'}}><Icons.Folder size={24} /></div>
+            <div style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '12px', borderRadius: '12px', display: 'flex'}}><Icons.Folder size={24} /></div>
             <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>Portfólio</h1>
             
             <div style={{display: 'flex', background: '#f1f5f9', borderRadius: '8px', padding: '4px', border: '1px solid #e2e8f0'}}>
                 <button 
                     onClick={() => setShowOnlyMine(true)} 
-                    style={{padding: '6px 16px', borderRadius: '6px', border: 'none', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', transition: '0.2s', background: showOnlyMine ? 'white' : 'transparent', color: showOnlyMine ? '#2563eb' : '#64748b', boxShadow: showOnlyMine ? '0 2px 4px rgba(0,0,0,0.05)' : 'none', display:'flex', alignItems:'center', gap:'6px'}}
+                    style={{padding: '6px 16px', borderRadius: '6px', border: 'none', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', transition: '0.2s', background: showOnlyMine ? 'white' : 'transparent', color: showOnlyMine ? 'var(--color-btnPrimary)' : '#64748b', boxShadow: showOnlyMine ? '0 2px 4px rgba(0,0,0,0.05)' : 'none', display:'flex', alignItems:'center', gap:'6px'}}
                 >
                     <Icons.User /> Os Meus
                 </button>
                 <button 
                     onClick={() => setShowOnlyMine(false)} 
-                    style={{padding: '6px 16px', borderRadius: '6px', border: 'none', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', transition: '0.2s', background: !showOnlyMine ? 'white' : 'transparent', color: !showOnlyMine ? '#2563eb' : '#64748b', boxShadow: !showOnlyMine ? '0 2px 4px rgba(0,0,0,0.05)' : 'none', display:'flex', alignItems:'center', gap:'6px'}}
+                    style={{padding: '6px 16px', borderRadius: '6px', border: 'none', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', transition: '0.2s', background: !showOnlyMine ? 'white' : 'transparent', color: !showOnlyMine ? 'var(--color-btnPrimary)' : '#64748b', boxShadow: !showOnlyMine ? '0 2px 4px rgba(0,0,0,0.05)' : 'none', display:'flex', alignItems:'center', gap:'6px'}}
                 >
                     <Icons.Globe /> Empresa
                 </button>
@@ -1162,7 +1162,7 @@ export default function Projetos() {
                               onClick={() => navigate(`/dashboard/projetos/${p.id}`)}
                               className="project-card hover-shadow"
                               style={{
-                                  background: 'white', borderRadius: '16px', border: isTimerActive ? '2px solid #3b82f6' : '1px solid #e2e8f0', 
+                                  background: 'white', borderRadius: '16px', border: isTimerActive ? '2px solid var(--color-btnPrimary)' : '1px solid #e2e8f0', 
                                   padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px', cursor: 'pointer', transition: 'all 0.2s',
                                   opacity: isCompleted ? 0.6 : 1, position: 'relative', overflow: 'hidden'
                               }}
@@ -1171,14 +1171,14 @@ export default function Projetos() {
 
                               <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
                                   <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '5px'}}>
-                                      {p.codigo_projeto && <span style={{fontSize: '0.65rem', background: '#eff6ff', color: '#2563eb', padding: '2px 8px', borderRadius: '6px', fontWeight: '800', border: '1px solid #bfdbfe', fontFamily: 'monospace'}}>{p.codigo_projeto}</span>}
+                                      {p.codigo_projeto && <span style={{fontSize: '0.65rem', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '2px 8px', borderRadius: '6px', fontWeight: '800', border: '1px solid var(--color-borderColor)', fontFamily: 'monospace'}}>{p.codigo_projeto}</span>}
                                       <span style={{fontSize: '0.65rem', background: isCompleted ? '#f1f5f9' : '#f8fafc', color: isCompleted ? '#64748b' : '#475569', padding: '2px 8px', borderRadius: '6px', fontWeight: '800', border: '1px solid #e2e8f0', textTransform: 'uppercase'}}>{(p.estado || '').replace('_', ' ')}</span>
                                   </div>
                                   
                                   {!isCompleted && (
                                       <button 
                                           onClick={(e) => isTimerActive ? handleStopLog(e) : handleStartProjeto(e, p)} 
-                                          style={{ background: isTimerActive ? '#fee2e2' : '#eff6ff', color: isTimerActive ? '#ef4444' : '#2563eb', border: 'none', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s' }}
+                                          style={{ background: isTimerActive ? '#fee2e2' : 'var(--color-bgSecondary)', color: isTimerActive ? '#ef4444' : 'var(--color-btnPrimary)', border: 'none', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s' }}
                                           title={isTimerActive ? "Parar Timer" : "Iniciar Timer"}
                                           className={!isTimerActive ? "hover-blue-btn hover-shadow" : "hover-shadow"}
                                       >
@@ -1226,14 +1226,14 @@ export default function Projetos() {
           <ModalPortal>
               <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999}}>
                   <div style={{background: 'white', padding: '30px', borderRadius: '16px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out'}}>
-                      <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px'}}><Icons.Alert color={confirmDialog.isDanger ? "#ef4444" : "#3b82f6"} /></div>
+                      <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px'}}><Icons.Alert color={confirmDialog.isDanger ? "#ef4444" : "var(--color-btnPrimary)"} /></div>
                       <h3 style={{margin: '0 0 10px 0', color: '#1e293b', fontSize: '1.25rem'}}>Confirmação</h3>
                       <p style={{color: '#64748b', fontSize: '0.95rem', marginBottom: '25px', lineHeight: '1.5', whiteSpace: 'pre-line'}}>
                           {confirmDialog.message}
                       </p>
                       <div style={{display: 'flex', gap: '10px'}}>
                           <button onClick={() => setConfirmDialog({show: false})} style={{flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', background: 'white', color: '#475569', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">Cancelar</button>
-                          <button onClick={() => { confirmDialog.onConfirm(); }} style={{flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: confirmDialog.isDanger ? '#ef4444' : '#2563eb', color: 'white', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">{confirmDialog.confirmText}</button>
+                          <button onClick={() => { confirmDialog.onConfirm(); }} style={{flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: confirmDialog.isDanger ? '#ef4444' : 'var(--color-btnPrimary)', color: 'white', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">{confirmDialog.confirmText}</button>
                       </div>
                   </div>
               </div>
@@ -1277,11 +1277,11 @@ export default function Projetos() {
               >
                   <div
                       onClick={(e) => e.stopPropagation()}
-                      style={{width:'min(980px, 96vw)', maxHeight:'86vh', overflow:'hidden', borderRadius:'20px', background:'white', border:'1px solid #dbeafe', boxShadow:'0 30px 60px -20px rgba(15, 23, 42, 0.45)', display:'flex', flexDirection:'column'}}
+                      style={{width:'min(980px, 96vw)', maxHeight:'86vh', overflow:'hidden', borderRadius:'20px', background:'white', border:'1px solid var(--color-borderColorLight)', boxShadow:'0 30px 60px -20px rgba(15, 23, 42, 0.45)', display:'flex', flexDirection:'column'}}
                   >
-                      <div style={{padding:'22px 24px', borderBottom:'1px solid #e2e8f0', background:'linear-gradient(135deg, #eff6ff, #f8fafc)', display:'flex', justifyContent:'space-between', alignItems:'center', gap:'20px'}}>
+                      <div style={{padding:'22px 24px', borderBottom:'1px solid #e2e8f0', background:'linear-gradient(135deg, var(--color-bgSecondary), #f8fafc)', display:'flex', justifyContent:'space-between', alignItems:'center', gap:'20px'}}>
                           <div>
-                              <p style={{margin:'0 0 4px 0', fontSize:'0.75rem', fontWeight:'800', letterSpacing:'0.07em', color:'#2563eb', textTransform:'uppercase'}}>Iniciar Cronómetro</p>
+                              <p style={{margin:'0 0 4px 0', fontSize:'0.75rem', fontWeight:'800', letterSpacing:'0.07em', color:'var(--color-btnPrimary)', textTransform:'uppercase'}}>Iniciar Cronómetro</p>
                               <h3 style={{margin:0, color:'#0f172a', fontSize:'1.35rem', fontWeight:'900'}}>{projectTimerModal.project?.titulo || 'Projeto selecionado'}</h3>
                               <p style={{margin:'6px 0 0 0', color:'#475569', fontSize:'0.9rem'}}>Escolhe uma atividade e, se precisares, uma tarefa específica.</p>
                           </div>
@@ -1312,12 +1312,12 @@ export default function Projetos() {
                                                       type="button"
                                                       disabled={isDone}
                                                       onClick={() => setProjectTimerModal((prev) => ({ ...prev, selectedAtividadeId: atividade.id, selectedTaskId: "" }))}
-                                                      style={{textAlign:'left', border:isSelected ? '1px solid #2563eb' : '1px solid #e2e8f0', background:isDone ? '#f8fafc' : (isSelected ? '#eff6ff' : '#fff'), color:isDone ? '#94a3b8' : '#1e293b', borderRadius:'10px', padding:'10px 12px', cursor:isDone ? 'not-allowed' : 'pointer', opacity:isDone ? 0.75 : 1}}
+                                                      style={{textAlign:'left', border:isSelected ? '1px solid var(--color-btnPrimary)' : '1px solid #e2e8f0', background:isDone ? '#f8fafc' : (isSelected ? 'var(--color-bgSecondary)' : '#fff'), color:isDone ? '#94a3b8' : '#1e293b', borderRadius:'10px', padding:'10px 12px', cursor:isDone ? 'not-allowed' : 'pointer', opacity:isDone ? 0.75 : 1}}
                                                       className="hover-shadow"
                                                   >
                                                       <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:'8px'}}>
                                                           <span style={{fontWeight:'700', fontSize:'0.9rem', textDecoration:isDone ? 'line-through' : 'none'}}>{atividade.titulo || 'Sem título'}</span>
-                                                          <span style={{fontSize:'0.7rem', borderRadius:'999px', padding:'3px 8px', background:isDone ? '#e2e8f0' : '#dbeafe', color:isDone ? '#64748b' : '#1d4ed8', fontWeight:'800'}}>{isDone ? 'CONCLUÍDA' : 'ATIVA'}</span>
+                                                          <span style={{fontSize:'0.7rem', borderRadius:'999px', padding:'3px 8px', background:isDone ? '#e2e8f0' : 'var(--color-borderColorLight)', color:isDone ? '#64748b' : 'var(--color-btnPrimaryDark)', fontWeight:'800'}}>{isDone ? 'CONCLUÍDA' : 'ATIVA'}</span>
                                                       </div>
                                                       <p style={{margin:'6px 0 0 0', fontSize:'0.75rem', color:'#64748b'}}>{(atividade.tarefas || []).length} tarefa(s)</p>
                                                   </button>
@@ -1349,7 +1349,7 @@ export default function Projetos() {
                                                           type="button"
                                                           disabled={isDone}
                                                           onClick={() => setProjectTimerModal((prev) => ({ ...prev, selectedTaskId: tarefa.id }))}
-                                                          style={{textAlign:'left', border:isSelected ? '1px solid #2563eb' : '1px solid #e2e8f0', background:isDone ? '#f8fafc' : (isSelected ? '#eff6ff' : '#fff'), color:isDone ? '#94a3b8' : '#1e293b', borderRadius:'10px', padding:'10px 12px', cursor:isDone ? 'not-allowed' : 'pointer', opacity:isDone ? 0.78 : 1}}
+                                                          style={{textAlign:'left', border:isSelected ? '1px solid var(--color-btnPrimary)' : '1px solid #e2e8f0', background:isDone ? '#f8fafc' : (isSelected ? 'var(--color-bgSecondary)' : '#fff'), color:isDone ? '#94a3b8' : '#1e293b', borderRadius:'10px', padding:'10px 12px', cursor:isDone ? 'not-allowed' : 'pointer', opacity:isDone ? 0.78 : 1}}
                                                           className="hover-shadow"
                                                       >
                                                           <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:'8px'}}>
@@ -1393,7 +1393,7 @@ export default function Projetos() {
               
               <div style={{padding:'20px 25px', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center', background:'#f8fafc'}}>
                 <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
-                    <span style={{background:'#eff6ff', color: '#2563eb', padding:'10px', borderRadius:'10px', display: 'flex'}}><Icons.Rocket size={24} /></span>
+                    <span style={{background:'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding:'10px', borderRadius:'10px', display: 'flex'}}><Icons.Rocket size={24} /></span>
                     <h3 style={{margin:0, color:'#1e293b', fontSize:'1.25rem', fontWeight: '800'}}>{isViewOnly ? "Ver Projeto" : (editId ? "Editar Projeto" : "Novo Projeto")}</h3>
                 </div>
                 <button onClick={() => setShowModal(false)} style={{background:'transparent', border:'none', cursor:'pointer', color:'#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center'}} className="hover-red-text"><Icons.Close size={20} /></button>
@@ -1621,15 +1621,15 @@ export default function Projetos() {
                                         {templateTree.map(ativ => {
                                             const isSelected = templateSelection[`a_${ativ.id}`];
                                             return (
-                                                <div key={`a_${ativ.id}`} style={{ background: 'white', borderRadius: '10px', border: `1px solid ${isSelected ? '#bfdbfe' : '#e2e8f0'}`, overflow: 'hidden', transition: 'all 0.2s', boxShadow: isSelected ? '0 2px 8px rgba(59,130,246,0.05)' : 'none' }}>
+                                                <div key={`a_${ativ.id}`} style={{ background: 'white', borderRadius: '10px', border: `1px solid ${isSelected ? 'var(--color-borderColor)' : '#e2e8f0'}`, overflow: 'hidden', transition: 'all 0.2s', boxShadow: isSelected ? '0 2px 8px rgba(59,130,246,0.05)' : 'none' }}>
                                                     
                                                     {/* Activity Header */}
                                                     <div 
                                                         onClick={() => toggleTemplateSelection('a', ativ.id)}
-                                                        style={{ background: isSelected ? '#eff6ff' : '#f8fafc', padding: '14px 18px', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', borderBottom: isSelected && ativ.tarefas?.length ? '1px solid #e2e8f0' : 'none' }}
+                                                        style={{ background: isSelected ? 'var(--color-bgSecondary)' : '#f8fafc', padding: '14px 18px', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', borderBottom: isSelected && ativ.tarefas?.length ? '1px solid #e2e8f0' : 'none' }}
                                                     >
-                                                        <input type="checkbox" checked={isSelected} readOnly style={{ accentColor: '#3b82f6', width: '18px', height: '18px', pointerEvents: 'none' }} />
-                                                        <span style={{ fontWeight: '700', fontSize: '1rem', color: isSelected ? '#1e3a8a' : '#64748b' }}>{ativ.nome}</span>
+                                                        <input type="checkbox" checked={isSelected} readOnly style={{ accentColor: 'var(--color-btnPrimary)', width: '18px', height: '18px', pointerEvents: 'none' }} />
+                                                        <span style={{ fontWeight: '700', fontSize: '1rem', color: isSelected ? 'var(--color-btnPrimaryDark)' : '#64748b' }}>{ativ.nome}</span>
                                                     </div>
 
                                                     {/* Tasks Container */}
@@ -1640,9 +1640,9 @@ export default function Projetos() {
                                                                 return (
                                                                     <div key={`t_${tar.id}`} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                                                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                                            <Icons.ArrowRight size={14} color={isTarSelected ? "#3b82f6" : "#cbd5e1"} />
+                                                                            <Icons.ArrowRight size={14} color={isTarSelected ? "var(--color-btnPrimary)" : "#cbd5e1"} />
                                                                             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: isTarSelected ? '700' : '500', color: isTarSelected ? '#334155' : '#94a3b8', fontSize: '0.95rem' }}>
-                                                                                <input type="checkbox" checked={isTarSelected} onChange={() => toggleTemplateSelection('t', tar.id)} style={{ accentColor: '#3b82f6', width: '16px', height: '16px', cursor: 'pointer' }} />
+                                                                                <input type="checkbox" checked={isTarSelected} onChange={() => toggleTemplateSelection('t', tar.id)} style={{ accentColor: 'var(--color-btnPrimary)', width: '16px', height: '16px', cursor: 'pointer' }} />
                                                                                 {tar.nome}
                                                                             </label>
                                                                         </div>
@@ -1654,7 +1654,7 @@ export default function Projetos() {
                                                                                     const isSubSelected = templateSelection[`s_${sub.id}`];
                                                                                     return (
                                                                                         <label key={`s_${sub.id}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: isSubSelected ? '#475569' : '#94a3b8', fontSize: '0.85rem', fontWeight: isSubSelected ? '600' : '400' }}>
-                                                                                            <input type="checkbox" checked={isSubSelected} onChange={() => toggleTemplateSelection('s', sub.id)} style={{ accentColor: '#3b82f6', width: '14px', height: '14px', cursor: 'pointer' }} />
+                                                                                            <input type="checkbox" checked={isSubSelected} onChange={() => toggleTemplateSelection('s', sub.id)} style={{ accentColor: 'var(--color-btnPrimary)', width: '14px', height: '14px', cursor: 'pointer' }} />
                                                                                             {sub.nome}
                                                                                         </label>
                                                                                     );
@@ -1688,9 +1688,9 @@ export default function Projetos() {
                                     style={{
                                         flex: 1, textAlign: 'center', padding: '10px', borderRadius: '8px', cursor: isViewOnly ? 'default' : 'pointer',
                                         fontSize: '0.8rem', fontWeight: '700',
-                                        background: form.estado === st.val ? '#2563eb' : '#f8fafc',
+                                        background: form.estado === st.val ? 'var(--color-btnPrimary)' : '#f8fafc',
                                         color: form.estado === st.val ? 'white' : '#64748b',
-                                        border: form.estado === st.val ? '1px solid #2563eb' : '1px solid #e2e8f0',
+                                        border: form.estado === st.val ? '1px solid var(--color-btnPrimary)' : '1px solid #e2e8f0',
                                         transition: 'all 0.2s', textTransform: 'uppercase', letterSpacing: '0.05em'
                                     }}
                                 >
@@ -1769,7 +1769,7 @@ export default function Projetos() {
                   {!isViewOnly && (
                       <div style={{display:'flex', gap:'15px', marginTop:'30px', paddingTop:'20px', borderTop:'1px solid #f1f5f9', justifyContent: 'flex-end'}}>
                           <button type="button" onClick={() => setShowModal(false)} style={{padding:'14px 20px', borderRadius:'10px', border:'1px solid #cbd5e1', background:'white', color:'#64748b', fontWeight:'700', cursor:'pointer', transition: '0.2s'}} className="hover-shadow">Cancelar</button>
-                          <button type="submit" disabled={isSubmitting} className="btn-primary hover-shadow" style={{padding:'14px 30px', borderRadius:'10px', border:'none', background:'#2563eb', color:'white', fontWeight:'700', cursor:'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: '0.2s'}}>
+                          <button type="submit" disabled={isSubmitting} className="btn-primary hover-shadow" style={{padding:'14px 30px', borderRadius:'10px', border:'none', background:'var(--color-btnPrimary)', color:'white', fontWeight:'700', cursor:'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: '0.2s'}}>
                               {isSubmitting ? "A guardar..." : (editId ? <><Icons.Save /> Guardar Alterações</> : <><Icons.Rocket /> Criar Projeto</>)}
                           </button>
                       </div>
@@ -1800,11 +1800,11 @@ export default function Projetos() {
 
           .hover-shadow:hover { box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); transform: translateY(-1px); }
 
-          .hover-blue-btn:hover { background: #dbeafe !important; color: #2563eb !important; border-color: #bfdbfe !important; }
+          .hover-blue-btn:hover { background: var(--color-borderColorLight) !important; color: var(--color-btnPrimary) !important; border-color: var(--color-borderColor) !important; }
           .hover-orange-text:hover { color: #f59e0b !important; opacity: 1 !important; }
           .hover-red-text:hover { color: #ef4444 !important; opacity: 1 !important; }
           
-          .input-focus:focus { border-color: #3b82f6 !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
+          .input-focus:focus { border-color: var(--color-btnPrimary) !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
           .input-focus-alert:focus { border-color: #f59e0b !important; box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.1); }
 
           /* Action Buttons para Sub-itens */
@@ -1838,9 +1838,9 @@ export default function Projetos() {
               background: #f1f5f9;
           }
           .pill-checkbox.selected {
-              background: #eff6ff;
-              border-color: #3b82f6;
-              color: #2563eb;
+              background: var(--color-bgSecondary);
+              border-color: var(--color-btnPrimary);
+              color: var(--color-btnPrimary);
               box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1);
           }
 

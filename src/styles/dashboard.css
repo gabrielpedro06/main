@@ -16,7 +16,7 @@ body, html {
   width: 100vw;       /* 100% da largura da janela */
   height: 100vh;      /* 100% da altura da janela */
   overflow: hidden;   /* Evita scroll na janela principal */
-  background-color: #f1f5f9; 
+  background: var(--color-bgGradient); 
 }
 
 /* =========================================
@@ -24,7 +24,7 @@ body, html {
    ========================================= */
 .sidebar {
   width: 260px;
-  background: #1e293b;
+  background: var(--color-sidebarBg);
   color: white;
   display: flex;
   flex-direction: column;
@@ -79,7 +79,7 @@ body, html {
 }
 
 .sidebar nav ul li a {
-  color: #cbd5e1;
+  color: var(--color-sidebarText);
   text-decoration: none;
   display: flex;
   align-items: center;
@@ -120,12 +120,12 @@ body, html {
 
 /* --- INTERAÇÃO --- */
 .sidebar nav ul li a:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
+  background: var(--color-sidebarHover);
+  color: var(--color-textWhite);
 }
 
 .sidebar nav ul li.active a {
-  background-color: #2563eb;
+  background-color: var(--color-sidebarActive);
   color: white;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 }
@@ -133,10 +133,10 @@ body, html {
 .toggle-menu {
   width: 100%;
   padding: 10px;
-  background: #0f172a;
-  border: 1px solid #334155;
+  background: var(--color-toggleBg);
+  border: 1px solid var(--color-toggleBorder);
   border-radius: 8px;
-  color: #94a3b8;
+  color: var(--color-toggleText);
   cursor: pointer;
   transition: 0.2s;
   white-space: nowrap;
@@ -144,9 +144,9 @@ body, html {
 }
 
 .toggle-menu:hover {
-  background: #2563eb;
+  background: var(--color-btnPrimary);
   color: white;
-  border-color: #2563eb;
+  border-color: var(--color-btnPrimary);
 }
 
 /* =========================================
@@ -157,7 +157,7 @@ body, html {
   width: 100%;        /* Garante largura total */
   padding: 30px;
   overflow-y: auto;   /* Scroll vertical apenas aqui */
-  background: #f8fafc;
+  background: linear-gradient(180deg, var(--color-bgPrimary) 0%, var(--color-bgSecondary) 72%, var(--color-bgSecondary) 100%);
   position: relative;
 }
 
@@ -177,7 +177,7 @@ body, html {
 .page-header h1 {
   margin: 0;
   font-size: 1.8rem;
-  color: #0f172a;
+  color: var(--color-textPrimary);
   font-weight: 700;
 }
 
@@ -194,7 +194,7 @@ body, html {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, var(--color-btnPrimary) 0%, var(--color-btnPrimaryDark) 100%);
   color: white;
   padding: 12px 24px;
   border-radius: 10px;
@@ -203,7 +203,7 @@ body, html {
   font-size: 0.95rem;
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.22);
+  box-shadow: 0 8px 18px var(--color-btnPrimaryShadow);
 }
 
 .btn-primary::after,
@@ -221,9 +221,9 @@ body, html {
 
 .btn-primary:hover,
 .btn-cta:hover {
-  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+  background: linear-gradient(135deg, var(--color-btnPrimaryDark) 0%, var(--color-btnPrimaryDarker) 100%);
   transform: translateY(-1px);
-  box-shadow: 0 12px 22px rgba(37, 99, 235, 0.28);
+  box-shadow: 0 12px 22px var(--color-btnPrimaryShadowHover);
 }
 
 .btn-primary:hover::after,
@@ -251,18 +251,18 @@ body, html {
 /* Botão Secundário */
 .btn-small {
   padding: 8px 12px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--color-borderColor);
   border-radius: 6px;
   background: white;
-  color: #475569;
+  color: var(--color-textSecondary);
   cursor: pointer;
   font-weight: 500;
   transition: all 0.2s;
 }
 
 .btn-small:hover {
-  border-color: #2563eb;
-  color: #2563eb;
+  border-color: var(--color-btnPrimary);
+  color: var(--color-btnPrimary);
 }
 
 /* Secondary elevated action button for header actions */
@@ -272,10 +272,10 @@ body, html {
   justify-content: center;
   gap: 8px;
   padding: 11px 16px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--color-borderColor);
   border-radius: 10px;
-  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-  color: #0f172a;
+  background: linear-gradient(180deg, var(--color-bgTertiary) 0%, var(--color-bgSecondary) 100%);
+  color: var(--color-textPrimary);
   cursor: pointer;
   font-weight: 700;
   font-size: 0.92rem;
@@ -284,10 +284,10 @@ body, html {
 }
 
 .btn-soft-cta:hover {
-  border-color: #93c5fd;
-  color: #1d4ed8;
+  border-color: var(--color-btnPrimary);
+  color: var(--color-btnPrimaryDark);
   transform: translateY(-1px);
-  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.14);
+  box-shadow: 0 10px 20px var(--color-btnPrimaryShadowHover);
 }
 
 .btn-soft-cta:active {
@@ -307,7 +307,7 @@ body, html {
   padding: 24px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
   transition: transform 0.2s, box-shadow 0.2s;
-  border: 1px solid #f1f5f9;
+  border: 1px solid var(--color-bgPrimary);
 }
 
 .card:hover {
@@ -326,7 +326,7 @@ body, html {
 .card h3 {
   font-size: 1.1rem;
   margin-bottom: 0.5rem;
-  color: #64748b;
+  color: var(--color-textLight);
   font-weight: 600;
 }
 
@@ -346,7 +346,7 @@ body, html {
   background: white;
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--color-borderColorLight);
 }
 
 .data-table {
@@ -356,21 +356,21 @@ body, html {
 }
 
 .data-table th {
-  background-color: #f8fafc;
-  color: #475569;
+  background-color: var(--color-bgSecondary);
+  color: var(--color-textSecondary);
   font-weight: 700;
   text-transform: uppercase;
   font-size: 0.75rem;
   letter-spacing: 0.05em;
   padding: 16px;
   text-align: left;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--color-borderColorLight);
 }
 
 .data-table td {
   padding: 16px;
-  border-bottom: 1px solid #f1f5f9;
-  color: #334155;
+  border-bottom: 1px solid var(--color-bgPrimary);
+  color: var(--color-textSecondary);
   font-size: 0.95rem;
 }
 
@@ -400,8 +400,8 @@ body, html {
 
 .modal-header {
   padding: 20px 24px;
-  background: #f8fafc;
-  border-bottom: 1px solid #e2e8f0;
+  background: var(--color-bgSecondary);
+  border-bottom: 1px solid var(--color-borderColorLight);
   display: flex; justify-content: space-between; align-items: center;
 }
 
@@ -415,17 +415,17 @@ body, html {
 input, select, textarea {
   width: 100%;
   padding: 12px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--color-borderColor);
   border-radius: 8px;
   font-size: 0.95rem;
   transition: border 0.2s;
-  background-color: #fff;
+  background-color: var(--color-bgTertiary);
   box-sizing: border-box;
 }
 
 input:focus, select:focus, textarea:focus {
   outline: none;
-  border-color: #2563eb;
+  border-color: var(--color-btnPrimary);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
@@ -434,7 +434,7 @@ label {
   margin-bottom: 6px;
   font-size: 0.9rem;
   font-weight: 600;
-  color: #334155;
+  color: var(--color-textSecondary);
 }
 
 /* =========================================
@@ -444,7 +444,7 @@ label {
 /* Filtros */
 .filters-container {
   display: flex; gap: 15px; background: white; padding: 15px;
-  border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 20px;
+  border-radius: 12px; border: 1px solid var(--color-borderColorLight); margin-bottom: 20px;
   flex-wrap: wrap; align-items: center;
 }
 
@@ -491,8 +491,8 @@ label {
 /* 2. Cabeçalho do Modal */
 .modal-header {
   padding: 15px 20px;
-  background: #f8fafc;
-  border-bottom: 1px solid #e2e8f0;
+  background: var(--color-bgSecondary);
+  border-bottom: 1px solid var(--color-borderColorLight);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -509,7 +509,7 @@ label {
   background: transparent;
   border: none;
   font-size: 1.5rem;
-  color: #64748b;
+  color: var(--color-textLight);
   cursor: pointer;
   padding: 0 5px;
 }
@@ -518,8 +518,8 @@ label {
 /* 3. Sistema de Abas (Geral, Pessoas, Moradas...) */
 .tabs {
   display: flex;
-  background-color: #f1f5f9;
-  border-bottom: 1px solid #cbd5e1;
+  background-color: var(--color-bgPrimary);
+  border-bottom: 1px solid var(--color-borderColor);
   padding: 0 10px;
   gap: 5px;
 }
@@ -530,21 +530,21 @@ label {
   border: none;
   border-bottom: 3px solid transparent;
   cursor: pointer;
-  color: #64748b;
+  color: var(--color-textLight);
   font-weight: 600;
   font-size: 0.95rem;
   transition: all 0.2s;
 }
 
 .tabs button:hover {
-  color: #2563eb;
+  color: var(--color-btnPrimary);
   background: rgba(255,255,255,0.5);
 }
 
 /* Aba Ativa (A que está selecionada) */
 .tabs button.active {
-  color: #2563eb;
-  border-bottom: 3px solid #2563eb;
+  color: var(--color-btnPrimary);
+  border-bottom: 3px solid var(--color-btnPrimary);
   background: white;
   border-radius: 6px 6px 0 0;
 }
@@ -561,9 +561,9 @@ label {
   display: grid;
   grid-template-columns: 1fr 1fr; /* Duas colunas */
   gap: 15px;
-  background: #f8fafc;
+  background: var(--color-bgSecondary);
   padding: 15px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--color-borderColorLight);
   border-radius: 8px;
   margin-bottom: 20px;
 }
@@ -571,7 +571,7 @@ label {
 /* Botões dentro do formulário (Adicionar, Guardar) */
 .mini-form-grid button,
 .modal-body button[type="submit"] {
-  background-color: #2563eb;
+  background-color: var(--color-btnPrimary);
   color: white;
   border: none;
   padding: 10px 20px;
@@ -584,7 +584,7 @@ label {
 
 .mini-form-grid button:hover,
 .modal-body button[type="submit"]:hover {
-  background-color: #1d4ed8;
+  background-color: var(--color-btnPrimaryDark);
 }
 
 /* Botão de Cancelar/Apagar (Vermelho) */
@@ -607,7 +607,7 @@ label {
 
 .list-items li {
   background: white;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--color-borderColorLight);
   padding: 10px;
   margin-bottom: 8px;
   border-radius: 6px;
@@ -636,17 +636,17 @@ label {
 .forum-reply-area textarea {
   flex: 1;              /* A MAGIA: "Ocupa todo o espaço que sobra!" */
   padding: 12px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--color-borderColor);
   border-radius: 8px;
   min-height: 45px;     /* Altura mínima para não ficar esmagado */
   font-size: 0.95rem;
-  background: #f8fafc;
+  background: var(--color-bgSecondary);
 }
 
 .forum-reply-area input:focus,
 .forum-reply-area textarea:focus {
   background: white;
-  border-color: #2563eb;
+  border-color: var(--color-btnPrimary);
   outline: none;
 }
 
@@ -654,7 +654,7 @@ label {
 .forum-reply-area button {
   height: 45px;         /* Mesma altura do input */
   padding: 0 25px;
-  background-color: #2563eb;
+  background-color: var(--color-btnPrimary);
   color: white;
   border: none;
   border-radius: 8px;
@@ -664,7 +664,7 @@ label {
 }
 
 .forum-reply-area button:hover {
-  background-color: #1d4ed8;
+  background-color: var(--color-btnPrimaryDark);
 }
 
 /* =========================================
@@ -686,46 +686,51 @@ label {
 .card:hover {
     transform: translateY(-4px);
     box-shadow: 0 12px 24px rgba(0,0,0,0.06);
-    border-color: #16a34a33; /* Borda verde muito clarinha no hover */
+    border-color: var(--color-btnPrimary);
+    border-color: var(--color-btnPrimary)33; /* Borda verde muito clarinha no hover */
 }
 
 /* 3. Inputs com Foco Animado */
 input, select, textarea {
-    border: 1px solid #e2e8f0;
-    background-color: #f8fafc;
+    border: 1px solid var(--color-borderColorLight);
+    background-color: var(--color-bgSecondary);
     transition: all 0.2s ease;
 }
 
 input:focus {
-    background-color: #fff;
+    background-color: var(--color-bgTertiary);
     transform: scale(1.01); /* Pequeno zoom ao focar */
 }
 
 /* 4. Sidebar - Melhorar o Item Ativo */
 .sidebar nav ul li.active a {
-  background: linear-gradient(90deg, #2563eb 0%, #1d4ed8 100%);
-    position: relative;
+  background: linear-gradient(90deg, var(--color-btnPrimary) 0%, var(--color-btnPrimaryDark) 100%);
+  color: var(--color-textWhite);
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  box-shadow: 0 10px 20px var(--color-btnPrimaryShadow), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
 /* Indicador lateral no item ativo */
 .sidebar nav ul li.active a::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    width: 4px;
-    height: 60%;
-    background: white;
-    border-radius: 0 4px 4px 0;
+  content: '';
+  position: absolute;
+  left: 0;
+  width: 5px;
+  height: 72%;
+  background: rgba(255, 255, 255, 0.96);
+  border-radius: 0 5px 5px 0;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.45);
 }
 
 /* 5. Tabelas - Linhas Zebradas e Tipografia */
 .data-table tr:nth-child(even) {
-    background-color: #fbfcfd;
+    background-color: var(--color-bgSecondary);
 }
 
 .data-table td {
     font-size: 0.9rem;
-    color: #475569;
+    color: var(--color-textSecondary);
 }
 
 /* 6. Tags/Badges com estilo "Pill" e brilho */
@@ -754,9 +759,9 @@ input:focus {
   font-size: 0.9rem;
 }
 
-.toast-notification.success { background-color: #2563eb; }
+.toast-notification.success { background-color: var(--color-btnPrimary); }
 .toast-notification.error { background-color: #ef4444; }   /* Vermelho */
-.toast-notification.info { background-color: #3b82f6; }    /* Azul */
+.toast-notification.info { background-color: var(--color-btnPrimary); }    /* Azul */
 
 @keyframes slideUp {
   from { opacity: 0; transform: translate(-50%, 20px); }
@@ -782,8 +787,8 @@ input:focus {
 }
 
 .btn-cancel {
-  background: #f1f5f9;
-  color: #64748b;
+  background: var(--color-bgPrimary);
+  color: var(--color-textLight);
   border: none;
   padding: 10px 20px;
   border-radius: 8px;
@@ -819,7 +824,7 @@ input:focus {
   position: absolute;
   cursor: pointer;
   top: 0; left: 0; right: 0; bottom: 0;
-  background-color: #cbd5e1; /* Cinzento quando desligado */
+  background-color: var(--color-borderColor); /* Cinzento quando desligado */
   -webkit-transition: .4s;
   transition: .4s;
   border-radius: 34px;
@@ -840,7 +845,7 @@ input:focus {
 }
 
 input:checked + .slider {
-  background-color: #2563eb;
+  background-color: var(--color-btnPrimary);
 }
 
 input:checked + .slider:before {
@@ -859,7 +864,7 @@ input:checked + .slider:before {
   max-width: min(90vw, 460px);
   min-height: 40px;
   background: linear-gradient(135deg, #0f172a 0%, #1f2937 100%);
-  color: #ffffff;
+  color: var(--color-textWhite);
   padding: 9px 14px;
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.25);
@@ -891,7 +896,7 @@ input:checked + .slider:before {
 }
 
 .toast-container.info {
-  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+  background: linear-gradient(135deg, var(--color-btnPrimaryDark) 0%, var(--color-btnPrimaryHover) 100%);
 }
 
 @keyframes toastLiftFade {
@@ -924,19 +929,16 @@ input:checked + .slider:before {
 }
 
 html, body {
-  background: linear-gradient(180deg, var(--wow-bg-0) 0%, var(--wow-bg-1) 100%);
-  color: var(--wow-text);
+  background: var(--color-bgGradient);
+  color: var(--color-textPrimary);
 }
 
 .dashboard-container {
-  background:
-    radial-gradient(1200px 520px at -12% -24%, rgba(47,111,237,0.08), transparent 56%),
-    radial-gradient(920px 460px at 112% 0%, rgba(245,158,11,0.12), transparent 58%),
-    linear-gradient(180deg, var(--wow-bg-0) 0%, var(--wow-bg-1) 100%);
+  background: var(--color-bgGradient);
 }
 
 .dashboard-main {
-  background: transparent;
+  background: linear-gradient(180deg, var(--color-bgPrimary) 0%, var(--color-bgSecondary) 72%, var(--color-bgSecondary) 100%);
   padding: 26px;
 }
 
@@ -945,7 +947,7 @@ html, body {
 }
 
 .sidebar {
-  background: linear-gradient(180deg, #182233 0%, #101827 100%);
+  background: linear-gradient(180deg, var(--color-sidebarBg) 10%, var(--color-sidebarBgSecondary) 100%);
   border-right: 1px solid rgba(255, 255, 255, 0.08);
 }
 
@@ -954,18 +956,20 @@ html, body {
 }
 
 .sidebar nav ul li a:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--color-sidebarHover);
   border-color: rgba(255, 255, 255, 0.08);
 }
 
 .sidebar nav ul li.active a {
-  background: linear-gradient(90deg, #2563eb 0%, #1d4ed8 100%);
-  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.24);
+  background: linear-gradient(90deg, var(--color-btnPrimary) 0%, var(--color-btnPrimaryDark) 100%);
+  color: var(--color-textWhite);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  box-shadow: 0 12px 24px var(--color-btnPrimaryShadow), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
 .toggle-menu {
-  border-color: #2b3a53;
-  background: #131f31;
+  border-color: var(--color-toggleBorder);
+  background: var(--color-toggleBg);
 }
 
 .toggle-menu:hover {
@@ -973,8 +977,8 @@ html, body {
 }
 
 .card {
-  background: linear-gradient(180deg, var(--wow-surface) 0%, var(--wow-surface-soft) 100%);
-  border: 1px solid var(--wow-border);
+  background: linear-gradient(180deg, var(--color-bgTertiary) 0%, var(--color-bgSecondary) 100%);
+  border: 1px solid var(--color-borderColorLight);
   border-radius: 16px;
   box-shadow: var(--wow-shadow-sm);
 }
@@ -988,7 +992,7 @@ html, body {
 .page-header h1 {
   letter-spacing: -0.02em;
   font-weight: 800;
-  color: #111827;
+  color: var(--color-textPrimary);
 }
 
 .btn-small {
@@ -1001,9 +1005,9 @@ html, body {
 }
 
 .btn-small:hover {
-  border-color: #93c5fd;
-  color: #1d4ed8;
-  background: #eff6ff;
+  border-color: var(--color-borderColorLight);
+  color: var(--color-btnPrimaryDark);
+  background: var(--color-bgSecondary);
 }
 
 .data-table th {
@@ -1070,3 +1074,4 @@ input:focus, select:focus, textarea:focus {
     border-radius: 14px;
   }
 }
+

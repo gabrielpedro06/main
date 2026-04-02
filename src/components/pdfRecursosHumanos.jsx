@@ -543,3 +543,4 @@ export const generateRecursosHumanosPDF = async ({
 const gerarRelatorioRecursosHumanos = (payload) => generateRecursosHumanosPDF(payload);
 
 export default gerarRelatorioRecursosHumanos;
+

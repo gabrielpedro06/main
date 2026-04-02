@@ -384,7 +384,7 @@ export default function Perfil() {
                                   value={formData.ncc} 
                                   onChange={handleCCChange} 
                                   placeholder="00000000 - 0 - XX - 0"
-                                  style={{...inputStyle, letterSpacing: '1px', fontFamily: 'monospace', fontWeight: 'bold', color: '#1e40af', background: '#f8fafc'}} 
+                                  style={{...inputStyle, letterSpacing: '1px', fontFamily: 'monospace', fontWeight: 'bold', color: 'var(--color-btnPrimaryHover)', background: '#f8fafc'}} 
                                   className="input-focus"
                               />
                           </div>
@@ -395,14 +395,14 @@ export default function Perfil() {
                       </div>
 
                       {/* 💡 NOVA SECÇÃO: VEÍCULOS */}
-                      <div style={{...sectionTitleStyle, color: '#0369a1', borderColor: '#bae6fd'}}><Icons.Car /> Veículos e Deslocações</div>
+                      <div style={{...sectionTitleStyle, color: 'var(--color-btnPrimary)', borderColor: '#bae6fd'}}><Icons.Car /> Veículos e Deslocações</div>
                       <div style={{background: '#f0f9ff', padding: '20px', borderRadius: '12px', border: '1px solid #bae6fd', marginBottom: '25px'}}>
-                          <p style={{margin: '0 0 15px 0', fontSize: '0.85rem', color: '#0284c7'}}>Adiciona os teus veículos para serem usados rapidamente nos pedidos de Km's.</p>
+                          <p style={{margin: '0 0 15px 0', fontSize: '0.85rem', color: 'var(--color-btnPrimary)'}}>Adiciona os teus veículos para serem usados rapidamente nos pedidos de Km's.</p>
                           
                           {formData.veiculos.length > 0 && (
                               <div style={{display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '15px'}}>
                                   {formData.veiculos.map((v, idx) => (
-                                      <div key={idx} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', padding: '10px 15px', borderRadius: '8px', border: '1px solid #e0f2fe'}}>
+                                      <div key={idx} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', padding: '10px 15px', borderRadius: '8px', border: '1px solid var(--color-bgTertiary)'}}>
                                           <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
                                               <span style={{fontFamily: 'monospace', fontWeight: '800', background: '#e2e8f0', color: '#1e293b', padding: '4px 10px', borderRadius: '6px', letterSpacing: '1px'}}>{v.matricula}</span>
                                               <span style={{color: '#475569', fontSize: '0.9rem', fontWeight: '600'}}>{v.marca}</span>
@@ -436,7 +436,7 @@ export default function Perfil() {
                                       className="input-focus"
                                   />
                               </div>
-                              <button type="button" onClick={handleAddVeiculo} disabled={novoVeiculo.matricula.length < 6} style={{background: '#0284c7', color: 'white', border: 'none', borderRadius: '8px', padding: '10px 15px', height: '42px', fontWeight: 'bold', cursor: novoVeiculo.matricula.length < 6 ? 'not-allowed' : 'pointer', opacity: novoVeiculo.matricula.length < 6 ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: '6px'}} className="hover-shadow">
+                              <button type="button" onClick={handleAddVeiculo} disabled={novoVeiculo.matricula.length < 6} style={{background: 'var(--color-btnPrimary)', color: 'white', border: 'none', borderRadius: '8px', padding: '10px 15px', height: '42px', fontWeight: 'bold', cursor: novoVeiculo.matricula.length < 6 ? 'not-allowed' : 'pointer', opacity: novoVeiculo.matricula.length < 6 ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: '6px'}} className="hover-shadow">
                                   <Icons.Plus /> Adicionar
                               </button>
                           </div>
@@ -503,7 +503,7 @@ export default function Perfil() {
             </div>
             <div style={{display:'flex',gap:'10px',marginTop:'16px'}}>
               <button type="button" onClick={() => setCropModal({ show: false, src: null })} style={{padding:'10px 22px',borderRadius:'8px',border:'1px solid rgba(255,255,255,0.2)',background:'transparent',color:'white',cursor:'pointer',fontWeight:'bold'}}>Cancelar</button>
-              <button type="button" onClick={confirmCrop} disabled={uploading} style={{padding:'10px 28px',borderRadius:'8px',border:'none',background:'#2563eb',color:'white',cursor:'pointer',fontWeight:'bold',fontSize:'0.95rem'}}>{uploading ? 'A guardar...' : 'Confirmar Recorte'}</button>
+              <button type="button" onClick={confirmCrop} disabled={uploading} style={{padding:'10px 28px',borderRadius:'8px',border:'none',background:'var(--color-btnPrimary)',color:'white',cursor:'pointer',fontWeight:'bold',fontSize:'0.95rem'}}>{uploading ? 'A guardar...' : 'Confirmar Recorte'}</button>
             </div>
           </div>
         </ModalPortal>
@@ -523,7 +523,7 @@ export default function Perfil() {
       )}
 
       <style>{`
-          .input-focus:focus { border-color: #3b82f6 !important; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+          .input-focus:focus { border-color: var(--color-btnPrimary) !important; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
           .hover-shadow:hover { transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
           .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
           .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }

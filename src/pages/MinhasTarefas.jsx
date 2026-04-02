@@ -842,7 +842,7 @@ export default function MinhasTarefas() {
           const d = new Date(taskDeadline); d.setHours(0,0,0,0);
           const t = new Date(); t.setHours(0,0,0,0);
           if (d < t) dateColor = '#ef4444';
-          else if (d.getTime() === t.getTime()) dateColor = '#2563eb';
+          else if (d.getTime() === t.getTime()) dateColor = 'var(--color-btnPrimary)';
       }
 
       const proj = task.atividades?.projetos;
@@ -862,9 +862,9 @@ export default function MinhasTarefas() {
               onDragStart={() => setDraggedTask(task)}
               onDragEnd={() => setDraggedTask(null)}
               style={{ 
-                  background: isTimerActive ? '#eff6ff' : 'white', 
+                  background: isTimerActive ? 'var(--color-bgSecondary)' : 'white', 
                   borderRadius: '10px', padding: '12px 15px', marginBottom: '10px', 
-                  border: isTimerActive ? '2px solid #3b82f6' : '1px solid #e2e8f0', 
+                  border: isTimerActive ? '2px solid var(--color-btnPrimary)' : '1px solid #e2e8f0', 
                   boxShadow: isTimerActive ? '0 4px 6px -1px rgba(59, 130, 246, 0.2)' : '0 1px 3px rgba(0,0,0,0.05)', 
                   display: 'flex', gap: '12px', alignItems: 'flex-start', cursor: 'grab', 
                   opacity: (draggedTask?.id === task.id || isCompleted) ? 0.6 : 1,
@@ -878,7 +878,7 @@ export default function MinhasTarefas() {
                     width: '22px', height: '22px', borderRadius: '50%', cursor: 'pointer', marginTop: '2px', transition: '0.2s', flexShrink: 0, 
                     display: 'flex', alignItems: 'center', justifyContent: 'center', 
                     border: isCompleted ? 'none' : '2px solid #cbd5e1', 
-                    background: isCompleted ? '#2563eb' : 'transparent',
+                    background: isCompleted ? 'var(--color-btnPrimary)' : 'transparent',
                     color: isCompleted ? 'white' : 'transparent'
                 }} 
                 className="hover-check-circle" 
@@ -905,7 +905,7 @@ export default function MinhasTarefas() {
                           )}
                           {taskDeadline && <span style={{fontSize: '0.7rem', color: isCompleted ? '#94a3b8' : dateColor, fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.Calendar /> {new Date(taskDeadline).toLocaleDateString('pt-PT', {day:'2-digit', month:'short'})}</span>}
                           {task.descricao && <span style={{color: '#94a3b8'}} title="Tem notas"><Icons.FileText /></span>}
-                          {totalDocs > 0 && <span style={{color: '#3b82f6', display: 'flex', alignItems: 'center', gap: '2px', fontSize: '0.7rem', fontWeight: 'bold'}} title="Documentos em Anexo"><Icons.FileText size={12} /> {totalDocs}</span>}
+                          {totalDocs > 0 && <span style={{color: 'var(--color-btnPrimary)', display: 'flex', alignItems: 'center', gap: '2px', fontSize: '0.7rem', fontWeight: 'bold'}} title="Documentos em Anexo"><Icons.FileText size={12} /> {totalDocs}</span>}
                           {hasExtraColabs && <span style={{color: '#8b5cf6', display: 'flex', alignItems: 'center', gap: '2px', fontSize: '0.7rem', fontWeight: 'bold'}} title="Colaboradores partilhados"><Icons.Users size={12} /> +{task.colaboradores_extra.length}</span>}
                       </div>
 
@@ -934,13 +934,13 @@ export default function MinhasTarefas() {
               onDragLeave={() => setDragOverCol(null)}
               onDrop={(e) => handleDrop(e, id)}
               style={{ 
-                  background: isOver ? '#e0f2fe' : '#f8fafc', 
+                  background: isOver ? 'var(--color-bgTertiary)' : '#f8fafc', 
                   borderRadius: '12px', padding: '15px', display: 'flex', flexDirection: 'column', height: '100%', 
-                  border: isOver ? '2px dashed #3b82f6' : '1px solid transparent', 
+                  border: isOver ? '2px dashed var(--color-btnPrimary)' : '1px solid transparent', 
                   minHeight: '60vh', transition: 'all 0.2s ease'
               }}
           >
-              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', paddingBottom: '10px', borderBottom: `2px solid ${color}30`}}>
+              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', paddingBottom: '10px', borderBottom: '2px solid var(--color-borderColor)'}}>
                   <h3 style={{margin: 0, fontSize: '0.9rem', color: color, fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px'}}>
                       {icon} {title}
                   </h3>
@@ -968,7 +968,7 @@ export default function MinhasTarefas() {
       );
   };
 
-  if (loading) return <div className="page-container" style={{display:'flex', justifyContent:'center', alignItems:'center', height:'80vh'}}><div className="pulse-dot-white" style={{background:'#2563eb'}}></div></div>;
+  if (loading) return <div className="page-container" style={{display:'flex', justifyContent:'center', alignItems:'center', height:'80vh'}}><div className="pulse-dot-white" style={{background:'var(--color-btnPrimary)'}}></div></div>;
 
   return (
     <div className="page-container" style={{padding: '20px', height: '100vh', display: 'flex', flexDirection: 'column', maxWidth: '1600px', margin: '0 auto'}}>
@@ -976,7 +976,7 @@ export default function MinhasTarefas() {
       {/* HEADER DO KANBAN */}
       <div className="card" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '30px', flexWrap: 'wrap', gap: '15px', background: 'white', padding: '25px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
           <div style={{display: 'flex', alignItems: 'center', gap: '15px', flex: 1, minWidth: '300px'}}>
-              <div style={{background: '#eff6ff', color: '#2563eb', padding: '12px', borderRadius: '12px', display: 'flex'}}><Icons.Kanban /></div>
+              <div style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '12px', borderRadius: '12px', display: 'flex'}}><Icons.Kanban /></div>
               <div>
                   <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>Agenda</h1>
                   <p style={{margin: '0', color: '#64748b', fontSize: '0.9rem', fontWeight: '500'}}>O teu quadro de produtividade pessoal. Arrasta os cartões!</p>
@@ -1004,11 +1004,11 @@ export default function MinhasTarefas() {
                   <Icons.History size={16} />
               </button>
 
-              <button onClick={openTimeCreateModal} title="Tempo Manual" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#2563eb', background: '#eff6ff', padding: '0', width: '36px', height: '36px', borderRadius: '8px', border: '1px solid #bfdbfe', transition: '0.2s'}} className="hover-shadow">
+              <button onClick={openTimeCreateModal} title="Tempo Manual" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-btnPrimary)', background: 'var(--color-bgSecondary)', padding: '0', width: '36px', height: '36px', borderRadius: '8px', border: '1px solid var(--color-borderColor)', transition: '0.2s'}} className="hover-shadow">
                   <Icons.Clock size={16} />
               </button>
 
-              <button onClick={() => setShowQuickTaskModal(true)} style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: '#2563eb', fontWeight: '700', background: '#eff6ff', padding: '0 15px', height: '36px', borderRadius: '8px', border: '1px solid #bfdbfe', transition: '0.2s'}} className="hover-shadow">
+              <button onClick={() => setShowQuickTaskModal(true)} style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--color-btnPrimary)', fontWeight: '700', background: 'var(--color-bgSecondary)', padding: '0 15px', height: '36px', borderRadius: '8px', border: '1px solid var(--color-borderColor)', transition: '0.2s'}} className="hover-shadow">
                   <Icons.Plus size={14} /> Adicionar Tarefa
               </button>
 
@@ -1029,7 +1029,7 @@ export default function MinhasTarefas() {
       <div className="kanban-grid" style={{flex: 1}}>
           {renderKanbanColumn("atrasadas", "Atrasadas", <Icons.AlertTriangle />, "#ef4444", tasks.atrasadas)}
           {renderKanbanColumn("hoje", "Para Hoje", <Icons.Flame />, "#d97706", tasks.hoje)}
-          {renderKanbanColumn("amanha", "Amanhã", <Icons.Calendar />, "#3b82f6", tasks.amanha)}
+          {renderKanbanColumn("amanha", "Amanhã", <Icons.Calendar />, "var(--color-btnPrimary)", tasks.amanha)}
           {renderKanbanColumn("depois", "Mais Tarde", <Icons.Calendar />, "#8b5cf6", tasks.depois)}
           {renderKanbanColumn("semData", "Sem Data", <Icons.Inbox />, "#64748b", tasks.semData)}
       </div>
@@ -1041,7 +1041,7 @@ export default function MinhasTarefas() {
                   <div style={{background: '#fff', width: '90%', maxWidth: '750px', borderRadius: '16px', padding: '30px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out', maxHeight: '85vh', display: 'flex', flexDirection: 'column'}} onClick={e => e.stopPropagation()}>
                       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
                           <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.25rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '10px'}}>
-                              <Icons.History color="#2563eb" size={24} /> Arquivo de Concluídas
+                              <Icons.History color="var(--color-btnPrimary)" size={24} /> Arquivo de Concluídas
                           </h3>
                           <button onClick={() => setShowCompletedModal(false)} style={{background:'none', border:'none', cursor:'pointer', color:'#94a3b8', display: 'flex'}} className="hover-red-text"><Icons.Close size={20} /></button>
                       </div>
@@ -1050,9 +1050,9 @@ export default function MinhasTarefas() {
                           {Object.keys(completedTasksGroups).map(groupName => {
                               const isActive = activeHistoryTab === groupName;
                               return (
-                                  <button key={groupName} onClick={() => setActiveHistoryTab(groupName)} style={{ background: 'none', border: 'none', padding: '10px 15px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: isActive ? '800' : '600', color: isActive ? '#2563eb' : '#64748b', position: 'relative', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '8px' }} className="tab-hover-green">
-                                      {groupName} <span style={{ background: isActive ? '#dbeafe' : '#f1f5f9', color: isActive ? '#2563eb' : '#94a3b8', padding: '2px 8px', borderRadius: '12px', fontSize: '0.7rem' }}>{completedTasksGroups[groupName].length}</span>
-                                      {isActive && <div style={{position:'absolute', bottom:'-6px', left:0, right:0, height:'3px', background:'#2563eb', borderRadius:'3px 3px 0 0'}} />}
+                                  <button key={groupName} onClick={() => setActiveHistoryTab(groupName)} style={{ background: 'none', border: 'none', padding: '10px 15px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: isActive ? '800' : '600', color: isActive ? 'var(--color-btnPrimary)' : '#64748b', position: 'relative', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '8px' }} className="tab-hover-green">
+                                      {groupName} <span style={{ background: isActive ? 'var(--color-borderColorLight)' : '#f1f5f9', color: isActive ? 'var(--color-btnPrimary)' : '#94a3b8', padding: '2px 8px', borderRadius: '12px', fontSize: '0.7rem' }}>{completedTasksGroups[groupName].length}</span>
+                                      {isActive && <div style={{position:'absolute', bottom:'-6px', left:0, right:0, height:'3px', background:'var(--color-btnPrimary)', borderRadius:'3px 3px 0 0'}} />}
                                   </button>
                               );
                           })}
@@ -1070,7 +1070,7 @@ export default function MinhasTarefas() {
                                   return (
                                       <div key={t.id} style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'white', padding: '15px', borderRadius: '12px', border: '1px solid #e2e8f0', transition: '0.2s'}} className="hover-shadow">
                                           <div style={{display: 'flex', alignItems: 'center', gap: '12px', flex: 1, overflow: 'hidden'}}>
-                                              <div style={{width: '24px', height: '24px', borderRadius: '50%', background: '#dbeafe', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0}}><Icons.Check size={14} /></div>
+                                              <div style={{width: '24px', height: '24px', borderRadius: '50%', background: 'var(--color-borderColorLight)', color: 'var(--color-btnPrimary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0}}><Icons.Check size={14} /></div>
                                               <div style={{display: 'flex', flexDirection: 'column', overflow: 'hidden'}}>
                                                   <span style={{fontSize: '0.95rem', color: '#475569', textDecoration: 'line-through', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: '500'}}>{t.titulo}</span>
                                                   <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px'}}>
@@ -1081,7 +1081,7 @@ export default function MinhasTarefas() {
                                               </div>
                                           </div>
                                           <div style={{display: 'flex', gap: '8px'}}>
-                                              <button onClick={() => handleRestoreTask(t)} style={{background: 'white', border: '1px solid #cbd5e1', color: '#3b82f6', padding: '6px 12px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', transition: '0.2s'}} className="hover-bg-blue-light"><Icons.Restore /> Restaurar</button>
+                                              <button onClick={() => handleRestoreTask(t)} style={{background: 'white', border: '1px solid #cbd5e1', color: 'var(--color-btnPrimary)', padding: '6px 12px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', transition: '0.2s'}} className="hover-bg-blue-light"><Icons.Restore /> Restaurar</button>
                                               <button onClick={() => handlePermanentDelete(t.id)} style={{background: 'transparent', border: 'none', color: '#ef4444', padding: '6px', cursor: 'pointer', opacity: 0.6, transition: '0.2s'}} className="hover-red"><Icons.Trash /></button>
                                           </div>
                                       </div>
@@ -1103,7 +1103,7 @@ export default function MinhasTarefas() {
               <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, backdropFilter: 'blur(4px)'}} onClick={() => setEditModal({show: false, data: null})}>
                   <div style={{background: '#fff', width: '90%', maxWidth: '650px', borderRadius: '16px', padding: '30px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out', maxHeight: '90vh', overflowY: 'auto'}} onClick={e => e.stopPropagation()} className="custom-scrollbar">
                       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px', borderBottom: '1px solid #f1f5f9', paddingBottom: '15px'}}>
-                          <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.25rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Edit color="#2563eb" size={20} /> Detalhes da Tarefa</h3>
+                          <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.25rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Edit color="var(--color-btnPrimary)" size={20} /> Detalhes da Tarefa</h3>
                           <div style={{display: 'flex', gap: '15px', alignItems: 'center'}}>
                               <button onClick={() => { handleDeleteTaskFromKanban(editModal.data.id); setEditModal({show:false, data:null}); }} style={{background:'transparent', border:'none', cursor:'pointer', color:'#ef4444', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 'bold'}} className="hover-red-text" title="Apagar Tarefa">
                                   <Icons.Trash /> Apagar
@@ -1148,7 +1148,7 @@ export default function MinhasTarefas() {
                                           const isChecked = Array.isArray(editModal.data.colaboradores_extra) && editModal.data.colaboradores_extra.includes(s.id);
                                           const sNome = getSafeFirstName(s.nome, s.email);
                                           return (
-                                              <div key={s.id} onClick={() => toggleColaboradorExtra(s.id)} style={{ background: isChecked ? '#eff6ff' : '#f8fafc', color: isChecked ? '#2563eb' : '#64748b', border: `1px solid ${isChecked ? '#3b82f6' : '#e2e8f0'}`, padding: '6px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', gap: '6px' }} className="hover-shadow">
+                                              <div key={s.id} onClick={() => toggleColaboradorExtra(s.id)} style={{ background: isChecked ? 'var(--color-bgSecondary)' : '#f8fafc', color: isChecked ? 'var(--color-btnPrimary)' : '#64748b', border: `1px solid ${isChecked ? 'var(--color-btnPrimary)' : '#e2e8f0'}`, padding: '6px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', gap: '6px' }} className="hover-shadow">
                                                   {isChecked && '✓'} {sNome}
                                               </div>
                                           )
@@ -1164,7 +1164,7 @@ export default function MinhasTarefas() {
                               onDrop={handleFileDropGeneral}
                               style={{
                                   background: isDraggingFile ? '#f0f9ff' : '#fff', 
-                                  border: isDraggingFile ? '2px dashed #3b82f6' : '1px solid #e2e8f0', 
+                                  border: isDraggingFile ? '2px dashed var(--color-btnPrimary)' : '1px solid #e2e8f0', 
                                   borderRadius: '8px', 
                                   padding: '20px', 
                                   marginBottom: '20px', 
@@ -1174,9 +1174,9 @@ export default function MinhasTarefas() {
                           >
                               <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px'}}>
                                   <label style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '800', color: '#1e293b', fontSize: '0.95rem'}}>
-                                      <Icons.FileText size={18} color="#2563eb" /> Documentos & Entregáveis
+                                      <Icons.FileText size={18} color="var(--color-btnPrimary)" /> Documentos & Entregáveis
                                   </label>
-                                  <span style={{background: '#e0f2fe', color: '#2563eb', padding: '2px 8px', borderRadius: '12px', fontSize: '0.7rem', fontWeight: 'bold'}}>{editModal.data.anexos?.length || 0} Itens</span>
+                                  <span style={{background: 'var(--color-bgTertiary)', color: 'var(--color-btnPrimary)', padding: '2px 8px', borderRadius: '12px', fontSize: '0.7rem', fontWeight: 'bold'}}>{editModal.data.anexos?.length || 0} Itens</span>
                               </div>
                               
                               {editModal.data.anexos?.length > 0 && (
@@ -1201,7 +1201,7 @@ export default function MinhasTarefas() {
 
                                               <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'white', padding: '10px', borderRadius: '6px', border: '1px dashed #cbd5e1'}}>
                                                   {anexo.url ? (
-                                                      <a href={anexo.url} target="_blank" rel="noopener noreferrer" style={{display: 'flex', alignItems: 'center', gap: '6px', color: '#2563eb', fontWeight: 'bold', textDecoration: 'none', fontSize: '0.8rem'}}>
+                                                      <a href={anexo.url} target="_blank" rel="noopener noreferrer" style={{display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-btnPrimary)', fontWeight: 'bold', textDecoration: 'none', fontSize: '0.8rem'}}>
                                                           <Icons.ExternalLink size={14} /> Abrir Ficheiro Atual
                                                       </a>
                                                   ) : anexo.file ? (
@@ -1230,9 +1230,9 @@ export default function MinhasTarefas() {
                                   onClick={addAnexoSlot}
                                   style={{
                                       width: '100%', marginTop: '15px', padding: isDraggingFile ? '25px 10px' : '15px 10px', 
-                                      background: isDraggingFile ? '#e0f2fe' : '#f8fafc', 
-                                      border: isDraggingFile ? '2px dashed #2563eb' : '1px dashed #cbd5e1', 
-                                      borderRadius: '8px', color: isDraggingFile ? '#2563eb' : '#3b82f6', 
+                                      background: isDraggingFile ? 'var(--color-bgTertiary)' : '#f8fafc', 
+                                      border: isDraggingFile ? '2px dashed var(--color-btnPrimary)' : '1px dashed #cbd5e1', 
+                                      borderRadius: '8px', color: isDraggingFile ? 'var(--color-btnPrimary)' : 'var(--color-btnPrimary)', 
                                       fontWeight: 'bold', cursor: 'pointer', display: 'flex', flexDirection: 'column', 
                                       justifyContent: 'center', alignItems: 'center', gap: '6px', transition: '0.2s'
                                   }} 
@@ -1259,7 +1259,7 @@ export default function MinhasTarefas() {
                                   {editModal.data.created_at ? `Criado por: ${getSafeFirstName(editModal.data.criado_por_nome)} em ${new Date(editModal.data.created_at).toLocaleDateString('pt-PT')}` : ''}
                               </div>
                               <button type="button" onClick={() => setEditModal({show: false, data: null})} style={{padding: '12px 20px', background: 'white', color: '#64748b', border: '1px solid #cbd5e1', borderRadius: '10px', fontWeight: 'bold', fontSize: '0.9rem', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">Cancelar</button>
-                              <button type="submit" disabled={isUploading} style={{padding: '12px 20px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '0.9rem', cursor: isUploading ? 'wait' : 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', gap: '8px', opacity: isUploading ? 0.7 : 1}} className="hover-shadow hover-bg-blue">
+                              <button type="submit" disabled={isUploading} style={{padding: '12px 20px', background: 'var(--color-btnPrimary)', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '0.9rem', cursor: isUploading ? 'wait' : 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', gap: '8px', opacity: isUploading ? 0.7 : 1}} className="hover-shadow hover-bg-blue">
                                   {isUploading ? "A carregar PDFs..." : <><Icons.Save size={16}/> Guardar Alterações</>}
                               </button>
                           </div>
@@ -1302,7 +1302,7 @@ export default function MinhasTarefas() {
                           <div style={{fontSize: '0.78rem', color: '#64748b'}}>Pré-visualização: {formatTime(Math.max(0, parseInt(timeLogForm.duration_minutes || "0", 10) || 0))}</div>
                           <div style={{display: 'flex', justifyContent: 'flex-end', gap: '10px'}}>
                               <button type="button" onClick={() => setShowTimeModal(false)} style={{padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white'}}>Cancelar</button>
-                              <button type="submit" disabled={timeLogSaving} style={{padding: '10px 14px', borderRadius: '8px', border: 'none', background: '#2563eb', color: 'white', fontWeight: '700'}}>{timeLogSaving ? 'A guardar...' : 'Guardar'}</button>
+                              <button type="submit" disabled={timeLogSaving} style={{padding: '10px 14px', borderRadius: '8px', border: 'none', background: 'var(--color-btnPrimary)', color: 'white', fontWeight: '700'}}>{timeLogSaving ? 'A guardar...' : 'Guardar'}</button>
                           </div>
                       </form>
 
@@ -1375,7 +1375,7 @@ export default function MinhasTarefas() {
           <ModalPortal>
               <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, backdropFilter: 'blur(4px)'}} onClick={() => setShowQuickTaskModal(false)}>
                   <div style={{background: 'white', borderRadius: '16px', padding: '40px', maxWidth: '420px', width: '90%', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', textAlign: 'center'}} onClick={e => e.stopPropagation()}>
-                      <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#eff6ff', width: '60px', height: '60px', borderRadius: '12px', margin: '0 auto 24px', color: '#2563eb'}}>
+                      <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--color-bgSecondary)', width: '60px', height: '60px', borderRadius: '12px', margin: '0 auto 24px', color: 'var(--color-btnPrimary)'}}>
                           <Icons.Flame size={32} />
                       </div>
                       <h2 style={{margin: '0 0 8px 0', color: '#0f172a', fontSize: '1.4rem', fontWeight: '900'}}>Nova Tarefa Rápida</h2>
@@ -1389,7 +1389,7 @@ export default function MinhasTarefas() {
                           <input type="text" placeholder="O que vais fazer?" value={novaTarefaNome} onChange={e => setNovaTarefaNome(e.target.value)} autoFocus style={{padding: '12px 15px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#f8fafc', fontSize: '1rem', outline: 'none', boxSizing: 'border-box', transition: '0.2s'}} className="input-focus" />
                           <div style={{display: 'flex', gap: '10px', justifyContent: 'center'}}>
                               <button type="button" onClick={() => setShowQuickTaskModal(false)} style={{background: '#f8fafc', color: '#475569', border: '1px solid #e2e8f0', padding: '10px 24px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', transition: '0.2s', flex: 1}} className="hover-shadow">Cancelar</button>
-                              <button type="submit" style={{background: '#2563eb', color: 'white', border: 'none', padding: '10px 24px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', transition: '0.2s', flex: 1}} className="hover-bg-blue">Adicionar</button>
+                              <button type="submit" style={{background: 'var(--color-btnPrimary)', color: 'white', border: 'none', padding: '10px 24px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', transition: '0.2s', flex: 1}} className="hover-bg-blue">Adicionar</button>
                           </div>
                       </form>
                   </div>
@@ -1404,19 +1404,19 @@ export default function MinhasTarefas() {
           .kanban-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px; align-items: stretch; }
           @media (max-width: 1100px) { .kanban-grid { display: flex; overflow-x: auto; padding-bottom: 15px; } .kanban-grid > div { min-width: 300px; flex: 1; } }
 
-          .hover-blue-text:hover { color: #2563eb !important; }
-          .hover-blue-text:hover span { background: #e0f2fe !important; color: #2563eb !important; }
+          .hover-blue-text:hover { color: var(--color-btnPrimary) !important; }
+          .hover-blue-text:hover span { background: var(--color-bgTertiary) !important; color: var(--color-btnPrimary) !important; }
           .tab-hover:hover { color: #0f172a !important; }
           .hover-red:hover { opacity: 1 !important; color: #dc2626 !important; }
           .hover-red-text:hover { color: #ef4444 !important; }
           .hover-underline:hover { text-decoration: underline !important; }
           
           .hover-shadow:hover { transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-          .hover-border-blue:hover { border-color: #3b82f6 !important; background-color: #eff6ff !important; }
-          .hover-bg-blue-light:hover { background: #eff6ff !important; border-color: #3b82f6 !important; }
+          .hover-border-blue:hover { border-color: var(--color-btnPrimary) !important; background-color: var(--color-bgSecondary) !important; }
+          .hover-bg-blue-light:hover { background: var(--color-bgSecondary) !important; border-color: var(--color-btnPrimary) !important; }
           
-          .input-focus:focus { border-color: #3b82f6 !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
-          .input-focus-wrapper:focus-within { border-color: #3b82f6 !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1) !important; }
+          .input-focus:focus { border-color: var(--color-btnPrimary) !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
+          .input-focus-wrapper:focus-within { border-color: var(--color-btnPrimary) !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1) !important; }
 
           .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
           .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
@@ -1429,3 +1429,4 @@ export default function MinhasTarefas() {
     </div>
   );
 }
+

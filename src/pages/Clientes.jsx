@@ -1346,7 +1346,7 @@ export default function Clientes() {
     }
   }
 
-  const clientColors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#f43f5e', '#14b8a6', '#0ea5e9'];
+  const clientColors = ['var(--color-btnPrimary)', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#f43f5e', '#14b8a6', 'var(--color-primary)'];
   const getColorForClient = (nif) => {
       if (!nif) return '#94a3b8'; 
       const hash = String(nif).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
@@ -1367,13 +1367,13 @@ export default function Clientes() {
     { id: 'acessos', label: 'Acessos', icon: Icons.Lock, requiresAcessos: true }
   ];
 
-  if (loading) return <div className="page-container" style={{display:'flex', justifyContent:'center', alignItems:'center', height:'80vh'}}><div className="pulse-dot-white" style={{background:'#2563eb'}}></div></div>;
+  if (loading) return <div className="page-container" style={{display:'flex', justifyContent:'center', alignItems:'center', height:'80vh'}}><div className="pulse-dot-white" style={{background:'var(--color-btnPrimary)'}}></div></div>;
 
   return (
     <div className="page-container" style={{maxWidth: '1500px', margin: '0 auto'}}>
       <div className="page-header" style={{background: 'white', padding: '20px 25px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '15px', flexWrap: 'wrap'}}>
         <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
-            <div style={{background: '#eff6ff', color: '#2563eb', padding: '12px', borderRadius: '12px', display: 'flex'}}><Icons.Building size={24} /></div>
+            <div style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '12px', borderRadius: '12px', display: 'flex'}}><Icons.Building size={24} /></div>
             <div>
                 <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>Clientes</h1>
                 <p style={{color: '#64748b', margin: 0, fontWeight: '500', fontSize: '0.9rem'}}>{statusTab === "ativos" ? "Carteira de Clientes Ativos" : "Arquivo de Clientes"}</p>
@@ -1404,13 +1404,13 @@ export default function Clientes() {
       <div style={{display:'flex', gap:'5px', paddingLeft: '10px'}}>
         <button
           onClick={() => setStatusTab("ativos")}
-          style={{padding: '12px 25px', background: statusTab === 'ativos' ? 'white' : '#e2e8f0', color: statusTab === 'ativos' ? '#2563eb' : '#64748b', border: 'none', borderRadius: '12px 12px 0 0', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display:'flex', alignItems:'center', gap:'8px'}}
+          style={{padding: '12px 25px', background: statusTab === 'ativos' ? 'white' : '#e2e8f0', color: statusTab === 'ativos' ? 'var(--color-btnPrimary)' : '#64748b', border: 'none', borderRadius: '12px 12px 0 0', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display:'flex', alignItems:'center', gap:'8px'}}
         >
           <Icons.Building /> Ativos
         </button>
         <button
           onClick={() => setStatusTab("arquivados")}
-          style={{padding: '12px 25px', background: statusTab === 'arquivados' ? 'white' : '#e2e8f0', color: statusTab === 'arquivados' ? '#2563eb' : '#64748b', border: 'none', borderRadius: '12px 12px 0 0', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display:'flex', alignItems:'center', gap:'8px'}}
+          style={{padding: '12px 25px', background: statusTab === 'arquivados' ? 'white' : '#e2e8f0', color: statusTab === 'arquivados' ? 'var(--color-btnPrimary)' : '#64748b', border: 'none', borderRadius: '12px 12px 0 0', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display:'flex', alignItems:'center', gap:'8px'}}
         >
           <Icons.Archive /> Arquivados
         </button>
@@ -1466,7 +1466,7 @@ export default function Clientes() {
 
                               <div style={{display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px', marginBottom: '10px'}}>
                                 <h2 style={{margin: 0, fontSize: '1.25rem', color: '#1e293b', fontWeight: '800', lineHeight: '1.2'}}>{c.marca || "Sem nome"}</h2>
-                                {c.sigla?.trim() && <span style={{background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '3px 8px', borderRadius: '999px', fontSize: '0.68rem', fontWeight: '800', letterSpacing: '0.04em'}}>{c.sigla}</span>}
+                                {c.sigla?.trim() && <span style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimaryDark)', border: '1px solid var(--color-borderColor)', padding: '3px 8px', borderRadius: '999px', fontSize: '0.68rem', fontWeight: '800', letterSpacing: '0.04em'}}>{c.sigla}</span>}
                               </div>
                             
                             <div style={{display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '15px'}}>
@@ -1491,7 +1491,7 @@ export default function Clientes() {
                         <div style={{display: 'flex', borderTop: '1px solid #f1f5f9', background: isInactive ? 'transparent' : '#fafaf9'}}>
                             <button 
                                 onClick={() => handleView(c)} 
-                                style={{flex: 1, padding: '12px', border: 'none', borderRight: '1px solid #f1f5f9', background: 'transparent', color: '#2563eb', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', transition: '0.2s', display:'flex', alignItems:'center', justifyContent:'center', gap:'6px'}}
+                                style={{flex: 1, padding: '12px', border: 'none', borderRight: '1px solid #f1f5f9', background: 'transparent', color: 'var(--color-btnPrimary)', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', transition: '0.2s', display:'flex', alignItems:'center', justifyContent:'center', gap:'6px'}}
                                 className="hover-blue-text"
                             >
                                 <Icons.Eye /> Ver Perfil
@@ -1639,7 +1639,7 @@ export default function Clientes() {
                   ? 'linear-gradient(135deg, #b91c1c, #991b1b)'
                   : notification.type === 'warning'
                     ? 'linear-gradient(135deg, #b45309, #92400e)'
-                    : 'linear-gradient(135deg, #1d4ed8, #1e40af)',
+                    : 'linear-gradient(135deg, var(--color-btnPrimaryDark), var(--color-btnPrimaryHover))',
             border: '1px solid rgba(255,255,255,0.25)',
             boxShadow: '0 12px 28px rgba(15, 23, 42, 0.35)',
             display: 'flex',
@@ -1689,11 +1689,11 @@ export default function Clientes() {
           >
             <div
               onClick={(e) => e.stopPropagation()}
-              style={{width:'min(980px, 96vw)', maxHeight:'86vh', overflow:'hidden', borderRadius:'20px', background:'white', border:'1px solid #dbeafe', boxShadow:'0 30px 60px -20px rgba(15, 23, 42, 0.45)', display:'flex', flexDirection:'column'}}
+              style={{width:'min(980px, 96vw)', maxHeight:'86vh', overflow:'hidden', borderRadius:'20px', background:'white', border:'1px solid var(--color-borderColorLight)', boxShadow:'0 30px 60px -20px rgba(15, 23, 42, 0.45)', display:'flex', flexDirection:'column'}}
             >
-              <div style={{padding:'22px 24px', borderBottom:'1px solid #e2e8f0', background:'linear-gradient(135deg, #eff6ff, #f8fafc)', display:'flex', justifyContent:'space-between', alignItems:'center', gap:'20px'}}>
+              <div style={{padding:'22px 24px', borderBottom:'1px solid #e2e8f0', background:'linear-gradient(135deg, var(--color-bgSecondary), #f8fafc)', display:'flex', justifyContent:'space-between', alignItems:'center', gap:'20px'}}>
                 <div>
-                  <p style={{margin:'0 0 4px 0', fontSize:'0.75rem', fontWeight:'800', letterSpacing:'0.07em', color:'#2563eb', textTransform:'uppercase'}}>Iniciar Cronómetro</p>
+                  <p style={{margin:'0 0 4px 0', fontSize:'0.75rem', fontWeight:'800', letterSpacing:'0.07em', color:'var(--color-btnPrimary)', textTransform:'uppercase'}}>Iniciar Cronómetro</p>
                   <h3 style={{margin:0, color:'#0f172a', fontSize:'1.35rem', fontWeight:'900'}}>{projectTimerModal.project?.titulo || 'Projeto selecionado'}</h3>
                   <p style={{margin:'6px 0 0 0', color:'#475569', fontSize:'0.9rem'}}>Escolhe primeiro a atividade e, se quiseres, uma tarefa específica.</p>
                 </div>
@@ -1724,12 +1724,12 @@ export default function Clientes() {
                               type="button"
                               disabled={isDone}
                               onClick={() => setProjectTimerModal((prev) => ({ ...prev, selectedAtividadeId: atividade.id, selectedTaskId: "" }))}
-                              style={{textAlign:'left', border:isSelected ? '1px solid #2563eb' : '1px solid #e2e8f0', background:isDone ? '#f8fafc' : (isSelected ? '#eff6ff' : '#fff'), color:isDone ? '#94a3b8' : '#1e293b', borderRadius:'10px', padding:'10px 12px', cursor:isDone ? 'not-allowed' : 'pointer', opacity:isDone ? 0.75 : 1}}
+                              style={{textAlign:'left', border:isSelected ? '1px solid var(--color-btnPrimary)' : '1px solid #e2e8f0', background:isDone ? '#f8fafc' : (isSelected ? 'var(--color-bgSecondary)' : '#fff'), color:isDone ? '#94a3b8' : '#1e293b', borderRadius:'10px', padding:'10px 12px', cursor:isDone ? 'not-allowed' : 'pointer', opacity:isDone ? 0.75 : 1}}
                               className="hover-shadow"
                             >
                               <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:'8px'}}>
                                 <span style={{fontWeight:'700', fontSize:'0.9rem', textDecoration:isDone ? 'line-through' : 'none'}}>{atividade.titulo || 'Sem título'}</span>
-                                <span style={{fontSize:'0.7rem', borderRadius:'999px', padding:'3px 8px', background:isDone ? '#e2e8f0' : '#dbeafe', color:isDone ? '#64748b' : '#1d4ed8', fontWeight:'800'}}>{isDone ? 'CONCLUÍDA' : 'ATIVA'}</span>
+                                <span style={{fontSize:'0.7rem', borderRadius:'999px', padding:'3px 8px', background:isDone ? '#e2e8f0' : 'var(--color-borderColorLight)', color:isDone ? '#64748b' : 'var(--color-btnPrimaryDark)', fontWeight:'800'}}>{isDone ? 'CONCLUÍDA' : 'ATIVA'}</span>
                               </div>
                               <p style={{margin:'6px 0 0 0', fontSize:'0.75rem', color:'#64748b'}}>{(atividade.tarefas || []).length} tarefa(s)</p>
                             </button>
@@ -1761,7 +1761,7 @@ export default function Clientes() {
                                 type="button"
                                 disabled={isDone}
                                 onClick={() => setProjectTimerModal((prev) => ({ ...prev, selectedTaskId: tarefa.id }))}
-                                style={{textAlign:'left', border:isSelected ? '1px solid #2563eb' : '1px solid #e2e8f0', background:isDone ? '#f8fafc' : (isSelected ? '#eff6ff' : '#fff'), color:isDone ? '#94a3b8' : '#1e293b', borderRadius:'10px', padding:'10px 12px', cursor:isDone ? 'not-allowed' : 'pointer', opacity:isDone ? 0.78 : 1}}
+                                style={{textAlign:'left', border:isSelected ? '1px solid var(--color-btnPrimary)' : '1px solid #e2e8f0', background:isDone ? '#f8fafc' : (isSelected ? 'var(--color-bgSecondary)' : '#fff'), color:isDone ? '#94a3b8' : '#1e293b', borderRadius:'10px', padding:'10px 12px', cursor:isDone ? 'not-allowed' : 'pointer', opacity:isDone ? 0.78 : 1}}
                                 className="hover-shadow"
                               >
                                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:'8px'}}>
@@ -1806,11 +1806,11 @@ export default function Clientes() {
               {/* CABEÇALHO DO MODAL */}
               <div style={{padding:'20px 30px', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center', background:'#f8fafc'}}>
                 <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
-                    <div style={{width:'48px', height:'48px', borderRadius:'50%', overflow:'hidden', border:'1px solid #bfdbfe', background:'#eff6ff', display:'flex', alignItems:'center', justifyContent:'center'}}>
+                    <div style={{width:'48px', height:'48px', borderRadius:'50%', overflow:'hidden', border:'1px solid var(--color-borderColor)', background:'var(--color-bgSecondary)', display:'flex', alignItems:'center', justifyContent:'center'}}>
                       {form.avatar_url ? (
                         <img src={form.avatar_url} alt="Logo cliente" style={{width:'100%', height:'100%', objectFit:'cover'}} />
                       ) : (
-                        <Icons.Building size={22} color="#2563eb" />
+                        <Icons.Building size={22} color="var(--color-btnPrimary)" />
                       )}
                     </div>
                     <h3 style={{margin:0, color:'#1e293b', fontSize:'1.4rem', fontWeight:'800'}}>
@@ -1858,14 +1858,14 @@ export default function Clientes() {
                               textAlign:'left',
                               fontSize:'0.95rem',
                               fontWeight:isActive ? '800' : '700',
-                              color:isActive ? '#1d4ed8' : '#64748b',
-                              background:isActive ? '#eff6ff' : 'transparent',
-                              borderLeft:isActive ? '3px solid #2563eb' : '3px solid transparent',
+                              color:isActive ? 'var(--color-btnPrimaryDark)' : '#64748b',
+                              background:isActive ? 'var(--color-bgSecondary)' : 'transparent',
+                              borderLeft:isActive ? '3px solid var(--color-btnPrimary)' : '3px solid transparent',
                               transition:'0.18s'
                             }}
                             className="hover-shadow"
                           >
-                            <TabIcon size={15} color={isActive ? '#2563eb' : '#64748b'} />
+                            <TabIcon size={15} color={isActive ? 'var(--color-btnPrimary)' : '#64748b'} />
                             {tab.label}
                           </button>
                         );
@@ -1881,7 +1881,7 @@ export default function Clientes() {
                      <fieldset disabled={isViewOnly} style={{border: 'none', padding: 0, margin: 0}}>
                       <div style={{display:'flex', alignItems:'center', gap:'14px', marginBottom:'18px'}}>
                         {isViewOnly ? (
-                          <div style={{width:'64px', height:'64px', borderRadius:'50%', overflow:'hidden', border:'2px solid #dbeafe', background:'#f1f5f9', display:'flex', alignItems:'center', justifyContent:'center'}}>
+                          <div style={{width:'64px', height:'64px', borderRadius:'50%', overflow:'hidden', border:'2px solid var(--color-borderColorLight)', background:'#f1f5f9', display:'flex', alignItems:'center', justifyContent:'center'}}>
                             {form.avatar_url ? (
                               <img src={form.avatar_url} alt="Foto cliente" style={{width:'100%', height:'100%', objectFit:'cover'}} />
                             ) : (
@@ -1889,7 +1889,7 @@ export default function Clientes() {
                             )}
                           </div>
                         ) : (
-                          <label title="Clique para alterar foto" style={{width:'64px', height:'64px', borderRadius:'50%', overflow:'hidden', border:'2px solid #dbeafe', background:'#f1f5f9', display:'flex', alignItems:'center', justifyContent:'center', cursor: uploading ? 'wait' : 'pointer'}}>
+                          <label title="Clique para alterar foto" style={{width:'64px', height:'64px', borderRadius:'50%', overflow:'hidden', border:'2px solid var(--color-borderColorLight)', background:'#f1f5f9', display:'flex', alignItems:'center', justifyContent:'center', cursor: uploading ? 'wait' : 'pointer'}}>
                             {form.avatar_url ? (
                               <img src={form.avatar_url} alt="Foto cliente" style={{width:'100%', height:'100%', objectFit:'cover'}} />
                             ) : (
@@ -1915,10 +1915,10 @@ export default function Clientes() {
 
                       <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px'}}>
                         <div>
-                            <label style={labelStyle}>NIF * <span style={{fontSize:'0.7rem', color:'#2563eb', textTransform: 'none'}}>(Pesquisa Auto)</span></label>
+                            <label style={labelStyle}>NIF * <span style={{fontSize:'0.7rem', color:'var(--color-btnPrimary)', textTransform: 'none'}}>(Pesquisa Auto)</span></label>
                             <div style={{position: 'relative'}}>
-                                <input type="text" maxLength="9" value={form.nif} onChange={handleNifChange} required style={{...inputStyle, borderColor: '#2563eb', background: '#eff6ff', paddingLeft: '35px'}} placeholder="Ex: 500000000" className="input-focus" />
-                                <span style={{position: 'absolute', left: '12px', top: '10px', color: '#2563eb'}}><Icons.Search /></span>
+                                <input type="text" maxLength="9" value={form.nif} onChange={handleNifChange} required style={{...inputStyle, borderColor: 'var(--color-btnPrimary)', background: 'var(--color-bgSecondary)', paddingLeft: '35px'}} placeholder="Ex: 500000000" className="input-focus" />
+                                <span style={{position: 'absolute', left: '12px', top: '10px', color: 'var(--color-btnPrimary)'}}><Icons.Search /></span>
                             </div>
                         </div>
                         <div>
@@ -1973,12 +1973,12 @@ export default function Clientes() {
                                         ? { label: 'Parceiro', bg: '#f3e8ff', color: '#7e22ce' }
                                         : p.relacao_cliente === 'cliente_unico_e_parceiro'
                                             ? { label: 'Cliente + Parceiro', bg: '#ede9fe', color: '#5b21b6' }
-                                            : { label: 'Cliente Único', bg: '#dbeafe', color: '#1d4ed8' };
+                                            : { label: 'Cliente Único', bg: 'var(--color-borderColorLight)', color: 'var(--color-btnPrimaryDark)' };
 
                                     return (
                                         <div key={p.id} onClick={() => navigate(`/dashboard/projetos/${p.id}`)} style={{background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', flexDirection:'column', justifyContent: 'space-between', opacity: isDone ? 0.6 : 1, cursor:'pointer', transition:'0.2s'}} className="hover-shadow hover-blue-border">
                                             <div style={{display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px'}}>
-                                                <span style={{fontSize: '0.7rem', background: isDone ? '#f1f5f9' : '#eff6ff', color: isDone ? '#64748b' : '#2563eb', padding: '4px 10px', borderRadius: '12px', fontWeight: 'bold', textTransform: 'uppercase'}}>{p.estado.replace('_', ' ')}</span>
+                                                <span style={{fontSize: '0.7rem', background: isDone ? '#f1f5f9' : 'var(--color-bgSecondary)', color: isDone ? '#64748b' : 'var(--color-btnPrimary)', padding: '4px 10px', borderRadius: '12px', fontWeight: 'bold', textTransform: 'uppercase'}}>{p.estado.replace('_', ' ')}</span>
                                               <span style={{fontSize: '0.68rem', background: relacaoInfo.bg, color: relacaoInfo.color, padding: '4px 10px', borderRadius: '12px', fontWeight: 'bold'}}>{relacaoInfo.label}</span>
                                                 {p.codigo_projeto && <span style={{fontSize: '0.75rem', color: '#94a3b8', fontWeight: 'bold'}}>{p.codigo_projeto}</span>}
                                             </div>
@@ -1997,7 +1997,7 @@ export default function Clientes() {
                                                   >
                                                     <Icons.Play size={11} /> Iniciar
                                                   </button>
-                                                  <span style={{fontSize: '0.85rem', color: '#2563eb', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}}>Abrir <Icons.ArrowRight /></span>
+                                                  <span style={{fontSize: '0.85rem', color: 'var(--color-btnPrimary)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}}>Abrir <Icons.ArrowRight /></span>
                                                 </div>
                                             </div>
                                         </div>
@@ -2035,7 +2035,7 @@ export default function Clientes() {
                             <div style={{display:'grid', gridTemplateColumns:'150px 1fr auto', gap:'15px', alignItems:'center'}}>
                               <input type="text" placeholder="Código (Ex: 62010)" value={novoCae.codigo} onChange={e => setNovoCae({...novoCae, codigo: e.target.value})} style={inputStyle} className="input-focus" />
                               <input type="text" placeholder="Descrição" value={novoCae.descricao} onChange={e => setNovoCae({...novoCae, descricao: e.target.value})} style={inputStyle} className="input-focus" />
-                              <label style={{display:'flex', alignItems:'center', gap:'5px', cursor:'pointer', fontWeight: 'bold', color: '#475569'}}><input type="checkbox" checked={novoCae.principal} onChange={e => setNovoCae({...novoCae, principal: e.target.checked})} style={{accentColor: '#2563eb', width: '16px', height: '16px'}} /> Principal</label>
+                              <label style={{display:'flex', alignItems:'center', gap:'5px', cursor:'pointer', fontWeight: 'bold', color: '#475569'}}><input type="checkbox" checked={novoCae.principal} onChange={e => setNovoCae({...novoCae, principal: e.target.checked})} style={{accentColor: 'var(--color-btnPrimary)', width: '16px', height: '16px'}} /> Principal</label>
                             </div>
                             <div style={{display:'flex', gap:'10px', marginTop:'15px'}}>
                                 <button onClick={() => saveSubItem('caes_cliente', novoCae, setCaes, caes, setNovoCae, initCae, setShowAddCae)} className="btn-primary hover-shadow" style={{padding:'10px 20px'}}>{novoCae.id ? 'Atualizar' : 'Guardar CAE'}</button>
@@ -2130,9 +2130,9 @@ export default function Clientes() {
                 {/* --- ABA PLANO --- */}
                 {activeTab === 'plano' && (
                   <div style={{background:'white', padding:'40px', borderRadius:'16px', border:'1px solid #e2e8f0', textAlign:'center', maxWidth:'500px', margin:'0 auto', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
-                     <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px', color: '#3b82f6'}}><Icons.Diamond size={48} /></div>
+                     <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px', color: 'var(--color-btnPrimary)'}}><Icons.Diamond size={48} /></div>
                      <h3 style={{marginTop:0, color:'#1e293b', fontSize:'1.5rem'}}>Plano de Subscrição</h3>
-                     <select disabled={isViewOnly} value={form.plano} onChange={e => setForm({...form, plano: e.target.value})} style={{...inputStyle, fontSize:'1.1rem', padding:'15px', margin:'20px auto', display:'block', fontWeight: 'bold', color: '#2563eb', background: '#eff6ff', borderColor: '#bfdbfe', cursor: 'pointer'}}>
+                     <select disabled={isViewOnly} value={form.plano} onChange={e => setForm({...form, plano: e.target.value})} style={{...inputStyle, fontSize:'1.1rem', padding:'15px', margin:'20px auto', display:'block', fontWeight: 'bold', color: 'var(--color-btnPrimary)', background: 'var(--color-bgSecondary)', borderColor: 'var(--color-borderColor)', cursor: 'pointer'}}>
                         <option value="Standard">Standard</option>
                         <option value="Premium">Premium</option>
                         <option value="Enterprise">Enterprise</option>
@@ -2215,7 +2215,7 @@ export default function Clientes() {
                           <div>
                             <span style={{fontWeight:'bold', color:'#1e293b', fontSize:'1.1rem'}}>{c.nome_contacto}</span> {c.cargo && <span style={{color:'#64748b', fontSize:'0.9rem', marginLeft:'5px'}}>({c.cargo})</span>}
                             <div style={{fontSize:'0.9rem', color:'#475569', marginTop:'8px', display:'flex', flexDirection:'column', gap:'6px'}}>
-                                {c.email && <span style={{display: 'flex', alignItems: 'center', gap: '6px', color: '#2563eb'}}><Icons.Mail /> <a href={`mailto:${c.email}`} style={{color: 'inherit', textDecoration: 'none'}}>{c.email}</a></span>}
+                                {c.email && <span style={{display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-btnPrimary)'}}><Icons.Mail /> <a href={`mailto:${c.email}`} style={{color: 'inherit', textDecoration: 'none'}}>{c.email}</a></span>}
                                 {c.telefone && <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.Phone /> {c.telefone}</span>}
                             </div>
                           </div>
@@ -2248,7 +2248,7 @@ export default function Clientes() {
                         
                         <div style={{display:'grid', gridTemplateColumns:'1fr 2fr', gap:'20px'}}>
                             <div>
-                                <label style={labelStyle}>Cód. Postal <span style={{fontSize:'0.7rem', color:'#2563eb', textTransform: 'none'}}>(Preenchimento Auto)</span></label>
+                                <label style={labelStyle}>Cód. Postal <span style={{fontSize:'0.7rem', color:'var(--color-btnPrimary)', textTransform: 'none'}}>(Preenchimento Auto)</span></label>
                                 <input 
                                     type="text" 
                                     placeholder="Ex: 8000-000" 
@@ -2267,7 +2267,7 @@ export default function Clientes() {
                                             fetchMoradaByCodigoPostal(val);
                                         }
                                     }} 
-                                    style={{...inputStyle, borderColor: '#2563eb', background: '#eff6ff'}} 
+                                    style={{...inputStyle, borderColor: 'var(--color-btnPrimary)', background: 'var(--color-bgSecondary)'}} 
                                     className="input-focus" 
                                 />
                             </div>
@@ -2279,14 +2279,14 @@ export default function Clientes() {
                         
                         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'20px'}}>
                             <div>
-                                <label style={labelStyle}>Concelho <span style={{fontSize:'0.7rem', color:'#2563eb', textTransform: 'none'}}>(Preenche o resto)</span></label>
+                                <label style={labelStyle}>Concelho <span style={{fontSize:'0.7rem', color:'var(--color-btnPrimary)', textTransform: 'none'}}>(Preenche o resto)</span></label>
                                 <input 
                                     type="text" 
                                     value={novaMorada.concelho || ""} 
                                     onChange={e => setNovaMorada({...novaMorada, concelho: e.target.value})} 
                                     onBlur={e => fetchDadosByConcelho(e.target.value)}
                                     placeholder="Ex: Albufeira"
-                                    style={{...inputStyle, borderColor: '#2563eb', background: '#eff6ff'}} 
+                                    style={{...inputStyle, borderColor: 'var(--color-btnPrimary)', background: 'var(--color-bgSecondary)'}} 
                                     className="input-focus" 
                                 />
                             </div>
@@ -2314,7 +2314,7 @@ export default function Clientes() {
                       {moradas.map(m => (
                         <li key={m.id} style={{background:'white', padding:'20px', borderRadius:'12px', display:'flex', justifyContent:'space-between', alignItems:'flex-start', border:'1px solid #e2e8f0', transition: '0.2s'}} className="hover-shadow">
                           <div>
-                            {m.notas && <span style={{display:'inline-block', marginBottom:'8px', textTransform:'uppercase', fontSize: '0.75rem', background:'#e0f2fe', color:'#0369a1', padding:'4px 8px', borderRadius:'6px', fontWeight:'bold'}}>{m.notas}</span>}
+                            {m.notas && <span style={{display:'inline-block', marginBottom:'8px', textTransform:'uppercase', fontSize: '0.75rem', background:'var(--color-bgTertiary)', color:'var(--color-btnPrimary)', padding:'4px 8px', borderRadius:'6px', fontWeight:'bold'}}>{m.notas}</span>}
                             <div style={{fontWeight:'bold', color:'#334155', fontSize:'1.05rem', marginBottom:'4px'}}>{m.morada}</div>
                             <div style={{color:'#64748b', fontSize:'0.9rem'}}>{m.codigo_postal} {m.localidade}</div>
                             <div style={{color:'#94a3b8', fontSize:'0.85rem', marginTop:'4px'}}>{[m.concelho, m.distrito, m.regiao].filter(Boolean).join(' • ')}</div>
@@ -2350,7 +2350,7 @@ export default function Clientes() {
                             setNovoAcesso(initAcesso);
                             setShowAddAcesso(true);
                           }}
-                          style={{display: 'flex', alignItems: 'center', gap: '8px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '10px', padding: '12px 20px', fontWeight: '700', fontSize: '0.95rem', cursor: 'pointer', transition: '0.2s', boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.3)'}}>
+                          style={{display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-btnPrimary)', color: 'white', border: 'none', borderRadius: '10px', padding: '12px 20px', fontWeight: '700', fontSize: '0.95rem', cursor: 'pointer', transition: '0.2s', boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.3)'}}>
                           <Icons.Plus size={18} /> Nova Credencial
                         </button>
                       )}
@@ -2376,7 +2376,7 @@ export default function Clientes() {
                               display:'flex',
                               justifyContent:'space-between',
                               alignItems:'center',
-                              borderLeft:'5px solid #3b82f6',
+                              borderLeft:'5px solid var(--color-btnPrimary)',
                               boxShadow:'0 2px 4px rgba(0,0,0,0.05)',
                               transition: '0.2s'
                             }}
@@ -2387,11 +2387,11 @@ export default function Clientes() {
 
                               <div style={{fontFamily:'monospace', background:'#f8fafc', border:'1px solid #e2e8f0', padding:'12px', borderRadius:'8px', color:'#334155', fontSize:'0.95rem'}}>
                                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:'10px', marginBottom:'8px'}}>
-                                  <span>User: <b style={{color:'#2563eb'}}>{acesso.utilizador}</b></span>
+                                  <span>User: <b style={{color:'var(--color-btnPrimary)'}}>{acesso.utilizador}</b></span>
                                   <button
                                     type="button"
                                     onClick={() => handleCopyCredential(acesso.utilizador, 'Utilizador')}
-                                    style={{border:'1px solid #bfdbfe', background:'#eff6ff', color:'#1d4ed8', borderRadius:'6px', padding:'4px 8px', cursor:'pointer', display:'inline-flex', alignItems:'center', gap:'4px', fontWeight:'700', fontSize:'0.75rem'}}
+                                    style={{border:'1px solid var(--color-borderColor)', background:'var(--color-bgSecondary)', color:'var(--color-btnPrimaryDark)', borderRadius:'6px', padding:'4px 8px', cursor:'pointer', display:'inline-flex', alignItems:'center', gap:'4px', fontWeight:'700', fontSize:'0.75rem'}}
                                     className="hover-shadow"
                                     title="Copiar utilizador"
                                   >
@@ -2413,7 +2413,7 @@ export default function Clientes() {
                               </div>
 
                               {tipo.url && (
-                                <a href={tipo.url.startsWith('http') ? tipo.url : `https://${tipo.url}`} target="_blank" rel="noreferrer" style={{display:'inline-flex', alignItems: 'center', gap: '6px', marginTop:'12px', fontSize:'0.85rem', color:'#2563eb', textDecoration:'none', fontWeight:'bold', background:'#eff6ff', padding:'6px 12px', borderRadius:'6px', border: '1px solid #bfdbfe', transition: '0.2s'}} className="hover-shadow"><Icons.ExternalLink size={14} /> Abrir Portal de Login</a>
+                                <a href={tipo.url.startsWith('http') ? tipo.url : `https://${tipo.url}`} target="_blank" rel="noreferrer" style={{display:'inline-flex', alignItems: 'center', gap: '6px', marginTop:'12px', fontSize:'0.85rem', color:'var(--color-btnPrimary)', textDecoration:'none', fontWeight:'bold', background:'var(--color-bgSecondary)', padding:'6px 12px', borderRadius:'6px', border: '1px solid var(--color-borderColor)', transition: '0.2s'}} className="hover-shadow"><Icons.ExternalLink size={14} /> Abrir Portal de Login</a>
                               )}
                             </div>
 
@@ -2559,7 +2559,7 @@ export default function Clientes() {
 
             <div style={{display:'flex',gap:'10px',marginTop:'16px'}}>
               <button type="button" onClick={() => setCropModal({ show: false, src: null })} style={{padding:'10px 22px',borderRadius:'8px',border:'1px solid rgba(255,255,255,0.2)',background:'transparent',color:'white',cursor:'pointer',fontWeight:'bold'}}>Cancelar</button>
-              <button type="button" onClick={confirmCrop} disabled={uploading} style={{padding:'10px 28px',borderRadius:'8px',border:'none',background:'#2563eb',color:'white',cursor:'pointer',fontWeight:'bold',fontSize:'0.95rem'}}>{uploading ? 'A guardar...' : 'Confirmar Recorte'}</button>
+              <button type="button" onClick={confirmCrop} disabled={uploading} style={{padding:'10px 28px',borderRadius:'8px',border:'none',background:'var(--color-btnPrimary)',color:'white',cursor:'pointer',fontWeight:'bold',fontSize:'0.95rem'}}>{uploading ? 'A guardar...' : 'Confirmar Recorte'}</button>
             </div>
           </div>
         </ModalPortal>
@@ -2570,12 +2570,12 @@ export default function Clientes() {
           <ModalPortal>
               <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999}}>
                   <div style={{background: 'white', padding: '30px', borderRadius: '16px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out'}}>
-                      <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px'}}><Icons.Alert size={48} color={confirmDialog.isDanger ? "#ef4444" : "#3b82f6"} /></div>
+                      <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px'}}><Icons.Alert size={48} color={confirmDialog.isDanger ? "#ef4444" : "var(--color-btnPrimary)"} /></div>
                       <h3 style={{margin: '0 0 10px 0', color: '#1e293b', fontSize: '1.25rem'}}>Confirmação</h3>
                       <p style={{color: '#64748b', fontSize: '0.95rem', marginBottom: '25px', lineHeight: '1.5', whiteSpace: 'pre-line'}}>{confirmDialog.message}</p>
                       <div style={{display: 'flex', gap: '10px'}}>
                           <button onClick={() => setConfirmDialog({show: false})} style={{flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', background: 'white', color: '#475569', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">Cancelar</button>
-                          <button onClick={confirmDialog.onConfirm} style={{flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: confirmDialog.isDanger ? '#ef4444' : '#2563eb', color: 'white', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">{confirmDialog.confirmText}</button>
+                          <button onClick={confirmDialog.onConfirm} style={{flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: confirmDialog.isDanger ? '#ef4444' : 'var(--color-btnPrimary)', color: 'white', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">{confirmDialog.confirmText}</button>
                       </div>
                   </div>
               </div>
@@ -2596,10 +2596,10 @@ export default function Clientes() {
               style={{background:'white', width:'92%', maxWidth:'680px', borderRadius:'16px', border:'1px solid #e2e8f0', boxShadow:'0 25px 50px -12px rgba(0,0,0,0.25)', overflow:'hidden', animation: 'fadeIn 0.2s ease-out'}}
               onClick={(e) => e.stopPropagation()}
             >
-              <div style={{background: '#eff6ff', padding: '20px 24px', display:'flex', justifyContent:'space-between', alignItems:'center', borderBottom: '1px solid #bfdbfe'}}>
+              <div style={{background: 'var(--color-bgSecondary)', padding: '20px 24px', display:'flex', justifyContent:'space-between', alignItems:'center', borderBottom: '1px solid var(--color-borderColor)'}}>
                 <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
-                  <div style={{background: '#dbeafe', padding: '8px', borderRadius: '8px', display: 'flex', color: '#0369a1'}}><Icons.Lock size={20} /></div>
-                  <h5 style={{margin:0, fontSize:'1.2rem', fontWeight: '800', color: '#1e3a8a'}}>{novoAcesso.id ? 'Editar Credencial' : 'Nova Credencial'}</h5>
+                  <div style={{background: 'var(--color-borderColorLight)', padding: '8px', borderRadius: '8px', display: 'flex', color: 'var(--color-btnPrimary)'}}><Icons.Lock size={20} /></div>
+                  <h5 style={{margin:0, fontSize:'1.2rem', fontWeight: '800', color: 'var(--color-btnPrimaryDark)'}}>{novoAcesso.id ? 'Editar Credencial' : 'Nova Credencial'}</h5>
                 </div>
                 <button
                   onClick={() => {
@@ -2669,7 +2669,7 @@ export default function Clientes() {
                 </button>
                 <button
                   onClick={() => saveSubItem('acessos_cliente', novoAcesso, setAcessos, acessos, setNovoAcesso, initAcesso, setShowAddAcesso)}
-                  style={{background: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', cursor:'pointer', padding: '12px 24px', fontWeight: '600', fontSize: '0.95rem', transition: '0.2s', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 2px 4px rgba(37, 99, 235, 0.2)'}}
+                  style={{background: 'var(--color-btnPrimary)', color: 'white', border: 'none', borderRadius: '8px', cursor:'pointer', padding: '12px 24px', fontWeight: '600', fontSize: '0.95rem', transition: '0.2s', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 2px 4px rgba(37, 99, 235, 0.2)'}}
                   className="hover-shadow"
                 >
                   {novoAcesso.id ? <><Icons.Save size={16} /> Atualizar</> : <><Icons.Plus size={16} /> Guardar Acesso</>}
@@ -2735,7 +2735,7 @@ export default function Clientes() {
 
               .marketing-view-toggle-btn.active {
                 background: #ffffff;
-                color: #2563eb;
+                color: var(--color-btnPrimary);
                 box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             }
 
@@ -2805,9 +2805,9 @@ export default function Clientes() {
             }
 
             .list-action-btn.view {
-              border-color: #bfdbfe;
-              background: #eff6ff;
-              color: #1d4ed8;
+              border-color: var(--color-borderColor);
+              background: var(--color-bgSecondary);
+              color: var(--color-btnPrimaryDark);
             }
 
             .list-action-btn.edit {
@@ -2840,21 +2840,21 @@ export default function Clientes() {
             }
 
           .hover-shadow:hover { box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); transform: translateY(-1px); }
-          .hover-blue-text:hover { background: #eff6ff !important; color: #1d4ed8 !important; }
+          .hover-blue-text:hover { background: var(--color-bgSecondary) !important; color: var(--color-btnPrimaryDark) !important; }
           .hover-orange-text:hover { background: #fff7ed !important; color: #d97706 !important; }
           .hover-green-text:hover { background: #dcfce7 !important; color: #16a34a !important; }
           .hover-red-text:hover { background: #fef2f2 !important; color: #ef4444 !important; }
 
           /* Focus em Inputs */
-          .input-focus:focus { border-color: #3b82f6 !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
+          .input-focus:focus { border-color: var(--color-btnPrimary) !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
 
           /* Action Buttons para Sub-itens */
           .action-btn { background: transparent; border: none; cursor: pointer; opacity: 0.5; transition: 0.2s; display: flex; align-items: center; justify-content: center; padding: 6px; border-radius: 6px; }
           .action-btn:hover { opacity: 1; transform: scale(1.1); }
 
           /* Botão External Link inline */
-          .btn-icon-link { display: flex; align-items: center; justify-content: center; text-decoration: none; background: #eff6ff; color: #2563eb; padding: 0 15px; height: 42px; border-radius: 8px; border: 1px solid #bfdbfe; transition: 0.2s; }
-          .btn-icon-link:hover { background: #dbeafe; transform: translateY(-1px); box-shadow: 0 2px 4px rgba(37,99,235,0.1); }
+          .btn-icon-link { display: flex; align-items: center; justify-content: center; text-decoration: none; background: var(--color-bgSecondary); color: var(--color-btnPrimary); padding: 0 15px; height: 42px; border-radius: 8px; border: 1px solid var(--color-borderColor); transition: 0.2s; }
+          .btn-icon-link:hover { background: var(--color-borderColorLight); transform: translateY(-1px); box-shadow: 0 2px 4px rgba(37,99,235,0.1); }
 
           /* Custom Scrollbar limpa */
           .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }

@@ -124,19 +124,19 @@ export default function CalculadoraKm({ form, setForm }) {
                     <label style={labelStyle}>De *</label>
                     <div style={{ display: 'flex', gap: '8px' }}>
                         <input type="text" value={form.km_origem} onChange={e => setForm({...form, km_origem: e.target.value})} onBlur={() => pesquisarMorada('origem', form.km_origem)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); pesquisarMorada('origem', form.km_origem); }}} placeholder="Pressione Enter para procurar" style={inputStyle} required />
-                        <button type="button" onClick={() => setModoClique(modoClique === 'origem' ? null : 'origem')} style={{ background: modoClique === 'origem' ? '#2563eb' : '#f1f5f9', color: modoClique === 'origem' ? 'white' : '#475569', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0 12px', cursor: 'pointer', fontWeight: 'bold' }} title="Picar no mapa">📍</button>
+                        <button type="button" onClick={() => setModoClique(modoClique === 'origem' ? null : 'origem')} style={{ background: modoClique === 'origem' ? 'var(--color-btnPrimary)' : '#f1f5f9', color: modoClique === 'origem' ? 'white' : '#475569', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0 12px', cursor: 'pointer', fontWeight: 'bold' }} title="Picar no mapa">📍</button>
                     </div>
                 </div>
                 <div style={{ flex: 1, minWidth: '200px' }}>
                     <label style={labelStyle}>Para *</label>
                     <div style={{ display: 'flex', gap: '8px' }}>
                         <input type="text" value={form.km_destino} onChange={e => setForm({...form, km_destino: e.target.value})} onBlur={() => pesquisarMorada('destino', form.km_destino)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); pesquisarMorada('destino', form.km_destino); }}} placeholder="Pressione Enter para procurar" style={inputStyle} required />
-                        <button type="button" onClick={() => setModoClique(modoClique === 'destino' ? null : 'destino')} style={{ background: modoClique === 'destino' ? '#2563eb' : '#f1f5f9', color: modoClique === 'destino' ? 'white' : '#475569', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0 12px', cursor: 'pointer', fontWeight: 'bold' }} title="Picar no mapa">📍</button>
+                        <button type="button" onClick={() => setModoClique(modoClique === 'destino' ? null : 'destino')} style={{ background: modoClique === 'destino' ? 'var(--color-btnPrimary)' : '#f1f5f9', color: modoClique === 'destino' ? 'white' : '#475569', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0 12px', cursor: 'pointer', fontWeight: 'bold' }} title="Picar no mapa">📍</button>
                     </div>
                 </div>
             </div>
 
-            {loadingMsg && <div style={{ fontSize: '0.8rem', color: '#2563eb', fontWeight: 'bold' }}>⏳ {loadingMsg}</div>}
+            {loadingMsg && <div style={{ fontSize: '0.8rem', color: 'var(--color-btnPrimary)', fontWeight: 'bold' }}>⏳ {loadingMsg}</div>}
             {modoClique && <div style={{ fontSize: '0.8rem', color: '#d97706', background: '#fefce8', padding: '6px 10px', borderRadius: '6px', border: '1px solid #fde68a' }}>👉 Clica no mapa para definir o ponto de <b>{modoClique}</b>.</div>}
 
             <div style={{ height: '220px', width: '100%', borderRadius: '12px', overflow: 'hidden', border: '1px solid #cbd5e1', zIndex: 1 }}>
@@ -157,7 +157,7 @@ export default function CalculadoraKm({ form, setForm }) {
                         required
                         value={form.km_total} 
                         onChange={(e) => setForm(prev => ({...prev, km_total: e.target.value}))}
-                        style={{ ...inputStyle, background: '#eff6ff', color: '#1e40af', fontWeight: 'bold', flex: 1 }} 
+                        style={{ ...inputStyle, background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimaryHover)', fontWeight: 'bold', flex: 1 }} 
                     />
                     <span style={{ fontWeight: 'bold', color: '#64748b' }}>Km</span>
                 </div>

@@ -494,7 +494,7 @@ export default function Forum() {
       return parts.map((part, i) => {
           if (part.match(urlRegex)) {
               return (
-                  <a key={i} href={part} target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb', textDecoration: 'underline', wordBreak: 'break-all' }} onClick={(e) => e.stopPropagation()}>
+                  <a key={i} href={part} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-btnPrimary)', textDecoration: 'underline', wordBreak: 'break-all' }} onClick={(e) => e.stopPropagation()}>
                       {part}
                   </a>
               );
@@ -603,7 +603,7 @@ export default function Forum() {
 
           <div className="card" style={{ marginBottom: 25, padding: '25px', display: "flex", justifyContent: "space-between", alignItems: 'center', flexWrap: 'wrap', gap: '15px', background: 'white', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
             <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
-                <div style={{background: '#eff6ff', color: '#2563eb', padding: '12px', borderRadius: '12px', display: 'flex'}}><Icons.Message size={24} /></div>
+                <div style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '12px', borderRadius: '12px', display: 'flex'}}><Icons.Message size={24} /></div>
                 <div>
                     <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>Comunicacao Interna</h1>
                     <p style={{color: '#64748b', margin: 0, fontWeight: '500', fontSize: '0.9rem'}}>Forum de partilha de informacoes e discussoes</p>
@@ -625,19 +625,19 @@ export default function Forum() {
           </div>
 
           {selectedUserFilter && (
-             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#eff6ff', padding: '15px 20px', borderRadius: '12px', border: '1px solid #bfdbfe', marginBottom: '25px' }}>
+             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--color-bgSecondary)', padding: '15px 20px', borderRadius: '12px', border: '1px solid var(--color-borderColor)', marginBottom: '25px' }}>
                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                     <Icons.User color="#2563eb" />
-                     <span style={{ color: '#1e40af', fontWeight: 'bold', fontSize: '1.1rem' }}>A ver o perfil de: {selectedUserFilter.nome}</span>
+                     <Icons.User color="var(--color-btnPrimary)" />
+                     <span style={{ color: 'var(--color-btnPrimaryHover)', fontWeight: 'bold', fontSize: '1.1rem' }}>A ver o perfil de: {selectedUserFilter.nome}</span>
                  </div>
-                 <button onClick={() => setSelectedUserFilter(null)} style={{ background: 'white', border: '1px solid #bfdbfe', color: '#2563eb', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', transition: '0.2s' }} className="hover-shadow">Ver Tudo</button>
+                 <button onClick={() => setSelectedUserFilter(null)} style={{ background: 'white', border: '1px solid var(--color-borderColor)', color: 'var(--color-btnPrimary)', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', transition: '0.2s' }} className="hover-shadow">Ver Tudo</button>
              </div>
           )}
 
           {!selectedUserFilter && (
               <div className="card" style={{background: 'white', padding: '20px', borderRadius: '16px', border: '1px solid #e2e8f0', marginBottom: '25px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)'}}>
                   <div style={{display: 'flex', gap: '15px', alignItems: 'center'}}>
-                      <div style={{width: '45px', height: '45px', borderRadius: '50%', background: '#2563eb', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.1rem', flexShrink: 0}}>
+                      <div style={{width: '45px', height: '45px', borderRadius: '50%', background: 'var(--color-btnPrimary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.1rem', flexShrink: 0}}>
                           {getInitials(userProfile?.nome)}
                       </div>
                       <button onClick={openNewPostModal} style={{flex: 1, background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '25px', padding: '15px 20px', textAlign: 'left', color: '#64748b', fontSize: '0.95rem', cursor: 'pointer', transition: '0.2s'}} className="hover-input-fake">
@@ -707,8 +707,8 @@ export default function Forum() {
                                     key={emoji} 
                                     onClick={(e) => { e.stopPropagation(); handleReact(emoji, post.id, post.forum_reactions); }} 
                                     style={{
-                                        background: hasReacted ? '#eff6ff' : 'transparent', color: hasReacted ? '#2563eb' : '#64748b',
-                                        border: hasReacted ? '1px solid #bfdbfe' : '1px solid transparent', borderRadius: '20px', padding: '6px 12px', cursor: 'pointer', transition: '0.2s',
+                                        background: hasReacted ? 'var(--color-bgSecondary)' : 'transparent', color: hasReacted ? 'var(--color-btnPrimary)' : '#64748b',
+                                        border: hasReacted ? '1px solid var(--color-borderColor)' : '1px solid transparent', borderRadius: '20px', padding: '6px 12px', cursor: 'pointer', transition: '0.2s',
                                         display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold'
                                     }}
                                     className="hover-bg-light"
@@ -731,12 +731,12 @@ export default function Forum() {
       {showNewPostModal && (
         <ModalPortal>
             <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.72)', backdropFilter: 'blur(5px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:99999, padding:'16px'}}>
-                <div style={{background:'white', width:'min(1220px, 98vw)', height:'88vh', borderRadius:'18px', boxShadow: '0 30px 60px -20px rgba(15, 23, 42, 0.45)', overflow: 'hidden', animation: 'fadeIn 0.2s ease-out', display:'flex', flexDirection:'column', border:'1px solid #dbeafe'}}>
+                <div style={{background:'white', width:'min(1220px, 98vw)', height:'88vh', borderRadius:'18px', boxShadow: '0 30px 60px -20px rgba(15, 23, 42, 0.45)', overflow: 'hidden', animation: 'fadeIn 0.2s ease-out', display:'flex', flexDirection:'column', border:'1px solid var(--color-borderColorLight)'}}>
                     <div style={{padding:'18px 24px', background:'#f8fafc', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
                         <div>
-                            <p style={{margin:'0 0 4px 0', fontSize:'0.72rem', fontWeight:'800', letterSpacing:'0.07em', color:'#2563eb', textTransform:'uppercase'}}>Novo Conteudo</p>
+                            <p style={{margin:'0 0 4px 0', fontSize:'0.72rem', fontWeight:'800', letterSpacing:'0.07em', color:'var(--color-btnPrimary)', textTransform:'uppercase'}}>Novo Conteudo</p>
                             <h3 style={{margin:0, color:'#1e293b', fontSize:'1.35rem', fontWeight:'900', display: 'flex', alignItems: 'center', gap: '10px'}}>
-                                <span style={{color: '#2563eb'}}><Icons.Edit size={22} /></span> Compositor de Publicacao
+                                <span style={{color: 'var(--color-btnPrimary)'}}><Icons.Edit size={22} /></span> Compositor de Publicacao
                             </h3>
                         </div>
                         <button onClick={closeNewPostModal} style={{background:'#fff', border:'1px solid #cbd5e1', cursor:'pointer', color:'#64748b', width:'36px', height:'36px', borderRadius:'10px', display:'flex', alignItems:'center', justifyContent:'center'}} className="hover-red-text"><Icons.Close size={20} /></button>
@@ -744,9 +744,9 @@ export default function Forum() {
 
                     <form onSubmit={handleCreatePost} onPaste={handleComposerPaste} style={{display:'grid', gridTemplateColumns:'280px 1fr', flex:1, minHeight:0}}>
                         <aside style={{borderRight:'1px solid #e2e8f0', background:'linear-gradient(180deg, #f8fafc 0%, #ffffff 100%)', padding:'20px 16px', overflowY:'auto'}}>
-                            <div style={{border:'1px solid #dbeafe', borderRadius:'12px', background:'#eff6ff', padding:'12px', marginBottom:'14px'}}>
-                                <p style={{margin:'0 0 6px 0', fontSize:'0.72rem', fontWeight:'800', letterSpacing:'0.06em', color:'#1d4ed8', textTransform:'uppercase'}}>Guia Rapido</p>
-                                <div style={{fontSize:'0.85rem', color:'#1e3a8a', lineHeight:'1.45'}}>
+                            <div style={{border:'1px solid var(--color-borderColorLight)', borderRadius:'12px', background:'var(--color-bgSecondary)', padding:'12px', marginBottom:'14px'}}>
+                                <p style={{margin:'0 0 6px 0', fontSize:'0.72rem', fontWeight:'800', letterSpacing:'0.06em', color:'var(--color-btnPrimaryDark)', textTransform:'uppercase'}}>Guia Rapido</p>
+                                <div style={{fontSize:'0.85rem', color:'var(--color-btnPrimaryDark)', lineHeight:'1.45'}}>
                                     1. Define titulo e categoria.
                                     <br />2. Adiciona blocos de texto e imagem.
                                     <br />3. Podes colar imagem com CTRL+V.
@@ -755,7 +755,7 @@ export default function Forum() {
 
                             <div style={{display:'grid', gap:'8px', marginBottom:'14px'}}>
                                 <button type="button" onClick={addTextBlock} style={{border: '1px solid #cbd5e1', background: 'white', color: '#334155', borderRadius: '10px', padding: '10px 12px', cursor: 'pointer', fontWeight: '700', fontSize: '0.85rem', textAlign:'left'}}>+ Bloco de texto</button>
-                                <button type="button" onClick={addImageBlock} style={{border: '1px solid #bfdbfe', background: '#eff6ff', color: '#2563eb', borderRadius: '10px', padding: '10px 12px', cursor: 'pointer', fontWeight: '700', fontSize: '0.85rem', textAlign:'left'}}>+ Bloco de imagem</button>
+                                <button type="button" onClick={addImageBlock} style={{border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', borderRadius: '10px', padding: '10px 12px', cursor: 'pointer', fontWeight: '700', fontSize: '0.85rem', textAlign:'left'}}>+ Bloco de imagem</button>
                             </div>
 
                             <div style={{fontSize:'0.8rem', color:'#64748b', lineHeight:'1.5', borderTop:'1px solid #e2e8f0', paddingTop:'12px'}}>
@@ -811,12 +811,12 @@ export default function Forum() {
                                                 />
                                             ) : (
                                                 <div style={{display: 'grid', gap: '8px'}}>
-                                                    <label style={{display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: '600', color: '#2563eb'}}>
-                                                        <Icons.Image size={18} color="#2563eb" /> Selecionar imagem
+                                                    <label style={{display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: '600', color: 'var(--color-btnPrimary)'}}>
+                                                        <Icons.Image size={18} color="var(--color-btnPrimary)" /> Selecionar imagem
                                                         <input type="file" accept="image/*" onChange={(e) => updateImageBlockFile(block.id, e.target.files?.[0])} style={{display: 'none'}} />
                                                     </label>
                                                     {(block.previewUrl || block.uploadedUrl) ? (
-                                                        <div style={{borderRadius: '8px', overflow: 'hidden', border: '1px solid #dbeafe', background: 'white', padding: '8px', display: 'flex', justifyContent: 'center'}}>
+                                                        <div style={{borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--color-borderColorLight)', background: 'white', padding: '8px', display: 'flex', justifyContent: 'center'}}>
                                                             <img src={block.previewUrl || block.uploadedUrl} alt="Preview do bloco" style={{maxWidth: '100%', maxHeight: '260px', objectFit: 'contain', borderRadius: '6px'}} />
                                                         </div>
                                                     ) : (
@@ -884,10 +884,10 @@ export default function Forum() {
                                 const hasReacted = selectedPost.forum_reactions?.find(r => r.user_id === user.id && r.reaction_type === emoji);
                                 return (
                                     <button key={emoji} onClick={() => handleReact(emoji, selectedPost.id, selectedPost.forum_reactions)} style={{
-                                            background: hasReacted ? '#eff6ff' : 'white', border: hasReacted ? '1px solid #bfdbfe' : '1px solid #e2e8f0', 
+                                            background: hasReacted ? 'var(--color-bgSecondary)' : 'white', border: hasReacted ? '1px solid var(--color-borderColor)' : '1px solid #e2e8f0', 
                                             borderRadius: '20px', padding: '8px 16px', cursor: 'pointer', fontSize:'1.2rem', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '8px'
                                         }} className={!hasReacted ? "hover-shadow" : ""}>
-                                        {emoji} <span style={{fontSize:'0.9rem', fontWeight:'bold', color: hasReacted ? '#2563eb' : '#64748b'}}>{count}</span>
+                                        {emoji} <span style={{fontSize:'0.9rem', fontWeight:'bold', color: hasReacted ? 'var(--color-btnPrimary)' : '#64748b'}}>{count}</span>
                                     </button>
                                 );
                             })}
@@ -899,7 +899,7 @@ export default function Forum() {
                         
                         <div style={{padding: '20px 25px', borderBottom: '1px solid #e2e8f0', background: 'white'}}>
                             <h4 style={{margin: 0, color: '#1e293b', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px'}}>
-                                <Icons.Message size={18} color="#2563eb" /> Comentários ({comments.length})
+                                <Icons.Message size={18} color="var(--color-btnPrimary)" /> Comentários ({comments.length})
                             </h4>
                         </div>
 
@@ -908,7 +908,7 @@ export default function Forum() {
                                 <div key={c.id} style={{background: 'white', padding: '15px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.02)'}}>
                                     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px'}}>
                                         <div style={{display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.85rem'}}>
-                                            <div style={{width: '28px', height: '28px', borderRadius: '50%', background: '#eff6ff', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.75rem', border: '1px solid #bfdbfe'}}>
+                                            <div style={{width: '28px', height: '28px', borderRadius: '50%', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.75rem', border: '1px solid var(--color-borderColor)'}}>
                                                 {getInitials(c.profiles?.nome)}
                                             </div>
                                             <span style={{fontWeight: '800', color: '#1e293b', fontSize: '0.95rem'}}>{c.profiles?.nome}</span>
@@ -1004,12 +1004,12 @@ export default function Forum() {
         .hover-red-text:hover { color: #ef4444 !important; }
         .hover-bg-light:hover { background-color: #f1f5f9 !important; color: #1e293b !important; }
         .hover-input-fake:hover { background-color: #e2e8f0 !important; color: #334155 !important; }
-        .hover-border-blue:hover { border-color: #3b82f6 !important; background: #eff6ff !important; }
+        .hover-border-blue:hover { border-color: var(--color-btnPrimary) !important; background: var(--color-bgSecondary) !important; }
         
         .hover-avatar:hover { background: #e2e8f0 !important; border-color: #94a3b8 !important; }
-        .hover-name:hover { text-decoration: underline; color: #2563eb !important; }
+        .hover-name:hover { text-decoration: underline; color: var(--color-btnPrimary) !important; }
 
-        .input-focus:focus { border-color: #3b82f6 !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
+        .input-focus:focus { border-color: var(--color-btnPrimary) !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
         
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }

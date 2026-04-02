@@ -3,10 +3,12 @@ import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext"; 
+import { useTheme } from "../context/ThemeContext";
 import WidgetAssiduidade from "../components/WidgetAssiduidade";
 import TimerSwitchModal from "../components/TimerSwitchModal";
 import StopTimerNoteModal from "../components/StopTimerNoteModal";
 import { frasesMotivacionais } from "../data/frases"; 
+import { THEMES } from "../constants/themes";
 import { concludeActivityWithChildren } from "../utils/activityStatusCascade";
 import { buildDependencyMaps, getActivityBlockReason, getTaskBlockReason } from "../utils/dependencyGuards";
 import "./../styles/dashboard.css";
@@ -51,7 +53,8 @@ const ModalPortal = ({ children }) => {
 };
 
 export default function DashboardHome() {
-    const { user, signOut } = useAuth(); 
+        const { user, signOut } = useAuth(); 
+    const { currentTheme, changeTheme } = useTheme();
   const navigate = useNavigate();
   
   const [tarefasHoje, setTarefasHoje] = useState([]);
@@ -68,6 +71,7 @@ export default function DashboardHome() {
   const [activeLog, setActiveLog] = useState(null);
 
   const [showMenu, setShowMenu] = useState(false);
+    const [showThemeModal, setShowThemeModal] = useState(false);
   const [frase, setFrase] = useState("");
   const [horaAtual, setHoraAtual] = useState("");
   const [showBirthdayPopup, setShowBirthdayPopup] = useState(false); 
@@ -1053,7 +1057,7 @@ export default function DashboardHome() {
       if (segundos === 0) return <span style={{color: '#94a3b8', fontStyle: 'italic', fontSize: '0.75rem'}}>Em curso</span>;
       const horas = Math.floor(segundos / 3600);
       const minutos = Math.floor((segundos % 3600) / 60);
-      return <span style={{fontWeight: 'bold', color: '#2563eb'}}>{horas}h{minutos.toString().padStart(2, '0')}</span>;
+      return <span style={{fontWeight: 'bold', color: 'var(--color-btnPrimary)'}}>{horas}h{minutos.toString().padStart(2, '0')}</span>;
   };
 
   const renderTaskDeadline = (dateString) => {
@@ -1174,10 +1178,10 @@ export default function DashboardHome() {
                 <div onClick={() => setShowMenu(!showMenu)} style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', padding: '8px 12px', borderRadius: '8px', background: showMenu ? '#f1f5f9' : 'transparent', transition: 'all 0.2s' }}>
                     <div style={{textAlign: 'right', display: 'flex', flexDirection: 'column'}}>
                          <span style={{fontWeight: 'bold', fontSize: '0.9rem', color: '#334151'}}>{userFirstName}</span>
-                         <span style={{fontSize: '0.75rem', color: '#2563eb', fontWeight: '500'}}>{userProfile?.empresa_interna || 'Empresa'}</span>
+                         <span style={{fontSize: '0.75rem', color: 'var(--color-btnPrimary)', fontWeight: '500'}}>{userProfile?.empresa_interna || 'Empresa'}</span>
                     </div>
                     
-                    <div style={{ width: '42px', height: '42px', borderRadius: '50%', background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.1rem', boxShadow: '0 2px 4px rgba(37, 99, 235, 0.3)', overflow: 'hidden' }}>
+                    <div style={{ width: '42px', height: '42px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--color-btnPrimary), var(--color-btnPrimaryDark))', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.1rem', boxShadow: '0 2px 4px rgba(37, 99, 235, 0.3)', overflow: 'hidden' }}>
                         {userProfile?.avatar_url ? (
                             <img src={userProfile.avatar_url} alt="User" style={{width:'100%', height:'100%', objectFit:'cover'}} />
                         ) : (
@@ -1192,6 +1196,15 @@ export default function DashboardHome() {
                     <button className="menu-item" onClick={() => navigate("/dashboard/perfil")}><Icons.User /> O Meu Perfil</button>
                     <button className="menu-item" onClick={() => navigate("/dashboard/ferias")}><Icons.Sun /> Férias & Ausências</button>
                                         <button className="menu-item" onClick={() => navigate("/dashboard/pedido-km")}><Icons.Calendar /> Pedido de Deslocação</button>
+                                        <button
+                                            className="menu-item"
+                                            onClick={() => {
+                                                setShowMenu(false);
+                                                setShowThemeModal(true);
+                                            }}
+                                        >
+                                            <Icons.Sun /> Temas da app
+                                        </button>
                     <button className="menu-item logout" onClick={handleLogout} style={{borderTop: '1px solid #f1f5f9'}}><Icons.LogOut /> Terminar Sessão</button>
                   </div>
                 )}
@@ -1210,14 +1223,14 @@ export default function DashboardHome() {
                 <div className="card stat-card neo-stat boom-reveal" onClick={() => navigate("/dashboard/projetos")} style={{ '--d': '90ms', borderLeft: '3px solid #a8b7d1', cursor: 'pointer', transition: '0.2s', padding: '16px' }}>
                     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
                         <div><h3 style={{fontSize: '0.8rem', color: '#64748b', margin: '0 0 5px 0'}}>Projetos Ativos</h3><p style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#1e293b', margin: 0 }}>{stats.projetos}</p></div>
-                        <span style={{background: '#eff6ff', color: '#2563eb', padding: '6px', borderRadius: '8px', display: 'flex'}}><Icons.Rocket size={18}/></span>
+                        <span style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '6px', borderRadius: '8px', display: 'flex'}}><Icons.Rocket size={18}/></span>
                     </div>
                 </div>
 
-                <div className="card stat-card neo-stat boom-reveal" onClick={() => navigate("/dashboard/clientes")} style={{ '--d': '140ms', borderLeft: '3px solid #93c5fd', cursor: 'pointer', transition: '0.2s', padding: '16px' }}>
+                <div className="card stat-card neo-stat boom-reveal" onClick={() => navigate("/dashboard/clientes")} style={{ '--d': '140ms', borderLeft: '3px solid var(--color-borderColorLight)', cursor: 'pointer', transition: '0.2s', padding: '16px' }}>
                     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
                         <div><h3 style={{fontSize: '0.8rem', color: '#64748b', margin: '0 0 5px 0'}}>Total Clientes</h3><p style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#1e293b', margin: 0 }}>{stats.clientes}</p></div>
-                        <span style={{background: '#dbeafe', color: '#2563eb', padding: '6px', borderRadius: '8px', display: 'flex'}}><Icons.Users size={18}/></span>
+                        <span style={{background: 'var(--color-borderColorLight)', color: 'var(--color-btnPrimary)', padding: '6px', borderRadius: '8px', display: 'flex'}}><Icons.Users size={18}/></span>
                     </div>
                 </div>
 
@@ -1240,7 +1253,7 @@ export default function DashboardHome() {
                 {/* ── EQUIPA ONLINE ── */}
                 <div ref={onlineCardRef} className="card online-showcase boom-reveal" style={{ '--d': '280ms', padding: '20px', background: '#ffffff', borderRadius: '16px', display: 'flex', flexDirection: 'column', border: '1px solid #dbe6f5', boxShadow: '0 4px 16px rgba(15, 23, 42, 0.04)'}}>
                     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px'}}>
-                        <h4 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Activity size={18} color="#2563eb" /> Equipa Online</h4>
+                        <h4 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Activity size={18} color="var(--color-btnPrimary)" /> Equipa Online</h4>
                         <span style={{background: '#f8fbff', color: '#64748b', padding: '3px 10px', borderRadius: '999px', fontSize: '0.72rem', fontWeight: '700', border: '1px solid #dbe6f5'}}>{usersOnline.length} online</span>
                     </div>
                     
@@ -1255,12 +1268,12 @@ export default function DashboardHome() {
                                 onMouseEnter={e => { e.currentTarget.style.background='rgba(255,255,255,0.95)'; e.currentTarget.style.boxShadow='0 4px 12px rgba(15,23,42,0.1)'; e.currentTarget.style.transform='translateY(-1px)'; }}
                                 onMouseLeave={e => { e.currentTarget.style.background='rgba(255,255,255,0.7)'; e.currentTarget.style.boxShadow='0 2px 8px rgba(15,23,42,0.05)'; e.currentTarget.style.transform='translateY(0)'; }}>
                                 <div style={{position:'relative'}}>
-                                    <div style={{width:'38px', height:'38px', borderRadius:'50%', background:'#3b82f6', color:'white', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:'700', fontSize:'0.7rem', overflow:'hidden', border:'2px solid #ffffff', boxShadow:'0 2px 6px rgba(59,130,246,0.15)'}}>
+                                    <div style={{width:'38px', height:'38px', borderRadius:'50%', background:'var(--color-btnPrimary)', color:'white', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:'700', fontSize:'0.7rem', overflow:'hidden', border:'2px solid #ffffff', boxShadow:'0 2px 6px rgba(59,130,246,0.15)'}}>
                                         {u.profiles?.avatar_url
                                             ? <img src={u.profiles.avatar_url} alt="U" style={{width:'100%', height:'100%', objectFit:'cover', objectPosition:'center', display:'block'}} />
                                             : getInitials(u.profiles?.nome)}
                                     </div>
-                                    <span style={{position:'absolute', bottom:'0px', right:'0px', width:'8px', height:'8px', background:'#2563eb', borderRadius:'50%', border:'1.5px solid white', display:'block'}}></span>
+                                    <span style={{position:'absolute', bottom:'0px', right:'0px', width:'8px', height:'8px', background:'var(--color-btnPrimary)', borderRadius:'50%', border:'1.5px solid white', display:'block'}}></span>
                                 </div>
                                 <span style={{fontSize:'0.65rem', fontWeight:'600', color:'#334155', textAlign:'center', width:'100%', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{uNome}</span>
                                 <span style={{fontSize:'0.6rem', color:'#94a3b8'}}>{u.hora_entrada?.slice(0,5)}</span>
@@ -1353,7 +1366,7 @@ export default function DashboardHome() {
                                         <button
                                             onClick={(e) => handleStartTaskFromHome(t, e)}
                                             title={isRunning ? 'Parar temporizador' : 'Retomar temporizador'}
-                                            style={{border: 'none', background: isRunning ? '#fee2e2' : '#eff6ff', color: isRunning ? '#ef4444' : '#2563eb', borderRadius: '999px', width: '26px', height: '26px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'}}
+                                            style={{border: 'none', background: isRunning ? '#fee2e2' : 'var(--color-bgSecondary)', color: isRunning ? '#ef4444' : 'var(--color-btnPrimary)', borderRadius: '999px', width: '26px', height: '26px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'}}
                                         >
                                             {isRunning ? <Icons.Stop size={10} /> : <Icons.Play size={10} />}
                                         </button>
@@ -1368,7 +1381,7 @@ export default function DashboardHome() {
                                 {recentTasksVisibleCount < tarefasRecentesCards.length && (
                                     <button
                                         className="btn-small hover-shadow"
-                                        style={{background: '#eff6ff', color: '#2563eb', fontWeight: '700'}}
+                                        style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', fontWeight: '700'}}
                                         onClick={() => setRecentTasksVisibleCount((prev) => Math.min(prev + 2, tarefasRecentesCards.length))}
                                     >
                                         Ver mais
@@ -1398,7 +1411,7 @@ export default function DashboardHome() {
                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px'}}>
                     <h4 style={{margin: 0, color: '#1e293b', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Flame color="#ef4444" /> Para Hoje / Atrasadas</h4>
                     {tarefasHoje.length > 6 && (
-                        <button className="btn-small hover-shadow" style={{background: '#eff6ff', color: '#2563eb', fontWeight: 'bold'}} onClick={() => navigate("/dashboard/tarefas")}>
+                        <button className="btn-small hover-shadow" style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', fontWeight: 'bold'}} onClick={() => navigate("/dashboard/tarefas")}>
                             Ver as {tarefasHoje.length} <Icons.ChevronRight />
                         </button>
                     )}
@@ -1434,7 +1447,7 @@ export default function DashboardHome() {
                                     <button
                                         onClick={(e) => handleStartTaskFromHome(t, e)}
                                         title={isRunning ? 'Parar temporizador' : 'Iniciar temporizador'}
-                                        style={{border: 'none', background: isRunning ? '#fee2e2' : '#eff6ff', color: isRunning ? '#ef4444' : '#2563eb', borderRadius: '999px', width: '26px', height: '26px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'}}
+                                        style={{border: 'none', background: isRunning ? '#fee2e2' : 'var(--color-bgSecondary)', color: isRunning ? '#ef4444' : 'var(--color-btnPrimary)', borderRadius: '999px', width: '26px', height: '26px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'}}
                                     >
                                         {isRunning ? <Icons.Stop size={10} /> : <Icons.Play size={10} />}
                                     </button>
@@ -1450,7 +1463,7 @@ export default function DashboardHome() {
             {/* 📋 OUTRAS TAREFAS E ATIVIDADES (FUTURO) */}
             <div className="card boom-reveal" style={{ '--d': '330ms', padding: '20px', background: 'white', borderRadius: '16px' }}>
                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px'}}>
-                    <h4 style={{margin: 0, color: '#1e293b', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Clipboard color="#2563eb" /> Próximas Tarefas / Blocos</h4>
+                    <h4 style={{margin: 0, color: '#1e293b', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Clipboard color="var(--color-btnPrimary)" /> Próximas Tarefas / Blocos</h4>
                     {tarefasGerais.length > 8 && (
                         <button className="btn-small hover-shadow" style={{background: '#f8fafc', color: '#64748b', fontWeight: 'bold'}} onClick={() => navigate("/dashboard/tarefas")}>
                             Ver as {tarefasGerais.length} <Icons.ChevronRight />
@@ -1488,7 +1501,7 @@ export default function DashboardHome() {
                                     <button
                                         onClick={(e) => handleStartTaskFromHome(t, e)}
                                         title={isRunning ? 'Parar temporizador' : 'Iniciar temporizador'}
-                                        style={{border: 'none', background: isRunning ? '#fee2e2' : '#eff6ff', color: isRunning ? '#ef4444' : '#2563eb', borderRadius: '999px', width: '26px', height: '26px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'}}
+                                        style={{border: 'none', background: isRunning ? '#fee2e2' : 'var(--color-bgSecondary)', color: isRunning ? '#ef4444' : 'var(--color-btnPrimary)', borderRadius: '999px', width: '26px', height: '26px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'}}
                                     >
                                         {isRunning ? <Icons.Stop size={10} /> : <Icons.Play size={10} />}
                                     </button>
@@ -1541,7 +1554,7 @@ export default function DashboardHome() {
                     
                     <div style={{padding: '20px 30px', borderBottom: '1px solid #e2e8f0', background: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px'}}>
                         <div style={{display: 'flex', alignItems: 'center', gap: '20px'}}>
-                            <div style={{background: '#eff6ff', color: '#2563eb', padding: '10px', borderRadius: '10px', display: 'flex'}}><Icons.Calendar size={24} /></div>
+                            <div style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '10px', borderRadius: '10px', display: 'flex'}}><Icons.Calendar size={24} /></div>
                             <div>
                                 <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.2rem'}}>Histórico de Assiduidade</h3>
                                 <div style={{display: 'flex', alignItems: 'center', gap: '10px', marginTop: '5px'}}>
@@ -1557,7 +1570,7 @@ export default function DashboardHome() {
                         <div style={{display: 'flex', gap: '20px', alignItems: 'center'}}>
                             <div style={{background: '#f8fafc', padding: '10px 20px', borderRadius: '10px', border: '1px solid #e2e8f0', textAlign: 'center'}}>
                                 <div style={{fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 'bold'}}>Total do Mês</div>
-                                <div style={{fontSize: '1.2rem', fontWeight: 'bold', color: '#2563eb'}}>{totalHorasMes.h}h {totalHorasMes.m}m</div>
+                                <div style={{fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--color-btnPrimary)'}}>{totalHorasMes.h}h {totalHorasMes.m}m</div>
                             </div>
                             
                             <button className="btn-cta" onClick={() => { setIsAdding(true); setEditingRecord(null); }}>
@@ -1583,29 +1596,29 @@ export default function DashboardHome() {
                             </thead>
                             <tbody>
                                 {isAdding && (
-                                    <tr style={{background: '#eff6ff', borderBottom: '2px solid #bfdbfe'}}>
+                                    <tr style={{background: 'var(--color-bgSecondary)', borderBottom: '2px solid var(--color-borderColor)'}}>
                                         <td colSpan="7" style={{padding: '20px'}}>
-                                            <h4 style={{marginTop:0, color:'#1e40af', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Plus /> Adicionar Registo Manual</h4>
+                                            <h4 style={{marginTop:0, color:'var(--color-btnPrimaryHover)', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Plus /> Adicionar Registo Manual</h4>
                                             <form onSubmit={handleSaveNew} style={{display: 'flex', gap: '15px', flexWrap: 'wrap'}}>
                                                 <div style={{flex: 1, minWidth: '130px'}}>
-                                                    <label style={{fontSize: '0.75rem', fontWeight: 'bold', color: '#1e40af'}}>Data *</label>
+                                                    <label style={{fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--color-btnPrimaryHover)'}}>Data *</label>
                                                     <input type="date" value={addForm.data} onChange={e => setAddForm({...addForm, data: e.target.value})} style={inputEditStyle} className="input-focus" required />
                                                 </div>
                                                 <div style={{flex: 1, minWidth: '100px'}}>
-                                                    <label style={{fontSize: '0.75rem', fontWeight: 'bold', color: '#1e40af'}}>Entrada *</label>
+                                                    <label style={{fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--color-btnPrimaryHover)'}}>Entrada *</label>
                                                     <input type="time" value={addForm.hora_entrada} onChange={e => setAddForm({...addForm, hora_entrada: e.target.value})} style={inputEditStyle} className="input-focus" required />
                                                 </div>
                                                 <div style={{flex: 1, minWidth: '100px'}}>
-                                                    <label style={{fontSize: '0.75rem', fontWeight: 'bold', color: '#1e40af'}}>Saída *</label>
+                                                    <label style={{fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--color-btnPrimaryHover)'}}>Saída *</label>
                                                     <input type="time" value={addForm.hora_saida} onChange={e => setAddForm({...addForm, hora_saida: e.target.value})} style={inputEditStyle} className="input-focus" required />
                                                 </div>
                                                 <div style={{flex: 1, minWidth: '100px'}}>
-                                                    <label style={{fontSize: '0.75rem', fontWeight: 'bold', color: '#1e40af'}}>Pausa (Min)</label>
+                                                    <label style={{fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--color-btnPrimaryHover)'}}>Pausa (Min)</label>
                                                     <input type="number" min="0" value={addForm.tempo_pausa} onChange={e => setAddForm({...addForm, tempo_pausa: e.target.value})} style={inputEditStyle} className="input-focus" />
                                                 </div>
                                                 
                                                 <div style={{flex: 2, minWidth: '200px'}}>
-                                                    <label style={{fontSize: '0.75rem', fontWeight: 'bold', color: '#1e40af'}}>Tarefas Realizadas / Resumo do Dia</label>
+                                                    <label style={{fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--color-btnPrimaryHover)'}}>Tarefas Realizadas / Resumo do Dia</label>
                                                     <textarea rows="5" value={addForm.observacoes} onChange={e => setAddForm({...addForm, observacoes: e.target.value})} style={{...inputEditStyle, resize:'vertical'}} className="input-focus" />
                                                 </div>
                                                 
@@ -1634,11 +1647,11 @@ export default function DashboardHome() {
 
                                     return (
                                         <React.Fragment key={r.id}>
-                                            <tr style={{borderBottom: '1px solid #e2e8f0', background: isEditing ? '#eff6ff' : 'white'}} className={!isEditing ? "table-row-hover" : ""}>
+                                            <tr style={{borderBottom: '1px solid #e2e8f0', background: isEditing ? 'var(--color-bgSecondary)' : 'white'}} className={!isEditing ? "table-row-hover" : ""}>
                                                 <td style={{padding: '12px 15px', fontWeight: 'bold', color: '#334155'}}>
                                                     {new Date(r.data_registo).toLocaleDateString('pt-PT')}
                                                 </td>
-                                                <td style={{padding: '12px 15px', color: '#2563eb'}}>{r.hora_entrada?.slice(0,5)}</td>
+                                                <td style={{padding: '12px 15px', color: 'var(--color-btnPrimary)'}}>{r.hora_entrada?.slice(0,5)}</td>
                                                 <td style={{padding: '12px 15px', color: r.hora_saida ? '#ef4444' : '#94a3b8'}}>
                                                     {r.hora_saida?.slice(0,5) || '---'}
                                                 </td>
@@ -1655,31 +1668,31 @@ export default function DashboardHome() {
                                                 </td>
 
                                                 <td style={{padding: '12px 15px', textAlign: 'right'}}>
-                                                    <button onClick={() => handleStartEdit(r)} style={{background: 'transparent', border: 'none', color: '#3b82f6', cursor: 'pointer', padding: '4px'}} className="hover-text-blue" title="Editar este registo">
+                                                    <button onClick={() => handleStartEdit(r)} style={{background: 'transparent', border: 'none', color: 'var(--color-btnPrimary)', cursor: 'pointer', padding: '4px'}} className="hover-text-blue" title="Editar este registo">
                                                         <Icons.Edit size={16} />
                                                     </button>
                                                 </td>
                                             </tr>
 
                                             {isEditing && (
-                                                <tr style={{background: '#eff6ff', borderBottom: '2px solid #bfdbfe'}}>
+                                                <tr style={{background: 'var(--color-bgSecondary)', borderBottom: '2px solid var(--color-borderColor)'}}>
                                                     <td colSpan="7" style={{padding: '20px'}}>
                                                         <form onSubmit={(e) => handleSaveEdit(e, r.id)} style={{display: 'flex', gap: '15px', flexWrap: 'wrap'}}>
                                                             <div style={{flex: 1, minWidth: '100px'}}>
-                                                                <label style={{fontSize: '0.75rem', fontWeight: 'bold', color: '#1e40af'}}>Hora Entrada</label>
+                                                                <label style={{fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--color-btnPrimaryHover)'}}>Hora Entrada</label>
                                                                 <input type="time" value={editForm.hora_entrada} onChange={e => setEditForm({...editForm, hora_entrada: e.target.value})} style={inputEditStyle} className="input-focus" required />
                                                             </div>
                                                             <div style={{flex: 1, minWidth: '100px'}}>
-                                                                <label style={{fontSize: '0.75rem', fontWeight: 'bold', color: '#1e40af'}}>Hora Saída</label>
+                                                                <label style={{fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--color-btnPrimaryHover)'}}>Hora Saída</label>
                                                                 <input type="time" value={editForm.hora_saida} onChange={e => setEditForm({...editForm, hora_saida: e.target.value})} style={inputEditStyle} className="input-focus" />
                                                             </div>
                                                             <div style={{flex: 1, minWidth: '100px'}}>
-                                                                <label style={{fontSize: '0.75rem', fontWeight: 'bold', color: '#1e40af'}}>Pausa (Minutos)</label>
+                                                                <label style={{fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--color-btnPrimaryHover)'}}>Pausa (Minutos)</label>
                                                                 <input type="number" min="0" value={editForm.tempo_pausa} onChange={e => setEditForm({...editForm, tempo_pausa: e.target.value})} style={inputEditStyle} className="input-focus" />
                                                             </div>
                                                             
                                                             <div style={{flex: 2, minWidth: '200px'}}>
-                                                                <label style={{fontSize: '0.75rem', fontWeight: 'bold', color: '#1e40af'}}>Tarefas Realizadas / Resumo do Dia</label>
+                                                                <label style={{fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--color-btnPrimaryHover)'}}>Tarefas Realizadas / Resumo do Dia</label>
                                                                 <textarea rows="5" value={editForm.observacoes || ""} onChange={e => setEditForm({...editForm, observacoes: e.target.value})} placeholder="O que foi feito..." style={{...inputEditStyle, resize:'vertical'}} className="input-focus" />
                                                             </div>
 
@@ -1776,29 +1789,108 @@ export default function DashboardHome() {
                 onConfirm={confirmStopWithNote}
             />
 
+            {showThemeModal && (
+                <ModalPortal>
+                    <div
+                        onClick={() => setShowThemeModal(false)}
+                        style={{
+                            position: 'fixed',
+                            inset: 0,
+                            background: 'rgba(15, 23, 42, 0.55)',
+                            backdropFilter: 'blur(4px)',
+                            zIndex: 10000,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '24px'
+                        }}
+                    >
+                        <div
+                            onClick={(e) => e.stopPropagation()}
+                            style={{
+                                width: 'min(760px, 95vw)',
+                                maxHeight: '85vh',
+                                overflow: 'auto',
+                                background: 'white',
+                                borderRadius: '16px',
+                                border: '1px solid #e2e8f0',
+                                boxShadow: '0 24px 48px rgba(15, 23, 42, 0.22)',
+                                animation: 'fadeIn 0.2s ease-out'
+                            }}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 18px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                                <div>
+                                    <h3 style={{ margin: 0, fontSize: '1.05rem', color: '#0f172a', fontWeight: '800' }}>Temas da app</h3>
+                                    <p style={{ margin: '4px 0 0 0', fontSize: '0.82rem', color: '#64748b' }}>Escolhe um tema. A app aplica na hora e guarda automaticamente.</p>
+                                </div>
+                                <button
+                                    onClick={() => setShowThemeModal(false)}
+                                    style={{ background: '#fff', border: '1px solid #cbd5e1', width: '34px', height: '34px', borderRadius: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#475569' }}
+                                    className="hover-shadow"
+                                >
+                                    <Icons.Close />
+                                </button>
+                            </div>
+
+                            <div style={{ padding: '16px' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
+                                    {Object.entries(THEMES).map(([key, theme]) => {
+                                        const isActive = currentTheme === key;
+                                        return (
+                                            <button
+                                                key={key}
+                                                onClick={() => changeTheme(key)}
+                                                title={theme.description}
+                                                style={{
+                                                    textAlign: 'left',
+                                                    border: isActive ? '2px solid var(--color-btnPrimary)' : '1px solid #dbe2ea',
+                                                    background: '#ffffff',
+                                                    borderRadius: '12px',
+                                                    padding: '10px',
+                                                    cursor: 'pointer',
+                                                    transition: 'all 0.2s',
+                                                    boxShadow: isActive ? '0 8px 18px -14px rgba(37, 99, 235, 0.55)' : 'none'
+                                                }}
+                                            >
+                                                <div style={{ height: '54px', borderRadius: '9px', background: theme.bgGradient, border: '1px solid #e2e8f0' }} />
+                                                <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+                                                    <span style={{ color: '#1e293b', fontWeight: '700', fontSize: '0.9rem' }}>{theme.name}</span>
+                                                    {isActive && <span style={{ fontSize: '0.72rem', color: 'var(--color-btnPrimary)', fontWeight: '700' }}>Ativo</span>}
+                                                </div>
+                                                <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '0.76rem', lineHeight: 1.3 }}>{theme.description}</p>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </ModalPortal>
+            )}
+
       <style>{`
                 .dashboard-home {
-                    background: linear-gradient(180deg, #f7efe2 0%, #f4ede2 100%);
+                    background: linear-gradient(180deg, var(--color-bgSecondary) 0%, var(--color-bgPrimary) 100%);
                     border-radius: 20px;
                     padding: 14px;
                     font-family: "Manrope", "Sora", "Segoe UI", sans-serif;
                 }
 
                 .dashboard-home .card {
-                    border: 1px solid #ebe7df;
+                    border: 1px solid var(--color-borderColorLight);
                     box-shadow: 0 6px 18px rgba(17, 24, 39, 0.04);
                     backdrop-filter: blur(8px);
                 }
 
                 .dashboard-hero {
-                    background: linear-gradient(120deg, rgba(255,255,255,0.95), rgba(255,255,255,0.82)) !important;
-                    border: 1px solid #ebe7df !important;
+                    background: linear-gradient(120deg, var(--color-bgTertiary), var(--color-bgSecondary)) !important;
+                    border: 1px solid var(--color-borderColorLight) !important;
                     box-shadow: 0 12px 28px rgba(17, 24, 39, 0.05) !important;
                     backdrop-filter: blur(12px);
                 }
 
                 .neo-stat {
-                    background: linear-gradient(180deg, #ffffff 0%, #fcfbf8 100%);
+                    background: linear-gradient(180deg, var(--color-bgTertiary) 0%, var(--color-bgSecondary) 100%);
                     box-shadow: 0 6px 14px rgba(15, 23, 42, 0.04);
                 }
 
@@ -1828,28 +1920,28 @@ export default function DashboardHome() {
                 }
 
                 .online-showcase::before {
-                    background: linear-gradient(90deg, #c2cde0, #b9cde7);
+                    background: linear-gradient(90deg, var(--color-btnPrimary), var(--color-btnPrimaryDark));
                 }
 
                 .birthday-showcase::before {
-                    background: linear-gradient(90deg, #e2cfb5, #d7bfa0);
+                    background: linear-gradient(90deg, var(--color-borderColor), var(--color-borderColorLight));
                 }
 
-        .menu-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 15px; text-align: left; background: none; border: none; cursor: pointer; font-size: 0.9rem; color: #334151; transition: background 0.2s; }
-        .menu-item:hover { background: #f8fafc; color: #2563eb; }
+        .menu-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 15px; text-align: left; background: none; border: none; cursor: pointer; font-size: 0.9rem; color: var(--color-textSecondary); transition: background 0.2s; }
+        .menu-item:hover { background: var(--color-bgSecondary); color: var(--color-btnPrimary); }
         .menu-item.logout { color: #dc2626; }
         .menu-item.logout:hover { background: #fef2f2; color: #b91c1c; }
         
         .stat-card:hover { transform: translateY(-2px); box-shadow: 0 12px 24px -14px rgba(15,23,42,0.25); }
-        .table-row-hover:hover { background-color: #f1f5f9 !important; }
+        .table-row-hover:hover { background-color: var(--color-bgSecondary) !important; }
         .hover-shadow:hover { transform: translateY(-1px); box-shadow: 0 8px 14px -10px rgba(15,23,42,0.28); }
-        .hover-text-blue:hover { color: #2563eb !important; }
+        .hover-text-blue:hover { color: var(--color-btnPrimary) !important; }
         .hover-red-text:hover { color: #ef4444 !important; }
         
         /* Estilos dos Cartões de Tarefa */
-        .task-hover-card:hover { border-color: #ddd6c8 !important; box-shadow: 0 14px 24px -18px rgba(15,23,42,0.35); transform: translateY(-2px); transition: all 0.2s; }
+        .task-hover-card:hover { border-color: var(--color-borderColor) !important; box-shadow: 0 14px 24px -18px rgba(15,23,42,0.35); transform: translateY(-2px); transition: all 0.2s; }
         
-        .input-focus:focus { border-color: #3b82f6 !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
+        .input-focus:focus { border-color: var(--color-btnPrimary) !important; box-shadow: 0 0 0 2px var(--color-btnPrimaryShadow); }
         .input-focus-alert:focus { border-color: #f59e0b !important; box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.1); }
 
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
@@ -1879,7 +1971,7 @@ export default function DashboardHome() {
         <div onClick={() => setSelectedOnlineUser(null)} style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center'}}>
           <div onClick={e => e.stopPropagation()} style={{background:'white', borderRadius:'20px', padding:'36px 32px', width:'360px', maxWidth:'90vw', boxShadow:'0 20px 60px rgba(0,0,0,0.25)', display:'flex', flexDirection:'column', alignItems:'center', gap:'14px', position:'relative'}}>
             <button onClick={() => setSelectedOnlineUser(null)} style={{position:'absolute', top:'12px', right:'14px', background:'none', border:'none', fontSize:'1.2rem', cursor:'pointer', color:'#94a3b8', lineHeight:1}}>✕</button>
-            <div style={{width:'140px', height:'140px', borderRadius:'50%', overflow:'hidden', background:'#3b82f6', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:'bold', fontSize:'2.4rem', color:'white', flexShrink:0, border:'4px solid #dcfce7', boxShadow:'0 6px 20px rgba(59,130,246,0.25)'}}>
+            <div style={{width:'140px', height:'140px', borderRadius:'50%', overflow:'hidden', background:'var(--color-btnPrimary)', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:'bold', fontSize:'2.4rem', color:'white', flexShrink:0, border:'4px solid #dcfce7', boxShadow:'0 6px 20px rgba(59,130,246,0.25)'}}>
               {selectedOnlineUser.profiles?.avatar_url
                 ? <img src={selectedOnlineUser.profiles.avatar_url} alt="avatar" style={{width:'100%', height:'100%', objectFit:'cover', objectPosition:'center', display:'block'}} />
                 : getInitials(selectedOnlineUser.profiles?.nome)}
@@ -1890,9 +1982,9 @@ export default function DashboardHome() {
               {selectedOnlineUser.profiles?.empresa_interna && <div style={{fontSize:'0.78rem', color:'#94a3b8', marginTop:'2px'}}>{selectedOnlineUser.profiles.empresa_interna}</div>}
             </div>
             <div style={{display:'flex', flexDirection:'column', gap:'8px', width:'100%', marginTop:'4px'}}>
-                            <div style={{display:'flex', alignItems:'center', gap:'8px', background:'#eff6ff', borderRadius:'10px', padding:'8px 12px'}}>
-                                <Icons.CircleDot size={10} color="#2563eb" />
-                                <span style={{fontSize:'0.82rem', color:'#1d4ed8', fontWeight:'600'}}>Online agora · entrou às {selectedOnlineUser.hora_entrada?.slice(0,5)}</span>
+                            <div style={{display:'flex', alignItems:'center', gap:'8px', background:'var(--color-bgSecondary)', borderRadius:'10px', padding:'8px 12px'}}>
+                                <Icons.CircleDot size={10} color="var(--color-btnPrimary)" />
+                                <span style={{fontSize:'0.82rem', color:'var(--color-btnPrimaryDark)', fontWeight:'600'}}>Online agora · entrou às {selectedOnlineUser.hora_entrada?.slice(0,5)}</span>
               </div>
               {selectedOnlineUser.profiles?.telemovel && (
                 <div style={{display:'flex', alignItems:'center', gap:'8px', background:'#f8fafc', borderRadius:'10px', padding:'8px 12px'}}>
@@ -1931,3 +2023,4 @@ export default function DashboardHome() {
     </div>
   );
 }
+

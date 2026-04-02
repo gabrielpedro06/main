@@ -160,7 +160,7 @@ export default function WidgetCalendar() {
             listaEventos.push({
                 id: a.id, dia: dataAgenda.getDate(), tipo: 'agenda', hora: a.hora.slice(0, 5), 
                 displayName: `${a.hora.slice(0, 5)} ${a.titulo}`, 
-                bg: '#e0f2fe', txt: '#0369a1', fullTitle: a.titulo
+                bg: 'var(--color-bgTertiary)', txt: 'var(--color-btnPrimary)', fullTitle: a.titulo
             });
         });
     }
@@ -306,7 +306,7 @@ export default function WidgetCalendar() {
                                   let bgColor = 'transparent';
                                   let txtColor = '#475569';
                                   
-                                  if (isToday) { bgColor = '#2563eb'; txtColor = 'white'; }
+                                  if (isToday) { bgColor = 'var(--color-btnPrimary)'; txtColor = 'white'; }
                                   else if (isFeriado) { bgColor = '#fee2e2'; txtColor = '#991b1b'; }
                                   else if (isNiver) { bgColor = '#fef08a'; txtColor = '#854d0e'; }
 
@@ -357,13 +357,13 @@ export default function WidgetCalendar() {
                           <div key={index} onClick={() => { setDataAtual(new Date(anoAtual, mesAtual, dia)); setViewMode('day'); }}
                               style={{
                                   minHeight: '50px', display: 'flex', flexDirection: 'column', borderRadius: '6px', 
-                                  background: isToday ? '#eff6ff' : 'white', border: isToday ? '1px solid #bfdbfe' : '1px solid #f1f5f9',
+                                  background: isToday ? 'var(--color-bgSecondary)' : 'white', border: isToday ? '1px solid var(--color-borderColor)' : '1px solid #f1f5f9',
                                   padding: '4px', fontSize: '0.85rem', cursor: 'pointer', overflow: 'hidden'
                               }}
                               onMouseOver={(e) => e.currentTarget.style.borderColor = '#cbd5e1'}
-                              onMouseOut={(e) => e.currentTarget.style.borderColor = isToday ? '#bfdbfe' : '#f1f5f9'}
+                              onMouseOut={(e) => e.currentTarget.style.borderColor = isToday ? 'var(--color-borderColor)' : '#f1f5f9'}
                           >
-                              <span style={{fontSize: '0.7rem', fontWeight: 'bold', color: isToday ? '#2563eb' : (evtsDoDia.find(e=>e.tipo==='feriado') ? '#ef4444' : '#94a3b8'), marginBottom: '2px'}}>{dia}</span>
+                              <span style={{fontSize: '0.7rem', fontWeight: 'bold', color: isToday ? 'var(--color-btnPrimary)' : (evtsDoDia.find(e=>e.tipo==='feriado') ? '#ef4444' : '#94a3b8'), marginBottom: '2px'}}>{dia}</span>
                               <div style={{display: 'flex', flexDirection: 'column', gap: '2px'}}>
                                   {evtsDoDia.slice(0, 2).map((ev, i) => (
                                       <div key={i} style={{fontSize: '0.6rem', background: ev.bg, color: ev.txt, padding: '2px 4px', borderRadius: '4px', fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>
@@ -431,7 +431,7 @@ export default function WidgetCalendar() {
                                                               <input type="time" value={editingEvent.hora} onChange={e => setEditingEvent({...editingEvent, hora: e.target.value})} style={{border: 'none', background: 'transparent', outline: 'none', color: '#334155', fontWeight: 'bold', fontSize: '0.85rem', width: '70px'}} required />
                                                               <input autoFocus type="text" value={editingEvent.titulo} onChange={e => setEditingEvent({...editingEvent, titulo: e.target.value})} placeholder="Título do evento..." style={{flex: 1, border: 'none', background: 'transparent', outline: 'none', fontSize: '0.85rem', color: '#1e293b'}} required />
                                                               <button type="button" onClick={() => setEditingEvent(null)} style={{background: 'transparent', color: '#64748b', border: 'none', cursor: 'pointer', fontSize: '1rem', padding: '0 5px'}}>✕</button>
-                                                              <button type="submit" style={{background: '#2563eb', color: 'white', border: 'none', borderRadius: '4px', padding: '0 10px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold'}}>Gravar</button>
+                                                              <button type="submit" style={{background: 'var(--color-btnPrimary)', color: 'white', border: 'none', borderRadius: '4px', padding: '0 10px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold'}}>Gravar</button>
                                                           </form>
                                                       </div>
                                                   )
@@ -472,10 +472,10 @@ export default function WidgetCalendar() {
                                           {/* FORMULÁRIO RÁPIDO PARA ADICIONAR NOVO */}
                                           {addingAtHour === hour && !editingEvent && (
                                               <div onClick={e => e.stopPropagation()} style={{marginRight: '10px', marginTop: eventsInThisHour.length > 0 ? '4px' : '0'}}>
-                                                  <form onSubmit={(e) => handleInlineSubmit(e, hour)} style={{display: 'flex', gap: '5px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', padding: '4px 8px'}}>
-                                                      <input type="time" value={novoEvento.hora} onChange={e => setNovoEvento({...novoEvento, hora: e.target.value})} style={{border: 'none', background: 'transparent', outline: 'none', color: '#2563eb', fontWeight: 'bold', fontSize: '0.85rem', width: '70px'}} />
+                                                  <form onSubmit={(e) => handleInlineSubmit(e, hour)} style={{display: 'flex', gap: '5px', background: 'var(--color-bgSecondary)', border: '1px solid var(--color-borderColor)', borderRadius: '8px', padding: '4px 8px'}}>
+                                                      <input type="time" value={novoEvento.hora} onChange={e => setNovoEvento({...novoEvento, hora: e.target.value})} style={{border: 'none', background: 'transparent', outline: 'none', color: 'var(--color-btnPrimary)', fontWeight: 'bold', fontSize: '0.85rem', width: '70px'}} />
                                                       <input autoFocus type="text" value={novoEvento.titulo} onChange={e => setNovoEvento({...novoEvento, titulo: e.target.value})} onBlur={() => { if(!novoEvento.titulo) setAddingAtHour(null); }} placeholder="Reunião... (Enter para gravar)" style={{flex: 1, border: 'none', background: 'transparent', outline: 'none', fontSize: '0.85rem', color: '#1e293b'}} />
-                                                      <button type="submit" style={{background: '#2563eb', color: 'white', border: 'none', borderRadius: '4px', padding: '0 8px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold'}}>+</button>
+                                                      <button type="submit" style={{background: 'var(--color-btnPrimary)', color: 'white', border: 'none', borderRadius: '4px', padding: '0 8px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold'}}>+</button>
                                                   </form>
                                               </div>
                                           )}
@@ -496,9 +496,9 @@ export default function WidgetCalendar() {
     <div className="card" style={{height: '100%', minHeight: '400px', display: 'flex', flexDirection: 'column', boxSizing: 'border-box', padding: '20px'}}>
       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
         <div style={{display: 'flex', background: '#f1f5f9', borderRadius: '8px', padding: '2px'}}>
-            <button onClick={() => { setViewMode('day'); setAddingAtHour(null); setEditingEvent(null); }} style={{border: 'none', background: viewMode === 'day' ? 'white' : 'transparent', color: viewMode === 'day' ? '#2563eb' : '#64748b', padding: '4px 10px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer'}}>Dia</button>
-            <button onClick={() => { setViewMode('month'); setAddingAtHour(null); setEditingEvent(null); }} style={{border: 'none', background: viewMode === 'month' ? 'white' : 'transparent', color: viewMode === 'month' ? '#2563eb' : '#64748b', padding: '4px 10px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer'}}>Mês</button>
-            <button onClick={() => { setViewMode('year'); setAddingAtHour(null); setEditingEvent(null); }} style={{border: 'none', background: viewMode === 'year' ? 'white' : 'transparent', color: viewMode === 'year' ? '#2563eb' : '#64748b', padding: '4px 10px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer'}}>Ano</button>
+            <button onClick={() => { setViewMode('day'); setAddingAtHour(null); setEditingEvent(null); }} style={{border: 'none', background: viewMode === 'day' ? 'white' : 'transparent', color: viewMode === 'day' ? 'var(--color-btnPrimary)' : '#64748b', padding: '4px 10px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer'}}>Dia</button>
+            <button onClick={() => { setViewMode('month'); setAddingAtHour(null); setEditingEvent(null); }} style={{border: 'none', background: viewMode === 'month' ? 'white' : 'transparent', color: viewMode === 'month' ? 'var(--color-btnPrimary)' : '#64748b', padding: '4px 10px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer'}}>Mês</button>
+            <button onClick={() => { setViewMode('year'); setAddingAtHour(null); setEditingEvent(null); }} style={{border: 'none', background: viewMode === 'year' ? 'white' : 'transparent', color: viewMode === 'year' ? 'var(--color-btnPrimary)' : '#64748b', padding: '4px 10px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer'}}>Ano</button>
         </div>
         <button onClick={goToHoje} style={{border: 'none', background: 'transparent', color: '#64748b', textDecoration: 'underline', fontSize: '0.8rem', cursor: 'pointer'}}>Hoje</button>
       </div>
@@ -519,7 +519,7 @@ export default function WidgetCalendar() {
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .timeline-row:hover > div:nth-child(2) { border-top-color: #cbd5e1 !important; transition: border 0.2s; }
-        .year-month-card:hover { border-color: #bfdbfe !important; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.1) !important; transform: translateY(-2px); }
+        .year-month-card:hover { border-color: var(--color-borderColor) !important; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.1) !important; transform: translateY(-2px); }
         .year-day-cell:hover:not(.has-event) { background: #f1f5f9 !important; }
         .year-day-cell.has-event:hover { filter: brightness(0.95); }
 

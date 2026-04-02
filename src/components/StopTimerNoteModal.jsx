@@ -42,7 +42,7 @@ export default function StopTimerNoteModal({
             transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
           }
           .stop-note-textarea:focus {
-            border-color: #93c5fd !important;
+            border-color: var(--color-borderColorLight) !important;
             box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
             background: #ffffff !important;
           }
@@ -66,7 +66,7 @@ export default function StopTimerNoteModal({
             transition: all 0.2s ease;
           }
           .stop-complete-option:hover {
-            border-color: #bfdbfe !important;
+            border-color: var(--color-borderColor) !important;
             background: #f8fbff !important;
           }
         `}
@@ -116,8 +116,8 @@ export default function StopTimerNoteModal({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              background: "#eff6ff",
-              color: "#2563eb",
+              background: "var(--color-bgSecondary)",
+              color: "var(--color-btnPrimary)",
               marginBottom: "4px"
             }}
           >
@@ -169,8 +169,8 @@ export default function StopTimerNoteModal({
                   fontSize: "0.98rem",
                   fontWeight: 600,
                   cursor: "pointer",
-                  border: "1px solid #dbeafe",
-                  background: shouldComplete ? "#eff6ff" : "#f8fafc",
+                  border: "1px solid var(--color-borderColorLight)",
+                  background: shouldComplete ? "var(--color-bgSecondary)" : "#f8fafc",
                   borderRadius: "14px",
                   padding: "12px 14px",
                   textAlign: "left"
@@ -182,7 +182,7 @@ export default function StopTimerNoteModal({
                     height: "20px",
                     borderRadius: "6px",
                     border: shouldComplete ? "none" : "2px solid #94a3b8",
-                    background: shouldComplete ? "linear-gradient(135deg, #2563eb, #1d4ed8)" : "#fff",
+                    background: shouldComplete ? "linear-gradient(135deg, var(--color-btnPrimary), var(--color-btnPrimaryDark))" : "#fff",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -235,7 +235,7 @@ export default function StopTimerNoteModal({
                 height: "50px",
                 borderRadius: "14px",
                 border: "none",
-                background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
+                background: "linear-gradient(135deg, var(--color-btnPrimary), var(--color-btnPrimaryDark))",
                 color: "white",
                 fontWeight: 600,
                 fontSize: "1rem",
@@ -252,3 +252,5 @@ export default function StopTimerNoteModal({
     document.body
   );
 }
+
+

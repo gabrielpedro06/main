@@ -34,7 +34,7 @@ const Icons = {
 const ModalPortal = ({ children }) => createPortal(children, document.body);
 
 // Cores Dinâmicas para Setores
-const setorColors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#f43f5e', '#14b8a6', '#0ea5e9', '#6366f1'];
+const setorColors = ['var(--color-btnPrimary)', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#f43f5e', '#14b8a6', 'var(--color-primary)', '#6366f1'];
 const getColorForSetor = (nome) => {
     if (!nome) return '#94a3b8';
     const hash = String(nome).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
@@ -88,7 +88,7 @@ export default function GestaoLeads() {
   const initialForm = { nome: "", nif: "", localidade: "", contacto: "", email: "", titular: "", cae: "", setor: "", estado: "novo", ativo: true };
 
   const statusOptions = [
-    { value: "novo", label: "Novo", color: "#3b82f6", bg: "#eff6ff", border: "#bfdbfe" },
+    { value: "novo", label: "Novo", color: "var(--color-btnPrimary)", bg: "var(--color-bgSecondary)", border: "var(--color-borderColor)" },
     { value: "contactado", label: "Contactado", color: "#eab308", bg: "#fefce8", border: "#fef08a" },
     { value: "reuniao", label: "Reunião", color: "#a855f7", bg: "#faf5ff", border: "#e9d5ff" },
     { value: "proposta", label: "Proposta", color: "#f97316", bg: "#fff7ed", border: "#fed7aa" },
@@ -543,8 +543,8 @@ export default function GestaoLeads() {
 
       {/* TABS */}
       <div style={{display:'flex', gap:'5px', paddingLeft: '10px'}}>
-          <button onClick={() => {setActiveTab("leads"); setViewMode('kanban'); setCurrentPage(1);}} style={{padding: '12px 25px', background: activeTab === 'leads' ? 'white' : '#e2e8f0', color: activeTab === 'leads' ? '#2563eb' : '#64748b', border: 'none', borderRadius: '12px 12px 0 0', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display:'flex', alignItems:'center', gap:'8px'}}><Icons.Rocket /> Leads</button>
-          <button onClick={() => {setActiveTab("prospects"); setViewMode('table'); setCurrentPage(1);}} style={{padding: '12px 25px', background: activeTab === 'prospects' ? 'white' : '#e2e8f0', color: activeTab === 'prospects' ? '#2563eb' : '#64748b', border: 'none', borderRadius: '12px 12px 0 0', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display:'flex', alignItems:'center', gap:'8px'}}><Icons.Building /> Prospects</button>
+          <button onClick={() => {setActiveTab("leads"); setViewMode('kanban'); setCurrentPage(1);}} style={{padding: '12px 25px', background: activeTab === 'leads' ? 'white' : '#e2e8f0', color: activeTab === 'leads' ? 'var(--color-btnPrimary)' : '#64748b', border: 'none', borderRadius: '12px 12px 0 0', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display:'flex', alignItems:'center', gap:'8px'}}><Icons.Rocket /> Leads</button>
+          <button onClick={() => {setActiveTab("prospects"); setViewMode('table'); setCurrentPage(1);}} style={{padding: '12px 25px', background: activeTab === 'prospects' ? 'white' : '#e2e8f0', color: activeTab === 'prospects' ? 'var(--color-btnPrimary)' : '#64748b', border: 'none', borderRadius: '12px 12px 0 0', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display:'flex', alignItems:'center', gap:'8px'}}><Icons.Building /> Prospects</button>
       </div>
 
       <div className="card" style={{ padding: '20px', borderRadius: '0 12px 12px 12px', background: (!selectedSetor && viewMode === 'kanban') ? 'transparent' : 'white', border: (!selectedSetor && viewMode === 'kanban') ? 'none' : '1px solid #e2e8f0', boxShadow: (!selectedSetor && viewMode === 'kanban') ? 'none' : '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
@@ -564,15 +564,15 @@ export default function GestaoLeads() {
           
           {selectedSetor && (
               <div style={{display: 'flex', background: '#f1f5f9', borderRadius: '8px', padding: '4px', border: '1px solid #e2e8f0', marginLeft: 'auto'}}>
-                  <button onClick={() => setViewMode("table")} style={{padding: '6px 12px', borderRadius: '6px', border: 'none', background: viewMode === "table" ? 'white' : 'transparent', color: viewMode === "table" ? '#2563eb' : '#64748b', boxShadow: viewMode === "table" ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: '0.2s', fontWeight: 'bold'}}>
+                  <button onClick={() => setViewMode("table")} style={{padding: '6px 12px', borderRadius: '6px', border: 'none', background: viewMode === "table" ? 'white' : 'transparent', color: viewMode === "table" ? 'var(--color-btnPrimary)' : '#64748b', boxShadow: viewMode === "table" ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: '0.2s', fontWeight: 'bold'}}>
                       Lista
                   </button>
                   {activeTab === 'prospects' ? (
-                      <button onClick={() => setViewMode("grid")} style={{padding: '6px 12px', borderRadius: '6px', border: 'none', background: viewMode === "grid" ? 'white' : 'transparent', color: viewMode === "grid" ? '#2563eb' : '#64748b', boxShadow: viewMode === "grid" ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: '0.2s', fontWeight: 'bold'}}>
+                      <button onClick={() => setViewMode("grid")} style={{padding: '6px 12px', borderRadius: '6px', border: 'none', background: viewMode === "grid" ? 'white' : 'transparent', color: viewMode === "grid" ? 'var(--color-btnPrimary)' : '#64748b', boxShadow: viewMode === "grid" ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: '0.2s', fontWeight: 'bold'}}>
                           Cartões
                       </button>
                   ) : (
-                      <button onClick={() => setViewMode("kanban")} style={{padding: '6px 12px', borderRadius: '6px', border: 'none', background: viewMode === "kanban" ? 'white' : 'transparent', color: viewMode === "kanban" ? '#2563eb' : '#64748b', boxShadow: viewMode === "kanban" ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: '0.2s', fontWeight: 'bold'}}>
+                      <button onClick={() => setViewMode("kanban")} style={{padding: '6px 12px', borderRadius: '6px', border: 'none', background: viewMode === "kanban" ? 'white' : 'transparent', color: viewMode === "kanban" ? 'var(--color-btnPrimary)' : '#64748b', boxShadow: viewMode === "kanban" ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: '0.2s', fontWeight: 'bold'}}>
                           Cartões
                       </button>
                   )}
@@ -747,7 +747,7 @@ export default function GestaoLeads() {
                                     <div style={{display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '15px', flex: 1}}>
                                         <div style={{fontSize: '0.8rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.MapPin/> {item.localidade || 'Sem Localidade'}</div>
                                         <div style={{display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center'}}>
-                                            {item.setor && <span style={{fontSize: '0.7rem', background: '#eff6ff', color: '#2563eb', padding: '2px 6px', borderRadius: '8px', fontWeight: 'bold', border: '1px solid #bfdbfe'}}>{item.setor}</span>}
+                                            {item.setor && <span style={{fontSize: '0.7rem', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '2px 6px', borderRadius: '8px', fontWeight: 'bold', border: '1px solid var(--color-borderColor)'}}>{item.setor}</span>}
                                             {item.cae && <span style={{fontSize: '0.7rem', color: '#64748b', fontWeight: '600'}}>CAE: {item.cae}</span>}
                                         </div>
                                     </div>
@@ -794,14 +794,14 @@ export default function GestaoLeads() {
                                         <div style={{display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.85rem'}}>
                                             {item.titular && <span style={{fontWeight: '600', color: '#475569', display:'flex', alignItems:'center', gap:'4px'}}><Icons.User/> {item.titular}</span>}
                                             {item.contacto && <span style={{display:'flex', alignItems:'center', gap:'4px'}}><Icons.Phone/> {item.contacto}</span>}
-                                            {item.email && <span style={{color: '#2563eb', display:'flex', alignItems:'center', gap:'4px'}}><Icons.Mail/> <a href={`mailto:${item.email}`} style={{color: 'inherit', textDecoration: 'none'}}>{item.email}</a></span>}
+                                            {item.email && <span style={{color: 'var(--color-btnPrimary)', display:'flex', alignItems:'center', gap:'4px'}}><Icons.Mail/> <a href={`mailto:${item.email}`} style={{color: 'inherit', textDecoration: 'none'}}>{item.email}</a></span>}
                                             {isMissingData && <span style={{fontSize: '0.7rem', color: '#b45309', background: '#fef3c7', padding: '2px 6px', borderRadius: '4px', alignSelf: 'flex-start', fontWeight: 'bold', display:'flex', alignItems:'center', gap:'4px'}}><Icons.Alert/> Faltam Contactos</span>}
                                         </div>
                                     </td>
 
                                     <td style={{padding: '15px'}}>
                                         <div style={{display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-start'}}>
-                                            {item.setor ? <span style={{fontSize: '0.7rem', background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe', padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold'}}>{item.setor}</span> : <span style={{color: '#cbd5e1'}}>-</span>}
+                                            {item.setor ? <span style={{fontSize: '0.7rem', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', border: '1px solid var(--color-borderColor)', padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold'}}>{item.setor}</span> : <span style={{color: '#cbd5e1'}}>-</span>}
                                             {item.cae && <span style={{fontSize: '0.7rem', color: '#64748b', fontWeight: '600'}}>CAE: {item.cae}</span>}
                                         </div>
                                     </td>
@@ -831,7 +831,7 @@ export default function GestaoLeads() {
                                             </button>
 
                                             {!isInactive && activeTab === "prospects" && (
-                                                <button onClick={() => promoteToLead(item)} title="Mover para Leads" style={{background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow"><Icons.Rocket /></button>
+                                                <button onClick={() => promoteToLead(item)} title="Mover para Leads" style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', border: '1px solid var(--color-borderColor)', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow"><Icons.Rocket /></button>
                                             )}
                                             {!isInactive && activeTab === "leads" && item.estado === 'convertido' && (
                                                 <button onClick={() => promoteToClient(item)} title="Criar Cliente Oficial" style={{background: '#dcfce7', color: '#16a34a', border: '1px solid #bbf7d0', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow"><Icons.Handshake /></button>
@@ -941,7 +941,7 @@ export default function GestaoLeads() {
                                           placeholder="Escreva o novo setor" 
                                           value={modalForm.data.setor || ""} 
                                           onChange={e => setModalForm({...modalForm, data: {...modalForm.data, setor: e.target.value}})} 
-                                          style={{...inputStyle, width: '100%', marginTop: '8px', borderColor: '#3b82f6', background: '#eff6ff'}} 
+                                          style={{...inputStyle, width: '100%', marginTop: '8px', borderColor: 'var(--color-btnPrimary)', background: 'var(--color-bgSecondary)'}} 
                                       />
                                   )}
                               </div>
@@ -977,8 +977,8 @@ export default function GestaoLeads() {
                         <p style={{margin: '5px 0 0 0', color: '#64748b', fontSize: '0.9rem'}}>Destino: <b>{activeTab === 'leads' ? 'Leads' : 'Prospects'}</b></p>
                     </div>
 
-                    <div style={{background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', padding: '15px', marginBottom: '25px'}}>
-                        <p style={{margin: 0, fontSize: '0.85rem', color: '#1e40af', lineHeight: '1.5'}}>
+                    <div style={{background: 'var(--color-bgSecondary)', border: '1px solid var(--color-borderColor)', borderRadius: '8px', padding: '15px', marginBottom: '25px'}}>
+                        <p style={{margin: 0, fontSize: '0.85rem', color: 'var(--color-btnPrimaryHover)', lineHeight: '1.5'}}>
                             <strong>Colunas Obrigatórias (nesta ordem exata):</strong><br/>
                             Nome, NIF, Localidade, Contacto, Email, Titular, CAE
                         </p>
@@ -995,7 +995,7 @@ export default function GestaoLeads() {
                     <div style={{marginBottom: '25px'}}>
                         <label 
                             style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '30px', border: '2px dashed #cbd5e1', borderRadius: '12px', cursor: 'pointer', background: '#f8fafc', transition: 'all 0.2s' }}
-                            onMouseOver={(e) => e.currentTarget.style.borderColor = '#3b82f6'}
+                            onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--color-btnPrimary)'}
                             onMouseOut={(e) => e.currentTarget.style.borderColor = '#cbd5e1'}
                         >
                             <span style={{marginBottom: '10px', color: '#94a3b8'}}><Icons.Doc /></span>
@@ -1033,13 +1033,13 @@ export default function GestaoLeads() {
                     <div style={{display: 'flex', gap: '8px', marginBottom: '12px'}}>
                         <button
                             onClick={() => setCampaignForm(prev => ({ ...prev, mode: "template" }))}
-                            style={{padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: campaignForm.mode === "template" ? '#2563eb' : 'white', color: campaignForm.mode === "template" ? 'white' : '#475569', fontWeight: '700', cursor: 'pointer'}}
+                            style={{padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: campaignForm.mode === "template" ? 'var(--color-btnPrimary)' : 'white', color: campaignForm.mode === "template" ? 'white' : '#475569', fontWeight: '700', cursor: 'pointer'}}
                         >
                             Template Brevo (principal)
                         </button>
                         <button
                             onClick={() => setCampaignForm(prev => ({ ...prev, mode: "html" }))}
-                            style={{padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: campaignForm.mode === "html" ? '#2563eb' : 'white', color: campaignForm.mode === "html" ? 'white' : '#475569', fontWeight: '700', cursor: 'pointer'}}
+                            style={{padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: campaignForm.mode === "html" ? 'var(--color-btnPrimary)' : 'white', color: campaignForm.mode === "html" ? 'white' : '#475569', fontWeight: '700', cursor: 'pointer'}}
                         >
                             HTML (secundário)
                         </button>
@@ -1183,12 +1183,12 @@ export default function GestaoLeads() {
           <ModalPortal>
               <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999}}>
                   <div style={{background: 'white', padding: '30px', borderRadius: '16px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out'}}>
-                      <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px'}}><Icons.Alert color={confirmDialog.isDanger ? "#ef4444" : "#3b82f6"} /></div>
+                      <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px'}}><Icons.Alert color={confirmDialog.isDanger ? "#ef4444" : "var(--color-btnPrimary)"} /></div>
                       <h3 style={{margin: '0 0 10px 0', color: '#1e293b', fontSize: '1.25rem'}}>Confirmação</h3>
                       <p style={{color: '#64748b', fontSize: '0.95rem', marginBottom: '25px', lineHeight: '1.5', whiteSpace: 'pre-line'}}>{confirmDialog.message}</p>
                       <div style={{display: 'flex', gap: '10px'}}>
                           <button onClick={() => setConfirmDialog({show: false})} style={{flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', background: 'white', color: '#475569', fontWeight: 'bold', cursor: 'pointer'}} className="hover-shadow">Cancelar</button>
-                          <button onClick={confirmDialog.onConfirm} style={{flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: confirmDialog.isDanger ? '#ef4444' : '#2563eb', color: 'white', fontWeight: 'bold', cursor: 'pointer'}} className="hover-shadow">{confirmDialog.confirmText}</button>
+                          <button onClick={confirmDialog.onConfirm} style={{flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: confirmDialog.isDanger ? '#ef4444' : 'var(--color-btnPrimary)', color: 'white', fontWeight: 'bold', cursor: 'pointer'}} className="hover-shadow">{confirmDialog.confirmText}</button>
                       </div>
                   </div>
               </div>
@@ -1201,7 +1201,7 @@ export default function GestaoLeads() {
         .table-row-hover:hover { background-color: #f8fafc !important; }
         .hover-shadow:hover { transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
         .hover-orange-text:hover { color: #f97316 !important; opacity: 1 !important; }
-        .hover-blue-text:hover { color: #3b82f6 !important; opacity: 1 !important; }
+        .hover-blue-text:hover { color: var(--color-btnPrimary) !important; opacity: 1 !important; }
         .hover-green-text:hover { color: #16a34a !important; opacity: 1 !important; }
         .hover-red-text:hover { color: #ef4444 !important; opacity: 1 !important; }
         
