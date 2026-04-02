@@ -21,15 +21,30 @@ const Icons = {
   User: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>,
     Heart: ({ size = 16, color = "currentColor", fill = "none" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>,
     Stop: ({ size = 12, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none"><rect x="6" y="6" width="12" height="12" rx="2" ry="2"></rect></svg>,
+    GripVertical: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="19" r="1"></circle></svg>,
   Edit: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
 };
 
 const ModalPortal = ({ children }) => createPortal(children, document.body);
 
 const BLOCKS_PREFIX = "BLOCKS_V1:";
+const IMAGE_SIZE_OPTIONS = [
+    { value: "sm", label: "Pequena", maxWidth: "320px" },
+    { value: "md", label: "Média", maxWidth: "520px" },
+    { value: "lg", label: "Grande", maxWidth: "760px" },
+    { value: "full", label: "Largura total", maxWidth: "100%" },
+];
+const TEXT_ALIGNMENT_OPTIONS = [
+    { value: "left", label: "Esquerda" },
+    { value: "center", label: "Centro" },
+    { value: "right", label: "Direita" },
+    { value: "justify", label: "Justificado" },
+];
 
-const createTextBlock = (text = "") => ({ id: `${Date.now()}_${Math.random()}`, type: "text", text });
-const createImageBlock = () => ({ id: `${Date.now()}_${Math.random()}`, type: "image", file: null, previewUrl: "", uploadedUrl: "" });
+const getImageSizeConfig = (size) => IMAGE_SIZE_OPTIONS.find((option) => option.value === size) || IMAGE_SIZE_OPTIONS[2];
+
+const createTextBlock = (text = "", align = "left") => ({ id: `${Date.now()}_${Math.random()}`, type: "text", text, align });
+const createImageBlock = (size = "lg") => ({ id: `${Date.now()}_${Math.random()}`, type: "image", file: null, previewUrl: "", uploadedUrl: "", size });
 
 const parsePostBlocks = (post) => {
     const conteudo = typeof post?.conteudo === "string" ? post.conteudo : "";
@@ -41,7 +56,7 @@ const parsePostBlocks = (post) => {
                     .filter((b) => b && (b.type === "text" || b.type === "image"))
                     .map((b) => {
                         if (b.type === "text") {
-                            return { id: `${Date.now()}_${Math.random()}`, type: "text", text: String(b.text || "") };
+                            return { id: `${Date.now()}_${Math.random()}`, type: "text", text: String(b.text || ""), align: String(b.align || "left") };
                         }
                         return {
                             id: `${Date.now()}_${Math.random()}`,
@@ -49,6 +64,7 @@ const parsePostBlocks = (post) => {
                             file: null,
                             previewUrl: String(b.url || ""),
                             uploadedUrl: String(b.url || ""),
+                            size: String(b.size || b.displaySize || "lg"),
                         };
                     });
                 if (blocks.length) return blocks;
@@ -61,7 +77,7 @@ const parsePostBlocks = (post) => {
     const blocks = [];
     if (conteudo.trim()) blocks.push(createTextBlock(conteudo));
     if (post?.image_url) {
-        const img = createImageBlock();
+        const img = createImageBlock("lg");
         img.previewUrl = post.image_url;
         img.uploadedUrl = post.image_url;
         blocks.push(img);
@@ -74,10 +90,10 @@ const serializeBlocksToContent = (blocks) => {
     const normalized = (blocks || [])
         .map((block) => {
             if (block.type === "text") {
-                return { type: "text", text: String(block.text || "") };
+                return { type: "text", text: String(block.text || ""), align: String(block.align || "left") };
             }
             const url = block.uploadedUrl || block.previewUrl || "";
-            return { type: "image", url: String(url) };
+            return { type: "image", url: String(url), size: String(block.size || "lg") };
         })
         .filter((block) => (block.type === "text" ? block.text.trim().length > 0 : Boolean(block.url)));
 
@@ -104,6 +120,8 @@ export default function Forum() {
   // Dados Novo Post
     const [newPost, setNewPost] = useState({ titulo: "", categoria: "geral" });
     const [postBlocks, setPostBlocks] = useState([createTextBlock("")]);
+        const [draggedBlockIndex, setDraggedBlockIndex] = useState(null);
+        const [dragOverBlockIndex, setDragOverBlockIndex] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
 
   // Dados Modal Comentários
@@ -508,11 +526,15 @@ export default function Forum() {
   };
 
   const addImageBlock = () => {
-      setPostBlocks((prev) => [...prev, createImageBlock()]);
+      setPostBlocks((prev) => [...prev, createImageBlock("lg")]);
   };
 
   const updateTextBlock = (blockId, value) => {
       setPostBlocks((prev) => prev.map((block) => (block.id === blockId ? { ...block, text: value } : block)));
+  };
+
+  const updateTextBlockAlignment = (blockId, align) => {
+      setPostBlocks((prev) => prev.map((block) => (block.id === blockId ? { ...block, align } : block)));
   };
 
   const updateImageBlockFile = (blockId, file) => {
@@ -521,6 +543,10 @@ export default function Forum() {
       setPostBlocks((prev) =>
           prev.map((block) => (block.id === blockId ? { ...block, file, previewUrl, uploadedUrl: "" } : block))
       );
+  };
+
+  const updateImageBlockSize = (blockId, size) => {
+      setPostBlocks((prev) => prev.map((block) => (block.id === blockId ? { ...block, size } : block)));
   };
 
   const handleComposerPaste = (event) => {
@@ -546,6 +572,25 @@ export default function Forum() {
       showToast(`${imageFiles.length} imagem(ns) colada(s) no post.`, "success");
   };
 
+  const handleComposerDrop = (event) => {
+      const imageFiles = Array.from(event.dataTransfer?.files || []).filter((file) => file.type && file.type.startsWith("image/"));
+
+      if (!imageFiles.length) return;
+
+      event.preventDefault();
+      setPostBlocks((prev) => {
+          const appended = imageFiles.map((file) => {
+              const img = createImageBlock("lg");
+              img.file = file;
+              img.previewUrl = URL.createObjectURL(file);
+              return img;
+          });
+          return [...prev, ...appended];
+      });
+
+      showToast(`${imageFiles.length} imagem(ns) adicionada(s) por drag & drop.`, "success");
+  };
+
   const moveBlock = (index, direction) => {
       const nextIndex = index + direction;
       setPostBlocks((prev) => {
@@ -555,6 +600,43 @@ export default function Forum() {
           next.splice(nextIndex, 0, item);
           return next;
       });
+  };
+
+  const reorderBlock = (fromIndex, toIndex) => {
+      if (fromIndex === null || toIndex === null || fromIndex === toIndex) return;
+
+      setPostBlocks((prev) => {
+          if (fromIndex < 0 || fromIndex >= prev.length) return prev;
+          if (toIndex < 0 || toIndex >= prev.length) return prev;
+
+          const next = [...prev];
+          const [item] = next.splice(fromIndex, 1);
+          next.splice(toIndex, 0, item);
+          return next;
+      });
+  };
+
+  const handleBlockDragStart = (index) => {
+      setDraggedBlockIndex(index);
+      setDragOverBlockIndex(index);
+  };
+
+  const handleBlockDragOver = (event, index) => {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+      if (dragOverBlockIndex !== index) setDragOverBlockIndex(index);
+  };
+
+  const handleBlockDrop = (event, index) => {
+      event.preventDefault();
+      reorderBlock(draggedBlockIndex, index);
+      setDraggedBlockIndex(null);
+      setDragOverBlockIndex(null);
+  };
+
+  const handleBlockDragEnd = () => {
+      setDraggedBlockIndex(null);
+      setDragOverBlockIndex(null);
   };
 
   const removeBlock = (index) => {
@@ -573,17 +655,18 @@ export default function Forum() {
                   if (block.type === "image") {
                       const imageUrl = block.previewUrl || block.uploadedUrl;
                       if (!imageUrl) return null;
+                      const sizeConfig = getImageSizeConfig(block.size);
 
                       return (
-                          <div key={`img_${idx}`} style={{ borderRadius: "12px", overflow: "hidden", border: "1px solid #e2e8f0", background: "#f8fafc", display: "flex", justifyContent: "center", padding: "10px" }}>
-                              <img src={imageUrl} alt="Anexo da publicacao" style={{ maxWidth: "100%", maxHeight: `${imageMaxHeight}px`, objectFit: "contain", display: "block", borderRadius: "8px" }} loading="lazy" />
+                          <div key={`img_${idx}`} style={{ borderRadius: "12px", overflow: "hidden", background: "transparent", display: "flex", justifyContent: "center", padding: "0", width: "100%", maxWidth: sizeConfig.maxWidth, alignSelf: "center" }}>
+                              <img src={imageUrl} alt="Anexo da publicação" style={{ width: "100%", maxHeight: `${imageMaxHeight}px`, objectFit: "contain", display: "block", borderRadius: sizeConfig.value === "full" ? "0" : "8px" }} loading="lazy" />
                           </div>
                       );
                   }
 
                   if (!String(block.text || "").trim()) return null;
                   return (
-                      <div key={`txt_${idx}`} style={{ fontSize: "0.95rem", color: "#334155", lineHeight: "1.6", whiteSpace: "pre-wrap", overflowWrap: "break-word" }}>
+                      <div key={`txt_${idx}`} style={{ fontSize: "0.95rem", color: "#334155", lineHeight: "1.6", whiteSpace: "pre-wrap", overflowWrap: "break-word", textAlign: block.align || "left" }}>
                           {renderWithLinks(block.text)}
                       </div>
                   );
@@ -736,7 +819,7 @@ export default function Forum() {
                         <div>
                             <p style={{margin:'0 0 4px 0', fontSize:'0.72rem', fontWeight:'800', letterSpacing:'0.07em', color:'var(--color-btnPrimary)', textTransform:'uppercase'}}>Novo Conteudo</p>
                             <h3 style={{margin:0, color:'#1e293b', fontSize:'1.35rem', fontWeight:'900', display: 'flex', alignItems: 'center', gap: '10px'}}>
-                                <span style={{color: 'var(--color-btnPrimary)'}}><Icons.Edit size={22} /></span> Compositor de Publicacao
+                                <span style={{color: 'var(--color-btnPrimary)'}}><Icons.Edit size={22} /></span> Compositor de Publicação
                             </h3>
                         </div>
                         <button onClick={closeNewPostModal} style={{background:'#fff', border:'1px solid #cbd5e1', cursor:'pointer', color:'#64748b', width:'36px', height:'36px', borderRadius:'10px', display:'flex', alignItems:'center', justifyContent:'center'}} className="hover-red-text"><Icons.Close size={20} /></button>
@@ -785,39 +868,97 @@ export default function Forum() {
                                 <p style={{margin:'0', fontSize:'0.82rem', color:'#64748b'}}>Compositor em blocos: texto e imagem na ordem que quiseres.</p>
                             </div>
 
-                            <div style={{padding:'16px 22px 18px 22px', overflowY:'auto', flex:1, background:'#ffffff'}} className="custom-scrollbar">
+                            <div
+                                style={{padding:'16px 22px 18px 22px', overflowY:'auto', flex:1, background:'#ffffff'}}
+                                className="custom-scrollbar"
+                                onDragOver={(event) => {
+                                    event.preventDefault();
+                                    event.dataTransfer.dropEffect = "copy";
+                                }}
+                                onDrop={handleComposerDrop}
+                            >
+                                <div style={{marginBottom: '14px', padding: '14px 16px', borderRadius: '14px', border: '1px dashed var(--color-borderColor)', background: 'linear-gradient(180deg, #f8fafc 0%, #ffffff 100%)', color: '#475569', fontSize: '0.9rem', lineHeight: '1.5'}}>
+                                    Solta imagens aqui para criar blocos automaticamente. Também podes usar CTRL+V para colar capturas.
+                                </div>
                                 <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
                                     {postBlocks.map((block, idx) => (
-                                        <div key={block.id} style={{border: '1px solid #e2e8f0', borderRadius: '12px', background: '#f8fafc', padding: '12px'}}>
+                                        <div
+                                            key={block.id}
+                                            draggable
+                                            onDragStart={() => handleBlockDragStart(idx)}
+                                            onDragOver={(event) => handleBlockDragOver(event, idx)}
+                                            onDrop={(event) => handleBlockDrop(event, idx)}
+                                            onDragEnd={handleBlockDragEnd}
+                                            style={{
+                                                border: dragOverBlockIndex === idx ? '2px dashed var(--color-btnPrimary)' : '1px solid #e2e8f0',
+                                                borderRadius: '12px',
+                                                background: draggedBlockIndex === idx ? '#eff6ff' : '#f8fafc',
+                                                padding: '12px',
+                                                opacity: draggedBlockIndex === idx ? 0.85 : 1,
+                                                boxShadow: dragOverBlockIndex === idx ? '0 0 0 3px rgba(59, 130, 246, 0.08)' : 'none',
+                                                cursor: 'grab',
+                                            }}
+                                        >
                                             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px'}}>
-                                                <div style={{fontSize: '0.75rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em'}}>
-                                                    Bloco {idx + 1}: {block.type === 'text' ? 'Texto' : 'Imagem'}
+                                                <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+                                                    <span style={{display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '8px', background: 'white', border: '1px solid #dbe4ee', color: '#64748b'}}>
+                                                        <Icons.GripVertical size={14} />
+                                                    </span>
+                                                    <div style={{fontSize: '0.75rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em'}}>
+                                                        Bloco {idx + 1}: {block.type === 'text' ? 'Texto' : 'Imagem'}
+                                                    </div>
                                                 </div>
                                                 <div style={{display: 'flex', gap: '6px'}}>
-                                                    <button type="button" onClick={() => moveBlock(idx, -1)} disabled={idx === 0} style={{border: '1px solid #cbd5e1', background: 'white', color: '#334155', borderRadius: '6px', padding: '4px 8px', cursor: idx === 0 ? 'not-allowed' : 'pointer', opacity: idx === 0 ? 0.4 : 1}}>↑</button>
-                                                    <button type="button" onClick={() => moveBlock(idx, 1)} disabled={idx === postBlocks.length - 1} style={{border: '1px solid #cbd5e1', background: 'white', color: '#334155', borderRadius: '6px', padding: '4px 8px', cursor: idx === postBlocks.length - 1 ? 'not-allowed' : 'pointer', opacity: idx === postBlocks.length - 1 ? 0.4 : 1}}>↓</button>
                                                     <button type="button" onClick={() => removeBlock(idx)} style={{border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', borderRadius: '6px', padding: '4px 8px', cursor: 'pointer'}}>Remover</button>
                                                 </div>
                                             </div>
 
                                             {block.type === 'text' ? (
-                                                <textarea
-                                                    rows="4"
-                                                    value={block.text}
-                                                    onChange={(e) => updateTextBlock(block.id, e.target.value)}
-                                                    style={{...inputStyle, marginBottom: 0, resize: 'vertical'}}
-                                                    className="input-focus"
-                                                    placeholder="Escreve o texto deste bloco..."
-                                                />
+                                                <div style={{display: 'grid', gap: '8px'}}>
+                                                    <div style={{display: 'grid', gridTemplateColumns: 'auto 1fr', alignItems: 'center', gap: '10px'}}>
+                                                        <span style={{fontSize: '0.8rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Alinhamento</span>
+                                                        <select
+                                                            value={block.align || 'left'}
+                                                            onChange={(e) => updateTextBlockAlignment(block.id, e.target.value)}
+                                                            style={{...inputStyle, marginBottom: 0, cursor: 'pointer', padding: '10px 12px'}}
+                                                            className="input-focus"
+                                                        >
+                                                            {TEXT_ALIGNMENT_OPTIONS.map((option) => (
+                                                                <option key={option.value} value={option.value}>{option.label}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                    <textarea
+                                                        rows="4"
+                                                        value={block.text}
+                                                        onChange={(e) => updateTextBlock(block.id, e.target.value)}
+                                                        style={{...inputStyle, marginBottom: 0, resize: 'vertical', textAlign: block.align || 'left'}}
+                                                        className="input-focus"
+                                                        placeholder="Escreve o texto deste bloco..."
+                                                    />
+                                                </div>
                                             ) : (
                                                 <div style={{display: 'grid', gap: '8px'}}>
                                                     <label style={{display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: '600', color: 'var(--color-btnPrimary)'}}>
                                                         <Icons.Image size={18} color="var(--color-btnPrimary)" /> Selecionar imagem
                                                         <input type="file" accept="image/*" onChange={(e) => updateImageBlockFile(block.id, e.target.files?.[0])} style={{display: 'none'}} />
                                                     </label>
+                                                    <div style={{display: 'grid', gridTemplateColumns: 'auto 1fr', alignItems: 'center', gap: '10px'}}>
+                                                        <span style={{fontSize: '0.8rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Tamanho</span>
+                                                        <select
+                                                            value={block.size || 'lg'}
+                                                            onChange={(e) => updateImageBlockSize(block.id, e.target.value)}
+                                                            style={{...inputStyle, marginBottom: 0, cursor: 'pointer', padding: '10px 12px'}}
+                                                            className="input-focus"
+                                                        >
+                                                            {IMAGE_SIZE_OPTIONS.map((option) => (
+                                                                <option key={option.value} value={option.value}>{option.label}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
                                                     {(block.previewUrl || block.uploadedUrl) ? (
-                                                        <div style={{borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--color-borderColorLight)', background: 'white', padding: '8px', display: 'flex', justifyContent: 'center'}}>
-                                                            <img src={block.previewUrl || block.uploadedUrl} alt="Preview do bloco" style={{maxWidth: '100%', maxHeight: '260px', objectFit: 'contain', borderRadius: '6px'}} />
+                                                        <div style={{borderRadius: '8px', overflow: 'hidden', background: 'transparent', padding: '0', display: 'flex', justifyContent: 'center', width: '100%', maxWidth: getImageSizeConfig(block.size).maxWidth, alignSelf: 'center'}}>
+                                                            <img src={block.previewUrl || block.uploadedUrl} alt="Preview do bloco" style={{width: '100%', maxHeight: '360px', objectFit: 'contain', borderRadius: '6px'}} />
                                                         </div>
                                                     ) : (
                                                         <div style={{fontSize: '0.8rem', color: '#64748b'}}>Sem imagem selecionada neste bloco.</div>
