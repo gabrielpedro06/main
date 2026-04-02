@@ -167,6 +167,23 @@ export default function Forum() {
     const [selectedUsersToAddInGroup, setSelectedUsersToAddInGroup] = useState([]);
     const [addingGroupMembers, setAddingGroupMembers] = useState(false);
 
+  function scrollChatToBottom(delayMs = 0) {
+      const run = () => {
+          const container = chatMessagesContainerRef.current;
+          if (!container) return;
+          container.scrollTop = container.scrollHeight;
+      };
+
+      if (delayMs > 0) {
+          setTimeout(run, delayMs);
+          return;
+      }
+
+      requestAnimationFrame(() => {
+          requestAnimationFrame(run);
+      });
+  }
+
   useEffect(() => {
     fetchPosts();
     localStorage.setItem('lastForumVisit', new Date().toISOString());
@@ -276,14 +293,13 @@ export default function Forum() {
 
         const latest = chatMessages[chatMessages.length - 1];
         markRoomAsSeen(activeChatRoom.id, latest?.created_at || new Date().toISOString());
-
-        const container = chatMessagesContainerRef.current;
-        if (container) {
-            setTimeout(() => {
-                container.scrollTop = container.scrollHeight;
-            }, 40);
-        }
+        scrollChatToBottom();
     }, [chatMessages, chatModal.show, activeChatRoom?.id]);
+
+    useEffect(() => {
+        if (!chatModal.show || !activeChatRoom?.id || chatLoading) return;
+        scrollChatToBottom(30);
+    }, [chatModal.show, activeChatRoom?.id, chatLoading]);
 
     useEffect(() => {
         if (!chatModal.show || !activeChatRoom?.id) return;
@@ -395,6 +411,29 @@ export default function Forum() {
                         return;
                     }
 
+                    const seenMap = getSeenRoomsMap();
+                    const localSeenAt = seenMap[incoming.room_id] || null;
+
+                    const { data: roomRead } = await supabase
+                        .from("chat_room_reads")
+                        .select("last_read_at")
+                        .eq("room_id", incoming.room_id)
+                        .eq("user_id", user.id)
+                        .maybeSingle();
+
+                    const dbSeenAt = roomRead?.last_read_at || null;
+                    const effectiveSeenAt = !localSeenAt
+                        ? dbSeenAt
+                        : !dbSeenAt
+                        ? localSeenAt
+                        : new Date(localSeenAt) > new Date(dbSeenAt)
+                        ? localSeenAt
+                        : dbSeenAt;
+
+                    if (effectiveSeenAt && new Date(incoming.created_at) <= new Date(effectiveSeenAt)) {
+                        return;
+                    }
+
                     setUnreadByRoom((prev) => ({
                         ...prev,
                         [incoming.room_id]: (prev[incoming.room_id] || 0) + 1,
@@ -416,6 +455,33 @@ export default function Forum() {
             supabase.removeChannel(channel);
         };
     }, [user?.id, chatRooms, activeChatRoom?.id, chatRlsNeedsFix]);
+
+    useEffect(() => {
+        if (!user?.id || !chatRooms.length) return;
+
+        const roomIds = chatRooms.map((room) => room.id).filter(Boolean);
+        if (!roomIds.length) return;
+
+        const channel = supabase
+            .channel(`chat_unread_reads_${user.id}`)
+            .on(
+                "postgres_changes",
+                {
+                    event: "*",
+                    schema: "public",
+                    table: "chat_room_reads",
+                    filter: `user_id=eq.${user.id}`,
+                },
+                () => {
+                    refreshUnreadCounts(roomIds);
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [user?.id, chatRooms]);
 
     useEffect(() => {
         if (!user?.id || chatRlsNeedsFix) return;
@@ -531,6 +597,20 @@ export default function Forum() {
 
       const seenMap = getSeenRoomsMap();
 
+      const { data: roomReads, error: roomReadsError } = await supabase
+          .from("chat_room_reads")
+          .select("room_id, last_read_at")
+          .eq("user_id", user.id)
+          .in("room_id", roomIds);
+
+      if (roomReadsError) return;
+
+      const dbReadAtByRoom = {};
+      (roomReads || []).forEach((row) => {
+          if (!row?.room_id) return;
+          dbReadAtByRoom[row.room_id] = row.last_read_at;
+      });
+
       const { data, error } = await supabase
           .from("chat_messages")
           .select("room_id, sender_id, created_at")
@@ -549,8 +629,17 @@ export default function Forum() {
           if (!msg?.room_id) return;
           if (msg.sender_id === user.id) return;
 
-          const seenAt = seenMap[msg.room_id];
-          if (seenAt && new Date(msg.created_at) <= new Date(seenAt)) return;
+          const localSeenAt = seenMap[msg.room_id] || null;
+          const dbSeenAt = dbReadAtByRoom[msg.room_id] || null;
+          const effectiveSeenAt = !localSeenAt
+              ? dbSeenAt
+              : !dbSeenAt
+              ? localSeenAt
+              : new Date(localSeenAt) > new Date(dbSeenAt)
+              ? localSeenAt
+              : dbSeenAt;
+
+          if (effectiveSeenAt && new Date(msg.created_at) <= new Date(effectiveSeenAt)) return;
 
           nextCounts[msg.room_id] = (nextCounts[msg.room_id] || 0) + 1;
       });
