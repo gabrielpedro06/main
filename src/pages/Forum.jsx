@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabase";
@@ -140,6 +140,11 @@ export default function Forum() {
     const [chatRooms, setChatRooms] = useState([]);
     const [activeChatRoom, setActiveChatRoom] = useState(null);
     const [chatMessages, setChatMessages] = useState([]);
+    const chatMessagesRef = useRef([]);
+    const activeRoomChannelRef = useRef(null);
+    const typingTimersRef = useRef({});
+    const typingLastSentAtRef = useRef(0);
+    const chatMessagesContainerRef = useRef(null);
     const [chatDraft, setChatDraft] = useState("");
     const [chatLoading, setChatLoading] = useState(false);
     const [chatSending, setChatSending] = useState(false);
@@ -147,6 +152,8 @@ export default function Forum() {
     const [chatError, setChatError] = useState("");
     const [chatRlsNeedsFix, setChatRlsNeedsFix] = useState(false);
     const [chatCollaborators, setChatCollaborators] = useState([]);
+    const [typingUsersById, setTypingUsersById] = useState({});
+    const [readReceiptsByRoom, setReadReceiptsByRoom] = useState({});
     const [unreadByRoom, setUnreadByRoom] = useState({});
     const [chatNotice, setChatNotice] = useState({ show: false, text: "" });
     const [showNewChatModal, setShowNewChatModal] = useState(false);
@@ -234,12 +241,56 @@ export default function Forum() {
                     });
                 }
             )
+            .on("broadcast", { event: "typing" }, ({ payload }) => {
+                const typingUserId = payload?.userId;
+                const isTyping = Boolean(payload?.isTyping);
+                if (!typingUserId || typingUserId === user?.id) return;
+
+                if (isTyping) {
+                    markUserAsTyping(typingUserId);
+                    return;
+                }
+
+                removeTypingUser(typingUserId);
+                if (typingTimersRef.current[typingUserId]) {
+                    clearTimeout(typingTimersRef.current[typingUserId]);
+                    delete typingTimersRef.current[typingUserId];
+                }
+            })
             .subscribe();
 
+        activeRoomChannelRef.current = channel;
+
         return () => {
+            activeRoomChannelRef.current = null;
             supabase.removeChannel(channel);
         };
-    }, [chatModal.show, activeChatRoom?.id]);
+    }, [chatModal.show, activeChatRoom?.id, user?.id]);
+
+    useEffect(() => {
+        chatMessagesRef.current = chatMessages;
+    }, [chatMessages]);
+
+    useEffect(() => {
+        if (!chatModal.show || !activeChatRoom?.id || !chatMessages.length) return;
+
+        const latest = chatMessages[chatMessages.length - 1];
+        emitReadReceipt(latest?.created_at || new Date().toISOString());
+
+        const container = chatMessagesContainerRef.current;
+        if (container) {
+            setTimeout(() => {
+                container.scrollTop = container.scrollHeight;
+            }, 40);
+        }
+    }, [chatMessages, chatModal.show, activeChatRoom?.id]);
+
+    useEffect(() => {
+        setTypingUsersById({});
+        Object.values(typingTimersRef.current || {}).forEach((timerId) => clearTimeout(timerId));
+        typingTimersRef.current = {};
+        typingLastSentAtRef.current = 0;
+    }, [activeChatRoom?.id]);
 
     // Load chat data for current user
     useEffect(() => {
@@ -750,7 +801,91 @@ export default function Forum() {
       setShowAddGroupMembersModal(false);
       setExistingGroupMemberIds([]);
       setSelectedUsersToAddInGroup([]);
+      setTypingUsersById({});
+
+      Object.values(typingTimersRef.current || {}).forEach((timerId) => clearTimeout(timerId));
+      typingTimersRef.current = {};
+      typingLastSentAtRef.current = 0;
   };
+
+  function removeTypingUser(userId) {
+      setTypingUsersById((prev) => {
+          if (!prev[userId]) return prev;
+          const next = { ...prev };
+          delete next[userId];
+          return next;
+      });
+  }
+
+  function markUserAsTyping(userId) {
+      if (!userId || userId === user?.id) return;
+
+      setTypingUsersById((prev) => ({ ...prev, [userId]: true }));
+
+      if (typingTimersRef.current[userId]) {
+          clearTimeout(typingTimersRef.current[userId]);
+      }
+
+      typingTimersRef.current[userId] = setTimeout(() => {
+          removeTypingUser(userId);
+          delete typingTimersRef.current[userId];
+      }, 2400);
+  }
+
+  function emitTypingStatus(isTyping) {
+      if (!activeChatRoom?.id || !activeRoomChannelRef.current || !user?.id) return;
+
+      const now = Date.now();
+      if (isTyping && now - typingLastSentAtRef.current < 800) return;
+      if (isTyping) typingLastSentAtRef.current = now;
+
+      activeRoomChannelRef.current.send({
+          type: "broadcast",
+          event: "typing",
+          payload: {
+              userId: user.id,
+              isTyping: Boolean(isTyping),
+          },
+      });
+  }
+
+  function emitReadReceipt(lastReadAt) {
+      if (!activeChatRoom?.id || !activeRoomChannelRef.current || !user?.id) return;
+
+      activeRoomChannelRef.current.send({
+          type: "broadcast",
+          event: "read_receipt",
+          payload: {
+              roomId: activeChatRoom.id,
+              userId: user.id,
+              lastReadAt: lastReadAt || new Date().toISOString(),
+          },
+      });
+  }
+
+  function getMessageReadTick(msg) {
+      if (!msg || msg.sender_id !== user?.id || !activeChatRoom?.id) return "";
+
+      const roomReceipts = readReceiptsByRoom[activeChatRoom.id] || {};
+      const readByOthers = Object.entries(roomReceipts).some(([readerUserId, readAt]) => {
+          if (!readerUserId || readerUserId === user.id) return false;
+          if (!readAt) return false;
+          return new Date(readAt) >= new Date(msg.created_at || new Date().toISOString());
+      });
+
+      return readByOthers ? "✓✓" : "✓";
+  }
+
+  function handleChatDraftChange(value) {
+      setChatDraft(value);
+
+      if (!value.trim()) {
+          emitTypingStatus(false);
+          return;
+      }
+
+      emitTypingStatus(true);
+  }
 
   async function loadChatMessages(roomId) {
       if (!roomId) {
@@ -766,6 +901,34 @@ export default function Forum() {
 
       if (error) throw error;
       setChatMessages(data || []);
+  }
+
+  async function syncActiveChatMessages(roomId) {
+      if (!roomId) return;
+
+      const latestKnown = chatMessagesRef.current || [];
+      const lastKnownCreatedAt = latestKnown.length ? latestKnown[latestKnown.length - 1]?.created_at : null;
+
+      let query = supabase
+          .from("chat_messages")
+          .select("*")
+          .eq("room_id", roomId)
+          .order("created_at", { ascending: true })
+          .limit(50);
+
+      if (lastKnownCreatedAt) {
+          query = query.gt("created_at", lastKnownCreatedAt);
+      }
+
+      const { data, error } = await query;
+      if (error || !data?.length) return;
+
+      setChatMessages((prev) => {
+          const existingIds = new Set(prev.map((m) => m.id));
+          const incoming = data.filter((m) => !existingIds.has(m.id));
+          if (!incoming.length) return prev;
+          return [...prev, ...incoming];
+      });
   }
 
   async function getOrCreateGroupRoom(groupName) {
@@ -939,6 +1102,8 @@ export default function Forum() {
           if (data) {
               setChatMessages((prev) => (prev.some((m) => m.id === data.id) ? prev : [...prev, data]));
           }
+
+          emitTypingStatus(false);
       } catch (err) {
           setChatError(err?.message || "Erro ao enviar mensagem.");
       } finally {
@@ -1100,12 +1265,25 @@ export default function Forum() {
           setActiveChatRoom(room);
           await loadChatMessages(room.id);
           markRoomAsSeen(room.id);
+          emitReadReceipt(new Date().toISOString());
       } catch (err) {
           setChatError(err?.message || "Não foi possível abrir o chat.");
       } finally {
           setChatLoading(false);
       }
   }
+
+  useEffect(() => {
+      if (!chatModal.show || !activeChatRoom?.id) return;
+
+      const intervalId = setInterval(() => {
+          syncActiveChatMessages(activeChatRoom.id);
+      }, 1200);
+
+      return () => {
+          clearInterval(intervalId);
+      };
+  }, [chatModal.show, activeChatRoom?.id]);
 
   function closeNewChatModal() {
       setShowNewChatModal(false);
@@ -2315,7 +2493,13 @@ export default function Forum() {
                             <div style={{margin:'10px 16px 0 16px', padding:'10px 12px', border:'1px solid #fecaca', background:'#fef2f2', color:'#991b1b', borderRadius:'10px', fontSize:'0.85rem'}}>{chatError}</div>
                         )}
 
-                        <div style={{flex:1, overflowY:'auto', padding:'14px 16px', display:'flex', flexDirection:'column', gap:'10px'}} className="custom-scrollbar">
+                        {Object.keys(typingUsersById).length > 0 && (
+                            <div style={{margin:'10px 16px 0 16px', color:'#64748b', fontSize:'0.82rem', fontStyle:'italic'}}>
+                                {Object.keys(typingUsersById).map((typingUserId) => getChatSenderDisplayName(typingUserId)).join(', ')} a escrever...
+                            </div>
+                        )}
+
+                        <div ref={chatMessagesContainerRef} style={{flex:1, overflowY:'auto', padding:'14px 16px', display:'flex', flexDirection:'column', gap:'10px'}} className="custom-scrollbar">
                             {chatLoading && <div style={{color:'#94a3b8', fontSize:'0.9rem'}}>A carregar mensagens...</div>}
 
                             {!chatLoading && chatMessages.length === 0 && (
@@ -2328,6 +2512,7 @@ export default function Forum() {
                             {!chatLoading && chatMessages.map((msg) => {
                                 const mine = msg.sender_id === user.id;
                                 const showSenderName = Boolean(activeChatRoom?.is_group);
+                                const tick = getMessageReadTick(msg);
                                 return (
                                     <div key={msg.id} style={{display:'flex', justifyContent: mine ? 'flex-end' : 'flex-start'}}>
                                         <div style={{maxWidth:'72%', background: mine ? '#eff6ff' : '#f1f5f9', border:'1px solid #e2e8f0', borderRadius:'12px', padding:'9px 12px'}}>
@@ -2345,7 +2530,10 @@ export default function Forum() {
                                             ) : (
                                                 <div style={{color:'#334155', whiteSpace:'pre-wrap', overflowWrap:'break-word'}}>{msg.content}</div>
                                             )}
-                                            <div style={{marginTop:'5px', fontSize:'0.72rem', color:'#94a3b8'}}>{formatDate(msg.created_at || new Date().toISOString())}</div>
+                                            <div style={{marginTop:'5px', fontSize:'0.72rem', color:'#94a3b8', display:'flex', justifyContent:'space-between', alignItems:'center', gap:'10px'}}>
+                                                <span>{formatDate(msg.created_at || new Date().toISOString())}</span>
+                                                {mine && <span style={{fontWeight:'800', color: tick === '✓✓' ? '#0ea5e9' : '#94a3b8'}}>{tick}</span>}
+                                            </div>
                                         </div>
                                     </div>
                                 );
@@ -2356,7 +2544,7 @@ export default function Forum() {
                             <input
                                 type="text"
                                 value={chatDraft}
-                                onChange={(e) => setChatDraft(e.target.value)}
+                                onChange={(e) => handleChatDraftChange(e.target.value)}
                                 placeholder="Escreve uma mensagem..."
                                 className="input-focus"
                                 style={{flex:1, padding:'12px 14px', borderRadius:'10px', border:'1px solid #cbd5e1', outline:'none'}}
