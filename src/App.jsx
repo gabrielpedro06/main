@@ -29,6 +29,7 @@ import Ferias from "./pages/Ausencias";
 import PedidoKm from "./pages/PedidoKm";
 import GestaoLeads from "./pages/GestaoLeads"; 
 import Perfil from "./pages/Perfil";
+import AdminDashboard from "./pages/AdminDashboard";
 import GestaoTemplates from "./components/GestaoTemplates"; 
 
 export default function App() {
@@ -65,6 +66,7 @@ export default function App() {
             <Route path="pedido-km" element={<PedidoKm />} />
             <Route path="perfil" element={<Perfil />} />
             <Route path="leads" element={<GestaoLeads />} />
+            <Route path="admin" element={<ProtectedRoute allowedRoles={["admin", "administrador"]}><AdminDashboard /></ProtectedRoute>} />
             
             {/* MUDAMOS DE /templates PARA /modelos PARA COMBINAR COM O MENU */}
             <Route path="modelos" element={<GestaoTemplates />} /> 
