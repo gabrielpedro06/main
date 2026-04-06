@@ -44,6 +44,23 @@ Add the same variables in the Vercel project settings under Environment Variable
 
 For production, `BREVO_API_KEY` must exist in Vercel because the serverless function reads it with `process.env.BREVO_API_KEY`.
 
+## Supabase Edge Function (CAE por NIF)
+
+Nova function criada: `fetch-caes-sicae`.
+
+Deploy:
+
+```bash
+supabase functions deploy fetch-caes-sicae
+```
+
+Teste rápido:
+
+```bash
+supabase functions serve fetch-caes-sicae --no-verify-jwt
+curl -X POST "http://127.0.0.1:54321/functions/v1/fetch-caes-sicae" -H "Content-Type: application/json" -d '{"nif":"509985769"}'
+```
+
 ## Notes
 
 The React + Vite template text was removed from this README because this repository now has its own setup and deployment workflow.

@@ -2,6 +2,7 @@ import "dotenv/config";
 import cors from "cors";
 import express from "express";
 import { sendTransactionalCampaign } from "./brevoCampaignSender.js";
+import { lookupSicaeCaesByNif } from "./sicaeCaeLookup.js";
 
 const app = express();
 
@@ -63,6 +64,20 @@ app.post("/api/marketing/send", async (req, res) => {
     return res.status(statusCode).json({
       ok: false,
       error: error.message || "Unexpected error while sending campaign.",
+      details: error.details || null,
+    });
+  }
+});
+
+app.get("/api/sicae-caes", async (req, res) => {
+  try {
+    const data = await lookupSicaeCaesByNif(req.query?.nif);
+    return res.status(200).json({ ok: true, ...data });
+  } catch (error) {
+    const statusCode = typeof error.status === "number" ? Math.min(Math.max(error.status, 400), 502) : 500;
+    return res.status(statusCode).json({
+      ok: false,
+      error: error.message || "Erro inesperado na consulta SICAE.",
       details: error.details || null,
     });
   }

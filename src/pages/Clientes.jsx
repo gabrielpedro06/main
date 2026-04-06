@@ -105,6 +105,7 @@ export default function Clientes() {
   const [isViewOnly, setIsViewOnly] = useState(false);
   const [activeTab, setActiveTab] = useState("geral");
   const [uploading, setUploading] = useState(false);
+  const [isFetchingCaeByNif, setIsFetchingCaeByNif] = useState(false);
 
   const cropImgRef = useRef(null);
   const cropContainerRef = useRef(null);
@@ -590,6 +591,126 @@ export default function Clientes() {
     return single ? [single] : [];
   };
 
+  const sanitizeNif = (value) => String(value || "").replace(/\D/g, "").slice(0, 9);
+
+  const extractCaesFromFunctionPayload = (payload) => {
+    if (!payload || !Array.isArray(payload.caes)) return [];
+
+    const dedup = new Map();
+
+    payload.caes.forEach((item) => {
+      const codigo = String(typeof item === "string" ? item : item?.codigo || "").trim();
+      if (!/^\d{5}$/.test(codigo)) return;
+
+      const descricao = typeof item === "object" && item?.descricao
+        ? String(item.descricao).trim()
+        : null;
+
+      if (!dedup.has(codigo)) {
+        dedup.set(codigo, { codigo, descricao });
+      }
+    });
+
+    return [...dedup.values()];
+  };
+
+  async function fetchCaesFromSicae(nif) {
+    const nifSanitizado = sanitizeNif(nif);
+    if (nifSanitizado.length !== 9) return [];
+
+    try {
+      const response = await fetch(`/api/sicae-caes?nif=${encodeURIComponent(nifSanitizado)}`);
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok || payload?.ok === false) {
+        const message = payload?.error || "Falha ao consultar CAEs no endpoint /api/sicae-caes.";
+        throw new Error(message);
+      }
+
+      return extractCaesFromFunctionPayload(payload);
+    } catch (apiError) {
+      const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+      if (isLocalhost) {
+        throw new Error(
+          apiError?.message || "A API local /api/sicae-caes não está disponível. Inicia `npm run dev:server`."
+        );
+      }
+
+      const { data, error } = await supabase.functions.invoke("fetch-caes-sicae", {
+        body: { nif: nifSanitizado }
+      });
+
+      if (error) {
+        throw new Error(error.message || apiError?.message || "Falha ao consultar CAEs no SICAE.");
+      }
+
+      return extractCaesFromFunctionPayload(data);
+    }
+  }
+
+  async function handleFetchCaesByNif() {
+    const nif = sanitizeNif(form.nif);
+
+    if (nif.length !== 9) {
+      showToast("Indica um NIF válido (9 dígitos) para procurar CAEs.", "warning");
+      return;
+    }
+
+    try {
+      setIsFetchingCaeByNif(true);
+      showToast("A consultar CAEs no SICAE...", "info");
+
+      const caesSicae = await fetchCaesFromSicae(nif);
+      if (caesSicae.length === 0) {
+        showToast("Não foram encontrados CAEs para este NIF no SICAE.", "warning");
+        return;
+      }
+
+      const codigosExistentes = new Set(
+        [
+          ...caes.map((item) => String(item?.codigo || "").trim()),
+          ...pendingAutoCaes.map((item) => String(item?.codigo || "").trim())
+        ].filter(Boolean)
+      );
+
+      const novosCaesBase = caesSicae.filter((item) => !codigosExistentes.has(item.codigo));
+      if (novosCaesBase.length === 0) {
+        showToast("Os CAEs encontrados já estão associados a este cliente.", "info");
+        return;
+      }
+
+      const principalJaExiste = caes.some((item) => Boolean(item?.principal));
+      const novosCaes = novosCaesBase.map((item, index) => ({
+        codigo: item.codigo,
+        descricao: item.descricao || (index === 0 ? "Atividade principal importada do SICAE" : "Atividade secundária importada do SICAE"),
+        principal: !principalJaExiste && index === 0
+      }));
+
+      if (editId) {
+        const { inserted, skipped } = await insertAutoCaesForCliente(editId, novosCaes);
+        if (inserted > 0) {
+          showToast(`${inserted} CAE importados e guardados automaticamente.`, "success");
+        } else {
+          showToast("Os CAEs encontrados já estavam associados a este cliente.", "info");
+        }
+        if (skipped > 0 && inserted > 0) {
+          showToast(`${skipped} CAE já existiam e foram ignorados.`, "info");
+        }
+        return;
+      }
+
+      setPendingAutoCaes((prev) => [...prev, ...novosCaes]);
+      setNovoCae(novosCaes[0]);
+      setShowAddCae(true);
+
+      showToast(`Foram encontrados ${novosCaesBase.length} novos CAE no SICAE.`, "success");
+    } catch (error) {
+      showToast(error?.message || "Falha ao procurar CAEs no SICAE.", "warning");
+    } finally {
+      setIsFetchingCaeByNif(false);
+    }
+  }
+
   const buildSiglaFromTitle = (title) => {
     if (!title || typeof title !== "string") return "";
 
@@ -665,7 +786,7 @@ export default function Clientes() {
     setLoading(false);
   }
 
-  // --- INTEGRAÇÃO NIF.PT ---
+  // --- INTEGRAÇÃO NIF.PT + SICAE ---
   async function handleNifChange(e) {
     const nifDigitado = e.target.value.replace(/\D/g, "");
     setForm((prev) => ({ ...prev, nif: nifDigitado }));
@@ -686,58 +807,74 @@ export default function Clientes() {
           return;
         }
 
-        showToast("A consultar dados no NIF.pt...", "info");
+        showToast("A consultar dados no NIF.pt e SICAE...", "info");
+
+        let caesSicae = [];
+        try {
+          caesSicae = await fetchCaesFromSicae(nifDigitado);
+        } catch (sicaeError) {
+          showToast(`SICAE indisponível: ${sicaeError.message}`, "warning");
+        }
 
         const params = new URLSearchParams({ json: "1", q: nifDigitado });
         const nifApiKey = (import.meta.env.VITE_NIFPT_KEY || "9beb59d324c1477245e04e0b5988bdd2").trim();
         if (nifApiKey) params.set("key", nifApiKey);
 
-        const response = await fetch(`/nif-api/?${params.toString()}`);
-        if (!response.ok) throw new Error("Erro na comunicação com a API.");
-
-        const contentType = response.headers.get("content-type") || "";
-        if (!contentType.includes("application/json")) {
-          throw new Error("Resposta inválida do serviço NIF. Verifica o proxy /nif-api.");
-        }
-
-        const data = await response.json();
-        const apiErrorMessage = extractNifApiErrorMessage(data);
-        if (apiErrorMessage) {
-          showToast(`NIF.pt: ${apiErrorMessage}`, "warning");
-          return;
-        }
-
-        if (data?.credits?.left?.day === 0) {
-          showToast("NIF.pt indisponível: limite diário de consultas atingido.", "warning");
-          return;
-        }
-        
         let record = null;
-        if (data.records && data.records[nifDigitado]) record = data.records[nifDigitado];
-        else if (data[nifDigitado]) record = data[nifDigitado];
+        try {
+          const response = await fetch(`/nif-api/?${params.toString()}`);
+          if (!response.ok) throw new Error("Erro na comunicação com a API.");
 
-        if (record) {
-          const caeList = [...new Set(normalizeCaeList(record.cae))];
-          const posto = record.place || {};
-          const postal4 = posto.pc4 || record.pc4;
-          const postal3 = posto.pc3 || record.pc3;
+          const contentType = response.headers.get("content-type") || "";
+          if (!contentType.includes("application/json")) {
+            throw new Error("Resposta inválida do serviço NIF. Verifica o proxy /nif-api.");
+          }
+
+          const data = await response.json();
+          const apiErrorMessage = extractNifApiErrorMessage(data);
+          if (apiErrorMessage) {
+            showToast(`NIF.pt: ${apiErrorMessage}`, "warning");
+          } else if (data?.credits?.left?.day === 0) {
+            showToast("NIF.pt indisponível: limite diário de consultas atingido.", "warning");
+          } else {
+            if (data.records && data.records[nifDigitado]) record = data.records[nifDigitado];
+            else if (data[nifDigitado]) record = data[nifDigitado];
+          }
+        } catch (nifPtError) {
+          showToast(`NIF.pt indisponível: ${nifPtError.message}`, "warning");
+        }
+
+        if (record || caesSicae.length > 0) {
+          const recordData = record || {};
+          const sicaeDescricaoByCodigo = new Map(
+            caesSicae
+              .filter((item) => item?.codigo)
+              .map((item) => [item.codigo, item.descricao || null])
+          );
+          const caeList = [...new Set([
+            ...caesSicae.map((item) => item.codigo),
+            ...normalizeCaeList(recordData.cae)
+          ])];
+          const posto = recordData.place || {};
+          const postal4 = posto.pc4 || recordData.pc4;
+          const postal3 = posto.pc3 || recordData.pc3;
           const codigoPostal = postal4 && postal3 ? `${postal4}-${postal3}` : "";
-          const generatedSigla = buildSiglaFromTitle(record.title);
-          const website = record.contacts?.website || "";
-          const phone = record.contacts?.phone || "";
-          const email = record.contacts?.email || "";
-          const mainAddress = posto.address || record.address || "";
-          const locality = posto.city || record.city || record.geo?.parish || "";
-          const county = record.geo?.county || "";
-          const region = record.geo?.region || "";
+          const generatedSigla = buildSiglaFromTitle(recordData.title);
+          const website = recordData.contacts?.website || "";
+          const phone = recordData.contacts?.phone || "";
+          const email = recordData.contacts?.email || "";
+          const mainAddress = posto.address || recordData.address || "";
+          const locality = posto.city || recordData.city || recordData.geo?.parish || "";
+          const county = recordData.geo?.county || "";
+          const region = recordData.geo?.region || "";
 
           setForm(prev => ({
             ...prev,
-            entidade: record.title || prev.entidade || "",
-            marca: prev.marca || record.title || "", 
+            entidade: recordData.title || prev.entidade || "",
+            marca: prev.marca || recordData.title || "", 
             sigla: prev.sigla || generatedSigla || "",
             website: website || prev.website || "",
-            objeto_social: buildObjetoSocialFromRecord(record, prev.objeto_social)
+            objeto_social: buildObjetoSocialFromRecord(recordData, prev.objeto_social)
           }));
 
           if (mainAddress || codigoPostal || locality || county || region) {
@@ -769,22 +906,35 @@ export default function Clientes() {
              const [principal, ...restantes] = caeList;
              const caesParaGuardar = caeList.map((codigo, index) => ({
                 codigo,
-                descricao: index === 0
-                 ? (record.activity ? record.activity.split('.')[0] : "Atividade Principal")
-                 : "Atividade secundária importada do NIF.pt",
+                descricao: sicaeDescricaoByCodigo.get(codigo)
+                  || (index === 0
+                    ? (recordData.activity ? recordData.activity.split('.')[0] : "Atividade Principal")
+                    : "Atividade secundária importada do SICAE/NIF.pt"),
                 principal: index === 0
              }));
 
-             setPendingAutoCaes(caesParaGuardar);
+             if (editId) {
+               const { inserted, skipped } = await insertAutoCaesForCliente(editId, caesParaGuardar);
+               setPendingAutoCaes([]);
+               if (inserted > 0) {
+                 showToast(`${inserted} CAE importados e guardados automaticamente.`, "success");
+               }
+               if (skipped > 0) {
+                 showToast(`${skipped} CAE já existiam e foram ignorados.`, "info");
+               }
+             } else {
+               setPendingAutoCaes(caesParaGuardar);
 
-             setNovoCae({
-                 codigo: principal,
-                 descricao: restantes.length > 0
-                   ? `Atividade principal. Outros CAE: ${restantes.join(", ")}`
-                   : (record.activity ? record.activity.split('.')[0] : "Atividade Principal"),
-                 principal: true
-             });
-             setShowAddCae(true);
+               setNovoCae({
+                   codigo: principal,
+                   descricao: sicaeDescricaoByCodigo.get(principal)
+                     || (restantes.length > 0
+                       ? `Atividade principal. Outros CAE: ${restantes.join(", ")}`
+                       : (recordData.activity ? recordData.activity.split('.')[0] : "Atividade Principal")),
+                   principal: true
+               });
+               setShowAddCae(true);
+             }
            } else {
              setPendingAutoCaes([]);
           }
@@ -799,9 +949,13 @@ export default function Clientes() {
              setShowAddContacto(true);
           }
 
-          showToast(`Dados pré-preenchidos com sucesso${caeList.length > 1 ? ` (${caeList.length} CAE detetados)` : ""}!`, "success");
+          if (record) {
+            showToast(`Dados pré-preenchidos com sucesso${caeList.length > 1 ? ` (${caeList.length} CAE detetados)` : ""}!`, "success");
+          } else if (caeList.length > 0) {
+            showToast(`Foram detetados ${caeList.length} CAE no SICAE. Completa os restantes dados manualmente.`, "info");
+          }
         } else {
-          showToast("NIF não encontrado na base do NIF.pt.", "warning");
+          showToast("NIF não encontrado na base do NIF.pt/SICAE.", "warning");
         }
       } catch (err) {
         showToast(err?.message || "Falha na consulta automática. Preenche manualmente.", "warning");
@@ -1042,6 +1196,59 @@ export default function Clientes() {
     return {
       inserted: inseridos?.length || 0,
       skipped: pendingAutoCaes.length - (inseridos?.length || 0)
+    };
+  }
+
+  async function insertAutoCaesForCliente(clienteId, caesCandidatos) {
+    if (!clienteId || !Array.isArray(caesCandidatos) || caesCandidatos.length === 0) {
+      return { inserted: 0, skipped: 0 };
+    }
+
+    const { data: existentes, error: erroExistentes } = await supabase
+      .from("caes_cliente")
+      .select("codigo, principal")
+      .eq("cliente_id", clienteId);
+
+    if (erroExistentes) throw erroExistentes;
+
+    const codigosExistentes = new Set(
+      (existentes || [])
+        .map((item) => String(item.codigo || "").trim())
+        .filter(Boolean)
+    );
+
+    const principalJaExiste = (existentes || []).some((item) => Boolean(item.principal));
+    const base = caesCandidatos
+      .filter((item) => item?.codigo)
+      .map((item) => ({
+        codigo: String(item.codigo).trim(),
+        descricao: item.descricao || null,
+        principal: Boolean(item.principal),
+      }))
+      .filter((item) => item.codigo && !codigosExistentes.has(item.codigo));
+
+    const caesParaInserir = principalJaExiste
+      ? base.map((item) => ({ ...item, principal: false }))
+      : base;
+
+    if (caesParaInserir.length === 0) {
+      return { inserted: 0, skipped: caesCandidatos.length };
+    }
+
+    const { data: inseridos, error: erroInsercao } = await supabase
+      .from("caes_cliente")
+      .insert(caesParaInserir.map((item) => ({ ...item, cliente_id: clienteId })))
+      .select();
+
+    if (erroInsercao) throw erroInsercao;
+
+    if (inseridos?.length) {
+      setCaes((prev) => [...prev, ...inseridos]);
+    }
+
+    return {
+      inserted: inseridos?.length || 0,
+      skipped: caesCandidatos.length - (inseridos?.length || 0),
     };
   }
 
@@ -2026,7 +2233,21 @@ export default function Clientes() {
                     <div>
                         <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px'}}>
                           <h4 style={{margin:0, fontSize:'1.1rem', color:'#1e293b'}}>Lista de CAEs</h4>
-                          {!isViewOnly && !showAddCae && <button className="btn-small-add hover-shadow" onClick={() => {setNovoCae(initCae); setShowAddCae(true)}} style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.Plus /> Adicionar CAE</button>}
+                          {!isViewOnly && (
+                            <div style={{display:'flex', gap:'10px', alignItems:'center'}}>
+                              <button
+                                type="button"
+                                className="btn-small-add hover-shadow"
+                                onClick={handleFetchCaesByNif}
+                                disabled={isFetchingCaeByNif}
+                                style={{display: 'flex', alignItems: 'center', gap: '6px', opacity: isFetchingCaeByNif ? 0.7 : 1}}
+                                title="Consulta automática de CAE com base no NIF"
+                              >
+                                <Icons.Search /> {isFetchingCaeByNif ? "A procurar..." : "Procurar CAE pelo NIF"}
+                              </button>
+                              {!showAddCae && <button className="btn-small-add hover-shadow" onClick={() => {setNovoCae(initCae); setShowAddCae(true)}} style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.Plus /> Adicionar CAE</button>}
+                            </div>
+                          )}
                         </div>
 
                         {showAddCae && (

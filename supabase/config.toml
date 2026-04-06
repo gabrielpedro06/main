@@ -1,0 +1,2 @@
+[functions.fetch-caes-sicae]
+verify_jwt = false
