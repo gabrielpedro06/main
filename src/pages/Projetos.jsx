@@ -151,6 +151,7 @@ export default function Projetos() {
   
   const [busca, setBusca] = useState("");
   const [mostrarConcluidos, setMostrarConcluidos] = useState(false);
+    const [viewMode, setViewMode] = useState("cards");
   const [showOnlyMine, setShowOnlyMine] = useState(true); 
   const [selectedCategoria, setSelectedCategoria] = useState(null); 
 
@@ -1020,6 +1021,26 @@ export default function Projetos() {
   const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box' };
   const actionBtnStyle = { background: 'transparent', border: 'none', cursor: 'pointer', padding: '6px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.6, transition: '0.2s' };
 
+  const getProjetoClientDisplay = (projeto) => {
+      if (!projeto) return { text: 'Sem Cliente', isParceria: false };
+
+      if (projeto.is_parceria && projeto.parceiros_ids?.length > 0) {
+          const parceirosNomes = projeto.parceiros_ids
+              .map(id => getClientDisplayName(clientes.find(c => String(c.id) === String(id))))
+              .filter(Boolean)
+              .join(', ');
+
+          if (parceirosNomes) {
+              return { text: `Parceria: ${parceirosNomes}`, isParceria: true };
+          }
+      }
+
+      return {
+          text: projeto.cliente_texto ? projeto.cliente_texto : (getClientDisplayName(projeto.clientes) || 'Sem Cliente'),
+          isParceria: false
+      };
+  };
+
   const tipoSelecionadoUI = tipos.find(t => String(t.id) === String(form.tipo_projeto_id));
   const isFormacaoSelected = tipoSelecionadoUI?.nome?.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes('forma');
 
@@ -1127,7 +1148,8 @@ export default function Projetos() {
 
       {selectedCategoria && (
           <div className="fade-in">
-              <div style={{display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px', borderBottom: '1px solid #cbd5e1', paddingBottom: '15px'}}>
+              <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '15px', marginBottom: '20px', borderBottom: '1px solid #cbd5e1', paddingBottom: '15px', flexWrap: 'wrap'}}>
+                  <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
                   <button 
                       onClick={() => setSelectedCategoria(null)}
                       style={{background: 'white', border: '1px solid #cbd5e1', padding: '8px 15px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', color: '#475569', display: 'flex', alignItems: 'center', gap: '6px', transition: '0.2s'}}
@@ -1139,85 +1161,188 @@ export default function Projetos() {
                       {selectedCategoria === 'sem-categoria' ? 'Projetos Avulsos' : tipos.find(t => t.id === selectedCategoria)?.nome}
                   </h2>
               </div>
-
-              <div className="project-grid">
-                  {projetosFiltrados.length > 0 ? projetosFiltrados.map(p => {
-                      const isCompleted = p.estado === 'concluido';
-                      const isTimerActive = activeLog?.projeto_id === p.id;
-                      const catColor = getColorForCategory(p.tipo_projeto_id);
-
-                      // Lógica Display Cliente/Parceria
-                      let clientDisplay = p.cliente_texto ? p.cliente_texto : (getClientDisplayName(p.clientes) || 'Sem Cliente');
-                      let clientIcon = p.cliente_texto ? <Icons.FileText size={14} /> : <Icons.Building size={14} />;
-                      
-                      if (p.is_parceria && p.parceiros_ids?.length > 0) {
-                          const parceirosNomes = p.parceiros_ids.map(id => getClientDisplayName(clientes.find(c => c.id === id))).filter(Boolean).join(', ');
-                          clientDisplay = `Parceria: ${parceirosNomes}`;
-                          clientIcon = <Icons.Handshake size={14} />;
-                      }
-
-                      return (
-                          <div 
-                              key={p.id} 
-                              onClick={() => navigate(`/dashboard/projetos/${p.id}`)}
-                              className="project-card hover-shadow"
-                              style={{
-                                  background: 'white', borderRadius: '16px', border: isTimerActive ? '2px solid var(--color-btnPrimary)' : '1px solid #e2e8f0', 
-                                  padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px', cursor: 'pointer', transition: 'all 0.2s',
-                                  opacity: isCompleted ? 0.6 : 1, position: 'relative', overflow: 'hidden'
-                              }}
-                          >
-                              <div style={{position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: isCompleted ? '#cbd5e1' : catColor}}></div>
-
-                              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
-                                  <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '5px'}}>
-                                      {p.codigo_projeto && <span style={{fontSize: '0.65rem', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '2px 8px', borderRadius: '6px', fontWeight: '800', border: '1px solid var(--color-borderColor)', fontFamily: 'monospace'}}>{p.codigo_projeto}</span>}
-                                      <span style={{fontSize: '0.65rem', background: isCompleted ? '#f1f5f9' : '#f8fafc', color: isCompleted ? '#64748b' : '#475569', padding: '2px 8px', borderRadius: '6px', fontWeight: '800', border: '1px solid #e2e8f0', textTransform: 'uppercase'}}>{(p.estado || '').replace('_', ' ')}</span>
-                                  </div>
-                                  
-                                  {!isCompleted && (
-                                      <button 
-                                          onClick={(e) => isTimerActive ? handleStopLog(e) : handleStartProjeto(e, p)} 
-                                          style={{ background: isTimerActive ? '#fee2e2' : 'var(--color-bgSecondary)', color: isTimerActive ? '#ef4444' : 'var(--color-btnPrimary)', border: 'none', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s' }}
-                                          title={isTimerActive ? "Parar Timer" : "Iniciar Timer"}
-                                          className={!isTimerActive ? "hover-blue-btn hover-shadow" : "hover-shadow"}
-                                      >
-                                          {isTimerActive ? <Icons.Stop /> : <Icons.Play />}
-                                      </button>
-                                  )}
-                              </div>
-
-                              <div>
-                                  <h2 style={{margin: '0 0 8px 0', fontSize: '1.2rem', color: '#0f172a', fontWeight: '800', lineHeight: '1.2'}}>{p.titulo}</h2>
-                                  <div style={{fontSize: '0.85rem', color: p.is_parceria ? '#8b5cf6' : '#475569', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>
-                                      {clientIcon} {clientDisplay}
-                                  </div>
-                              </div>
-
-                              <div style={{background: '#f8fafc', padding: '10px 12px', borderRadius: '8px', border: '1px solid #f1f5f9'}}>
-                                  <div style={{fontSize: '0.65rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '4px'}}>Responsável Global</div>
-                                  <div style={{fontSize: '0.85rem', color: '#334155', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>
-                                      <Icons.User /> {p.profiles?.nome || '-'}
-                                  </div>
-                              </div>
-
-                              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingTop: '10px', borderTop: '1px solid #f1f5f9'}}>
-                                  {renderDeadline(p.data_fim, p.estado)}
-                                  <div style={{display: 'flex', gap: '6px'}}>
-                                      <button onClick={(e) => handleEdit(e, p)} style={actionBtnStyle} className="hover-orange-text" title="Editar Projeto"><Icons.Edit /></button>
-                                      <button onClick={(e) => askDeleteProjeto(e, p.id, p.titulo)} style={actionBtnStyle} className="hover-red-text" title="Apagar"><Icons.Trash /></button>
-                                  </div>
-                              </div>
-                          </div>
-                      );
-                  }) : (
-                      <div style={{gridColumn: '1 / -1', textAlign: 'center', padding: '60px', background: 'white', borderRadius: '16px', border: '1px dashed #cbd5e1'}}>
-                          <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px', color: '#cbd5e1'}}><Icons.Inbox /></div>
-                          <h3 style={{color: '#1e293b', margin: '0 0 5px 0'}}>Vazio por aqui.</h3>
-                          <p style={{color: '#64748b', margin: 0}}>Não há projetos ativos nesta área.</p>
-                      </div>
-                  )}
+                  <div style={{display: 'inline-flex', alignItems: 'center', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '4px', marginLeft: 'auto'}}>
+                      <button
+                          type="button"
+                          onClick={() => setViewMode("cards")}
+                          className={viewMode === "cards" ? "marketing-view-toggle-btn active" : "marketing-view-toggle-btn"}
+                      >
+                          Cards
+                      </button>
+                      <button
+                          type="button"
+                          onClick={() => setViewMode("list")}
+                          className={viewMode === "list" ? "marketing-view-toggle-btn active" : "marketing-view-toggle-btn"}
+                      >
+                          Lista
+                      </button>
+                  </div>
               </div>
+
+              {viewMode === "cards" ? (
+                  <div className="project-grid">
+                      {projetosFiltrados.length > 0 ? projetosFiltrados.map(p => {
+                          const isCompleted = p.estado === 'concluido';
+                          const isTimerActive = activeLog?.projeto_id === p.id;
+                          const catColor = getColorForCategory(p.tipo_projeto_id);
+                          const clientInfo = getProjetoClientDisplay(p);
+                          const clientIcon = p.cliente_texto ? <Icons.FileText size={14} /> : (clientInfo.isParceria ? <Icons.Handshake size={14} /> : <Icons.Building size={14} />);
+
+                          return (
+                              <div 
+                                  key={p.id} 
+                                  onClick={() => navigate(`/dashboard/projetos/${p.id}`)}
+                                  className="project-card hover-shadow"
+                                  style={{
+                                      background: 'white', borderRadius: '16px', border: isTimerActive ? '2px solid var(--color-btnPrimary)' : '1px solid #e2e8f0', 
+                                      padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px', cursor: 'pointer', transition: 'all 0.2s',
+                                      opacity: isCompleted ? 0.6 : 1, position: 'relative', overflow: 'hidden'
+                                  }}
+                              >
+                                  <div style={{position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: isCompleted ? '#cbd5e1' : catColor}}></div>
+
+                                  <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
+                                      <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '5px'}}>
+                                          {p.codigo_projeto && <span style={{fontSize: '0.65rem', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '2px 8px', borderRadius: '6px', fontWeight: '800', border: '1px solid var(--color-borderColor)', fontFamily: 'monospace'}}>{p.codigo_projeto}</span>}
+                                          <span style={{fontSize: '0.65rem', background: isCompleted ? '#f1f5f9' : '#f8fafc', color: isCompleted ? '#64748b' : '#475569', padding: '2px 8px', borderRadius: '6px', fontWeight: '800', border: '1px solid #e2e8f0', textTransform: 'uppercase'}}>{(p.estado || '').replace('_', ' ')}</span>
+                                      </div>
+                                      
+                                      {!isCompleted && (
+                                          <button 
+                                              onClick={(e) => isTimerActive ? handleStopLog(e) : handleStartProjeto(e, p)} 
+                                              style={{ background: isTimerActive ? '#fee2e2' : 'var(--color-bgSecondary)', color: isTimerActive ? '#ef4444' : 'var(--color-btnPrimary)', border: 'none', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s' }}
+                                              title={isTimerActive ? "Parar Timer" : "Iniciar Timer"}
+                                              className={!isTimerActive ? "hover-blue-btn hover-shadow" : "hover-shadow"}
+                                          >
+                                              {isTimerActive ? <Icons.Stop /> : <Icons.Play />}
+                                          </button>
+                                      )}
+                                  </div>
+
+                                  <div>
+                                      <h2 style={{margin: '0 0 8px 0', fontSize: '1.2rem', color: '#0f172a', fontWeight: '800', lineHeight: '1.2'}}>{p.titulo}</h2>
+                                      <div style={{fontSize: '0.85rem', color: clientInfo.isParceria ? '#8b5cf6' : '#475569', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>
+                                          {clientIcon} {clientInfo.text}
+                                      </div>
+                                  </div>
+
+                                  <div style={{background: '#f8fafc', padding: '10px 12px', borderRadius: '8px', border: '1px solid #f1f5f9'}}>
+                                      <div style={{fontSize: '0.65rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '4px'}}>Responsável Global</div>
+                                      <div style={{fontSize: '0.85rem', color: '#334155', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>
+                                          <Icons.User /> {p.profiles?.nome || '-'}
+                                      </div>
+                                  </div>
+
+                                  <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingTop: '10px', borderTop: '1px solid #f1f5f9'}}>
+                                      {renderDeadline(p.data_fim, p.estado)}
+                                      <div style={{display: 'flex', gap: '6px'}}>
+                                          <button onClick={(e) => handleEdit(e, p)} style={actionBtnStyle} className="hover-orange-text" title="Editar Projeto"><Icons.Edit /></button>
+                                      </div>
+                                  </div>
+                              </div>
+                          );
+                      }) : (
+                          <div style={{gridColumn: '1 / -1', textAlign: 'center', padding: '60px', background: 'white', borderRadius: '16px', border: '1px dashed #cbd5e1'}}>
+                              <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px', color: '#cbd5e1'}}><Icons.Inbox /></div>
+                              <h3 style={{color: '#1e293b', margin: '0 0 5px 0'}}>Vazio por aqui.</h3>
+                              <p style={{color: '#64748b', margin: 0}}>Não há projetos ativos nesta área.</p>
+                          </div>
+                      )}
+                  </div>
+              ) : (
+                  <div className="project-list-wrapper">
+                      {projetosFiltrados.length > 0 ? (
+                          <div className="table-responsive" style={{borderRadius: '14px'}}>
+                              <table className="data-table project-list-table" style={{minWidth: '1050px'}}>
+                                  <thead>
+                                      <tr>
+                                          <th>Projeto</th>
+                                          <th>Cliente / Entidade</th>
+                                          <th>Responsável</th>
+                                          <th>Prazo</th>
+                                          <th>Estado</th>
+                                          <th style={{textAlign: 'right'}}>Ações</th>
+                                      </tr>
+                                  </thead>
+                                  <tbody>
+                                      {projetosFiltrados.map((p) => {
+                                          const isCompleted = p.estado === 'concluido';
+                                          const isTimerActive = activeLog?.projeto_id === p.id;
+                                          const catColor = getColorForCategory(p.tipo_projeto_id);
+                                          const clientInfo = getProjetoClientDisplay(p);
+                                          const estadoLabel = (p.estado || '').replace('_', ' ');
+
+                                          return (
+                                              <tr
+                                                  key={p.id}
+                                                  className={isCompleted ? 'project-list-row row-inactive' : 'project-list-row'}
+                                                  onClick={() => navigate(`/dashboard/projetos/${p.id}`)}
+                                                  style={{boxShadow: `inset 4px 0 0 ${isCompleted ? '#94a3b8' : catColor}`, cursor: 'pointer', background: isTimerActive ? 'var(--color-bgSecondary)' : 'white'}}
+                                              >
+                                                  <td>
+                                                      <div style={{display: 'flex', flexDirection: 'column', gap: '4px'}}>
+                                                          <span style={{fontWeight: '800', color: '#0f172a'}}>{p.titulo || 'Sem título'}</span>
+                                                          <div style={{display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap'}}>
+                                                              {p.codigo_projeto && <span style={{fontSize: '0.7rem', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', border: '1px solid var(--color-borderColor)', borderRadius: '6px', padding: '2px 8px', fontFamily: 'monospace', fontWeight: '700'}}>{p.codigo_projeto}</span>}
+                                                              {isTimerActive && <span style={{fontSize: '0.68rem', background: '#fee2e2', color: '#b91c1c', borderRadius: '999px', padding: '2px 8px', fontWeight: '800'}}>TIMER ATIVO</span>}
+                                                          </div>
+                                                      </div>
+                                                  </td>
+                                                  <td style={{maxWidth: '220px'}}>
+                                                      <span style={{display: 'inline-block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%', color: clientInfo.isParceria ? '#7c3aed' : '#475569', fontWeight: '600'}}>
+                                                          {clientInfo.text}
+                                                      </span>
+                                                  </td>
+                                                  <td>{p.profiles?.nome || '-'}</td>
+                                                  <td style={{whiteSpace: 'nowrap'}}>{renderDeadline(p.data_fim, p.estado)}</td>
+                                                  <td>
+                                                      <span style={{fontSize: '0.7rem', padding: '3px 8px', borderRadius: '999px', fontWeight: '800', textTransform: 'uppercase', background: isCompleted ? '#f1f5f9' : '#eef2ff', color: isCompleted ? '#64748b' : '#3730a3', whiteSpace: 'nowrap'}}>
+                                                          {estadoLabel}
+                                                      </span>
+                                                  </td>
+                                                  <td>
+                                                      <div style={{display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '6px'}}>
+                                                          {!isCompleted && (
+                                                              <button
+                                                                  type="button"
+                                                                  onClick={(e) => {
+                                                                      e.stopPropagation();
+                                                                      if (isTimerActive) handleStopLog(e);
+                                                                      else handleStartProjeto(e, p);
+                                                                  }}
+                                                                  style={{ background: isTimerActive ? '#fee2e2' : 'var(--color-bgSecondary)', color: isTimerActive ? '#ef4444' : 'var(--color-btnPrimary)', border: 'none', width: '30px', height: '30px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s' }}
+                                                                  className="hover-shadow"
+                                                                  title={isTimerActive ? "Parar Timer" : "Iniciar Timer"}
+                                                              >
+                                                                  {isTimerActive ? <Icons.Stop /> : <Icons.Play />}
+                                                              </button>
+                                                          )}
+                                                          <button
+                                                              type="button"
+                                                              onClick={(e) => handleEdit(e, p)}
+                                                              style={actionBtnStyle}
+                                                              className="hover-orange-text"
+                                                              title="Editar Projeto"
+                                                          >
+                                                              <Icons.Edit />
+                                                          </button>
+                                                      </div>
+                                                  </td>
+                                              </tr>
+                                          );
+                                      })}
+                                  </tbody>
+                              </table>
+                          </div>
+                      ) : (
+                          <div style={{textAlign: 'center', padding: '60px', background: 'white', borderRadius: '16px', border: '1px dashed #cbd5e1'}}>
+                              <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px', color: '#cbd5e1'}}><Icons.Inbox /></div>
+                              <h3 style={{color: '#1e293b', margin: '0 0 5px 0'}}>Vazio por aqui.</h3>
+                              <p style={{color: '#64748b', margin: 0}}>Não há projetos ativos nesta área.</p>
+                          </div>
+                      )}
+                  </div>
+              )}
           </div>
       )}
 
@@ -1797,6 +1922,36 @@ export default function Projetos() {
 
           .project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
           .project-card:hover { border-color: #cbd5e1 !important; box-shadow: 0 12px 20px -5px rgba(0,0,0,0.1) !important; transform: translateY(-2px); }
+
+          .marketing-view-toggle-btn {
+              border: none;
+              background: transparent;
+              color: #475569;
+              font-size: 0.8rem;
+              font-weight: 700;
+              padding: 6px 12px;
+              border-radius: 6px;
+              cursor: pointer;
+              transition: 0.2s;
+          }
+
+          .marketing-view-toggle-btn.active {
+              background: #ffffff;
+              color: var(--color-btnPrimary);
+              box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+          }
+
+          .marketing-view-toggle-btn:not(.active):hover {
+              color: #1e293b;
+          }
+
+          .project-list-row:hover { background: #f8fafc !important; }
+          .project-list-table td, .project-list-table th { vertical-align: middle; }
+          .project-list-table { table-layout: auto; }
+          .project-list-table th:nth-child(2), .project-list-table td:nth-child(2) { max-width: 220px; }
+          .project-list-table th:nth-child(4), .project-list-table td:nth-child(4) { white-space: nowrap; }
+          .project-list-table th:nth-child(5), .project-list-table td:nth-child(5) { white-space: nowrap; }
+          .project-list-table th:nth-child(6), .project-list-table td:nth-child(6) { white-space: nowrap; }
 
           .hover-shadow:hover { box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); transform: translateY(-1px); }
 
