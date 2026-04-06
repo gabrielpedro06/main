@@ -648,6 +648,20 @@ export default function Clientes() {
     }
   }
 
+  async function fetchCatalogDescriptionsByCodes(codes) {
+    const dedup = [...new Set((codes || []).map((code) => String(code || "").trim()).filter((code) => /^\d{5}$/.test(code)))];
+    if (dedup.length === 0) return [];
+
+    const response = await fetch(`/api/cae-descriptions?codes=${encodeURIComponent(dedup.join(","))}`);
+    const payload = await response.json().catch(() => ({}));
+
+    if (!response.ok || payload?.ok === false) {
+      throw new Error(payload?.error || "Falha ao consultar descrições de CAE no catálogo.");
+    }
+
+    return extractCaesFromFunctionPayload(payload);
+  }
+
   async function handleFetchCaesByNif() {
     const nif = sanitizeNif(form.nif);
 
@@ -673,9 +687,32 @@ export default function Clientes() {
         ].filter(Boolean)
       );
 
+      let updated = 0;
+      if (editId) {
+        const codigosParaAtualizar = [
+          ...caes.map((item) => item?.codigo),
+          ...caesSicae.map((item) => item?.codigo)
+        ];
+
+        let catalogCaes = [];
+        try {
+          catalogCaes = await fetchCatalogDescriptionsByCodes(codigosParaAtualizar);
+        } catch (_catalogError) {
+          catalogCaes = [];
+        }
+
+        const mergedLookup = [...caesSicae, ...catalogCaes];
+        const result = await updateExistingCaeDescriptions(editId, mergedLookup);
+        updated = result.updated || 0;
+      }
+
       const novosCaesBase = caesSicae.filter((item) => !codigosExistentes.has(item.codigo));
       if (novosCaesBase.length === 0) {
-        showToast("Os CAEs encontrados já estão associados a este cliente.", "info");
+        if (updated > 0) {
+          showToast(`${updated} descrição(ões) de CAE existentes foram atualizadas.`, "success");
+        } else {
+          showToast("Os CAEs encontrados já estão associados a este cliente.", "info");
+        }
         return;
       }
 
@@ -692,6 +729,9 @@ export default function Clientes() {
           showToast(`${inserted} CAE importados e guardados automaticamente.`, "success");
         } else {
           showToast("Os CAEs encontrados já estavam associados a este cliente.", "info");
+        }
+        if (updated > 0) {
+          showToast(`${updated} descrição(ões) de CAE existentes foram atualizadas.`, "success");
         }
         if (skipped > 0 && inserted > 0) {
           showToast(`${skipped} CAE já existiam e foram ignorados.`, "info");
@@ -914,10 +954,18 @@ export default function Clientes() {
              }));
 
              if (editId) {
+               const lookupCaes = caesParaGuardar.map((item) => ({
+                 codigo: item.codigo,
+                 descricao: item.descricao,
+               }));
+               const { updated } = await updateExistingCaeDescriptions(editId, lookupCaes);
                const { inserted, skipped } = await insertAutoCaesForCliente(editId, caesParaGuardar);
                setPendingAutoCaes([]);
                if (inserted > 0) {
                  showToast(`${inserted} CAE importados e guardados automaticamente.`, "success");
+               }
+               if (updated > 0) {
+                 showToast(`${updated} descrição(ões) de CAE existentes foram atualizadas.`, "success");
                }
                if (skipped > 0) {
                  showToast(`${skipped} CAE já existiam e foram ignorados.`, "info");
@@ -1184,7 +1232,7 @@ export default function Clientes() {
 
     const { data: inseridos, error: erroInsercao } = await supabase
       .from("caes_cliente")
-      .insert(caesParaInserir)
+      .upsert(caesParaInserir, { onConflict: "cliente_id,codigo", ignoreDuplicates: true })
       .select();
 
     if (erroInsercao) throw erroInsercao;
@@ -1237,7 +1285,10 @@ export default function Clientes() {
 
     const { data: inseridos, error: erroInsercao } = await supabase
       .from("caes_cliente")
-      .insert(caesParaInserir.map((item) => ({ ...item, cliente_id: clienteId })))
+      .upsert(
+        caesParaInserir.map((item) => ({ ...item, cliente_id: clienteId })),
+        { onConflict: "cliente_id,codigo", ignoreDuplicates: true }
+      )
       .select();
 
     if (erroInsercao) throw erroInsercao;
@@ -1250,6 +1301,73 @@ export default function Clientes() {
       inserted: inseridos?.length || 0,
       skipped: caesCandidatos.length - (inseridos?.length || 0),
     };
+  }
+
+  async function updateExistingCaeDescriptions(clienteId, lookupCaes) {
+    if (!clienteId || !Array.isArray(lookupCaes) || lookupCaes.length === 0) {
+      return { updated: 0 };
+    }
+
+    const descricaoByCodigo = new Map(
+      lookupCaes
+        .filter((item) => item?.codigo && item?.descricao)
+        .map((item) => [String(item.codigo).trim(), String(item.descricao).trim()])
+        .filter(([codigo, descricao]) => /^\d{5}$/.test(codigo) && descricao)
+    );
+
+    if (descricaoByCodigo.size === 0) {
+      return { updated: 0 };
+    }
+
+    const candidatos = caes
+      .filter((item) => item?.id && item?.codigo)
+      .map((item) => {
+        const codigo = String(item.codigo).trim();
+        const novaDescricao = descricaoByCodigo.get(codigo);
+        if (!novaDescricao) return null;
+
+        const descricaoAtual = String(item.descricao || "").trim();
+        if (descricaoAtual === novaDescricao) return null;
+
+        return {
+          id: item.id,
+          codigo,
+          novaDescricao,
+        };
+      })
+      .filter(Boolean);
+
+    if (candidatos.length === 0) {
+      return { updated: 0 };
+    }
+
+    const resultados = await Promise.all(
+      candidatos.map(async (item) => {
+        const { data, error } = await supabase
+          .from("caes_cliente")
+          .update({ descricao: item.novaDescricao })
+          .eq("id", item.id)
+          .eq("cliente_id", clienteId)
+          .select("id, descricao")
+          .single();
+
+        if (error) throw error;
+        return data;
+      })
+    );
+
+    if (resultados.length > 0) {
+      const descricaoById = new Map(resultados.map((item) => [String(item.id), item.descricao || null]));
+      setCaes((prev) =>
+        prev.map((item) => {
+          const novaDescricao = descricaoById.get(String(item.id));
+          if (novaDescricao === undefined) return item;
+          return { ...item, descricao: novaDescricao };
+        })
+      );
+    }
+
+    return { updated: resultados.length };
   }
 
   async function persistPendingAutoMorada(clienteId) {
@@ -1470,6 +1588,25 @@ export default function Clientes() {
   async function saveSubItem(tabela, dados, stateSetter, listaAtual, resetState, resetValue, closeFormSetter) {
     if (isViewOnly) return;
     if (!editId) return showToast("Guarda primeiro os Dados da Empresa (Aba Geral) no fundo do ecrã.", "warning");
+
+    if (tabela === "caes_cliente") {
+      const codigoNormalizado = String(dados?.codigo || "").trim();
+      if (!codigoNormalizado) {
+        showToast("Indica um código CAE válido.", "warning");
+        return;
+      }
+
+      const duplicate = (listaAtual || []).some((item) => {
+        const sameCodigo = String(item?.codigo || "").trim() === codigoNormalizado;
+        const isDifferentRow = String(item?.id || "") !== String(dados?.id || "");
+        return sameCodigo && isDifferentRow;
+      });
+
+      if (duplicate) {
+        showToast(`O CAE ${codigoNormalizado} já existe nesta ficha.`, "warning");
+        return;
+      }
+    }
 
     const payload = { ...dados, cliente_id: editId };
     if (tabela === 'moradas_cliente') { delete payload.distrito; delete payload.regiao; }

@@ -2,6 +2,7 @@ import "dotenv/config";
 import cors from "cors";
 import express from "express";
 import { sendTransactionalCampaign } from "./brevoCampaignSender.js";
+import { getCaeDescriptions } from "./caeCatalog.js";
 import { lookupSicaeCaesByNif } from "./sicaeCaeLookup.js";
 
 const app = express();
@@ -81,6 +82,16 @@ app.get("/api/sicae-caes", async (req, res) => {
       details: error.details || null,
     });
   }
+});
+
+app.get("/api/cae-descriptions", (req, res) => {
+  const rawCodes = req.query?.codes;
+  const codes = typeof rawCodes === "string"
+    ? rawCodes.split(",").map((item) => item.trim()).filter(Boolean)
+    : [];
+
+  const caes = getCaeDescriptions(codes);
+  return res.status(200).json({ ok: true, total: caes.length, caes });
 });
 
 const PORT = Number(process.env.PORT || 8787);

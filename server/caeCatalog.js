@@ -101,3 +101,15 @@ export function getCaeDescription(code) {
   if (!/^\d{5}$/.test(key)) return null;
   return loadCaeCatalogMap().get(key) || null;
 }
+
+export function getCaeDescriptions(codes) {
+  if (!Array.isArray(codes) || codes.length === 0) return [];
+
+  const catalog = loadCaeCatalogMap();
+  const dedup = [...new Set(codes.map((code) => String(code || "").trim()).filter((code) => /^\d{5}$/.test(code)))];
+
+  return dedup.map((codigo) => ({
+    codigo,
+    descricao: catalog.get(codigo) || null,
+  }));
+}
