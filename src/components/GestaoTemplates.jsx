@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+﻿import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import "./../styles/dashboard.css";
@@ -102,6 +102,52 @@ export default function GestaoTemplates() {
       return false;
   };
 
+  const normalizeTarefaDependenciesAfterReorder = (orderedTarefas) => {
+      let clearedCount = 0;
+
+      const ordemById = new Map(
+          orderedTarefas.map((t) => [String(t.id), Number(t.ordem) || 0])
+      );
+
+      const normalized = orderedTarefas.map((t) => {
+          const depId = t.depende_de_template_tarefa_id;
+          if (!depId) return t;
+
+          const depOrdem = ordemById.get(String(depId));
+          const currentOrdem = Number(t.ordem) || 0;
+          const isValid = depOrdem && depOrdem < currentOrdem;
+
+          if (isValid) return t;
+          clearedCount += 1;
+          return { ...t, depende_de_template_tarefa_id: null };
+      });
+
+      return { normalized, clearedCount };
+  };
+
+  const normalizeAtividadeDependenciesAfterReorder = (orderedAtividades) => {
+      let clearedCount = 0;
+
+      const ordemById = new Map(
+          orderedAtividades.map((a) => [String(a.id), Number(a.ordem) || 0])
+      );
+
+      const normalized = orderedAtividades.map((a) => {
+          const depId = a.depende_de_template_atividade_id;
+          if (!depId) return a;
+
+          const depOrdem = ordemById.get(String(depId));
+          const currentOrdem = Number(a.ordem) || 0;
+          const isValid = depOrdem && depOrdem < currentOrdem;
+
+          if (isValid) return a;
+          clearedCount += 1;
+          return { ...a, depende_de_template_atividade_id: null };
+      });
+
+      return { normalized, clearedCount };
+  };
+
   async function fetchTipos() {
     setLoading(true); 
     try {
@@ -156,10 +202,18 @@ export default function GestaoTemplates() {
       dragOverItemIndex.current = null;
 
       const updatedList = copyListItems.map((item, idx) => ({ ...item, ordem: idx + 1 }));
-      setAtividades(updatedList);
+      const { normalized, clearedCount } = normalizeAtividadeDependenciesAfterReorder(updatedList);
+      setAtividades(normalized);
 
-      for (const item of updatedList) {
-          await supabase.from('template_atividades').update({ ordem: item.ordem }).eq('id', item.id);
+      for (const item of normalized) {
+          await supabase
+              .from('template_atividades')
+              .update({ ordem: item.ordem, depende_de_template_atividade_id: item.depende_de_template_atividade_id || null })
+              .eq('id', item.id);
+      }
+
+      if (clearedCount > 0) {
+          showToast(`Reordenação removeu ${clearedCount} dependência(s) inválida(s).`, 'error');
       }
   };
 
@@ -172,10 +226,18 @@ export default function GestaoTemplates() {
       dragOverItemIndex.current = null;
 
       const updatedList = copyListItems.map((item, idx) => ({ ...item, ordem: idx + 1 }));
-      setTarefas(updatedList);
+      const { normalized, clearedCount } = normalizeTarefaDependenciesAfterReorder(updatedList);
+      setTarefas(normalized);
 
-      for (const item of updatedList) {
-          await supabase.from('template_tarefas').update({ ordem: item.ordem }).eq('id', item.id);
+      for (const item of normalized) {
+          await supabase
+              .from('template_tarefas')
+              .update({ ordem: item.ordem, depende_de_template_tarefa_id: item.depende_de_template_tarefa_id || null })
+              .eq('id', item.id);
+      }
+
+      if (clearedCount > 0) {
+          showToast(`Reordenação removeu ${clearedCount} dependência(s) inválida(s).`, 'error');
       }
   };
 
@@ -279,6 +341,22 @@ export default function GestaoTemplates() {
               const payload = { nome: inputValue, dias_estimados: diasNum, descricao: inputDescricao, info_adicional: infoAdicional, depende_de_template_atividade_id: dependencyId };
               if (!isEdit) payload.ordem = atividades.length + 1;
 
+              const atividadeAtual = atividades.find((a) => String(a.id) === String(modalConfig.itemId));
+              const currentOrdem = isEdit ? Number(atividadeAtual?.ordem || 0) : atividades.length + 1;
+
+              if (dependencyId) {
+                  const dependencyAtividade = atividades.find((a) => String(a.id) === String(dependencyId));
+                  if (!dependencyAtividade) {
+                      showToast("Dependência inválida: etapa não encontrada neste modelo.", "error");
+                      return;
+                  }
+
+                  if (Number(dependencyAtividade.ordem || 0) >= currentOrdem) {
+                      showToast("Dependência inválida: só podes depender de etapas anteriores.", "error");
+                      return;
+                  }
+              }
+
               if (isEdit && dependencyId && createsCircularDependency(atividades, modalConfig.itemId, dependencyId, 'depende_de_template_atividade_id')) {
                   showToast("Dependência inválida: gera ciclo entre etapas.", "error");
                   return;
@@ -299,6 +377,22 @@ export default function GestaoTemplates() {
               const dependencyId = inputDepTarefaId || null;
               const payload = { nome: inputValue, dias_estimados: diasNum, descricao: inputDescricao, info_adicional: infoAdicional, depende_de_template_tarefa_id: dependencyId };
               if (!isEdit) payload.ordem = tarefas.length + 1;
+
+              const tarefaAtual = tarefas.find((t) => String(t.id) === String(modalConfig.itemId));
+              const currentOrdem = isEdit ? Number(tarefaAtual?.ordem || 0) : tarefas.length + 1;
+
+              if (dependencyId) {
+                  const dependencyTask = tarefas.find((t) => String(t.id) === String(dependencyId));
+                  if (!dependencyTask) {
+                      showToast("Dependência inválida: tarefa não encontrada nesta etapa.", "error");
+                      return;
+                  }
+
+                  if (Number(dependencyTask.ordem || 0) >= currentOrdem) {
+                      showToast("Dependência inválida: só podes depender de tarefas anteriores.", "error");
+                      return;
+                  }
+              }
 
               if (isEdit && dependencyId && createsCircularDependency(tarefas, modalConfig.itemId, dependencyId, 'depende_de_template_tarefa_id')) {
                   showToast("Dependência inválida: gera ciclo entre tarefas.", "error");
@@ -384,6 +478,32 @@ export default function GestaoTemplates() {
       }
   };
 
+  const getAtividadeDependencyLabel = (atividade) => {
+      if (!atividade?.depende_de_template_atividade_id) return null;
+      const dependeDe = atividades.find((a) => String(a.id) === String(atividade.depende_de_template_atividade_id));
+      if (!dependeDe) return "Dependência externa";
+      return `Depende de: ${dependeDe.ordem}. ${dependeDe.nome}`;
+  };
+
+  const getTarefaDependencyLabel = (tarefa) => {
+      if (!tarefa?.depende_de_template_tarefa_id) return null;
+      const dependeDe = tarefas.find((t) => String(t.id) === String(tarefa.depende_de_template_tarefa_id));
+      if (!dependeDe) return "Dependência externa";
+      return `Depende de: ${dependeDe.ordem}. ${dependeDe.nome}`;
+  };
+
+  const tarefaModalCurrentOrdem = modalConfig.tipo === 'tarefa'
+      ? (modalConfig.mode === 'edit'
+          ? Number(tarefas.find((t) => String(t.id) === String(modalConfig.itemId))?.ordem || 0)
+          : tarefas.length + 1)
+      : null;
+
+  const atividadeModalCurrentOrdem = modalConfig.tipo === 'atividade'
+      ? (modalConfig.mode === 'edit'
+          ? Number(atividades.find((a) => String(a.id) === String(modalConfig.itemId))?.ordem || 0)
+          : atividades.length + 1)
+      : null;
+
   // ESTILOS PREMIUM & COMPACTOS
   const styles = {
     container: { padding: '20px', maxWidth: '1600px', margin: '0 auto' },
@@ -423,10 +543,14 @@ export default function GestaoTemplates() {
 
     badge: (type) => ({
         fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '3px', whiteSpace: 'nowrap',
-        background: type === 'time' ? '#ecfdf5' : '#fffbeb',
-        color: type === 'time' ? '#047857' : '#b45309',
-        border: `1px solid ${type === 'time' ? '#a7f3d0' : '#fde68a'}`
+        background: type === 'time' ? '#ecfdf5' : type === 'dep' ? '#eff6ff' : '#fffbeb',
+        color: type === 'time' ? '#047857' : type === 'dep' ? '#1d4ed8' : '#b45309',
+        border: `1px solid ${type === 'time' ? '#a7f3d0' : type === 'dep' ? '#bfdbfe' : '#fde68a'}`
     }),
+
+    dependencyTrace: { marginTop: '5px', marginLeft: '20px', display: 'flex', alignItems: 'center', gap: '6px' },
+    dependencyLine: { width: '10px', height: '0', borderTop: '2px solid #93c5fd', opacity: 0.9 },
+    dependencyText: { fontSize: '0.72rem', color: '#2563eb', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
 
     subtaskList: { padding: '4px 12px 8px 24px', background: 'white', borderTop: '1px solid #f1f5f9' },
     subtaskItem: { padding: '4px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', fontSize: '0.85rem', color: '#475569', cursor: 'grab' },
@@ -511,6 +635,7 @@ export default function GestaoTemplates() {
             <div style={styles.listContainer} className="custom-scrollbar">
                 {atividades.map((a, index) => {
                     const isSelected = selectedAtiv?.id === a.id;
+                    const atividadeDepLabel = getAtividadeDependencyLabel(a);
                     return (
                     <div 
                         key={a.id} 
@@ -533,6 +658,12 @@ export default function GestaoTemplates() {
                                     {a.dias_estimados > 0 && <span style={styles.badge('time')}><Icons.Clock/> {a.dias_estimados}d</span>}
                                     {a.descricao && <span style={styles.badge('doc')}><Icons.Doc/> Nota</span>}
                                 </div>
+                                {atividadeDepLabel && (
+                                    <div style={styles.dependencyTrace} title={atividadeDepLabel}>
+                                        <span style={styles.dependencyLine}></span>
+                                        <span style={styles.dependencyText}>{atividadeDepLabel}</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
                         <div style={styles.actionsGroup} className="actions-group">
@@ -556,6 +687,7 @@ export default function GestaoTemplates() {
             <div style={styles.listContainer} className="custom-scrollbar">
                 {tarefas.map((t, index) => {
                     const subs = subtarefas.filter(st => st.template_tarefa_id === t.id);
+                    const tarefaDepLabel = getTarefaDependencyLabel(t);
                     return (
                     <div 
                         key={t.id} 
@@ -588,6 +720,15 @@ export default function GestaoTemplates() {
                             <div style={{padding: '6px 12px 6px 30px', background: '#fffbeb', borderTop: '1px solid #fef3c7', fontSize: '0.75rem', color: '#b45309', display:'flex', gap:'6px', alignItems:'flex-start'}}>
                                 <span style={{marginTop:'2px', opacity:0.7}}><Icons.Doc/></span>
                                 <span style={{whiteSpace: 'pre-wrap'}}>{t.descricao}</span>
+                            </div>
+                        )}
+
+                        {tarefaDepLabel && (
+                            <div style={{padding: '6px 12px 6px 30px', borderTop: '1px solid #e2e8f0'}} title={tarefaDepLabel}>
+                                <div style={{...styles.dependencyTrace, marginTop: 0, marginLeft: 0}}>
+                                    <span style={styles.dependencyLine}></span>
+                                    <span style={styles.dependencyText}>{tarefaDepLabel}</span>
+                                </div>
                             </div>
                         )}
 
@@ -670,6 +811,7 @@ export default function GestaoTemplates() {
                                       <option value="">Sem dependência</option>
                                       {atividades
                                           .filter((a) => String(a.id) !== String(modalConfig.itemId || ''))
+                                          .filter((a) => Number(a.ordem || 0) < Number(atividadeModalCurrentOrdem || 0))
                                           .map((a) => (
                                               <option key={a.id} value={a.id}>{a.ordem}. {a.nome}</option>
                                           ))}
@@ -689,6 +831,7 @@ export default function GestaoTemplates() {
                                       <option value="">Sem dependência</option>
                                       {tarefas
                                           .filter((t) => String(t.id) !== String(modalConfig.itemId || ''))
+                                          .filter((t) => Number(t.ordem || 0) < Number(tarefaModalCurrentOrdem || 0))
                                           .map((t) => (
                                               <option key={t.id} value={t.id}>{t.ordem}. {t.nome}</option>
                                           ))}
