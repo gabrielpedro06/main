@@ -218,8 +218,9 @@ export default function ProjetoDetalhe() {
   const dragTarOverItem = useRef();
 
   useEffect(() => {
-      const focusTaskId = location.state?.focusTaskId;
-      const focusTaskType = location.state?.focusTaskType || 'tarefa';
+      const urlParams = new URLSearchParams(location.search || "");
+      const focusTaskId = location.state?.focusTaskId || urlParams.get("focusTaskId");
+      const focusTaskType = location.state?.focusTaskType || urlParams.get("focusTaskType") || 'tarefa';
       if (!focusTaskId) return;
 
       // Garantir que os cards existem no DOM antes de tentar o scroll.
@@ -230,8 +231,14 @@ export default function ProjetoDetalhe() {
           type: focusTaskType === 'atividade' ? 'atividade' : 'tarefa'
       };
 
-      navigate(location.pathname, { replace: true, state: null });
-  }, [location.state, location.pathname, navigate]);
+      urlParams.delete("focusTaskId");
+      urlParams.delete("focusTaskType");
+      const cleanedSearch = urlParams.toString();
+      navigate(
+          cleanedSearch ? `${location.pathname}?${cleanedSearch}` : location.pathname,
+          { replace: true, state: null }
+      );
+  }, [location.state, location.pathname, location.search, navigate]);
 
     // 💡 Monitoriza o progresso e conclui o projeto automaticamente
     useEffect(() => {

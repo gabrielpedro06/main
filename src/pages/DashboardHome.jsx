@@ -1105,16 +1105,19 @@ export default function DashboardHome() {
           focusTaskId: normalizedFocusId,
           focusTaskType: taskCard?.isActivity ? 'atividade' : 'tarefa'
       };
+      const focusQuery = normalizedFocusId
+          ? `?focusTaskId=${encodeURIComponent(String(normalizedFocusId))}&focusTaskType=${encodeURIComponent(focusState.focusTaskType)}`
+          : '';
 
       if (targetPath === '/dashboard/tarefas') {
-          navigate(targetPath, {
+          navigate(`${targetPath}${focusQuery}`, {
               state: focusState
           });
           return;
       }
 
       if (targetPath.startsWith('/dashboard/projetos/')) {
-          navigate(targetPath, { state: focusState });
+          navigate(`${targetPath}${focusQuery}`, { state: focusState });
           return;
       }
 
