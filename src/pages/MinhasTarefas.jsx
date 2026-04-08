@@ -8,6 +8,7 @@ import StopTimerNoteModal from "../components/StopTimerNoteModal";
 import { hasAttendanceStartedToday, startAttendanceNow } from "../utils/attendanceGuard";
 import { resolveActiveTimerMeta } from "../utils/activeTimerResolver";
 import { concludeActivityWithChildren } from "../utils/activityStatusCascade";
+import { applyStopStatusUpdateForLogTarget } from "../utils/taskTimerLifecycle";
 import "./../styles/dashboard.css";
 
 // --- ÍCONES SVG PROFISSIONAIS (SaaS Premium) ---
@@ -533,13 +534,14 @@ export default function MinhasTarefas() {
       setStopNoteModal({ show: false });
   }
 
-  async function finalizeStopWithNote(note, shouldComplete) {
+  async function finalizeStopWithNote(note, shouldComplete, statusMeta = {}) {
       if (!activeLog) return;
 
       const logToStop = activeLog;
       const diffMins = await stopLogById(logToStop, note);
       if (diffMins === null) return;
 
+      await applyStopStatusUpdateForLogTarget(supabase, logToStop, statusMeta);
       if (shouldComplete) await completeLogItem(logToStop);
 
       setActiveLog(null);
@@ -547,16 +549,16 @@ export default function MinhasTarefas() {
       carregarTudo();
   }
 
-  async function confirmStopWithNote(note, shouldComplete) {
+  async function confirmStopWithNote(note, shouldComplete, statusMeta) {
       setStopNoteModal({ show: false });
       if (!activeLog) return;
 
       if (shouldComplete) {
-          await runActionWithAttendanceWarning(() => finalizeStopWithNote(note, shouldComplete));
+          await runActionWithAttendanceWarning(() => finalizeStopWithNote(note, shouldComplete, statusMeta));
           return;
       }
 
-      await finalizeStopWithNote(note, shouldComplete);
+      await finalizeStopWithNote(note, shouldComplete, statusMeta);
   }
 
   async function handleToggleTimer(task) {
@@ -1365,6 +1367,7 @@ export default function MinhasTarefas() {
           message="Se quiseres, adiciona uma nota breve sobre o que foi feito (opcional)."
           placeholder="Ex: Concluída análise e próximos passos definidos"
           showCompleteOption={Boolean(activeLog)}
+          showStatusOption={Boolean(activeLog)}
           completeLabel={getStopCompleteLabel(activeLog)}
           onCancel={closeStopNoteModal}
           onConfirm={confirmStopWithNote}

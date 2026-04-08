@@ -8,6 +8,7 @@ import StopTimerNoteModal from "../components/StopTimerNoteModal";
 import { hasAttendanceStartedToday, startAttendanceNow } from "../utils/attendanceGuard";
 import { resolveActiveTimerMeta } from "../utils/activeTimerResolver";
 import { concludeActivityWithChildren } from "../utils/activityStatusCascade";
+import { applyStopStatusUpdateForLogTarget } from "../utils/taskTimerLifecycle";
 import "./../styles/dashboard.css";
 
 // --- ÍCONES SVG PROFISSIONAIS ---
@@ -323,13 +324,14 @@ export default function Atividades() {
         setStopNoteModal({ show: false });
     }
 
-    async function finalizeStopWithNote(note, shouldComplete) {
+    async function finalizeStopWithNote(note, shouldComplete, statusMeta = {}) {
         if (!activeLog) return;
 
         const logToStop = activeLog;
         const diffMins = await stopLogById(logToStop, note);
         if (diffMins === null) return;
 
+        await applyStopStatusUpdateForLogTarget(supabase, logToStop, statusMeta);
         if (shouldComplete) await completeLogItem(logToStop);
 
         setActiveLog(null);
@@ -337,16 +339,16 @@ export default function Atividades() {
         fetchData();
     }
 
-    async function confirmStopWithNote(note, shouldComplete) {
+    async function confirmStopWithNote(note, shouldComplete, statusMeta) {
         setStopNoteModal({ show: false });
         if (!activeLog) return;
 
         if (shouldComplete) {
-            await runActionWithAttendanceWarning(() => finalizeStopWithNote(note, shouldComplete));
+            await runActionWithAttendanceWarning(() => finalizeStopWithNote(note, shouldComplete, statusMeta));
             return;
         }
 
-        await finalizeStopWithNote(note, shouldComplete);
+        await finalizeStopWithNote(note, shouldComplete, statusMeta);
     }
 
   async function handleToggleStatus(ativ) {
@@ -838,6 +840,7 @@ export default function Atividades() {
                 message="Podes adicionar uma nota breve para este registo (opcional)."
                 placeholder="Ex: Finalizada revisão da atividade"
                 showCompleteOption={Boolean(activeLog)}
+                showStatusOption={Boolean(activeLog)}
                 completeLabel={getStopCompleteLabel(activeLog)}
                 onCancel={closeStopNoteModal}
                 onConfirm={confirmStopWithNote}

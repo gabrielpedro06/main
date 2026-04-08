@@ -8,6 +8,7 @@ import StopTimerNoteModal from "../components/StopTimerNoteModal";
 import { hasAttendanceStartedToday, startAttendanceNow } from "../utils/attendanceGuard";
 import { concludeActivityWithChildren } from "../utils/activityStatusCascade";
 import { buildDependencyMaps, getActivityBlockReason } from "../utils/dependencyGuards";
+import { applyStopStatusUpdateForLogTarget } from "../utils/taskTimerLifecycle";
 import "./../styles/dashboard.css";
 
 // 💡 IMPORTAÇÃO CORRIGIDA (SEM CHAVETAS):
@@ -898,13 +899,14 @@ export default function ProjetoDetalhe() {
       setStopNoteModal({ show: false });
   }
 
-  async function finalizeStopWithNote(note, shouldComplete) {
+  async function finalizeStopWithNote(note, shouldComplete, statusMeta = {}) {
       if (!activeLog) return;
 
       const logToStop = activeLog;
       const diffMins = await stopLogById(logToStop, note);
       if (diffMins === null) return;
 
+      await applyStopStatusUpdateForLogTarget(supabase, logToStop, statusMeta);
       if (shouldComplete) await completeLogItem(logToStop);
 
       setActiveLog(null);
@@ -912,16 +914,16 @@ export default function ProjetoDetalhe() {
       fetchProjetoDetails();
   }
 
-  async function confirmStopWithNote(note, shouldComplete) {
+  async function confirmStopWithNote(note, shouldComplete, statusMeta) {
       setStopNoteModal({ show: false });
       if (!activeLog) return;
 
       if (shouldComplete) {
-          await runActionWithAttendanceWarning(() => finalizeStopWithNote(note, shouldComplete));
+          await runActionWithAttendanceWarning(() => finalizeStopWithNote(note, shouldComplete, statusMeta));
           return;
       }
 
-      await finalizeStopWithNote(note, shouldComplete);
+      await finalizeStopWithNote(note, shouldComplete, statusMeta);
   }
 
   async function handleToggleTimer(targetId, type) {
@@ -2682,6 +2684,7 @@ export default function ProjetoDetalhe() {
           message="Regista uma nota breve deste bloco de trabalho (opcional)."
           placeholder="Ex: Checklist finalizada e pendente validação"
           showCompleteOption={Boolean(activeLog)}
+          showStatusOption={Boolean(activeLog)}
           completeLabel={getStopCompleteLabel(activeLog)}
           onCancel={closeStopNoteModal}
           onConfirm={confirmStopWithNote}

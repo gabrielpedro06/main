@@ -48,6 +48,8 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
   const [showClockOutModal, setShowClockOutModal] = useState(false);
   const [showRetomarModal, setShowRetomarModal] = useState(false);
   const [retomarPromise, setRetomarPromise] = useState(null);
+  const [analysisDueToday, setAnalysisDueToday] = useState([]);
+  const [incomingAnalysisModal, setIncomingAnalysisModal] = useState({ open: false, items: [] });
 
   // Registos Recentes
   const [showRecords, setShowRecords] = useState(false);
@@ -65,6 +67,15 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
     const h = Math.floor(s / 3600);
     const m = Math.floor((s % 3600) / 60);
     return `${h}h${String(m).padStart(2,'0')}`;
+  };
+
+  const formatAnalysisDestination = (value) => {
+    const normalized = String(value || "").trim().toLowerCase();
+    if (normalized === "colega") return "Colega";
+    if (normalized === "cliente") return "Cliente";
+    if (normalized === "contabilista") return "Contabilista";
+    if (normalized === "organismo") return "Organismo";
+    return "Proprio";
   };
 
     const getClientDisplayName = (client) => {
@@ -87,6 +98,73 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
     const { data } = await supabase.from('assiduidade').select('*').eq('user_id', user.id).gte('data_registo', primeiroDia).order('data_registo', { ascending: false }).limit(5);
     if (data) setRecentRecords(data);
   }, [user?.id]); 
+
+  const checkIncomingAnalysisAssignments = useCallback(async () => {
+    if (!user?.id) return;
+
+    const [taskRes, activityRes] = await Promise.all([
+      supabase
+        .from("tarefas")
+        .select("id, titulo, analise_destino, analise_data_prevista")
+        .eq("estado", "em_analise")
+        .eq("analise_destino", "colega")
+        .eq("analise_destino_user_id", user.id)
+        .eq("analise_alerta_pendente", true),
+      supabase
+        .from("atividades")
+        .select("id, titulo, analise_destino, analise_data_prevista")
+        .eq("estado", "em_analise")
+        .eq("analise_destino", "colega")
+        .eq("analise_destino_user_id", user.id)
+        .eq("analise_alerta_pendente", true),
+    ]);
+
+    if (taskRes.error && taskRes.error.code !== "42703") {
+      console.warn("Erro ao verificar alertas de analise (tarefas):", taskRes.error.message);
+      return;
+    }
+
+    if (activityRes.error && activityRes.error.code !== "42703") {
+      console.warn("Erro ao verificar alertas de analise (atividades):", activityRes.error.message);
+      return;
+    }
+
+    // Migração ainda não aplicada: não quebra o widget.
+    if ((taskRes.error && taskRes.error.code === "42703") || (activityRes.error && activityRes.error.code === "42703")) {
+      return;
+    }
+
+    const items = [
+      ...(taskRes.data || []).map((item) => ({ ...item, tipo: "Tarefa" })),
+      ...(activityRes.data || []).map((item) => ({ ...item, tipo: "Atividade" })),
+    ];
+
+    if (items.length > 0) {
+      setIncomingAnalysisModal({ open: true, items });
+    }
+  }, [user?.id]);
+
+  const acknowledgeIncomingAnalysisAssignments = useCallback(async () => {
+    const items = incomingAnalysisModal.items || [];
+    const taskIds = items.filter((item) => item.tipo === "Tarefa").map((item) => item.id);
+    const activityIds = items.filter((item) => item.tipo === "Atividade").map((item) => item.id);
+
+    if (taskIds.length > 0) {
+      await supabase
+        .from("tarefas")
+        .update({ analise_alerta_pendente: false })
+        .in("id", taskIds);
+    }
+
+    if (activityIds.length > 0) {
+      await supabase
+        .from("atividades")
+        .update({ analise_alerta_pendente: false })
+        .in("id", activityIds);
+    }
+
+    setIncomingAnalysisModal({ open: false, items: [] });
+  }, [incomingAnalysisModal.items]);
 
   // --- 1. VERIFICAR ESTADO E AUTO-ENCERRAMENTO ---
   const checkStatus = useCallback(async () => {
@@ -173,19 +251,23 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
   useEffect(() => { 
       checkStatus();
       fetchRecentRecords();
+      checkIncomingAnalysisAssignments();
             const handleAttendanceUpdated = () => {
                 checkStatus();
                 fetchRecentRecords();
+          checkIncomingAnalysisAssignments();
             };
 
             window.addEventListener('focus', checkStatus);
             window.addEventListener('attendance-updated', handleAttendanceUpdated);
+        window.addEventListener('task-logs-updated', checkIncomingAnalysisAssignments);
 
             return () => {
                 window.removeEventListener('focus', checkStatus);
                 window.removeEventListener('attendance-updated', handleAttendanceUpdated);
+          window.removeEventListener('task-logs-updated', checkIncomingAnalysisAssignments);
             };
-  }, [checkStatus, fetchRecentRecords]); 
+    }, [checkStatus, fetchRecentRecords, checkIncomingAnalysisAssignments]); 
 
   useEffect(() => {
     let interval = null;
@@ -205,6 +287,61 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
     if (loading) return;
     setLoading(true);
     try {
+      const today = new Date().toLocaleDateString("en-CA");
+      const userId = user?.id;
+
+      let dueItems = [];
+      if (userId) {
+        const [taskOwnerRes, taskExtraRes, activityOwnerRes, activityExtraRes] = await Promise.all([
+          supabase
+            .from("tarefas")
+            .select("id, titulo, estado, analise_destino, analise_data_prevista")
+            .eq("responsavel_id", userId)
+            .eq("estado", "em_analise")
+            .eq("analise_data_prevista", today),
+          supabase
+            .from("tarefas")
+            .select("id, titulo, estado, analise_destino, analise_data_prevista")
+            .contains("colaboradores_extra", [userId])
+            .eq("estado", "em_analise")
+            .eq("analise_data_prevista", today),
+          supabase
+            .from("atividades")
+            .select("id, titulo, estado, analise_destino, analise_data_prevista")
+            .eq("responsavel_id", userId)
+            .eq("estado", "em_analise")
+            .eq("analise_data_prevista", today),
+          supabase
+            .from("atividades")
+            .select("id, titulo, estado, analise_destino, analise_data_prevista")
+            .contains("colaboradores_extra", [userId])
+            .eq("estado", "em_analise")
+            .eq("analise_data_prevista", today),
+        ]);
+
+        const map = new Map();
+        const ingest = (items, tipo) => {
+          (items || []).forEach((item) => {
+            if (!item?.id) return;
+            const key = `${tipo}:${item.id}`;
+            map.set(key, {
+              id: item.id,
+              tipo,
+              titulo: item.titulo || (tipo === "tarefa" ? "Tarefa" : "Atividade"),
+              destino: item.analise_destino || "proprio",
+            });
+          });
+        };
+
+        ingest(taskOwnerRes.data, "tarefa");
+        ingest(taskExtraRes.data, "tarefa");
+        ingest(activityOwnerRes.data, "atividade");
+        ingest(activityExtraRes.data, "atividade");
+        dueItems = Array.from(map.values());
+      }
+
+      setAnalysisDueToday(dueItems);
+
       const now = new Date();
       const horaAtual = now.toLocaleTimeString('pt-PT', { hour12: false });
       const dataAtual = now.toLocaleDateString('en-CA');
@@ -683,6 +820,34 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
           </div>
         </ModalPortal>
       )}
+
+      {incomingAnalysisModal.open && (
+        <ModalPortal>
+          <div style={modalOverlayStyle}>
+            <div style={{...modalContainerStyle, maxWidth: 520}}>
+              <div style={{...modalHeaderStyle, background: '#fff7ed', borderBottom: '1px solid #fed7aa'}}>
+                <h3 style={{margin: 0, color: '#9a3412', fontSize: '1.05rem', fontWeight: 800}}>Nova tarefa/atividade para analise</h3>
+                <button onClick={acknowledgeIncomingAnalysisAssignments} style={{background:'transparent', border:'none', cursor:'pointer', color:'#9a3412'}}><Icons.Close size={18}/></button>
+              </div>
+              <div style={{padding: '16px', display: 'grid', gap: '10px', maxHeight: '52vh', overflowY: 'auto'}}>
+                <p style={{margin: 0, color: '#7c2d12', fontSize: '0.88rem'}}>Recebeste novos itens para analise. Verifica no painel de tarefas.</p>
+                {incomingAnalysisModal.items.map((item) => (
+                  <div key={`${item.tipo}-${item.id}`} style={{border: '1px solid #fdba74', borderRadius: '10px', background: '#fff7ed', padding: '10px 12px'}}>
+                    <div style={{fontSize: '0.78rem', color: '#9a3412', fontWeight: 800}}>{item.tipo}</div>
+                    <div style={{fontSize: '0.9rem', color: '#7c2d12', fontWeight: 700}}>{item.titulo || '-'}</div>
+                    <div style={{fontSize: '0.76rem', color: '#9a3412', marginTop: '3px'}}>Destino: {formatAnalysisDestination(item.analise_destino)} · Previsto: {item.analise_data_prevista || '-'}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{padding: '14px 16px', background: '#fff7ed', borderTop: '1px solid #fed7aa', display: 'flex', justifyContent: 'flex-end'}}>
+                <button type="button" onClick={acknowledgeIncomingAnalysisAssignments} style={{padding:'10px 14px', borderRadius:'10px', border:'none', background:'var(--color-btnPrimary)', color:'white', fontWeight:'700', cursor:'pointer'}}>
+                  Percebi
+                </button>
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
       <div className="card" style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', minHeight: '360px', padding: '32px 28px', background: '#ffffff' }}>
 
       {/* Toggle registos */}
@@ -831,6 +996,21 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
                               <p style={{color: '#64748b', fontSize: '0.95rem', margin: '0 0 15px 0', lineHeight: '1.5'}}>
                                   Hoje o registo começa direto. As tarefas aparecem apenas no fecho do dia, com base no que foi realmente realizado.
                               </p>
+
+                                {analysisDueToday.length > 0 && (
+                                  <div style={{marginBottom: '15px', textAlign: 'left', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: '12px', padding: '12px 14px'}}>
+                                    <div style={{fontSize: '0.82rem', fontWeight: 800, color: '#9a3412', marginBottom: '8px'}}>
+                                      Hoje ha rececao de analise expectavel:
+                                    </div>
+                                    <div style={{display: 'grid', gap: '6px'}}>
+                                      {analysisDueToday.slice(0, 6).map((item) => (
+                                        <div key={`${item.tipo}-${item.id}`} style={{fontSize: '0.82rem', color: '#7c2d12', background: '#ffedd5', border: '1px solid #fdba74', borderRadius: '8px', padding: '7px 9px'}}>
+                                          [{item.tipo}] {item.titulo} - {item.destino}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
 
                               <div style={{textAlign: 'center', padding: '30px', background: '#f8fafc', borderRadius: '12px', color: '#64748b', fontSize: '0.9rem'}}>
                                   <Icons.Check size={30} color="#cbd5e1" />

@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import TimerSwitchModal from "../components/TimerSwitchModal";
 import StopTimerNoteModal from "../components/StopTimerNoteModal";
 import { resolveActiveTimerMeta } from "../utils/activeTimerResolver";
+import { applyStopStatusUpdateForLogTarget } from "../utils/taskTimerLifecycle";
 import "./../styles/dashboard.css";
 
 // --- ÍCONES SVG PROFISSIONAIS (SaaS Premium) ---
@@ -315,13 +316,15 @@ export default function Clientes() {
     setStopNoteModal({ show: false });
   }
 
-  async function confirmStopWithNote(note) {
+  async function confirmStopWithNote(note, _shouldComplete, statusMeta) {
     setStopNoteModal({ show: false });
     if (!activeLog) return;
 
     const logToStop = activeLog;
     const diffMins = await stopLogById(logToStop, note);
     if (diffMins === null) return;
+
+    await applyStopStatusUpdateForLogTarget(supabase, logToStop, statusMeta);
 
     setActiveLog(null);
     showToast(`Tempo registado: ${diffMins} min.`, "success");
@@ -2011,8 +2014,9 @@ export default function Clientes() {
         message="Se quiseres, adiciona uma nota breve sobre o que foi feito (opcional)."
         placeholder="Ex: Concluída análise e próximos passos definidos"
         showCompleteOption={false}
+        showStatusOption={Boolean(activeLog)}
         onCancel={closeStopNoteModal}
-        onConfirm={(note) => confirmStopWithNote(note)}
+        onConfirm={confirmStopWithNote}
       />
 
       <TimerSwitchModal

@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+﻿import { Link, useNavigate } from "react-router-dom";
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
@@ -11,6 +11,7 @@ import { frasesMotivacionais } from "../data/frases";
 import { THEMES } from "../constants/themes";
 import { concludeActivityWithChildren } from "../utils/activityStatusCascade";
 import { buildDependencyMaps, getActivityBlockReason, getTaskBlockReason } from "../utils/dependencyGuards";
+import { applyStopStatusUpdateForLogTarget } from "../utils/taskTimerLifecycle";
 import "./../styles/dashboard.css";
 
 // --- MEGA ÍCONES SVG PROFISSIONAIS ---
@@ -502,11 +503,12 @@ export default function DashboardHome() {
       }
   }
 
-  async function finalizeStopWithNote(note, shouldComplete) {
+  async function finalizeStopWithNote(note, shouldComplete, statusMeta = {}) {
       if (!activeLog) return;
 
       const logToStop = activeLog;
       await handleStopGlobalLog(null, note);
+      await applyStopStatusUpdateForLogTarget(supabase, logToStop, statusMeta);
       if (shouldComplete) {
           await completeLogItem(logToStop);
           showToast("Tempo guardado e item concluido.", "success");
@@ -514,16 +516,16 @@ export default function DashboardHome() {
       }
   }
 
-  async function confirmStopWithNote(note, shouldComplete) {
+  async function confirmStopWithNote(note, shouldComplete, statusMeta) {
       setStopNoteModal({ show: false });
       if (!activeLog) return;
 
       if (shouldComplete) {
-          await runActionWithAttendanceWarning(() => finalizeStopWithNote(note, shouldComplete));
+          await runActionWithAttendanceWarning(() => finalizeStopWithNote(note, shouldComplete, statusMeta));
           return;
       }
 
-      await finalizeStopWithNote(note, shouldComplete);
+      await finalizeStopWithNote(note, shouldComplete, statusMeta);
   }
 
   const isTaskCardRunning = (taskCard) => {
@@ -1784,6 +1786,7 @@ export default function DashboardHome() {
                 message="Podes adicionar uma nota breve ao parar este registo (opcional)."
                 placeholder="Ex: Encerrado após validação com equipa"
                 showCompleteOption={Boolean(activeLog)}
+                showStatusOption={Boolean(activeLog)}
                 completeLabel={getStopCompleteLabel(activeLog)}
                 onCancel={closeStopNoteModal}
                 onConfirm={confirmStopWithNote}

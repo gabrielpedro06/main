@@ -9,6 +9,7 @@ import StopTimerNoteModal from "../components/StopTimerNoteModal";
 import { hasAttendanceStartedToday, startAttendanceNow } from "../utils/attendanceGuard";
 import { resolveActiveTimerMeta } from "../utils/activeTimerResolver";
 import { buildDependencyMaps, getActivityBlockReason, getTaskBlockReason } from "../utils/dependencyGuards";
+import { applyStopStatusUpdateForLogTarget } from "../utils/taskTimerLifecycle";
 import "./../styles/dashboard.css";
 
 const ModalPortal = ({ children }) => {
@@ -1080,7 +1081,7 @@ export default function Tarefas() {
       setStopNoteModal({ show: false });
   }
 
-  async function finalizeStopWithNote(note, shouldComplete) {
+    async function finalizeStopWithNote(note, shouldComplete, statusMeta = {}) {
       if (!activeTask) return;
 
       const logToStop = activeTask;
@@ -1088,6 +1089,7 @@ export default function Tarefas() {
       const diffMins = await stopTaskLogById(logToStop, note);
       if (diffMins === null) return;
 
+            await applyStopStatusUpdateForLogTarget(supabase, logToStop, statusMeta);
       if (shouldComplete) await completeLogItem(logToStop);
 
       setActiveTask(null);
@@ -1099,16 +1101,16 @@ export default function Tarefas() {
       }
   }
 
-  async function confirmStopWithNote(note, shouldComplete) {
+  async function confirmStopWithNote(note, shouldComplete, statusMeta) {
       setStopNoteModal({ show: false });
       if (!activeTask) return;
 
       if (shouldComplete) {
-          await runActionWithAttendanceWarning(() => finalizeStopWithNote(note, shouldComplete));
+          await runActionWithAttendanceWarning(() => finalizeStopWithNote(note, shouldComplete, statusMeta));
           return;
       }
 
-      await finalizeStopWithNote(note, shouldComplete);
+      await finalizeStopWithNote(note, shouldComplete, statusMeta);
   }
 
   async function handleToggleStatus(tabela, id, estadoAtual, taskIdParaTimer = null) {
@@ -1906,6 +1908,7 @@ export default function Tarefas() {
                 message="Podes adicionar uma nota breve para este registo (opcional)."
                 placeholder="Ex: Pausa para reunião com cliente"
                 showCompleteOption={Boolean(activeTask)}
+                showStatusOption={Boolean(activeTask)}
                 completeLabel={getStopCompleteLabel(activeTask)}
                 onCancel={closeStopNoteModal}
                 onConfirm={confirmStopWithNote}
