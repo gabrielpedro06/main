@@ -169,7 +169,9 @@ export default function ProjetoDetalhe() {
   const [timeLogSaving, setTimeLogSaving] = useState(false);
   const [timeLogForm, setTimeLogForm] = useState({ user_id: "", target_type: "tarefa", target_id: "", duration_minutes: "" });
     const pendingFocusRef = useRef(null);
+        const focusAttemptRef = useRef(0);
     const [highlightedTarget, setHighlightedTarget] = useState(null);
+        const [focusRetryTick, setFocusRetryTick] = useState(0);
 
   const normalizeIdsList = (raw) => {
       if (Array.isArray(raw)) return raw.filter(Boolean);
@@ -230,6 +232,8 @@ export default function ProjetoDetalhe() {
           id: String(focusTaskId),
           type: focusTaskType === 'atividade' ? 'atividade' : 'tarefa'
       };
+      focusAttemptRef.current = 0;
+      setFocusRetryTick((prev) => prev + 1);
 
       urlParams.delete("focusTaskId");
       urlParams.delete("focusTaskType");
@@ -273,18 +277,58 @@ export default function ProjetoDetalhe() {
 
       const elementId = pending.type === 'atividade' ? `atividade-card-${pending.id}` : `tarefa-card-${pending.id}`;
       const element = document.getElementById(elementId);
-      if (!element) return;
+      if (!element) {
+          if (pending.type === 'tarefa') {
+              const parentActivity = atividades.find((ativ) =>
+                  (ativ.tarefas || []).some((tar) => String(tar.id) === String(pending.id))
+              );
+
+              if (parentActivity && collapsedAtivs[parentActivity.id]) {
+                  setCollapsedAtivs((prev) => ({ ...prev, [parentActivity.id]: false }));
+              }
+
+              // Se a tarefa estiver numa atividade concluída (lista escondida), focamos a atividade pai.
+              if (parentActivity?.estado === 'concluido') {
+                  const parentElement = document.getElementById(`atividade-card-${parentActivity.id}`);
+                  if (parentElement) {
+                      parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      setHighlightedTarget({ id: String(parentActivity.id), type: 'atividade' });
+                      pendingFocusRef.current = null;
+                      focusAttemptRef.current = 0;
+
+                      const timeoutId = window.setTimeout(() => {
+                          setHighlightedTarget(null);
+                      }, 2600);
+
+                      return () => window.clearTimeout(timeoutId);
+                  }
+              }
+          }
+
+          if (focusAttemptRef.current < 8) {
+              focusAttemptRef.current += 1;
+              const retryId = window.setTimeout(() => {
+                  setFocusRetryTick((prev) => prev + 1);
+              }, 120);
+              return () => window.clearTimeout(retryId);
+          }
+
+          pendingFocusRef.current = null;
+          focusAttemptRef.current = 0;
+          return;
+      }
 
       element.scrollIntoView({ behavior: 'smooth', block: 'center' });
       setHighlightedTarget(pending);
       pendingFocusRef.current = null;
+      focusAttemptRef.current = 0;
 
       const timeoutId = window.setTimeout(() => {
           setHighlightedTarget(null);
       }, 2600);
 
       return () => window.clearTimeout(timeoutId);
-    }, [atividades, activeTab]);
+    }, [atividades, activeTab, collapsedAtivs, focusRetryTick]);
 
   const isHighlightedTask = (targetType, targetId) => {
       if (!highlightedTarget) return false;
