@@ -222,6 +222,9 @@ export default function ProjetoDetalhe() {
       const focusTaskType = location.state?.focusTaskType || 'tarefa';
       if (!focusTaskId) return;
 
+      // Garantir que os cards existem no DOM antes de tentar o scroll.
+      setActiveTab('atividades');
+
       pendingFocusRef.current = {
           id: String(focusTaskId),
           type: focusTaskType === 'atividade' ? 'atividade' : 'tarefa'
@@ -259,6 +262,7 @@ export default function ProjetoDetalhe() {
   useEffect(() => {
       const pending = pendingFocusRef.current;
       if (!pending || atividades.length === 0) return;
+      if (activeTab !== 'atividades') return;
 
       const elementId = pending.type === 'atividade' ? `atividade-card-${pending.id}` : `tarefa-card-${pending.id}`;
       const element = document.getElementById(elementId);
@@ -273,7 +277,7 @@ export default function ProjetoDetalhe() {
       }, 2600);
 
       return () => window.clearTimeout(timeoutId);
-  }, [atividades]);
+    }, [atividades, activeTab]);
 
   const isHighlightedTask = (targetType, targetId) => {
       if (!highlightedTarget) return false;

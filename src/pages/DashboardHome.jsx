@@ -1098,8 +1098,11 @@ export default function DashboardHome() {
 
   const navigateToTaskCard = (taskCard) => {
       const targetPath = getTaskCardTargetPath(taskCard);
+      const normalizedFocusId = taskCard?.isActivity
+          ? (taskCard?.real_id || taskCard?.id || null)
+          : (taskCard?.id || taskCard?.real_id || null);
       const focusState = {
-          focusTaskId: taskCard?.id || taskCard?.real_id || null,
+          focusTaskId: normalizedFocusId,
           focusTaskType: taskCard?.isActivity ? 'atividade' : 'tarefa'
       };
 
