@@ -5,6 +5,7 @@ import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
 import StopTimerNoteModal from "../components/StopTimerNoteModal";
 import { resolveActiveTimerMeta } from "../utils/activeTimerResolver";
+import { applyStopStatusUpdateForLogTarget } from "../utils/taskTimerLifecycle";
 import "./../styles/dashboard.css";
 
 // --- ÍCONES SVG PROFISSIONAIS ---
@@ -733,13 +734,15 @@ export default function Forum() {
         setStopNoteModal({ show: false });
     }
 
-    async function confirmStopWithNote(note) {
+    async function confirmStopWithNote(note, _shouldComplete, statusMeta) {
         setStopNoteModal({ show: false });
         if (!activeLog) return;
 
         const logToStop = activeLog;
         const diffMins = await stopLogById(logToStop, note);
         if (diffMins === null) return;
+
+        await applyStopStatusUpdateForLogTarget(supabase, logToStop, statusMeta);
 
         setActiveLog(null);
         showToast(`Tempo registado: ${diffMins} min.`, "success");
@@ -1891,8 +1894,8 @@ export default function Forum() {
             <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
                 <div style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '12px', borderRadius: '12px', display: 'flex'}}><Icons.Message size={24} /></div>
                 <div>
-                    <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>Comunicação Interna</h1>
-                    <p style={{color: '#64748b', margin: 0, fontWeight: '500', fontSize: '0.9rem'}}>Forúm de partilha de informações e discussões</p>
+                    <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>Comunicacao Interna</h1>
+                    <p style={{color: '#64748b', margin: 0, fontWeight: '500', fontSize: '0.9rem'}}>Forum de partilha de informacoes e discussoes</p>
                 </div>
             </div>
             <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
@@ -2919,12 +2922,14 @@ export default function Forum() {
 
             <StopTimerNoteModal
                 open={stopNoteModal.show}
+                analysisTargetLog={activeLog}
                 title="Parar cronometro"
                 message="Se quiseres, adiciona uma nota breve sobre o que foi feito (opcional)."
                 placeholder="Ex: Concluída análise e próximos passos definidos"
                 showCompleteOption={false}
+                showStatusOption={Boolean(activeLog)}
                 onCancel={closeStopNoteModal}
-                onConfirm={(note) => confirmStopWithNote(note)}
+                onConfirm={confirmStopWithNote}
             />
 
       <style>{`
