@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
@@ -108,6 +108,7 @@ const ANALYSIS_DESTINATION_OPTIONS = [
 export default function ProjetoDetalhe() {
   const { id } = useParams(); 
   const navigate = useNavigate();
+    const location = useLocation();
   const { user } = useAuth();
   
   const [projeto, setProjeto] = useState(null);
@@ -167,6 +168,8 @@ export default function ProjetoDetalhe() {
   const [timeLogModal, setTimeLogModal] = useState({ show: false, mode: "create", logId: null });
   const [timeLogSaving, setTimeLogSaving] = useState(false);
   const [timeLogForm, setTimeLogForm] = useState({ user_id: "", target_type: "tarefa", target_id: "", duration_minutes: "" });
+    const pendingFocusRef = useRef(null);
+    const [highlightedTarget, setHighlightedTarget] = useState(null);
 
   const normalizeIdsList = (raw) => {
       if (Array.isArray(raw)) return raw.filter(Boolean);
@@ -214,6 +217,19 @@ export default function ProjetoDetalhe() {
   const dragTarItem = useRef();
   const dragTarOverItem = useRef();
 
+  useEffect(() => {
+      const focusTaskId = location.state?.focusTaskId;
+      const focusTaskType = location.state?.focusTaskType || 'tarefa';
+      if (!focusTaskId) return;
+
+      pendingFocusRef.current = {
+          id: String(focusTaskId),
+          type: focusTaskType === 'atividade' ? 'atividade' : 'tarefa'
+      };
+
+      navigate(location.pathname, { replace: true, state: null });
+  }, [location.state, location.pathname, navigate]);
+
     // 💡 Monitoriza o progresso e conclui o projeto automaticamente
     useEffect(() => {
         if (!projeto || projeto.estado === 'concluido' || atividades.length === 0) return;
@@ -239,6 +255,30 @@ export default function ProjetoDetalhe() {
             concluirProjetoAuto();
         }
     }, [atividades]);
+
+  useEffect(() => {
+      const pending = pendingFocusRef.current;
+      if (!pending || atividades.length === 0) return;
+
+      const elementId = pending.type === 'atividade' ? `atividade-card-${pending.id}` : `tarefa-card-${pending.id}`;
+      const element = document.getElementById(elementId);
+      if (!element) return;
+
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setHighlightedTarget(pending);
+      pendingFocusRef.current = null;
+
+      const timeoutId = window.setTimeout(() => {
+          setHighlightedTarget(null);
+      }, 2600);
+
+      return () => window.clearTimeout(timeoutId);
+  }, [atividades]);
+
+  const isHighlightedTask = (targetType, targetId) => {
+      if (!highlightedTarget) return false;
+      return highlightedTarget.type === targetType && String(highlightedTarget.id) === String(targetId);
+  };
 
   useEffect(() => {
     fetchProjetoDetails();
@@ -1809,13 +1849,14 @@ export default function ProjetoDetalhe() {
 
                     return (
                     <div 
+                        id={`atividade-card-${ativ.id}`}
                         key={ativ.id} 
                         draggable={!isCollapsed} 
                         onDragStart={(e) => handleDragStartAtiv(e, aIndex)}
                         onDragEnter={(e) => handleDragEnterAtiv(e, aIndex)}
                         onDragEnd={handleDropAtiv}
                         onDragOver={(e) => e.preventDefault()}
-                        style={{background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.02)', overflow: 'hidden', opacity: isAtivDone ? 0.6 : 1, transition: 'opacity 0.3s'}}
+                        style={{background: 'white', borderRadius: '12px', border: isHighlightedTask('atividade', ativ.id) ? '2px solid var(--color-btnPrimary)' : '1px solid #e2e8f0', marginBottom: '20px', boxShadow: isHighlightedTask('atividade', ativ.id) ? '0 0 0 3px var(--color-bgSecondary), 0 16px 30px rgba(59,130,246,0.18)' : '0 2px 4px rgba(0, 0, 0, 0.02)', overflow: 'hidden', opacity: isAtivDone ? 0.6 : 1, transition: 'opacity 0.3s', animation: isHighlightedTask('atividade', ativ.id) ? 'taskFocusPulse 1.2s ease-in-out 0s 2' : 'none'}}
                     >
                         
                         {/* CABEÇALHO DA ATIVIDADE */}
@@ -1931,13 +1972,14 @@ export default function ProjetoDetalhe() {
 
                                     return (
                                     <div 
+                                        id={`tarefa-card-${tar.id}`}
                                         key={tar.id} 
                                         draggable
                                         onDragStart={(e) => handleDragStartTar(e, aIndex, tIndex)}
                                         onDragEnter={(e) => handleDragEnterTar(e, aIndex, tIndex)}
                                         onDragEnd={(e) => handleDropTar(e, aIndex)}
                                         onDragOver={(e) => e.preventDefault()}
-                                        style={{background: 'white', border: isTimerActive ? '1px solid var(--color-btnPrimary)' : '1px solid #e2e8f0', borderRadius: '8px', marginBottom: '8px', overflow: 'hidden', boxShadow: isTimerActive ? '0 0 0 2px rgba(59, 130, 246, 0.2)' : 'none', transition: 'all 0.2s'}}
+                                        style={{background: 'white', border: isHighlightedTask('tarefa', tar.id) ? '2px solid var(--color-btnPrimary)' : (isTimerActive ? '1px solid var(--color-btnPrimary)' : '1px solid #e2e8f0'), borderRadius: '8px', marginBottom: '8px', overflow: 'hidden', boxShadow: isHighlightedTask('tarefa', tar.id) ? '0 0 0 3px var(--color-bgSecondary), 0 12px 24px rgba(59,130,246,0.16)' : (isTimerActive ? '0 0 0 2px rgba(59, 130, 246, 0.2)' : 'none'), transition: 'all 0.2s', animation: isHighlightedTask('tarefa', tar.id) ? 'taskFocusPulse 1.2s ease-in-out 0s 2' : 'none'}}
                                     >
                                         <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 15px', opacity: tar.estado === 'concluido' ? 0.6 : (blockedByDependency ? 0.75 : 1)}}>
                                             <div style={{display: 'flex', alignItems: 'center', gap: '12px', flex: 1}}>
@@ -3300,6 +3342,8 @@ export default function ProjetoDetalhe() {
           .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
           .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
           .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
+
+          @keyframes taskFocusPulse { 0% { transform: scale(1); } 50% { transform: scale(1.01); } 100% { transform: scale(1); } }
 
           @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
           

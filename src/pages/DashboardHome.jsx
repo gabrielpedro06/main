@@ -1096,6 +1096,28 @@ export default function DashboardHome() {
       return '/dashboard/tarefas';
   };
 
+  const navigateToTaskCard = (taskCard) => {
+      const targetPath = getTaskCardTargetPath(taskCard);
+      const focusState = {
+          focusTaskId: taskCard?.id || taskCard?.real_id || null,
+          focusTaskType: taskCard?.isActivity ? 'atividade' : 'tarefa'
+      };
+
+      if (targetPath === '/dashboard/tarefas') {
+          navigate(targetPath, {
+              state: focusState
+          });
+          return;
+      }
+
+      if (targetPath.startsWith('/dashboard/projetos/')) {
+          navigate(targetPath, { state: focusState });
+          return;
+      }
+
+      navigate(targetPath);
+  };
+
   const tarefasRecentesCards = (() => {
       if (!recentWorkLogs.length) return [];
       const allTasks = [...tarefasHoje, ...tarefasGerais];
@@ -1348,7 +1370,7 @@ export default function DashboardHome() {
                         {tarefasRecentesCards.slice(0, recentTasksVisibleCount).map((t) => {
                             const isRunning = isTaskCardRunning(t);
                             return (
-                            <div key={`recent_${t.id}`} onClick={() => navigate(getTaskCardTargetPath(t))} className="task-hover-card" style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <div key={`recent_${t.id}`} onClick={() => navigateToTaskCard(t)} className="task-hover-card" style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                     <span style={{ fontSize: '0.65rem', color: '#64748b', textTransform: 'uppercase', background: '#f8fafc', padding: '2px 6px', borderRadius: '6px', maxWidth: '120px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={t.clientLabel}>
                                         {t.clientLabel === 'GERAL / AVULSA' ? (
@@ -1428,7 +1450,7 @@ export default function DashboardHome() {
                     {tarefasHoje.slice(0, 6).map((t) => {
                         const isRunning = isTaskCardRunning(t);
                         return (
-                        <div key={t.id} onClick={() => navigate(getTaskCardTargetPath(t))} className="task-hover-card" style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div key={t.id} onClick={() => navigateToTaskCard(t)} className="task-hover-card" style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                 {/* 💡 LABEL EMPRESA - PROJETO ou GERAL/AVULSA */}
                                 <span style={{ fontSize: '0.65rem', color: '#64748b', textTransform: 'uppercase', background: '#f8fafc', padding: '2px 6px', borderRadius: '6px', maxWidth: '120px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={t.clientLabel}>
@@ -1482,7 +1504,7 @@ export default function DashboardHome() {
                     {tarefasGerais.slice(0, 6).map((t) => {
                         const isRunning = isTaskCardRunning(t);
                         return (
-                        <div key={t.id} onClick={() => navigate(getTaskCardTargetPath(t))} className="task-hover-card" style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div key={t.id} onClick={() => navigateToTaskCard(t)} className="task-hover-card" style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                 {/* 💡 LABEL EMPRESA - PROJETO ou GERAL/AVULSA */}
                                 <span style={{ fontSize: '0.65rem', color: '#64748b', textTransform: 'uppercase', background: '#f8fafc', padding: '2px 6px', borderRadius: '6px', maxWidth: '140px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={t.clientLabel}>
@@ -1527,7 +1549,7 @@ export default function DashboardHome() {
                 ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
                     {tarefasEmAnalise.map((t) => (
-                        <div key={t.id} onClick={() => navigate(getTaskCardTargetPath(t))} style={{ background: 'white', border: '2px solid #fce7f3', borderRadius: '12px', padding: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div key={t.id} onClick={() => navigateToTaskCard(t)} style={{ background: 'white', border: '2px solid #fce7f3', borderRadius: '12px', padding: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                 <span style={{ fontSize: '0.65rem', color: '#be123c', textTransform: 'uppercase', background: '#fce7f3', padding: '2px 6px', borderRadius: '6px', fontWeight: 'bold' }}>{t.clientLabel}</span>
                                 <span style={{ fontSize: '0.65rem', color: '#ec4899', background: '#fce7f3', padding: '2px 8px', borderRadius: '12px', fontWeight: '600', fontStyle: 'italic' }}>Em Análise</span>

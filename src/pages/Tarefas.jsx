@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import React from "react";
 import { createPortal } from "react-dom";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
 import TimerSwitchModal from "../components/TimerSwitchModal";
@@ -74,6 +74,7 @@ const Icons = {
 export default function Tarefas() {
   const { user } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
   
   const [atividadesAgrupadas, setAtividadesAgrupadas] = useState([]); 
   const [logs, setLogs] = useState([]);
@@ -116,6 +117,8 @@ export default function Tarefas() {
                 const [attendanceWarningModal, setAttendanceWarningModal] = useState({ show: false, message: "" });
         const [stopNoteModal, setStopNoteModal] = useState({ show: false });
         const attendancePendingActionRef = useRef(null);
+    const pendingFocusRef = useRef(null);
+    const [highlightedTarget, setHighlightedTarget] = useState(null);
 
   // 💡 ESTADOS DO UPLOAD
   const [fileToUpload, setFileToUpload] = useState(null);
@@ -142,6 +145,19 @@ export default function Tarefas() {
   }, [user]);
 
   useEffect(() => {
+      const focusTaskId = location.state?.focusTaskId;
+      const focusTaskType = location.state?.focusTaskType || 'tarefa';
+      if (!focusTaskId) return;
+
+      pendingFocusRef.current = {
+          id: String(focusTaskId),
+          type: focusTaskType === 'atividade' ? 'atividade' : 'tarefa'
+      };
+
+      navigate(location.pathname, { replace: true, state: null });
+  }, [location.state, location.pathname, navigate]);
+
+  useEffect(() => {
       let cancelled = false;
 
       const resolveActiveTitle = async () => {
@@ -166,6 +182,25 @@ export default function Tarefas() {
           cancelled = true;
       };
   }, [activeTask]);
+
+  useEffect(() => {
+      const pending = pendingFocusRef.current;
+      if (!pending) return;
+
+      const elementId = pending.type === 'atividade' ? `atividade-card-${pending.id}` : `tarefa-card-${pending.id}`;
+      const element = document.getElementById(elementId);
+      if (!element) return;
+
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setHighlightedTarget(pending);
+      pendingFocusRef.current = null;
+
+      const timeoutId = window.setTimeout(() => {
+          setHighlightedTarget(null);
+      }, 2600);
+
+      return () => window.clearTimeout(timeoutId);
+  }, [atividadesAgrupadas, loading]);
 
   const showToast = (message, type = 'success') => {
       setNotification({ message, type });
@@ -595,6 +630,11 @@ export default function Tarefas() {
       if (targetType === "atividade") return activityOptions;
       if (targetType === "subtarefa") return subtaskOptions;
       return taskOptions;
+  };
+
+  const isHighlightedTask = (targetType, targetId) => {
+      if (!highlightedTarget) return false;
+      return highlightedTarget.type === targetType && String(highlightedTarget.id) === String(targetId);
   };
 
   const deveMostrarCampoItem = (itemInfoAdicional, nomeCampo) => {
@@ -1618,7 +1658,7 @@ export default function Tarefas() {
                                 const ativTime = getActivityTime(ativ);
 
                                 return (
-                                    <div id={`atividade-card-${ativ.id}`} key={ativ.id} style={{background: 'white', borderRadius: '10px', border: isAtivCompleted ? '1px solid var(--color-borderColorLight)' : '1px solid var(--color-borderColor)', borderTop: `4px solid ${isAtivCompleted ? 'var(--color-borderColor)' : proj.color}`, boxShadow: '0 2px 5px rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column', opacity: isAtivCompleted ? 0.6 : 1, transition: '0.2s', maxHeight: '400px'}}>
+                                    <div id={`atividade-card-${ativ.id}`} key={ativ.id} style={{background: 'white', borderRadius: '10px', border: isHighlightedTask('atividade', ativ.id) ? '2px solid var(--color-btnPrimary)' : (isAtivCompleted ? '1px solid var(--color-borderColorLight)' : '1px solid var(--color-borderColor)'), borderTop: `4px solid ${isAtivCompleted ? 'var(--color-borderColor)' : proj.color}`, boxShadow: isHighlightedTask('atividade', ativ.id) ? '0 0 0 3px var(--color-bgSecondary), 0 16px 30px rgba(59,130,246,0.18)' : '0 2px 5px rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column', opacity: isAtivCompleted ? 0.6 : 1, transition: '0.2s', maxHeight: '400px', animation: isHighlightedTask('atividade', ativ.id) ? 'taskFocusPulse 1.2s ease-in-out 0s 2' : 'none'}}>
                                         
                                         <div style={{padding: '12px 15px', background: isAtivCompleted ? '#f8fafc' : 'white', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
                                             <div style={{flex: 1, paddingRight: '10px'}}>
@@ -1671,7 +1711,7 @@ export default function Tarefas() {
                                                         const subsToRender = tar.subtarefas;
 
                                                         return (
-                                                            <div id={`tarefa-card-${tar.id}`} key={tar.id} style={{background: isTimerActive ? '#fefce8' : '#f8fafc', border: isTimerActive ? '1px solid #eab308' : '1px solid transparent', borderRadius: '6px', padding: '8px', marginBottom: '6px', opacity: isTarCompleted ? 0.6 : 1, transition: '0.2s'}}>
+                                                            <div id={`tarefa-card-${tar.id}`} key={tar.id} style={{background: isTimerActive ? '#fefce8' : '#f8fafc', border: isHighlightedTask('tarefa', tar.id) ? '2px solid var(--color-btnPrimary)' : (isTimerActive ? '1px solid #eab308' : '1px solid transparent'), borderRadius: '6px', padding: '8px', marginBottom: '6px', opacity: isTarCompleted ? 0.6 : 1, transition: '0.2s', boxShadow: isHighlightedTask('tarefa', tar.id) ? '0 0 0 3px var(--color-bgSecondary), 0 12px 24px rgba(59,130,246,0.16)' : 'none', animation: isHighlightedTask('tarefa', tar.id) ? 'taskFocusPulse 1.2s ease-in-out 0s 2' : 'none'}}>
                                                                 <div style={{display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px'}}>
                                                                     
                                                                     <div style={{display: 'flex', alignItems: 'flex-start', gap: '6px', flex: 1}}>
@@ -2499,6 +2539,8 @@ export default function Tarefas() {
           .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
           .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
           .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
+
+          @keyframes taskFocusPulse { 0% { transform: scale(1); } 50% { transform: scale(1.01); } 100% { transform: scale(1); } }
 
           .hover-shadow:hover { box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); transform: translateY(-1px); }
 
