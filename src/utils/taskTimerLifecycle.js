@@ -132,13 +132,16 @@ function buildAnalysisPayload(nextStatus, statusMeta = {}) {
 
   const destination = normalizeDestino(statusMeta.analysisDestination);
   const destinationUserId = normalizeOptionalId(statusMeta.analysisDestinationUserId);
+  const destinationContactId = normalizeOptionalId(statusMeta.analysisDestinationContactId);
   const isColleague = destination === "colega";
+  const isClient = destination === "cliente";
 
   const payload = {
     analise_destino: destination,
     analise_data_envio: new Date().toISOString(),
     analise_data_retorno: null,
     analise_destino_user_id: isColleague ? destinationUserId || null : null,
+    analise_destino_contacto_id: isClient ? destinationContactId || null : null,
     analise_alerta_pendente: isColleague && Boolean(destinationUserId),
   };
 
@@ -206,11 +209,23 @@ export async function applyStopStatusUpdateForLogTarget(supabase, logEntry, stat
 
   // If migration is not applied yet, keep flow alive by updating only estado.
   if (error && supportsAnalysisFields && error.code === "42703") {
+    const retryPayload = { ...payload };
+    delete retryPayload.analise_destino_contacto_id;
+
+    let retryResult = await supabase
+      .from(target.table)
+      .update(retryPayload)
+      .eq("id", target.id);
+
+    if (!retryResult.error) {
+      return { applied: true, skipped: false, targetTable: target.table, targetId: target.id, nextStatus };
+    }
+
     const fallback = await supabase
       .from(target.table)
       .update({ estado: nextStatus })
       .eq("id", target.id);
-    error = fallback.error;
+    error = fallback.error || retryResult.error;
   }
 
   if (error) return { applied: false, skipped: false, error };

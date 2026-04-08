@@ -2010,6 +2010,7 @@ export default function Clientes() {
 
       <StopTimerNoteModal
         open={stopNoteModal.show}
+        analysisTargetLog={activeLog}
         title="Parar cronometro"
         message="Se quiseres, adiciona uma nota breve sobre o que foi feito (opcional)."
         placeholder="Ex: Concluída análise e próximos passos definidos"

@@ -48,6 +48,14 @@ const getFileBaseName = (fileName = "") => {
     return parts.join(".") || "documento";
 };
 
+const ANALYSIS_DESTINATION_OPTIONS = [
+    { value: "proprio", label: "Proprio" },
+    { value: "colega", label: "Colega" },
+    { value: "cliente", label: "Cliente" },
+    { value: "contabilista", label: "Contabilista" },
+    { value: "organismo", label: "Organismo" }
+];
+
 // --- ÍCONES SVG ---
 const Icons = {
   Trash: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>,
@@ -122,6 +130,7 @@ export default function Tarefas() {
     data_inicio: "", data_limite: "",
     colaboradores_extra: [], tem_entregavel: false, nome_entregavel: "", data_entregavel: "",
     criado_por_nome: "", created_at: "", arquivo_url: "",
+        analise_destino: "proprio", analise_data_prevista: "",
     // 👇 NOVOS CAMPOS ADICIONADOS
     investimento: 0, incentivo: 0, financiamento: 0, data_prevista_aprovacao: "", info_adicional: null
   };
@@ -1288,6 +1297,8 @@ export default function Tarefas() {
         criado_por_nome: criadorNome,
         created_at: item.created_at || "",
         arquivo_url: item.arquivo_url || "",
+        analise_destino: item.analise_destino || "proprio",
+        analise_data_prevista: safeDate(item.analise_data_prevista),
         investimento: item.investimento || 0,
         incentivo: item.incentivo || 0,
         financiamento: item.financiamento || 0,
@@ -1344,6 +1355,8 @@ export default function Tarefas() {
         finalPayload.incentivo = form.incentivo || 0;
         finalPayload.financiamento = form.financiamento || 0;
         finalPayload.data_prevista_aprovacao = form.data_prevista_aprovacao || null;
+        finalPayload.analise_destino = form.estado === 'em_analise' ? (form.analise_destino || 'proprio') : null;
+        finalPayload.analise_data_prevista = form.estado === 'em_analise' ? (form.analise_data_prevista || null) : null;
     } else if (editType === 'tarefa') {
         tabela = 'tarefas';
         if (!form.atividade_id) return showToast("A Atividade Pai é obrigatória!", "error");
@@ -1355,6 +1368,8 @@ export default function Tarefas() {
         finalPayload.incentivo = form.incentivo || 0;
         finalPayload.financiamento = form.financiamento || 0;
         finalPayload.data_prevista_aprovacao = form.data_prevista_aprovacao || null;
+        finalPayload.analise_destino = form.estado === 'em_analise' ? (form.analise_destino || 'proprio') : null;
+        finalPayload.analise_data_prevista = form.estado === 'em_analise' ? (form.analise_data_prevista || null) : null;
     } else {
         tabela = 'subtarefas';
         finalPayload = { titulo: form.titulo, estado: form.estado, responsavel_id: form.responsavel_id || null, data_fim: form.data_limite || null };
@@ -1904,6 +1919,7 @@ export default function Tarefas() {
 
             <StopTimerNoteModal
                 open={stopNoteModal.show}
+                analysisTargetLog={activeTask}
                 title="Parar cronometro"
                 message="Podes adicionar uma nota breve para este registo (opcional)."
                 placeholder="Ex: Pausa para reunião com cliente"
@@ -2333,6 +2349,37 @@ export default function Tarefas() {
                             ))}
                         </div>
                     </div>
+
+                    {editType !== 'subtarefa' && (form.estado === 'em_analise' || form.analise_data_prevista || form.analise_destino) && (
+                        <div style={{marginBottom: '15px', background: 'var(--color-bgSecondary)', border: '1px solid var(--color-borderColor)', borderRadius: '10px', padding: '12px'}}>
+                            <div style={{fontSize: '0.78rem', fontWeight: '800', color: 'var(--color-btnPrimaryDark)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em'}}>
+                                Acompanhamento da Analise
+                            </div>
+                            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px'}}>
+                                <div>
+                                    <label style={{...labelStyle, marginBottom: '4px'}}>Encaminhada para</label>
+                                    <select
+                                        value={form.analise_destino || 'proprio'}
+                                        onChange={(e) => setForm({...form, analise_destino: e.target.value})}
+                                        style={{...inputStyle, marginBottom: 0}}
+                                    >
+                                        {ANALYSIS_DESTINATION_OPTIONS.map((option) => (
+                                            <option key={option.value} value={option.value}>{option.label}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style={{...labelStyle, marginBottom: '4px'}}>Data expectavel de resposta</label>
+                                    <input
+                                        type="date"
+                                        value={form.analise_data_prevista || ''}
+                                        onChange={(e) => setForm({...form, analise_data_prevista: e.target.value})}
+                                        style={{...inputStyle, marginBottom: 0}}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )}
                   </fieldset>
 
                   <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #e2e8f0'}}>

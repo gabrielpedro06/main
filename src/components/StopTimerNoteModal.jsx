@@ -15,6 +15,7 @@ export default function StopTimerNoteModal({
   defaultComplete = false,
   showStatusOption = false,
   defaultStatus = "manter",
+  analysisTargetLog = null,
   onConfirm,
   onCancel
 }) {
@@ -41,16 +42,95 @@ export default function StopTimerNoteModal({
   const [nextStatus, setNextStatus] = useState(defaultStatus);
   const [analysisDestination, setAnalysisDestination] = useState("proprio");
   const [analysisDestinationUserId, setAnalysisDestinationUserId] = useState("");
+  const [analysisDestinationContactId, setAnalysisDestinationContactId] = useState("");
   const [analysisExpectedDate, setAnalysisExpectedDate] = useState("");
   const [analysisUsersLoading, setAnalysisUsersLoading] = useState(false);
   const [analysisUsers, setAnalysisUsers] = useState([]);
+  const [analysisContactsLoading, setAnalysisContactsLoading] = useState(false);
+  const [analysisClientContacts, setAnalysisClientContacts] = useState([]);
   const [formError, setFormError] = useState("");
 
   const normalizedStatus = String(nextStatus || "").trim().toLowerCase();
   const isAnalysisStatus = normalizedStatus === "em_analise";
   const isColleagueDestination = analysisDestination === "colega";
+  const isClientDestination = analysisDestination === "cliente";
   const useSideLayout = showStatusOption && isAnalysisStatus;
   const showLegacyCompleteOption = showCompleteOption && !showStatusOption;
+
+  const resolveClientIdsFromAnalysisTarget = async () => {
+    const target = analysisTargetLog || {};
+
+    const normalizeIds = (ids) => {
+      if (Array.isArray(ids)) return ids.map((id) => String(id)).filter(Boolean);
+      if (!ids) return [];
+      if (typeof ids === "string") {
+        try {
+          const parsed = JSON.parse(ids);
+          if (Array.isArray(parsed)) return parsed.map((id) => String(id)).filter(Boolean);
+        } catch {
+          return [];
+        }
+      }
+      return [];
+    };
+
+    const collectProjectClientIds = (projectRow) => {
+      if (!projectRow) return [];
+      const base = [];
+      if (projectRow.cliente_id) base.push(String(projectRow.cliente_id));
+      const partnerIds = normalizeIds(projectRow.parceiros_ids);
+      return Array.from(new Set([...base, ...partnerIds]));
+    };
+
+    if (target.task_id || target.tarefa_id) {
+      const taskId = target.task_id || target.tarefa_id;
+      const { data } = await supabase
+        .from("tarefas")
+        .select("atividades(projetos(cliente_id, parceiros_ids))")
+        .eq("id", taskId)
+        .maybeSingle();
+
+      const atividade = Array.isArray(data?.atividades) ? data.atividades[0] : data?.atividades;
+      const projeto = Array.isArray(atividade?.projetos) ? atividade.projetos[0] : atividade?.projetos;
+      return collectProjectClientIds(projeto);
+    }
+
+    if (target.atividade_id) {
+      const { data } = await supabase
+        .from("atividades")
+        .select("projetos(cliente_id, parceiros_ids)")
+        .eq("id", target.atividade_id)
+        .maybeSingle();
+
+      const projeto = Array.isArray(data?.projetos) ? data.projetos[0] : data?.projetos;
+      return collectProjectClientIds(projeto);
+    }
+
+    if (target.subtarefa_id) {
+      const { data } = await supabase
+        .from("subtarefas")
+        .select("tarefas(atividades(projetos(cliente_id, parceiros_ids)))")
+        .eq("id", target.subtarefa_id)
+        .maybeSingle();
+
+      const tarefa = Array.isArray(data?.tarefas) ? data.tarefas[0] : data?.tarefas;
+      const atividade = Array.isArray(tarefa?.atividades) ? tarefa.atividades[0] : tarefa?.atividades;
+      const projeto = Array.isArray(atividade?.projetos) ? atividade.projetos[0] : atividade?.projetos;
+      return collectProjectClientIds(projeto);
+    }
+
+    if (target.projeto_id) {
+      const { data } = await supabase
+        .from("projetos")
+        .select("cliente_id, parceiros_ids")
+        .eq("id", target.projeto_id)
+        .maybeSingle();
+
+      return collectProjectClientIds(data);
+    }
+
+    return [];
+  };
 
   const handleConfirm = () => {
     if (showStatusOption && isAnalysisStatus && !analysisExpectedDate) {
@@ -63,6 +143,11 @@ export default function StopTimerNoteModal({
       return;
     }
 
+    if (showStatusOption && isAnalysisStatus && isClientDestination && analysisClientContacts.length > 0 && !analysisDestinationContactId) {
+      setFormError("Seleciona a pessoa do cliente para encaminhar a analise.");
+      return;
+    }
+
     const computedShouldComplete = showStatusOption
       ? normalizedStatus === "concluido"
       : shouldComplete;
@@ -71,6 +156,7 @@ export default function StopTimerNoteModal({
       nextStatus: showStatusOption ? normalizedStatus : "",
       analysisDestination: isAnalysisStatus ? analysisDestination : "",
       analysisDestinationUserId: isAnalysisStatus && isColleagueDestination ? analysisDestinationUserId : "",
+      analysisDestinationContactId: isAnalysisStatus && isClientDestination ? analysisDestinationContactId : "",
       analysisExpectedDate: isAnalysisStatus ? analysisExpectedDate : "",
     };
 
@@ -84,6 +170,7 @@ export default function StopTimerNoteModal({
       setNextStatus(defaultStatus);
       setAnalysisDestination("proprio");
       setAnalysisDestinationUserId("");
+      setAnalysisDestinationContactId("");
       setAnalysisExpectedDate("");
       setFormError("");
     }
@@ -124,6 +211,49 @@ export default function StopTimerNoteModal({
       cancelled = true;
     };
   }, [open, isAnalysisStatus, isColleagueDestination, user?.id]);
+
+  useEffect(() => {
+    if (!open || !isAnalysisStatus || !isClientDestination) return;
+
+    let cancelled = false;
+
+    async function loadClientContacts() {
+      setAnalysisContactsLoading(true);
+      setAnalysisDestinationContactId("");
+
+      const clientIds = await resolveClientIdsFromAnalysisTarget();
+      if (cancelled) return;
+
+      if (!Array.isArray(clientIds) || clientIds.length === 0) {
+        setAnalysisClientContacts([]);
+        setAnalysisContactsLoading(false);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("contactos_cliente")
+        .select("id, cliente_id, nome_contacto, cargo, email, clientes(marca, sigla)")
+        .in("cliente_id", clientIds)
+        .order("nome_contacto", { ascending: true });
+
+      if (cancelled) return;
+
+      if (error) {
+        setAnalysisClientContacts([]);
+        setAnalysisContactsLoading(false);
+        return;
+      }
+
+      setAnalysisClientContacts(Array.isArray(data) ? data : []);
+      setAnalysisContactsLoading(false);
+    }
+
+    loadClientContacts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, isAnalysisStatus, isClientDestination, analysisTargetLog]);
 
   if (!open) return null;
 
@@ -419,6 +549,7 @@ export default function StopTimerNoteModal({
                   onChange={(e) => {
                     setAnalysisDestination(e.target.value);
                     setAnalysisDestinationUserId("");
+                    setAnalysisDestinationContactId("");
                     setFormError("");
                   }}
                   style={{
@@ -471,6 +602,49 @@ export default function StopTimerNoteModal({
                           {profile.nome || profile.email || String(profile.id).slice(0, 8)}
                         </option>
                       ))}
+                    </select>
+                  </>
+                )}
+
+                {isClientDestination && (
+                  <>
+                    <label style={{ color: "#334155", fontSize: "0.8rem", fontWeight: 700 }}>Pessoa do cliente</label>
+                    <select
+                      className="stop-note-select"
+                      value={analysisDestinationContactId}
+                      onChange={(e) => {
+                        setAnalysisDestinationContactId(e.target.value);
+                        setFormError("");
+                      }}
+                      style={{
+                        width: "100%",
+                        border: "1px solid #cbd5e1",
+                        borderRadius: "10px",
+                        padding: "9px 10px",
+                        fontSize: "0.92rem",
+                        color: "#0f172a",
+                        background: "#fff",
+                        outline: "none",
+                      }}
+                      disabled={analysisContactsLoading}
+                    >
+                      <option value="">
+                        {analysisContactsLoading
+                          ? "A carregar pessoas do cliente..."
+                          : (analysisClientContacts.length === 0 ? "Sem pessoas associadas ao cliente" : "Seleciona uma pessoa")}
+                      </option>
+                      {analysisClientContacts.map((contact) => {
+                        const client = Array.isArray(contact?.clientes) ? contact.clientes[0] : contact?.clientes;
+                        const clientSigla = client?.sigla || client?.marca || "Cliente";
+                        const baseName = contact.nome_contacto || contact.email || "Contacto";
+                        const label = contact.cargo ? `${baseName} (${contact.cargo}) - ${clientSigla}` : `${baseName} - ${clientSigla}`;
+
+                        return (
+                          <option key={contact.id} value={contact.id}>
+                            {label}
+                          </option>
+                        );
+                      })}
                     </select>
                   </>
                 )}

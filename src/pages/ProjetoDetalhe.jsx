@@ -97,6 +97,14 @@ const getFileBaseName = (fileName = "") => {
     return parts.join(".") || "documento";
 };
 
+const ANALYSIS_DESTINATION_OPTIONS = [
+    { value: "proprio", label: "Proprio" },
+    { value: "colega", label: "Colega" },
+    { value: "cliente", label: "Cliente" },
+    { value: "contabilista", label: "Contabilista" },
+    { value: "organismo", label: "Organismo" }
+];
+
 export default function ProjetoDetalhe() {
   const { id } = useParams(); 
   const navigate = useNavigate();
@@ -346,8 +354,9 @@ export default function ProjetoDetalhe() {
         .from("atividades")
         .select(`
             id, titulo, estado, responsavel_id, data_inicio, data_fim, investimento, incentivo, financiamento, data_prevista_aprovacao, descricao, observacoes, created_at, ordem, depende_de_atividade_id, ignorar_dependencia,
+            analise_destino, analise_data_prevista,
             colaboradores_extra, info_adicional,
-            tarefas(id, titulo, estado, responsavel_id, colaboradores_extra, data_inicio, data_fim, prioridade, descricao, created_at, ordem, info_adicional, investimento, incentivo, financiamento, data_prevista_aprovacao, tem_entregavel, nome_entregavel, data_entregavel, arquivo_url, depende_de_tarefa_id, ignorar_dependencia,
+            tarefas(id, titulo, estado, responsavel_id, colaboradores_extra, data_inicio, data_fim, prioridade, descricao, created_at, ordem, info_adicional, investimento, incentivo, financiamento, data_prevista_aprovacao, tem_entregavel, nome_entregavel, data_entregavel, arquivo_url, depende_de_tarefa_id, ignorar_dependencia, analise_destino, analise_data_prevista,
                 subtarefas(id, titulo, estado, data_fim, created_at, ordem)
             )
         `)
@@ -1012,6 +1021,8 @@ export default function ProjetoDetalhe() {
       if (payload.incentivo === "") payload.incentivo = 0;
       if (payload.financiamento === "") payload.financiamento = 0;
       if (payload.data_prevista_aprovacao === "") payload.data_prevista_aprovacao = null;
+    payload.analise_destino = payload.estado === 'em_analise' ? (payload.analise_destino || 'proprio') : null;
+    payload.analise_data_prevista = payload.estado === 'em_analise' ? (payload.analise_data_prevista || null) : null;
 
       const { error } = await supabase.from("atividades").update(payload).eq("id", payload.id);
       if (!error) {
@@ -1060,6 +1071,8 @@ export default function ProjetoDetalhe() {
       if (payload.incentivo === "") payload.incentivo = 0;
       if (payload.financiamento === "") payload.financiamento = 0;
       if (payload.data_prevista_aprovacao === "") payload.data_prevista_aprovacao = null;
+    payload.analise_destino = payload.estado === 'em_analise' ? (payload.analise_destino || 'proprio') : null;
+    payload.analise_data_prevista = payload.estado === 'em_analise' ? (payload.analise_data_prevista || null) : null;
 
       const { error } = await supabase.from("tarefas").update(payload).eq("id", payload.id);
       if (!error) {
@@ -2680,6 +2693,7 @@ export default function ProjetoDetalhe() {
 
       <StopTimerNoteModal
           open={stopNoteModal.show}
+          analysisTargetLog={activeLog}
           title="Parar cronometro"
           message="Regista uma nota breve deste bloco de trabalho (opcional)."
           placeholder="Ex: Checklist finalizada e pendente validação"
@@ -2806,6 +2820,35 @@ export default function ProjetoDetalhe() {
 
                           <div style={sectionTitleStyle}><Icons.Activity /> Estado</div>
                           {renderStatePills(atividadeModal.data.estado, (val) => setAtividadeModal({show: true, data: {...atividadeModal.data, estado: val}}))}
+
+                          {(atividadeModal.data.estado === 'em_analise' || atividadeModal.data.analise_data_prevista || atividadeModal.data.analise_destino) && (
+                              <div style={{marginTop: '12px', marginBottom: '10px', background: 'var(--color-bgSecondary)', border: '1px solid var(--color-borderColor)', borderRadius: '10px', padding: '12px'}}>
+                                  <div style={{fontSize: '0.74rem', color: 'var(--color-btnPrimaryDark)', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px'}}>Acompanhamento da Analise</div>
+                                  <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px'}}>
+                                      <div>
+                                          <label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight: 'bold'}}>Encaminhada para</label>
+                                          <select
+                                              value={atividadeModal.data.analise_destino || 'proprio'}
+                                              onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, analise_destino: e.target.value}})}
+                                              style={{...inputStyle, marginBottom: 0}}
+                                              className="input-focus"
+                                          >
+                                              {ANALYSIS_DESTINATION_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                                          </select>
+                                      </div>
+                                      <div>
+                                          <label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight: 'bold'}}>Data expectavel de resposta</label>
+                                          <input
+                                              type="date"
+                                              value={atividadeModal.data.analise_data_prevista || ''}
+                                              onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, analise_data_prevista: e.target.value}})}
+                                              style={{...inputStyle, marginBottom: 0}}
+                                              className="input-focus"
+                                          />
+                                      </div>
+                                  </div>
+                              </div>
+                          )}
 
                           {/* --- NOTAS (SEM CONDIÇÃO - SEMPRE VISÍVEIS) --- */}
                           <div style={sectionTitleStyle}><Icons.FileText /> Notas</div>
@@ -2951,6 +2994,35 @@ export default function ProjetoDetalhe() {
 
                           <label style={{...labelStyle, marginTop:'15px'}}>Estado Atual</label>
                           {renderStatePills(tarefaModal.data.estado, (val) => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, estado: val}}))}
+
+                          {(tarefaModal.data.estado === 'em_analise' || tarefaModal.data.analise_data_prevista || tarefaModal.data.analise_destino) && (
+                              <div style={{marginTop: '12px', marginBottom: '12px', background: 'var(--color-bgSecondary)', border: '1px solid var(--color-borderColor)', borderRadius: '10px', padding: '12px'}}>
+                                  <div style={{fontSize: '0.74rem', color: 'var(--color-btnPrimaryDark)', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px'}}>Acompanhamento da Analise</div>
+                                  <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px'}}>
+                                      <div>
+                                          <label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight:'bold'}}>Encaminhada para</label>
+                                          <select
+                                              value={tarefaModal.data.analise_destino || 'proprio'}
+                                              onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, analise_destino: e.target.value}})}
+                                              style={{...inputStyle, marginBottom: 0, width: '100%'}}
+                                              className="input-focus"
+                                          >
+                                              {ANALYSIS_DESTINATION_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                                          </select>
+                                      </div>
+                                      <div>
+                                          <label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight:'bold'}}>Data expectavel de resposta</label>
+                                          <input
+                                              type="date"
+                                              value={tarefaModal.data.analise_data_prevista || ''}
+                                              onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, analise_data_prevista: e.target.value}})}
+                                              style={{...inputStyle, marginBottom: 0, width: '100%'}}
+                                              className="input-focus"
+                                          />
+                                      </div>
+                                  </div>
+                              </div>
+                          )}
 
                           <div style={sectionTitleStyle}><Icons.FileText /> Entregaveis</div>
                           <div style={{background: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '12px', marginBottom: '12px'}}>

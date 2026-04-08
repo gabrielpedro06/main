@@ -1782,6 +1782,7 @@ export default function DashboardHome() {
 
             <StopTimerNoteModal
                 open={stopNoteModal.show}
+                analysisTargetLog={activeLog}
                 title="Parar cronometro"
                 message="Podes adicionar uma nota breve ao parar este registo (opcional)."
                 placeholder="Ex: Encerrado após validação com equipa"

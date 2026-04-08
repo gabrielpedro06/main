@@ -50,6 +50,8 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
   const [retomarPromise, setRetomarPromise] = useState(null);
   const [analysisDueToday, setAnalysisDueToday] = useState([]);
   const [incomingAnalysisModal, setIncomingAnalysisModal] = useState({ open: false, items: [] });
+  const [analysisFollowUpModal, setAnalysisFollowUpModal] = useState({ open: false, items: [] });
+  const [analysisFollowUpDates, setAnalysisFollowUpDates] = useState({});
 
   // Registos Recentes
   const [showRecords, setShowRecords] = useState(false);
@@ -165,6 +167,151 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
 
     setIncomingAnalysisModal({ open: false, items: [] });
   }, [incomingAnalysisModal.items]);
+
+  const loadOverdueAnalysisForClockIn = useCallback(async () => {
+    if (!user?.id) return;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const cutoff = today.toLocaleDateString("en-CA");
+
+    const [taskOwnerRes, taskExtraRes, activityOwnerRes, activityExtraRes, taskDestRes, activityDestRes] = await Promise.all([
+      supabase
+        .from("tarefas")
+        .select("id, titulo, estado, analise_destino, analise_data_prevista, analise_data_retorno")
+        .eq("responsavel_id", user.id)
+        .eq("estado", "em_analise")
+        .is("analise_data_retorno", null)
+        .lte("analise_data_prevista", cutoff),
+      supabase
+        .from("tarefas")
+        .select("id, titulo, estado, analise_destino, analise_data_prevista, analise_data_retorno")
+        .contains("colaboradores_extra", [user.id])
+        .eq("estado", "em_analise")
+        .is("analise_data_retorno", null)
+        .lte("analise_data_prevista", cutoff),
+      supabase
+        .from("atividades")
+        .select("id, titulo, estado, analise_destino, analise_data_prevista, analise_data_retorno")
+        .eq("responsavel_id", user.id)
+        .eq("estado", "em_analise")
+        .is("analise_data_retorno", null)
+        .lte("analise_data_prevista", cutoff),
+      supabase
+        .from("atividades")
+        .select("id, titulo, estado, analise_destino, analise_data_prevista, analise_data_retorno")
+        .contains("colaboradores_extra", [user.id])
+        .eq("estado", "em_analise")
+        .is("analise_data_retorno", null)
+        .lte("analise_data_prevista", cutoff),
+      supabase
+        .from("tarefas")
+        .select("id, titulo, estado, analise_destino, analise_data_prevista, analise_data_retorno")
+        .eq("analise_destino_user_id", user.id)
+        .eq("estado", "em_analise")
+        .is("analise_data_retorno", null)
+        .lte("analise_data_prevista", cutoff),
+      supabase
+        .from("atividades")
+        .select("id, titulo, estado, analise_destino, analise_data_prevista, analise_data_retorno")
+        .eq("analise_destino_user_id", user.id)
+        .eq("estado", "em_analise")
+        .is("analise_data_retorno", null)
+        .lte("analise_data_prevista", cutoff),
+    ]);
+
+    const hasOwnerOrExtraMissingColumns = [taskOwnerRes, taskExtraRes, activityOwnerRes, activityExtraRes]
+      .some((res) => res?.error?.code === "42703");
+    if (hasOwnerOrExtraMissingColumns) return;
+
+    const safeData = (res) => (res?.error?.code === "42703" ? [] : (res?.data || []));
+
+    const map = new Map();
+    const ingest = (items, tipo) => {
+      (items || []).forEach((item) => {
+        if (!item?.id || !item?.analise_data_prevista) return;
+        const key = `${tipo}:${item.id}`;
+        map.set(key, {
+          id: item.id,
+          tipo,
+          titulo: item.titulo || (tipo === "tarefa" ? "Tarefa" : "Atividade"),
+          estado: item.estado || "em_analise",
+          destino: item.analise_destino || "proprio",
+          dataPrevista: item.analise_data_prevista,
+        });
+      });
+    };
+
+    ingest(safeData(taskOwnerRes), "tarefa");
+    ingest(safeData(taskExtraRes), "tarefa");
+    ingest(safeData(activityOwnerRes), "atividade");
+    ingest(safeData(activityExtraRes), "atividade");
+    ingest(safeData(taskDestRes), "tarefa");
+    ingest(safeData(activityDestRes), "atividade");
+
+    const overdueItems = Array.from(map.values()).sort((a, b) => String(a.dataPrevista).localeCompare(String(b.dataPrevista)));
+    if (overdueItems.length === 0) return;
+
+    const dates = {};
+    overdueItems.forEach((item) => {
+      dates[`${item.tipo}:${item.id}`] = item.dataPrevista || "";
+    });
+
+    setAnalysisFollowUpDates(dates);
+    setAnalysisFollowUpModal({ open: true, items: overdueItems });
+  }, [user?.id]);
+
+  const handleUpdateOverdueExpectedDate = useCallback(async (item) => {
+    if (!item?.id || !item?.tipo) return;
+    const key = `${item.tipo}:${item.id}`;
+    const nextDate = analysisFollowUpDates[key];
+    if (!nextDate) return;
+
+    const table = item.tipo === "tarefa" ? "tarefas" : "atividades";
+    const { error } = await supabase
+      .from(table)
+      .update({ analise_data_prevista: nextDate })
+      .eq("id", item.id);
+
+    if (error) return;
+
+    setAnalysisFollowUpModal((prev) => ({
+      ...prev,
+      items: prev.items.map((entry) =>
+        entry.id === item.id && entry.tipo === item.tipo
+          ? { ...entry, dataPrevista: nextDate }
+          : entry
+      ),
+    }));
+  }, [analysisFollowUpDates]);
+
+  const handleConcludeOverdueItem = useCallback(async (item) => {
+    if (!item?.id || !item?.tipo) return;
+
+    const table = item.tipo === "tarefa" ? "tarefas" : "atividades";
+    const nowIso = new Date().toISOString();
+    const payload = {
+      estado: "concluido",
+      analise_data_retorno: nowIso,
+      analise_alerta_pendente: false,
+    };
+
+    if (item.tipo === "tarefa") {
+      payload.data_conclusao = nowIso;
+    }
+
+    const { error } = await supabase
+      .from(table)
+      .update(payload)
+      .eq("id", item.id);
+
+    if (error) return;
+
+    setAnalysisFollowUpModal((prev) => {
+      const nextItems = prev.items.filter((entry) => !(entry.id === item.id && entry.tipo === item.tipo));
+      return { open: nextItems.length > 0, items: nextItems };
+    });
+  }, []);
 
   // --- 1. VERIFICAR ESTADO E AUTO-ENCERRAMENTO ---
   const checkStatus = useCallback(async () => {
@@ -292,7 +439,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
 
       let dueItems = [];
       if (userId) {
-        const [taskOwnerRes, taskExtraRes, activityOwnerRes, activityExtraRes] = await Promise.all([
+        const [taskOwnerRes, taskExtraRes, activityOwnerRes, activityExtraRes, taskDestRes, activityDestRes] = await Promise.all([
           supabase
             .from("tarefas")
             .select("id, titulo, estado, analise_destino, analise_data_prevista")
@@ -315,9 +462,23 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
             .from("atividades")
             .select("id, titulo, estado, analise_destino, analise_data_prevista")
             .contains("colaboradores_extra", [userId])
+            .eq("estado", "em_analise")
+            .eq("analise_data_prevista", today),
+          supabase
+            .from("tarefas")
+            .select("id, titulo, estado, analise_destino, analise_data_prevista")
+            .eq("analise_destino_user_id", userId)
+            .eq("estado", "em_analise")
+            .eq("analise_data_prevista", today),
+          supabase
+            .from("atividades")
+            .select("id, titulo, estado, analise_destino, analise_data_prevista")
+            .eq("analise_destino_user_id", userId)
             .eq("estado", "em_analise")
             .eq("analise_data_prevista", today),
         ]);
+
+        const safeData = (res) => (res?.error?.code === "42703" ? [] : (res?.data || []));
 
         const map = new Map();
         const ingest = (items, tipo) => {
@@ -333,10 +494,12 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
           });
         };
 
-        ingest(taskOwnerRes.data, "tarefa");
-        ingest(taskExtraRes.data, "tarefa");
-        ingest(activityOwnerRes.data, "atividade");
-        ingest(activityExtraRes.data, "atividade");
+        ingest(safeData(taskOwnerRes), "tarefa");
+        ingest(safeData(taskExtraRes), "tarefa");
+        ingest(safeData(activityOwnerRes), "atividade");
+        ingest(safeData(activityExtraRes), "atividade");
+        ingest(safeData(taskDestRes), "tarefa");
+        ingest(safeData(activityDestRes), "atividade");
         dueItems = Array.from(map.values());
       }
 
@@ -395,6 +558,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
             setTimer(0);
             setSelectedTasks([]);
             setShowStartModal(false);
+            await loadOverdueAnalysisForClockIn();
           } else {
             setLoading(false);
             return;
@@ -423,6 +587,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
           setTimer(0);
           setSelectedTasks([]);
           setShowStartModal(false);
+          await loadOverdueAnalysisForClockIn();
         }
       }
     } catch (err) {
@@ -465,6 +630,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
             setStatus("running"); 
             setTimer(0);
             setShowStartModal(false);
+          await loadOverdueAnalysisForClockIn();
         }
     } catch (err) { console.error(err); } finally { setLoading(false); }
   }
@@ -825,23 +991,75 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
         <ModalPortal>
           <div style={modalOverlayStyle}>
             <div style={{...modalContainerStyle, maxWidth: 520}}>
-              <div style={{...modalHeaderStyle, background: '#fff7ed', borderBottom: '1px solid #fed7aa'}}>
-                <h3 style={{margin: 0, color: '#9a3412', fontSize: '1.05rem', fontWeight: 800}}>Nova tarefa/atividade para analise</h3>
-                <button onClick={acknowledgeIncomingAnalysisAssignments} style={{background:'transparent', border:'none', cursor:'pointer', color:'#9a3412'}}><Icons.Close size={18}/></button>
+              <div style={{...modalHeaderStyle, background: 'var(--color-bgSecondary)', borderBottom: '1px solid var(--color-borderColor)'}}>
+                <h3 style={{margin: 0, color: 'var(--color-btnPrimaryDark)', fontSize: '1.05rem', fontWeight: 800}}>Nova tarefa/atividade para analise</h3>
+                <button onClick={acknowledgeIncomingAnalysisAssignments} style={{background:'transparent', border:'none', cursor:'pointer', color:'var(--color-btnPrimaryDark)'}}><Icons.Close size={18}/></button>
               </div>
               <div style={{padding: '16px', display: 'grid', gap: '10px', maxHeight: '52vh', overflowY: 'auto'}}>
-                <p style={{margin: 0, color: '#7c2d12', fontSize: '0.88rem'}}>Recebeste novos itens para analise. Verifica no painel de tarefas.</p>
+                <p style={{margin: 0, color: 'var(--color-btnPrimaryHover)', fontSize: '0.88rem'}}>Recebeste novos itens para analise. Verifica no painel de tarefas.</p>
                 {incomingAnalysisModal.items.map((item) => (
-                  <div key={`${item.tipo}-${item.id}`} style={{border: '1px solid #fdba74', borderRadius: '10px', background: '#fff7ed', padding: '10px 12px'}}>
-                    <div style={{fontSize: '0.78rem', color: '#9a3412', fontWeight: 800}}>{item.tipo}</div>
-                    <div style={{fontSize: '0.9rem', color: '#7c2d12', fontWeight: 700}}>{item.titulo || '-'}</div>
-                    <div style={{fontSize: '0.76rem', color: '#9a3412', marginTop: '3px'}}>Destino: {formatAnalysisDestination(item.analise_destino)} · Previsto: {item.analise_data_prevista || '-'}</div>
+                  <div key={`${item.tipo}-${item.id}`} style={{border: '1px solid var(--color-borderColor)', borderRadius: '10px', background: 'var(--color-bgTertiary)', padding: '10px 12px'}}>
+                    <div style={{fontSize: '0.78rem', color: 'var(--color-btnPrimaryDark)', fontWeight: 800}}>{item.tipo}</div>
+                    <div style={{fontSize: '0.9rem', color: 'var(--color-textPrimary)', fontWeight: 700}}>{item.titulo || '-'}</div>
+                    <div style={{fontSize: '0.76rem', color: 'var(--color-btnPrimaryDark)', marginTop: '3px'}}>Destino: {formatAnalysisDestination(item.analise_destino)} · Previsto: {item.analise_data_prevista || '-'}</div>
                   </div>
                 ))}
               </div>
-              <div style={{padding: '14px 16px', background: '#fff7ed', borderTop: '1px solid #fed7aa', display: 'flex', justifyContent: 'flex-end'}}>
+              <div style={{padding: '14px 16px', background: 'var(--color-bgSecondary)', borderTop: '1px solid var(--color-borderColor)', display: 'flex', justifyContent: 'flex-end'}}>
                 <button type="button" onClick={acknowledgeIncomingAnalysisAssignments} style={{padding:'10px 14px', borderRadius:'10px', border:'none', background:'var(--color-btnPrimary)', color:'white', fontWeight:'700', cursor:'pointer'}}>
                   Percebi
+                </button>
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
+
+      {analysisFollowUpModal.open && (
+        <ModalPortal>
+          <div style={modalOverlayStyle}>
+            <div style={{...modalContainerStyle, maxWidth: 760}}>
+              <div style={{...modalHeaderStyle, background: 'var(--color-bgSecondary)', borderBottom: '1px solid var(--color-borderColor)'}}>
+                <h3 style={{margin: 0, color: 'var(--color-btnPrimaryDark)', fontSize: '1.05rem', fontWeight: 800}}>Analises para hoje ou em atraso</h3>
+                <button onClick={() => setAnalysisFollowUpModal({ open: false, items: [] })} style={{background:'transparent', border:'none', cursor:'pointer', color:'var(--color-btnPrimaryDark)'}}><Icons.Close size={18}/></button>
+              </div>
+              <div style={{padding: '16px', display: 'grid', gap: '10px', maxHeight: '55vh', overflowY: 'auto'}}>
+                <p style={{margin: 0, color: 'var(--color-btnPrimaryHover)', fontSize: '0.88rem'}}>Confirma o estado dos itens com data expectavel para hoje ou ja ultrapassada: atualiza a data prevista ou marca como concluido.</p>
+                {analysisFollowUpModal.items.map((item) => {
+                  const key = `${item.tipo}:${item.id}`;
+                  const nextDate = analysisFollowUpDates[key] || '';
+
+                  return (
+                    <div key={key} style={{border: '1px solid var(--color-borderColor)', borderRadius: '10px', background: 'var(--color-bgTertiary)', padding: '10px 12px', display: 'grid', gap: '8px'}}>
+                      <div style={{display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'center'}}>
+                        <div>
+                          <div style={{fontSize: '0.78rem', color: 'var(--color-btnPrimaryDark)', fontWeight: 800}}>{item.tipo}</div>
+                          <div style={{fontSize: '0.9rem', color: 'var(--color-textPrimary)', fontWeight: 700}}>{item.titulo}</div>
+                          <div style={{fontSize: '0.76rem', color: 'var(--color-btnPrimaryDark)', marginTop: '2px'}}>Estado: {item.estado} · Destino: {formatAnalysisDestination(item.destino)} · Previsto: {item.dataPrevista}</div>
+                        </div>
+                      </div>
+
+                      <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center'}}>
+                        <input
+                          type="date"
+                          value={nextDate}
+                          onChange={(e) => setAnalysisFollowUpDates((prev) => ({ ...prev, [key]: e.target.value }))}
+                          style={{border: '1px solid var(--color-borderColor)', borderRadius: '8px', padding: '8px 9px', background: 'var(--color-bgPrimary)', color: 'var(--color-textPrimary)'}}
+                        />
+                        <button type="button" onClick={() => handleUpdateOverdueExpectedDate(item)} style={{border:'1px solid var(--color-borderColor)', background:'var(--color-bgPrimary)', color:'var(--color-textPrimary)', borderRadius:'8px', padding:'8px 10px', fontWeight:'700', cursor:'pointer'}}>
+                          Atualizar data
+                        </button>
+                        <button type="button" onClick={() => handleConcludeOverdueItem(item)} style={{border:'none', background:'var(--color-btnPrimary)', color:'#fff', borderRadius:'8px', padding:'8px 10px', fontWeight:'700', cursor:'pointer'}}>
+                          Marcar concluido
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{padding: '14px 16px', background: 'var(--color-bgSecondary)', borderTop: '1px solid var(--color-borderColor)', display: 'flex', justifyContent: 'flex-end'}}>
+                <button type="button" onClick={() => setAnalysisFollowUpModal({ open: false, items: [] })} style={{padding:'10px 14px', borderRadius:'10px', border:'1px solid var(--color-borderColor)', background:'var(--color-bgPrimary)', color:'var(--color-textPrimary)', fontWeight:'700', cursor:'pointer'}}>
+                  Fechar
                 </button>
               </div>
             </div>

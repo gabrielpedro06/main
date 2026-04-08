@@ -836,6 +836,7 @@ export default function Atividades() {
 
             <StopTimerNoteModal
                 open={stopNoteModal.show}
+                analysisTargetLog={activeLog}
                 title="Parar cronometro"
                 message="Podes adicionar uma nota breve para este registo (opcional)."
                 placeholder="Ex: Finalizada revisão da atividade"

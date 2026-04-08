@@ -1387,6 +1387,7 @@ export default function Projetos() {
 
       <StopTimerNoteModal
           open={stopNoteModal.show}
+          analysisTargetLog={activeLog}
           title="Parar cronometro"
           message="Podes registar uma nota breve neste fecho (opcional)."
           placeholder="Ex: Fechado após alinhamento de objetivos"
