@@ -344,7 +344,7 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
               </li>
             )}
 
-            {['admin', 'marketing'].includes(userProfile?.role) && (
+            {['admin','gestor',  'marketing'].includes(userProfile?.role) && (
               <li className={isActive('/dashboard/leads')}>
                 <Link to="/dashboard/leads" title={getSidebarTooltip("Marketing")}>
                   <span className="icon"><Icons.Target /></span> 
