@@ -32,6 +32,8 @@ import Perfil from "./pages/Perfil";
 import AdminDashboard from "./pages/AdminDashboard";
 import GestaoTemplates from "./components/GestaoTemplates"; 
 import PropostasComerciais from "./pages/PropostasComerciais";
+import ListaPropostas from "./pages/ListaPropostas";
+import GestaoAvisos from "./pages/GestaoAvisos";
 
 export default function App() {
   return (
@@ -67,7 +69,13 @@ export default function App() {
             <Route path="pedido-km" element={<PedidoKm />} />
             <Route path="perfil" element={<Perfil />} />
             <Route path="leads" element={<GestaoLeads />} />
-            <Route path="propostas-comerciais" element={<PropostasComerciais />} />
+            
+            {/* ROTAS DE PROPOSTAS COMERCIAIS */}
+            <Route path="propostas" element={<ListaPropostas />} />
+            <Route path="propostas/novo" element={<PropostasComerciais />} />
+            <Route path="propostas/:id" element={<PropostasComerciais />} />
+            <Route path="avisos" element={<GestaoAvisos />} />
+            
             <Route path="admin" element={<ProtectedRoute allowedRoles={["admin", "administrador"]}><AdminDashboard /></ProtectedRoute>} />
             
             {/* MUDAMOS DE /templates PARA /modelos PARA COMBINAR COM O MENU */}

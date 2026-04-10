@@ -1316,6 +1316,30 @@ input:focus, select:focus, textarea:focus {
   margin-top: 10px;
 }
 
+.programa-detalhe-label {
+  margin-bottom: 4px;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-textLight);
+  font-weight: 800;
+}
+
+.programa-detalhe-value {
+  font-size: 1rem;
+  line-height: 1.35;
+  font-weight: 700;
+  color: var(--color-textPrimary);
+}
+
+.programa-detalhe-descricao {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.45;
+  font-weight: 500;
+  color: var(--color-textPrimary);
+}
+
 .propostas-service-list,
 .propostas-budget-list {
   display: flex;

@@ -1,60 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useState, useEffect, useMemo } from "react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import { useParams } from "react-router-dom";
 import { supabase } from "../services/supabase";
-import "../styles/dashboard.css";
+import "./../styles/dashboard.css";
 
-const PROGRAMAS = [
-  {
-    id: "sice_qual_2030",
-    nome: "SICE – Qualificação das PME",
-    aviso: "ALGARVE-2025-36",
-    pct: 50,
-    tipo: "fundo perdido (não reembolsável)",
-    inv_min: 100000,
-    regiao: "Algarve",
-    prazo1: "2026-03-31",
-    prazo2: "2026-06-30",
-    descricao:
-      "Visa apoiar operações individuais promovidas por PME, que visem a qualificação e digitalização dos modelos de negócio através do uso de fatores imateriais de competitividade.",
-  },
-  {
-    id: "prr_digitalizacao",
-    nome: "PRR – Digitalização das Empresas",
-    aviso: "PRR-C05-i02",
-    pct: 75,
-    tipo: "fundo perdido (não reembolsável)",
-    inv_min: 25000,
-    regiao: "Portugal Continental",
-    prazo1: "2026-06-30",
-    prazo2: "",
-    descricao:
-      "Apoio a projetos de transformação digital de PME, incluindo adoção de software, automação de processos, cibersegurança e integração de dados.",
-  },
-  {
-    id: "compete_inovacao",
-    nome: "Compete 2030 – Inovação Empresarial",
-    aviso: "COMPETE-2025-10",
-    pct: 40,
-    tipo: "reembolsável",
-    inv_min: 150000,
-    regiao: "Norte / Centro / Alentejo",
-    prazo1: "2026-09-30",
-    prazo2: "",
-    descricao:
-      "Apoio a projetos de inovação produtiva com reforço da capacidade tecnológica e integração em cadeias de valor internacionais.",
-  },
-  {
-    id: "personalizado",
-    nome: "Personalizado",
-    aviso: "",
-    pct: 0,
-    tipo: "fundo perdido (não reembolsável)",
-    inv_min: 0,
-    regiao: "",
-    prazo1: "",
-    prazo2: "",
-    descricao: "",
-  },
-];
+// ============================================================================
+// CONSTANTES E HELPERS
+// ============================================================================
 
 const SERVICOS_BASE = [
   {
@@ -118,52 +71,50 @@ const SERVICOS_BASE = [
   },
 ];
 
-const INITIAL_CONSULTORA = {
+// Initial states
+const INITIAL_EMPRESA_CONSULTORA = {
+  id: "",
   nome: "",
   nipc: "",
+  sigla: "",
   morada: "",
-  tel: "",
+  telefone: "",
   email: "",
   website: "",
-  signatario: "",
-  cargo: "",
-  telm: "",
+  signatario_id: "",
+  nome_signatario: "",
+  cargo_signatario: "",
+  telemovel_signatario: "",
 };
-
 const INITIAL_CLIENTE = {
+  id: "",
   nome: "",
   nipc: "",
-  tipo: "PME",
+  tipo_empresa: "PME",
   morada: "",
-  cidade: "",
-  sector: "",
-  contacto: "",
+  distrito_cidade: "",
+  setor_atividade: "",
+  contacto_id: "",
+  contacto_nome: "",
   contacto_cargo: "",
-  email: "",
-  tel: "",
+  contacto_email: "",
+  contacto_telefone: "",
 };
-
+const INITIAL_TIPO_PROJETO = { id: "", nome: "", tem_programa: false };
 const INITIAL_PROPOSTA = {
   db_id: "",
   numero: "",
-  ref: "",
+  referencia_interna: "",
   data: new Date().toISOString().slice(0, 10),
   validade: 30,
   estado: "em_analise",
+  investimento: "",
+  iva: 23,
 };
-
-const INITIAL_CARTA = {
-  saudacao: "",
-  abertura: "",
-  central: "",
-  aprovacao: "",
-};
-
-const INITIAL_TERMOS = {
+const INITIAL_CONDICOES_GERAIS = {
   ral: "",
-  privacidade: "",
+  rgpd_email: "",
 };
-
 const INITIAL_NOTAS = [
   "O valor proposto inclui Memória Descritiva e Estudo de Viabilidade Económica.",
   "Não inclui desenvolvimento de Estudos de Mercado, Benchmarking ou outros estudos adicionais solicitados pelo Organismo.",
@@ -171,14 +122,20 @@ const INITIAL_NOTAS = [
   "Não inclui serviços de contabilidade, certificação, auditoria ou revisão de contas.",
 ];
 
-const initialPrograma = () => ({ ...PROGRAMAS[0] });
 const initialServicos = () =>
   SERVICOS_BASE.map((servico) => ({
     ...servico,
     atividades: [...servico.atividades],
     selecionado: true,
   }));
+
 const initialNotas = () => [...INITIAL_NOTAS];
+
+// Plano de Pagamentos default
+const INITIAL_PLANO_PAGAMENTOS = [
+  { percentagem: 50, descricao: "Adjudicação", dias_apos_aceite: 0 },
+  { percentagem: 50, descricao: "Conclusão", dias_apos_aceite: 30 },
+];
 
 const currencyFormatter = new Intl.NumberFormat("pt-PT", {
   style: "currency",
@@ -186,14 +143,16 @@ const currencyFormatter = new Intl.NumberFormat("pt-PT", {
 });
 
 const stepTitles = [
-  "Identificação",
+  "Empresa Consultora",
   "Cliente",
-  "Programa",
+  "Artigos",
   "Serviços",
   "Orçamento",
-  "Carta",
+  "Condições Gerais",
   "Revisão",
 ];
+
+const TIPO_EMPRESA_OPTIONS = ["PME", "Grande Empresa", "Startup", "Microempresa", "Outro"];
 
 const escapeHtml = (value) =>
   String(value ?? "")
@@ -210,6 +169,22 @@ const formatDatePt = (isoDate) => {
   const date = new Date(`${isoDate}T00:00:00`);
   if (Number.isNaN(date.getTime())) return "—";
   return date.toLocaleDateString("pt-PT");
+};
+
+const normalizeAvisoFases = (value) => {
+  if (!Array.isArray(value) || value.length === 0) return [];
+
+  return value
+    .map((fase, index) => {
+      if (typeof fase === "string") {
+        return { nome: `Fase ${index + 1}`, prazo: fase };
+      }
+      return {
+        nome: String(fase?.nome || fase?.fase || `Fase ${index + 1}`),
+        prazo: String(fase?.prazo || fase?.data || ""),
+      };
+    })
+    .filter((fase) => fase.nome || fase.prazo);
 };
 
 const addDays = (isoDate, days) => {
@@ -235,206 +210,917 @@ const setField = (setter, field) => (event) => {
   setter((previous) => ({ ...previous, [field]: value }));
 };
 
-const normalizeCodigo = (value) =>
-  String(value || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "")
-    .slice(0, 40);
-
-const mapProgramaDbToUi = (programa) => ({
-  dbId: programa.id,
-  id: programa.codigo,
-  codigo: programa.codigo,
-  nome: programa.nome,
-  aviso: programa.aviso || "",
-  pct: Number(programa.pct || 0),
-  tipo: programa.tipo_incentivo || "fundo perdido (não reembolsável)",
-  inv_min: Number(programa.investimento_minimo || 0),
-  regiao: programa.regiao || "",
-  prazo1: programa.prazo_fase_1 || "",
-  prazo2: programa.prazo_fase_2 || "",
-  descricao: programa.descricao || "",
-  ativo: programa.ativo !== false,
-});
-
-const emptyProgramaModalForm = {
-  codigo: "",
-  nome: "",
-  aviso: "",
-  pct: 0,
-  tipo: "fundo perdido (não reembolsável)",
-  inv_min: 0,
-  regiao: "",
-  prazo1: "",
-  prazo2: "",
-  descricao: "",
-  ativo: true,
-};
+// ============================================================================
+// COMPONENT
+// ============================================================================
 
 export default function PropostasComerciais() {
+  const { id: propostaId } = useParams();
   const [currentStep, setCurrentStep] = useState(1);
-  const [programaId, setProgramaId] = useState(PROGRAMAS[0].id);
-  const [programaForm, setProgramaForm] = useState(initialPrograma);
-  const [programasDb, setProgramasDb] = useState([]);
-  const [showProgramasModal, setShowProgramasModal] = useState(false);
-  const [programaModalForm, setProgramaModalForm] = useState(emptyProgramaModalForm);
-  const [programaModalEditId, setProgramaModalEditId] = useState(null);
-  const [isProgramaModalSubmitting, setIsProgramaModalSubmitting] = useState(false);
-  const [consultora, setConsultora] = useState(INITIAL_CONSULTORA);
+
+  // Data from BD
+  const [empresasConsultoras, setEmpresasConsultoras] = useState([]);
+  const [clientes, setClientes] = useState([]);
+  const [tiposProj, setTiposProj] = useState([]);
+  const [avisos, setAvisos] = useState([]);
+  const [programas, setProgramas] = useState([]);
+  const [contatosConsultora, setContatosConsultora] = useState([]);
+  const [contatosCliente, setContatosCliente] = useState([]);
+
+  // Selected entities
+  const [empresaConsultora, setEmpresaConsultora] = useState(INITIAL_EMPRESA_CONSULTORA);
   const [cliente, setCliente] = useState(INITIAL_CLIENTE);
+  const [tipoProjeto, setTipoProjeto] = useState(INITIAL_TIPO_PROJETO);
+  const [programa, setPrograma] = useState(null);
+
+  // Proposal data
   const [proposta, setProposta] = useState(INITIAL_PROPOSTA);
-  const [carta, setCarta] = useState(INITIAL_CARTA);
-  const [termos, setTermos] = useState(INITIAL_TERMOS);
+  const [condicoesGerais, setCondicoesGerais] = useState(INITIAL_CONDICOES_GERAIS);
   const [servicos, setServicos] = useState(initialServicos);
   const [notasExclusoes, setNotasExclusoes] = useState(initialNotas);
+  const [planoPagamentos, setPlanoPagamentos] = useState(INITIAL_PLANO_PAGAMENTOS);
+
+  // UI state
   const [toastMessage, setToastMessage] = useState("");
   const [isSavingDb, setIsSavingDb] = useState(false);
   const [isLoadingDb, setIsLoadingDb] = useState(false);
+  const [isLoadingData, setIsLoadingData] = useState(true);
+
+  // ========================================================================
+  // DATA LOADING
+  // ========================================================================
 
   useEffect(() => {
-    setProposta((previous) => ({
-      ...previous,
-      data: previous.data || new Date().toISOString().slice(0, 10),
-    }));
+    const loadData = async () => {
+      setIsLoadingData(true);
+      try {
+        let baseClientes = [];
+
+        // Usar wildcard para compatibilidade com diferentes schemas/migrations.
+        const { data: clientesAll, error: clientesAllError } = await supabase
+          .from("clientes")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (clientesAllError) {
+          throw clientesAllError;
+        }
+
+        baseClientes = clientesAll || [];
+
+        const clientesAtivos = baseClientes
+          .filter((item) => item.ativo !== false)
+          .map((item) => ({
+            ...item,
+            nome: item.marca || item.nome || "",
+            nipc: item.nipc || item.nif || "",
+            sigla: item.sigla || (item.marca || item.nome || "").substring(0, 3).toUpperCase(),
+            website: item.website || "",
+            tipo_empresa: item.tipo_empresa || "PME",
+            setor_atividade: item.setor_atividade || item.objeto_social || "",
+          }));
+
+        const hasConsultoraFlag = clientesAtivos.some((item) => typeof item.eh_empresa_consultora === "boolean");
+
+        if (hasConsultoraFlag) {
+          setEmpresasConsultoras(clientesAtivos.filter((item) => item.eh_empresa_consultora === true));
+          setClientes(clientesAtivos.filter((item) => item.eh_empresa_consultora !== true));
+        } else {
+          // Fallback de compatibilidade quando a migration ainda não correu.
+          setEmpresasConsultoras(clientesAtivos);
+          setClientes(clientesAtivos);
+        }
+
+        // Load project types
+        const { data: tipos } = await supabase
+          .from("tipos_projeto")
+          .select("id, nome, tem_programa")
+          .order("nome");
+        setTiposProj(tipos || []);
+
+        const { data: avisosData } = await supabase
+          .from("avisos")
+          .select("*")
+          .order("nome", { ascending: true });
+        setAvisos(avisosData || []);
+
+        // Load programs
+        const { data: progs } = await supabase
+          .from("programas_financiamento")
+          .select("id, codigo, nome, aviso, aviso_id, pct, tipo_incentivo, investimento_minimo, regiao, descricao, ativo")
+          .eq("ativo", true)
+          .order("nome");
+        setProgramas(progs || []);
+      } catch (error) {
+        console.error("Error loading data:", error);
+        showToast("Erro ao carregar dados", "error");
+      } finally {
+        setIsLoadingData(false);
+      }
+    };
+
+    void loadData();
   }, []);
 
-  const carregarProgramasDb = async (includeInactive = true) => {
-    let query = supabase
-      .from("programas_financiamento")
-      .select("id, codigo, nome, aviso, pct, tipo_incentivo, investimento_minimo, regiao, prazo_fase_1, prazo_fase_2, descricao, ativo")
-      .order("nome", { ascending: true });
-
-    if (!includeInactive) {
-      query = query.eq("ativo", true);
-    }
-
-    const { data, error } = await query;
-    if (error) return [];
-
-    const mapped = (data || []).map(mapProgramaDbToUi);
-    setProgramasDb(mapped);
-    return mapped;
-  };
-
+  // Load client contacts when cliente changes
   useEffect(() => {
-    void carregarProgramasDb(true);
-  }, []);
-
-  const programasDisponiveis = useMemo(
-    () => {
-      if (!programasDb.length) return PROGRAMAS;
-      return programasDb.filter((programa) => programa.ativo !== false);
-    },
-    [programasDb],
-  );
-
-  const activeServicos = useMemo(
-    () => servicos.filter((servico) => servico.selecionado),
-    [servicos],
-  );
-
-  const incentivoEstimado = useMemo(() => {
-    const investimento = Number(proposta.investimento || 0);
-    const pct = Number(programaForm.pct || 0);
-    return investimento * (pct / 100);
-  }, [proposta.investimento, programaForm.pct]);
-
-  const orcamentoLinhas = useMemo(() => {
-    return activeServicos.map((servico) => {
-      if (servico.honorario_tipo === "fixo") {
-        const honorario = Number(servico.honorario_valor) || 0;
-        const premioFixo = Number(servico.premio_fixo || 0);
-        const premioPct = Number(servico.premio_pct || 0);
-        const premioTotal = servico.premio_aprovacao
-          ? premioFixo + incentivoEstimado * (premioPct / 100)
-          : 0;
-
-        return {
-          ...servico,
-          valor: honorario + premioTotal,
-          honorarioLabel: servico.premio_aprovacao
-            ? `${formatCurrency(honorario)} + prémio ${formatCurrency(premioFixo)} + ${premioPct}% incentivo`
-            : formatCurrency(honorario),
-        };
+    const loadContatosCliente = async () => {
+      if (!cliente.id) {
+        setContatosCliente([]);
+        return;
       }
 
-      const pct = Number(servico.honorario_valor) || 0;
-      const minimo = Number(servico.honorario_minimo || 0);
-      const calculado = incentivoEstimado * (pct / 100);
-      return {
-        ...servico,
-        valor: Math.max(calculado, minimo),
-        honorarioLabel: `${pct}% do incentivo (mín. ${formatCurrency(minimo)})`,
-      };
-    });
-  }, [activeServicos, incentivoEstimado]);
+      try {
+        const [contactosResult, moradaResult] = await Promise.all([
+          supabase
+            .from("contactos_cliente")
+            .select("*")
+            .eq("cliente_id", cliente.id),
+          supabase
+            .from("moradas_cliente")
+            .select("morada, localidade, concelho, distrito")
+            .eq("cliente_id", cliente.id)
+            .limit(1)
+            .maybeSingle(),
+        ]);
 
-  const totais = useMemo(() => {
-    const totalSemIva = orcamentoLinhas.reduce((accumulator, linha) => accumulator + linha.valor, 0);
-    const iva = Number(proposta.iva || 23);
-    const totalIva = totalSemIva * (iva / 100);
-    const totalComIva = totalSemIva + totalIva;
+        const { data, error } = contactosResult;
 
-    return { totalSemIva, totalIva, totalComIva, iva };
-  }, [orcamentoLinhas, proposta.iva]);
+        if (error) throw error;
 
-  const selectedPrograma = useMemo(
-    () => programasDisponiveis.find((programa) => programa.id === programaId) || programaForm,
-    [programaId, programaForm, programasDisponiveis],
-  );
+        if (data && data.length > 0) {
+          const contactosOrdenados = [...data].sort((a, b) => {
+            const nomeA = String(a.nome_contacto || a.nome || "");
+            const nomeB = String(b.nome_contacto || b.nome || "");
+            return nomeA.localeCompare(nomeB, "pt-PT");
+          });
 
-  const checklist = useMemo(
-    () => [
-      { label: "Nome da consultora", ok: Boolean(consultora.nome) },
-      { label: "Signatário e cargo", ok: Boolean(consultora.signatario) && Boolean(consultora.cargo) },
-      { label: "Número e referência da proposta", ok: Boolean(proposta.numero) && Boolean(proposta.ref) },
-      { label: "Nome do cliente", ok: Boolean(cliente.nome) },
-      { label: "Contacto do cliente", ok: Boolean(cliente.contacto) },
-      { label: "Programa selecionado", ok: Boolean(programaForm.nome) },
-      { label: "Pelo menos um módulo selecionado", ok: activeServicos.length > 0 },
-      { label: "Saudação da carta", ok: Boolean(carta.saudacao) },
-    ],
-    [activeServicos.length, carta.saudacao, cliente.contacto, cliente.nome, consultora, programaForm.nome, proposta.numero, proposta.ref],
-  );
+          setContatosCliente(
+            contactosOrdenados.map((contacto) => ({
+              id: contacto.id,
+              nome: contacto.nome_contacto || contacto.nome || "",
+              cargo: contacto.cargo || "",
+              email: contacto.email || "",
+              telefone: contacto.telefone || "",
+            }))
+          );
+
+          const contactoDefault = contactosOrdenados[0] || null;
+          const morada = moradaResult.data?.morada || "";
+          const distritoCidade =
+            moradaResult.data?.distrito ||
+            [moradaResult.data?.localidade, moradaResult.data?.concelho].filter(Boolean).join(" / ") ||
+            "";
+
+          setCliente((prev) => ({
+            ...prev,
+            morada: prev.morada || morada,
+            distrito_cidade: prev.distrito_cidade || distritoCidade,
+            contacto_id: prev.contacto_id || contactoDefault?.id || "",
+            contacto_nome: prev.contacto_nome || contactoDefault?.nome_contacto || contactoDefault?.nome || "",
+            contacto_cargo: prev.contacto_cargo || contactoDefault?.cargo || "",
+            contacto_email: prev.contacto_email || contactoDefault?.email || "",
+            contacto_telefone: prev.contacto_telefone || contactoDefault?.telefone || "",
+          }));
+        } else {
+          // Fallback para compatibilidade quando não há contactos registados
+          setContatosCliente([{ id: cliente.id, nome: cliente.nome }]);
+
+          const morada = moradaResult.data?.morada || "";
+          const distritoCidade =
+            moradaResult.data?.distrito ||
+            [moradaResult.data?.localidade, moradaResult.data?.concelho].filter(Boolean).join(" / ") ||
+            "";
+
+          setCliente((prev) => ({
+            ...prev,
+            morada: prev.morada || morada,
+            distrito_cidade: prev.distrito_cidade || distritoCidade,
+          }));
+        }
+      } catch (error) {
+        console.error("Error loading client contacts:", error);
+        setContatosCliente([{ id: cliente.id, nome: cliente.nome }]);
+      }
+    };
+
+    void loadContatosCliente();
+  }, [cliente.id]);
+
+  useEffect(() => {
+    const carregarPropostaExistente = async () => {
+      if (!propostaId) return;
+
+      setIsLoadingDb(true);
+      try {
+        const { data, error } = await supabase
+          .from("propostas_comerciais")
+          .select("id, numero_proposta_str, estado, empresa_consultora_id, cliente_id, tipo_projeto_id, programa_id, payload, plano_pagamentos")
+          .eq("id", propostaId)
+          .single();
+
+        if (error) throw error;
+        if (!data) return;
+
+        const payload = typeof data.payload === "string" ? JSON.parse(data.payload) : (data.payload || {});
+
+        if (data.empresa_consultora_id) {
+          const consultora = empresasConsultoras.find((e) => String(e.id) === String(data.empresa_consultora_id));
+          setEmpresaConsultora({
+            id: data.empresa_consultora_id,
+            nome: consultora?.nome || payload?.empresa_consultora?.nome || "",
+            nipc: consultora?.nipc || payload?.empresa_consultora?.nipc || "",
+            sigla:
+              consultora?.sigla ||
+              payload?.empresa_consultora?.sigla ||
+              (consultora?.nome || payload?.empresa_consultora?.nome || "").substring(0, 3).toUpperCase(),
+            morada: payload?.empresa_consultora?.morada || "",
+            telefone: payload?.empresa_consultora?.telefone || "",
+            email: payload?.empresa_consultora?.email || "",
+            website: payload?.empresa_consultora?.website || consultora?.website || "",
+            signatario_id: payload?.empresa_consultora?.signatario_id || "",
+            nome_signatario: payload?.empresa_consultora?.nome_signatario || "",
+            cargo_signatario: payload?.empresa_consultora?.cargo_signatario || "",
+            telemovel_signatario: payload?.empresa_consultora?.telemovel_signatario || "",
+          });
+        }
+
+        if (data.cliente_id) {
+          const clienteEncontrado = clientes.find((c) => String(c.id) === String(data.cliente_id));
+          setCliente({
+            id: data.cliente_id,
+            nome: clienteEncontrado?.nome || payload?.cliente?.nome || "",
+            nipc: clienteEncontrado?.nipc || payload?.cliente?.nipc || "",
+            tipo_empresa: payload?.cliente?.tipo_empresa || clienteEncontrado?.tipo_empresa || "PME",
+            morada: payload?.cliente?.morada || "",
+            distrito_cidade: payload?.cliente?.distrito_cidade || "",
+            setor_atividade: payload?.cliente?.setor_atividade || clienteEncontrado?.setor_atividade || "",
+            contacto_id: payload?.cliente?.contacto_id || "",
+            contacto_nome: payload?.cliente?.contacto_nome || "",
+            contacto_cargo: payload?.cliente?.contacto_cargo || "",
+            contacto_email: payload?.cliente?.contacto_email || "",
+            contacto_telefone: payload?.cliente?.contacto_telefone || "",
+          });
+        }
+
+        if (data.tipo_projeto_id) {
+          const tipo = tiposProj.find((t) => String(t.id) === String(data.tipo_projeto_id));
+          setTipoProjeto({
+            id: data.tipo_projeto_id,
+            nome: tipo?.nome || payload?.tipo_projeto?.nome || "",
+            tem_programa: typeof tipo?.tem_programa === "boolean" ? !!tipo.tem_programa : !!payload?.tipo_projeto?.tem_programa,
+          });
+        }
+
+        if (data.programa_id) {
+          const prog = programas.find((p) => String(p.id) === String(data.programa_id));
+          if (prog) setPrograma(prog);
+        }
+
+        setProposta((prev) => ({
+          ...prev,
+          db_id: data.id,
+          numero: data.numero_proposta_str || "",
+          referencia_interna: payload?.proposta?.referencia_interna || "",
+          estado: data.estado || prev.estado,
+          data: payload?.proposta?.data || prev.data,
+          validade: payload?.proposta?.validade ?? prev.validade,
+          investimento: payload?.proposta?.investimento ?? payload?.orcamento?.investimento ?? prev.investimento,
+          iva: payload?.proposta?.iva ?? payload?.orcamento?.iva ?? prev.iva,
+        }));
+
+        if (payload?.condicoes_gerais) {
+          setCondicoesGerais({
+            ral: payload.condicoes_gerais.ral || "",
+            rgpd_email: payload.condicoes_gerais.rgpd_email || "",
+          });
+        }
+
+        if (Array.isArray(payload?.servicos_config) && payload.servicos_config.length > 0) {
+          setServicos(payload.servicos_config);
+        }
+
+        if (Array.isArray(payload?.orcamento?.notas) && payload.orcamento.notas.length > 0) {
+          setNotasExclusoes(payload.orcamento.notas);
+        }
+
+        if (Array.isArray(data.plano_pagamentos) && data.plano_pagamentos.length > 0) {
+          setPlanoPagamentos(data.plano_pagamentos);
+        } else if (Array.isArray(payload?.plano_pagamentos) && payload.plano_pagamentos.length > 0) {
+          setPlanoPagamentos(payload.plano_pagamentos);
+        }
+      } catch (error) {
+        console.error("Erro ao carregar proposta para edição:", error);
+        showToast("Erro ao carregar proposta");
+      } finally {
+        setIsLoadingDb(false);
+      }
+    };
+
+    if (propostaId && !isLoadingData) {
+      void carregarPropostaExistente();
+    }
+  }, [propostaId, isLoadingData, empresasConsultoras, clientes, tiposProj, programas]);
+
+  // ========================================================================
+  // HELPERS
+  // ========================================================================
+
+  const showToast = (message) => {
+    setToastMessage(message);
+    window.setTimeout(() => setToastMessage(""), 2500);
+  };
 
   const goStep = (nextStep) => {
     if (nextStep < 1 || nextStep > stepTitles.length) return;
     setCurrentStep(nextStep);
   };
 
+  // ========================================================================
+  // CORE FUNCTIONS: PDF & PERSISTENCE
+  // ========================================================================
+
+  const guardarPropostaEmBD = async () => {
+    if (!empresaConsultora.id || !cliente.id || !tipoProjeto.id) {
+      showToast("Preencha empresa consultora, cliente e tipo de projeto");
+      return;
+    }
+
+    setIsSavingDb(true);
+    try {
+      const dados = recolherDados();
+      const sigla = empresaConsultora.sigla || "PRO";
+      const ano = new Date().getFullYear();
+      const payload = dados;
+
+      let result;
+      let numeroFinal = proposta.numero;
+      if (proposta.db_id) {
+        // UPDATE existing proposal
+        result = await supabase
+          .from("propostas_comerciais")
+          .update({
+            numero_proposta_str: numeroFinal || null,
+            payload,
+            plano_pagamentos: planoPagamentos,
+            estado: proposta.estado,
+            contato_cliente_id: cliente.contacto_id || null,
+            programa_id: programa?.id || null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", proposta.db_id);
+      } else {
+        const { data: numerosExistentes, error: errorSeq } = await supabase
+          .from("propostas_comerciais")
+          .select("id")
+          .ilike("numero_proposta_str", `${sigla}-${ano}-%`);
+
+        if (errorSeq) throw errorSeq;
+
+        const sequencial = String((numerosExistentes?.length || 0) + 1).padStart(3, "0");
+        numeroFinal = `${sigla}-${ano}-${sequencial}`;
+
+        // CREATE new proposal
+        result = await supabase
+          .from("propostas_comerciais")
+          .insert([
+            {
+              numero_proposta_str: numeroFinal,
+              sigla_empresa: sigla,
+              empresa_consultora_id: empresaConsultora.id,
+              cliente_id: cliente.id,
+              contato_cliente_id: cliente.contacto_id || null,
+              tipo_projeto_id: tipoProjeto.id,
+              programa_id: programa?.id || null,
+              estado: proposta.estado,
+              plano_pagamentos: planoPagamentos,
+              payload,
+            },
+          ])
+          .select();
+      }
+
+      if (result.error) {
+        throw result.error;
+      }
+
+      // Update proposta with DB ID
+      setProposta((prev) => ({
+        ...prev,
+        db_id: result.data?.[0]?.id || prev.db_id,
+        numero: numeroFinal || prev.numero,
+      }));
+
+      showToast("✓ Proposta guardada com sucesso!");
+    } catch (error) {
+      console.error("Erro ao guardar proposta:", error);
+      showToast("Erro ao guardar proposta");
+    } finally {
+      setIsSavingDb(false);
+    }
+  };
+
+  const gerarPDF = () => {
+    try {
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const margem = 12;
+      const larguraPagina = doc.internal.pageSize.getWidth();
+      const alturaPagina = doc.internal.pageSize.getHeight();
+      const larguraUtil = larguraPagina - margem * 2;
+      const colGap = 8;
+      const colLargura = (larguraUtil - colGap) / 2;
+      const fasesAviso = normalizeAvisoFases(selectedAviso?.fases);
+      const servicosSelecionados = servicos.filter((s) => s.selecionado);
+      const valorSeguro = (value) => {
+        const text = String(value ?? "").trim();
+        return text || "—";
+      };
+
+      let y = margem;
+
+      const garantirEspaco = (alturaNecessaria = 10) => {
+        if (y + alturaNecessaria > alturaPagina - margem) {
+          doc.addPage();
+          y = margem;
+        }
+      };
+
+      const blocoTexto = (label, value, x = margem, largura = larguraUtil) => {
+        const labelFinal = label ? `${label}:` : "";
+        const texto = valorSeguro(value);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        if (labelFinal) {
+          doc.text(labelFinal, x, y);
+        }
+        doc.setFont("helvetica", "normal");
+        const larguraValor = labelFinal ? largura - 34 : largura;
+        const linhas = doc.splitTextToSize(texto, Math.max(20, larguraValor));
+        const xValor = labelFinal ? x + 34 : x;
+        doc.text(linhas, xValor, y);
+        y += Math.max(5, linhas.length * 4.5);
+      };
+
+      const tituloSecao = (titulo) => {
+        garantirEspaco(12);
+        doc.setFillColor(245, 247, 250);
+        doc.rect(margem, y - 4.5, larguraUtil, 8, "F");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.text(titulo, margem + 2, y + 1);
+        y += 7;
+      };
+
+      const blocoDuasColunas = (esquerda, direita) => {
+        const yInicial = y;
+
+        let yEsquerda = yInicial;
+        esquerda.forEach(({ label, value }) => {
+          y = yEsquerda;
+          blocoTexto(label, value, margem, colLargura);
+          yEsquerda = y;
+        });
+
+        let yDireita = yInicial;
+        direita.forEach(({ label, value }) => {
+          y = yDireita;
+          blocoTexto(label, value, margem + colLargura + colGap, colLargura);
+          yDireita = y;
+        });
+
+        y = Math.max(yEsquerda, yDireita) + 1;
+      };
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(17);
+      doc.text("Proposta Comercial", larguraPagina / 2, y, { align: "center" });
+      y += 7;
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.text(`Documento: ${valorSeguro(proposta.numero || proposta.db_id || "proposta")}`, margem, y);
+      doc.text(`Data: ${formatDatePt(proposta.data)}`, larguraPagina - margem, y, { align: "right" });
+      y += 6;
+      doc.setDrawColor(210, 210, 210);
+      doc.line(margem, y, larguraPagina - margem, y);
+      y += 6;
+
+      tituloSecao("Identificacao da Proposta");
+      blocoDuasColunas(
+        [
+          { label: "Numero", value: proposta.numero || proposta.db_id || "—" },
+          { label: "Referencia interna", value: proposta.referencia_interna },
+          { label: "Estado", value: proposta.estado },
+        ],
+        [
+          { label: "Data", value: formatDatePt(proposta.data) },
+          { label: "Validade", value: `${Number(proposta.validade || 30)} dias` },
+          { label: "IVA", value: `${Number(proposta.iva || 23)}%` },
+        ]
+      );
+
+      tituloSecao("Empresa Consultora");
+      blocoDuasColunas(
+        [
+          { label: "Nome", value: empresaConsultora.nome },
+          { label: "NIPC", value: empresaConsultora.nipc },
+          { label: "Morada", value: empresaConsultora.morada },
+          { label: "Telefone", value: empresaConsultora.telefone },
+        ],
+        [
+          { label: "Email", value: empresaConsultora.email },
+          { label: "Website", value: empresaConsultora.website },
+          { label: "Signatario", value: empresaConsultora.nome_signatario },
+          { label: "Cargo", value: empresaConsultora.cargo_signatario },
+          { label: "Telemovel signatario", value: empresaConsultora.telemovel_signatario },
+        ]
+      );
+
+      tituloSecao("Cliente");
+      blocoDuasColunas(
+        [
+          { label: "Nome", value: cliente.nome },
+          { label: "NIPC", value: cliente.nipc },
+          { label: "Tipo de empresa", value: cliente.tipo_empresa },
+          { label: "Morada", value: cliente.morada },
+          { label: "Distrito/Cidade", value: cliente.distrito_cidade },
+        ],
+        [
+          { label: "Setor atividade", value: cliente.setor_atividade },
+          { label: "Contacto", value: cliente.contacto_nome },
+          { label: "Cargo", value: cliente.contacto_cargo },
+          { label: "Email", value: cliente.contacto_email },
+          { label: "Telefone", value: cliente.contacto_telefone },
+        ]
+      );
+
+      tituloSecao("Projeto, Programa e Aviso");
+      blocoDuasColunas(
+        [
+          { label: "Tipo de projeto", value: tipoProjeto.nome },
+          { label: "Programa", value: programa?.nome || "—" },
+          { label: "Taxa de incentivo", value: programa?.pct ? `${programa.pct}%` : "—" },
+          { label: "Investimento elegivel", value: formatCurrency(proposta.investimento || 0) },
+          { label: "Incentivo estimado", value: formatCurrency(incentivoEstimado) },
+        ],
+        [
+          { label: "Aviso", value: selectedAviso?.codigo || selectedPrograma?.aviso || "—" },
+          { label: "Abertura", value: formatDatePt(selectedAviso?.abertura) },
+          { label: "Fecho", value: formatDatePt(selectedAviso?.fecho) },
+          { label: "Dotacao", value: selectedAviso?.dotacao != null ? formatCurrency(selectedAviso.dotacao) : "—" },
+          { label: "Despesa minima", value: selectedAviso?.despesa_min != null ? formatCurrency(selectedAviso.despesa_min) : "—" },
+          { label: "Despesa maxima", value: selectedAviso?.despesa_max != null ? formatCurrency(selectedAviso.despesa_max) : "—" },
+        ]
+      );
+      blocoTexto("Descricao do aviso", selectedAviso?.descricao || selectedPrograma?.descricao || "—");
+
+      tituloSecao("Fases do Aviso");
+      if (fasesAviso.length === 0) {
+        blocoTexto("Fases", "Sem fases registadas");
+      } else {
+        fasesAviso.forEach((fase, index) => {
+          garantirEspaco(8);
+          blocoTexto(`Fase ${index + 1} (${valorSeguro(fase.nome)})`, formatDatePt(fase.prazo));
+        });
+      }
+
+      tituloSecao("Servicos Incluidos");
+      if (servicosSelecionados.length === 0) {
+        blocoTexto("Servicos", "Sem servicos selecionados");
+      } else {
+        servicosSelecionados.forEach((servico) => {
+          garantirEspaco(20);
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(10);
+          doc.text(`Modulo ${valorSeguro(servico.codigo)} - ${valorSeguro(servico.nome)}`, margem, y);
+          y += 5;
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(9);
+          blocoTexto("Descricao", servico.descricao);
+          blocoTexto("Honorario", orcamentoLinhas.find((l) => l.id === servico.id)?.honorarioLabel || "—");
+          blocoTexto("Condicoes", servico.condicoes);
+
+          const atividades = Array.isArray(servico.atividades) ? servico.atividades.filter(Boolean) : [];
+          if (atividades.length > 0) {
+            blocoTexto("Atividades", atividades.map((item) => `- ${item}`).join("\n"));
+          }
+
+          const entregaveis = Array.isArray(servico.entregaveis) ? servico.entregaveis.filter(Boolean) : [];
+          if (entregaveis.length > 0) {
+            blocoTexto("Entregaveis", entregaveis.map((item) => `- ${item}`).join("\n"));
+          }
+
+          y += 1;
+        });
+      }
+
+      tituloSecao("Orcamento");
+      autoTable(doc, {
+        startY: y,
+        margin: { left: margem, right: margem },
+        head: [["Modulo", "Servico", "Honorario", "Valor"]],
+        body: orcamentoLinhas.map((linha) => [
+          `Modulo ${valorSeguro(linha.codigo)}`,
+          valorSeguro(linha.nome),
+          valorSeguro(linha.honorarioLabel),
+          formatCurrency(linha.valor),
+        ]),
+        styles: { font: "helvetica", fontSize: 8.5, cellPadding: 2.2, valign: "middle" },
+        headStyles: { fillColor: [41, 87, 117] },
+      });
+      y = doc.lastAutoTable.finalY + 4;
+
+      autoTable(doc, {
+        startY: y,
+        margin: { left: margem, right: margem },
+        body: [
+          ["Total s/ IVA", formatCurrency(totais.totalSemIva)],
+          [`IVA (${Number(proposta.iva || 23)}%)`, formatCurrency(totais.totalIva)],
+          ["Total c/ IVA", formatCurrency(totais.totalComIva)],
+        ],
+        styles: { font: "helvetica", fontSize: 9, cellPadding: 2.4 },
+        columnStyles: {
+          0: { fontStyle: "bold" },
+          1: { halign: "right", fontStyle: "bold" },
+        },
+      });
+      y = doc.lastAutoTable.finalY + 4;
+
+      tituloSecao("Plano de Pagamentos");
+      autoTable(doc, {
+        startY: y,
+        margin: { left: margem, right: margem },
+        head: [["Descricao", "%", "Prazo"]],
+        body: planoPagamentos.map((pagamento) => [
+          valorSeguro(pagamento.descricao),
+          `${Number(pagamento.percentagem || 0)}%`,
+          `Dia ${Number(pagamento.dias_apos_aceite || 0)}${Number(pagamento.dias_apos_aceite || 0) === 0 ? " (Imediato)" : ""}`,
+        ]),
+        styles: { font: "helvetica", fontSize: 9, cellPadding: 2.2 },
+        headStyles: { fillColor: [41, 87, 117] },
+      });
+      y = doc.lastAutoTable.finalY + 4;
+
+      tituloSecao("Notas e Exclusoes");
+      if (notasExclusoes.length === 0) {
+        blocoTexto("Notas", "Sem notas adicionais");
+      } else {
+        notasExclusoes.forEach((nota, index) => blocoTexto(`${index + 1}`, nota));
+      }
+
+      tituloSecao("Condicoes Gerais");
+      blocoTexto("Entidade RAL", condicoesGerais.ral);
+      blocoTexto("Email RGPD", condicoesGerais.rgpd_email);
+
+      const totalPaginas = doc.getNumberOfPages();
+      for (let page = 1; page <= totalPaginas; page += 1) {
+        doc.setPage(page);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(120, 120, 120);
+        doc.text(
+          `Gerado em ${new Date().toLocaleDateString("pt-PT")} - Pagina ${page}/${totalPaginas}`,
+          larguraPagina / 2,
+          alturaPagina - 6,
+          { align: "center" }
+        );
+      }
+
+      const propostaNumero = proposta.numero || proposta.db_id || "proposta";
+      doc.save(`Proposta-${propostaNumero}.pdf`);
+      showToast("PDF gerado com sucesso!");
+    } catch (error) {
+      console.error("Erro ao gerar PDF:", error);
+      showToast("Erro ao gerar PDF");
+    }
+  };
+
+  const selectEmpresaConsultora = (id) => {
+    const found = empresasConsultoras.find((e) => String(e.id) === String(id));
+    if (found) {
+      setEmpresaConsultora({
+        id: found.id,
+        nome: found.nome,
+        nipc: found.nipc,
+        sigla: found.sigla || found.nome.substring(0, 3).toUpperCase(),
+        morada: "",
+        telefone: "",
+        email: "",
+        website: found.website || "",
+        signatario_id: "",
+        nome_signatario: "",
+        cargo_signatario: "",
+        telemovel_signatario: "",
+      });
+
+      void (async () => {
+        try {
+          const [moradaResult, contactosResult] = await Promise.all([
+            supabase
+              .from("moradas_cliente")
+              .select("morada, localidade, codigo_postal")
+              .eq("cliente_id", found.id)
+              .limit(1)
+              .maybeSingle(),
+            supabase
+              .from("contactos_cliente")
+              .select("*")
+              .eq("cliente_id", found.id),
+          ]);
+
+          const morada =
+            moradaResult.data?.morada ||
+            [moradaResult.data?.localidade, moradaResult.data?.codigo_postal].filter(Boolean).join(" ") ||
+            "";
+
+          const contactos = [...(contactosResult.data || [])]
+            .sort((a, b) => {
+              const nomeA = String(a.nome_contacto || a.nome || "");
+              const nomeB = String(b.nome_contacto || b.nome || "");
+              return nomeA.localeCompare(nomeB, "pt-PT");
+            })
+            .map((c) => ({
+              id: c.id,
+              nome: c.nome_contacto || c.nome || "",
+              cargo: c.cargo || "",
+              telefone: c.telefone || "",
+              email: c.email || "",
+            }));
+
+          setContatosConsultora(contactos);
+          const contactoDefault = contactos[0] || null;
+
+          setEmpresaConsultora((prev) => ({
+            ...prev,
+            morada: prev.morada || morada,
+            telefone: prev.telefone || contactoDefault?.telefone || "",
+            email: prev.email || contactoDefault?.email || "",
+            signatario_id: prev.signatario_id || contactoDefault?.id || "",
+            nome_signatario: prev.nome_signatario || contactoDefault?.nome || "",
+            cargo_signatario: prev.cargo_signatario || contactoDefault?.cargo || "",
+            telemovel_signatario: prev.telemovel_signatario || contactoDefault?.telefone || "",
+          }));
+        } catch (error) {
+          console.error("Erro ao carregar dados da consultora:", error);
+          setContatosConsultora([]);
+        }
+      })();
+    } else {
+      setEmpresaConsultora(INITIAL_EMPRESA_CONSULTORA);
+      setContatosConsultora([]);
+    }
+  };
+
+  const selectContatoConsultora = (contactoId) => {
+    const contacto = contatosConsultora.find((c) => String(c.id) === String(contactoId));
+    if (!contacto) return;
+
+    setEmpresaConsultora((prev) => ({
+      ...prev,
+      signatario_id: contacto.id,
+      nome_signatario: contacto.nome || "",
+      cargo_signatario: contacto.cargo || "",
+      telemovel_signatario: contacto.telefone || "",
+      telefone: prev.telefone || contacto.telefone || "",
+      email: prev.email || contacto.email || "",
+    }));
+  };
+
+  const selectCliente = (id) => {
+    const found = clientes.find((c) => String(c.id) === String(id));
+    if (!found) {
+      setCliente(INITIAL_CLIENTE);
+      setContatosCliente([]);
+      return;
+    }
+
+    setCliente({
+      id: found.id,
+      nome: found.nome || "",
+      nipc: found.nipc || "",
+      tipo_empresa: found.tipo_empresa || "PME",
+      morada: "",
+      distrito_cidade: found.distrito_cidade || "",
+      setor_atividade: found.setor_atividade || "",
+      contacto_id: "",
+      contacto_nome: "",
+      contacto_cargo: "",
+      contacto_email: "",
+      contacto_telefone: "",
+    });
+
+    void (async () => {
+      try {
+        const [moradaResult, contactosResult] = await Promise.all([
+          supabase
+            .from("moradas_cliente")
+            .select("morada, localidade, codigo_postal")
+            .eq("cliente_id", found.id)
+            .limit(1)
+            .maybeSingle(),
+          supabase
+            .from("contactos_cliente")
+            .select("*")
+            .eq("cliente_id", found.id),
+        ]);
+
+        const morada =
+          moradaResult.data?.morada ||
+          [moradaResult.data?.localidade, moradaResult.data?.codigo_postal].filter(Boolean).join(" ") ||
+          "";
+
+        const contactos = [...(contactosResult.data || [])]
+          .sort((a, b) => {
+            const nomeA = String(a.nome_contacto || a.nome || "");
+            const nomeB = String(b.nome_contacto || b.nome || "");
+            return nomeA.localeCompare(nomeB, "pt-PT");
+          })
+          .map((c) => ({
+            id: c.id,
+            nome: c.nome_contacto || c.nome || "",
+            cargo: c.cargo || "",
+            telefone: c.telefone || "",
+            email: c.email || "",
+          }));
+
+        setContatosCliente(contactos);
+        const contactoDefault = contactos[0] || null;
+
+        setCliente((prev) => ({
+          ...prev,
+          morada: prev.morada || morada,
+          contacto_id: prev.contacto_id || contactoDefault?.id || "",
+          contacto_nome: prev.contacto_nome || contactoDefault?.nome || "",
+          contacto_cargo: prev.contacto_cargo || contactoDefault?.cargo || "",
+          contacto_email: prev.contacto_email || contactoDefault?.email || "",
+          contacto_telefone: prev.contacto_telefone || contactoDefault?.telefone || "",
+        }));
+      } catch (error) {
+        console.error("Erro ao carregar dados do cliente:", error);
+        setContatosCliente([]);
+      }
+    })();
+  };
+
+  const selectContatoCliente = (contactoId) => {
+    const contacto = contatosCliente.find((c) => String(c.id) === String(contactoId));
+    if (!contacto) return;
+
+    setCliente((prev) => ({
+      ...prev,
+      contacto_id: contacto.id,
+      contacto_nome: contacto.nome || "",
+      contacto_cargo: contacto.cargo || "",
+      contacto_email: contacto.email || "",
+      contacto_telefone: contacto.telefone || "",
+    }));
+  };
+
+  const selectTipoProjeto = (id) => {
+    const found = tiposProj.find((t) => String(t.id) === String(id));
+    if (found) {
+      setTipoProjeto({
+        id: found.id,
+        nome: found.nome,
+        tem_programa: found.tem_programa,
+      });
+      // Reset program if new tipo doesn't have programs
+      if (!found.tem_programa) {
+        setPrograma(null);
+      }
+    }
+  };
+
   const selectPrograma = (id) => {
-    setProgramaId(id);
-    const found = programasDisponiveis.find((programa) => programa.id === id);
-    if (found) setProgramaForm({ ...found });
+    const found = programas.find((p) => String(p.id) === String(id));
+    if (found) {
+      setPrograma(found);
+    }
   };
 
   const toggleServico = (id) => {
     setServicos((previous) =>
       previous.map((servico) =>
-        servico.id === id ? { ...servico, selecionado: !servico.selecionado } : servico,
-      ),
+        servico.id === id ? { ...servico, selecionado: !servico.selecionado } : servico
+      )
     );
   };
 
   const updateServicoField = (id, field, value) => {
     setServicos((previous) =>
       previous.map((servico) =>
-        servico.id === id ? { ...servico, [field]: value } : servico,
-      ),
+        servico.id === id ? { ...servico, [field]: value } : servico
+      )
     );
   };
 
   const updateAtividade = (servicoId, index, value) => {
     setServicos((previous) =>
-      previous.map((servico) => {
-        if (servico.id !== servicoId) return servico;
-        const atividades = [...servico.atividades];
-        atividades[index] = value;
-        return { ...servico, atividades };
-      }),
+      previous.map((servico) =>
+        servico.id === servicoId
+          ? { ...servico, atividades: servico.atividades.map((a, i) => (i === index ? value : a)) }
+          : servico
+      )
     );
   };
 
@@ -443,18 +1129,18 @@ export default function PropostasComerciais() {
       previous.map((servico) =>
         servico.id === servicoId
           ? { ...servico, atividades: [...servico.atividades, "Nova atividade"] }
-          : servico,
-      ),
+          : servico
+      )
     );
   };
 
   const removeAtividade = (servicoId, index) => {
     setServicos((previous) =>
-      previous.map((servico) => {
-        if (servico.id !== servicoId) return servico;
-        const atividades = servico.atividades.filter((_, currentIndex) => currentIndex !== index);
-        return { ...servico, atividades };
-      }),
+      previous.map((servico) =>
+        servico.id === servicoId
+          ? { ...servico, atividades: servico.atividades.filter((_, i) => i !== index) }
+          : servico
+      )
     );
   };
 
@@ -470,480 +1156,137 @@ export default function PropostasComerciais() {
     setNotasExclusoes((previous) => previous.filter((_, currentIndex) => currentIndex !== index));
   };
 
-  const showToast = (message) => {
-    setToastMessage(message);
-    window.setTimeout(() => setToastMessage(""), 2500);
-  };
-
-  const resetForm = () => {
-    if (!window.confirm("Limpar todos os dados?")) return;
-    setCurrentStep(1);
-    setProgramaId(PROGRAMAS[0].id);
-    setProgramaForm(initialPrograma());
-    setConsultora(INITIAL_CONSULTORA);
-    setCliente(INITIAL_CLIENTE);
-    setProposta(INITIAL_PROPOSTA);
-    setCarta(INITIAL_CARTA);
-    setTermos(INITIAL_TERMOS);
-    setServicos(initialServicos());
-    setNotasExclusoes(initialNotas());
-    showToast("Formulário limpo.");
-  };
-
-  const loadSample = () => {
-    setConsultora({
-      nome: "NEOMARCA, Inovação e Desenvolvimento, Lda.",
-      nipc: "503 495 140",
-      morada: "Rua Horta Machado, 2 – 8000-362 Faro",
-      tel: "289 098 720",
-      email: "info@neomarca.pt",
-      website: "www.neomarca.pt",
-      signatario: "Paulo Pereira",
-      cargo: "Diretor",
-      telm: "913 535 544",
-    });
-
-    setCliente({
-      nome: "CAMPICONTROL, LDA",
-      nipc: "507 123 456",
-      tipo: "PME",
-      morada: "Rua da Liberdade, 10 – 8000-000 Faro",
-      cidade: "Faro",
-      sector: "Construção, Agricultura, Ambiente, Floresta, Transportes",
-      contacto: "André Gomes",
-      contacto_cargo: "Gerente",
-      email: "agomes@empresa.pt",
-      tel: "289 000 000",
-    });
-
-    setProposta((previous) => ({
+  const addPagamento = () => {
+    setPlanoPagamentos((previous) => [
       ...previous,
-      numero: "26009",
-      ref: "056/03/2026",
-      data: previous.data || new Date().toISOString().slice(0, 10),
-      validade: 30,
-      estado: "em_analise",
-      investimento: 200000,
-      iva: 23,
-    }));
-
-    setProgramaId("sice_qual_2030");
-    setProgramaForm({ ...PROGRAMAS[0] });
-    setCarta({
-      saudacao: "Estimado André Gomes,",
-      abertura:
-        "Desde já agradeço a consulta e a oportunidade que concederam à NEOMARCA, Inovação e Desenvolvimento, Lda. para vos apresentar os nossos serviços.",
-      central:
-        "O nosso compromisso é oferecer o nosso melhor conhecimento e dedicar os melhores recursos a este projeto, de modo a atingir os objetivos pretendidos e os resultados esperados no prazo desejado.\n\nCom vista a dar seguimento ao processo, remetemos a nossa proposta de prestação de serviços, onde apresentamos as opções e planos de colaboração.\n\nComo sempre, e numa perspetiva de cooperação aberta e ativa com os nossos clientes, estamos disponíveis para avaliar em conjunto a solução que melhor se adeque ao vosso projeto.",
-      aprovacao:
-        "Por favor, leia a proposta para garantir que entende todos os detalhes do serviço proposto. Para aprovação desta proposta pedimos que nos envie um email a confirmar a adjudicação. Após a aceitação da proposta será redigido o Contrato de Prestação de Serviços.",
-    });
-    setTermos({
-      ral: "CIMAAL – Centro de Informação, Mediação e Arbitragem de Conflitos de Consumo do Algarve. Edifício Ninho de Empresas, Estrada da Penha, 8005-131 Faro.",
-      privacidade: "privacy@neomarca.pt",
-    });
-    setServicos(initialServicos());
-    setNotasExclusoes(initialNotas());
-    showToast("Exemplo carregado!");
+      { percentagem: 0, descricao: "", dias_apos_aceite: 0 },
+    ]);
   };
 
+  const updatePagamento = (index, field, value) => {
+    setPlanoPagamentos((previous) =>
+      previous.map((pag, i) => (i === index ? { ...pag, [field]: value } : pag))
+    );
+  };
+
+  const removePagamento = (index) => {
+    setPlanoPagamentos((previous) => previous.filter((_, i) => i !== index));
+  };
+
+  // ========================================================================
+  // CALCULATIONS
+  // ========================================================================
+
+  const activeServicos = useMemo(
+    () => servicos.filter((servico) => servico.selecionado),
+    [servicos]
+  );
+
+  const incentivoEstimado = useMemo(() => {
+    if (!programa) return 0;
+    const investimento = Number(proposta.investimento || 0);
+    const pct = Number(programa.pct || 0);
+    return investimento * (pct / 100);
+  }, [proposta.investimento, programa]);
+
+  const orcamentoLinhas = useMemo(() => {
+    return activeServicos.map((servico) => {
+      let valor = 0;
+      let honorarioLabel = "";
+
+      if (servico.honorario_tipo === "fixo") {
+        valor = Number(servico.honorario_valor || 0);
+        honorarioLabel = formatCurrency(valor);
+      } else if (servico.honorario_tipo === "percentagem_com_minimo") {
+        valor = Math.max(
+          (incentivoEstimado * Number(servico.honorario_valor || 0)) / 100,
+          Number(servico.honorario_minimo || 0)
+        );
+        honorarioLabel = `${Number(servico.honorario_valor || 0)}% (mín. ${formatCurrency(servico.honorario_minimo || 0)})`;
+      }
+
+      return {
+        id: servico.id,
+        codigo: servico.codigo,
+        nome: servico.nome,
+        valor,
+        honorarioLabel,
+        condicoes: servico.condicoes,
+      };
+    });
+  }, [activeServicos, incentivoEstimado]);
+
+  const totais = useMemo(() => {
+    const totalSemIva = orcamentoLinhas.reduce((accumulator, linha) => accumulator + linha.valor, 0);
+    const iva = Number(proposta.iva || 23);
+    const totalIva = totalSemIva * (iva / 100);
+    const totalComIva = totalSemIva + totalIva;
+
+    return { totalSemIva, totalIva, totalComIva, iva };
+  }, [orcamentoLinhas, proposta.iva]);
+
+  // Compat layer for Step 3 visual block
+  const programasDisponiveis = useMemo(
+    () => (programas || []).filter((item) => item.ativo !== false),
+    [programas],
+  );
+  const programaId = programa?.id ? String(programa.id) : "";
+  const selectedPrograma = programa || null;
+  const selectedAviso = useMemo(
+    () => avisos.find((a) => String(a.id) === String(selectedPrograma?.aviso_id || "")) || null,
+    [avisos, selectedPrograma],
+  );
+
+  // Data collection for saving
   const recolherDados = () => ({
-    consultora,
+    empresa_consultora: empresaConsultora,
     cliente,
+    tipo_projeto: tipoProjeto,
+    programa: programa || null,
     proposta,
-    programa: programaForm,
+    condicoes_gerais: condicoesGerais,
     servicos: orcamentoLinhas,
-    servicosConfig: servicos,
+    servicos_config: servicos,
     orcamento: {
       investimento: Number(proposta.investimento || 0),
       iva: totais.iva,
       total_sem_iva: totais.totalSemIva,
       total_iva: totais.totalIva,
       total_com_iva: totais.totalComIva,
+      plano_pagamentos: planoPagamentos,
       notas: notasExclusoes,
     },
-    notasExclusoes,
-    carta,
-    termos,
+    plano_pagamentos: planoPagamentos,
   });
 
-  const normalizarEstadoDb = (estadoAtual) => {
-    if (["aprovada", "arquivada", "em_analise"].includes(estadoAtual)) return estadoAtual;
-    if (estadoAtual === "Adjudicada") return "aprovada";
-    if (estadoAtual === "Recusada") return "arquivada";
-    return "em_analise";
+  const resetForm = () => {
+    if (!window.confirm("Limpar todos os dados?")) return;
+    setCurrentStep(1);
+    setEmpresaConsultora(INITIAL_EMPRESA_CONSULTORA);
+    setCliente(INITIAL_CLIENTE);
+    setTipoProjeto(INITIAL_TIPO_PROJETO);
+    setPrograma(null);
+    setProposta(INITIAL_PROPOSTA);
+    setCondicoesGerais(INITIAL_CONDICOES_GERAIS);
+    setServicos(initialServicos());
+    setNotasExclusoes(initialNotas());
+    setPlanoPagamentos(INITIAL_PLANO_PAGAMENTOS);
+    setContatosConsultora([]);
+    setContatosCliente([]);
+    showToast("Formulário limpo.");
   };
 
-  const abrirModalProgramas = async () => {
-    await carregarProgramasDb(true);
-    setProgramaModalEditId(null);
-    setProgramaModalForm(emptyProgramaModalForm);
-    setShowProgramasModal(true);
-  };
+  // ========================================================================
+  // RENDER
+  // ========================================================================
 
-  const selecionarProgramaNoModal = (programa) => {
-    setProgramaModalEditId(programa.dbId || null);
-    setProgramaModalForm({
-      codigo: programa.codigo || programa.id || "",
-      nome: programa.nome || "",
-      aviso: programa.aviso || "",
-      pct: Number(programa.pct || 0),
-      tipo: programa.tipo || "fundo perdido (não reembolsável)",
-      inv_min: Number(programa.inv_min || 0),
-      regiao: programa.regiao || "",
-      prazo1: programa.prazo1 || "",
-      prazo2: programa.prazo2 || "",
-      descricao: programa.descricao || "",
-      ativo: programa.ativo !== false,
-    });
-  };
+  if (isLoadingData) {
+    return <div className="page-container">A carregar dados...</div>;
+  }
 
-  const usarProgramaNaProposta = (programa) => {
-    setProgramaId(programa.id);
-    setProgramaForm({ ...programa });
-    setShowProgramasModal(false);
-    showToast("Programa aplicado na proposta.");
-  };
-
-  const guardarProgramaNoModal = async () => {
-    const nome = (programaModalForm.nome || "").trim();
-    if (!nome) {
-      showToast("Preenche o nome do programa.");
-      return;
-    }
-
-    setIsProgramaModalSubmitting(true);
-
-    const codigoBase = normalizeCodigo(programaModalForm.codigo || nome) || `programa_${Date.now()}`;
-    let codigoFinal = codigoBase;
-
-    if (!programaModalEditId) {
-      const { data: existentes } = await supabase
-        .from("programas_financiamento")
-        .select("codigo")
-        .ilike("codigo", `${codigoBase}%`);
-
-      const usedCodes = new Set((existentes || []).map((item) => item.codigo));
-      let suffix = 2;
-      while (usedCodes.has(codigoFinal)) {
-        codigoFinal = `${codigoBase}_${suffix}`;
-        suffix += 1;
-      }
-    }
-
-    const payloadPrograma = {
-      codigo: codigoFinal,
-      nome,
-      aviso: (programaModalForm.aviso || "").trim() || null,
-      pct: Number(programaModalForm.pct || 0),
-      tipo_incentivo: (programaModalForm.tipo || "").trim() || null,
-      investimento_minimo: Number(programaModalForm.inv_min || 0),
-      regiao: (programaModalForm.regiao || "").trim() || null,
-      prazo_fase_1: programaModalForm.prazo1 || null,
-      prazo_fase_2: programaModalForm.prazo2 || null,
-      descricao: (programaModalForm.descricao || "").trim() || null,
-      ativo: programaModalForm.ativo !== false,
-    };
-
-    let dbResponse;
-    if (programaModalEditId) {
-      dbResponse = await supabase
-        .from("programas_financiamento")
-        .update(payloadPrograma)
-        .eq("id", programaModalEditId)
-        .select("id, codigo, nome, aviso, pct, tipo_incentivo, investimento_minimo, regiao, prazo_fase_1, prazo_fase_2, descricao, ativo")
-        .single();
-    } else {
-      dbResponse = await supabase
-        .from("programas_financiamento")
-        .insert(payloadPrograma)
-        .select("id, codigo, nome, aviso, pct, tipo_incentivo, investimento_minimo, regiao, prazo_fase_1, prazo_fase_2, descricao, ativo")
-        .single();
-    }
-
-    setIsProgramaModalSubmitting(false);
-
-    if (dbResponse.error || !dbResponse.data) {
-      showToast("Erro ao guardar programa na BD.");
-      return;
-    }
-
-    const updatedProgramas = await carregarProgramasDb(true);
-    const mapped = mapProgramaDbToUi(dbResponse.data);
-    const target = updatedProgramas.find((item) => item.dbId === mapped.dbId) || mapped;
-
-    if (target.ativo !== false) {
-      setProgramaId(target.id);
-      setProgramaForm({ ...target });
-    }
-
-    setProgramaModalEditId(target.dbId || null);
-    setProgramaModalForm({
-      codigo: target.codigo || target.id || "",
-      nome: target.nome || "",
-      aviso: target.aviso || "",
-      pct: Number(target.pct || 0),
-      tipo: target.tipo || "fundo perdido (não reembolsável)",
-      inv_min: Number(target.inv_min || 0),
-      regiao: target.regiao || "",
-      prazo1: target.prazo1 || "",
-      prazo2: target.prazo2 || "",
-      descricao: target.descricao || "",
-      ativo: target.ativo !== false,
-    });
-
-    showToast(programaModalEditId ? "Programa atualizado." : "Programa criado e pronto para reutilização.");
-  };
-
-  const alternarAtivoProgramaNoModal = async () => {
-    if (!programaModalEditId) {
-      showToast("Seleciona um programa existente.");
-      return;
-    }
-
-    setIsProgramaModalSubmitting(true);
-    const nextAtivo = !(programaModalForm.ativo !== false);
-    const { error } = await supabase
-      .from("programas_financiamento")
-      .update({ ativo: nextAtivo })
-      .eq("id", programaModalEditId);
-    setIsProgramaModalSubmitting(false);
-
-    if (error) {
-      showToast("Erro ao alterar estado do programa.");
-      return;
-    }
-
-    await carregarProgramasDb(true);
-    setProgramaModalForm((previous) => ({ ...previous, ativo: nextAtivo }));
-    showToast(nextAtivo ? "Programa ativado." : "Programa desativado.");
-  };
-
-  const guardarNaBaseDados = async (dados, htmlGerado) => {
-    setIsSavingDb(true);
-
-    const programaEncontrado = programasDb.find((programa) => programa.id === programaId);
-
-    const payloadToSave = {
-      programa_id: programaEncontrado?.dbId || null,
-      estado: normalizarEstadoDb(dados.proposta.estado),
-      aprovado_em: normalizarEstadoDb(dados.proposta.estado) === "aprovada" ? new Date().toISOString() : null,
-      arquivado_em: normalizarEstadoDb(dados.proposta.estado) === "arquivada" ? new Date().toISOString() : null,
-      html_gerado: htmlGerado,
-      payload: dados,
-    };
-
-    let data;
-    let error;
-
-    if (dados.proposta.db_id) {
-      ({ data, error } = await supabase
-        .from("propostas_comerciais")
-        .update(payloadToSave)
-        .eq("id", dados.proposta.db_id)
-        .select("id, numero_proposta, estado")
-        .single());
-    } else {
-      ({ data, error } = await supabase
-        .from("propostas_comerciais")
-        .insert(payloadToSave)
-        .select("id, numero_proposta, estado")
-        .single());
-    }
-
-    setIsSavingDb(false);
-
-    if (error) {
-      showToast("Erro ao guardar na BD.");
-      return false;
-    }
-
-    setProposta((previous) => ({
-      ...previous,
-      db_id: data?.id || previous.db_id,
-      numero: data?.numero_proposta ? String(data.numero_proposta) : previous.numero,
-      estado: data?.estado || previous.estado,
-    }));
-
-    showToast("Proposta guardada na BD.");
-    return true;
-  };
-
-  const carregarDaBaseDados = async () => {
-    setIsLoadingDb(true);
-    let query = supabase
-      .from("propostas_comerciais")
-      .select("id, numero_proposta, estado, payload")
-      .order("created_at", { ascending: false })
-      .limit(1);
-
-    const maybeNumero = Number(proposta.numero || 0);
-    if (Number.isFinite(maybeNumero) && maybeNumero > 0) {
-      query = supabase
-        .from("propostas_comerciais")
-        .select("id, numero_proposta, estado, payload")
-        .eq("numero_proposta", maybeNumero)
-        .limit(1);
-    }
-
-    const { data: listData, error } = await query;
-    setIsLoadingDb(false);
-
-    const data = Array.isArray(listData) ? listData[0] : null;
-
-    if (error || !data?.payload) {
-      showToast("Não foi encontrada proposta guardada na BD.");
-      return;
-    }
-
-    const payload = data.payload;
-    if (payload.consultora) setConsultora({ ...INITIAL_CONSULTORA, ...payload.consultora });
-    if (payload.cliente) setCliente({ ...INITIAL_CLIENTE, ...payload.cliente });
-    if (payload.proposta) {
-      setProposta((previous) => ({
-        ...INITIAL_PROPOSTA,
-        ...payload.proposta,
-        db_id: data.id,
-        numero: data.numero_proposta ? String(data.numero_proposta) : payload.proposta.numero || previous.numero,
-        estado: data.estado || payload.proposta.estado || "em_analise",
-      }));
-    }
-    if (payload.programa) {
-      setProgramaForm(payload.programa);
-      if (payload.programa.id) setProgramaId(payload.programa.id);
-    }
-    if (payload.servicosConfig?.length) setServicos(payload.servicosConfig);
-    if (payload.notasExclusoes?.length) setNotasExclusoes(payload.notasExclusoes);
-    else if (payload.orcamento?.notas?.length) setNotasExclusoes(payload.orcamento.notas);
-    if (payload.carta) setCarta({ ...INITIAL_CARTA, ...payload.carta });
-    if (payload.termos) setTermos({ ...INITIAL_TERMOS, ...payload.termos });
-
-    showToast("Proposta carregada da BD.");
-  };
-
-  const gerarHTMLProposta = (dados) => {
-    const titulo = escapeHtml(dados.proposta.numero || "Nova proposta");
-    const nomeCliente = escapeHtml(dados.cliente.nome || "Cliente");
-    const nomeConsultora = escapeHtml(dados.consultora.nome || "Consultora");
-    const dataEmissao = formatDatePt(dados.proposta.data);
-    const dataValidade = addDays(dados.proposta.data, dados.proposta.validade);
-
-    return `<!doctype html>
-<html lang="pt">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Proposta ${titulo} - ${nomeCliente}</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 0; color: #1f2937; background: #f5f7fb; }
-    .page { max-width: 980px; margin: 0 auto; padding: 32px; background: white; }
-    .hero { background: linear-gradient(135deg, #0f2240, #1a3a5c); color: white; padding: 36px; border-radius: 20px; }
-    .hero h1 { margin: 0 0 8px; font-size: 34px; }
-    .hero p { margin: 0; color: rgba(255,255,255,0.8); }
-    .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 24px; }
-    .card { border: 1px solid #e5e7eb; border-radius: 16px; padding: 18px; margin-top: 18px; }
-    h2 { font-size: 18px; margin: 0 0 12px; color: #0f2240; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { border-bottom: 1px solid #eef2f7; padding: 12px 10px; text-align: left; vertical-align: top; }
-    th { background: #f8fafc; color: #64748b; text-transform: uppercase; font-size: 12px; letter-spacing: 0.08em; }
-    .totals { display: flex; justify-content: flex-end; gap: 20px; margin-top: 18px; }
-    .total { text-align: right; }
-    .total strong { display: block; font-size: 18px; color: #0f2240; }
-    .muted { color: #64748b; }
-    .note { padding: 10px 0; border-bottom: 1px solid #eef2f7; }
-    .footer { margin-top: 28px; font-size: 12px; color: #64748b; text-align: center; }
-    @media print { body { background: white; } .page { padding: 0; } }
-  </style>
-</head>
-<body>
-  <div class="page">
-    <section class="hero">
-      <div class="muted" style="color: rgba(255,255,255,0.72); text-transform: uppercase; letter-spacing: .16em; font-size: 12px;">Proposta de Prestação de Serviços</div>
-      <h1>${nomeCliente}</h1>
-      <p>${escapeHtml(dados.programa.nome || "Programa")}</p>
-      <p style="margin-top: 14px;">Proposta ${titulo} · ${dataEmissao}</p>
-    </section>
-
-    <div class="grid">
-      <div class="card"><h2>Consultora</h2><div><strong>${nomeConsultora}</strong></div><div class="muted">${escapeHtml(dados.consultora.email || "")}</div></div>
-      <div class="card"><h2>Cliente</h2><div><strong>${nomeCliente}</strong></div><div class="muted">${escapeHtml(dados.cliente.contacto || "")}</div></div>
-      <div class="card"><h2>Programa</h2><div><strong>${escapeHtml(dados.programa.nome || "")}</strong></div><div class="muted">${escapeHtml(dados.programa.aviso || "")}</div></div>
-      <div class="card"><h2>Validade</h2><div><strong>${escapeHtml(String(dados.proposta.validade || 30))} dias</strong></div><div class="muted">Até ${escapeHtml(dataValidade)}</div></div>
-    </div>
-
-    <section class="card">
-      <h2>Âmbito dos Serviços</h2>
-      ${dados.servicos
-        .map(
-          (servico) => `
-          <div style="margin-bottom: 18px;">
-            <div><strong>Módulo ${escapeHtml(servico.codigo)} · ${escapeHtml(servico.nome)}</strong></div>
-            <div class="muted" style="margin-bottom: 8px;">${escapeHtml(servico.descricao || "")}</div>
-            <ul style="margin: 0; padding-left: 18px;">
-              ${servico.atividades.map((atividade) => `<li>${escapeHtml(atividade)}</li>`).join("")}
-            </ul>
-          </div>
-        `,
-        )
-        .join("")}
-    </section>
-
-    <section class="card">
-      <h2>Orçamento</h2>
-      <table>
-        <thead>
-          <tr><th>Módulo</th><th>Honorários</th><th style="text-align:right;">Valor</th></tr>
-        </thead>
-        <tbody>
-          ${dados.servicos
-            .map(
-              (servico) => `
-              <tr>
-                <td><strong>${escapeHtml(servico.codigo)}</strong><br><span class="muted">${escapeHtml(servico.nome)}</span></td>
-                <td>${escapeHtml(servico.honorarioLabel || "")}</td>
-                <td style="text-align:right; white-space: nowrap;">${formatCurrency(servico.valor || 0)}</td>
-              </tr>
-            `,
-            )
-            .join("")}
-        </tbody>
-      </table>
-      <div class="totals">
-        <div class="total"><span class="muted">Total s/ IVA</span><strong>${formatCurrency(dados.orcamento.total_sem_iva)}</strong></div>
-        <div class="total"><span class="muted">IVA ${escapeHtml(String(dados.orcamento.iva))}%</span><strong>${formatCurrency(dados.orcamento.total_iva)}</strong></div>
-        <div class="total"><span class="muted">Total c/ IVA</span><strong>${formatCurrency(dados.orcamento.total_com_iva)}</strong></div>
-      </div>
-    </section>
-
-    <section class="card">
-      <h2>Carta</h2>
-      ${dados.carta.saudacao ? `<p>${escapeHtml(dados.carta.saudacao)}</p>` : ""}
-      ${dados.carta.abertura ? `<p>${escapeHtml(dados.carta.abertura)}</p>` : ""}
-      ${dados.carta.central ? `<p>${escapeHtml(dados.carta.central)}</p>` : ""}
-      ${dados.carta.aprovacao ? `<p>${escapeHtml(dados.carta.aprovacao)}</p>` : ""}
-    </section>
-
-    <section class="card">
-      <h2>Notas e Exclusões</h2>
-      ${dados.orcamento.notas.map((nota) => `<div class="note">${escapeHtml(nota)}</div>`).join("")}
-    </section>
-
-    <div class="footer">
-      ${nomeConsultora} · ${escapeHtml(dados.consultora.nipc || "")} · ${escapeHtml(dados.consultora.email || "")}
-    </div>
-  </div>
-</body>
-</html>`;
-  };
-
-  const gerarProposta = async () => {
-    const dados = recolherDados();
-    const html = gerarHTMLProposta(dados);
-    await guardarNaBaseDados(dados, html);
-    const safeCliente = (dados.cliente.nome || "cliente").replace(/[^a-z0-9]+/gi, "_").replace(/^_|_$/g, "").toLowerCase();
-    downloadFile(`proposta-${dados.proposta.numero || "nova"}-${safeCliente || "cliente"}.html`, html);
-    showToast("Proposta gerada e descarregada!");
-  };
+  if (isLoadingDb) {
+    return <div className="page-container">A carregar proposta...</div>;
+  }
 
   return (
     <div className="page-container propostas-page">
@@ -951,34 +1294,11 @@ export default function PropostasComerciais() {
         <div>
           <div className="propostas-kicker">Gerador de Propostas</div>
           <h1>Propostas Comerciais</h1>
-          <p>
-            Monta a proposta por passos, calcula automaticamente o orçamento e exporta o HTML final para partilha.
-          </p>
-          <p className="muted" style={{ marginTop: "8px" }}>
-            Programa atual: {selectedPrograma.nome || "—"}
-          </p>
+          <p>Monta a proposta por passos, calcula automaticamente o orçamento e exporta o PDF final.</p>
         </div>
 
         <div className="propostas-hero-actions">
-          <button className="btn-soft-cta" type="button" onClick={carregarDaBaseDados} disabled={isLoadingDb}>
-            {isLoadingDb ? "A carregar..." : "Carregar BD"}
-          </button>
-          <button
-            className="btn-soft-cta"
-            type="button"
-            onClick={async () => {
-              const dados = recolherDados();
-              const html = gerarHTMLProposta(dados);
-              await guardarNaBaseDados(dados, html);
-            }}
-            disabled={isSavingDb}
-          >
-            {isSavingDb ? "A guardar..." : "Guardar BD"}
-          </button>
-          <button className="btn-soft-cta" type="button" onClick={loadSample}>
-            Carregar exemplo
-          </button>
-          <button className="btn-small" type="button" onClick={resetForm}>
+          <button className="btn-soft-cta" type="button" onClick={resetForm}>
             Limpar
           </button>
         </div>
@@ -992,28 +1312,24 @@ export default function PropostasComerciais() {
         <aside className="card propostas-stepper">
           <div className="section-heading">Passos</div>
           <div className="propostas-stepper-list">
-            {stepTitles.map((title, index) => {
-              const stepNumber = index + 1;
-              const isActive = currentStep === stepNumber;
-              const isDone = currentStep > stepNumber;
-
-              return (
-                <button
-                  key={title}
-                  type="button"
-                  className={`propostas-stepper-item ${isActive ? "active" : ""} ${isDone ? "done" : ""}`}
-                  onClick={() => goStep(stepNumber)}
-                >
-                  <span className="propostas-stepper-index">{stepNumber}</span>
-                  <span className="propostas-stepper-label">{title}</span>
-                </button>
-              );
-            })}
+            {stepTitles.map((title, index) => (
+              <button
+                key={index}
+                type="button"
+                className={`propostas-stepper-item ${currentStep === index + 1 ? "active" : ""}`}
+                onClick={() => goStep(index + 1)}
+              >
+                <span className="propostas-stepper-badge">{index + 1}</span>
+                <span className="propostas-stepper-label">{title}</span>
+              </button>
+            ))}
           </div>
 
           <div className="propostas-stepper-footer">
             <div className="section-heading">Progresso</div>
-            <div className="propostas-step-count">Passo {currentStep} de {stepTitles.length}</div>
+            <div className="propostas-step-count">
+              Passo {currentStep} de {stepTitles.length}
+            </div>
           </div>
         </aside>
 
@@ -1022,57 +1338,104 @@ export default function PropostasComerciais() {
             <section className="card propostas-section">
               <div className="section-heading">1 · Identificação</div>
               <div className="field-grid">
-                <div className="field">
-                  <label>Nome da empresa</label>
-                  <input type="text" value={consultora.nome} onChange={setField(setConsultora, "nome")} placeholder="ex. NEOMARCA, Inovação e Desenvolvimento, Lda." />
-                </div>
-                <div className="field">
-                  <label>NIPC</label>
-                  <input type="text" value={consultora.nipc} onChange={setField(setConsultora, "nipc")} placeholder="ex. 503 495 140" />
-                </div>
                 <div className="field span-2">
-                  <label>Morada completa</label>
-                  <input type="text" value={consultora.morada} onChange={setField(setConsultora, "morada")} placeholder="ex. Rua Horta Machado, 2 – 8000-362 Faro" />
-                </div>
-                <div className="field">
-                  <label>Telefone</label>
-                  <input type="tel" value={consultora.tel} onChange={setField(setConsultora, "tel")} placeholder="ex. 289 098 720" />
-                </div>
-                <div className="field">
-                  <label>Email</label>
-                  <input type="email" value={consultora.email} onChange={setField(setConsultora, "email")} placeholder="ex. info@consultora.pt" />
-                </div>
-                <div className="field">
-                  <label>Website</label>
-                  <input type="text" value={consultora.website} onChange={setField(setConsultora, "website")} placeholder="ex. www.consultora.pt" />
-                </div>
-                <div className="field">
-                  <label>Nome do signatário</label>
-                  <input type="text" value={consultora.signatario} onChange={setField(setConsultora, "signatario")} placeholder="ex. Paulo Pereira" />
-                </div>
-                <div className="field">
-                  <label>Cargo do signatário</label>
-                  <input type="text" value={consultora.cargo} onChange={setField(setConsultora, "cargo")} placeholder="ex. Diretor" />
-                </div>
-                <div className="field">
-                  <label>Telemóvel (signatário)</label>
-                  <input type="tel" value={consultora.telm} onChange={setField(setConsultora, "telm")} placeholder="ex. 913 535 544" />
+                  <label>Selecionar Empresa</label>
+                  <select
+                    value={empresaConsultora.id}
+                    onChange={(e) => selectEmpresaConsultora(e.target.value)}
+                  >
+                    <option value="">—</option>
+                    {empresasConsultoras.map((emp) => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.nome}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
               <div className="card-inner">
-                <div className="section-heading">Referências da proposta</div>
-                <div className="field-grid field-grid-3">
+                <div className="section-heading">Dados da Empresa Consultora</div>
+                <div className="field-grid">
+                  {empresaConsultora.id && (
+                    <div className="field span-2">
+                      <label>Pessoa da consultora (BD)</label>
+                      <select
+                        value={empresaConsultora.signatario_id || ""}
+                        onChange={(e) => selectContatoConsultora(e.target.value)}
+                      >
+                        <option value="">
+                          {contatosConsultora.length > 0 ? "—" : "Sem pessoas registadas para esta consultora"}
+                        </option>
+                        {contatosConsultora.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.nome}
+                          </option>
+                        ))}
+                      </select>
+                      {contatosConsultora.length === 0 && (
+                        <div className="field-hint">Adiciona pessoas em Clientes - aba Pessoas da empresa consultora.</div>
+                      )}
+                    </div>
+                  )}
+
                   <div className="field">
-                    <label>ID da proposta</label>
-                    <input type="text" value={proposta.numero || ""} readOnly placeholder="Automático" />
+                    <label>Nome da empresa</label>
+                    <input type="text" value={empresaConsultora.nome} onChange={setField(setEmpresaConsultora, "nome")} placeholder="ex. NEOMARCA, Inovação e Desenvolvimento, Lda." />
+                  </div>
+                  <div className="field">
+                    <label>NIPC</label>
+                    <input type="text" value={empresaConsultora.nipc} onChange={setField(setEmpresaConsultora, "nipc")} placeholder="ex. 503 495 140" />
+                  </div>
+                  <div className="field">
+                    <label>Morada completa</label>
+                    <input type="text" value={empresaConsultora.morada} onChange={setField(setEmpresaConsultora, "morada")} placeholder="ex. Rua Horta Machado, 2 – 8000-362 Faro" />
+                  </div>
+                  <div className="field">
+                    <label>Telefone</label>
+                    <input type="text" value={empresaConsultora.telefone} onChange={setField(setEmpresaConsultora, "telefone")} placeholder="ex. 289 098 720" />
+                  </div>
+                  <div className="field">
+                    <label>Email</label>
+                    <input type="email" value={empresaConsultora.email} onChange={setField(setEmpresaConsultora, "email")} placeholder="ex. info@consultora.pt" />
+                  </div>
+                  <div className="field">
+                    <label>Website</label>
+                    <input type="text" value={empresaConsultora.website} onChange={setField(setEmpresaConsultora, "website")} placeholder="ex. www.consultora.pt" />
+                  </div>
+                  <div className="field">
+                    <label>Nome do signatário</label>
+                    <input type="text" value={empresaConsultora.nome_signatario} onChange={setField(setEmpresaConsultora, "nome_signatario")} placeholder="ex. Paulo Pereira" />
+                  </div>
+                  <div className="field">
+                    <label>Cargo do signatário</label>
+                    <input type="text" value={empresaConsultora.cargo_signatario} onChange={setField(setEmpresaConsultora, "cargo_signatario")} placeholder="ex. Diretor" />
+                  </div>
+                  <div className="field">
+                    <label>Telemóvel (signatário)</label>
+                    <input type="text" value={empresaConsultora.telemovel_signatario} onChange={setField(setEmpresaConsultora, "telemovel_signatario")} placeholder="ex. 913 535 544" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="card-inner">
+                <div className="section-heading">Referência da Proposta</div>
+                <div className="field-grid">
+                  <div className="field">
+                    <label>ID da Proposta</label>
+                    <input
+                      type="text"
+                      placeholder="Auto: SIGLA-2026-{id}"
+                      readOnly
+                      value={proposta.numero || (empresaConsultora.sigla ? `${empresaConsultora.sigla}-${new Date().getFullYear()}-...` : "")}
+                    />
                   </div>
                   <div className="field">
                     <label>Referência interna</label>
-                    <input type="text" value={proposta.ref} onChange={setField(setProposta, "ref")} placeholder="ex. 056/03/2026" />
+                    <input type="text" value={proposta.referencia_interna || ""} onChange={setField(setProposta, "referencia_interna")} placeholder="ex. 056/03/2026" />
                   </div>
                   <div className="field">
-                    <label>Data de emissão</label>
+                    <label>Data de Emissão</label>
                     <input type="date" value={proposta.data} onChange={setField(setProposta, "data")} />
                   </div>
                   <div className="field">
@@ -1088,7 +1451,7 @@ export default function PropostasComerciais() {
                     </select>
                   </div>
                 </div>
-                <p className="muted" style={{ marginTop: "10px" }}>
+                <p style={{ marginTop: "8px", color: "#0f9d58", fontWeight: 700 }}>
                   O ID da proposta é automático e incremental. É atribuído quando guardas na BD.
                 </p>
               </div>
@@ -1100,128 +1463,254 @@ export default function PropostasComerciais() {
               <div className="section-heading">2 · Cliente</div>
               <div className="field-grid">
                 <div className="field span-2">
-                  <label>Nome da empresa</label>
-                  <input type="text" value={cliente.nome} onChange={setField(setCliente, "nome")} placeholder="ex. CAMPICONTROL, LDA" />
-                </div>
-                <div className="field">
-                  <label>NIPC</label>
-                  <input type="text" value={cliente.nipc} onChange={setField(setCliente, "nipc")} placeholder="ex. 507 123 456" />
-                </div>
-                <div className="field">
-                  <label>Tipo de empresa</label>
-                  <select value={cliente.tipo} onChange={setField(setCliente, "tipo")}>
-                    <option value="PME">PME</option>
-                    <option value="PME Excelência">PME Excelência</option>
-                    <option value="PME Líder">PME Líder</option>
-                    <option value="Grande Empresa">Grande Empresa</option>
+                  <label>Selecionar Cliente</label>
+                  <select value={cliente.id} onChange={(e) => selectCliente(e.target.value)}>
+                    <option value="">—</option>
+                    {clientes.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.nome}
+                      </option>
+                    ))}
                   </select>
                 </div>
-                <div className="field span-2">
-                  <label>Morada</label>
-                  <input type="text" value={cliente.morada} onChange={setField(setCliente, "morada")} placeholder="ex. Rua da Liberdade, 10 – 8000-000 Faro" />
-                </div>
-                <div className="field">
-                  <label>Distrito / Cidade</label>
-                  <input type="text" value={cliente.cidade} onChange={setField(setCliente, "cidade")} placeholder="ex. Faro" />
-                </div>
-                <div className="field">
-                  <label>Sector de atividade</label>
-                  <input type="text" value={cliente.sector} onChange={setField(setCliente, "sector")} placeholder="ex. Construção, Agricultura, Ambiente" />
-                </div>
-                <div className="field">
-                  <label>Nome do contacto</label>
-                  <input type="text" value={cliente.contacto} onChange={setField(setCliente, "contacto")} placeholder="ex. André Gomes" />
-                </div>
-                <div className="field">
-                  <label>Cargo</label>
-                  <input type="text" value={cliente.contacto_cargo} onChange={setField(setCliente, "contacto_cargo")} placeholder="ex. Gerente" />
-                </div>
-                <div className="field">
-                  <label>Email</label>
-                  <input type="email" value={cliente.email} onChange={setField(setCliente, "email")} placeholder="ex. agomes@empresa.pt" />
-                </div>
-                <div className="field">
-                  <label>Telefone</label>
-                  <input type="tel" value={cliente.tel} onChange={setField(setCliente, "tel")} placeholder="ex. 289 000 000" />
+              </div>
+
+              <div className="card-inner">
+                <div className="section-heading">Dados do Cliente</div>
+                <div className="field-grid">
+                  <div className="field">
+                    <label>Nome da empresa</label>
+                    <input type="text" value={cliente.nome} onChange={setField(setCliente, "nome")} placeholder="ex. CAMPICONTROL, LDA" />
+                  </div>
+                  <div className="field">
+                    <label>NIPC</label>
+                    <input type="text" value={cliente.nipc || ""} onChange={setField(setCliente, "nipc")} placeholder="ex. 507 123 456" />
+                  </div>
+                  <div className="field">
+                    <label>Tipo de empresa</label>
+                    <select value={cliente.tipo_empresa || "PME"} onChange={setField(setCliente, "tipo_empresa")}>
+                      {TIPO_EMPRESA_OPTIONS.map((tipo) => (
+                        <option key={tipo} value={tipo}>{tipo}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label>Morada</label>
+                    <input type="text" value={cliente.morada || ""} onChange={setField(setCliente, "morada")} placeholder="ex. Rua da Liberdade, 10 – 8000-000 Faro" />
+                  </div>
+                  <div className="field">
+                    <label>Distrito / Cidade</label>
+                    <input type="text" value={cliente.distrito_cidade || ""} onChange={setField(setCliente, "distrito_cidade")} placeholder="ex. Faro" />
+                  </div>
+                  <div className="field">
+                    <label>Setor de atividade</label>
+                    <input type="text" value={cliente.setor_atividade || ""} onChange={setField(setCliente, "setor_atividade")} placeholder="ex. Construção, Agricultura, Ambiente" />
+                  </div>
                 </div>
               </div>
+
+              <div className="card-inner">
+                <div className="section-heading">Contacto</div>
+                <div className="field-grid">
+                  <div className="field span-2">
+                    <label>Selecionar Contacto</label>
+                    <select
+                      value={cliente.contacto_id}
+                      onChange={(e) => {
+                        const contato = contatosCliente.find((c) => String(c.id) === String(e.target.value));
+                        if (contato) {
+                          selectContatoCliente(
+                            contato.id,
+                            contato.nome,
+                            contato.cargo || "",
+                            contato.email || "",
+                            contato.telefone || ""
+                          );
+                        }
+                      }}
+                    >
+                      <option value="">—</option>
+                      {contatosCliente.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.nome}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label>Nome do contacto</label>
+                    <input type="text" value={cliente.contacto_nome || ""} onChange={setField(setCliente, "contacto_nome")} placeholder="ex. André Gomes" />
+                  </div>
+                  <div className="field">
+                    <label>Cargo</label>
+                    <input type="text" value={cliente.contacto_cargo || ""} onChange={setField(setCliente, "contacto_cargo")} placeholder="ex. Gerente" />
+                  </div>
+                  <div className="field">
+                    <label>Email</label>
+                    <input type="email" value={cliente.contacto_email || ""} onChange={setField(setCliente, "contacto_email")} placeholder="ex. agomes@empresa.pt" />
+                  </div>
+                  <div className="field">
+                    <label>Telefone</label>
+                    <input type="text" value={cliente.contacto_telefone || ""} onChange={setField(setCliente, "contacto_telefone")} placeholder="ex. 289 000 000" />
+                  </div>
+                </div>
+              </div>
+
+              {cliente.id && (
+                <div className="card-inner">
+                  <div className="section-heading">Resumo</div>
+                  <div>
+                    <p><strong>Cliente:</strong> {cliente.nome || "—"}</p>
+                    <p><strong>Contacto:</strong> {cliente.contacto_nome || "—"}</p>
+                  </div>
+                </div>
+              )}
             </section>
           )}
 
           {currentStep === 3 && (
             <section className="card propostas-section">
-              <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
-                <div className="section-heading">3 · Programa</div>
-                <button type="button" className="btn-soft-cta" onClick={abrirModalProgramas}>
-                  Gerir programas
-                </button>
-              </div>
-              <div className="propostas-programas-grid">
-                {programasDisponiveis.map((programa) => (
-                  <button
-                    key={programa.id}
-                    type="button"
-                    className={`propostas-programa-card ${programaId === programa.id ? "selected" : ""}`}
-                    onClick={() => selectPrograma(programa.id)}
-                  >
-                    <div className="propostas-programa-title">{programa.nome}</div>
-                    <div className="muted">{programa.aviso || "A definir"}</div>
-                    <div className="propostas-pill-list">
-                      {programa.pct > 0 && <span className="badge badge-success">{programa.pct}%</span>}
-                      {programa.regiao && <span className="badge badge-warning">{programa.regiao}</span>}
-                    </div>
-                  </button>
-                ))}
-              </div>
+              <div className="section-heading">3 · Programa</div>
 
               <div className="card-inner">
-                <div className="section-heading">Personalizar programa</div>
-                <div className="field-grid">
-                  <div className="field">
-                    <label>Nome do sistema de incentivos</label>
-                    <input type="text" value={programaForm.nome} onChange={setField(setProgramaForm, "nome")} />
-                  </div>
-                  <div className="field">
-                    <label>Referência do aviso</label>
-                    <input type="text" value={programaForm.aviso} onChange={setField(setProgramaForm, "aviso")} />
-                  </div>
-                  <div className="field">
-                    <label>Incentivo (%)</label>
-                    <input type="number" min="0" max="100" value={programaForm.pct} onChange={setField(setProgramaForm, "pct")} />
-                  </div>
-                  <div className="field">
-                    <label>Tipo de incentivo</label>
-                    <select value={programaForm.tipo} onChange={setField(setProgramaForm, "tipo")}>
-                      <option value="fundo perdido (não reembolsável)">Fundo perdido (não reembolsável)</option>
-                      <option value="reembolsável">Reembolsável</option>
-                      <option value="misto">Misto</option>
-                    </select>
-                  </div>
-                  <div className="field">
-                    <label>Investimento mínimo (€)</label>
-                    <input type="number" min="0" value={programaForm.inv_min} onChange={setField(setProgramaForm, "inv_min")} />
-                  </div>
-                  <div className="field">
-                    <label>Região</label>
-                    <input type="text" value={programaForm.regiao} onChange={setField(setProgramaForm, "regiao")} />
-                  </div>
-                  <div className="field">
-                    <label>Prazo 1.ª fase</label>
-                    <input type="date" value={programaForm.prazo1} onChange={setField(setProgramaForm, "prazo1")} />
-                  </div>
-                  <div className="field">
-                    <label>Prazo 2.ª fase (opcional)</label>
-                    <input type="date" value={programaForm.prazo2} onChange={setField(setProgramaForm, "prazo2")} />
-                  </div>
-                  <div className="field span-2">
-                    <label>Descrição resumida do aviso</label>
-                    <textarea rows="3" value={programaForm.descricao} onChange={setField(setProgramaForm, "descricao")} />
+                <div className="propostas-programas-grid">
+                  {programasDisponiveis.map((programa) => (
+                    <button
+                      key={programa.id}
+                      type="button"
+                      className={`propostas-programa-card ${programa.id === programaId ? "selected" : ""}`}
+                      onClick={() => selectPrograma(programa.id)}
+                      style={{
+                        padding: "16px",
+                        border: programa.id === programaId ? "2px solid #6366f1" : "1px solid #e5e7eb",
+                        borderRadius: "12px",
+                        background: programa.id === programaId ? "#f0f4ff" : "#f8f9fa",
+                        textAlign: "left",
+                        cursor: "pointer",
+                        transition: "all 0.2s ease",
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px" }}>
+                        <div style={{ flex: 1 }}>
+                          <h4 style={{ margin: "0 0 8px 0", fontSize: "1rem", color: "#0f2240" }}>
+                            {programa.nome}
+                          </h4>
+                          <div className="muted" style={{ fontSize: "0.85rem", marginBottom: "8px" }}>
+                            {programa.codigo}
+                          </div>
+
+                          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "10px" }}>
+                            {programa.pct > 0 && (
+                              <span className="badge badge-success" style={{ fontSize: "0.8rem" }}>
+                                {programa.pct}%
+                              </span>
+                            )}
+                            {programa.regiao && (
+                              <span className="badge badge-warning" style={{ fontSize: "0.8rem" }}>
+                                {programa.regiao.split("/").map((r) => r.trim()).join(" / ")}
+                              </span>
+                            )}
+                            {(programa.tipo || programa.tipo_incentivo) && (
+                              <span className="badge badge-info" style={{ fontSize: "0.8rem" }}>
+                                {programa.tipo || programa.tipo_incentivo}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            width: "32px",
+                            height: "32px",
+                            borderRadius: "6px",
+                            background: programa.id === programaId ? "#6366f1" : "#e5e7eb",
+                            color: programa.id === programaId ? "white" : "#64748b",
+                            fontWeight: 600,
+                          }}
+                        >
+                          {programa.id === programaId ? "✓" : ""}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+
+                </div>
+              </div>
+
+              {selectedPrograma && (
+                <div className="card-inner">
+                  <div className="section-heading">Personalizar Programa</div>
+                  <div className="field-grid">
+                    <div className="field">
+                      <label>Nome do sistema de incentivos</label>
+                      <input type="text" value={selectedPrograma.nome || ""} readOnly />
+                    </div>
+                    <div className="field">
+                      <label>Referência do aviso</label>
+                      <input
+                        type="text"
+                        value={selectedAviso?.codigo || selectedPrograma.aviso || ""}
+                        readOnly
+                      />
+                    </div>
+                    <div className="field">
+                      <label>Incentivo (%)</label>
+                      <input type="number" value={Number(selectedPrograma.pct || 0)} readOnly />
+                    </div>
+                    <div className="field">
+                      <label>Tipo de incentivo</label>
+                      <select value={selectedPrograma.tipo || selectedPrograma.tipo_incentivo || ""} disabled>
+                        <option value={selectedPrograma.tipo || selectedPrograma.tipo_incentivo || ""}>
+                          {selectedPrograma.tipo || selectedPrograma.tipo_incentivo || "—"}
+                        </option>
+                      </select>
+                    </div>
+                    <div className="field">
+                      <label>Investimento mínimo (€)</label>
+                      <input
+                        type="number"
+                        value={Number(selectedPrograma.inv_min ?? selectedPrograma.investimento_minimo ?? 0)}
+                        readOnly
+                      />
+                    </div>
+                    <div className="field">
+                      <label>Região</label>
+                      <input type="text" value={selectedPrograma.regiao || ""} readOnly />
+                    </div>
+
+                    {normalizeAvisoFases(selectedAviso?.fases).slice(0, 2).map((fase, index) => (
+                      <div className="field" key={`${fase.nome}-${index}`}>
+                        <label>{index === 0 ? "Prazo 1.ª fase" : "Prazo 2.ª fase (opcional)"}</label>
+                        <input type="text" value={formatDatePt(fase.prazo)} readOnly />
+                      </div>
+                    ))}
+
+                    {normalizeAvisoFases(selectedAviso?.fases).length > 2 && (
+                      <div className="field span-2">
+                        <label>Fases adicionais</label>
+                        <div className="propostas-pill-list" style={{ marginTop: "0" }}>
+                          {normalizeAvisoFases(selectedAviso?.fases).slice(2).map((fase, index) => (
+                            <span key={`${fase.nome}-${index}`} className="badge badge-warning">
+                              {fase.nome}: {formatDatePt(fase.prazo)}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="field span-2">
+                      <label>Descrição resumida do aviso</label>
+                      <textarea
+                        rows="3"
+                        value={selectedAviso?.descricao || selectedPrograma.descricao || ""}
+                        readOnly
+                      />
+                    </div>
                   </div>
                 </div>
-                <p className="muted" style={{ marginTop: "10px" }}>
-                  Esta área personaliza apenas a proposta atual. Para criar ou editar programas reutilizáveis, usa o botão Gerir programas.
-                </p>
-              </div>
+              )}
             </section>
           )}
 
@@ -1238,7 +1727,6 @@ export default function PropostasComerciais() {
                         <span className="propostas-service-name">{servico.nome}</span>
                         <span className="muted">{servico.descricao}</span>
                       </span>
-                      <span className="propostas-service-price">{servico.honorario_tipo === "fixo" ? formatCurrency(servico.honorario_valor) : `${Number(servico.honorario_valor) || 0}%`}</span>
                     </button>
 
                     {servico.selecionado && (
@@ -1262,7 +1750,7 @@ export default function PropostasComerciais() {
                           Adicionar atividade
                         </button>
 
-                        <div className="section-subtitle">Entregáveis</div>
+                        <div className="section-subtitle" style={{ marginTop: "12px" }}>Entregáveis</div>
                         <div className="propostas-pill-list">
                           {servico.entregaveis.map((entregavel) => (
                             <span key={entregavel} className="badge badge-warning">
@@ -1287,124 +1775,77 @@ export default function PropostasComerciais() {
                   <input type="number" value={proposta.investimento || ""} onChange={setField(setProposta, "investimento")} placeholder="ex. 200000" />
                   <div className="field-hint">Base de cálculo dos incentivos</div>
                 </div>
-                <div className="field">
-                  <label>Incentivo estimado (€)</label>
-                  <input type="text" value={incentivoEstimado ? formatCurrency(incentivoEstimado) : ""} readOnly />
-                </div>
+                {programa && programa.pct > 0 && (
+                  <div className="field">
+                    <label>Incentivo estimado (€)</label>
+                    <input type="text" value={incentivoEstimado ? formatCurrency(incentivoEstimado) : ""} readOnly />
+                  </div>
+                )}
                 <div className="field">
                   <label>Taxa de IVA (%)</label>
                   <input type="number" value={proposta.iva || 23} onChange={setField(setProposta, "iva")} min="0" max="100" />
                 </div>
               </div>
 
-              <div className="propostas-budget-list">
+              <div className="card-inner">
+                <div className="section-heading">Detalhes dos Serviços</div>
                 {orcamentoLinhas.length > 0 ? (
                   orcamentoLinhas.map((servico) => (
-                    <div key={servico.id} className="card-inner">
-                      <div className="section-heading">Módulo {servico.codigo} — {servico.nome}</div>
-                      <div className="field-grid">
-                        {servico.honorario_tipo === "fixo" ? (
-                          <>
-                            <div className="field">
-                              <label>Honorário fixo (€)</label>
-                              <input
-                                type="number"
-                                value={servico.honorario_valor}
-                                onChange={(event) => updateServicoField(servico.id, "honorario_valor", event.target.value)}
-                              />
-                            </div>
-                            <div className="field">
-                              <label>Condições de pagamento</label>
-                              <input
-                                type="text"
-                                value={servico.condicoes}
-                                onChange={(event) => updateServicoField(servico.id, "condicoes", event.target.value)}
-                              />
-                            </div>
-                            {servico.premio_aprovacao && (
-                              <>
-                                <div className="field">
-                                  <label>Prémio de aprovação — parte fixa (€)</label>
-                                  <input
-                                    type="number"
-                                    value={servico.premio_fixo}
-                                    onChange={(event) => updateServicoField(servico.id, "premio_fixo", event.target.value)}
-                                  />
-                                </div>
-                                <div className="field">
-                                  <label>Prémio de aprovação — % do incentivo</label>
-                                  <input
-                                    type="number"
-                                    step="0.1"
-                                    value={servico.premio_pct}
-                                    onChange={(event) => updateServicoField(servico.id, "premio_pct", event.target.value)}
-                                  />
-                                </div>
-                              </>
-                            )}
-                          </>
-                        ) : (
-                          <>
-                            <div className="field">
-                              <label>Percentagem sobre incentivo (%)</label>
-                              <input
-                                type="number"
-                                step="0.1"
-                                value={servico.honorario_valor}
-                                onChange={(event) => updateServicoField(servico.id, "honorario_valor", event.target.value)}
-                              />
-                            </div>
-                            <div className="field">
-                              <label>Mínimo garantido (€)</label>
-                              <input
-                                type="number"
-                                value={servico.honorario_minimo}
-                                onChange={(event) => updateServicoField(servico.id, "honorario_minimo", event.target.value)}
-                              />
-                            </div>
-                            <div className="field span-2">
-                              <label>Condições de pagamento</label>
-                              <input
-                                type="text"
-                                value={servico.condicoes}
-                                onChange={(event) => updateServicoField(servico.id, "condicoes", event.target.value)}
-                              />
-                            </div>
-                          </>
-                        )}
+                    <div key={servico.id} style={{ marginBottom: "16px", padding: "12px", background: "#f8f9fa", borderRadius: "6px" }}>
+                      <div style={{ marginBottom: "10px" }}>
+                        <strong>Módulo {servico.codigo} — {servico.nome}</strong>
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                        <div>
+                          <strong>Honorários:</strong> {servico.honorarioLabel}
+                        </div>
+                        <div>
+                          <strong>Valor:</strong> {formatCurrency(servico.valor)}
+                        </div>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className="card-inner muted">Nenhum módulo selecionado no passo 4.</div>
+                  <div className="muted">Nenhum módulo selecionado no passo 4.</div>
                 )}
               </div>
 
-              <div className="table-responsive">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Módulo</th>
-                      <th>Honorários</th>
-                      <th style={{ textAlign: "right" }}>Valor estimado</th>
-                      <th>Condições de pagamento</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {orcamentoLinhas.map((servico) => (
-                      <tr key={servico.id}>
-                        <td>
-                          <strong>Módulo {servico.codigo}</strong>
-                          <br />
-                          <span className="muted">{servico.nome}</span>
-                        </td>
-                        <td>{servico.honorarioLabel}</td>
-                        <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>{formatCurrency(servico.valor)}</td>
-                        <td>{servico.condicoes}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="card-inner">
+                <div className="section-heading">Plano de Pagamentos</div>
+                <div className="propostas-pagamentos-list">
+                  {planoPagamentos.map((pag, index) => (
+                    <div key={index} style={{ display: "grid", gridTemplateColumns: "80px 1fr 120px 80px 40px", gap: "8px", alignItems: "center", marginBottom: "10px" }}>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={pag.percentagem}
+                        onChange={(e) => updatePagamento(index, "percentagem", e.target.value)}
+                        placeholder="%"
+                      />
+                      <input
+                        type="text"
+                        value={pag.descricao}
+                        onChange={(e) => updatePagamento(index, "descricao", e.target.value)}
+                        placeholder="ex. Adjudicação"
+                      />
+                      <input
+                        type="number"
+                        min="0"
+                        value={pag.dias_apos_aceite}
+                        onChange={(e) => updatePagamento(index, "dias_apos_aceite", e.target.value)}
+                        placeholder="Dias"
+                      />
+                      <small className="muted">{pag.dias_apos_aceite === 0 ? "Imediato" : `+${pag.dias_apos_aceite}d`}</small>
+                      <button type="button" className="btn-small" onClick={() => removePagamento(index)}>
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <button type="button" className="btn-soft-cta" onClick={addPagamento}>
+                  Adicionar parcela
+                </button>
               </div>
 
               <div className="propostas-totals">
@@ -1443,37 +1884,25 @@ export default function PropostasComerciais() {
 
           {currentStep === 6 && (
             <section className="card propostas-section">
-              <div className="section-heading">6 · Carta</div>
+              <div className="section-heading">6 · Condições Gerais</div>
               <div className="field-grid field-grid-1">
                 <div className="field">
-                  <label>Fórmula de saudação</label>
-                  <input type="text" value={carta.saudacao} onChange={setField(setCarta, "saudacao")} placeholder="ex. Estimado André Gomes," />
+                  <label>Entidade RAL (Resolução de Litígios)</label>
+                  <input
+                    type="text"
+                    value={condicoesGerais.ral}
+                    onChange={setField(setCondicoesGerais, "ral")}
+                    placeholder="ex. CIMAAL – Centro de Informação..."
+                  />
                 </div>
                 <div className="field">
-                  <label>Parágrafo de abertura</label>
-                  <textarea rows="4" value={carta.abertura} onChange={setField(setCarta, "abertura")} />
-                </div>
-                <div className="field">
-                  <label>Parágrafo central (proposta de valor)</label>
-                  <textarea rows="5" value={carta.central} onChange={setField(setCarta, "central")} />
-                </div>
-                <div className="field">
-                  <label>Instrução de aprovação</label>
-                  <textarea rows="4" value={carta.aprovacao} onChange={setField(setCarta, "aprovacao")} />
-                </div>
-              </div>
-
-              <div className="card-inner">
-                <div className="section-heading">Termos gerais</div>
-                <div className="field-grid">
-                  <div className="field">
-                    <label>Entidade RAL (resolução de litígios)</label>
-                    <input type="text" value={termos.ral} onChange={setField(setTermos, "ral")} />
-                  </div>
-                  <div className="field">
-                    <label>Email de privacidade</label>
-                    <input type="email" value={termos.privacidade} onChange={setField(setTermos, "privacidade")} />
-                  </div>
+                  <label>Email RGPD / Privacidade</label>
+                  <input
+                    type="email"
+                    value={condicoesGerais.rgpd_email}
+                    onChange={setField(setCondicoesGerais, "rgpd_email")}
+                    placeholder="ex. privacy@empresa.pt"
+                  />
                 </div>
               </div>
             </section>
@@ -1484,33 +1913,47 @@ export default function PropostasComerciais() {
               <div className="section-heading">7 · Revisão</div>
               <div className="propostas-review-banner">
                 <div>
-                  <div className="muted">Proposta n.º {proposta.numero || "—"}</div>
                   <h2>{cliente.nome || "—"}</h2>
                   <p>
-                    {selectedPrograma.nome || programaForm.nome || "—"} · {formatDatePt(proposta.data)}
+                    {tipoProjeto.nome || "—"} {programa ? `· ${programa.nome}` : ""} · {formatDatePt(proposta.data)}
                   </p>
                 </div>
-                <button type="button" className="btn-primary" onClick={gerarProposta}>
-                  Gerar proposta HTML
-                </button>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button 
+                    type="button" 
+                    className="btn-primary"
+                    onClick={gerarPDF}
+                    disabled={isSavingDb}
+                  >
+                    Gerar PDF
+                  </button>
+                  <button 
+                    type="button" 
+                    className="btn-primary"
+                    onClick={guardarPropostaEmBD}
+                    disabled={isSavingDb}
+                  >
+                    {isSavingDb ? "A guardar..." : "Guardar Proposta"}
+                  </button>
+                </div>
               </div>
 
               <div className="propostas-summary-grid">
                 <div className="summary-card">
-                  <div className="summary-label">Consultora</div>
-                  <div className="summary-value">{consultora.nome || "—"}</div>
+                  <div className="summary-label">Empresa Consultora</div>
+                  <div className="summary-value">{empresaConsultora.nome || "—"}</div>
                 </div>
                 <div className="summary-card">
                   <div className="summary-label">Cliente</div>
                   <div className="summary-value">{cliente.nome || "—"}</div>
                 </div>
                 <div className="summary-card">
-                  <div className="summary-label">Programa</div>
-                  <div className="summary-value">{selectedPrograma.nome || programaForm.nome || "—"}</div>
+                  <div className="summary-label">Tipo de Projeto</div>
+                  <div className="summary-value">{tipoProjeto.nome || "—"}</div>
                 </div>
                 <div className="summary-card">
-                  <div className="summary-label">Incentivo</div>
-                  <div className="summary-value">{programaForm.pct || 0}% {programaForm.tipo || ""}</div>
+                  <div className="summary-label">Programa</div>
+                  <div className="summary-value">{programa?.nome || "—"}</div>
                 </div>
                 <div className="summary-card">
                   <div className="summary-label">Módulos</div>
@@ -1520,48 +1963,23 @@ export default function PropostasComerciais() {
                   <div className="summary-label">Validade</div>
                   <div className="summary-value">{proposta.validade || 30} dias</div>
                 </div>
+                <div className="summary-card">
+                  <div className="summary-label">Referência Interna</div>
+                  <div className="summary-value">{proposta.referencia_interna || "—"}</div>
+                </div>
               </div>
 
               <div className="card-inner">
-                <div className="section-heading">Checklist</div>
-                <div className="propostas-checklist">
-                  {checklist.map((item) => (
-                    <div key={item.label} className="propostas-checklist-item">
-                      <span className={`propostas-checkmark ${item.ok ? "ok" : "warning"}`}>{item.ok ? "✓" : "!"}</span>
-                      <span>{item.label}</span>
+                <div className="section-heading">Resumo Financeiro</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 120px", gap: "12px", marginBottom: "16px" }}>
+                  {orcamentoLinhas.map((l) => (
+                    <div key={l.id} style={{ display: "contents" }}>
+                      <div><strong>Módulo {l.codigo}</strong><br /><span className="muted">{l.nome}</span></div>
+                      <div style={{ textAlign: "right" }}>{formatCurrency(l.valor)}</div>
                     </div>
                   ))}
                 </div>
-              </div>
 
-              <div className="card-inner">
-                <div className="section-heading">Resumo financeiro</div>
-                <div className="table-responsive">
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>Módulo</th>
-                        <th>Honorários</th>
-                        <th style={{ textAlign: "right" }}>Valor</th>
-                        <th>Condições</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {orcamentoLinhas.map((servico) => (
-                        <tr key={servico.id}>
-                          <td>
-                            <strong>Módulo {servico.codigo}</strong>
-                            <br />
-                            <span className="muted">{servico.nome}</span>
-                          </td>
-                          <td>{servico.honorarioLabel}</td>
-                          <td style={{ textAlign: "right" }}>{formatCurrency(servico.valor)}</td>
-                          <td>{servico.condicoes}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
                 <div className="propostas-totals">
                   <div className="total-card">
                     <span>Total s/ IVA</span>
@@ -1588,197 +2006,14 @@ export default function PropostasComerciais() {
             <button
               className="btn-primary"
               type="button"
-              onClick={() => (currentStep === stepTitles.length ? gerarProposta() : goStep(currentStep + 1))}
+              onClick={() => goStep(currentStep + 1)}
+              disabled={currentStep === stepTitles.length}
             >
-              {currentStep === stepTitles.length ? "Gerar ▶" : "Próximo →"}
+              Próximo →
             </button>
           </div>
         </main>
       </div>
-
-      {showProgramasModal && (
-        <div className="modal-overlay" onClick={() => setShowProgramasModal(false)}>
-          <div
-            className="modal-content"
-            style={{ width: "min(1080px, 94vw)", maxWidth: "1080px", maxHeight: "90vh" }}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="modal-header">
-              <h3 style={{ margin: 0 }}>Gerir Programas</h3>
-              <button className="close-btn" type="button" onClick={() => setShowProgramasModal(false)}>
-                ×
-              </button>
-            </div>
-
-            <div className="modal-body" style={{ display: "grid", gridTemplateColumns: "minmax(280px, 0.9fr) minmax(0, 1.4fr)", gap: "14px" }}>
-              <div className="card-inner" style={{ background: "white", overflow: "auto", maxHeight: "70vh" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-                  <strong>Programas registados</strong>
-                  <button
-                    type="button"
-                    className="btn-small"
-                    onClick={() => {
-                      setProgramaModalEditId(null);
-                      setProgramaModalForm(emptyProgramaModalForm);
-                    }}
-                  >
-                    Novo
-                  </button>
-                </div>
-
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                  {programasDb.map((programa) => (
-                    <button
-                      key={programa.dbId || programa.id}
-                      type="button"
-                      className="propostas-programa-card"
-                      style={{
-                        borderColor: programaModalEditId === programa.dbId ? "var(--color-btnPrimary)" : undefined,
-                        opacity: programa.ativo === false ? 0.72 : 1,
-                      }}
-                      onClick={() => selecionarProgramaNoModal(programa)}
-                    >
-                      <div className="propostas-programa-title">{programa.nome}</div>
-                      <div className="muted">{programa.codigo}</div>
-                      <div className="propostas-pill-list">
-                        <span className={`badge ${programa.ativo === false ? "badge-danger" : "badge-success"}`}>
-                          {programa.ativo === false ? "Inativo" : "Ativo"}
-                        </span>
-                        {programa.regiao && <span className="badge badge-warning">{programa.regiao}</span>}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="card-inner" style={{ background: "white", overflow: "auto", maxHeight: "70vh" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-                  <strong>{programaModalEditId ? "Editar programa" : "Novo programa"}</strong>
-                  {programaModalEditId && (
-                    <button
-                      type="button"
-                      className="btn-small"
-                      onClick={alternarAtivoProgramaNoModal}
-                      disabled={isProgramaModalSubmitting}
-                    >
-                      {programaModalForm.ativo === false ? "Ativar" : "Desativar"}
-                    </button>
-                  )}
-                </div>
-
-                <div className="field-grid">
-                  <div className="field">
-                    <label>Código</label>
-                    <input
-                      type="text"
-                      value={programaModalForm.codigo}
-                      onChange={(event) => setProgramaModalForm((previous) => ({ ...previous, codigo: event.target.value }))}
-                      placeholder="ex. sice_qual_2030"
-                    />
-                  </div>
-                  <div className="field">
-                    <label>Nome</label>
-                    <input
-                      type="text"
-                      value={programaModalForm.nome}
-                      onChange={(event) => setProgramaModalForm((previous) => ({ ...previous, nome: event.target.value }))}
-                    />
-                  </div>
-                  <div className="field">
-                    <label>Aviso</label>
-                    <input
-                      type="text"
-                      value={programaModalForm.aviso}
-                      onChange={(event) => setProgramaModalForm((previous) => ({ ...previous, aviso: event.target.value }))}
-                    />
-                  </div>
-                  <div className="field">
-                    <label>Incentivo (%)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={programaModalForm.pct}
-                      onChange={(event) => setProgramaModalForm((previous) => ({ ...previous, pct: event.target.value }))}
-                    />
-                  </div>
-                  <div className="field">
-                    <label>Tipo de incentivo</label>
-                    <select
-                      value={programaModalForm.tipo}
-                      onChange={(event) => setProgramaModalForm((previous) => ({ ...previous, tipo: event.target.value }))}
-                    >
-                      <option value="fundo perdido (não reembolsável)">Fundo perdido (não reembolsável)</option>
-                      <option value="reembolsável">Reembolsável</option>
-                      <option value="misto">Misto</option>
-                    </select>
-                  </div>
-                  <div className="field">
-                    <label>Investimento mínimo (€)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={programaModalForm.inv_min}
-                      onChange={(event) => setProgramaModalForm((previous) => ({ ...previous, inv_min: event.target.value }))}
-                    />
-                  </div>
-                  <div className="field">
-                    <label>Região</label>
-                    <input
-                      type="text"
-                      value={programaModalForm.regiao}
-                      onChange={(event) => setProgramaModalForm((previous) => ({ ...previous, regiao: event.target.value }))}
-                    />
-                  </div>
-                  <div className="field">
-                    <label>Prazo 1.ª fase</label>
-                    <input
-                      type="date"
-                      value={programaModalForm.prazo1}
-                      onChange={(event) => setProgramaModalForm((previous) => ({ ...previous, prazo1: event.target.value }))}
-                    />
-                  </div>
-                  <div className="field">
-                    <label>Prazo 2.ª fase</label>
-                    <input
-                      type="date"
-                      value={programaModalForm.prazo2}
-                      onChange={(event) => setProgramaModalForm((previous) => ({ ...previous, prazo2: event.target.value }))}
-                    />
-                  </div>
-                  <div className="field span-2">
-                    <label>Descrição</label>
-                    <textarea
-                      rows="3"
-                      value={programaModalForm.descricao}
-                      onChange={(event) => setProgramaModalForm((previous) => ({ ...previous, descricao: event.target.value }))}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ marginTop: "14px", display: "flex", gap: "10px", flexWrap: "wrap" }}>
-                  <button type="button" className="btn-primary" onClick={guardarProgramaNoModal} disabled={isProgramaModalSubmitting}>
-                    {isProgramaModalSubmitting ? "A guardar..." : programaModalEditId ? "Atualizar programa" : "Criar programa"}
-                  </button>
-
-                  {programaModalEditId && (
-                    <button
-                      type="button"
-                      className="btn-soft-cta"
-                      onClick={() => {
-                        const target = programasDb.find((item) => item.dbId === programaModalEditId);
-                        if (target) usarProgramaNaProposta(target);
-                      }}
-                    >
-                      Usar nesta proposta
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {toastMessage && <div className="toast-notification success">{toastMessage}</div>}
     </div>

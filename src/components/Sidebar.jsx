@@ -328,10 +328,17 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
               </Link>
             </li>
 
-            <li className={isActive('/dashboard/propostas-comerciais')}>
-              <Link to="/dashboard/propostas-comerciais" title={getSidebarTooltip("Propostas Comerciais") }>
+            <li className={isActive('/dashboard/propostas')}>
+              <Link to="/dashboard/propostas" title={getSidebarTooltip("Propostas Comerciais") }>
                 <span className="icon"><Icons.Edit /></span>
                 <span className="link-text">Propostas</span>
+              </Link>
+            </li>
+
+            <li className={isActive('/dashboard/avisos')}>
+              <Link to="/dashboard/avisos" title={getSidebarTooltip("Programas e Avisos") }>
+                <span className="icon"><Icons.Pin /></span>
+                <span className="link-text">Programas/Avisos</span>
               </Link>
             </li>
 

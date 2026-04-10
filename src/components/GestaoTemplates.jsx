@@ -46,6 +46,7 @@ export default function GestaoTemplates() {
   const [inputOrdem, setInputOrdem] = useState(1);
   const [inputDias, setInputDias] = useState(0);
   const [inputDescricao, setInputDescricao] = useState("");
+    const [inputTemPrograma, setInputTemPrograma] = useState(false);
         const [inputDepAtividadeId, setInputDepAtividadeId] = useState("");
         const [inputDepTarefaId, setInputDepTarefaId] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -268,6 +269,7 @@ export default function GestaoTemplates() {
             setInputValue("");
             setInputDias(0);
             setInputDescricao("");
+            setInputTemPrograma(false);
             setInputDepAtividadeId("");
             setInputDepTarefaId("");
             setExigeInfoAdicional(false);
@@ -284,6 +286,7 @@ export default function GestaoTemplates() {
             setInputValue(item.nome || item.titulo); 
             setInputDias(item.dias_estimados || 0);
             setInputDescricao(item.descricao || "");
+            setInputTemPrograma(!!item.tem_programa);
             setInputDepAtividadeId(item.depende_de_template_atividade_id || "");
             setInputDepTarefaId(item.depende_de_template_tarefa_id || "");
             // Carregar info adicional se existir
@@ -301,6 +304,7 @@ export default function GestaoTemplates() {
   const closeModal = () => {
       setModalConfig({ isOpen: false, mode: 'create', tipo: '', itemId: null, parentId: null, parentName: '' });
       setInputValue(""); setInputDias(0); setInputDescricao("");
+      setInputTemPrograma(false);
       setInputDepAtividadeId(""); setInputDepTarefaId("");
   };
 
@@ -324,7 +328,19 @@ export default function GestaoTemplates() {
           }
 
           if (modalConfig.tipo === 'tipo_projeto') {
-              const payload = { nome: inputValue };
+              if (inputTemPrograma) {
+                  const { count, error: programasError } = await supabase
+                      .from("programas_financiamento")
+                      .select("id", { count: "exact", head: true })
+                      .eq("ativo", true);
+                  if (programasError) throw programasError;
+                  if ((count || 0) < 1) {
+                      showToast("Para ativar 'Tem Programa', é preciso pelo menos 1 programa ativo.", "error");
+                      return;
+                  }
+              }
+
+              const payload = { nome: inputValue, tem_programa: inputTemPrograma };
               if (isEdit) {
                   await supabase.from("tipos_projeto").update(payload).eq("id", modalConfig.itemId);
                   setTipos(tipos.map(t => t.id === modalConfig.itemId ? { ...t, ...payload } : t));
@@ -612,6 +628,9 @@ export default function GestaoTemplates() {
                         <div style={{display: 'flex', alignItems: 'center', gap: '8px', flex: 1, overflow: 'hidden'}}>
                             <span style={{color: isSelected ? 'var(--color-btnPrimary)' : '#94a3b8', opacity: isSelected ? 1 : 0.7}}><Icons.Folder/></span>
                             <span style={{flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{t.nome}</span>
+                                                        {t.tem_programa && (
+                                                            <span style={{ ...styles.badge('dep'), fontSize: '0.62rem' }}><Icons.Doc/></span>
+                                                        )}
                         </div>
                         <div style={styles.actionsGroup} className="actions-group">
                             <button onClick={(e) => { e.stopPropagation(); openEditModal('tipo_projeto', t); }} style={styles.actionBtn} className="hover-icon-blue"><Icons.Edit/></button>
@@ -790,6 +809,13 @@ export default function GestaoTemplates() {
                       <form onSubmit={handleModalSubmit} style={styles.modalForm}>
                           <label style={styles.label}>Nome *</label>
                           <input type="text" autoFocus value={inputValue} onChange={(e) => setInputValue(e.target.value)} required style={styles.input} className="input-focus" />
+
+                          {modalConfig.tipo === 'tipo_projeto' && (
+                              <label htmlFor="tipoTemPrograma" style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '15px', fontWeight: 600, color: '#334155', cursor: 'pointer'}}>
+                                  <input id="tipoTemPrograma" type="checkbox" checked={inputTemPrograma} onChange={(e) => setInputTemPrograma(e.target.checked)} style={{width:16, height:16, minWidth:16, minHeight:16, maxWidth:16, maxHeight:16, flex:'none'}} />
+                                  Este tipo de projeto requer programa de financiamento
+                              </label>
+                          )}
 
                           {/* 💡 AGORA TODOS OS NÍVEIS TÊM DESCRIÇÃO (EXCETO O TIPO_PROJETO) */}
                           {modalConfig.tipo !== 'tipo_projeto' && (

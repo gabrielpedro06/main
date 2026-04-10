@@ -128,6 +128,7 @@ export default function Clientes() {
     objeto_social: "", plano: "Standard",
     certidao_permanente: "", validade_certidao: "",
     rcbe: "", validade_rcbe: "", ativo: true,
+    eh_empresa_consultora: false,
     avatar_url: ""
   };
   const [form, setForm] = useState(initialForm);
@@ -1540,7 +1541,8 @@ export default function Clientes() {
       validade_certidao: form.validade_certidao || null,
       rcbe: form.rcbe,
       validade_rcbe: form.validade_rcbe || null,
-      ativo: form.ativo 
+      ativo: form.ativo,
+      eh_empresa_consultora: Boolean(form.eh_empresa_consultora)
     };
 
     try {
@@ -2289,6 +2291,23 @@ export default function Clientes() {
                                 )}
                             </div>
                         </div>
+                      </div>
+
+                      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px', marginTop:'10px'}}>
+                        <div>
+                          <label style={labelStyle}>Empresa Consultora</label>
+                          <select
+                            value={form.eh_empresa_consultora ? "sim" : "nao"}
+                            onChange={(e) => setForm({ ...form, eh_empresa_consultora: e.target.value === "sim" })}
+                            style={inputStyle}
+                            className="input-focus"
+                            disabled={isViewOnly}
+                          >
+                            <option value="nao">Não</option>
+                            <option value="sim">Sim</option>
+                          </select>
+                        </div>
+                        <div></div>
                       </div>
 
                       {!isViewOnly && <button type="submit" className="btn-primary hover-shadow" style={{width:'100%', marginTop:'20px', padding:'15px', fontSize:'1.05rem', fontWeight: 'bold'}}>Guardar Dados Base</button>}
