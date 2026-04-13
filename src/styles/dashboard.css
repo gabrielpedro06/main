@@ -1127,6 +1127,274 @@ input:focus, select:focus, textarea:focus {
   align-items: center;
 }
 
+.propostas-list-page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.propostas-list-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  background: linear-gradient(135deg, #ffffff 0%, #f7fafc 100%);
+}
+
+.propostas-list-hero h1 {
+  margin: 4px 0 8px;
+  font-size: clamp(1.9rem, 2.4vw, 2.35rem);
+  line-height: 1.12;
+  color: var(--color-textPrimary);
+}
+
+.propostas-list-hero p {
+  margin: 0;
+  color: var(--color-textSecondary);
+  max-width: 68ch;
+  line-height: 1.6;
+  font-size: 0.97rem;
+}
+
+.propostas-list-page .propostas-list-hero .propostas-list-subtitle {
+  font-weight: 400 !important;
+  color: var(--color-textSecondary) !important;
+  font-size: 0.97rem !important;
+}
+
+.propostas-list-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.propostas-status-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.propostas-status-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border: 1px solid var(--color-borderColorLight);
+  border-radius: 12px 12px 0 0;
+  background: #e2e8f0;
+  color: #64748b;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.propostas-status-tab span {
+  min-width: 22px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  color: inherit;
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+.propostas-status-tab.active {
+  background: white;
+  color: var(--color-btnPrimaryDark);
+  border-bottom-color: white;
+}
+
+.propostas-toolbar {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  flex-wrap: wrap;
+  background: white;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--color-borderColorLight);
+}
+
+.propostas-search {
+  flex: 1;
+  min-width: 260px;
+  position: relative;
+}
+
+.propostas-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  font-size: 1rem;
+  pointer-events: none;
+}
+
+.propostas-search input {
+  width: 100%;
+  padding: 12px 14px 12px 38px;
+  border-radius: 10px;
+  border: 1px solid var(--color-borderColor);
+  background: var(--color-bgSecondary);
+  font-size: 0.95rem;
+}
+
+.propostas-view-toggle {
+  display: inline-flex;
+  align-items: center;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 4px;
+  margin-left: auto;
+}
+
+.propostas-view-toggle button {
+  padding: 9px 15px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #64748b;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.propostas-view-toggle button.active {
+  background: white;
+  color: var(--color-btnPrimaryDark);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+}
+
+.propostas-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.propostas-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: white;
+  border: 1px solid var(--color-borderColorLight);
+  border-top: 5px solid var(--color-btnPrimary);
+  border-radius: 16px;
+  padding: 18px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.propostas-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 26px rgba(15, 23, 42, 0.08);
+}
+
+.propostas-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.propostas-card-id {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.propostas-card h3 {
+  margin: 0;
+  color: var(--color-textPrimary);
+  font-size: 1.1rem;
+  line-height: 1.2;
+}
+
+.propostas-card-type {
+  margin: 0;
+  color: var(--color-textSecondary);
+  font-size: 0.95rem;
+}
+
+.propostas-card-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.propostas-card-meta div {
+  background: var(--color-bgSecondary);
+  border: 1px solid var(--color-borderColorLight);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.propostas-card-meta span {
+  display: block;
+  margin-bottom: 3px;
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.propostas-card-meta strong {
+  color: var(--color-textPrimary);
+  font-size: 0.92rem;
+}
+
+.propostas-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.propostas-card-actions .btn-small {
+  flex: 1;
+  min-width: 0;
+  justify-content: center;
+}
+
+.propostas-table-wrapper {
+  overflow-x: auto;
+}
+
+.propostas-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 48px 20px;
+  text-align: center;
+  color: var(--color-textSecondary);
+}
+
+.propostas-empty-state p {
+  margin: 0;
+  color: var(--color-textPrimary);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.propostas-empty-state span {
+  max-width: 52ch;
+  line-height: 1.5;
+}
+
+.propostas-table th,
+.propostas-table td {
+  white-space: nowrap;
+}
+
 .propostas-progress {
   height: 8px;
   border-radius: 999px;
@@ -1589,6 +1857,7 @@ input:focus, select:focus, textarea:focus {
 
 @media (max-width: 900px) {
   .propostas-hero,
+  .propostas-list-hero,
   .propostas-review-banner,
   .propostas-nav {
     flex-direction: column;
@@ -1614,6 +1883,23 @@ input:focus, select:focus, textarea:focus {
 
   .propostas-service-body {
     padding-left: 18px;
+  }
+
+  .propostas-toolbar {
+    align-items: stretch;
+  }
+
+  .propostas-view-toggle {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .propostas-view-toggle button {
+    flex: 1;
+  }
+
+  .propostas-card-meta {
+    grid-template-columns: 1fr;
   }
 }
 

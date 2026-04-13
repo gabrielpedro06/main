@@ -145,7 +145,7 @@ const currencyFormatter = new Intl.NumberFormat("pt-PT", {
 const stepTitles = [
   "Empresa Consultora",
   "Cliente",
-  "Artigos",
+  "Tipo de Projeto",
   "Serviços",
   "Orçamento",
   "Condições Gerais",
@@ -169,6 +169,19 @@ const formatDatePt = (isoDate) => {
   const date = new Date(`${isoDate}T00:00:00`);
   if (Number.isNaN(date.getTime())) return "—";
   return date.toLocaleDateString("pt-PT");
+};
+const normalizeLookup = (value) =>
+  String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+const findByName = (items, name) => {
+  const target = normalizeLookup(name);
+  if (!target) return null;
+
+  return (items || []).find((item) => normalizeLookup(item?.nome) === target) || null;
 };
 
 const normalizeAvisoFases = (value) => {
@@ -426,7 +439,7 @@ export default function PropostasComerciais() {
 
         if (data.empresa_consultora_id) {
           const consultora = empresasConsultoras.find((e) => String(e.id) === String(data.empresa_consultora_id));
-          setEmpresaConsultora({
+          const baseConsultora = {
             id: data.empresa_consultora_id,
             nome: consultora?.nome || payload?.empresa_consultora?.nome || "",
             nipc: consultora?.nipc || payload?.empresa_consultora?.nipc || "",
@@ -442,7 +455,10 @@ export default function PropostasComerciais() {
             nome_signatario: payload?.empresa_consultora?.nome_signatario || "",
             cargo_signatario: payload?.empresa_consultora?.cargo_signatario || "",
             telemovel_signatario: payload?.empresa_consultora?.telemovel_signatario || "",
-          });
+          };
+
+          setEmpresaConsultora(baseConsultora);
+          void carregarDadosConsultora(data.empresa_consultora_id, baseConsultora);
         }
 
         if (data.cliente_id) {
@@ -913,58 +929,7 @@ export default function PropostasComerciais() {
         telemovel_signatario: "",
       });
 
-      void (async () => {
-        try {
-          const [moradaResult, contactosResult] = await Promise.all([
-            supabase
-              .from("moradas_cliente")
-              .select("morada, localidade, codigo_postal")
-              .eq("cliente_id", found.id)
-              .limit(1)
-              .maybeSingle(),
-            supabase
-              .from("contactos_cliente")
-              .select("*")
-              .eq("cliente_id", found.id),
-          ]);
-
-          const morada =
-            moradaResult.data?.morada ||
-            [moradaResult.data?.localidade, moradaResult.data?.codigo_postal].filter(Boolean).join(" ") ||
-            "";
-
-          const contactos = [...(contactosResult.data || [])]
-            .sort((a, b) => {
-              const nomeA = String(a.nome_contacto || a.nome || "");
-              const nomeB = String(b.nome_contacto || b.nome || "");
-              return nomeA.localeCompare(nomeB, "pt-PT");
-            })
-            .map((c) => ({
-              id: c.id,
-              nome: c.nome_contacto || c.nome || "",
-              cargo: c.cargo || "",
-              telefone: c.telefone || "",
-              email: c.email || "",
-            }));
-
-          setContatosConsultora(contactos);
-          const contactoDefault = contactos[0] || null;
-
-          setEmpresaConsultora((prev) => ({
-            ...prev,
-            morada: prev.morada || morada,
-            telefone: prev.telefone || contactoDefault?.telefone || "",
-            email: prev.email || contactoDefault?.email || "",
-            signatario_id: prev.signatario_id || contactoDefault?.id || "",
-            nome_signatario: prev.nome_signatario || contactoDefault?.nome || "",
-            cargo_signatario: prev.cargo_signatario || contactoDefault?.cargo || "",
-            telemovel_signatario: prev.telemovel_signatario || contactoDefault?.telefone || "",
-          }));
-        } catch (error) {
-          console.error("Erro ao carregar dados da consultora:", error);
-          setContatosConsultora([]);
-        }
-      })();
+      void carregarDadosConsultora(found.id);
     } else {
       setEmpresaConsultora(INITIAL_EMPRESA_CONSULTORA);
       setContatosConsultora([]);
@@ -981,8 +946,8 @@ export default function PropostasComerciais() {
       nome_signatario: contacto.nome || "",
       cargo_signatario: contacto.cargo || "",
       telemovel_signatario: contacto.telefone || "",
-      telefone: prev.telefone || contacto.telefone || "",
-      email: prev.email || contacto.email || "",
+      telefone: contacto.telefone || "",
+      email: contacto.email || "",
     }));
   };
 
@@ -1095,6 +1060,82 @@ export default function PropostasComerciais() {
     const found = programas.find((p) => String(p.id) === String(id));
     if (found) {
       setPrograma(found);
+    }
+  };
+
+  const carregarDadosConsultora = async (consultoraId, baseConsultora = null) => {
+    if (!consultoraId) {
+      setContatosConsultora([]);
+      return;
+    }
+
+    try {
+      const [moradaResult, contactosResult] = await Promise.all([
+        supabase
+          .from("moradas_cliente")
+          .select("morada, localidade, codigo_postal")
+          .eq("cliente_id", consultoraId)
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("contactos_cliente")
+          .select("*")
+          .eq("cliente_id", consultoraId),
+      ]);
+
+      const morada =
+        moradaResult.data?.morada ||
+        [moradaResult.data?.localidade, moradaResult.data?.codigo_postal].filter(Boolean).join(" ") ||
+        "";
+
+      const contactos = [...(contactosResult.data || [])]
+        .sort((a, b) => {
+          const nomeA = String(a.nome_contacto || a.nome || "");
+          const nomeB = String(b.nome_contacto || b.nome || "");
+          return nomeA.localeCompare(nomeB, "pt-PT");
+        })
+        .map((c) => ({
+          id: c.id,
+          nome: c.nome_contacto || c.nome || "",
+          cargo: c.cargo || "",
+          telefone: c.telefone || "",
+          email: c.email || "",
+        }));
+
+      setContatosConsultora(contactos);
+      const contactoDefault = contactos[0] || null;
+      const contactoSelecionado = baseConsultora?.signatario_id
+        ? contactos.find((c) => String(c.id) === String(baseConsultora.signatario_id)) || null
+        : null;
+      const contactoAtivo = contactoSelecionado || contactoDefault;
+
+      if (baseConsultora) {
+        setEmpresaConsultora((prev) => ({
+          ...prev,
+          ...baseConsultora,
+          morada: baseConsultora.morada || morada || prev.morada || "",
+          telefone: contactoAtivo?.telefone || baseConsultora.telefone || prev.telefone || "",
+          email: contactoAtivo?.email || baseConsultora.email || prev.email || "",
+          signatario_id: contactoAtivo?.id || baseConsultora.signatario_id || prev.signatario_id || "",
+          nome_signatario: contactoAtivo?.nome || baseConsultora.nome_signatario || prev.nome_signatario || "",
+          cargo_signatario: contactoAtivo?.cargo || baseConsultora.cargo_signatario || prev.cargo_signatario || "",
+          telemovel_signatario: contactoAtivo?.telefone || baseConsultora.telemovel_signatario || prev.telemovel_signatario || "",
+        }));
+      } else {
+        setEmpresaConsultora((prev) => ({
+          ...prev,
+          morada: prev.morada || morada,
+          telefone: contactoAtivo?.telefone || prev.telefone || "",
+          email: contactoAtivo?.email || prev.email || "",
+          signatario_id: contactoAtivo?.id || prev.signatario_id || "",
+          nome_signatario: contactoAtivo?.nome || prev.nome_signatario || "",
+          cargo_signatario: contactoAtivo?.cargo || prev.cargo_signatario || "",
+          telemovel_signatario: contactoAtivo?.telefone || prev.telemovel_signatario || "",
+        }));
+      }
+    } catch (error) {
+      console.error("Erro ao carregar dados da consultora:", error);
+      setContatosConsultora([]);
     }
   };
 
@@ -1570,144 +1611,184 @@ export default function PropostasComerciais() {
 
           {currentStep === 3 && (
             <section className="card propostas-section">
-              <div className="section-heading">3 · Programa</div>
+              <div className="section-heading">3 · Tipo de Projeto e Programa</div>
 
               <div className="card-inner">
-                <div className="propostas-programas-grid">
-                  {programasDisponiveis.map((programa) => (
-                    <button
-                      key={programa.id}
-                      type="button"
-                      className={`propostas-programa-card ${programa.id === programaId ? "selected" : ""}`}
-                      onClick={() => selectPrograma(programa.id)}
-                      style={{
-                        padding: "16px",
-                        border: programa.id === programaId ? "2px solid #6366f1" : "1px solid #e5e7eb",
-                        borderRadius: "12px",
-                        background: programa.id === programaId ? "#f0f4ff" : "#f8f9fa",
-                        textAlign: "left",
-                        cursor: "pointer",
-                        transition: "all 0.2s ease",
-                      }}
-                    >
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px" }}>
-                        <div style={{ flex: 1 }}>
-                          <h4 style={{ margin: "0 0 8px 0", fontSize: "1rem", color: "#0f2240" }}>
-                            {programa.nome}
-                          </h4>
-                          <div className="muted" style={{ fontSize: "0.85rem", marginBottom: "8px" }}>
-                            {programa.codigo}
-                          </div>
-
-                          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "10px" }}>
-                            {programa.pct > 0 && (
-                              <span className="badge badge-success" style={{ fontSize: "0.8rem" }}>
-                                {programa.pct}%
-                              </span>
-                            )}
-                            {programa.regiao && (
-                              <span className="badge badge-warning" style={{ fontSize: "0.8rem" }}>
-                                {programa.regiao.split("/").map((r) => r.trim()).join(" / ")}
-                              </span>
-                            )}
-                            {(programa.tipo || programa.tipo_incentivo) && (
-                              <span className="badge badge-info" style={{ fontSize: "0.8rem" }}>
-                                {programa.tipo || programa.tipo_incentivo}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            width: "32px",
-                            height: "32px",
-                            borderRadius: "6px",
-                            background: programa.id === programaId ? "#6366f1" : "#e5e7eb",
-                            color: programa.id === programaId ? "white" : "#64748b",
-                            fontWeight: 600,
-                          }}
-                        >
-                          {programa.id === programaId ? "✓" : ""}
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-
+                <div className="field-grid">
+                  <div className="field span-2">
+                    <label>Tipo de projeto</label>
+                    <select value={tipoProjeto.id} onChange={(e) => selectTipoProjeto(e.target.value)}>
+                      <option value="">—</option>
+                      {tiposProj.map((tipo) => (
+                        <option key={tipo.id} value={tipo.id}>
+                          {tipo.nome}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="field-hint">
+                      Primeiro escolhe o tipo de projeto. Depois disso, o sistema mostra se este tipo pede programa/aviso.
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {selectedPrograma && (
-                <div className="card-inner">
-                  <div className="section-heading">Personalizar Programa</div>
-                  <div className="field-grid">
-                    <div className="field">
-                      <label>Nome do sistema de incentivos</label>
-                      <input type="text" value={selectedPrograma.nome || ""} readOnly />
-                    </div>
-                    <div className="field">
-                      <label>Referência do aviso</label>
-                      <input
-                        type="text"
-                        value={selectedAviso?.codigo || selectedPrograma.aviso || ""}
-                        readOnly
-                      />
-                    </div>
-                    <div className="field">
-                      <label>Incentivo (%)</label>
-                      <input type="number" value={Number(selectedPrograma.pct || 0)} readOnly />
-                    </div>
-                    <div className="field">
-                      <label>Tipo de incentivo</label>
-                      <select value={selectedPrograma.tipo || selectedPrograma.tipo_incentivo || ""} disabled>
-                        <option value={selectedPrograma.tipo || selectedPrograma.tipo_incentivo || ""}>
-                          {selectedPrograma.tipo || selectedPrograma.tipo_incentivo || "—"}
-                        </option>
-                      </select>
-                    </div>
-                    <div className="field">
-                      <label>Investimento mínimo (€)</label>
-                      <input
-                        type="number"
-                        value={Number(selectedPrograma.inv_min ?? selectedPrograma.investimento_minimo ?? 0)}
-                        readOnly
-                      />
-                    </div>
-                    <div className="field">
-                      <label>Região</label>
-                      <input type="text" value={selectedPrograma.regiao || ""} readOnly />
-                    </div>
+              {tipoProjeto.id ? (
+                tipoProjeto.tem_programa ? (
+                  <>
+                    <div className="card-inner">
+                      <div className="section-heading">Programas disponíveis</div>
+                      <div className="propostas-programas-grid">
+                        {programasDisponiveis.map((programa) => (
+                          <button
+                            key={programa.id}
+                            type="button"
+                            className={`propostas-programa-card ${programa.id === programaId ? "selected" : ""}`}
+                            onClick={() => selectPrograma(programa.id)}
+                            style={{
+                              padding: "16px",
+                              border: programa.id === programaId ? "2px solid #6366f1" : "1px solid #e5e7eb",
+                              borderRadius: "12px",
+                              background: programa.id === programaId ? "#f0f4ff" : "#f8f9fa",
+                              textAlign: "left",
+                              cursor: "pointer",
+                              transition: "all 0.2s ease",
+                            }}
+                          >
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px" }}>
+                              <div style={{ flex: 1 }}>
+                                <h4 style={{ margin: "0 0 8px 0", fontSize: "1rem", color: "#0f2240" }}>
+                                  {programa.nome}
+                                </h4>
+                                <div className="muted" style={{ fontSize: "0.85rem", marginBottom: "8px" }}>
+                                  {programa.codigo}
+                                </div>
 
-                    {normalizeAvisoFases(selectedAviso?.fases).slice(0, 2).map((fase, index) => (
-                      <div className="field" key={`${fase.nome}-${index}`}>
-                        <label>{index === 0 ? "Prazo 1.ª fase" : "Prazo 2.ª fase (opcional)"}</label>
-                        <input type="text" value={formatDatePt(fase.prazo)} readOnly />
+                                <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "10px" }}>
+                                  {programa.pct > 0 && (
+                                    <span className="badge badge-success" style={{ fontSize: "0.8rem" }}>
+                                      {programa.pct}%
+                                    </span>
+                                  )}
+                                  {programa.regiao && (
+                                    <span className="badge badge-warning" style={{ fontSize: "0.8rem" }}>
+                                      {programa.regiao.split("/").map((r) => r.trim()).join(" / ")}
+                                    </span>
+                                  )}
+                                  {(programa.tipo || programa.tipo_incentivo) && (
+                                    <span className="badge badge-info" style={{ fontSize: "0.8rem" }}>
+                                      {programa.tipo || programa.tipo_incentivo}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  width: "32px",
+                                  height: "32px",
+                                  borderRadius: "6px",
+                                  background: programa.id === programaId ? "#6366f1" : "#e5e7eb",
+                                  color: programa.id === programaId ? "white" : "#64748b",
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {programa.id === programaId ? "✓" : ""}
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+
                       </div>
-                    ))}
+                    </div>
 
-                    {normalizeAvisoFases(selectedAviso?.fases).length > 2 && (
-                      <div className="field span-2">
-                        <label>Fases adicionais</label>
-                        <div className="propostas-pill-list" style={{ marginTop: "0" }}>
-                          {normalizeAvisoFases(selectedAviso?.fases).slice(2).map((fase, index) => (
-                            <span key={`${fase.nome}-${index}`} className="badge badge-warning">
-                              {fase.nome}: {formatDatePt(fase.prazo)}
-                            </span>
+                    {selectedPrograma && (
+                      <div className="card-inner">
+                        <div className="section-heading">Personalizar Programa</div>
+                        <div className="field-grid">
+                          <div className="field">
+                            <label>Nome do sistema de incentivos</label>
+                            <input type="text" value={selectedPrograma.nome || ""} readOnly />
+                          </div>
+                          <div className="field">
+                            <label>Referência do aviso</label>
+                            <input
+                              type="text"
+                              value={selectedAviso?.codigo || selectedPrograma.aviso || ""}
+                              readOnly
+                            />
+                          </div>
+                          <div className="field">
+                            <label>Incentivo (%)</label>
+                            <input type="number" value={Number(selectedPrograma.pct || 0)} readOnly />
+                          </div>
+                          <div className="field">
+                            <label>Tipo de incentivo</label>
+                            <select value={selectedPrograma.tipo || selectedPrograma.tipo_incentivo || ""} disabled>
+                              <option value={selectedPrograma.tipo || selectedPrograma.tipo_incentivo || ""}>
+                                {selectedPrograma.tipo || selectedPrograma.tipo_incentivo || "—"}
+                              </option>
+                            </select>
+                          </div>
+                          <div className="field">
+                            <label>Investimento mínimo (€)</label>
+                            <input
+                              type="number"
+                              value={Number(selectedPrograma.inv_min ?? selectedPrograma.investimento_minimo ?? 0)}
+                              readOnly
+                            />
+                          </div>
+                          <div className="field">
+                            <label>Região</label>
+                            <input type="text" value={selectedPrograma.regiao || ""} readOnly />
+                          </div>
+
+                          {normalizeAvisoFases(selectedAviso?.fases).slice(0, 2).map((fase, index) => (
+                            <div className="field" key={`${fase.nome}-${index}`}>
+                              <label>{index === 0 ? "Prazo 1.ª fase" : "Prazo 2.ª fase (opcional)"}</label>
+                              <input type="text" value={formatDatePt(fase.prazo)} readOnly />
+                            </div>
                           ))}
+
+                          {normalizeAvisoFases(selectedAviso?.fases).length > 2 && (
+                            <div className="field span-2">
+                              <label>Fases adicionais</label>
+                              <div className="propostas-pill-list" style={{ marginTop: "0" }}>
+                                {normalizeAvisoFases(selectedAviso?.fases).slice(2).map((fase, index) => (
+                                  <span key={`${fase.nome}-${index}`} className="badge badge-warning">
+                                    {fase.nome}: {formatDatePt(fase.prazo)}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="field span-2">
+                            <label>Descrição resumida do aviso</label>
+                            <textarea
+                              rows="3"
+                              value={selectedAviso?.descricao || selectedPrograma.descricao || ""}
+                              readOnly
+                            />
+                          </div>
                         </div>
                       </div>
                     )}
-
-                    <div className="field span-2">
-                      <label>Descrição resumida do aviso</label>
-                      <textarea
-                        rows="3"
-                        value={selectedAviso?.descricao || selectedPrograma.descricao || ""}
-                        readOnly
-                      />
+                  </>
+                ) : (
+                  <div className="card-inner">
+                    <div className="section-heading">Programa</div>
+                    <div className="field-hint">
+                      Este tipo de projeto não requer programa nem aviso.
                     </div>
+                  </div>
+                )
+              ) : (
+                <div className="card-inner">
+                  <div className="section-heading">Programa</div>
+                  <div className="field-hint">
+                    Seleciona primeiro o tipo de projeto para saber se este fluxo pede programa/aviso.
                   </div>
                 </div>
               )}
