@@ -583,6 +583,8 @@ export default function TransferGest() {
     recipients.forEach((recipient) => {
       recipientParamsByEmail[recipient.email] = {
         nome: recipient.name,
+        fullname: recipient.name,
+        FULLNAME: recipient.name,
         firstName: recipient.firstName,
         FIRSTNAME: recipient.firstName,
       };
