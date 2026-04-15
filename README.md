@@ -14,6 +14,10 @@ VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
 BREVO_API_KEY=your-brevo-api-key
 BREVO_SENDER_EMAIL=marketing@your-domain.pt
 BREVO_SENDER_NAME=Your Brand
+VITE_TRANSFERGEST_API_BASE=http://localhost:8787
+TRANSFERGEST_BREVO_API_KEY=your-transfergest-brevo-api-key
+TRANSFERGEST_BREVO_SENDER_EMAIL=transfergest@your-domain.pt
+TRANSFERGEST_BREVO_SENDER_NAME=TransferGest
 ```
 
 ## Local development
@@ -41,8 +45,13 @@ Add the same variables in the Vercel project settings under Environment Variable
 - `BREVO_API_KEY`
 - `BREVO_SENDER_EMAIL`
 - `BREVO_SENDER_NAME` if you use it
+- `VITE_TRANSFERGEST_API_BASE` if TransferGest uses a dedicated API base URL
+- `TRANSFERGEST_BREVO_API_KEY`
+- `TRANSFERGEST_BREVO_SENDER_EMAIL`
+- `TRANSFERGEST_BREVO_SENDER_NAME` if you use it
 
 For production, `BREVO_API_KEY` must exist in Vercel because the serverless function reads it with `process.env.BREVO_API_KEY`.
+For TransferGest campaigns, `TRANSFERGEST_BREVO_API_KEY` should also exist in Vercel.
 
 ## Supabase Edge Function (CAE por NIF)
 

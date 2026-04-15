@@ -1,4 +1,5 @@
 const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
+const BREVO_TEMPLATE_API_BASE = "https://api.brevo.com/v3/smtp/templates";
 
 const DEFAULTS = {
   senderEmail: process.env.BREVO_SENDER_EMAIL || "marketing@geoflicks.pt",
@@ -8,6 +9,32 @@ const DEFAULTS = {
   maxRetries: Number(process.env.BREVO_MAX_RETRIES || 3),
   requestTimeoutMs: Number(process.env.BREVO_REQUEST_TIMEOUT_MS || 15000),
 };
+
+function getBrevoProfileConfig(profile = "marketing") {
+  if (profile === "transfergest") {
+    return {
+      apiKey: process.env.TRANSFERGEST_BREVO_API_KEY || process.env.BREVO_API_KEY,
+      senderEmail: process.env.TRANSFERGEST_BREVO_SENDER_EMAIL || DEFAULTS.senderEmail,
+      senderName: process.env.TRANSFERGEST_BREVO_SENDER_NAME || DEFAULTS.senderName,
+      batchSize: Number(process.env.TRANSFERGEST_BREVO_BATCH_SIZE || DEFAULTS.batchSize),
+      batchDelayMs: Number(process.env.TRANSFERGEST_BREVO_BATCH_DELAY_MS || DEFAULTS.batchDelayMs),
+      maxRetries: Number(process.env.TRANSFERGEST_BREVO_MAX_RETRIES || DEFAULTS.maxRetries),
+      requestTimeoutMs: Number(process.env.TRANSFERGEST_BREVO_REQUEST_TIMEOUT_MS || DEFAULTS.requestTimeoutMs),
+      missingApiKeyHint: "TRANSFERGEST_BREVO_API_KEY",
+    };
+  }
+
+  return {
+    apiKey: process.env.BREVO_API_KEY,
+    senderEmail: DEFAULTS.senderEmail,
+    senderName: DEFAULTS.senderName,
+    batchSize: DEFAULTS.batchSize,
+    batchDelayMs: DEFAULTS.batchDelayMs,
+    maxRetries: DEFAULTS.maxRetries,
+    requestTimeoutMs: DEFAULTS.requestTimeoutMs,
+    missingApiKeyHint: "BREVO_API_KEY",
+  };
+}
 
 const RETRIABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
 
@@ -145,6 +172,44 @@ async function callBrevoApi({ apiKey, payload, timeoutMs }) {
   }
 }
 
+async function verifyTemplateIsActive({ apiKey, templateId, timeoutMs = 10000 }) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(`${BREVO_TEMPLATE_API_BASE}/${Number(templateId)}`, {
+      method: "GET",
+      headers: {
+        accept: "application/json",
+        "api-key": apiKey,
+      },
+      signal: controller.signal,
+    });
+
+    const text = await response.text();
+    const parsed = text ? safeJsonParse(text) : null;
+
+    if (!response.ok) {
+      const error = new Error(parsed?.message || `Template Brevo ${templateId} invalido ou indisponivel.`);
+      error.status = response.status;
+      error.details = parsed || text;
+      throw error;
+    }
+
+    const isActive = parsed?.isActive ?? parsed?.active;
+    if (isActive === false) {
+      const error = new Error(`Template Brevo ${templateId} esta desativado.`);
+      error.status = 400;
+      error.details = parsed || null;
+      throw error;
+    }
+
+    return parsed;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 function safeJsonParse(input) {
   try {
     return JSON.parse(input);
@@ -254,6 +319,7 @@ export function prepareRecipients(rawEmails) {
 }
 
 export async function sendTransactionalCampaign({
+  senderProfile = "marketing",
   emails,
   subject,
   htmlContent,
@@ -263,9 +329,10 @@ export async function sendTransactionalCampaign({
   options = {},
   logger = console,
 }) {
-  const apiKey = process.env.BREVO_API_KEY;
+  const profileConfig = getBrevoProfileConfig(senderProfile);
+  const apiKey = profileConfig.apiKey;
   if (!apiKey) {
-    throw new Error("Missing BREVO_API_KEY environment variable.");
+    throw new Error(`Missing ${profileConfig.missingApiKeyHint} environment variable.`);
   }
 
   const hasTemplate = Number(templateId) > 0;
@@ -280,14 +347,22 @@ export async function sendTransactionalCampaign({
   }
 
   const config = {
-    ...DEFAULTS,
+    ...profileConfig,
     ...options,
   };
 
-  config.batchSize = Math.max(1, Math.min(100, Number(config.batchSize || DEFAULTS.batchSize)));
-  config.batchDelayMs = Math.max(0, Number(config.batchDelayMs || DEFAULTS.batchDelayMs));
-  config.maxRetries = Math.max(0, Number(config.maxRetries || DEFAULTS.maxRetries));
-  config.requestTimeoutMs = Math.max(1000, Number(config.requestTimeoutMs || DEFAULTS.requestTimeoutMs));
+  if (hasTemplate) {
+    await verifyTemplateIsActive({
+      apiKey,
+      templateId: Number(templateId),
+      timeoutMs: config.requestTimeoutMs,
+    });
+  }
+
+  config.batchSize = Math.max(1, Math.min(100, Number(config.batchSize || profileConfig.batchSize)));
+  config.batchDelayMs = Math.max(0, Number(config.batchDelayMs || profileConfig.batchDelayMs));
+  config.maxRetries = Math.max(0, Number(config.maxRetries || profileConfig.maxRetries));
+  config.requestTimeoutMs = Math.max(1000, Number(config.requestTimeoutMs || profileConfig.requestTimeoutMs));
 
   const { validUniqueEmails, invalidEmails, duplicates } = prepareRecipients(emails);
 

@@ -360,6 +360,15 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
               </li>
             )}
 
+            {['admin','gestor',  'marketing'].includes(userProfile?.role) && (
+              <li className={isActive('/dashboard/transfergest')}>
+                <Link to="/dashboard/transfergest" title={getSidebarTooltip("TransferGest")}>
+                  <span className="icon"><Icons.Users /></span>
+                  <span className="link-text">TransferGest</span>
+                </Link>
+              </li>
+            )}
+
             {['admin', 'administrador'].includes(String(userProfile?.role || userProfile?.tipo || '').toLowerCase()) && (
               <li className={isActive('/dashboard/admin')}>
                 <Link to="/dashboard/admin" title={getSidebarTooltip("Admin") }>

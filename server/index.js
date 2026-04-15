@@ -70,6 +70,59 @@ app.post("/api/marketing/send", async (req, res) => {
   }
 });
 
+app.post("/api/transfergest/send", async (req, res) => {
+  const {
+    emails,
+    templateId,
+    params,
+    recipientParamsByEmail,
+    subject,
+    htmlContent,
+    batchSize,
+    batchDelayMs,
+    maxRetries,
+    requestTimeoutMs,
+  } = req.body || {};
+
+  if (!Array.isArray(emails)) {
+    return res.status(400).json({
+      ok: false,
+      error: "emails must be an array.",
+    });
+  }
+
+  try {
+    const summary = await sendTransactionalCampaign({
+      senderProfile: "transfergest",
+      emails,
+      templateId,
+      params,
+      recipientParamsByEmail,
+      subject,
+      htmlContent,
+      options: {
+        batchSize,
+        batchDelayMs,
+        maxRetries,
+        requestTimeoutMs,
+      },
+    });
+
+    return res.status(200).json({
+      ok: true,
+      summary,
+    });
+  } catch (error) {
+    const statusCode = typeof error.status === "number" ? Math.min(Math.max(error.status, 400), 502) : 500;
+
+    return res.status(statusCode).json({
+      ok: false,
+      error: error.message || "Unexpected error while sending campaign.",
+      details: error.details || null,
+    });
+  }
+});
+
 app.get("/api/sicae-caes", async (req, res) => {
   try {
     const data = await lookupSicaeCaesByNif(req.query?.nif);

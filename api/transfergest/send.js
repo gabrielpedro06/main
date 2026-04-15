@@ -30,7 +30,7 @@ export default async function handler(req, res) {
 
   try {
     const summary = await sendTransactionalCampaign({
-      senderProfile: "marketing",
+      senderProfile: "transfergest",
       emails,
       templateId,
       params,
