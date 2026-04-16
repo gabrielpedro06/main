@@ -10,6 +10,7 @@ const STATUS_OPTIONS = [
   { value: "novo", label: "NOVO" },
   { value: "contactado", label: "CONTACTADO" },
   { value: "reuniao", label: "REUNIÃO" },
+  { value: "cancelado", label: "CANCELADO" },
 ];
 
 const CSV_FIELDS = [
@@ -193,6 +194,7 @@ const STATUS_STYLE = {
   novo: { bg: "#f5f3ff", color: "#6d28d9", border: "#ddd6fe" },
   contactado: { bg: "#fffbeb", color: "#b45309", border: "#fde68a" },
   reuniao: { bg: "#eff6ff", color: "#1d4ed8", border: "#bfdbfe" },
+  cancelado: { bg: "#fef2f2", color: "#b91c1c", border: "#fecaca" },
 };
 
 function parseFilterQuery(query) {
