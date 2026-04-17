@@ -39,15 +39,36 @@ const Icons = {
   ),
 };
 
+const PROPOSTA_ESTADOS = [
+  { value: "em_preparacao", label: "Em preparação" },
+  { value: "revisao", label: "Revisão" },
+  { value: "enviada", label: "Enviada" },
+  { value: "analise", label: "Análise" },
+  { value: "ganha", label: "Ganha" },
+  { value: "perdida", label: "Perdida" },
+];
+
+const LEGACY_ESTADO_MAP = {
+  em_analise: "analise",
+  aprovada: "ganha",
+  arquivada: "perdida",
+};
+
+const normalizeEstado = (estado) => {
+  const value = String(estado || "").trim().toLowerCase();
+  if (!value) return "em_preparacao";
+  const normalized = LEGACY_ESTADO_MAP[value] || value;
+  return PROPOSTA_ESTADOS.some((item) => item.value === normalized) ? normalized : "em_preparacao";
+};
+
 export default function ListaPropostas() {
   const navigate = useNavigate();
   const [propostas, setPropostas] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filtroEstado, setFiltroEstado] = useState("em_analise");
+  const [filtroEstado, setFiltroEstado] = useState("todos");
   const [busca, setBusca] = useState("");
   const [viewMode, setViewMode] = useState("cards");
   const [toastMessage, setToastMessage] = useState("");
-  const [archiveModal, setArchiveModal] = useState({ show: false, proposta: null, action: "archive" });
   const [deleteModal, setDeleteModal] = useState({ show: false, proposta: null, confirmText: "" });
 
   const showToast = (message) => {
@@ -94,7 +115,7 @@ export default function ListaPropostas() {
         showToast("Erro ao carregar propostas");
         setPropostas([]);
       } else {
-        setPropostas(data || []);
+        setPropostas((data || []).map((item) => ({ ...item, estado: normalizeEstado(item.estado) })));
       }
     } catch (error) {
       console.error("Erro:", error);
@@ -105,13 +126,16 @@ export default function ListaPropostas() {
   };
 
   const getBadgeClass = (estado) => {
-    switch (estado) {
-      case "em_analise":
-        return "badge badge-warning";
-      case "aprovada":
+    switch (normalizeEstado(estado)) {
+      case "ganha":
         return "badge badge-success";
-      case "arquivada":
+      case "perdida":
         return "badge badge-danger";
+      case "em_preparacao":
+      case "revisao":
+      case "enviada":
+      case "analise":
+        return "badge badge-warning";
       default:
         return "badge";
     }
@@ -131,12 +155,9 @@ export default function ListaPropostas() {
   };
 
   const getEstadoLabel = (estado) => {
-    const labels = {
-      em_analise: "Em Análise",
-      aprovada: "Aprovada",
-      arquivada: "Arquivada",
-    };
-    return labels[estado] || estado;
+    const normalized = normalizeEstado(estado);
+    const found = PROPOSTA_ESTADOS.find((item) => item.value === normalized);
+    return found?.label || normalized;
   };
 
   const getClienteNome = (proposta) => {
@@ -170,7 +191,7 @@ export default function ListaPropostas() {
       ...(payload.proposta || {}),
       db_id: "",
       numero: "",
-      estado: "em_analise",
+      estado: "em_preparacao",
       data: today,
     };
 
@@ -213,12 +234,14 @@ export default function ListaPropostas() {
     });
   }, [busca, filtroEstado, propostas]);
 
-  const counts = useMemo(() => ({
-    em_analise: propostas.filter((proposta) => proposta.estado === "em_analise").length,
-    aprovada: propostas.filter((proposta) => proposta.estado === "aprovada").length,
-    arquivada: propostas.filter((proposta) => proposta.estado === "arquivada").length,
-    todas: propostas.length,
-  }), [propostas]);
+  const counts = useMemo(() => {
+    const base = PROPOSTA_ESTADOS.reduce((acc, item) => {
+      acc[item.value] = propostas.filter((proposta) => proposta.estado === item.value).length;
+      return acc;
+    }, {});
+    base.todas = propostas.length;
+    return base;
+  }, [propostas]);
 
   const visiblePropostas = filteredPropostas;
 
@@ -257,7 +280,7 @@ export default function ListaPropostas() {
             cliente_id: proposta.cliente_id || null,
             tipo_projeto_id: proposta.tipo_projeto_id || null,
             programa_id: proposta.programa_id || null,
-            estado: "em_analise",
+            estado: "em_preparacao",
             plano_pagamentos: Array.isArray(proposta.plano_pagamentos) ? proposta.plano_pagamentos : basePayload.plano_pagamentos || [],
             payload: basePayload,
           },
@@ -277,35 +300,40 @@ export default function ListaPropostas() {
     }
   };
 
-  const openArchiveModal = (proposta) => {
-    setArchiveModal({
-      show: true,
-      proposta,
-      action: proposta?.estado === "arquivada" ? "reactivate" : "archive",
-    });
-  };
-
-  const closeArchiveModal = () => {
-    setArchiveModal({ show: false, proposta: null, action: "archive" });
-  };
-
-  const confirmArchive = async () => {
-    if (!archiveModal.proposta?.id) return;
-    const nextEstado = archiveModal.action === "reactivate" ? "em_analise" : "arquivada";
+  const handleChangeEstado = async (proposta, nextEstado) => {
+    if (!proposta?.id) return;
+    const normalizedNext = normalizeEstado(nextEstado);
+    if (normalizedNext === proposta.estado) return;
 
     try {
       const { error } = await supabase
         .from("propostas_comerciais")
-        .update({ estado: nextEstado })
-        .eq("id", archiveModal.proposta.id);
+        .update({ estado: normalizedNext })
+        .eq("id", proposta.id);
 
       if (error) throw error;
-      showToast(archiveModal.action === "reactivate" ? "Proposta reativada" : "Proposta arquivada");
-      await loadPropostas();
-      closeArchiveModal();
+
+      setPropostas((previous) =>
+        previous.map((item) =>
+          item.id === proposta.id
+            ? {
+                ...item,
+                estado: normalizedNext,
+                payload: {
+                  ...(item.payload || {}),
+                  proposta: {
+                    ...((item.payload || {}).proposta || {}),
+                    estado: normalizedNext,
+                  },
+                },
+              }
+            : item
+        )
+      );
+      showToast(`Estado alterado para ${getEstadoLabel(normalizedNext)}.`);
     } catch (error) {
       console.error("Erro ao atualizar estado da proposta:", error);
-      showToast(archiveModal.action === "reactivate" ? "Erro ao reativar proposta" : "Erro ao arquivar proposta");
+      showToast("Erro ao atualizar estado da proposta");
     }
   };
 
@@ -366,27 +394,16 @@ export default function ListaPropostas() {
       <div className="card propostas-list-panel">
         <div className="propostas-status-tabs">
           <div>
-            <button
-              type="button"
-              className={`propostas-status-tab ${filtroEstado === "em_analise" ? "active" : ""}`}
-              onClick={() => setFiltroEstado("em_analise")}
-            >
-              Em Análise <span>{counts.em_analise}</span>
-            </button>
-            <button
-              type="button"
-              className={`propostas-status-tab ${filtroEstado === "aprovada" ? "active" : ""}`}
-              onClick={() => setFiltroEstado("aprovada")}
-            >
-              Aprovadas <span>{counts.aprovada}</span>
-            </button>
-            <button
-              type="button"
-              className={`propostas-status-tab ${filtroEstado === "arquivada" ? "active" : ""}`}
-              onClick={() => setFiltroEstado("arquivada")}
-            >
-              Arquivadas <span>{counts.arquivada}</span>
-            </button>
+            {PROPOSTA_ESTADOS.map((estadoItem) => (
+              <button
+                key={estadoItem.value}
+                type="button"
+                className={`propostas-status-tab ${filtroEstado === estadoItem.value ? "active" : ""}`}
+                onClick={() => setFiltroEstado(estadoItem.value)}
+              >
+                {estadoItem.label} <span>{counts[estadoItem.value] || 0}</span>
+              </button>
+            ))}
             <button
               type="button"
               className={`propostas-status-tab ${filtroEstado === "todos" ? "active" : ""}`}
@@ -452,6 +469,18 @@ export default function ListaPropostas() {
                     <span className={getBadgeClass(proposta.estado)}>{getEstadoLabel(proposta.estado)}</span>
                   </div>
 
+                  <div className="field" style={{ marginBottom: "10px" }}>
+                    <label style={{ fontSize: "0.78rem" }}>Estado</label>
+                    <select
+                      value={proposta.estado}
+                      onChange={(event) => handleChangeEstado(proposta, event.target.value)}
+                    >
+                      {PROPOSTA_ESTADOS.map((estadoItem) => (
+                        <option key={estadoItem.value} value={estadoItem.value}>{estadoItem.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
                   <h3>{getClienteNome(proposta)}</h3>
                   <p className="propostas-card-type">{getTipoProjetoNome(proposta)}</p>
 
@@ -472,9 +501,6 @@ export default function ListaPropostas() {
                     </button>
                     <button className="btn-small" type="button" onClick={() => handleDuplicate(proposta)} title="Duplicar">
                       <Icons.Copy /> Duplicar
-                    </button>
-                    <button className="btn-small" type="button" onClick={() => openArchiveModal(proposta)} title={proposta.estado === "arquivada" ? "Reativar" : "Arquivar"}>
-                      {proposta.estado === "arquivada" ? <Icons.Restore /> : <Icons.Archive />} {proposta.estado === "arquivada" ? "Reativar" : "Arquivar"}
                     </button>
                     <button className="btn-small" type="button" onClick={() => openDeleteModal(proposta)} title="Apagar">
                       <Icons.Trash /> Apagar
@@ -508,6 +534,17 @@ export default function ListaPropostas() {
                         <span className={getBadgeClass(proposta.estado)}>
                           {getEstadoLabel(proposta.estado)}
                         </span>
+                        <div style={{ marginTop: "6px" }}>
+                          <select
+                            value={proposta.estado}
+                            onChange={(event) => handleChangeEstado(proposta, event.target.value)}
+                            style={{ minWidth: "150px" }}
+                          >
+                            {PROPOSTA_ESTADOS.map((estadoItem) => (
+                              <option key={estadoItem.value} value={estadoItem.value}>{estadoItem.label}</option>
+                            ))}
+                          </select>
+                        </div>
                       </td>
                       <td className="muted">{formatDatePt(proposta.created_at)}</td>
                       <td style={{ textAlign: "center" }}>
@@ -531,14 +568,6 @@ export default function ListaPropostas() {
                           <button
                             className="btn-small"
                             type="button"
-                            onClick={() => openArchiveModal(proposta)}
-                            title={proposta.estado === "arquivada" ? "Reativar" : "Arquivar"}
-                          >
-                            {proposta.estado === "arquivada" ? <Icons.Restore /> : <Icons.Archive />}
-                          </button>
-                          <button
-                            className="btn-small"
-                            type="button"
                             onClick={() => openDeleteModal(proposta)}
                             title="Apagar"
                           >
@@ -554,37 +583,6 @@ export default function ListaPropostas() {
           )
         )}
       </div>
-
-      {archiveModal.show && (
-        <div className="modal-overlay">
-          <div className="modal-content proposals-delete-modal">
-            <div className="modal-header">
-              <h3>{archiveModal.action === "reactivate" ? "Reativar proposta" : "Arquivar proposta"}</h3>
-              <button type="button" className="close-btn" onClick={closeArchiveModal} aria-label="Fechar">
-                ×
-              </button>
-            </div>
-
-            <div className="modal-body">
-              <p style={{ marginTop: 0 }}>
-                {archiveModal.action === "reactivate" ? "Queres reativar a proposta" : "Queres arquivar a proposta"} <strong>{archiveModal.proposta ? getPropostaNumero(archiveModal.proposta) : "—"}</strong>?
-              </p>
-              <p className="muted" style={{ marginTop: 0 }}>
-                {archiveModal.action === "reactivate" ? "A proposta volta para Em Análise." : "A proposta fica no arquivo e pode ser reativada mais tarde."}
-              </p>
-
-              <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end", marginTop: "18px" }}>
-                <button type="button" className="btn-small" onClick={closeArchiveModal}>
-                  Cancelar
-                </button>
-                <button type="button" className="btn-primary" onClick={confirmArchive}>
-                  {archiveModal.action === "reactivate" ? "Reativar" : "Arquivar"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {deleteModal.show && (
         <div className="modal-overlay">

@@ -107,7 +107,7 @@ const INITIAL_PROPOSTA = {
   referencia_interna: "",
   data: new Date().toISOString().slice(0, 10),
   validade: 30,
-  estado: "em_analise",
+  estado: "em_preparacao",
   investimento: "",
   iva: 23,
 };
@@ -153,6 +153,30 @@ const stepTitles = [
 ];
 
 const TIPO_EMPRESA_OPTIONS = ["PME", "Grande Empresa", "Startup", "Microempresa", "Outro"];
+const PROPOSTA_ESTADOS = [
+  { value: "em_preparacao", label: "Em preparação" },
+  { value: "revisao", label: "Revisão" },
+  { value: "enviada", label: "Enviada" },
+  { value: "analise", label: "Análise" },
+  { value: "ganha", label: "Ganha" },
+  { value: "perdida", label: "Perdida" },
+];
+
+const normalizePropostaEstado = (estado) => {
+  const value = String(estado || "").trim().toLowerCase();
+  if (!value) return "em_preparacao";
+
+  const legacyMap = {
+    em_analise: "analise",
+    aprovada: "ganha",
+    arquivada: "perdida",
+  };
+
+  const normalized = legacyMap[value] || value;
+  return PROPOSTA_ESTADOS.some((item) => item.value === normalized)
+    ? normalized
+    : "em_preparacao";
+};
 
 const escapeHtml = (value) =>
   String(value ?? "")
@@ -499,7 +523,7 @@ export default function PropostasComerciais() {
           db_id: data.id,
           numero: data.numero_proposta_str || "",
           referencia_interna: payload?.proposta?.referencia_interna || "",
-          estado: data.estado || prev.estado,
+          estado: normalizePropostaEstado(data.estado || payload?.proposta?.estado || prev.estado),
           data: payload?.proposta?.data || prev.data,
           validade: payload?.proposta?.validade ?? prev.validade,
           investimento: payload?.proposta?.investimento ?? payload?.orcamento?.investimento ?? prev.investimento,
@@ -1488,9 +1512,9 @@ export default function PropostasComerciais() {
                   <div className="field">
                     <label>Estado</label>
                     <select value={proposta.estado} onChange={setField(setProposta, "estado")}>
-                      <option value="em_analise">Em análise</option>
-                      <option value="aprovada">Aprovada</option>
-                      <option value="arquivada">Arquivada</option>
+                      {PROPOSTA_ESTADOS.map((estadoItem) => (
+                        <option key={estadoItem.value} value={estadoItem.value}>{estadoItem.label}</option>
+                      ))}
                     </select>
                   </div>
                 </div>
