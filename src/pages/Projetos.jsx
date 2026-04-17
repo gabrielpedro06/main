@@ -778,6 +778,8 @@ export default function Projetos() {
     setIsSubmitting(true);
     const payload = { ...form };
 
+                payload.titulo = (payload.titulo || "").trim();
+
         payload.is_parceria = normalizeBoolean(payload.is_parceria);
         payload.parceiros_ids = normalizeIdsList(payload.parceiros_ids);
         payload.colaboradores = normalizeIdsList(payload.colaboradores);
@@ -786,6 +788,21 @@ export default function Projetos() {
     if (payload.tipo_projeto_id === "") payload.tipo_projeto_id = null;
     if (payload.responsavel_id === "") payload.responsavel_id = null;
     if (payload.data_fim === "") payload.data_fim = null;
+
+    if (!editId) {
+        const missingFields = [];
+        if (!payload.titulo) missingFields.push("Nome do Projeto");
+        if (!payload.cliente_id) missingFields.push("Cliente");
+        if (!payload.tipo_projeto_id) missingFields.push("Tipo de Projeto");
+        if (!payload.responsavel_id) missingFields.push("Responsável Global");
+        if (!payload.data_fim) missingFields.push("Data de Fim");
+
+        if (missingFields.length > 0) {
+            showToast(`Para criar o projeto preenche: ${missingFields.join(", ")}.`, "warning");
+            setIsSubmitting(false);
+            return;
+        }
+    }
 
     if (!payload.cliente_id) {
         showToast("Seleciona um cliente principal para o projeto.", "warning");
