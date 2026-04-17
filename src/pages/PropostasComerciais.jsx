@@ -348,7 +348,8 @@ export default function PropostasComerciais() {
           supabase
             .from("contactos_cliente")
             .select("*")
-            .eq("cliente_id", cliente.id),
+            .eq("cliente_id", cliente.id)
+            .eq("faz_propostas", true),
           supabase
             .from("moradas_cliente")
             .select("morada, localidade, concelho, distrito")
@@ -931,7 +932,6 @@ export default function PropostasComerciais() {
 
       void carregarDadosConsultora(found.id);
     } else {
-      setEmpresaConsultora(INITIAL_EMPRESA_CONSULTORA);
       setContatosConsultora([]);
     }
   };
@@ -986,7 +986,8 @@ export default function PropostasComerciais() {
           supabase
             .from("contactos_cliente")
             .select("*")
-            .eq("cliente_id", found.id),
+            .eq("cliente_id", found.id)
+            .eq("faz_propostas", true),
         ]);
 
         const morada =
@@ -1080,7 +1081,8 @@ export default function PropostasComerciais() {
         supabase
           .from("contactos_cliente")
           .select("*")
-          .eq("cliente_id", consultoraId),
+          .eq("cliente_id", consultoraId)
+          .eq("faz_propostas", true),
       ]);
 
       const morada =

@@ -148,7 +148,7 @@ export default function Clientes() {
   const [confirmDialog, setConfirmDialog] = useState({ show: false, message: '', confirmText: '', onConfirm: null, isDanger: false });
 
   // SUB-FORMS INICIAIS
-  const initContacto = { nome_contacto: "", email: "", telefone: "", cargo: "" };
+  const initContacto = { nome_contacto: "", email: "", telefone: "", cargo: "", faz_propostas: false };
   const initMorada = { morada: "", localidade: "", codigo_postal: "", concelho: "", distrito: "", regiao: "", notas: "" };
   const initAcesso = { tipo_acesso_id: "", utilizador: "", codigo: "" };
   const initCae = { codigo: "", descricao: "", principal: false };
@@ -2584,9 +2584,16 @@ export default function Clientes() {
                               <input type="text" placeholder="+351 900 000 000" value={novoContacto.telefone} onChange={e => setNovoContacto({...novoContacto, telefone: e.target.value})} style={inputStyle} className="input-focus" />
                           </div>
                         </div>
+                        <div style={{display:'flex', alignItems:'center', gap:'10px', marginTop:'15px', marginBottom:'10px', padding:'12px', background:'var(--color-bgSecondary)', borderRadius:'8px', border:'1px solid var(--color-borderColor)'}}>
+                          <input type="checkbox" id="faz_propostas" checked={Boolean(novoContacto.faz_propostas)} onChange={e => setNovoContacto({...novoContacto, faz_propostas: e.target.checked})} style={{width:'18px', height:'18px', cursor:'pointer'}} disabled={isViewOnly} />
+                          <label htmlFor="faz_propostas" style={{cursor: isViewOnly ? 'not-allowed' : 'pointer', margin: 0, fontSize: '0.9rem', fontWeight: '600', color: 'var(--color-btnPrimary)', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                            Pode fazer propostas comerciais
+                            <span style={{fontSize: '0.75rem', color: '#64748b', fontWeight: '500'}}>(Aparecerá em Propostas Comerciais)</span>
+                          </label>
+                        </div>
                         <div style={{display:'flex', gap:'10px', marginTop:'15px'}}>
-                            <button onClick={() => { saveSubItem('contactos_cliente', novoContacto, setContactos, contactos, setNovoContacto, initContacto, setShowAddContacto); setIsOutroCargo(false); }} className="btn-primary hover-shadow" style={{padding:'10px 20px', fontWeight: 'bold'}}>{novoContacto.id ? 'Atualizar' : 'Guardar Pessoa'}</button>
-                            <button onClick={() => { setShowAddContacto(false); setNovoContacto(initContacto); setIsOutroCargo(false); }} style={{background:'white', border:'1px solid #cbd5e1', borderRadius: '8px', color:'#64748b', cursor:'pointer', padding: '10px 20px', fontWeight: 'bold'}} className="hover-shadow">Cancelar</button>
+                          <button onClick={() => { saveSubItem('contactos_cliente', novoContacto, setContactos, contactos, setNovoContacto, initContacto, setShowAddContacto); setIsOutroCargo(false); }} className="btn-primary hover-shadow" style={{padding:'10px 20px', fontWeight: 'bold'}}>{novoContacto.id ? 'Atualizar' : 'Guardar Pessoa'}</button>
+                          <button onClick={() => { setShowAddContacto(false); setNovoContacto(initContacto); setIsOutroCargo(false); }} style={{background:'white', border:'1px solid #cbd5e1', borderRadius: '8px', color:'#64748b', cursor:'pointer', padding: '10px 20px', fontWeight: 'bold'}} className="hover-shadow">Cancelar</button>
                         </div>
                       </div>
                     )}
