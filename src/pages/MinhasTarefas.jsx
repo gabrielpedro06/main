@@ -81,6 +81,14 @@ export default function MinhasTarefas() {
     const [timeLogForm, setTimeLogForm] = useState({ user_id: "", task_id: "", duration_minutes: "" });
     const [editingTimeLogId, setEditingTimeLogId] = useState(null);
     const [showQuickTaskModal, setShowQuickTaskModal] = useState(false);
+    const [confirmDialog, setConfirmDialog] = useState({
+        show: false,
+        title: "",
+        message: "",
+        confirmText: "Confirmar",
+        isDanger: true,
+        onConfirm: null
+    });
 
   // DRAG & DROP STATE (Kanban)
   const [draggedTask, setDraggedTask] = useState(null);
@@ -290,16 +298,31 @@ export default function MinhasTarefas() {
   }
 
   async function handlePermanentDelete(taskId) {
-      if(!window.confirm("Apagar esta tarefa permanentemente?")) return;
-      await supabase.from("tarefas").delete().eq("id", taskId);
-      showToast("Tarefa eliminada do arquivo."); openCompletedHistory();
+      openDeleteTaskConfirm({
+          title: "Apagar tarefa permanentemente",
+          message: "Tens a certeza que queres apagar esta tarefa permanentemente? Esta ação não pode ser desfeita.",
+          onConfirm: async () => {
+              await supabase.from("tarefas").delete().eq("id", taskId);
+              showToast("Tarefa eliminada do arquivo.");
+              closeConfirmDialog();
+              openCompletedHistory();
+          }
+      });
   }
   
   // Função auxiliar de delete do Modal
   async function handleDeleteTaskFromKanban(taskId) {
-      if(!window.confirm("Apagar esta tarefa do quadro?")) return;
-      await supabase.from("tarefas").delete().eq("id", taskId);
-      showToast("Tarefa apagada."); fetchMyTasks();
+      openDeleteTaskConfirm({
+          title: "Apagar tarefa do quadro",
+          message: "Tens a certeza que queres apagar esta tarefa do quadro? Esta ação não pode ser desfeita.",
+          onConfirm: async () => {
+              await supabase.from("tarefas").delete().eq("id", taskId);
+              showToast("Tarefa apagada.");
+              setEditModal({show: false, data: null});
+              closeConfirmDialog();
+              fetchMyTasks();
+          }
+      });
   }
 
   const getTaskTime = (taskId) => logs.filter(l => l.task_id === taskId).reduce((acc, curr) => acc + (curr.duration_minutes || 0), 0);
@@ -396,14 +419,45 @@ export default function MinhasTarefas() {
   };
 
   const handleDeleteTimeLog = async (logId) => {
-      if (!window.confirm("Apagar este registo de tempo?")) return;
-      const { error } = await supabase.from("task_logs").delete().eq("id", logId);
-      if (error) {
-          showToast("Erro ao apagar registo.", "error");
-          return;
-      }
-      setLogs((prev) => prev.filter((l) => String(l.id) !== String(logId)));
-      showToast("Registo de tempo apagado.");
+      setConfirmDialog({
+          show: true,
+          title: "Apagar registo de tempo",
+          message: "Tens a certeza que queres apagar este registo de tempo? Esta ação não pode ser desfeita.",
+          confirmText: "Sim, apagar",
+          isDanger: true,
+          onConfirm: async () => {
+              const { error } = await supabase.from("task_logs").delete().eq("id", logId);
+              if (error) {
+                  showToast("Erro ao apagar registo.", "error");
+                  return;
+              }
+              setLogs((prev) => prev.filter((l) => String(l.id) !== String(logId)));
+              showToast("Registo de tempo apagado.");
+              setConfirmDialog((prev) => ({ ...prev, show: false, onConfirm: null }));
+          }
+      });
+  };
+
+  const closeConfirmDialog = () => {
+      setConfirmDialog({
+          show: false,
+          title: "",
+          message: "",
+          confirmText: "Confirmar",
+          isDanger: true,
+          onConfirm: null
+      });
+  };
+
+  const openDeleteTaskConfirm = ({ title, message, onConfirm }) => {
+      setConfirmDialog({
+          show: true,
+          title,
+          message,
+          confirmText: "Sim, apagar",
+          isDanger: true,
+          onConfirm
+      });
   };
 
   async function stopLogById(logToStop, stopNote = "") {
@@ -1107,7 +1161,7 @@ export default function MinhasTarefas() {
                       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px', borderBottom: '1px solid #f1f5f9', paddingBottom: '15px'}}>
                           <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.25rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Edit color="var(--color-btnPrimary)" size={20} /> Detalhes da Tarefa</h3>
                           <div style={{display: 'flex', gap: '15px', alignItems: 'center'}}>
-                              <button onClick={() => { handleDeleteTaskFromKanban(editModal.data.id); setEditModal({show:false, data:null}); }} style={{background:'transparent', border:'none', cursor:'pointer', color:'#ef4444', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 'bold'}} className="hover-red-text" title="Apagar Tarefa">
+                              <button onClick={() => handleDeleteTaskFromKanban(editModal.data.id)} style={{background:'transparent', border:'none', cursor:'pointer', color:'#ef4444', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 'bold'}} className="hover-red-text" title="Apagar Tarefa">
                                   <Icons.Trash /> Apagar
                               </button>
                               <div style={{width: '1px', height: '20px', background: '#e2e8f0'}}></div>
@@ -1396,6 +1450,48 @@ export default function MinhasTarefas() {
                               <button type="submit" style={{background: 'var(--color-btnPrimary)', color: 'white', border: 'none', padding: '10px 24px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', transition: '0.2s', flex: 1}} className="hover-bg-blue">Adicionar</button>
                           </div>
                       </form>
+                  </div>
+              </div>
+          </ModalPortal>
+      )}
+
+      {confirmDialog.show && (
+          <ModalPortal>
+              <div
+                  style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100000, backdropFilter: 'blur(4px)', padding: '20px'}}
+                  onClick={closeConfirmDialog}
+              >
+                  <div
+                      style={{background: '#fff', width: '90%', maxWidth: '460px', borderRadius: '16px', padding: '28px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out'}}
+                      onClick={(e) => e.stopPropagation()}
+                  >
+                      <div style={{display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px'}}>
+                          <div style={{width: '40px', height: '40px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: confirmDialog.isDanger ? '#fee2e2' : 'var(--color-bgSecondary)', color: confirmDialog.isDanger ? '#ef4444' : 'var(--color-btnPrimary)'}}>
+                              <Icons.AlertTriangle size={18} />
+                          </div>
+                          <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.2rem', fontWeight: '800'}}>{confirmDialog.title || 'Confirmação'}</h3>
+                      </div>
+
+                      <p style={{margin: '0 0 24px 0', color: '#64748b', fontSize: '0.95rem', lineHeight: '1.5'}}>{confirmDialog.message}</p>
+
+                      <div style={{display: 'flex', gap: '10px', justifyContent: 'flex-end'}}>
+                          <button
+                              type="button"
+                              onClick={closeConfirmDialog}
+                              style={{padding: '10px 16px', borderRadius: '10px', border: '1px solid #cbd5e1', background: 'white', color: '#475569', fontWeight: '700', cursor: 'pointer'}}
+                              className="hover-shadow"
+                          >
+                              Cancelar
+                          </button>
+                          <button
+                              type="button"
+                              onClick={confirmDialog.onConfirm}
+                              style={{padding: '10px 16px', borderRadius: '10px', border: 'none', background: confirmDialog.isDanger ? '#ef4444' : 'var(--color-btnPrimary)', color: 'white', fontWeight: '800', cursor: 'pointer'}}
+                              className="hover-shadow"
+                          >
+                              {confirmDialog.confirmText || 'Confirmar'}
+                          </button>
+                      </div>
                   </div>
               </div>
           </ModalPortal>
