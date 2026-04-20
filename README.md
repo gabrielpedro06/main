@@ -45,7 +45,7 @@ Add the same variables in the Vercel project settings under Environment Variable
 - `BREVO_API_KEY`
 - `BREVO_SENDER_EMAIL`
 - `BREVO_SENDER_NAME` if you use it
-- `VITE_TRANSFERGEST_API_BASE` if TransferGest uses a dedicated API base URL
+- `VITE_TRANSFERGEST_API_BASE` only if TransferGest uses a dedicated external API base URL (do not set to localhost in production)
 - `TRANSFERGEST_BREVO_API_KEY`
 - `TRANSFERGEST_BREVO_SENDER_EMAIL`
 - `TRANSFERGEST_BREVO_SENDER_NAME` if you use it

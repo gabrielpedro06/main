@@ -1,7 +1,43 @@
-const DEFAULT_TRANSFERGEST_API_BASE = import.meta.env.VITE_TRANSFERGEST_API_BASE || import.meta.env.VITE_MARKETING_API_BASE || "";
+const RAW_TRANSFERGEST_API_BASE = import.meta.env.VITE_TRANSFERGEST_API_BASE || import.meta.env.VITE_MARKETING_API_BASE || "";
+
+const trimTrailingSlash = (value) => String(value || "").replace(/\/+$/, "");
+
+const isLocalHost = (hostname) => {
+  const normalized = String(hostname || "").toLowerCase();
+  return normalized === "localhost" || normalized === "127.0.0.1" || normalized === "::1";
+};
+
+const resolveTransfergestApiBase = (rawBase) => {
+  const base = trimTrailingSlash(rawBase);
+  if (!base) return "";
+
+  if (typeof window === "undefined") {
+    return base;
+  }
+
+  try {
+    const parsedBase = new URL(base, window.location.origin);
+    const appHost = window.location.hostname;
+
+    // If the app is remote, ignore localhost API bases and fallback to same-origin /api routes.
+    if (isLocalHost(parsedBase.hostname) && !isLocalHost(appHost)) {
+      return "";
+    }
+
+    if (parsedBase.origin === window.location.origin) {
+      return "";
+    }
+
+    return trimTrailingSlash(parsedBase.toString());
+  } catch {
+    return base;
+  }
+};
+
+const DEFAULT_TRANSFERGEST_API_BASE = resolveTransfergestApiBase(RAW_TRANSFERGEST_API_BASE);
 
 function getNetworkHelpMessage() {
-  return "Nao foi possivel ligar a API TransferGest. Inicia o servidor local com 'npm run dev:server' (ou 'npm run dev:full').";
+  return "Nao foi possivel ligar a API TransferGest. Se estiveres em dev local inicia 'npm run dev:server' (ou 'npm run dev:full'). Em producao confirma que VITE_TRANSFERGEST_API_BASE nao aponta para localhost.";
 }
 
 export async function checkTransfergestApiHealth() {
