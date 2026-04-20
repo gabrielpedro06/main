@@ -612,7 +612,7 @@ export default function GestaoTemplates() {
         {/* COLUNA 1: TIPOS */}
         <div style={styles.column}>
             <div style={styles.columnHeader}>
-                <h3 style={styles.columnTitle}>1. Modelos</h3>
+                <h3 style={styles.columnTitle}>1. Tipos de Projetos</h3>
                 <button onClick={() => openCreateModal('tipo_projeto')} style={styles.addButton} className="hover-btn-primary"><Icons.Plus/> Novo</button>
             </div>
             <div style={styles.listContainer} className="custom-scrollbar">
@@ -646,7 +646,7 @@ export default function GestaoTemplates() {
         <div style={{...styles.column, opacity: selectedTipo ? 1 : 0.5, pointerEvents: selectedTipo ? 'auto' : 'none', transition: '0.2s'}}>
             <div style={styles.columnHeader}>
                 <div>
-                    <h3 style={styles.columnTitle}>2. Etapas</h3>
+                    <h3 style={styles.columnTitle}>2. Atividades</h3>
                     <span style={styles.columnContext}>{selectedTipo ? selectedTipo.nome : 'Seleciona um modelo'}</span>
                 </div>
                 {selectedTipo && <button onClick={() => openCreateModal('atividade', selectedTipo.id, selectedTipo.nome)} style={styles.addButton} className="hover-btn-primary"><Icons.Plus/> Etapa</button>}
