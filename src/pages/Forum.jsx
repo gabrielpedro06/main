@@ -1894,8 +1894,8 @@ export default function Forum() {
             <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
                 <div style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '12px', borderRadius: '12px', display: 'flex'}}><Icons.Message size={24} /></div>
                 <div>
-                    <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>Comunicacao Interna</h1>
-                    <p style={{color: '#64748b', margin: 0, fontWeight: '500', fontSize: '0.9rem'}}>Forum de partilha de informacoes e discussoes</p>
+                    <h1 style={{margin: 0, color: '#0f182c', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>Comunicação Interna</h1>
+                    <p style={{color: '#64748b', margin: 0, fontWeight: '500', fontSize: '0.9rem'}}>Forúm de partilha de informações e discussões</p>
                 </div>
             </div>
             <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
