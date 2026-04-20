@@ -1,8 +1,7 @@
 ﻿import { useState, useEffect, useMemo } from "react";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import { useParams } from "react-router-dom";
 import { supabase } from "../services/supabase";
+import { generateProposalPDF } from "../components/pdfProposalGenerator";
 import "./../styles/dashboard.css";
 
 // ============================================================================
@@ -773,246 +772,27 @@ export default function PropostasComerciais() {
 
   const gerarPDF = () => {
     try {
-      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      const margem = 12;
-      const larguraPagina = doc.internal.pageSize.getWidth();
-      const alturaPagina = doc.internal.pageSize.getHeight();
-      const larguraUtil = larguraPagina - margem * 2;
-      const colGap = 8;
-      const colLargura = (larguraUtil - colGap) / 2;
-      const fasesAviso = normalizeAvisoFases(selectedAviso?.fases);
-      const valorSeguro = (value) => {
-        const text = String(value ?? "").trim();
-        return text || "—";
-      };
+      const incentivoEstimado = (proposta.investimento || 0) * ((programa?.pct || 0) / 100);
 
-      let y = margem;
-
-      const garantirEspaco = (alturaNecessaria = 10) => {
-        if (y + alturaNecessaria > alturaPagina - margem) {
-          doc.addPage();
-          y = margem;
-        }
-      };
-
-      const blocoTexto = (label, value, x = margem, largura = larguraUtil) => {
-        const labelFinal = label ? `${label}:` : "";
-        const texto = valorSeguro(value);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(9);
-        if (labelFinal) {
-          doc.text(labelFinal, x, y);
-        }
-        doc.setFont("helvetica", "normal");
-        const larguraValor = labelFinal ? largura - 34 : largura;
-        const linhas = doc.splitTextToSize(texto, Math.max(20, larguraValor));
-        const xValor = labelFinal ? x + 34 : x;
-        doc.text(linhas, xValor, y);
-        y += Math.max(5, linhas.length * 4.5);
-      };
-
-      doc.text(`Data: ${formatDatePt(proposta.data)}`, larguraPagina - margem, y, { align: "right" });
-      y += 6;
-      doc.setDrawColor(210, 210, 210);
-      doc.line(margem, y, larguraPagina - margem, y);
-      y += 6;
-
-      tituloSecao("Identificacao da Proposta");
-      blocoDuasColunas(
-        [
-          { label: "Numero", value: proposta.numero || proposta.db_id || "—" },
-          { label: "Referencia interna", value: proposta.referencia_interna },
-          { label: "Estado", value: proposta.estado },
-        ],
-        [
-          { label: "Data", value: formatDatePt(proposta.data) },
-          { label: "Validade", value: `${Number(proposta.validade || 30)} dias` },
-          { label: "IVA", value: `${Number(proposta.iva || 23)}%` },
-        ]
-      );
-
-      tituloSecao("Empresa Consultora");
-      blocoDuasColunas(
-        [
-          { label: "Nome", value: empresaConsultora.nome },
-          { label: "NIPC", value: empresaConsultora.nipc },
-          { label: "Morada", value: empresaConsultora.morada },
-          { label: "Telefone", value: empresaConsultora.telefone },
-        ],
-        [
-          { label: "Email", value: empresaConsultora.email },
-          { label: "Website", value: empresaConsultora.website },
-          { label: "Signatario", value: empresaConsultora.nome_signatario },
-          { label: "Cargo", value: empresaConsultora.cargo_signatario },
-          { label: "Telemovel signatario", value: empresaConsultora.telemovel_signatario },
-        ]
-      );
-
-      tituloSecao("Cliente");
-      blocoDuasColunas(
-        [
-          { label: "Nome", value: cliente.nome },
-          { label: "NIPC", value: cliente.nipc },
-          { label: "Tipo de empresa", value: cliente.tipo_empresa },
-          { label: "Morada", value: cliente.morada },
-          { label: "Distrito/Cidade", value: cliente.distrito_cidade },
-        ],
-        [
-          { label: "Setor atividade", value: cliente.setor_atividade },
-          { label: "Contacto", value: cliente.contacto_nome },
-          { label: "Cargo", value: cliente.contacto_cargo },
-          { label: "Email", value: cliente.contacto_email },
-          { label: "Telefone", value: cliente.contacto_telefone },
-        ]
-      );
-
-      tituloSecao("Projeto, Programa e Aviso");
-      blocoDuasColunas(
-        [
-          { label: "Tipo de projeto", value: tipoProjeto.nome },
-          { label: "Programa", value: programa?.nome || "—" },
-          { label: "Taxa de incentivo", value: programa?.pct ? `${programa.pct}%` : "—" },
-          { label: "Investimento elegivel", value: formatCurrency(proposta.investimento || 0) },
-          { label: "Incentivo estimado", value: formatCurrency(incentivoEstimado) },
-        ],
-        [
-          { label: "Aviso", value: selectedAviso?.codigo || selectedPrograma?.aviso || "—" },
-          { label: "Abertura", value: formatDatePt(selectedAviso?.abertura) },
-          { label: "Fecho", value: formatDatePt(selectedAviso?.fecho) },
-          { label: "Dotacao", value: selectedAviso?.dotacao != null ? formatCurrency(selectedAviso.dotacao) : "—" },
-          { label: "Despesa minima", value: selectedAviso?.despesa_min != null ? formatCurrency(selectedAviso.despesa_min) : "—" },
-          { label: "Despesa maxima", value: selectedAviso?.despesa_max != null ? formatCurrency(selectedAviso.despesa_max) : "—" },
-        ]
-      );
-      blocoTexto("Descricao do aviso", selectedAviso?.descricao || selectedPrograma?.descricao || "—");
-
-      tituloSecao("Fases do Aviso");
-      if (fasesAviso.length === 0) {
-        blocoTexto("Fases", "Sem fases registadas");
-      } else {
-        fasesAviso.forEach((fase, index) => {
-          garantirEspaco(8);
-          blocoTexto(`Fase ${index + 1} (${valorSeguro(fase.nome)})`, formatDatePt(fase.prazo));
-        });
-      }
-
-      tituloSecao("Etapas do Modelo");
-      if (modeloEstrutura.length === 0) {
-        blocoTexto("Etapas", "Sem etapas registadas");
-      } else {
-        modeloEstrutura.forEach((atividade, index) => {
-          garantirEspaco(16);
-          doc.setFont("helvetica", "bold");
-          doc.setFontSize(10);
-          doc.text(`${index + 1}. ${valorSeguro(atividade.nome)}`, margem, y);
-          y += 5;
-          doc.setFont("helvetica", "normal");
-          doc.setFontSize(9);
-          if (atividade.descricao) {
-            blocoTexto("Descricao", atividade.descricao);
-          }
-          blocoTexto("Dias estimados", atividade.dias_estimados ? `${Number(atividade.dias_estimados)} dias` : "—");
-          if (atividade.info_adicional) {
-            blocoTexto("Info adicional", atividade.info_adicional);
-          }
-
-          const tarefasSelecionadas = Array.isArray(atividade.tarefas)
-            ? atividade.tarefas.filter((tarefa) => tarefa.selecionado !== false)
-            : [];
-          if (tarefasSelecionadas.length > 0) {
-            blocoTexto("Tarefas", tarefasSelecionadas.map((tarefa) => `- ${tarefa.nome}`).join("\n"));
-          }
-
-          y += 1;
-        });
-      }
-
-      tituloSecao("Orcamento");
-      autoTable(doc, {
-        startY: y,
-        margin: { left: margem, right: margem },
-        head: [["Modulo", "Servico", "Honorario", "Valor"]],
-        body: orcamentoLinhas.map((linha) => [
-          `Modulo ${valorSeguro(linha.codigo)}`,
-          valorSeguro(linha.nome),
-          valorSeguro(linha.honorarioLabel),
-          formatCurrency(linha.valor),
-        ]),
-        styles: { font: "helvetica", fontSize: 8.5, cellPadding: 2.2, valign: "middle" },
-        headStyles: { fillColor: [41, 87, 117] },
+      generateProposalPDF({
+        propostaNumero: proposta.numero || proposta.db_id,
+        proposta,
+        cliente,
+        empresaConsultora,
+        tipoProjeto,
+        programa,
+        selectedPrograma,
+        selectedAviso,
+        modeloEstrutura,
+        orcamentoLinhas,
+        notasExclusoes,
+        condicoesGerais,
+        totais,
+        formatDatePt,
+        formatCurrency,
+        normalizeAvisoFases,
       });
-      y = doc.lastAutoTable.finalY + 4;
 
-      autoTable(doc, {
-        startY: y,
-        margin: { left: margem, right: margem },
-        body: [
-          ["Total s/ IVA", formatCurrency(totais.totalSemIva)],
-          [`IVA (${Number(proposta.iva || 23)}%)`, formatCurrency(totais.totalIva)],
-          ["Total c/ IVA", formatCurrency(totais.totalComIva)],
-        ],
-        styles: { font: "helvetica", fontSize: 9, cellPadding: 2.4 },
-        columnStyles: {
-          0: { fontStyle: "bold" },
-          1: { halign: "right", fontStyle: "bold" },
-        },
-      });
-      y = doc.lastAutoTable.finalY + 4;
-
-      tituloSecao("Planos de Pagamento por Serviço");
-      if (orcamentoLinhas.length === 0) {
-        blocoTexto("Plano", "Sem serviços configurados");
-      } else {
-        orcamentoLinhas.forEach((linha) => {
-          garantirEspaco(14);
-          doc.setFont("helvetica", "bold");
-          doc.setFontSize(10);
-          doc.text(`Serviço ${valorSeguro(linha.codigo)} - ${valorSeguro(linha.nome)}`, margem, y);
-          y += 4;
-
-          autoTable(doc, {
-            startY: y,
-            margin: { left: margem, right: margem },
-            head: [["Descricao", "%", "Prazo"]],
-            body: (linha.plano_pagamentos || []).map((pagamento) => [
-              valorSeguro(pagamento.descricao),
-              `${Number(pagamento.percentagem || 0)}%`,
-              `Dia ${Number(pagamento.dias_apos_aceite || 0)}${Number(pagamento.dias_apos_aceite || 0) === 0 ? " (Imediato)" : ""}`,
-            ]),
-            styles: { font: "helvetica", fontSize: 8.5, cellPadding: 2.2 },
-            headStyles: { fillColor: [41, 87, 117] },
-          });
-          y = doc.lastAutoTable.finalY + 4;
-        });
-      }
-
-      tituloSecao("Notas e Exclusoes");
-      if (notasExclusoes.length === 0) {
-        blocoTexto("Notas", "Sem notas adicionais");
-      } else {
-        notasExclusoes.forEach((nota, index) => blocoTexto(`${index + 1}`, nota));
-      }
-
-      tituloSecao("Condicoes Gerais");
-      blocoTexto("Entidade RAL", condicoesGerais.ral);
-      blocoTexto("Email RGPD", condicoesGerais.rgpd_email);
-
-      const totalPaginas = doc.getNumberOfPages();
-      for (let page = 1; page <= totalPaginas; page += 1) {
-        doc.setPage(page);
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(8);
-        doc.setTextColor(120, 120, 120);
-        doc.text(
-          `Gerado em ${new Date().toLocaleDateString("pt-PT")} - Pagina ${page}/${totalPaginas}`,
-          larguraPagina / 2,
-          alturaPagina - 6,
-          { align: "center" }
-        );
-      }
-
-      const propostaNumero = proposta.numero || proposta.db_id || "proposta";
-      doc.save(`Proposta-${propostaNumero}.pdf`);
       showToast("PDF gerado com sucesso!");
     } catch (error) {
       console.error("Erro ao gerar PDF:", error);
@@ -2050,31 +1830,35 @@ export default function PropostasComerciais() {
                       key={atividade.id}
                       className={`propostas-service-card ${atividade.selecionado ? "selected" : ""}`}
                     >
-                      <button
-                        className="propostas-service-header"
-                        type="button"
-                        onClick={() => toggleAtividadeModelo(atividade.id)}
-                      >
-                        <span className="propostas-service-check">{atividade.selecionado ? "✓" : ""}</span>
-                        <span className="propostas-service-code">{atividade.ordem}</span>
-                        <span className="propostas-service-main">
-                          <span className="propostas-service-name">{atividade.nome}</span>
-                          <span className="muted">{atividade.descricao || "Atividade principal do modelo"}</span>
-                        </span>
-                        <span className="propostas-service-price" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                          {atividade.dias_estimados ? `${Number(atividade.dias_estimados)}d` : ""}
-                          <button
-                            type="button"
-                            className="btn-small"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              removeAtividadeModelo(atividade.id);
-                            }}
-                          >
-                            Remover atividade
-                          </button>
-                        </span>
-                      </button>
+                      <div style={{ display: "flex", alignItems: "stretch" }}>
+                        <button
+                          className="propostas-service-header"
+                          type="button"
+                          onClick={() => toggleAtividadeModelo(atividade.id)}
+                          style={{ flex: 1 }}
+                        >
+                          <span className="propostas-service-check">{atividade.selecionado ? "✓" : ""}</span>
+                          <span className="propostas-service-code">{atividade.ordem}</span>
+                          <span className="propostas-service-main">
+                            <span className="propostas-service-name">{atividade.nome}</span>
+                            <span className="muted">{atividade.descricao || "Atividade principal do modelo"}</span>
+                          </span>
+                          <span className="propostas-service-price">
+                            {atividade.dias_estimados ? `${Number(atividade.dias_estimados)}d` : ""}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-small"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            removeAtividadeModelo(atividade.id);
+                          }}
+                          style={{ marginLeft: "8px" }}
+                        >
+                          ×
+                        </button>
+                      </div>
 
                       {atividade.selecionado && (
                         <div className="propostas-service-body">
