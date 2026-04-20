@@ -131,6 +131,14 @@ const initialServicos = () =>
 
 const initialNotas = () => [...INITIAL_NOTAS];
 
+const INITIAL_PLANO_PAGAMENTO_SERVICO = [
+  { percentagem: 50, descricao: "Adjudicação", dias_apos_aceite: 0 },
+  { percentagem: 50, descricao: "Conclusão", dias_apos_aceite: 30 },
+];
+
+const createPlanoPagamentoServico = () =>
+  INITIAL_PLANO_PAGAMENTO_SERVICO.map((item) => ({ ...item }));
+
 const normalizeTemplateTarefa = (tarefa, index = 0) => ({
   id: tarefa?.id || `tarefa-${index + 1}`,
   template_atividade_id: tarefa?.template_atividade_id || tarefa?.atividade_id || "",
@@ -149,6 +157,15 @@ const normalizeTemplateAtividade = (atividade, index = 0) => ({
   descricao: String(atividade?.descricao || ""),
   dias_estimados: Number(atividade?.dias_estimados || 0),
   info_adicional: String(atividade?.info_adicional || ""),
+  valor_servico: Number(atividade?.valor_servico || 0),
+  condicoes_pagamento: String(atividade?.condicoes_pagamento || ""),
+  plano_pagamentos: Array.isArray(atividade?.plano_pagamentos) && atividade.plano_pagamentos.length > 0
+    ? atividade.plano_pagamentos.map((item) => ({
+        percentagem: Number(item?.percentagem || 0),
+        descricao: String(item?.descricao || ""),
+        dias_apos_aceite: Number(item?.dias_apos_aceite || 0),
+      }))
+    : createPlanoPagamentoServico(),
   selecionado: atividade?.selecionado !== false,
   tarefas: Array.isArray(atividade?.tarefas)
     ? atividade.tarefas.map((tarefa, tarefaIndex) => normalizeTemplateTarefa(tarefa, tarefaIndex))
@@ -696,7 +713,7 @@ export default function PropostasComerciais() {
           .update({
             numero_proposta_str: numeroFinal || null,
             payload,
-            plano_pagamentos: planoPagamentos,
+            plano_pagamentos: planoPagamentosConsolidado,
             estado: proposta.estado,
             contato_cliente_id: cliente.contacto_id || null,
             programa_id: programa?.id || null,
@@ -727,7 +744,7 @@ export default function PropostasComerciais() {
               tipo_projeto_id: tipoProjeto.id,
               programa_id: programa?.id || null,
               estado: proposta.estado,
-              plano_pagamentos: planoPagamentos,
+              plano_pagamentos: planoPagamentosConsolidado,
               payload,
             },
           ])
@@ -942,20 +959,32 @@ export default function PropostasComerciais() {
       });
       y = doc.lastAutoTable.finalY + 4;
 
-      tituloSecao("Plano de Pagamentos");
-      autoTable(doc, {
-        startY: y,
-        margin: { left: margem, right: margem },
-        head: [["Descricao", "%", "Prazo"]],
-        body: planoPagamentos.map((pagamento) => [
-          valorSeguro(pagamento.descricao),
-          `${Number(pagamento.percentagem || 0)}%`,
-          `Dia ${Number(pagamento.dias_apos_aceite || 0)}${Number(pagamento.dias_apos_aceite || 0) === 0 ? " (Imediato)" : ""}`,
-        ]),
-        styles: { font: "helvetica", fontSize: 9, cellPadding: 2.2 },
-        headStyles: { fillColor: [41, 87, 117] },
-      });
-      y = doc.lastAutoTable.finalY + 4;
+      tituloSecao("Planos de Pagamento por Serviço");
+      if (orcamentoLinhas.length === 0) {
+        blocoTexto("Plano", "Sem serviços configurados");
+      } else {
+        orcamentoLinhas.forEach((linha) => {
+          garantirEspaco(14);
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(10);
+          doc.text(`Serviço ${valorSeguro(linha.codigo)} - ${valorSeguro(linha.nome)}`, margem, y);
+          y += 4;
+
+          autoTable(doc, {
+            startY: y,
+            margin: { left: margem, right: margem },
+            head: [["Descricao", "%", "Prazo"]],
+            body: (linha.plano_pagamentos || []).map((pagamento) => [
+              valorSeguro(pagamento.descricao),
+              `${Number(pagamento.percentagem || 0)}%`,
+              `Dia ${Number(pagamento.dias_apos_aceite || 0)}${Number(pagamento.dias_apos_aceite || 0) === 0 ? " (Imediato)" : ""}`,
+            ]),
+            styles: { font: "helvetica", fontSize: 8.5, cellPadding: 2.2 },
+            headStyles: { fillColor: [41, 87, 117] },
+          });
+          y = doc.lastAutoTable.finalY + 4;
+        });
+      }
 
       tituloSecao("Notas e Exclusoes");
       if (notasExclusoes.length === 0) {
@@ -1149,6 +1178,9 @@ export default function PropostasComerciais() {
         descricao: "",
         dias_estimados: 0,
         info_adicional: "",
+        valor_servico: 0,
+        condicoes_pagamento: "",
+        plano_pagamentos: createPlanoPagamentoServico(),
         selecionado: true,
         tarefas: [],
       },
@@ -1239,6 +1271,55 @@ export default function PropostasComerciais() {
           tarefas: (atividade.tarefas || [])
             .filter((tarefa) => tarefa.id !== tarefaId)
             .map((tarefa, index) => ({ ...tarefa, ordem: index + 1 })),
+        };
+      })
+    );
+  };
+
+  const addPagamentoServico = (atividadeId) => {
+    setModeloEstrutura((previous) =>
+      previous.map((atividade) => {
+        if (atividade.id !== atividadeId) return atividade;
+
+        return {
+          ...atividade,
+          plano_pagamentos: [
+            ...(Array.isArray(atividade.plano_pagamentos) ? atividade.plano_pagamentos : []),
+            { percentagem: 0, descricao: "", dias_apos_aceite: 0 },
+          ],
+        };
+      })
+    );
+  };
+
+  const updatePagamentoServico = (atividadeId, index, field, value) => {
+    setModeloEstrutura((previous) =>
+      previous.map((atividade) => {
+        if (atividade.id !== atividadeId) return atividade;
+
+        return {
+          ...atividade,
+          plano_pagamentos: (atividade.plano_pagamentos || []).map((pag, pagIndex) =>
+            pagIndex === index
+              ? {
+                  ...pag,
+                  [field]: field === "descricao" ? value : Number(value || 0),
+                }
+              : pag
+          ),
+        };
+      })
+    );
+  };
+
+  const removePagamentoServico = (atividadeId, index) => {
+    setModeloEstrutura((previous) =>
+      previous.map((atividade) => {
+        if (atividade.id !== atividadeId) return atividade;
+
+        return {
+          ...atividade,
+          plano_pagamentos: (atividade.plano_pagamentos || []).filter((_, pagIndex) => pagIndex !== index),
         };
       })
     );
@@ -1370,8 +1451,8 @@ export default function PropostasComerciais() {
   // ========================================================================
 
   const activeServicos = useMemo(
-    () => servicos.filter((servico) => servico.selecionado),
-    [servicos]
+    () => (modeloEstrutura || []).filter((atividade) => atividade.selecionado !== false),
+    [modeloEstrutura]
   );
 
   const incentivoEstimado = useMemo(() => {
@@ -1382,31 +1463,20 @@ export default function PropostasComerciais() {
   }, [proposta.investimento, programa]);
 
   const orcamentoLinhas = useMemo(() => {
-    return activeServicos.map((servico) => {
-      let valor = 0;
-      let honorarioLabel = "";
-
-      if (servico.honorario_tipo === "fixo") {
-        valor = Number(servico.honorario_valor || 0);
-        honorarioLabel = formatCurrency(valor);
-      } else if (servico.honorario_tipo === "percentagem_com_minimo") {
-        valor = Math.max(
-          (incentivoEstimado * Number(servico.honorario_valor || 0)) / 100,
-          Number(servico.honorario_minimo || 0)
-        );
-        honorarioLabel = `${Number(servico.honorario_valor || 0)}% (mín. ${formatCurrency(servico.honorario_minimo || 0)})`;
-      }
+    return activeServicos.map((atividade, index) => {
+      const valor = Number(atividade.valor_servico || 0);
 
       return {
-        id: servico.id,
-        codigo: servico.codigo,
-        nome: servico.nome,
+        id: atividade.id,
+        codigo: atividade.ordem || index + 1,
+        nome: atividade.nome,
         valor,
-        honorarioLabel,
-        condicoes: servico.condicoes,
+        honorarioLabel: formatCurrency(valor),
+        condicoes: atividade.condicoes_pagamento || "",
+        plano_pagamentos: Array.isArray(atividade.plano_pagamentos) ? atividade.plano_pagamentos : [],
       };
     });
-  }, [activeServicos, incentivoEstimado]);
+  }, [activeServicos]);
 
   const totais = useMemo(() => {
     const totalSemIva = orcamentoLinhas.reduce((accumulator, linha) => accumulator + linha.valor, 0);
@@ -1416,6 +1486,20 @@ export default function PropostasComerciais() {
 
     return { totalSemIva, totalIva, totalComIva, iva };
   }, [orcamentoLinhas, proposta.iva]);
+
+  const planoPagamentosConsolidado = useMemo(
+    () =>
+      activeServicos.flatMap((atividade) =>
+        (atividade.plano_pagamentos || []).map((pagamento) => ({
+          servico_id: atividade.id,
+          servico_nome: atividade.nome,
+          percentagem: Number(pagamento.percentagem || 0),
+          descricao: pagamento.descricao || "",
+          dias_apos_aceite: Number(pagamento.dias_apos_aceite || 0),
+        }))
+      ),
+    [activeServicos]
+  );
 
   // Compat layer for Step 3 visual block
   const programasDisponiveis = useMemo(
@@ -1446,10 +1530,10 @@ export default function PropostasComerciais() {
       total_sem_iva: totais.totalSemIva,
       total_iva: totais.totalIva,
       total_com_iva: totais.totalComIva,
-      plano_pagamentos: planoPagamentos,
+      plano_pagamentos: planoPagamentosConsolidado,
       notas: notasExclusoes,
     },
-    plano_pagamentos: planoPagamentos,
+    plano_pagamentos: planoPagamentosConsolidado,
   });
 
   const resetForm = () => {
@@ -2071,63 +2155,74 @@ export default function PropostasComerciais() {
 
               <div className="card-inner">
                 <div className="section-heading">Detalhes dos Serviços</div>
-                {orcamentoLinhas.length > 0 ? (
-                  orcamentoLinhas.map((servico) => (
-                    <div key={servico.id} style={{ marginBottom: "16px", padding: "12px", background: "#f8f9fa", borderRadius: "6px" }}>
+                {activeServicos.length > 0 ? (
+                  activeServicos.map((atividade) => (
+                    <div key={atividade.id} style={{ marginBottom: "16px", padding: "12px", background: "#f8f9fa", borderRadius: "8px" }}>
                       <div style={{ marginBottom: "10px" }}>
-                        <strong>Módulo {servico.codigo} — {servico.nome}</strong>
+                        <strong>Serviço {atividade.ordem} — {atividade.nome || "Sem nome"}</strong>
                       </div>
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                        <div>
-                          <strong>Honorários:</strong> {servico.honorarioLabel}
+
+                      <div className="field-grid field-grid-3" style={{ marginBottom: "8px" }}>
+                        <div className="field">
+                          <label>Valor do serviço (€)</label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={Number(atividade.valor_servico || 0)}
+                            onChange={(event) => updateAtividadeModelo(atividade.id, "valor_servico", event.target.value)}
+                          />
                         </div>
-                        <div>
-                          <strong>Valor:</strong> {formatCurrency(servico.valor)}
+                        <div className="field span-2">
+                          <label>Condições de pagamento</label>
+                          <input
+                            type="text"
+                            value={atividade.condicoes_pagamento || ""}
+                            onChange={(event) => updateAtividadeModelo(atividade.id, "condicoes_pagamento", event.target.value)}
+                            placeholder="ex. 50% adjudicação · 50% conclusão"
+                          />
                         </div>
                       </div>
+
+                      <div className="section-subtitle" style={{ marginTop: "10px" }}>Plano de Pagamentos do Serviço</div>
+                      <div className="propostas-pagamentos-list">
+                        {(atividade.plano_pagamentos || []).map((pag, index) => (
+                          <div key={`${atividade.id}-pag-${index}`} style={{ display: "grid", gridTemplateColumns: "80px 1fr 120px 80px 40px", gap: "8px", alignItems: "center", marginBottom: "10px" }}>
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              value={Number(pag.percentagem || 0)}
+                              onChange={(e) => updatePagamentoServico(atividade.id, index, "percentagem", e.target.value)}
+                              placeholder="%"
+                            />
+                            <input
+                              type="text"
+                              value={pag.descricao || ""}
+                              onChange={(e) => updatePagamentoServico(atividade.id, index, "descricao", e.target.value)}
+                              placeholder="ex. Adjudicação"
+                            />
+                            <input
+                              type="number"
+                              min="0"
+                              value={Number(pag.dias_apos_aceite || 0)}
+                              onChange={(e) => updatePagamentoServico(atividade.id, index, "dias_apos_aceite", e.target.value)}
+                              placeholder="Dias"
+                            />
+                            <small className="muted">{Number(pag.dias_apos_aceite || 0) === 0 ? "Imediato" : `+${Number(pag.dias_apos_aceite || 0)}d`}</small>
+                            <button type="button" className="btn-small" onClick={() => removePagamentoServico(atividade.id, index)}>
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <button type="button" className="btn-soft-cta" onClick={() => addPagamentoServico(atividade.id)}>
+                        Adicionar parcela
+                      </button>
                     </div>
                   ))
                 ) : (
-                  <div className="muted">Nenhum módulo selecionado no passo 4.</div>
+                  <div className="muted">Nenhum serviço selecionado no passo 4.</div>
                 )}
-              </div>
-
-              <div className="card-inner">
-                <div className="section-heading">Plano de Pagamentos</div>
-                <div className="propostas-pagamentos-list">
-                  {planoPagamentos.map((pag, index) => (
-                    <div key={index} style={{ display: "grid", gridTemplateColumns: "80px 1fr 120px 80px 40px", gap: "8px", alignItems: "center", marginBottom: "10px" }}>
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={pag.percentagem}
-                        onChange={(e) => updatePagamento(index, "percentagem", e.target.value)}
-                        placeholder="%"
-                      />
-                      <input
-                        type="text"
-                        value={pag.descricao}
-                        onChange={(e) => updatePagamento(index, "descricao", e.target.value)}
-                        placeholder="ex. Adjudicação"
-                      />
-                      <input
-                        type="number"
-                        min="0"
-                        value={pag.dias_apos_aceite}
-                        onChange={(e) => updatePagamento(index, "dias_apos_aceite", e.target.value)}
-                        placeholder="Dias"
-                      />
-                      <small className="muted">{pag.dias_apos_aceite === 0 ? "Imediato" : `+${pag.dias_apos_aceite}d`}</small>
-                      <button type="button" className="btn-small" onClick={() => removePagamento(index)}>
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <button type="button" className="btn-soft-cta" onClick={addPagamento}>
-                  Adicionar parcela
-                </button>
               </div>
 
               <div className="propostas-totals">
@@ -2238,8 +2333,8 @@ export default function PropostasComerciais() {
                   <div className="summary-value">{programa?.nome || "—"}</div>
                 </div>
                 <div className="summary-card">
-                  <div className="summary-label">Módulos</div>
-                  <div className="summary-value">{activeServicos.length} de {servicos.length}</div>
+                  <div className="summary-label">Serviços</div>
+                  <div className="summary-value">{activeServicos.length} de {modeloEstrutura.length}</div>
                 </div>
                 <div className="summary-card">
                   <div className="summary-label">Validade</div>
