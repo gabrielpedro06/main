@@ -1269,7 +1269,7 @@ input:focus, select:focus, textarea:focus {
 
 .propostas-cards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
 }
 
@@ -1850,6 +1850,10 @@ input:focus, select:focus, textarea:focus {
     grid-template-columns: 1fr;
   }
 
+  .propostas-cards-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .propostas-stepper {
     position: static;
   }
@@ -1864,6 +1868,7 @@ input:focus, select:focus, textarea:focus {
   }
 
   .propostas-programas-grid,
+  .propostas-cards-grid,
   .field-grid,
   .field-grid-3,
   .propostas-summary-grid,
