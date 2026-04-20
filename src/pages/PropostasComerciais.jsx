@@ -2172,28 +2172,27 @@ export default function PropostasComerciais() {
                             onChange={(event) => updateAtividadeModelo(atividade.id, "valor_servico", event.target.value)}
                           />
                         </div>
-                        <div className="field span-2">
-                          <label>Condições de pagamento</label>
-                          <input
-                            type="text"
-                            value={atividade.condicoes_pagamento || ""}
-                            onChange={(event) => updateAtividadeModelo(atividade.id, "condicoes_pagamento", event.target.value)}
-                            placeholder="ex. 50% adjudicação · 50% conclusão"
-                          />
-                        </div>
                       </div>
 
                       <div className="section-subtitle" style={{ marginTop: "10px" }}>Plano de Pagamentos do Serviço</div>
+                      
+                      <div style={{ display: "grid", gridTemplateColumns: "80px 1fr 140px 40px", gap: "8px", marginBottom: "8px", fontSize: "12px", color: "#666", fontWeight: 600, alignItems: "center" }}>
+                        <div>Percentagem</div>
+                        <div>Descrição</div>
+                        <div>Dias após aceite</div>
+                        <div />
+                      </div>
+
                       <div className="propostas-pagamentos-list">
                         {(atividade.plano_pagamentos || []).map((pag, index) => (
-                          <div key={`${atividade.id}-pag-${index}`} style={{ display: "grid", gridTemplateColumns: "80px 1fr 120px 80px 40px", gap: "8px", alignItems: "center", marginBottom: "10px" }}>
+                          <div key={`${atividade.id}-pag-${index}`} style={{ display: "grid", gridTemplateColumns: "80px 1fr 140px 40px", gap: "8px", alignItems: "center", marginBottom: "10px" }}>
                             <input
                               type="number"
                               min="0"
                               max="100"
                               value={Number(pag.percentagem || 0)}
                               onChange={(e) => updatePagamentoServico(atividade.id, index, "percentagem", e.target.value)}
-                              placeholder="%"
+                              placeholder="0"
                             />
                             <input
                               type="text"
@@ -2206,9 +2205,8 @@ export default function PropostasComerciais() {
                               min="0"
                               value={Number(pag.dias_apos_aceite || 0)}
                               onChange={(e) => updatePagamentoServico(atividade.id, index, "dias_apos_aceite", e.target.value)}
-                              placeholder="Dias"
+                              placeholder="0"
                             />
-                            <small className="muted">{Number(pag.dias_apos_aceite || 0) === 0 ? "Imediato" : `+${Number(pag.dias_apos_aceite || 0)}d`}</small>
                             <button type="button" className="btn-small" onClick={() => removePagamentoServico(atividade.id, index)}>
                               ×
                             </button>
