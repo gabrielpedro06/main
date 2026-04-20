@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+﻿import { useState, useEffect, useMemo } from "react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { useParams } from "react-router-dom";
@@ -130,6 +130,35 @@ const initialServicos = () =>
   }));
 
 const initialNotas = () => [...INITIAL_NOTAS];
+
+const normalizeTemplateTarefa = (tarefa, index = 0) => ({
+  id: tarefa?.id || `tarefa-${index + 1}`,
+  template_atividade_id: tarefa?.template_atividade_id || tarefa?.atividade_id || "",
+  ordem: Number(tarefa?.ordem || index + 1),
+  nome: String(tarefa?.nome || ""),
+  descricao: String(tarefa?.descricao || ""),
+  dias_estimados: Number(tarefa?.dias_estimados || 0),
+  info_adicional: String(tarefa?.info_adicional || ""),
+  selecionado: tarefa?.selecionado !== false,
+});
+
+const normalizeTemplateAtividade = (atividade, index = 0) => ({
+  id: atividade?.id || `atividade-${index + 1}`,
+  ordem: Number(atividade?.ordem || index + 1),
+  nome: String(atividade?.nome || ""),
+  descricao: String(atividade?.descricao || ""),
+  dias_estimados: Number(atividade?.dias_estimados || 0),
+  info_adicional: String(atividade?.info_adicional || ""),
+  selecionado: atividade?.selecionado !== false,
+  tarefas: Array.isArray(atividade?.tarefas)
+    ? atividade.tarefas.map((tarefa, tarefaIndex) => normalizeTemplateTarefa(tarefa, tarefaIndex))
+    : [],
+});
+
+const normalizeModeloEstrutura = (atividades) =>
+  (Array.isArray(atividades) ? atividades : [])
+    .map((atividade, index) => normalizeTemplateAtividade(atividade, index))
+    .sort((a, b) => Number(a.ordem || 0) - Number(b.ordem || 0));
 
 // Plano de Pagamentos default
 const INITIAL_PLANO_PAGAMENTOS = [
@@ -274,6 +303,7 @@ export default function PropostasComerciais() {
   const [proposta, setProposta] = useState(INITIAL_PROPOSTA);
   const [condicoesGerais, setCondicoesGerais] = useState(INITIAL_CONDICOES_GERAIS);
   const [servicos, setServicos] = useState(initialServicos);
+  const [modeloEstrutura, setModeloEstrutura] = useState([]);
   const [notasExclusoes, setNotasExclusoes] = useState(initialNotas);
   const [planoPagamentos, setPlanoPagamentos] = useState(INITIAL_PLANO_PAGAMENTOS);
 
@@ -513,6 +543,23 @@ export default function PropostasComerciais() {
           });
         }
 
+        if (Array.isArray(payload?.modelo_estrutura) && payload.modelo_estrutura.length > 0) {
+          setModeloEstrutura(normalizeModeloEstrutura(payload.modelo_estrutura));
+        } else if (Array.isArray(payload?.modelo_etapas) && payload.modelo_etapas.length > 0) {
+          setModeloEstrutura(
+            normalizeModeloEstrutura(
+              payload.modelo_etapas.map((atividade, index) => ({
+                ...normalizeTemplateAtividade(atividade, index),
+                tarefas: Array.isArray(atividade?.tarefas)
+                  ? atividade.tarefas.map((tarefa, tarefaIndex) => normalizeTemplateTarefa(tarefa, tarefaIndex))
+                  : [],
+              }))
+            )
+          );
+        } else if (data.tipo_projeto_id) {
+          void carregarModeloEstrutura(data.tipo_projeto_id);
+        }
+
         if (data.programa_id) {
           const prog = programas.find((p) => String(p.id) === String(data.programa_id));
           if (prog) setPrograma(prog);
@@ -570,6 +617,52 @@ export default function PropostasComerciais() {
   const showToast = (message) => {
     setToastMessage(message);
     window.setTimeout(() => setToastMessage(""), 2500);
+  };
+
+  const carregarModeloEstrutura = async (tipoProjetoId) => {
+    if (!tipoProjetoId) {
+      setModeloEstrutura([]);
+      return;
+    }
+
+    try {
+      const { data: atividadesData, error } = await supabase
+        .from("template_atividades")
+        .select("id, nome, descricao, dias_estimados, info_adicional, ordem, tipo_projeto_id")
+        .eq("tipo_projeto_id", tipoProjetoId)
+        .order("ordem", { ascending: true })
+        .order("created_at", { ascending: true });
+
+      if (error) throw error;
+
+      const atividades = (atividadesData || []).map((item, index) => normalizeTemplateAtividade(item, index));
+      const idsAtividades = atividades.map((item) => item.id);
+
+      let tarefas = [];
+      if (idsAtividades.length > 0) {
+        const { data: tarefasData, error: tarefasError } = await supabase
+          .from("template_tarefas")
+          .select("id, template_atividade_id, nome, descricao, dias_estimados, info_adicional, ordem")
+          .in("template_atividade_id", idsAtividades)
+          .order("ordem", { ascending: true })
+          .order("created_at", { ascending: true });
+
+        if (tarefasError) throw tarefasError;
+        tarefas = tarefasData || [];
+      }
+
+      setModeloEstrutura(
+        atividades.map((atividade) => ({
+          ...atividade,
+          tarefas: tarefas
+            .filter((tarefa) => String(tarefa.template_atividade_id) === String(atividade.id))
+            .map((tarefa, tarefaIndex) => normalizeTemplateTarefa(tarefa, tarefaIndex)),
+        }))
+      );
+    } catch (error) {
+      console.error("Erro ao carregar etapas do modelo:", error);
+      setModeloEstrutura([]);
+    }
   };
 
   const goStep = (nextStep) => {
@@ -671,7 +764,6 @@ export default function PropostasComerciais() {
       const colGap = 8;
       const colLargura = (larguraUtil - colGap) / 2;
       const fasesAviso = normalizeAvisoFases(selectedAviso?.fases);
-      const servicosSelecionados = servicos.filter((s) => s.selecionado);
       const valorSeguro = (value) => {
         const text = String(value ?? "").trim();
         return text || "—";
@@ -702,44 +794,6 @@ export default function PropostasComerciais() {
         y += Math.max(5, linhas.length * 4.5);
       };
 
-      const tituloSecao = (titulo) => {
-        garantirEspaco(12);
-        doc.setFillColor(245, 247, 250);
-        doc.rect(margem, y - 4.5, larguraUtil, 8, "F");
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(11);
-        doc.text(titulo, margem + 2, y + 1);
-        y += 7;
-      };
-
-      const blocoDuasColunas = (esquerda, direita) => {
-        const yInicial = y;
-
-        let yEsquerda = yInicial;
-        esquerda.forEach(({ label, value }) => {
-          y = yEsquerda;
-          blocoTexto(label, value, margem, colLargura);
-          yEsquerda = y;
-        });
-
-        let yDireita = yInicial;
-        direita.forEach(({ label, value }) => {
-          y = yDireita;
-          blocoTexto(label, value, margem + colLargura + colGap, colLargura);
-          yDireita = y;
-        });
-
-        y = Math.max(yEsquerda, yDireita) + 1;
-      };
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(17);
-      doc.text("Proposta Comercial", larguraPagina / 2, y, { align: "center" });
-      y += 7;
-
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(10);
-      doc.text(`Documento: ${valorSeguro(proposta.numero || proposta.db_id || "proposta")}`, margem, y);
       doc.text(`Data: ${formatDatePt(proposta.data)}`, larguraPagina - margem, y, { align: "right" });
       y += 6;
       doc.setDrawColor(210, 210, 210);
@@ -825,30 +879,31 @@ export default function PropostasComerciais() {
         });
       }
 
-      tituloSecao("Servicos Incluidos");
-      if (servicosSelecionados.length === 0) {
-        blocoTexto("Servicos", "Sem servicos selecionados");
+      tituloSecao("Etapas do Modelo");
+      if (modeloEstrutura.length === 0) {
+        blocoTexto("Etapas", "Sem etapas registadas");
       } else {
-        servicosSelecionados.forEach((servico) => {
-          garantirEspaco(20);
+        modeloEstrutura.forEach((atividade, index) => {
+          garantirEspaco(16);
           doc.setFont("helvetica", "bold");
           doc.setFontSize(10);
-          doc.text(`Modulo ${valorSeguro(servico.codigo)} - ${valorSeguro(servico.nome)}`, margem, y);
+          doc.text(`${index + 1}. ${valorSeguro(atividade.nome)}`, margem, y);
           y += 5;
           doc.setFont("helvetica", "normal");
           doc.setFontSize(9);
-          blocoTexto("Descricao", servico.descricao);
-          blocoTexto("Honorario", orcamentoLinhas.find((l) => l.id === servico.id)?.honorarioLabel || "—");
-          blocoTexto("Condicoes", servico.condicoes);
-
-          const atividades = Array.isArray(servico.atividades) ? servico.atividades.filter(Boolean) : [];
-          if (atividades.length > 0) {
-            blocoTexto("Atividades", atividades.map((item) => `- ${item}`).join("\n"));
+          if (atividade.descricao) {
+            blocoTexto("Descricao", atividade.descricao);
+          }
+          blocoTexto("Dias estimados", atividade.dias_estimados ? `${Number(atividade.dias_estimados)} dias` : "—");
+          if (atividade.info_adicional) {
+            blocoTexto("Info adicional", atividade.info_adicional);
           }
 
-          const entregaveis = Array.isArray(servico.entregaveis) ? servico.entregaveis.filter(Boolean) : [];
-          if (entregaveis.length > 0) {
-            blocoTexto("Entregaveis", entregaveis.map((item) => `- ${item}`).join("\n"));
+          const tarefasSelecionadas = Array.isArray(atividade.tarefas)
+            ? atividade.tarefas.filter((tarefa) => tarefa.selecionado !== false)
+            : [];
+          if (tarefasSelecionadas.length > 0) {
+            blocoTexto("Tarefas", tarefasSelecionadas.map((tarefa) => `- ${tarefa.nome}`).join("\n"));
           }
 
           y += 1;
@@ -1078,7 +1133,115 @@ export default function PropostasComerciais() {
       if (!found.tem_programa) {
         setPrograma(null);
       }
+
+      setModeloEstrutura([]);
+      void carregarModeloEstrutura(found.id);
     }
+  };
+
+  const addAtividadeModelo = () => {
+    setModeloEstrutura((previous) => [
+      ...previous,
+      {
+        id: `custom-atividade-${Date.now()}-${previous.length + 1}`,
+        ordem: previous.length + 1,
+        nome: "Nova atividade",
+        descricao: "",
+        dias_estimados: 0,
+        info_adicional: "",
+        selecionado: true,
+        tarefas: [],
+      },
+    ]);
+  };
+
+  const updateAtividadeModelo = (atividadeId, field, value) => {
+    setModeloEstrutura((previous) =>
+      previous.map((atividade) =>
+        atividade.id === atividadeId
+          ? {
+              ...atividade,
+              [field]: field === "dias_estimados" ? Number(value || 0) : value,
+            }
+          : atividade
+      )
+    );
+  };
+
+  const toggleAtividadeModelo = (atividadeId) => {
+    setModeloEstrutura((previous) =>
+      previous.map((atividade) =>
+        atividade.id === atividadeId ? { ...atividade, selecionado: !atividade.selecionado } : atividade
+      )
+    );
+  };
+
+  const removeAtividadeModelo = (atividadeId) => {
+    setModeloEstrutura((previous) =>
+      previous
+        .filter((atividade) => atividade.id !== atividadeId)
+        .map((atividade, index) => ({ ...atividade, ordem: index + 1 }))
+    );
+  };
+
+  const addTarefaModelo = (atividadeId) => {
+    setModeloEstrutura((previous) =>
+      previous.map((atividade) =>
+        atividade.id === atividadeId
+          ? {
+              ...atividade,
+              tarefas: [
+                ...(Array.isArray(atividade.tarefas) ? atividade.tarefas : []),
+                {
+                  id: `custom-tarefa-${Date.now()}-${(atividade.tarefas?.length || 0) + 1}`,
+                  template_atividade_id: atividadeId,
+                  ordem: (atividade.tarefas?.length || 0) + 1,
+                  nome: "Nova tarefa",
+                  descricao: "",
+                  dias_estimados: 0,
+                  info_adicional: "",
+                  selecionado: true,
+                },
+              ],
+            }
+          : atividade
+      )
+    );
+  };
+
+  const updateTarefaModelo = (atividadeId, tarefaId, field, value) => {
+    setModeloEstrutura((previous) =>
+      previous.map((atividade) => {
+        if (atividade.id !== atividadeId) return atividade;
+
+        return {
+          ...atividade,
+          tarefas: (atividade.tarefas || []).map((tarefa) =>
+            tarefa.id === tarefaId
+              ? {
+                  ...tarefa,
+                  [field]: field === "dias_estimados" ? Number(value || 0) : value,
+                }
+              : tarefa
+          ),
+        };
+      })
+    );
+  };
+
+  const removeTarefaModelo = (atividadeId, tarefaId) => {
+    setModeloEstrutura((previous) =>
+      previous.map((atividade) => {
+        if (atividade.id !== atividadeId) return atividade;
+
+        return {
+          ...atividade,
+          tarefas: (atividade.tarefas || [])
+            .filter((tarefa) => tarefa.id !== tarefaId)
+            .map((tarefa, index) => ({ ...tarefa, ordem: index + 1 })),
+        };
+      })
+    );
   };
 
   const selectPrograma = (id) => {
@@ -1165,48 +1328,10 @@ export default function PropostasComerciais() {
     }
   };
 
-  const toggleServico = (id) => {
-    setServicos((previous) =>
-      previous.map((servico) =>
-        servico.id === id ? { ...servico, selecionado: !servico.selecionado } : servico
-      )
-    );
-  };
-
   const updateServicoField = (id, field, value) => {
     setServicos((previous) =>
       previous.map((servico) =>
         servico.id === id ? { ...servico, [field]: value } : servico
-      )
-    );
-  };
-
-  const updateAtividade = (servicoId, index, value) => {
-    setServicos((previous) =>
-      previous.map((servico) =>
-        servico.id === servicoId
-          ? { ...servico, atividades: servico.atividades.map((a, i) => (i === index ? value : a)) }
-          : servico
-      )
-    );
-  };
-
-  const addAtividade = (servicoId) => {
-    setServicos((previous) =>
-      previous.map((servico) =>
-        servico.id === servicoId
-          ? { ...servico, atividades: [...servico.atividades, "Nova atividade"] }
-          : servico
-      )
-    );
-  };
-
-  const removeAtividade = (servicoId, index) => {
-    setServicos((previous) =>
-      previous.map((servico) =>
-        servico.id === servicoId
-          ? { ...servico, atividades: servico.atividades.filter((_, i) => i !== index) }
-          : servico
       )
     );
   };
@@ -1314,6 +1439,7 @@ export default function PropostasComerciais() {
     condicoes_gerais: condicoesGerais,
     servicos: orcamentoLinhas,
     servicos_config: servicos,
+    modelo_estrutura: modeloEstrutura,
     orcamento: {
       investimento: Number(proposta.investimento || 0),
       iva: totais.iva,
@@ -1336,6 +1462,7 @@ export default function PropostasComerciais() {
     setProposta(INITIAL_PROPOSTA);
     setCondicoesGerais(INITIAL_CONDICOES_GERAIS);
     setServicos(initialServicos());
+    setModeloEstrutura([]);
     setNotasExclusoes(initialNotas());
     setPlanoPagamentos(INITIAL_PLANO_PAGAMENTOS);
     setContatosConsultora([]);
@@ -1824,51 +1951,99 @@ export default function PropostasComerciais() {
           {currentStep === 4 && (
             <section className="card propostas-section">
               <div className="section-heading">4 · Serviços</div>
+
               <div className="propostas-service-list">
-                {servicos.map((servico) => (
-                  <article key={servico.id} className={`propostas-service-card ${servico.selecionado ? "selected" : ""}`}>
-                    <button className="propostas-service-header" type="button" onClick={() => toggleServico(servico.id)}>
-                      <span className="propostas-service-check">{servico.selecionado ? "✓" : ""}</span>
-                      <span className="propostas-service-code">{servico.codigo}</span>
-                      <span className="propostas-service-main">
-                        <span className="propostas-service-name">{servico.nome}</span>
-                        <span className="muted">{servico.descricao}</span>
-                      </span>
+                {modeloEstrutura.length === 0 ? (
+                  <div className="card-inner">
+                    <div className="field-hint">Seleciona um tipo de projeto com modelo para carregar as atividades e tarefas.</div>
+                    <button type="button" className="btn-soft-cta" onClick={addAtividadeModelo} style={{ marginTop: "12px" }}>
+                      Adicionar atividade
                     </button>
+                  </div>
+                ) : (
+                  modeloEstrutura.map((atividade) => (
+                    <article
+                      key={atividade.id}
+                      className={`propostas-service-card ${atividade.selecionado ? "selected" : ""}`}
+                    >
+                      <button
+                        className="propostas-service-header"
+                        type="button"
+                        onClick={() => toggleAtividadeModelo(atividade.id)}
+                      >
+                        <span className="propostas-service-check">{atividade.selecionado ? "✓" : ""}</span>
+                        <span className="propostas-service-code">{atividade.ordem}</span>
+                        <span className="propostas-service-main">
+                          <span className="propostas-service-name">{atividade.nome}</span>
+                          <span className="muted">{atividade.descricao || "Atividade principal do modelo"}</span>
+                        </span>
+                        <span className="propostas-service-price" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          {atividade.dias_estimados ? `${Number(atividade.dias_estimados)}d` : ""}
+                          <button
+                            type="button"
+                            className="btn-small"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              removeAtividadeModelo(atividade.id);
+                            }}
+                          >
+                            Remover atividade
+                          </button>
+                        </span>
+                      </button>
 
-                    {servico.selecionado && (
-                      <div className="propostas-service-body">
-                        <div className="muted section-subtitle">Atividades incluídas</div>
-                        <div className="propostas-activities">
-                          {servico.atividades.map((atividade, index) => (
-                            <div key={`${servico.id}-${index}`} className="propostas-activity-row">
-                              <input
-                                type="text"
-                                value={atividade}
-                                onChange={(event) => updateAtividade(servico.id, index, event.target.value)}
-                              />
-                              <button type="button" className="btn-small" onClick={() => removeAtividade(servico.id, index)}>
-                                Remover
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                        <button type="button" className="btn-soft-cta" onClick={() => addAtividade(servico.id)}>
-                          Adicionar atividade
-                        </button>
+                      {atividade.selecionado && (
+                        <div className="propostas-service-body">
+                          <div className="section-subtitle" style={{ textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "10px" }}>
+                            Atividades Incluídas
+                          </div>
+                          <div className="propostas-activities">
+                            {(atividade.tarefas || []).map((tarefa) => (
+                              <div key={tarefa.id} className="propostas-activity-row">
+                                <input
+                                  type="text"
+                                  value={tarefa.nome || ""}
+                                  onChange={(event) => updateTarefaModelo(atividade.id, tarefa.id, "nome", event.target.value)}
+                                />
+                                <button type="button" className="btn-small" onClick={() => removeTarefaModelo(atividade.id, tarefa.id)}>
+                                  Remover
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                          <button type="button" className="btn-soft-cta" onClick={() => addTarefaModelo(atividade.id)}>
+                            Adicionar atividade
+                          </button>
 
-                        <div className="section-subtitle" style={{ marginTop: "12px" }}>Entregáveis</div>
-                        <div className="propostas-pill-list">
-                          {servico.entregaveis.map((entregavel) => (
-                            <span key={entregavel} className="badge badge-warning">
-                              {entregavel}
-                            </span>
-                          ))}
+                          <div className="section-subtitle" style={{ textTransform: "uppercase", letterSpacing: "0.06em", marginTop: "14px" }}>
+                            Entregáveis
+                          </div>
+                          <div className="propostas-pill-list" style={{ marginTop: "8px" }}>
+                            {(atividade.tarefas || []).filter((tarefa) => String(tarefa.nome || "").trim()).length > 0 ? (
+                              (atividade.tarefas || [])
+                                .filter((tarefa) => String(tarefa.nome || "").trim())
+                                .slice(0, 4)
+                                .map((tarefa) => (
+                                  <span key={`badge-${atividade.id}-${tarefa.id}`} className="badge badge-warning">
+                                    {tarefa.nome}
+                                  </span>
+                                ))
+                            ) : (
+                              <span className="badge badge-warning">Sem entregáveis definidos</span>
+                            )}
+                          </div>
+
                         </div>
-                      </div>
-                    )}
-                  </article>
-                ))}
+                      )}
+                    </article>
+                  ))
+                )}
+              </div>
+
+              <div style={{ marginTop: "12px" }}>
+                <button type="button" className="btn-soft-cta" onClick={addAtividadeModelo}>
+                  Adicionar atividade
+                </button>
               </div>
             </section>
           )}
