@@ -91,6 +91,29 @@ export const generateProposalPDF = async (params) => {
   const logoPath = getLogoPath(empresaConsultora);
   const logoBase64 = await loadImage(logoPath);
 
+  // Keep PDF ordering consistent with the order defined in the Services step.
+  const orderedTipoIds = (Array.isArray(orcamentoLinhas) ? orcamentoLinhas : [])
+    .map((linha) => String(linha?.id || ''))
+    .filter(Boolean);
+
+  const orderedTipoNames = (Array.isArray(orcamentoLinhas) ? orcamentoLinhas : [])
+    .map((linha) => safeValue(linha?.nome))
+    .filter((name) => name && name !== '—');
+
+  const getTipoOrderIndex = (tipoProjetoId) => {
+    const id = String(tipoProjetoId || '');
+    if (!id || orderedTipoIds.length === 0) return Number.MAX_SAFE_INTEGER;
+    const idx = orderedTipoIds.indexOf(id);
+    return idx === -1 ? Number.MAX_SAFE_INTEGER : idx;
+  };
+
+  const orderedModeloEstrutura = (Array.isArray(modeloEstrutura) ? [...modeloEstrutura] : []).sort((a, b) => {
+    const tipoOrderA = getTipoOrderIndex(a?.tipo_projeto_id);
+    const tipoOrderB = getTipoOrderIndex(b?.tipo_projeto_id);
+    if (tipoOrderA !== tipoOrderB) return tipoOrderA - tipoOrderB;
+    return Number(a?.ordem || 0) - Number(b?.ordem || 0);
+  });
+
   // ============================================================================
   // HELPER FUNCTIONS
   // ============================================================================
@@ -370,7 +393,10 @@ Gratos pela vossa atenção, ficamos ao dispor para qualquer questão adicional.
   drawTitle('Enquadramento de Financiamento');
   drawTwoColumn(
     [
-      { label: 'Tipo de projeto', value: tipoProjeto?.nome },
+      {
+        label: 'Tipo de projeto',
+        value: orderedTipoNames.length > 0 ? orderedTipoNames.join(' + ') : tipoProjeto?.nome,
+      },
       { label: 'Programa', value: programa?.nome || '—' },
       { label: 'Aviso', value: selectedAviso?.codigo || selectedPrograma?.aviso || '—' },
     ],
@@ -390,10 +416,10 @@ Gratos pela vossa atenção, ficamos ao dispor para qualquer questão adicional.
   doc.text(txtAtividades, marginX, currentY);
   currentY += txtAtividades.length * 4 + 6;
 
-  if (!modeloEstrutura || modeloEstrutura.length === 0) {
+  if (!orderedModeloEstrutura || orderedModeloEstrutura.length === 0) {
     drawFieldValue('', 'Sem etapas registadas', marginX, contentWidth);
   } else {
-    modeloEstrutura.forEach((atividade, index) => {
+    orderedModeloEstrutura.forEach((atividade, index) => {
       ensureSpace(12);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(9.5);

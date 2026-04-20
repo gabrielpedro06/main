@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useMemo } from "react";
+﻿import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "../services/supabase";
 import { generateProposalPDF } from "../components/pdfProposalGenerator";
@@ -100,6 +100,13 @@ const INITIAL_CLIENTE = {
   contacto_telefone: "",
 };
 const INITIAL_TIPO_PROJETO = { id: "", nome: "", tem_programa: false };
+const INITIAL_ORCAMENTO_TIPO_PROJETO = {
+  tipo_projeto_id: "",
+  nome: "",
+  ordem: 1,
+  valor: 0,
+  plano_pagamentos: [],
+};
 const INITIAL_PROPOSTA = {
   db_id: "",
   numero: "",
@@ -151,6 +158,7 @@ const normalizeTemplateTarefa = (tarefa, index = 0) => ({
 
 const normalizeTemplateAtividade = (atividade, index = 0) => ({
   id: atividade?.id || `atividade-${index + 1}`,
+  tipo_projeto_id: atividade?.tipo_projeto_id || "",
   ordem: Number(atividade?.ordem || index + 1),
   nome: String(atividade?.nome || ""),
   descricao: String(atividade?.descricao || ""),
@@ -312,8 +320,16 @@ export default function PropostasComerciais() {
   // Selected entities
   const [empresaConsultora, setEmpresaConsultora] = useState(INITIAL_EMPRESA_CONSULTORA);
   const [cliente, setCliente] = useState(INITIAL_CLIENTE);
-  const [tipoProjeto, setTipoProjeto] = useState(INITIAL_TIPO_PROJETO);
+  const [tiposProjetoSelecionados, setTiposProjetoSelecionados] = useState([]);
   const [programa, setPrograma] = useState(null);
+  const [orcamentoTiposProjeto, setOrcamentoTiposProjeto] = useState([]);
+  const [ordemTiposServico, setOrdemTiposServico] = useState([]);
+  const [dragTipoProjetoId, setDragTipoProjetoId] = useState("");
+  const [dragAutoExpandTipoProjetoId, setDragAutoExpandTipoProjetoId] = useState("");
+  const [tiposServicoColapsados, setTiposServicoColapsados] = useState({});
+
+  const dragTipoServicoItem = useRef(null);
+  const dragTipoServicoOverItem = useRef(null);
 
   // Proposal data
   const [proposta, setProposta] = useState(INITIAL_PROPOSTA);
@@ -550,13 +566,36 @@ export default function PropostasComerciais() {
           });
         }
 
-        if (data.tipo_projeto_id) {
+        const tiposPayload = Array.isArray(payload?.tipos_projeto)
+          ? payload.tipos_projeto
+              .map((item) => {
+                const found = tiposProj.find((tipo) => String(tipo.id) === String(item?.id || item?.tipo_projeto_id));
+                if (found) return found;
+                if (!item?.id && !item?.tipo_projeto_id) return null;
+                return {
+                  id: item.id || item.tipo_projeto_id,
+                  nome: item.nome || "",
+                  tem_programa: !!item.tem_programa,
+                };
+              })
+              .filter(Boolean)
+          : [];
+
+        if (tiposPayload.length > 0) {
+          setTiposProjetoSelecionados(tiposPayload);
+        } else if (data.tipo_projeto_id) {
           const tipo = tiposProj.find((t) => String(t.id) === String(data.tipo_projeto_id));
-          setTipoProjeto({
-            id: data.tipo_projeto_id,
-            nome: tipo?.nome || payload?.tipo_projeto?.nome || "",
-            tem_programa: typeof tipo?.tem_programa === "boolean" ? !!tipo.tem_programa : !!payload?.tipo_projeto?.tem_programa,
-          });
+          if (tipo) {
+            setTiposProjetoSelecionados([tipo]);
+          } else {
+            setTiposProjetoSelecionados([
+              {
+                id: data.tipo_projeto_id,
+                nome: payload?.tipo_projeto?.nome || "",
+                tem_programa: !!payload?.tipo_projeto?.tem_programa,
+              },
+            ]);
+          }
         }
 
         if (Array.isArray(payload?.modelo_estrutura) && payload.modelo_estrutura.length > 0) {
@@ -572,8 +611,15 @@ export default function PropostasComerciais() {
               }))
             )
           );
-        } else if (data.tipo_projeto_id) {
-          void carregarModeloEstrutura(data.tipo_projeto_id);
+        } else {
+          const tipoIds = Array.isArray(payload?.tipos_projeto)
+            ? payload.tipos_projeto.map((item) => item?.id || item?.tipo_projeto_id).filter(Boolean)
+            : data.tipo_projeto_id
+              ? [data.tipo_projeto_id]
+              : [];
+          if (tipoIds.length > 0) {
+            void carregarModeloEstrutura(tipoIds);
+          }
         }
 
         if (data.programa_id) {
@@ -613,6 +659,26 @@ export default function PropostasComerciais() {
         } else if (Array.isArray(payload?.plano_pagamentos) && payload.plano_pagamentos.length > 0) {
           setPlanoPagamentos(payload.plano_pagamentos);
         }
+
+        if (Array.isArray(payload?.orcamento?.tipos_projeto) && payload.orcamento.tipos_projeto.length > 0) {
+          setOrcamentoTiposProjeto(
+            payload.orcamento.tipos_projeto.map((item, index) => ({
+              ...INITIAL_ORCAMENTO_TIPO_PROJETO,
+              tipo_projeto_id: item?.tipo_projeto_id || item?.id || "",
+              nome: item?.nome || "",
+              ordem: Number(item?.ordem || index + 1),
+              valor: Number(item?.valor || 0),
+              plano_pagamentos:
+                Array.isArray(item?.plano_pagamentos) && item.plano_pagamentos.length > 0
+                  ? item.plano_pagamentos.map((pag) => ({
+                      percentagem: Number(pag?.percentagem || 0),
+                      descricao: String(pag?.descricao || ""),
+                      dias_apos_aceite: Number(pag?.dias_apos_aceite || 0),
+                    }))
+                  : createPlanoPagamentoServico(),
+            }))
+          );
+        }
       } catch (error) {
         console.error("Erro ao carregar proposta para edição:", error);
         showToast("Erro ao carregar proposta");
@@ -635,8 +701,14 @@ export default function PropostasComerciais() {
     window.setTimeout(() => setToastMessage(""), 2500);
   };
 
-  const carregarModeloEstrutura = async (tipoProjetoId) => {
-    if (!tipoProjetoId) {
+  const carregarModeloEstrutura = async (tipoProjetoIds) => {
+    const ids = Array.isArray(tipoProjetoIds)
+      ? tipoProjetoIds.filter(Boolean)
+      : tipoProjetoIds
+        ? [tipoProjetoIds]
+        : [];
+
+    if (ids.length === 0) {
       setModeloEstrutura([]);
       return;
     }
@@ -645,7 +717,7 @@ export default function PropostasComerciais() {
       const { data: atividadesData, error } = await supabase
         .from("template_atividades")
         .select("id, nome, descricao, dias_estimados, info_adicional, ordem, tipo_projeto_id")
-        .eq("tipo_projeto_id", tipoProjetoId)
+        .in("tipo_projeto_id", ids)
         .order("ordem", { ascending: true })
         .order("created_at", { ascending: true });
 
@@ -691,8 +763,8 @@ export default function PropostasComerciais() {
   // ========================================================================
 
   const guardarPropostaEmBD = async () => {
-    if (!empresaConsultora.id || !cliente.id || !tipoProjeto.id) {
-      showToast("Preencha empresa consultora, cliente e tipo de projeto");
+    if (!empresaConsultora.id || !cliente.id || tiposProjetoSelecionados.length === 0) {
+      showToast("Preencha empresa consultora, cliente e pelo menos um tipo de projeto");
       return;
     }
 
@@ -715,6 +787,7 @@ export default function PropostasComerciais() {
             plano_pagamentos: planoPagamentosConsolidado,
             estado: proposta.estado,
             contato_cliente_id: cliente.contacto_id || null,
+            tipo_projeto_id: tiposProjetoSelecionados[0]?.id || null,
             programa_id: programa?.id || null,
             updated_at: new Date().toISOString(),
           })
@@ -740,7 +813,7 @@ export default function PropostasComerciais() {
               empresa_consultora_id: empresaConsultora.id,
               cliente_id: cliente.id,
               contato_cliente_id: cliente.contacto_id || null,
-              tipo_projeto_id: tipoProjeto.id,
+              tipo_projeto_id: tiposProjetoSelecionados[0]?.id || null,
               programa_id: programa?.id || null,
               estado: proposta.estado,
               plano_pagamentos: planoPagamentosConsolidado,
@@ -772,14 +845,12 @@ export default function PropostasComerciais() {
 
   const gerarPDF = () => {
     try {
-      const incentivoEstimado = (proposta.investimento || 0) * ((programa?.pct || 0) / 100);
-
       generateProposalPDF({
         propostaNumero: proposta.numero || proposta.db_id,
         proposta,
         cliente,
         empresaConsultora,
-        tipoProjeto,
+        tipoProjeto: tiposProjetoSelecionados[0] || INITIAL_TIPO_PROJETO,
         programa,
         selectedPrograma,
         selectedAviso,
@@ -930,41 +1001,131 @@ export default function PropostasComerciais() {
     }));
   };
 
-  const selectTipoProjeto = (id) => {
+  const toggleTipoProjeto = (id) => {
     const found = tiposProj.find((t) => String(t.id) === String(id));
-    if (found) {
-      setTipoProjeto({
-        id: found.id,
-        nome: found.nome,
-        tem_programa: found.tem_programa,
-      });
-      // Reset program if new tipo doesn't have programs
-      if (!found.tem_programa) {
+    if (!found) return;
+
+    setTiposProjetoSelecionados((previous) => {
+      const exists = previous.some((item) => String(item.id) === String(found.id));
+      const next = exists
+        ? previous.filter((item) => String(item.id) !== String(found.id))
+        : [...previous, found];
+
+      if (!next.some((item) => item.tem_programa)) {
         setPrograma(null);
       }
 
-      setModeloEstrutura([]);
-      void carregarModeloEstrutura(found.id);
-    }
+      void carregarModeloEstrutura(next.map((item) => item.id));
+      return next;
+    });
   };
 
-  const addAtividadeModelo = () => {
-    setModeloEstrutura((previous) => [
+  const handleDragStartTipoServico = (tipoProjetoId) => {
+    const id = String(tipoProjetoId || "");
+    if (!id) return;
+
+    setDragTipoProjetoId(id);
+    dragTipoServicoItem.current = id;
+    dragTipoServicoOverItem.current = id;
+    setTiposServicoColapsados((previous) => {
+      const alreadyCollapsed = !!previous[id];
+      if (!alreadyCollapsed) {
+        setDragAutoExpandTipoProjetoId(id);
+      }
+      return {
+        ...previous,
+        [id]: true,
+      };
+    });
+  };
+
+  const handleDragOverTipoServico = (event) => {
+    event.preventDefault();
+  };
+
+  const handleDragEnterTipoServico = (targetTipoProjetoId) => {
+    const dragId = String(dragTipoServicoItem.current || "");
+    const targetId = String(targetTipoProjetoId || "");
+
+    if (!dragId || !targetId || dragId === targetId) {
+      dragTipoServicoOverItem.current = targetId || dragTipoServicoOverItem.current;
+      return;
+    }
+
+    dragTipoServicoOverItem.current = targetId;
+
+    setOrdemTiposServico((previous) => {
+      const baseOrder = previous.length > 0
+        ? [...previous]
+        : tiposProjetoSelecionados
+            .slice()
+            .sort((a, b) => String(a?.nome || "").localeCompare(String(b?.nome || ""), "pt-PT"))
+            .map((item) => String(item.id));
+
+      const fromIndex = baseOrder.indexOf(dragId);
+      const toIndex = baseOrder.indexOf(targetId);
+
+      if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) {
+        return previous.length > 0 ? previous : baseOrder;
+      }
+
+      const nextOrder = [...baseOrder];
+      const [moved] = nextOrder.splice(fromIndex, 1);
+      nextOrder.splice(toIndex, 0, moved);
+      return nextOrder;
+    });
+  };
+
+  const finalizeDragTipoServico = (dragIdOverride = "") => {
+    const dragId = String(dragIdOverride || dragTipoProjetoId || "");
+    const shouldReopenId = String(dragAutoExpandTipoProjetoId || "");
+
+    if (shouldReopenId && shouldReopenId === dragId) {
+      setTiposServicoColapsados((previous) => ({
+        ...previous,
+        [shouldReopenId]: false,
+      }));
+    }
+
+    setDragAutoExpandTipoProjetoId("");
+    setDragTipoProjetoId("");
+    dragTipoServicoItem.current = null;
+    dragTipoServicoOverItem.current = null;
+  };
+
+  const toggleCollapseTipoServico = (tipoProjetoId) => {
+    const id = String(tipoProjetoId || "");
+    if (!id) return;
+
+    setTiposServicoColapsados((previous) => ({
       ...previous,
-      {
-        id: `custom-atividade-${Date.now()}-${previous.length + 1}`,
-        ordem: previous.length + 1,
-        nome: "Nova atividade",
-        descricao: "",
-        dias_estimados: 0,
-        info_adicional: "",
-        valor_servico: 0,
-        condicoes_pagamento: "",
-        plano_pagamentos: createPlanoPagamentoServico(),
-        selecionado: true,
-        tarefas: [],
-      },
-    ]);
+      [id]: !previous[id],
+    }));
+  };
+
+  const handleDropTipoServico = (targetTipoProjetoId) => {
+    const dragId = String(dragTipoProjetoId || "");
+    const targetId = String(targetTipoProjetoId || "");
+    if (!dragId || !targetId || dragId === targetId) {
+      finalizeDragTipoServico(dragId);
+      return;
+    }
+
+    setOrdemTiposServico((previous) => {
+      const list = Array.isArray(previous) ? [...previous] : [];
+      const fromIndex = list.indexOf(dragId);
+      const toIndex = list.indexOf(targetId);
+
+      if (fromIndex === -1 || toIndex === -1) {
+        return previous;
+      }
+
+      const [moved] = list.splice(fromIndex, 1);
+      list.splice(toIndex, 0, moved);
+      return list;
+    });
+
+    finalizeDragTipoServico(dragId);
   };
 
   const updateAtividadeModelo = (atividadeId, field, value) => {
@@ -993,31 +1154,6 @@ export default function PropostasComerciais() {
       previous
         .filter((atividade) => atividade.id !== atividadeId)
         .map((atividade, index) => ({ ...atividade, ordem: index + 1 }))
-    );
-  };
-
-  const addTarefaModelo = (atividadeId) => {
-    setModeloEstrutura((previous) =>
-      previous.map((atividade) =>
-        atividade.id === atividadeId
-          ? {
-              ...atividade,
-              tarefas: [
-                ...(Array.isArray(atividade.tarefas) ? atividade.tarefas : []),
-                {
-                  id: `custom-tarefa-${Date.now()}-${(atividade.tarefas?.length || 0) + 1}`,
-                  template_atividade_id: atividadeId,
-                  ordem: (atividade.tarefas?.length || 0) + 1,
-                  nome: "Nova tarefa",
-                  descricao: "",
-                  dias_estimados: 0,
-                  info_adicional: "",
-                  selecionado: true,
-                },
-              ],
-            }
-          : atividade
-      )
     );
   };
 
@@ -1100,6 +1236,63 @@ export default function PropostasComerciais() {
         return {
           ...atividade,
           plano_pagamentos: (atividade.plano_pagamentos || []).filter((_, pagIndex) => pagIndex !== index),
+        };
+      })
+    );
+  };
+
+  const updateOrcamentoTipoField = (tipoProjetoId, field, value) => {
+    setOrcamentoTiposProjeto((previous) =>
+      previous.map((item) =>
+        String(item.tipo_projeto_id) === String(tipoProjetoId)
+          ? {
+              ...item,
+              [field]: field === "valor" ? Number(value || 0) : value,
+            }
+          : item
+      )
+    );
+  };
+
+  const addPagamentoTipoProjeto = (tipoProjetoId) => {
+    setOrcamentoTiposProjeto((previous) =>
+      previous.map((item) =>
+        String(item.tipo_projeto_id) === String(tipoProjetoId)
+          ? {
+              ...item,
+              plano_pagamentos: [...(item.plano_pagamentos || []), { percentagem: 0, descricao: "", dias_apos_aceite: 0 }],
+            }
+          : item
+      )
+    );
+  };
+
+  const updatePagamentoTipoProjeto = (tipoProjetoId, index, field, value) => {
+    setOrcamentoTiposProjeto((previous) =>
+      previous.map((item) => {
+        if (String(item.tipo_projeto_id) !== String(tipoProjetoId)) return item;
+        return {
+          ...item,
+          plano_pagamentos: (item.plano_pagamentos || []).map((pag, pagIndex) =>
+            pagIndex === index
+              ? {
+                  ...pag,
+                  [field]: field === "descricao" ? value : Number(value || 0),
+                }
+              : pag
+          ),
+        };
+      })
+    );
+  };
+
+  const removePagamentoTipoProjeto = (tipoProjetoId, index) => {
+    setOrcamentoTiposProjeto((previous) =>
+      previous.map((item) => {
+        if (String(item.tipo_projeto_id) !== String(tipoProjetoId)) return item;
+        return {
+          ...item,
+          plano_pagamentos: (item.plano_pagamentos || []).filter((_, pagIndex) => pagIndex !== index),
         };
       })
     );
@@ -1235,28 +1428,106 @@ export default function PropostasComerciais() {
     [modeloEstrutura]
   );
 
-  const incentivoEstimado = useMemo(() => {
-    if (!programa) return 0;
-    const investimento = Number(proposta.investimento || 0);
-    const pct = Number(programa.pct || 0);
-    return investimento * (pct / 100);
-  }, [proposta.investimento, programa]);
+  useEffect(() => {
+    const idsAtivos = tiposProjetoSelecionados.map((item) => String(item.id));
+    const idsOrdenadosDefault = [...tiposProjetoSelecionados]
+      .sort((a, b) => String(a?.nome || "").localeCompare(String(b?.nome || ""), "pt-PT"))
+      .map((item) => String(item.id));
+
+    setOrdemTiposServico((previous) => {
+      const prev = Array.isArray(previous) ? previous : [];
+      const filtrados = prev.filter((id) => idsAtivos.includes(id));
+      const faltantes = idsOrdenadosDefault.filter((id) => !filtrados.includes(id));
+      return [...filtrados, ...faltantes];
+    });
+  }, [tiposProjetoSelecionados]);
+
+  useEffect(() => {
+    const idsAtivos = tiposProjetoSelecionados.map((item) => String(item.id));
+    setTiposServicoColapsados((previous) => {
+      const next = {};
+      idsAtivos.forEach((id) => {
+        next[id] = Object.prototype.hasOwnProperty.call(previous, id) ? !!previous[id] : false;
+      });
+      return next;
+    });
+  }, [tiposProjetoSelecionados]);
+
+  const tiposProjetoOrdenadosPorServico = useMemo(() => {
+    const base = [...tiposProjetoSelecionados];
+    if (!ordemTiposServico.length) {
+      return base.sort((a, b) => String(a?.nome || "").localeCompare(String(b?.nome || ""), "pt-PT"));
+    }
+
+    return base.sort((a, b) => {
+      const ia = ordemTiposServico.indexOf(String(a.id));
+      const ib = ordemTiposServico.indexOf(String(b.id));
+
+      if (ia === -1 && ib === -1) {
+        return String(a?.nome || "").localeCompare(String(b?.nome || ""), "pt-PT");
+      }
+      if (ia === -1) return 1;
+      if (ib === -1) return -1;
+      return ia - ib;
+    });
+  }, [tiposProjetoSelecionados, ordemTiposServico]);
+
+  const servicosPorTipoProjeto = useMemo(() => {
+    const grupos = tiposProjetoOrdenadosPorServico
+      .map((tipo) => ({
+        tipo,
+        atividades: (modeloEstrutura || [])
+          .filter((atividade) => String(atividade.tipo_projeto_id || "") === String(tipo.id))
+          .sort((a, b) => Number(a.ordem || 0) - Number(b.ordem || 0)),
+      }))
+      .filter((grupo) => grupo.atividades.length > 0);
+
+    return grupos;
+  }, [modeloEstrutura, tiposProjetoOrdenadosPorServico]);
+
+  const hasTipoComPrograma = useMemo(
+    () => tiposProjetoSelecionados.some((item) => item.tem_programa),
+    [tiposProjetoSelecionados]
+  );
+
+  useEffect(() => {
+    setOrcamentoTiposProjeto((previous) =>
+      tiposProjetoOrdenadosPorServico.map((tipo, index) => {
+        const existing = previous.find((item) => String(item.tipo_projeto_id) === String(tipo.id));
+        if (existing) {
+          return {
+            ...existing,
+            nome: tipo.nome,
+            ordem: index + 1,
+          };
+        }
+
+        return {
+          ...INITIAL_ORCAMENTO_TIPO_PROJETO,
+          tipo_projeto_id: tipo.id,
+          nome: tipo.nome,
+          ordem: index + 1,
+          plano_pagamentos: createPlanoPagamentoServico(),
+        };
+      })
+    );
+  }, [tiposProjetoOrdenadosPorServico]);
 
   const orcamentoLinhas = useMemo(() => {
-    return activeServicos.map((atividade, index) => {
-      const valor = Number(atividade.valor_servico || 0);
+    return orcamentoTiposProjeto.map((item, index) => {
+      const valor = Number(item.valor || 0);
 
       return {
-        id: atividade.id,
-        codigo: atividade.ordem || index + 1,
-        nome: atividade.nome,
+        id: item.tipo_projeto_id || `tipo-${index + 1}`,
+        codigo: item.ordem || index + 1,
+        nome: item.nome,
         valor,
         honorarioLabel: formatCurrency(valor),
-        condicoes: atividade.condicoes_pagamento || "",
-        plano_pagamentos: Array.isArray(atividade.plano_pagamentos) ? atividade.plano_pagamentos : [],
+        condicoes: "",
+        plano_pagamentos: Array.isArray(item.plano_pagamentos) ? item.plano_pagamentos : [],
       };
     });
-  }, [activeServicos]);
+  }, [orcamentoTiposProjeto]);
 
   const totais = useMemo(() => {
     const totalSemIva = orcamentoLinhas.reduce((accumulator, linha) => accumulator + linha.valor, 0);
@@ -1269,16 +1540,16 @@ export default function PropostasComerciais() {
 
   const planoPagamentosConsolidado = useMemo(
     () =>
-      activeServicos.flatMap((atividade) =>
-        (atividade.plano_pagamentos || []).map((pagamento) => ({
-          servico_id: atividade.id,
-          servico_nome: atividade.nome,
+      orcamentoTiposProjeto.flatMap((item) =>
+        (item.plano_pagamentos || []).map((pagamento) => ({
+          servico_id: item.tipo_projeto_id,
+          servico_nome: item.nome,
           percentagem: Number(pagamento.percentagem || 0),
           descricao: pagamento.descricao || "",
           dias_apos_aceite: Number(pagamento.dias_apos_aceite || 0),
         }))
       ),
-    [activeServicos]
+    [orcamentoTiposProjeto]
   );
 
   // Compat layer for Step 3 visual block
@@ -1297,7 +1568,8 @@ export default function PropostasComerciais() {
   const recolherDados = () => ({
     empresa_consultora: empresaConsultora,
     cliente,
-    tipo_projeto: tipoProjeto,
+    tipo_projeto: tiposProjetoSelecionados[0] || INITIAL_TIPO_PROJETO,
+    tipos_projeto: tiposProjetoSelecionados,
     programa: programa || null,
     proposta,
     condicoes_gerais: condicoesGerais,
@@ -1310,6 +1582,7 @@ export default function PropostasComerciais() {
       total_sem_iva: totais.totalSemIva,
       total_iva: totais.totalIva,
       total_com_iva: totais.totalComIva,
+      tipos_projeto: orcamentoTiposProjeto,
       plano_pagamentos: planoPagamentosConsolidado,
       notas: notasExclusoes,
     },
@@ -1321,16 +1594,21 @@ export default function PropostasComerciais() {
     setCurrentStep(1);
     setEmpresaConsultora(INITIAL_EMPRESA_CONSULTORA);
     setCliente(INITIAL_CLIENTE);
-    setTipoProjeto(INITIAL_TIPO_PROJETO);
+    setTiposProjetoSelecionados([]);
     setPrograma(null);
     setProposta(INITIAL_PROPOSTA);
     setCondicoesGerais(INITIAL_CONDICOES_GERAIS);
     setServicos(initialServicos());
     setModeloEstrutura([]);
+    setOrcamentoTiposProjeto([]);
     setNotasExclusoes(initialNotas());
     setPlanoPagamentos(INITIAL_PLANO_PAGAMENTOS);
     setContatosConsultora([]);
     setContatosCliente([]);
+    setOrdemTiposServico([]);
+    setDragTipoProjetoId("");
+    setDragAutoExpandTipoProjetoId("");
+    setTiposServicoColapsados({});
     showToast("Formulário limpo.");
   };
 
@@ -1633,24 +1911,32 @@ export default function PropostasComerciais() {
               <div className="card-inner">
                 <div className="field-grid">
                   <div className="field span-2">
-                    <label>Tipo de projeto</label>
-                    <select value={tipoProjeto.id} onChange={(e) => selectTipoProjeto(e.target.value)}>
-                      <option value="">—</option>
-                      {tiposProj.map((tipo) => (
-                        <option key={tipo.id} value={tipo.id}>
-                          {tipo.nome}
-                        </option>
-                      ))}
-                    </select>
+                    <label>Tipos de projeto (podes escolher um ou mais)</label>
+                    <div className="propostas-pill-list" style={{ marginTop: "8px" }}>
+                      {tiposProj.map((tipo) => {
+                        const selected = tiposProjetoSelecionados.some((item) => String(item.id) === String(tipo.id));
+                        return (
+                          <button
+                            key={tipo.id}
+                            type="button"
+                            className={`btn-small ${selected ? "btn-primary" : ""}`}
+                            onClick={() => toggleTipoProjeto(tipo.id)}
+                          >
+                            {selected ? "✓ " : ""}
+                            {tipo.nome}
+                          </button>
+                        );
+                      })}
+                    </div>
                     <div className="field-hint">
-                      Primeiro escolhe o tipo de projeto. Depois disso, o sistema mostra se este tipo pede programa/aviso.
+                      O campo de programa desbloqueia quando pelo menos um tipo selecionado tiver programas.
                     </div>
                   </div>
                 </div>
               </div>
 
-              {tipoProjeto.id ? (
-                tipoProjeto.tem_programa ? (
+              {tiposProjetoSelecionados.length > 0 ? (
+                hasTipoComPrograma ? (
                   <>
                     <div className="card-inner">
                       <div className="section-heading">Programas disponíveis</div>
@@ -1797,7 +2083,7 @@ export default function PropostasComerciais() {
                   <div className="card-inner">
                     <div className="section-heading">Programa</div>
                     <div className="field-hint">
-                      Este tipo de projeto não requer programa nem aviso.
+                      Nenhum dos tipos de projeto selecionados requer programa/aviso.
                     </div>
                   </div>
                 )
@@ -1805,7 +2091,7 @@ export default function PropostasComerciais() {
                 <div className="card-inner">
                   <div className="section-heading">Programa</div>
                   <div className="field-hint">
-                    Seleciona primeiro o tipo de projeto para saber se este fluxo pede programa/aviso.
+                    Seleciona pelo menos um tipo de projeto para desbloquear este passo.
                   </div>
                 </div>
               )}
@@ -1820,98 +2106,168 @@ export default function PropostasComerciais() {
                 {modeloEstrutura.length === 0 ? (
                   <div className="card-inner">
                     <div className="field-hint">Seleciona um tipo de projeto com modelo para carregar as atividades e tarefas.</div>
-                    <button type="button" className="btn-soft-cta" onClick={addAtividadeModelo} style={{ marginTop: "12px" }}>
-                      Adicionar atividade
-                    </button>
                   </div>
                 ) : (
-                  modeloEstrutura.map((atividade) => (
-                    <article
-                      key={atividade.id}
-                      className={`propostas-service-card ${atividade.selecionado ? "selected" : ""}`}
-                    >
-                      <div style={{ display: "flex", alignItems: "stretch" }}>
-                        <button
-                          className="propostas-service-header"
-                          type="button"
-                          onClick={() => toggleAtividadeModelo(atividade.id)}
-                          style={{ flex: 1 }}
-                        >
-                          <span className="propostas-service-check">{atividade.selecionado ? "✓" : ""}</span>
-                          <span className="propostas-service-code">{atividade.ordem}</span>
-                          <span className="propostas-service-main">
-                            <span className="propostas-service-name">{atividade.nome}</span>
-                            <span className="muted">{atividade.descricao || "Atividade principal do modelo"}</span>
-                          </span>
-                          <span className="propostas-service-price">
-                            {atividade.dias_estimados ? `${Number(atividade.dias_estimados)}d` : ""}
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-small"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            removeAtividadeModelo(atividade.id);
-                          }}
-                          style={{ marginLeft: "8px" }}
-                        >
-                          ×
-                        </button>
-                      </div>
-
-                      {atividade.selecionado && (
-                        <div className="propostas-service-body">
-                          <div className="section-subtitle" style={{ textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "10px" }}>
-                            Atividades Incluídas
-                          </div>
-                          <div className="propostas-activities">
-                            {(atividade.tarefas || []).map((tarefa) => (
-                              <div key={tarefa.id} className="propostas-activity-row">
-                                <input
-                                  type="text"
-                                  value={tarefa.nome || ""}
-                                  onChange={(event) => updateTarefaModelo(atividade.id, tarefa.id, "nome", event.target.value)}
-                                />
-                                <button type="button" className="btn-small" onClick={() => removeTarefaModelo(atividade.id, tarefa.id)}>
-                                  Remover
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                          <button type="button" className="btn-soft-cta" onClick={() => addTarefaModelo(atividade.id)}>
-                            Adicionar atividade
+                  servicosPorTipoProjeto.map((grupo, grupoIndex) => (
+                    <div key={`grupo-${grupo.tipo.id}`} style={{ marginBottom: "18px" }}>
+                      <div
+                        className="card-inner"
+                        style={{
+                          marginBottom: "10px",
+                          border: dragTipoProjetoId === String(grupo.tipo.id) ? "1px solid #93c5fd" : undefined,
+                          background: dragTipoProjetoId === String(grupo.tipo.id) ? "#eff6ff" : undefined,
+                          boxShadow: dragTipoProjetoId === String(grupo.tipo.id) ? "0 8px 24px rgba(59, 130, 246, 0.12)" : undefined,
+                        }}
+                        onDragEnter={() => handleDragEnterTipoServico(grupo.tipo.id)}
+                        onDragOver={handleDragOverTipoServico}
+                        onDrop={() => handleDropTipoServico(grupo.tipo.id)}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                          <button
+                            type="button"
+                            onClick={() => toggleCollapseTipoServico(grupo.tipo.id)}
+                            aria-label={tiposServicoColapsados[String(grupo.tipo.id)] ? "Expandir" : "Colapsar"}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              width: "32px",
+                              height: "32px",
+                              borderRadius: "50%",
+                              border: "1px solid #cbd5e1",
+                              background: "#ffffff",
+                              color: "#475569",
+                              cursor: "pointer",
+                              transition: "all 0.2s ease",
+                              padding: 0,
+                              flexShrink: 0,
+                              boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
+                            }}
+                            onMouseOver={(e) => {
+                              e.currentTarget.style.background = "#f8fafc";
+                              e.currentTarget.style.borderColor = "#94a3b8";
+                            }}
+                            onMouseOut={(e) => {
+                              e.currentTarget.style.background = "#ffffff";
+                              e.currentTarget.style.borderColor = "#cbd5e1";
+                            }}
+                          >
+                            {tiposServicoColapsados[String(grupo.tipo.id)] ? (
+                              // Ícone de Seta para a Direita (Recolhido)
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                              </svg>
+                            ) : (
+                              // Ícone de Seta para Baixo (Expandido)
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                              </svg>
+                            )}
                           </button>
 
-                          <div className="section-subtitle" style={{ textTransform: "uppercase", letterSpacing: "0.06em", marginTop: "14px" }}>
-                            Entregáveis
-                          </div>
-                          <div className="propostas-pill-list" style={{ marginTop: "8px" }}>
-                            {(atividade.tarefas || []).filter((tarefa) => String(tarefa.nome || "").trim()).length > 0 ? (
-                              (atividade.tarefas || [])
-                                .filter((tarefa) => String(tarefa.nome || "").trim())
-                                .slice(0, 4)
-                                .map((tarefa) => (
-                                  <span key={`badge-${atividade.id}-${tarefa.id}`} className="badge badge-warning">
-                                    {tarefa.nome}
-                                  </span>
-                                ))
-                            ) : (
-                              <span className="badge badge-warning">Sem entregáveis definidos</span>
-                            )}
+                          <div className="section-heading" style={{ marginBottom: "0", flex: 1 }}>
+                            {grupo.tipo.nome}
                           </div>
 
+                          <div
+                            title="Arrastar"
+                            draggable
+                            onDragStart={() => handleDragStartTipoServico(grupo.tipo.id)}
+                            onDragEnd={() => finalizeDragTipoServico()}
+                            style={{
+                              cursor: "grab",
+                              padding: "8px 10px",
+                              border: "1px solid #cbd5e1",
+                              borderRadius: "8px",
+                              background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              boxShadow: "0 1px 2px rgba(15, 23, 42, 0.08)",
+                            }}
+                          >
+                            <span style={{ display: "inline-flex", flexDirection: "column", gap: "2px" }}>
+                              <span style={{ width: "12px", height: "2px", background: "#6b7280", display: "block" }} />
+                              <span style={{ width: "12px", height: "2px", background: "#6b7280", display: "block" }} />
+                              <span style={{ width: "12px", height: "2px", background: "#6b7280", display: "block" }} />
+                            </span>
+                          </div>
                         </div>
-                      )}
-                    </article>
+                      </div>
+
+                      {!tiposServicoColapsados[String(grupo.tipo.id)] && grupo.atividades.map((atividade, atividadeIndex) => (
+                        <article
+                          key={atividade.id}
+                          className={`propostas-service-card ${atividade.selecionado ? "selected" : ""}`}
+                        >
+                          <div style={{ display: "flex", alignItems: "stretch" }}>
+                            <button
+                              className="propostas-service-header"
+                              type="button"
+                              onClick={() => toggleAtividadeModelo(atividade.id)}
+                              style={{ flex: 1 }}
+                            >
+                              <span className="propostas-service-check">{atividade.selecionado ? "✓" : ""}</span>
+                              <span className="propostas-service-code">{atividadeIndex + 1}</span>
+                              <span className="propostas-service-main">
+                                <span className="propostas-service-name">{atividade.nome}</span>
+                                <span className="muted">{atividade.descricao || "Atividade principal do modelo"}</span>
+                              </span>
+                              <span className="propostas-service-price">
+                                {atividade.dias_estimados ? `${Number(atividade.dias_estimados)}d` : ""}
+                              </span>
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-small"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                removeAtividadeModelo(atividade.id);
+                              }}
+                              style={{
+                                marginRight: "10px",
+                                padding: "10px 10px",
+                                fontSize: "12px",
+                                lineHeight: 1,
+                                borderRadius: "900px",
+                                whiteSpace: "nowrap",
+                                alignSelf: "center"
+                              }}
+                            >
+                              Remover atividade
+                            </button>
+                          </div>
+
+                          {atividade.selecionado && (
+                            <div className="propostas-service-body">
+                              {(atividade.tarefas || []).length > 0 && (
+                                <>
+                                  <div className="section-subtitle" style={{ textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "10px" }}>
+                                    Tarefas incluídas
+                                  </div>
+                                  <div className="propostas-activities">
+                                    {(atividade.tarefas || []).map((tarefa) => (
+                                      <div key={tarefa.id} className="propostas-activity-row">
+                                        <input
+                                          type="text"
+                                          value={tarefa.nome || ""}
+                                          onChange={(event) => updateTarefaModelo(atividade.id, tarefa.id, "nome", event.target.value)}
+                                        />
+                                        <button type="button" className="btn-small" onClick={() => removeTarefaModelo(atividade.id, tarefa.id)}>
+                                          Remover
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </article>
+                      ))}
+                    </div>
                   ))
                 )}
-              </div>
-
-              <div style={{ marginTop: "12px" }}>
-                <button type="button" className="btn-soft-cta" onClick={addAtividadeModelo}>
-                  Adicionar atividade
-                </button>
               </div>
             </section>
           )}
@@ -1919,18 +2275,7 @@ export default function PropostasComerciais() {
           {currentStep === 5 && (
             <section className="card propostas-section">
               <div className="section-heading">5 · Orçamento</div>
-              <div className="field-grid field-grid-3">
-                <div className="field">
-                  <label>Investimento estimado (€)</label>
-                  <input type="number" value={proposta.investimento || ""} onChange={setField(setProposta, "investimento")} placeholder="ex. 200000" />
-                  <div className="field-hint">Base de cálculo dos incentivos</div>
-                </div>
-                {programa && programa.pct > 0 && (
-                  <div className="field">
-                    <label>Incentivo estimado (€)</label>
-                    <input type="text" value={incentivoEstimado ? formatCurrency(incentivoEstimado) : ""} readOnly />
-                  </div>
-                )}
+              <div className="field-grid field-grid-1">
                 <div className="field">
                   <label>Taxa de IVA (%)</label>
                   <input type="number" value={proposta.iva || 23} onChange={setField(setProposta, "iva")} min="0" max="100" />
@@ -1938,27 +2283,27 @@ export default function PropostasComerciais() {
               </div>
 
               <div className="card-inner">
-                <div className="section-heading">Detalhes dos Serviços</div>
-                {activeServicos.length > 0 ? (
-                  activeServicos.map((atividade) => (
-                    <div key={atividade.id} style={{ marginBottom: "16px", padding: "12px", background: "#f8f9fa", borderRadius: "8px" }}>
+                <div className="section-heading">Tipos de Projeto Selecionados</div>
+                {orcamentoTiposProjeto.length > 0 ? (
+                  orcamentoTiposProjeto.map((item) => (
+                    <div key={item.tipo_projeto_id} style={{ marginBottom: "16px", padding: "12px", background: "#f8f9fa", borderRadius: "8px" }}>
                       <div style={{ marginBottom: "10px" }}>
-                        <strong>Serviço {atividade.ordem} — {atividade.nome || "Sem nome"}</strong>
+                        <strong>Tipo {item.ordem} — {item.nome || "Sem nome"}</strong>
                       </div>
 
                       <div className="field-grid field-grid-3" style={{ marginBottom: "8px" }}>
                         <div className="field">
-                          <label>Valor do serviço (€)</label>
+                          <label>Valor (€)</label>
                           <input
                             type="number"
                             min="0"
-                            value={Number(atividade.valor_servico || 0)}
-                            onChange={(event) => updateAtividadeModelo(atividade.id, "valor_servico", event.target.value)}
+                            value={Number(item.valor || 0)}
+                            onChange={(event) => updateOrcamentoTipoField(item.tipo_projeto_id, "valor", event.target.value)}
                           />
                         </div>
                       </div>
 
-                      <div className="section-subtitle" style={{ marginTop: "10px" }}>Plano de Pagamentos do Serviço</div>
+                      <div className="section-subtitle" style={{ marginTop: "10px" }}>Plano de Pagamentos</div>
                       
                       <div style={{ display: "grid", gridTemplateColumns: "80px 1fr 140px 40px", gap: "8px", marginBottom: "8px", fontSize: "12px", color: "#666", fontWeight: 600, alignItems: "center" }}>
                         <div>Percentagem</div>
@@ -1968,42 +2313,42 @@ export default function PropostasComerciais() {
                       </div>
 
                       <div className="propostas-pagamentos-list">
-                        {(atividade.plano_pagamentos || []).map((pag, index) => (
-                          <div key={`${atividade.id}-pag-${index}`} style={{ display: "grid", gridTemplateColumns: "80px 1fr 140px 40px", gap: "8px", alignItems: "center", marginBottom: "10px" }}>
+                        {(item.plano_pagamentos || []).map((pag, index) => (
+                          <div key={`${item.tipo_projeto_id}-pag-${index}`} style={{ display: "grid", gridTemplateColumns: "80px 1fr 140px 40px", gap: "8px", alignItems: "center", marginBottom: "10px" }}>
                             <input
                               type="number"
                               min="0"
                               max="100"
                               value={Number(pag.percentagem || 0)}
-                              onChange={(e) => updatePagamentoServico(atividade.id, index, "percentagem", e.target.value)}
+                              onChange={(e) => updatePagamentoTipoProjeto(item.tipo_projeto_id, index, "percentagem", e.target.value)}
                               placeholder="0"
                             />
                             <input
                               type="text"
                               value={pag.descricao || ""}
-                              onChange={(e) => updatePagamentoServico(atividade.id, index, "descricao", e.target.value)}
+                              onChange={(e) => updatePagamentoTipoProjeto(item.tipo_projeto_id, index, "descricao", e.target.value)}
                               placeholder="ex. Adjudicação"
                             />
                             <input
                               type="number"
                               min="0"
                               value={Number(pag.dias_apos_aceite || 0)}
-                              onChange={(e) => updatePagamentoServico(atividade.id, index, "dias_apos_aceite", e.target.value)}
+                              onChange={(e) => updatePagamentoTipoProjeto(item.tipo_projeto_id, index, "dias_apos_aceite", e.target.value)}
                               placeholder="0"
                             />
-                            <button type="button" className="btn-small" onClick={() => removePagamentoServico(atividade.id, index)}>
+                            <button type="button" className="btn-small" onClick={() => removePagamentoTipoProjeto(item.tipo_projeto_id, index)}>
                               ×
                             </button>
                           </div>
                         ))}
                       </div>
-                      <button type="button" className="btn-soft-cta" onClick={() => addPagamentoServico(atividade.id)}>
+                      <button type="button" className="btn-soft-cta" onClick={() => addPagamentoTipoProjeto(item.tipo_projeto_id)}>
                         Adicionar parcela
                       </button>
                     </div>
                   ))
                 ) : (
-                  <div className="muted">Nenhum serviço selecionado no passo 4.</div>
+                  <div className="muted">Seleciona pelo menos um tipo de projeto no passo 3.</div>
                 )}
               </div>
 
@@ -2074,7 +2419,10 @@ export default function PropostasComerciais() {
                 <div>
                   <h2>{cliente.nome || "—"}</h2>
                   <p>
-                    {tipoProjeto.nome || "—"} {programa ? `· ${programa.nome}` : ""} · {formatDatePt(proposta.data)}
+                    {tiposProjetoSelecionados.length > 0
+                      ? tiposProjetoSelecionados.map((item) => item.nome).join(" + ")
+                      : "—"}
+                    {programa ? ` · ${programa.nome}` : ""} · {formatDatePt(proposta.data)}
                   </p>
                 </div>
                 <div style={{ display: "flex", gap: "8px" }}>
@@ -2107,8 +2455,12 @@ export default function PropostasComerciais() {
                   <div className="summary-value">{cliente.nome || "—"}</div>
                 </div>
                 <div className="summary-card">
-                  <div className="summary-label">Tipo de Projeto</div>
-                  <div className="summary-value">{tipoProjeto.nome || "—"}</div>
+                  <div className="summary-label">Tipos de Projeto</div>
+                  <div className="summary-value">
+                    {tiposProjetoSelecionados.length > 0
+                      ? tiposProjetoSelecionados.map((item) => item.nome).join(", ")
+                      : "—"}
+                  </div>
                 </div>
                 <div className="summary-card">
                   <div className="summary-label">Programa</div>
