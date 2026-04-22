@@ -124,14 +124,13 @@ export const generateProposalPDF = async (params) => {
   };
 
   const addNewPage = () => {
-    drawPageFooter();
     doc.addPage();
     currentY = marginY;
   };
 
   const drawPageFooter = () => {
     const totalPages = doc.getNumberOfPages();
-    const currentPage = doc.internal.getNumberOfPages();
+    const currentPage = doc.getCurrentPageInfo().pageNumber;
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(...COLORS.secondary);
@@ -165,6 +164,18 @@ export const generateProposalPDF = async (params) => {
     doc.setTextColor(...COLORS.primary);
     doc.text(text, marginX, currentY);
     currentY += 5;
+  };
+
+  // Starts each major section on its own page to avoid overlap and improve readability.
+  let hasStartedMainSection = false;
+  const startMainSection = (title) => {
+    // Avoid creating an extra blank page if we are already at the top
+    // due to a previous automatic page break.
+    if (hasStartedMainSection && currentY > marginY + 0.5) {
+      addNewPage();
+    }
+    drawSectionTitle(title);
+    hasStartedMainSection = true;
   };
 
   const drawFieldValue = (label, value, x, width, startY) => {
@@ -287,7 +298,7 @@ export const generateProposalPDF = async (params) => {
   doc.addPage();
   currentY = marginY;
 
-  drawSectionTitle('CONTEXTO');
+  startMainSection('CONTEXTO');
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
@@ -365,10 +376,7 @@ Gratos pela vossa atenção, ficamos ao dispor para qualquer questão adicional.
   // ============================================================================
   // CONTEÚDO TÉCNICO (Página 3 em diante)
   // ============================================================================
-  doc.addPage();
-  currentY = marginY;
-
-  drawSectionTitle('ENQUADRAMENTO');
+  startMainSection('ENQUADRAMENTO');
 
   drawTitle('Detalhes da Proposta');
   drawTwoColumn(
@@ -407,7 +415,7 @@ Gratos pela vossa atenção, ficamos ao dispor para qualquer questão adicional.
     ]
   );
 
-  drawSectionTitle('ATIVIDADES');
+  startMainSection('ATIVIDADES');
   
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
@@ -449,7 +457,7 @@ Gratos pela vossa atenção, ficamos ao dispor para qualquer questão adicional.
     });
   }
 
-  drawSectionTitle('ORÇAMENTO');
+  startMainSection('ORÇAMENTO');
   
   if (orcamentoLinhas && orcamentoLinhas.length > 0) {
     autoTable(doc, {
@@ -467,6 +475,63 @@ Gratos pela vossa atenção, ficamos ao dispor para qualquer questão adicional.
       alternateRowStyles: { fillColor: COLORS.light },
     });
     currentY = doc.lastAutoTable.finalY + 8;
+  }
+
+  drawTitle('Condições de Pagamento');
+  if (!orcamentoLinhas || orcamentoLinhas.length === 0) {
+    drawFieldValue('', 'Sem serviços configurados', marginX, contentWidth);
+  } else {
+    const planos = [];
+    const ivaRate = Number(proposta?.iva || 23);
+    let baseDataEmissao = new Date(proposta?.data_aceite || proposta?.data || new Date());
+    if (Number.isNaN(baseDataEmissao.getTime())) {
+      baseDataEmissao = new Date();
+    }
+
+    orcamentoLinhas.forEach((linha) => {
+      (linha.plano_pagamentos || []).forEach((pag) => {
+        const percentagem = Number(pag.percentagem || 0);
+        const valorSemIva = Number(linha.valor || 0) * (percentagem / 100);
+        const valorIva = valorSemIva * (ivaRate / 100);
+        const valorComIva = valorSemIva + valorIva;
+
+        const dataEmissao = new Date(baseDataEmissao.getTime() + Number(pag.dias_apos_aceite || 0) * 24 * 60 * 60 * 1000);
+        const dataEmissaoStr = dataEmissao.toLocaleDateString('pt-PT', { month: '2-digit', year: 'numeric' });
+        const trimestre = `Q${Math.floor(dataEmissao.getMonth() / 3) + 1}-${dataEmissao.getFullYear()}`;
+
+        planos.push([
+          safeValue(linha.nome),
+          dataEmissaoStr,
+          trimestre,
+          safeValue(pag.descricao),
+          `${percentagem}%`,
+          fmtCurrency ? fmtCurrency(valorSemIva) : formatCurrency(valorSemIva),
+          fmtCurrency ? fmtCurrency(valorIva) : formatCurrency(valorIva),
+          fmtCurrency ? fmtCurrency(valorComIva) : formatCurrency(valorComIva),
+          `Dia ${Number(pag.dias_apos_aceite || 0)}${Number(pag.dias_apos_aceite || 0) === 0 ? ' (Imediato)' : ''}`
+        ]);
+      });
+    });
+
+    if (planos.length > 0) {
+      autoTable(doc, {
+        startY: currentY,
+        margin: { left: marginX, right: marginX },
+        head: [['Módulo', 'Data Emissão', 'Trimestre', 'Condição', '%', 's/IVA (€)', `IVA ${ivaRate}% (€)`, 'c/IVA (€)', 'Prazo']],
+        body: planos,
+        styles: { font: 'helvetica', fontSize: 8.2, cellPadding: 3, textColor: COLORS.primary },
+        headStyles: { fillColor: COLORS.primary, textColor: COLORS.white, fontStyle: 'bold' },
+        columnStyles: {
+          4: { halign: 'center' },
+          5: { halign: 'right' },
+          6: { halign: 'right' },
+          7: { halign: 'right' },
+          8: { halign: 'center' },
+        },
+        alternateRowStyles: { fillColor: COLORS.light },
+      });
+      currentY = doc.lastAutoTable.finalY + 10;
+    }
   }
 
   if (totais) {
@@ -488,57 +553,37 @@ Gratos pela vossa atenção, ficamos ao dispor para qualquer questão adicional.
     currentY = doc.lastAutoTable.finalY + 10;
   }
 
-  drawTitle('Condições de Pagamento');
-  if (!orcamentoLinhas || orcamentoLinhas.length === 0) {
-    drawFieldValue('', 'Sem serviços configurados', marginX, contentWidth);
-  } else {
-    const planos = [];
-    orcamentoLinhas.forEach((linha) => {
-      (linha.plano_pagamentos || []).forEach((pag) => {
-        planos.push([
-          safeValue(linha.nome),
-          safeValue(pag.descricao),
-          `${Number(pag.percentagem || 0)}%`,
-          `Dia ${Number(pag.dias_apos_aceite || 0)}${Number(pag.dias_apos_aceite || 0) === 0 ? ' (Imediato)' : ''}`
-        ]);
-      });
-    });
-
-    if (planos.length > 0) {
-      autoTable(doc, {
-        startY: currentY,
-        margin: { left: marginX, right: marginX },
-        head: [['Módulo', 'Condição', '%', 'Prazo']],
-        body: planos,
-        styles: { font: 'helvetica', fontSize: 8.5, cellPadding: 3, textColor: COLORS.primary },
-        headStyles: { fillColor: COLORS.primary, textColor: COLORS.white, fontStyle: 'bold' },
-        alternateRowStyles: { fillColor: COLORS.light },
-      });
-      currentY = doc.lastAutoTable.finalY + 10;
-    }
-  }
-
-  drawSectionTitle('TERMOS GERAIS');
+  startMainSection('TERMOS GERAIS');
 
   if (notasExclusoes && notasExclusoes.length > 0) {
     drawTitle('Notas e Exclusões');
     notasExclusoes.forEach((nota, index) => {
-      ensureSpace(6);
       const lines = doc.splitTextToSize(`${index + 1}. ${nota}`, contentWidth);
-      doc.text(lines, marginX, currentY);
-      currentY += lines.length * 4 + 2;
+      lines.forEach((line) => {
+        if (currentY > pageHeight - pageReserve) addNewPage();
+        doc.setTextColor(...COLORS.primary);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.text(line, marginX, currentY);
+        currentY += 4;
+      });
+      currentY += 2;
     });
-    currentY += 4;
+    currentY += 2;
   }
 
   drawTitle('Informação Legal');
-  const ralText = condicoesGerais?.ral ? `Entidade RAL: ${condicoesGerais.ral}` : 'Entidade RAL: Não definida';
-  const rgpdText = condicoesGerais?.rgpd_email ? `Contacto RGPD: ${condicoesGerais.rgpd_email}` : '';
-  
-  doc.setFont('helvetica', 'normal');
-  const linesLegal = doc.splitTextToSize(`${ralText}\n${rgpdText}`, contentWidth);
-  doc.text(linesLegal, marginX, currentY);
-  currentY += linesLegal.length * 4;
+  const legalBody = String(condicoesGerais?.termos_gerais || '').trim() || 'Sem termos gerais definidos.';
+  const linesLegal = doc.splitTextToSize(legalBody, contentWidth);
+  linesLegal.forEach((line) => {
+    if (currentY > pageHeight - pageReserve) addNewPage();
+    doc.setTextColor(...COLORS.primary);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text(line, marginX, currentY);
+    currentY += 4;
+  });
+  currentY += 2;
 
   const totalPages = doc.getNumberOfPages();
   for (let page = 1; page <= totalPages; page++) {

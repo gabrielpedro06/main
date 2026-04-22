@@ -129,7 +129,8 @@ export default function Clientes() {
     certidao_permanente: "", validade_certidao: "",
     rcbe: "", validade_rcbe: "", ativo: true,
     eh_empresa_consultora: false,
-    avatar_url: ""
+    avatar_url: "",
+    termos_gerais: ""
   };
   const [form, setForm] = useState(initialForm);
 
@@ -1542,7 +1543,8 @@ export default function Clientes() {
       rcbe: form.rcbe,
       validade_rcbe: form.validade_rcbe || null,
       ativo: form.ativo,
-      eh_empresa_consultora: Boolean(form.eh_empresa_consultora)
+      eh_empresa_consultora: Boolean(form.eh_empresa_consultora),
+      termos_gerais: form.termos_gerais || null
     };
 
     try {
@@ -1713,7 +1715,8 @@ export default function Clientes() {
     { id: 'atividade', label: 'Atividade', icon: Icons.Activity },
     { id: 'documentos', label: 'Documentos', icon: Icons.FileText },
     { id: 'plano', label: 'Plano', icon: Icons.Diamond },
-    { id: 'acessos', label: 'Acessos', icon: Icons.Lock, requiresAcessos: true }
+    { id: 'acessos', label: 'Acessos', icon: Icons.Lock, requiresAcessos: true },
+    { id: 'termos', label: 'Termos Gerais', icon: Icons.FileText, onlyConsultora: true }
   ];
 
   if (loading) return <div className="page-container" style={{display:'flex', justifyContent:'center', alignItems:'center', height:'80vh'}}><div className="pulse-dot-white" style={{background:'var(--color-btnPrimary)'}}></div></div>;
@@ -2187,7 +2190,7 @@ export default function Clientes() {
                 {editId && (
                   <aside style={{width:'215px', borderRight:'1px solid #e2e8f0', background:'#ffffff', padding:'16px 10px', overflowY:'auto'}}>
                     {modalTabs
-                      .filter((tab) => !tab.requiresAcessos || podeVerAcessos)
+                      .filter((tab) => (!tab.requiresAcessos || podeVerAcessos) && (!tab.onlyConsultora || form.eh_empresa_consultora))
                       .map((tab) => {
                         const isActive = activeTab === tab.id;
                         const TabIcon = tab.icon;
@@ -2221,6 +2224,27 @@ export default function Clientes() {
                           </button>
                         );
                       })}
+                  
+
+                                  {/* --- ABA TERMOS GERAIS (só para consultoras) --- */}
+                                  {false && activeTab === 'termos' && form.eh_empresa_consultora && (
+                                    <div style={{background:'white', padding:'40px', borderRadius:'16px', border:'1px solid #e2e8f0', maxWidth: 900, margin: '0 auto', marginBottom: 30, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
+                                      <div style={{fontSize: '1.3rem', fontWeight: 800, color: '#0f172a', marginBottom: 18}}>Termos Gerais / Condições Gerais</div>
+                                      <label style={{fontWeight: 600, color: '#475569', marginBottom: 6, display: 'block'}}>Texto Corrido dos Termos Gerais</label>
+                                      <textarea
+                                        value={form.termos_gerais || ""}
+                                        onChange={e => setForm(f => ({ ...f, termos_gerais: e.target.value }))}
+                                        rows={16}
+                                        style={{ width: '100%', minHeight: 220, fontSize: '1.05rem', borderRadius: 10, border: '1px solid #cbd5e1', padding: '18px', background: '#f8fafc', color: '#1e293b', resize: 'vertical', fontFamily: 'inherit', marginBottom: 16 }}
+                                        placeholder="Insira aqui os Termos Gerais ou Condições Gerais da empresa consultora..."
+                                        disabled={isViewOnly}
+                                      />
+                                      <div style={{ fontSize: '1rem', color: '#64748b', marginBottom: 10 }}>
+                                        Este texto será usado automaticamente nas propostas e pode ser personalizado por cliente.
+                                      </div>
+                                      {!isViewOnly && <button className="btn-primary hover-shadow" onClick={handleSubmitGeral} style={{marginTop: 10, fontSize: '1.08rem', padding: '13px 32px'}}>Guardar Termos Gerais</button>}
+                                    </div>
+                                  )}
                   </aside>
                 )}
 
@@ -2717,6 +2741,26 @@ export default function Clientes() {
                         </li>
                       ))}
                     </ul>
+                  </div>
+                )}
+
+                {/* --- ABA TERMOS GERAIS (só para consultoras) --- */}
+                {activeTab === 'termos' && form.eh_empresa_consultora && (
+                  <div style={{background:'white', padding:'40px', borderRadius:'16px', border:'1px solid #e2e8f0', maxWidth: 900, margin: '0 auto', marginBottom: 30, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
+                    <div style={{fontSize: '1.3rem', fontWeight: 800, color: '#0f172a', marginBottom: 18}}>Termos Gerais / Condições Gerais</div>
+                    <label style={{fontWeight: 600, color: '#475569', marginBottom: 6, display: 'block'}}>Texto Corrido dos Termos Gerais</label>
+                    <textarea
+                      value={form.termos_gerais || ""}
+                      onChange={e => setForm(f => ({ ...f, termos_gerais: e.target.value }))}
+                      rows={16}
+                      style={{ width: '100%', minHeight: 220, fontSize: '1.05rem', borderRadius: 10, border: '1px solid #cbd5e1', padding: '18px', background: '#f8fafc', color: '#1e293b', resize: 'vertical', fontFamily: 'inherit', marginBottom: 16 }}
+                      placeholder="Insira aqui os Termos Gerais ou Condições Gerais da empresa consultora..."
+                      disabled={isViewOnly}
+                    />
+                    <div style={{ fontSize: '1rem', color: '#64748b', marginBottom: 10 }}>
+                      Este texto será usado automaticamente nas propostas e pode ser personalizado por cliente.
+                    </div>
+                    {!isViewOnly && <button className="btn-primary hover-shadow" onClick={handleSubmitGeral} style={{marginTop: 10, fontSize: '1.08rem', padding: '13px 32px'}}>Guardar Termos Gerais</button>}
                   </div>
                 )}
 

@@ -120,8 +120,7 @@ const INITIAL_PROPOSTA = {
   iva: 23,
 };
 const INITIAL_CONDICOES_GERAIS = {
-  ral: "",
-  rgpd_email: "",
+  termos_gerais: "",
 };
 const INITIAL_NOTAS = [
   "O valor proposto inclui Memória Descritiva e Estudo de Viabilidade Económica.",
@@ -567,20 +566,21 @@ export default function PropostasComerciais() {
 
         const payload = typeof data.payload === "string" ? JSON.parse(data.payload) : (data.payload || {});
 
+        let consultoraEncontrada = null;
         if (data.empresa_consultora_id) {
-          const consultora = empresasConsultoras.find((e) => String(e.id) === String(data.empresa_consultora_id));
+          consultoraEncontrada = empresasConsultoras.find((e) => String(e.id) === String(data.empresa_consultora_id));
           const baseConsultora = {
             id: data.empresa_consultora_id,
-            nome: consultora?.nome || payload?.empresa_consultora?.nome || "",
-            nipc: consultora?.nipc || payload?.empresa_consultora?.nipc || "",
+            nome: consultoraEncontrada?.nome || payload?.empresa_consultora?.nome || "",
+            nipc: consultoraEncontrada?.nipc || payload?.empresa_consultora?.nipc || "",
             sigla:
-              consultora?.sigla ||
+              consultoraEncontrada?.sigla ||
               payload?.empresa_consultora?.sigla ||
-              (consultora?.nome || payload?.empresa_consultora?.nome || "").substring(0, 3).toUpperCase(),
+              (consultoraEncontrada?.nome || payload?.empresa_consultora?.nome || "").substring(0, 3).toUpperCase(),
             morada: payload?.empresa_consultora?.morada || "",
             telefone: payload?.empresa_consultora?.telefone || "",
             email: payload?.empresa_consultora?.email || "",
-            website: payload?.empresa_consultora?.website || consultora?.website || "",
+            website: payload?.empresa_consultora?.website || consultoraEncontrada?.website || "",
             signatario_id: payload?.empresa_consultora?.signatario_id || "",
             nome_signatario: payload?.empresa_consultora?.nome_signatario || "",
             cargo_signatario: payload?.empresa_consultora?.cargo_signatario || "",
@@ -591,8 +591,9 @@ export default function PropostasComerciais() {
           void carregarDadosConsultora(data.empresa_consultora_id, baseConsultora);
         }
 
+        let clienteEncontrado = null;
         if (data.cliente_id) {
-          const clienteEncontrado = clientes.find((c) => String(c.id) === String(data.cliente_id));
+          clienteEncontrado = clientes.find((c) => String(c.id) === String(data.cliente_id));
           setCliente({
             id: data.cliente_id,
             nome: clienteEncontrado?.nome || payload?.cliente?.nome || "",
@@ -682,12 +683,11 @@ export default function PropostasComerciais() {
           iva: payload?.proposta?.iva ?? payload?.orcamento?.iva ?? prev.iva,
         }));
 
-        if (payload?.condicoes_gerais) {
-          setCondicoesGerais({
-            ral: payload.condicoes_gerais.ral || "",
-            rgpd_email: payload.condicoes_gerais.rgpd_email || "",
-          });
-        }
+        const consultoraTermosGerais = consultoraEncontrada?.termos_gerais || payload?.empresa_consultora?.termos_gerais || "";
+        const payloadTermosGerais = payload?.condicoes_gerais?.termos_gerais || "";
+        setCondicoesGerais({
+          termos_gerais: consultoraTermosGerais || payloadTermosGerais || "",
+        });
 
         if (Array.isArray(payload?.servicos_config) && payload.servicos_config.length > 0) {
           setServicos(payload.servicos_config);
@@ -944,9 +944,13 @@ export default function PropostasComerciais() {
         cargo_signatario: "",
         telemovel_signatario: "",
       });
+      setCondicoesGerais({
+        termos_gerais: found.termos_gerais || "",
+      });
 
       void carregarDadosConsultora(found.id);
     } else {
+      setCondicoesGerais(INITIAL_CONDICOES_GERAIS);
       setContatosConsultora([]);
     }
   };
@@ -2576,21 +2580,12 @@ export default function PropostasComerciais() {
               <div className="section-heading">6 · Condições Gerais</div>
               <div className="field-grid field-grid-1">
                 <div className="field">
-                  <label>Entidade RAL (Resolução de Litígios)</label>
-                  <input
-                    type="text"
-                    value={condicoesGerais.ral}
-                    onChange={setField(setCondicoesGerais, "ral")}
-                    placeholder="ex. CIMAAL – Centro de Informação..."
-                  />
-                </div>
-                <div className="field">
-                  <label>Email RGPD / Privacidade</label>
-                  <input
-                    type="email"
-                    value={condicoesGerais.rgpd_email}
-                    onChange={setField(setCondicoesGerais, "rgpd_email")}
-                    placeholder="ex. privacy@empresa.pt"
+                  <label>Termos Gerais da Empresa Consultora</label>
+                  <textarea
+                    rows={10}
+                    value={condicoesGerais.termos_gerais || ""}
+                    readOnly
+                    placeholder="Selecione uma empresa consultora para carregar os Termos Gerais."
                   />
                 </div>
               </div>
