@@ -47,8 +47,10 @@ export default function GestaoTemplates() {
   const [inputDias, setInputDias] = useState(0);
   const [inputDescricao, setInputDescricao] = useState("");
     const [inputTemPrograma, setInputTemPrograma] = useState(false);
-        const [inputDepAtividadeId, setInputDepAtividadeId] = useState("");
-        const [inputDepTarefaId, setInputDepTarefaId] = useState("");
+    const [inputDefaultNumHoras, setInputDefaultNumHoras] = useState(0);
+    const [inputDefaultBaseEurHora, setInputDefaultBaseEurHora] = useState(0);
+    const [inputDepAtividadeId, setInputDepAtividadeId] = useState("");
+    const [inputDepTarefaId, setInputDepTarefaId] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
     // Novos estados para info adicional
     const [exigeInfoAdicional, setExigeInfoAdicional] = useState(false);
@@ -270,6 +272,8 @@ export default function GestaoTemplates() {
             setInputDias(0);
             setInputDescricao("");
             setInputTemPrograma(false);
+            setInputDefaultNumHoras(0);
+            setInputDefaultBaseEurHora(50);
             setInputDepAtividadeId("");
             setInputDepTarefaId("");
             setExigeInfoAdicional(false);
@@ -287,6 +291,8 @@ export default function GestaoTemplates() {
             setInputDias(item.dias_estimados || 0);
             setInputDescricao(item.descricao || "");
             setInputTemPrograma(!!item.tem_programa);
+            setInputDefaultNumHoras(Number(item.default_num_horas || 0));
+            setInputDefaultBaseEurHora(Number(item.default_base_eur_hora || 50));
             setInputDepAtividadeId(item.depende_de_template_atividade_id || "");
             setInputDepTarefaId(item.depende_de_template_tarefa_id || "");
             // Carregar info adicional se existir
@@ -305,6 +311,8 @@ export default function GestaoTemplates() {
       setModalConfig({ isOpen: false, mode: 'create', tipo: '', itemId: null, parentId: null, parentName: '' });
       setInputValue(""); setInputDias(0); setInputDescricao("");
       setInputTemPrograma(false);
+      setInputDefaultNumHoras(0);
+      setInputDefaultBaseEurHora(50);
       setInputDepAtividadeId(""); setInputDepTarefaId("");
   };
 
@@ -340,7 +348,12 @@ export default function GestaoTemplates() {
                   }
               }
 
-              const payload = { nome: inputValue, tem_programa: inputTemPrograma };
+              const payload = {
+                  nome: inputValue,
+                  tem_programa: inputTemPrograma,
+                  default_num_horas: Number(inputDefaultNumHoras || 0),
+                  default_base_eur_hora: Number(inputDefaultBaseEurHora || 0),
+              };
               if (isEdit) {
                   await supabase.from("tipos_projeto").update(payload).eq("id", modalConfig.itemId);
                   setTipos(tipos.map(t => t.id === modalConfig.itemId ? { ...t, ...payload } : t));
@@ -811,10 +824,39 @@ export default function GestaoTemplates() {
                           <input type="text" autoFocus value={inputValue} onChange={(e) => setInputValue(e.target.value)} required style={styles.input} className="input-focus" />
 
                           {modalConfig.tipo === 'tipo_projeto' && (
-                              <label htmlFor="tipoTemPrograma" style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '15px', fontWeight: 600, color: '#334155', cursor: 'pointer'}}>
-                                  <input id="tipoTemPrograma" type="checkbox" checked={inputTemPrograma} onChange={(e) => setInputTemPrograma(e.target.checked)} style={{width:16, height:16, minWidth:16, minHeight:16, maxWidth:16, maxHeight:16, flex:'none'}} />
-                                  Este tipo de projeto requer programa de financiamento
-                              </label>
+                              <>
+                                  <label htmlFor="tipoTemPrograma" style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '15px', fontWeight: 600, color: '#334155', cursor: 'pointer'}}>
+                                      <input id="tipoTemPrograma" type="checkbox" checked={inputTemPrograma} onChange={(e) => setInputTemPrograma(e.target.checked)} style={{width:16, height:16, minWidth:16, minHeight:16, maxWidth:16, maxHeight:16, flex:'none'}} />
+                                      Este tipo de projeto requer programa de financiamento
+                                  </label>
+
+                                  <div style={{display: 'flex', gap: '12px'}}>
+                                      <div style={{flex: 1}}>
+                                          <label style={styles.label}>Default Num Horas</label>
+                                          <input
+                                              type="number"
+                                              min="0"
+                                              step="0.25"
+                                              value={inputDefaultNumHoras}
+                                              onChange={(e) => setInputDefaultNumHoras(e.target.value)}
+                                              style={styles.input}
+                                              className="input-focus"
+                                          />
+                                      </div>
+                                      <div style={{flex: 1}}>
+                                          <label style={styles.label}>Default Base (EUR/h)</label>
+                                          <input
+                                              type="number"
+                                              min="0"
+                                              step="0.01"
+                                              value={inputDefaultBaseEurHora}
+                                              onChange={(e) => setInputDefaultBaseEurHora(e.target.value)}
+                                              style={styles.input}
+                                              className="input-focus"
+                                          />
+                                      </div>
+                                  </div>
+                              </>
                           )}
 
                           {/* 💡 AGORA TODOS OS NÍVEIS TÊM DESCRIÇÃO (EXCETO O TIPO_PROJETO) */}
