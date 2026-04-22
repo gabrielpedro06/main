@@ -49,7 +49,7 @@ const SERVICOS_BASE = [
     honorario_valor: 4,
     honorario_minimo: 3600,
     condicoes:
-      "Debitado em 8 parcelas, sendo a primeira após assinatura do Termo de Aceitação e as restantes diferidas 90 dias entre si.",
+      "Debitado conforme o plano de pagamentos acordado, com a primeira parcela após assinatura do Termo de Aceitação e as restantes conforme definido no plano.",
   },
   {
     id: "controlo_objetivos",
@@ -1058,9 +1058,6 @@ export default function PropostasComerciais() {
                     </select>
                   </div>
                 </div>
-                <p className="muted" style={{ marginTop: "10px" }}>
-                  O ID da proposta é automático e incremental. É atribuído quando guardas na BD.
-                </p>
               </div>
             </section>
           )}

@@ -51,7 +51,7 @@ const SERVICOS_BASE = [
     honorario_valor: 4,
     honorario_minimo: 3600,
     condicoes:
-      "Debitado em 8 parcelas, sendo a primeira após assinatura do Termo de Aceitação e as restantes diferidas 90 dias entre si.",
+      "Debitado conforme o plano de pagamentos acordado, com a primeira parcela após assinatura do Termo de Aceitação e as restantes conforme definido no plano.",
   },
   {
     id: "controlo_objetivos",
@@ -104,6 +104,8 @@ const INITIAL_ORCAMENTO_TIPO_PROJETO = {
   tipo_projeto_id: "",
   nome: "",
   ordem: 1,
+  num_horas: 0,
+  base_eur_hora: 0,
   valor: 0,
   plano_pagamentos: [],
 };
@@ -194,6 +196,42 @@ const currencyFormatter = new Intl.NumberFormat("pt-PT", {
   style: "currency",
   currency: "EUR",
 });
+
+const decimalFormatter = new Intl.NumberFormat("pt-PT", {
+  maximumFractionDigits: 2,
+});
+
+const DEFAULT_ORCAMENTO_HORAS = 0;
+const DEFAULT_ORCAMENTO_BASE_EUR = 50;
+
+const normalizeOrcamentoTipoProjetoItem = (item = {}, index = 0, fallbackHoras = DEFAULT_ORCAMENTO_HORAS, fallbackBase = DEFAULT_ORCAMENTO_BASE_EUR) => {
+  const hasHoras = item?.num_horas !== undefined && item?.num_horas !== null;
+  const hasBase = item?.base_eur_hora !== undefined && item?.base_eur_hora !== null;
+  const legacyValor = Number(item?.valor || 0);
+
+  const base = hasBase
+    ? Number(item.base_eur_hora || 0)
+    : legacyValor > 0
+      ? 1
+      : Number(fallbackBase || DEFAULT_ORCAMENTO_BASE_EUR);
+
+  const horas = hasHoras
+    ? Number(item.num_horas || 0)
+    : legacyValor > 0 && base > 0
+      ? legacyValor / base
+      : Number(fallbackHoras || DEFAULT_ORCAMENTO_HORAS);
+
+  const total = Number(horas || 0) * Number(base || 0);
+
+  return {
+    ...INITIAL_ORCAMENTO_TIPO_PROJETO,
+    ...item,
+    ordem: Number(item?.ordem || index + 1),
+    num_horas: Number(horas || 0),
+    base_eur_hora: Number(base || 0),
+    valor: Number(total || 0),
+  };
+};
 
 const stepTitles = [
   "Empresa Consultora",
@@ -379,21 +417,26 @@ export default function PropostasComerciais() {
             setor_atividade: item.setor_atividade || item.objeto_social || "",
           }));
 
+        const ordenarPorNome = (lista) =>
+          [...lista].sort((a, b) =>
+            String(a?.nome || "").localeCompare(String(b?.nome || ""), "pt-PT", { sensitivity: "base" })
+          );
+
         const hasConsultoraFlag = clientesAtivos.some((item) => typeof item.eh_empresa_consultora === "boolean");
 
         if (hasConsultoraFlag) {
           setEmpresasConsultoras(clientesAtivos.filter((item) => item.eh_empresa_consultora === true));
-          setClientes(clientesAtivos.filter((item) => item.eh_empresa_consultora !== true));
+          setClientes(ordenarPorNome(clientesAtivos.filter((item) => item.eh_empresa_consultora !== true)));
         } else {
           // Fallback de compatibilidade quando a migration ainda não correu.
           setEmpresasConsultoras(clientesAtivos);
-          setClientes(clientesAtivos);
+          setClientes(ordenarPorNome(clientesAtivos));
         }
 
         // Load project types
         const { data: tipos } = await supabase
           .from("tipos_projeto")
-          .select("id, nome, tem_programa")
+          .select("id, nome, tem_programa, default_num_horas, default_base_eur_hora")
           .order("nome");
         setTiposProj(tipos || []);
 
@@ -662,21 +705,34 @@ export default function PropostasComerciais() {
 
         if (Array.isArray(payload?.orcamento?.tipos_projeto) && payload.orcamento.tipos_projeto.length > 0) {
           setOrcamentoTiposProjeto(
-            payload.orcamento.tipos_projeto.map((item, index) => ({
-              ...INITIAL_ORCAMENTO_TIPO_PROJETO,
-              tipo_projeto_id: item?.tipo_projeto_id || item?.id || "",
-              nome: item?.nome || "",
-              ordem: Number(item?.ordem || index + 1),
-              valor: Number(item?.valor || 0),
-              plano_pagamentos:
-                Array.isArray(item?.plano_pagamentos) && item.plano_pagamentos.length > 0
-                  ? item.plano_pagamentos.map((pag) => ({
-                      percentagem: Number(pag?.percentagem || 0),
-                      descricao: String(pag?.descricao || ""),
-                      dias_apos_aceite: Number(pag?.dias_apos_aceite || 0),
-                    }))
-                  : createPlanoPagamentoServico(),
-            }))
+            payload.orcamento.tipos_projeto.map((item, index) => {
+              const tipoDefault = tiposProj.find(
+                (tipo) => String(tipo.id) === String(item?.tipo_projeto_id || item?.id || "")
+              );
+
+              const normalized = normalizeOrcamentoTipoProjetoItem(
+                {
+                  ...item,
+                  tipo_projeto_id: item?.tipo_projeto_id || item?.id || "",
+                  nome: item?.nome || "",
+                },
+                index,
+                Number(tipoDefault?.default_num_horas ?? DEFAULT_ORCAMENTO_HORAS),
+                Number(tipoDefault?.default_base_eur_hora ?? DEFAULT_ORCAMENTO_BASE_EUR)
+              );
+
+              return {
+                ...normalized,
+                plano_pagamentos:
+                  Array.isArray(item?.plano_pagamentos) && item.plano_pagamentos.length > 0
+                    ? item.plano_pagamentos.map((pag) => ({
+                        percentagem: Number(pag?.percentagem || 0),
+                        descricao: String(pag?.descricao || ""),
+                        dias_apos_aceite: Number(pag?.dias_apos_aceite || 0),
+                      }))
+                    : createPlanoPagamentoServico(),
+              };
+            })
           );
         }
       } catch (error) {
@@ -1245,16 +1301,43 @@ export default function PropostasComerciais() {
     setOrcamentoTiposProjeto((previous) =>
       previous.map((item) =>
         String(item.tipo_projeto_id) === String(tipoProjetoId)
-          ? {
-              ...item,
-              [field]: field === "valor" ? Number(value || 0) : value,
-            }
+          ? (() => {
+              const next = {
+                ...item,
+                [field]: Number(value || 0),
+              };
+
+              if (field === "num_horas" || field === "base_eur_hora") {
+                next.valor = Number(next.num_horas || 0) * Number(next.base_eur_hora || 0);
+              } else if (field === "valor") {
+                const base = Number(next.base_eur_hora || 0);
+                next.num_horas = base > 0 ? Number(next.valor || 0) / base : Number(next.valor || 0);
+              }
+
+              return next;
+            })()
           : item
       )
     );
   };
 
+  const getPlanoPagamentosTotalPercentagem = (planoPagamentos = []) =>
+    (Array.isArray(planoPagamentos) ? planoPagamentos : []).reduce(
+      (accumulator, pagamento) => accumulator + Number(pagamento?.percentagem || 0),
+      0
+    );
+
   const addPagamentoTipoProjeto = (tipoProjetoId) => {
+    const alvo = orcamentoTiposProjeto.find(
+      (item) => String(item.tipo_projeto_id) === String(tipoProjetoId)
+    );
+    const totalAtual = getPlanoPagamentosTotalPercentagem(alvo?.plano_pagamentos);
+
+    if (totalAtual >= 100) {
+      showToast("A soma das parcelas já está em 100%.");
+      return;
+    }
+
     setOrcamentoTiposProjeto((previous) =>
       previous.map((item) =>
         String(item.tipo_projeto_id) === String(tipoProjetoId)
@@ -1271,6 +1354,34 @@ export default function PropostasComerciais() {
     setOrcamentoTiposProjeto((previous) =>
       previous.map((item) => {
         if (String(item.tipo_projeto_id) !== String(tipoProjetoId)) return item;
+
+        if (field === "percentagem") {
+          const requested = Math.max(0, Number(value || 0));
+          const otherTotal = (item.plano_pagamentos || []).reduce(
+            (accumulator, pag, pagIndex) =>
+              pagIndex === index ? accumulator : accumulator + Number(pag?.percentagem || 0),
+            0
+          );
+          const maxAllowed = Math.max(0, 100 - otherTotal);
+          const nextPercentagem = Math.min(requested, maxAllowed);
+
+          if (requested > maxAllowed) {
+            showToast("A soma das parcelas não pode ultrapassar 100%.");
+          }
+
+          return {
+            ...item,
+            plano_pagamentos: (item.plano_pagamentos || []).map((pag, pagIndex) =>
+              pagIndex === index
+                ? {
+                    ...pag,
+                    percentagem: nextPercentagem,
+                  }
+                : pag
+            ),
+          };
+        }
+
         return {
           ...item,
           plano_pagamentos: (item.plano_pagamentos || []).map((pag, pagIndex) =>
@@ -1503,7 +1614,16 @@ export default function PropostasComerciais() {
         }
 
         return {
-          ...INITIAL_ORCAMENTO_TIPO_PROJETO,
+          ...normalizeOrcamentoTipoProjetoItem(
+            {
+              tipo_projeto_id: tipo.id,
+              nome: tipo.nome,
+              ordem: index + 1,
+            },
+            index,
+            Number(tipo?.default_num_horas ?? DEFAULT_ORCAMENTO_HORAS),
+            Number(tipo?.default_base_eur_hora ?? DEFAULT_ORCAMENTO_BASE_EUR)
+          ),
           tipo_projeto_id: tipo.id,
           nome: tipo.nome,
           ordem: index + 1,
@@ -1516,13 +1636,15 @@ export default function PropostasComerciais() {
   const orcamentoLinhas = useMemo(() => {
     return orcamentoTiposProjeto.map((item, index) => {
       const valor = Number(item.valor || 0);
+      const horas = Number(item.num_horas || 0);
+      const base = Number(item.base_eur_hora || 0);
 
       return {
         id: item.tipo_projeto_id || `tipo-${index + 1}`,
         codigo: item.ordem || index + 1,
         nome: item.nome,
         valor,
-        honorarioLabel: formatCurrency(valor),
+        honorarioLabel: `Num horas: ${decimalFormatter.format(horas)}h | Base: ${formatCurrency(base)}`,
         condicoes: "",
         plano_pagamentos: Array.isArray(item.plano_pagamentos) ? item.plano_pagamentos : [],
       };
@@ -1624,6 +1746,9 @@ export default function PropostasComerciais() {
     return <div className="page-container">A carregar proposta...</div>;
   }
 
+  const consultoraDadosReadOnly = Boolean(empresaConsultora.id);
+  const clienteDadosReadOnly = Boolean(cliente.id);
+
   return (
     <div className="page-container propostas-page">
       <div className="propostas-hero card">
@@ -1673,83 +1798,72 @@ export default function PropostasComerciais() {
           {currentStep === 1 && (
             <section className="card propostas-section">
               <div className="section-heading">1 · Identificação</div>
-              <div className="field-grid">
-                <div className="field span-2">
-                  <label>Selecionar Empresa</label>
-                  <select
-                    value={empresaConsultora.id}
-                    onChange={(e) => selectEmpresaConsultora(e.target.value)}
-                  >
-                    <option value="">—</option>
-                    {empresasConsultoras.map((emp) => (
-                      <option key={emp.id} value={emp.id}>
-                        {emp.nome}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
               <div className="card-inner">
                 <div className="section-heading">Dados da Empresa Consultora</div>
                 <div className="field-grid">
-                  {empresaConsultora.id && (
-                    <div className="field span-2">
-                      <label>Pessoa da consultora (BD)</label>
-                      <select
-                        value={empresaConsultora.signatario_id || ""}
-                        onChange={(e) => selectContatoConsultora(e.target.value)}
-                      >
-                        <option value="">
-                          {contatosConsultora.length > 0 ? "—" : "Sem pessoas registadas para esta consultora"}
+                  <div className="field span-2">
+                    <label>Selecionar Empresa</label>
+                    <select
+                      value={empresaConsultora.id}
+                      onChange={(e) => selectEmpresaConsultora(e.target.value)}
+                    >
+                      <option value="">—</option>
+                      {empresasConsultoras.map((emp) => (
+                        <option key={emp.id} value={emp.id}>
+                          {emp.nome}
                         </option>
-                        {contatosConsultora.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.nome}
-                          </option>
-                        ))}
-                      </select>
-                      {contatosConsultora.length === 0 && (
-                        <div className="field-hint">Adiciona pessoas em Clientes - aba Pessoas da empresa consultora.</div>
-                      )}
-                    </div>
-                  )}
+                      ))}
+                    </select>
+                  </div>
 
                   <div className="field">
-                    <label>Nome da empresa</label>
-                    <input type="text" value={empresaConsultora.nome} onChange={setField(setEmpresaConsultora, "nome")} placeholder="ex. NEOMARCA, Inovação e Desenvolvimento, Lda." />
+                    <label>Pessoa da consultora (responsável)</label>
+                    <select
+                      value={empresaConsultora.signatario_id || ""}
+                      onChange={(e) => selectContatoConsultora(e.target.value)}
+                      disabled={!empresaConsultora.id}
+                    >
+                      <option value="">
+                        {!empresaConsultora.id
+                          ? "Seleciona primeiro a empresa"
+                          : contatosConsultora.length > 0
+                            ? "—"
+                            : "Sem pessoas registadas para esta consultora"}
+                      </option>
+                      {contatosConsultora.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.nome}
+                        </option>
+                      ))}
+                    </select>
+                    {empresaConsultora.id && contatosConsultora.length === 0 && (
+                      <div className="field-hint">Adiciona pessoas em Clientes - aba Pessoas da empresa consultora.</div>
+                    )}
                   </div>
+
                   <div className="field">
                     <label>NIPC</label>
-                    <input type="text" value={empresaConsultora.nipc} onChange={setField(setEmpresaConsultora, "nipc")} placeholder="ex. 503 495 140" />
+                    <input type="text" value={empresaConsultora.nipc} onChange={setField(setEmpresaConsultora, "nipc")} readOnly={consultoraDadosReadOnly} placeholder="ex. 503 495 140" />
                   </div>
                   <div className="field">
                     <label>Morada completa</label>
-                    <input type="text" value={empresaConsultora.morada} onChange={setField(setEmpresaConsultora, "morada")} placeholder="ex. Rua Horta Machado, 2 – 8000-362 Faro" />
+                    <input type="text" value={empresaConsultora.morada} onChange={setField(setEmpresaConsultora, "morada")} readOnly={consultoraDadosReadOnly} placeholder="ex. Rua Horta Machado, 2 – 8000-362 Faro" />
                   </div>
                   <div className="field">
                     <label>Telefone</label>
-                    <input type="text" value={empresaConsultora.telefone} onChange={setField(setEmpresaConsultora, "telefone")} placeholder="ex. 289 098 720" />
+                    <input type="text" value={empresaConsultora.telefone} onChange={setField(setEmpresaConsultora, "telefone")} readOnly={consultoraDadosReadOnly} placeholder="ex. 289 098 720" />
                   </div>
                   <div className="field">
                     <label>Email</label>
-                    <input type="email" value={empresaConsultora.email} onChange={setField(setEmpresaConsultora, "email")} placeholder="ex. info@consultora.pt" />
+                    <input type="email" value={empresaConsultora.email} onChange={setField(setEmpresaConsultora, "email")} readOnly={consultoraDadosReadOnly} placeholder="ex. info@consultora.pt" />
                   </div>
                   <div className="field">
                     <label>Website</label>
-                    <input type="text" value={empresaConsultora.website} onChange={setField(setEmpresaConsultora, "website")} placeholder="ex. www.consultora.pt" />
-                  </div>
-                  <div className="field">
-                    <label>Nome do signatário</label>
-                    <input type="text" value={empresaConsultora.nome_signatario} onChange={setField(setEmpresaConsultora, "nome_signatario")} placeholder="ex. Paulo Pereira" />
+                    <input type="text" value={empresaConsultora.website} onChange={setField(setEmpresaConsultora, "website")} readOnly={consultoraDadosReadOnly} placeholder="ex. www.consultora.pt" />
                   </div>
                   <div className="field">
                     <label>Cargo do signatário</label>
-                    <input type="text" value={empresaConsultora.cargo_signatario} onChange={setField(setEmpresaConsultora, "cargo_signatario")} placeholder="ex. Diretor" />
-                  </div>
-                  <div className="field">
-                    <label>Telemóvel (signatário)</label>
-                    <input type="text" value={empresaConsultora.telemovel_signatario} onChange={setField(setEmpresaConsultora, "telemovel_signatario")} placeholder="ex. 913 535 544" />
+                    <input type="text" value={empresaConsultora.cargo_signatario} onChange={setField(setEmpresaConsultora, "cargo_signatario")} readOnly={consultoraDadosReadOnly} placeholder="ex. Diretor" />
                   </div>
                 </div>
               </div>
@@ -1787,9 +1901,6 @@ export default function PropostasComerciais() {
                     </select>
                   </div>
                 </div>
-                <p style={{ marginTop: "8px", color: "#0f9d58", fontWeight: 700 }}>
-                  O ID da proposta é automático e incremental. É atribuído quando guardas na BD.
-                </p>
               </div>
             </section>
           )}
@@ -1797,50 +1908,32 @@ export default function PropostasComerciais() {
           {currentStep === 2 && (
             <section className="card propostas-section">
               <div className="section-heading">2 · Cliente</div>
-              <div className="field-grid">
-                <div className="field span-2">
-                  <label>Selecionar Cliente</label>
-                  <select value={cliente.id} onChange={(e) => selectCliente(e.target.value)}>
-                    <option value="">—</option>
-                    {clientes.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.nome}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
 
               <div className="card-inner">
                 <div className="section-heading">Dados do Cliente</div>
                 <div className="field-grid">
-                  <div className="field">
-                    <label>Nome da empresa</label>
-                    <input type="text" value={cliente.nome} onChange={setField(setCliente, "nome")} placeholder="ex. CAMPICONTROL, LDA" />
-                  </div>
-                  <div className="field">
-                    <label>NIPC</label>
-                    <input type="text" value={cliente.nipc || ""} onChange={setField(setCliente, "nipc")} placeholder="ex. 507 123 456" />
-                  </div>
-                  <div className="field">
-                    <label>Tipo de empresa</label>
-                    <select value={cliente.tipo_empresa || "PME"} onChange={setField(setCliente, "tipo_empresa")}>
-                      {TIPO_EMPRESA_OPTIONS.map((tipo) => (
-                        <option key={tipo} value={tipo}>{tipo}</option>
+                  <div className="field span-2">
+                    <label>Selecionar Cliente</label>
+                    <select value={cliente.id} onChange={(e) => selectCliente(e.target.value)}>
+                      <option value="">—</option>
+                      {clientes.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.nome}
+                        </option>
                       ))}
                     </select>
                   </div>
                   <div className="field">
+                    <label>NIPC</label>
+                    <input type="text" value={cliente.nipc || ""} onChange={setField(setCliente, "nipc")} readOnly={clienteDadosReadOnly} placeholder="ex. 507 123 456" />
+                  </div>
+                  <div className="field">
                     <label>Morada</label>
-                    <input type="text" value={cliente.morada || ""} onChange={setField(setCliente, "morada")} placeholder="ex. Rua da Liberdade, 10 – 8000-000 Faro" />
+                    <input type="text" value={cliente.morada || ""} onChange={setField(setCliente, "morada")} readOnly={clienteDadosReadOnly} placeholder="ex. Rua da Liberdade, 10 – 8000-000 Faro" />
                   </div>
                   <div className="field">
                     <label>Distrito / Cidade</label>
-                    <input type="text" value={cliente.distrito_cidade || ""} onChange={setField(setCliente, "distrito_cidade")} placeholder="ex. Faro" />
-                  </div>
-                  <div className="field">
-                    <label>Setor de atividade</label>
-                    <input type="text" value={cliente.setor_atividade || ""} onChange={setField(setCliente, "setor_atividade")} placeholder="ex. Construção, Agricultura, Ambiente" />
+                    <input type="text" value={cliente.distrito_cidade || ""} onChange={setField(setCliente, "distrito_cidade")} readOnly={clienteDadosReadOnly} placeholder="ex. Faro" />
                   </div>
                 </div>
               </div>
@@ -1874,33 +1967,19 @@ export default function PropostasComerciais() {
                     </select>
                   </div>
                   <div className="field">
-                    <label>Nome do contacto</label>
-                    <input type="text" value={cliente.contacto_nome || ""} onChange={setField(setCliente, "contacto_nome")} placeholder="ex. André Gomes" />
-                  </div>
-                  <div className="field">
                     <label>Cargo</label>
-                    <input type="text" value={cliente.contacto_cargo || ""} onChange={setField(setCliente, "contacto_cargo")} placeholder="ex. Gerente" />
+                    <input type="text" value={cliente.contacto_cargo || ""} onChange={setField(setCliente, "contacto_cargo")} readOnly={clienteDadosReadOnly} placeholder="ex. Gerente" />
                   </div>
                   <div className="field">
                     <label>Email</label>
-                    <input type="email" value={cliente.contacto_email || ""} onChange={setField(setCliente, "contacto_email")} placeholder="ex. agomes@empresa.pt" />
+                    <input type="email" value={cliente.contacto_email || ""} onChange={setField(setCliente, "contacto_email")} readOnly={clienteDadosReadOnly} placeholder="ex. agomes@empresa.pt" />
                   </div>
                   <div className="field">
                     <label>Telefone</label>
-                    <input type="text" value={cliente.contacto_telefone || ""} onChange={setField(setCliente, "contacto_telefone")} placeholder="ex. 289 000 000" />
+                    <input type="text" value={cliente.contacto_telefone || ""} onChange={setField(setCliente, "contacto_telefone")} readOnly={clienteDadosReadOnly} placeholder="ex. 289 000 000" />
                   </div>
                 </div>
               </div>
-
-              {cliente.id && (
-                <div className="card-inner">
-                  <div className="section-heading">Resumo</div>
-                  <div>
-                    <p><strong>Cliente:</strong> {cliente.nome || "—"}</p>
-                    <p><strong>Contacto:</strong> {cliente.contacto_nome || "—"}</p>
-                  </div>
-                </div>
-              )}
             </section>
           )}
 
@@ -2285,7 +2364,11 @@ export default function PropostasComerciais() {
               <div className="card-inner">
                 <div className="section-heading">Tipos de Projeto Selecionados</div>
                 {orcamentoTiposProjeto.length > 0 ? (
-                  orcamentoTiposProjeto.map((item) => (
+                  orcamentoTiposProjeto.map((item) => {
+                    const totalPercentagemPagamentos = getPlanoPagamentosTotalPercentagem(item.plano_pagamentos);
+                    const podeAdicionarParcela = totalPercentagemPagamentos < 100;
+
+                    return (
                     <div key={item.tipo_projeto_id} style={{ marginBottom: "16px", padding: "12px", background: "#f8f9fa", borderRadius: "8px" }}>
                       <div style={{ marginBottom: "10px" }}>
                         <strong>Tipo {item.ordem} — {item.nome || "Sem nome"}</strong>
@@ -2293,76 +2376,178 @@ export default function PropostasComerciais() {
 
                       <div className="field-grid field-grid-3" style={{ marginBottom: "8px" }}>
                         <div className="field">
-                          <label>Valor (€)</label>
+                          <label>Num horas</label>
                           <input
                             type="number"
                             min="0"
-                            value={Number(item.valor || 0)}
-                            onChange={(event) => updateOrcamentoTipoField(item.tipo_projeto_id, "valor", event.target.value)}
+                            step="0.25"
+                            value={Number(item.num_horas || 0)}
+                            onChange={(event) => updateOrcamentoTipoField(item.tipo_projeto_id, "num_horas", event.target.value)}
                           />
+                        </div>
+                        <div className="field">
+                          <label>Base (EUR/h)</label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={Number(item.base_eur_hora || 0)}
+                            onChange={(event) => updateOrcamentoTipoField(item.tipo_projeto_id, "base_eur_hora", event.target.value)}
+                          />
+                        </div>
+                        <div className="field">
+                          <label>Total</label>
+                          <input
+                            type="text"
+                            value={formatCurrency(Number(item.valor || 0))}
+                            readOnly
+                          />
+                          <div className="field-hint">Total = Horas x Base</div>
                         </div>
                       </div>
 
                       <div className="section-subtitle" style={{ marginTop: "10px" }}>Plano de Pagamentos</div>
                       
-                      <div style={{ display: "grid", gridTemplateColumns: "80px 1fr 140px 40px", gap: "8px", marginBottom: "8px", fontSize: "12px", color: "#666", fontWeight: 600, alignItems: "center" }}>
-                        <div>Percentagem</div>
-                        <div>Descrição</div>
-                        <div>Dias após aceite</div>
-                        <div />
-                      </div>
+                      <div style={{ overflowX: "auto", marginBottom: 12 }}>
+                        <table className="propostas-pagamentos-tabela" style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, background: "#fff" }}>
+                          <thead>
+                            <tr style={{ background: "#e7f0fa" }}>
+                              <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Nº Parcela</th>
+                              <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Data Emissão</th>
+                              <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Trimestre</th>
+                              <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>s/IVA (€)</th>
+                              <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>IVA {proposta.iva || 23}% (€)</th>
+                              <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>c/IVA (€)</th>
+                              <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>%</th>
+                              <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Descrição</th>
+                              <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Dias após aceite</th>
+                              <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(item.plano_pagamentos || []).map((pag, index) => {
+                              const somaOutras = (item.plano_pagamentos || []).reduce(
+                                (accumulator, pagamento, pagamentoIndex) =>
+                                  pagamentoIndex === index
+                                    ? accumulator
+                                    : accumulator + Number(pagamento?.percentagem || 0),
+                                0
+                              );
+                              const maxAtual = Math.max(0, 100 - somaOutras);
+                              const percentagemAtual = Number(pag.percentagem || 0);
+                              const valorParcela = Number(item.valor || 0) * (percentagemAtual / 100);
+                              const valorIvaParcela = valorParcela * (Number(proposta.iva || 23) / 100);
+                              const totalParcela = valorParcela + valorIvaParcela;
 
-                      <div className="propostas-pagamentos-list">
-                        {(item.plano_pagamentos || []).map((pag, index) => (
-                          <div key={`${item.tipo_projeto_id}-pag-${index}`} style={{ display: "grid", gridTemplateColumns: "80px 1fr 140px 40px", gap: "8px", alignItems: "center", marginBottom: "10px" }}>
-                            <input
-                              type="number"
-                              min="0"
-                              max="100"
-                              value={Number(pag.percentagem || 0)}
-                              onChange={(e) => updatePagamentoTipoProjeto(item.tipo_projeto_id, index, "percentagem", e.target.value)}
-                              placeholder="0"
-                            />
-                            <input
-                              type="text"
-                              value={pag.descricao || ""}
-                              onChange={(e) => updatePagamentoTipoProjeto(item.tipo_projeto_id, index, "descricao", e.target.value)}
-                              placeholder="ex. Adjudicação"
-                            />
-                            <input
-                              type="number"
-                              min="0"
-                              value={Number(pag.dias_apos_aceite || 0)}
-                              onChange={(e) => updatePagamentoTipoProjeto(item.tipo_projeto_id, index, "dias_apos_aceite", e.target.value)}
-                              placeholder="0"
-                            />
-                            <button type="button" className="btn-small" onClick={() => removePagamentoTipoProjeto(item.tipo_projeto_id, index)}>
-                              ×
-                            </button>
-                          </div>
-                        ))}
+                              // Data Emissão
+                              let dataBase = proposta.data_aceite ? new Date(proposta.data_aceite) : new Date();
+                              if (isNaN(dataBase.getTime())) dataBase = new Date();
+                              const dataEmissao = new Date(dataBase.getTime() + Number(pag.dias_apos_aceite || 0) * 24 * 60 * 60 * 1000);
+                              const dataEmissaoStr = dataEmissao.toLocaleDateString("pt-PT", { month: "short", year: "numeric" });
+
+                              // Trimestre
+                              const mes = dataEmissao.getMonth();
+                              const trimestre = `Q${Math.floor(mes / 3) + 1}-${dataEmissao.getFullYear()}`;
+
+                              return (
+                                <tr key={`${item.tipo_projeto_id}-pag-${index}`} style={{ borderBottom: "1px solid #e2e8f0" }}>
+                                  <td style={{ textAlign: "center", padding: "6px 8px" }}>{index + 1}/{item.plano_pagamentos.length}</td>
+                                  <td style={{ textAlign: "center", padding: "6px 8px" }}>{dataEmissaoStr}</td>
+                                  <td style={{ textAlign: "center", padding: "6px 8px" }}>{trimestre}</td>
+                                  <td style={{ textAlign: "right", padding: "6px 8px" }}>{formatCurrency(valorParcela)}</td>
+                                  <td style={{ textAlign: "right", padding: "6px 8px" }}>{formatCurrency(valorIvaParcela)}</td>
+                                  <td style={{ textAlign: "right", padding: "6px 8px" }}>{formatCurrency(totalParcela)}</td>
+                                  <td style={{ textAlign: "center", padding: "6px 8px", minWidth: 70 }}>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      max={maxAtual}
+                                      value={Number(pag.percentagem || 0)}
+                                      onChange={(e) => updatePagamentoTipoProjeto(item.tipo_projeto_id, index, "percentagem", e.target.value)}
+                                      placeholder="0"
+                                      style={{ width: 60, minWidth: 60, textAlign: "center", padding: "6px 8px", borderRadius: 6, border: "1px solid #e2e8f0" }}
+                                    />
+                                  </td>
+                                  <td style={{ padding: "6px 8px", minWidth: 120 }}>
+                                    <input
+                                      type="text"
+                                      value={pag.descricao || ""}
+                                      onChange={(e) => updatePagamentoTipoProjeto(item.tipo_projeto_id, index, "descricao", e.target.value)}
+                                      placeholder="ex. Adjudicação"
+                                      style={{ width: "100%" }}
+                                    />
+                                  </td>
+                                  <td style={{ textAlign: "center", padding: "6px 8px", minWidth: 80 }}>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      value={Number(pag.dias_apos_aceite || 0)}
+                                      onChange={(e) => updatePagamentoTipoProjeto(item.tipo_projeto_id, index, "dias_apos_aceite", e.target.value)}
+                                      placeholder="0"
+                                      style={{ width: 60, textAlign: "center" }}
+                                    />
+                                  </td>
+                                  <td style={{ textAlign: "center", padding: "6px 8px" }}>
+                                    <button type="button" className="btn-small" onClick={() => removePagamentoTipoProjeto(item.tipo_projeto_id, index)}>
+                                      ×
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                            {/* Totais */}
+                            <tr style={{ background: "#f3f4f6", fontWeight: 600 }}>
+                              <td colSpan={3} style={{ textAlign: "right", padding: "6px 8px" }}>Totais</td>
+                              <td style={{ textAlign: "right", padding: "6px 8px" }}>
+                                {formatCurrency((item.plano_pagamentos || []).reduce((acc, pag) => acc + Number(item.valor || 0) * (Number(pag.percentagem || 0) / 100), 0))}
+                              </td>
+                              <td style={{ textAlign: "right", padding: "6px 8px" }}>
+                                {formatCurrency((item.plano_pagamentos || []).reduce((acc, pag) => acc + (Number(item.valor || 0) * (Number(pag.percentagem || 0) / 100)) * (Number(proposta.iva || 23) / 100), 0))}
+                              </td>
+                              <td style={{ textAlign: "right", padding: "6px 8px" }}>
+                                {formatCurrency((item.plano_pagamentos || []).reduce((acc, pag) => acc + (Number(item.valor || 0) * (Number(pag.percentagem || 0) / 100)) * (1 + (Number(proposta.iva || 23) / 100)), 0))}
+                              </td>
+                              <td colSpan={4}></td>
+                            </tr>
+                          </tbody>
+                        </table>
                       </div>
-                      <button type="button" className="btn-soft-cta" onClick={() => addPagamentoTipoProjeto(item.tipo_projeto_id)}>
+                      <div
+                        className="field-hint"
+                        style={{
+                          marginBottom: "8px",
+                          color: totalPercentagemPagamentos === 100 ? "#047857" : "#b45309",
+                        }}
+                      >
+                        Total parcelas: {Number(totalPercentagemPagamentos.toFixed(2))}% {totalPercentagemPagamentos === 100 ? "(OK)" : "(deve ser 100%)"}
+                      </div>
+                      <button
+                        type="button"
+                        className="btn-soft-cta"
+                        onClick={() => addPagamentoTipoProjeto(item.tipo_projeto_id)}
+                        disabled={!podeAdicionarParcela}
+                      >
                         Adicionar parcela
                       </button>
                     </div>
-                  ))
+                    );
+                  })
                 ) : (
                   <div className="muted">Seleciona pelo menos um tipo de projeto no passo 3.</div>
                 )}
               </div>
 
               <div className="propostas-totals">
-                <div className="total-card">
-                  <span>Total s/ IVA</span>
+                <div className="total-card" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                  <span style={{ alignSelf: "flex-start" }}>Total s/ IVA</span>
                   <strong>{formatCurrency(totais.totalSemIva)}</strong>
                 </div>
-                <div className="total-card">
-                  <span>IVA</span>
+                <div className="total-card" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                  <span style={{ alignSelf: "flex-start" }}>IVA</span>
                   <strong>{formatCurrency(totais.totalIva)}</strong>
                 </div>
-                <div className="total-card total-card-accent">
-                  <span>Total c/ IVA</span>
+                <div className="total-card total-card-accent" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                  <span style={{ alignSelf: "flex-start" }}>Total c/ IVA</span>
                   <strong>{formatCurrency(totais.totalComIva)}</strong>
                 </div>
               </div>
@@ -2482,29 +2667,34 @@ export default function PropostasComerciais() {
 
               <div className="card-inner">
                 <div className="section-heading">Resumo Financeiro</div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 120px", gap: "12px", marginBottom: "16px" }}>
+                <div style={{ marginBottom: "16px" }}>
                   {orcamentoLinhas.map((l) => (
-                    <div key={l.id} style={{ display: "contents" }}>
-                      <div><strong>Módulo {l.codigo}</strong><br /><span className="muted">{l.nome}</span></div>
-                      <div style={{ textAlign: "right" }}>{formatCurrency(l.valor)}</div>
+                    <div key={l.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                      <div>
+                        <strong>Módulo {l.codigo}</strong><br />
+                        <span className="muted">{l.nome}</span>
+                      </div>
+                      <div style={{ minWidth: 100, textAlign: "right", fontWeight: 500, fontSize: 18, color: "#222" }}>
+                        {formatCurrency(l.valor)}
+                      </div>
                     </div>
                   ))}
                 </div>
 
                 <div className="propostas-totals">
-                  <div className="total-card">
-                    <span>Total s/ IVA</span>
-                    <strong>{formatCurrency(totais.totalSemIva)}</strong>
-                  </div>
-                  <div className="total-card">
-                    <span>IVA</span>
-                    <strong>{formatCurrency(totais.totalIva)}</strong>
-                  </div>
-                  <div className="total-card total-card-accent">
-                    <span>Total c/ IVA</span>
-                    <strong>{formatCurrency(totais.totalComIva)}</strong>
-                  </div>
+                <div className="total-card" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                  <span style={{ alignSelf: "flex-start" }}>Total s/ IVA</span>
+                  <strong>{formatCurrency(totais.totalSemIva)}</strong>
                 </div>
+                <div className="total-card" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                  <span style={{ alignSelf: "flex-start" }}>IVA</span>
+                  <strong>{formatCurrency(totais.totalIva)}</strong>
+                </div>
+                <div className="total-card total-card-accent" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                  <span style={{ alignSelf: "flex-start" }}>Total c/ IVA</span>
+                  <strong>{formatCurrency(totais.totalComIva)}</strong>
+                </div>
+              </div>
               </div>
             </section>
           )}
