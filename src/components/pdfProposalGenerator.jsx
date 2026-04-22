@@ -28,6 +28,19 @@ const safeValue = (value) => {
   return text || '—';
 };
 
+const formatEstadoLabel = (estado) => {
+  const key = String(estado || '').trim().toLowerCase();
+  const map = {
+    em_preparacao: 'Em preparação',
+    revisao: 'Revisão',
+    enviada: 'Enviada',
+    analise: 'Análise',
+    ganha: 'Ganha',
+    perdida: 'Perdida',
+  };
+  return map[key] || safeValue(estado);
+};
+
 const loadImage = (url) =>
   new Promise((resolve) => {
     const img = new Image();
@@ -379,11 +392,11 @@ Gratos pela vossa atenção, ficamos ao dispor para qualquer questão adicional.
   startMainSection('ENQUADRAMENTO');
 
   drawTitle('Detalhes da Proposta');
+  const numeroLabel = propNum && propNum !== '—' ? propNum : 'Por atribuir';
   drawTwoColumn(
     [
-      { label: 'Número', value: propNum },
-      { label: 'Referência interna', value: proposta?.referencia_interna },
-      { label: 'Estado', value: proposta?.estado },
+      { label: 'Número', value: numeroLabel },
+      { label: 'Estado', value: formatEstadoLabel(proposta?.estado) },
     ],
     [
       { label: 'Data', value: dateFormatted },
@@ -399,6 +412,7 @@ Gratos pela vossa atenção, ficamos ao dispor para qualquer questão adicional.
   }
 
   drawTitle('Enquadramento de Financiamento');
+  const avisoLabel = selectedAviso?.nome || selectedAviso?.codigo || selectedPrograma?.aviso || '—';
   drawTwoColumn(
     [
       {
@@ -406,7 +420,7 @@ Gratos pela vossa atenção, ficamos ao dispor para qualquer questão adicional.
         value: orderedTipoNames.length > 0 ? orderedTipoNames.join(' + ') : tipoProjeto?.nome,
       },
       { label: 'Programa', value: programa?.nome || '—' },
-      { label: 'Aviso', value: selectedAviso?.codigo || selectedPrograma?.aviso || '—' },
+      { label: 'Aviso', value: avisoLabel },
     ],
     [
       { label: 'Investimento elegível', value: fmtCurrency ? fmtCurrency(proposta?.investimento || 0) : formatCurrency(proposta?.investimento || 0) },

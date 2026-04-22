@@ -425,7 +425,8 @@ export default function PropostasComerciais() {
 
         if (hasConsultoraFlag) {
           setEmpresasConsultoras(clientesAtivos.filter((item) => item.eh_empresa_consultora === true));
-          setClientes(ordenarPorNome(clientesAtivos.filter((item) => item.eh_empresa_consultora !== true)));
+          // Uma consultora também pode ser cliente de outra consultora.
+          setClientes(ordenarPorNome(clientesAtivos));
         } else {
           // Fallback de compatibilidade quando a migration ainda não correu.
           setEmpresasConsultoras(clientesAtivos);
@@ -818,10 +819,10 @@ export default function PropostasComerciais() {
   // CORE FUNCTIONS: PDF & PERSISTENCE
   // ========================================================================
 
-  const guardarPropostaEmBD = async () => {
+  const guardarPropostaEmBD = async ({ silent = false } = {}) => {
     if (!empresaConsultora.id || !cliente.id || tiposProjetoSelecionados.length === 0) {
-      showToast("Preencha empresa consultora, cliente e pelo menos um tipo de projeto");
-      return;
+      if (!silent) showToast("Preencha empresa consultora, cliente e pelo menos um tipo de projeto");
+      return null;
     }
 
     setIsSavingDb(true);
@@ -890,20 +891,34 @@ export default function PropostasComerciais() {
         numero: numeroFinal || prev.numero,
       }));
 
-      showToast("✓ Proposta guardada com sucesso!");
+      if (!silent) showToast("✓ Proposta guardada com sucesso!");
+      return {
+        db_id: result.data?.[0]?.id || proposta.db_id,
+        numero: numeroFinal || proposta.numero,
+      };
     } catch (error) {
       console.error("Erro ao guardar proposta:", error);
-      showToast("Erro ao guardar proposta");
+      if (!silent) showToast("Erro ao guardar proposta");
+      return null;
     } finally {
       setIsSavingDb(false);
     }
   };
 
-  const gerarPDF = () => {
+  const gerarPDF = async () => {
     try {
-      generateProposalPDF({
-        propostaNumero: proposta.numero || proposta.db_id,
-        proposta,
+      const saved = await guardarPropostaEmBD({ silent: true });
+      if (!saved) return;
+
+      const propostaParaPdf = {
+        ...proposta,
+        db_id: saved.db_id || proposta.db_id,
+        numero: saved.numero || proposta.numero,
+      };
+
+      await generateProposalPDF({
+        propostaNumero: propostaParaPdf.numero || propostaParaPdf.db_id,
+        proposta: propostaParaPdf,
         cliente,
         empresaConsultora,
         tipoProjeto: tiposProjetoSelecionados[0] || INITIAL_TIPO_PROJETO,
@@ -920,7 +935,7 @@ export default function PropostasComerciais() {
         normalizeAvisoFases,
       });
 
-      showToast("PDF gerado com sucesso!");
+      showToast("✓ Proposta guardada e PDF gerado com sucesso!");
     } catch (error) {
       console.error("Erro ao gerar PDF:", error);
       showToast("Erro ao gerar PDF");
@@ -1885,10 +1900,6 @@ export default function PropostasComerciais() {
                     />
                   </div>
                   <div className="field">
-                    <label>Referência interna</label>
-                    <input type="text" value={proposta.referencia_interna || ""} onChange={setField(setProposta, "referencia_interna")} placeholder="ex. 056/03/2026" />
-                  </div>
-                  <div className="field">
                     <label>Data de Emissão</label>
                     <input type="date" value={proposta.data} onChange={setField(setProposta, "data")} />
                   </div>
@@ -2417,14 +2428,14 @@ export default function PropostasComerciais() {
                           <thead>
                             <tr style={{ background: "#e7f0fa" }}>
                               <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Nº Parcela</th>
+                              <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>%</th>
+                              <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Descrição</th>
+                              <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Dias após aceite</th>
                               <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Data Emissão</th>
                               <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Trimestre</th>
                               <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>s/IVA (€)</th>
                               <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>IVA {proposta.iva || 23}% (€)</th>
                               <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>c/IVA (€)</th>
-                              <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>%</th>
-                              <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Descrição</th>
-                              <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Dias após aceite</th>
                               <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}></th>
                             </tr>
                           </thead>
@@ -2456,11 +2467,6 @@ export default function PropostasComerciais() {
                               return (
                                 <tr key={`${item.tipo_projeto_id}-pag-${index}`} style={{ borderBottom: "1px solid #e2e8f0" }}>
                                   <td style={{ textAlign: "center", padding: "6px 8px" }}>{index + 1}/{item.plano_pagamentos.length}</td>
-                                  <td style={{ textAlign: "center", padding: "6px 8px" }}>{dataEmissaoStr}</td>
-                                  <td style={{ textAlign: "center", padding: "6px 8px" }}>{trimestre}</td>
-                                  <td style={{ textAlign: "right", padding: "6px 8px" }}>{formatCurrency(valorParcela)}</td>
-                                  <td style={{ textAlign: "right", padding: "6px 8px" }}>{formatCurrency(valorIvaParcela)}</td>
-                                  <td style={{ textAlign: "right", padding: "6px 8px" }}>{formatCurrency(totalParcela)}</td>
                                   <td style={{ textAlign: "center", padding: "6px 8px", minWidth: 70 }}>
                                     <input
                                       type="number"
@@ -2491,6 +2497,11 @@ export default function PropostasComerciais() {
                                       style={{ width: 60, textAlign: "center" }}
                                     />
                                   </td>
+                                  <td style={{ textAlign: "center", padding: "6px 8px" }}>{dataEmissaoStr}</td>
+                                  <td style={{ textAlign: "center", padding: "6px 8px" }}>{trimestre}</td>
+                                  <td style={{ textAlign: "right", padding: "6px 8px" }}>{formatCurrency(valorParcela)}</td>
+                                  <td style={{ textAlign: "right", padding: "6px 8px" }}>{formatCurrency(valorIvaParcela)}</td>
+                                  <td style={{ textAlign: "right", padding: "6px 8px" }}>{formatCurrency(totalParcela)}</td>
                                   <td style={{ textAlign: "center", padding: "6px 8px" }}>
                                     <button type="button" className="btn-small" onClick={() => removePagamentoTipoProjeto(item.tipo_projeto_id, index)}>
                                       ×
@@ -2501,7 +2512,7 @@ export default function PropostasComerciais() {
                             })}
                             {/* Totais */}
                             <tr style={{ background: "#f3f4f6", fontWeight: 600 }}>
-                              <td colSpan={3} style={{ textAlign: "right", padding: "6px 8px" }}>Totais</td>
+                              <td colSpan={6} style={{ textAlign: "right", padding: "6px 8px" }}>Totais</td>
                               <td style={{ textAlign: "right", padding: "6px 8px" }}>
                                 {formatCurrency((item.plano_pagamentos || []).reduce((acc, pag) => acc + Number(item.valor || 0) * (Number(pag.percentagem || 0) / 100), 0))}
                               </td>
@@ -2511,7 +2522,7 @@ export default function PropostasComerciais() {
                               <td style={{ textAlign: "right", padding: "6px 8px" }}>
                                 {formatCurrency((item.plano_pagamentos || []).reduce((acc, pag) => acc + (Number(item.valor || 0) * (Number(pag.percentagem || 0) / 100)) * (1 + (Number(proposta.iva || 23) / 100)), 0))}
                               </td>
-                              <td colSpan={4}></td>
+                              <td></td>
                             </tr>
                           </tbody>
                         </table>
@@ -2605,24 +2616,6 @@ export default function PropostasComerciais() {
                     {programa ? ` · ${programa.nome}` : ""} · {formatDatePt(proposta.data)}
                   </p>
                 </div>
-                <div style={{ display: "flex", gap: "8px" }}>
-                  <button 
-                    type="button" 
-                    className="btn-primary"
-                    onClick={gerarPDF}
-                    disabled={isSavingDb}
-                  >
-                    Gerar PDF
-                  </button>
-                  <button 
-                    type="button" 
-                    className="btn-primary"
-                    onClick={guardarPropostaEmBD}
-                    disabled={isSavingDb}
-                  >
-                    {isSavingDb ? "A guardar..." : "Guardar Proposta"}
-                  </button>
-                </div>
               </div>
 
               <div className="propostas-summary-grid">
@@ -2653,10 +2646,6 @@ export default function PropostasComerciais() {
                 <div className="summary-card">
                   <div className="summary-label">Validade</div>
                   <div className="summary-value">{proposta.validade || 30} dias</div>
-                </div>
-                <div className="summary-card">
-                  <div className="summary-label">Referência Interna</div>
-                  <div className="summary-value">{proposta.referencia_interna || "—"}</div>
                 </div>
               </div>
 
@@ -2699,14 +2688,36 @@ export default function PropostasComerciais() {
               ← Anterior
             </button>
             <div className="muted">Passo {currentStep} de {stepTitles.length}</div>
-            <button
-              className="btn-primary"
-              type="button"
-              onClick={() => goStep(currentStep + 1)}
-              disabled={currentStep === stepTitles.length}
-            >
-              Próximo →
-            </button>
+            {currentStep < stepTitles.length ? (
+              <button
+                className="btn-primary"
+                type="button"
+                onClick={() => goStep(currentStep + 1)}
+              >
+                Próximo →
+              </button>
+            ) : (
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  className="btn-primary"
+                  type="button"
+                  onClick={guardarPropostaEmBD}
+                  disabled={isSavingDb}
+                  style={{ minWidth: 180 }}
+                >
+                  {isSavingDb ? "A guardar..." : "Guardar Proposta"}
+                </button>
+                <button
+                  className="btn-primary"
+                  type="button"
+                  onClick={gerarPDF}
+                  disabled={isSavingDb}
+                  style={{ minWidth: 180 }}
+                >
+                  Gerar PDF
+                </button>
+              </div>
+            )}
           </div>
         </main>
       </div>
