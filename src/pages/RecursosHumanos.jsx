@@ -1802,6 +1802,10 @@ export default function RecursosHumanos() {
   };
   const ausentesHoje = getAusentesHoje();
 
+  const totalKmSelecionados = pedidosKmPendentes
+      .filter(p => selectedPedidosKm.includes(p.id))
+      .reduce((sum, p) => sum + (Number(p.km_total) || 0), 0);
+
   const calcularTotalKmAprovadosNoMes = (userId, dataReferencia, todosOsDados) => {
     if (!userId || !dataReferencia) return 0;
     
@@ -2123,9 +2127,17 @@ export default function RecursosHumanos() {
                           <h3 style={{margin: 0, color: '#1e293b'}}>Deslocações Pendentes</h3>
                       </div>
                       {selectedPedidosKm.length > 0 && (
-                          <button onClick={() => abrirModalAprovacaoMassa('kms')} disabled={isSubmitting} className="btn-small" style={{background: '#16a34a', color: 'white', border: 'none', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', borderRadius: '8px', boxShadow: '0 4px 6px rgba(22, 163, 74, 0.2)'}}>
-                              <Icons.Check size={16} /> Aprovar Selecionados ({selectedPedidosKm.length})
-                          </button>
+                          <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
+                              {/* Etiqueta de Contagem em Tempo Real */}
+                              <div style={{background: '#f0fdf4', color: '#166534', padding: '6px 12px', borderRadius: '8px', border: '1px solid #bbf7d0', fontSize: '0.85rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px'}}>
+                                  <Icons.Chart size={14}/>
+                                  Total Selecionado: <span style={{fontSize: '1rem', fontWeight: 'bold'}}>{totalKmSelecionados.toFixed(2)} km</span>
+                              </div>
+                              
+                              <button onClick={() => abrirModalAprovacaoMassa('kms')} disabled={isSubmitting} className="btn-small" style={{background: '#16a34a', color: 'white', border: 'none', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', borderRadius: '8px', boxShadow: '0 4px 6px rgba(22, 163, 74, 0.2)'}}>
+                                  <Icons.Check size={16} /> Aprovar ({selectedPedidosKm.length})
+                              </button>
+                          </div>
                       )}
                   </div>
                   {pedidosKmPendentes.length > 0 ? (
