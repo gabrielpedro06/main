@@ -149,7 +149,7 @@ export default function CalculadoraKm({ form, setForm }) {
             </div>
 
             <div>
-                <label style={labelStyle}>Km total (Ida e Volta - Editável)*</label>
+                <label style={labelStyle}>Km's Efetuados (Editável)*</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <input 
                         type="number" 
