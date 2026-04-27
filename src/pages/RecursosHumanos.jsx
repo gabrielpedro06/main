@@ -1691,6 +1691,24 @@ export default function RecursosHumanos() {
   };
   const ausentesHoje = getAusentesHoje();
 
+  const calcularTotalKmAprovadosNoMes = (userId, dataReferencia, todosOsDados) => {
+    if (!userId || !dataReferencia) return 0;
+    
+    const data = new Date(dataReferencia);
+    const ano = data.getFullYear();
+    const mes = data.getMonth();
+
+    return todosOsDados
+        .filter(p => 
+            p.user_id === userId && 
+            p.tipo === "Pedido de Km's" && 
+            p.estado === 'aprovado' &&
+            new Date(p.data_inicio).getFullYear() === ano &&
+            new Date(p.data_inicio).getMonth() === mes
+        )
+        .reduce((acc, curr) => acc + (Number(curr.km_total) || 0), 0);
+  };
+
   const getAniversariantesDoMes = () => {
       const mesAtual = currentDate.getMonth();
       return colaboradores
@@ -1980,117 +1998,128 @@ export default function RecursosHumanos() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {pedidosKmPendentes.map(p => (
-                                    <tr key={p.id} style={{background: p.estado === 'pedido_cancelamento' ? '#fefce8' : 'transparent', borderBottom: '1px solid #f1f5f9'}}>
-                                        <td style={{padding: '12px', fontWeight: 'bold', color: 'var(--color-btnPrimary)'}}>{p.profiles?.nome}</td>
-                                        <td style={{padding: '12px', color: '#334155', fontWeight: '500'}}>{p.km_origem || '-'}</td>
-                                        <td style={{padding: '12px', color: '#334155', fontWeight: '500'}}>{p.km_destino || '-'}</td>
-                                        <td style={{padding: '12px'}}><span style={{fontSize:'0.95rem', fontWeight:'600', color: '#16a34a'}}>{p.km_total ?? 0} km</span></td>
-                                        <td style={{padding: '12px', color: '#334155'}}>{new Date(p.data_inicio).toLocaleDateString('pt-PT')}</td>
-                                        <td style={{padding: '12px'}}>
-                                            {p.estado === 'pendente' ? 
-                                                <span style={{background: 'var(--color-borderColorLight)', color: 'var(--color-btnPrimary)', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold'}}>Novo Pedido</span> : 
-                                                <span style={{background: '#fef08a', color: '#854d0e', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', display:'flex', alignItems:'center', gap:'4px', width:'max-content'}}><Icons.Alert size={12}/> Cancelamento</span>
-                                            }
-                                        </td>
-                                        <td style={{padding: '12px', textAlign: 'center'}}>
-                                            <div style={{display: 'flex', gap: '8px', justifyContent: 'center'}}>
-                                                <ModernTooltip content="Ver Detalhes do Pedido">
-                                                    <button className="btn-small" style={{background: '#f8fafc', borderColor: '#cbd5e1', color: '#475569', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalDetalhes(p)}>
-                                                        <Icons.Eye size={16} />
-                                                    </button>
-                                                </ModernTooltip>
-                                                
-                                                {p.estado === 'pendente' ? (
-                                                    <>
-                                                        <ModernTooltip content="Aprovar">
-                                                            <button className="btn-small" style={{background: '#f0fdf4', borderColor: '#bbf7d0', color: '#16a34a', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalConfirmacao(p, 'aprovar')}>
-                                                                <Icons.Check size={16} />
-                                                            </button>
-                                                        </ModernTooltip>
-                                                        <ModernTooltip content="Rejeitar">
-                                                            <button className="btn-small" style={{background: '#fef2f2', borderColor: '#fecaca', color: '#ef4444', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalConfirmacao(p, 'rejeitar')}>
-                                                                <Icons.X size={16} />
-                                                            </button>
-                                                        </ModernTooltip>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <ModernTooltip content="Aceitar Cancelamento">
-                                                            <button className="btn-small" style={{background: '#fef2f2', borderColor: '#fecaca', color: '#ef4444', fontWeight:'bold', fontSize:'0.8rem'}} onClick={() => abrirModalConfirmacao(p, 'aceitar_cancelamento')}>Aceitar</button>
-                                                        </ModernTooltip>
-                                                        <ModernTooltip content="Recusar Cancelamento">
-                                                            <button className="btn-small" style={{background: '#f8fafc', borderColor: '#cbd5e1', color: '#64748b', fontSize:'0.8rem'}} onClick={() => abrirModalConfirmacao(p, 'recusar_cancelamento')}>Recusar</button>
-                                                        </ModernTooltip>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                      </div>
-                  ) : <div style={{textAlign: 'center', padding: '40px', color: '#94a3b8', background: '#f8fafc', borderRadius: '12px', display:'flex', flexDirection:'column', alignItems:'center', gap:'10px'}}>
-                        <Icons.Inbox size={40} color="#cbd5e1" />
-                        <span style={{fontSize:'0.95rem'}}>Não há deslocações pendentes.</span>
-                    </div>}
-              </div>
-          </div>
-      )}
+                                {pedidosKmPendentes.map(p => {
 
-      {activeView === 'tolerancias' && (
-          <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
-              <div className="card" style={{padding: '25px', borderRadius: '12px', background: 'white', boxShadow: '0 2px 10px rgba(0,0,0,0.02)'}}>
-                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: '20px'}}>
-                      <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
-                          <Icons.Clock size={24} color="#1e293b" />
-                          <div>
-                              <h3 style={{margin: 0, color: '#1e293b'}}>Tolerâncias de Ponto</h3>
-                              <p style={{margin:'4px 0 0 0', color:'#64748b', fontSize:'0.85rem'}}>Dias dispensados que não contam como férias para os colaboradores.</p>
-                          </div>
-                      </div>
-                      <button className="btn-primary" onClick={() => { setNewTolerancia({ nome: '', data: '', tipo: 'global', user_id: '' }); setShowToleranciaModal(true); }} style={{padding: '10px 20px', display:'flex', alignItems:'center', gap:'8px'}}>
-                          <Icons.Flag size={16} /> Nova Tolerância
-                      </button>
-                  </div>
-                  {tolerancias.length > 0 ? (
-                      <div className="table-responsive">
-                          <table className="data-table" style={{width: '100%', borderCollapse: 'collapse', textAlign: 'left'}}>
-                              <thead>
-                                  <tr style={{borderBottom: '2px solid #f1f5f9', color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase'}}>
-                                      <th style={{padding: '12px'}}>Designação</th>
-                                      <th style={{padding: '12px'}}>Data</th>
-                                      <th style={{padding: '12px'}}>Âmbito</th>
-                                      <th style={{padding: '12px', textAlign: 'center'}}>Ações</th>
-                                  </tr>
-                              </thead>
-                              <tbody>
-                                  {tolerancias.map(t => {
-                                      const colab = t.user_id ? colaboradores.find(c => c.id === t.user_id) : null;
-                                      return (
-                                          <tr key={t.id} style={{borderBottom: '1px solid #f1f5f9'}}>
-                                              <td style={{padding: '12px', fontWeight: '500', color: '#1e293b'}}>{t.nome}</td>
-                                              <td style={{padding: '12px', color: '#475569'}}>{t.data ? new Date(t.data + 'T00:00:00').toLocaleDateString('pt-PT') : '-'}</td>
-                                              <td style={{padding: '12px'}}>
-                                                  {t.user_id ? (
-                                                      <span style={{background: '#f0fdf4', color: '#166534', padding: '4px 10px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: '600', display:'inline-flex', alignItems:'center', gap:'4px'}}>
-                                                          <Icons.User size={12} /> {colab?.nome || 'Individual'}
-                                                      </span>
-                                                  ) : (
-                                                      <span style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimaryDark)', padding: '4px 10px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: '600', display:'inline-flex', alignItems:'center', gap:'4px'}}>
-                                                          <Icons.Users size={12} /> Global
-                                                      </span>
-                                                  )}
-                                              </td>
-                                              <td style={{padding: '12px', textAlign: 'center'}}>
-                                                  <ModernTooltip content="Eliminar">
-                                                      <button className="btn-small" style={{background: '#fef2f2', borderColor: '#fecaca', color: '#ef4444', display:'flex', alignItems:'center', padding:'6px', margin:'0 auto'}} onClick={() => handleDeleteTolerancia(t.id)}>
-                                                          <Icons.Trash size={16} />
-                                                      </button>
-                                                  </ModernTooltip>
-                                              </td>
-                                          </tr>
+                                    const acumuladoMes = calcularTotalKmAprovadosNoMes(p.user_id, p.data_inicio, ausenciasMes);
+
+                                    return (
+                                        <tr key={p.id} style={{background: p.estado === 'pedido_cancelamento' ? '#fefce8' : 'transparent', borderBottom: '1px solid #f1f5f9'}}>
+                                            <td style={{padding: '10px', fontWeight: 'bold', color: 'var(--color-btnPrimary)'}}>{p.profiles?.nome}</td>
+                                            <td style={{padding: '10px', color: '#334155', fontWeight: '500'}}>{p.km_origem || '-'}</td>
+                                            <td style={{padding: '10px', color: '#334155', fontWeight: '500'}}>{p.km_destino || '-'}</td>
+                                            <td style={{padding: '10px'}}>
+                                                <div style={{display:'flex', flexDirection:'column'}}>
+                                                    <span style={{fontSize:'0.95rem', fontWeight:'600', color: '#16a34a'}}>{p.km_total ?? 0} km</span>
+                                                    <span style={{fontSize:'0.7rem', color: '#64748b'}}> Já aprovados no mês: <strong>{acumuladoMes} km</strong></span>
+                                                </div>       
+                                            </td>
+
+                                            <td style={{padding: '10px', color: '#334155'}}>{new Date(p.data_inicio).toLocaleDateString('pt-PT')}</td>
+                                            <td style={{padding: '10px'}}>
+                                                {p.estado === 'pendente' ? 
+                                                    <span style={{background: 'var(--color-borderColorLight)', color: 'var(--color-btnPrimary)', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold'}}>Novo Pedido</span> : 
+                                                    <span style={{background: '#fef08a', color: '#854d0e', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', display:'flex', alignItems:'center', gap:'4px', width:'max-content'}}><Icons.Alert size={12}/> Cancelamento</span>
+                                                }
+                                            </td>
+                                            <td style={{padding: '12px', textAlign: 'center'}}>
+                                                <div style={{display: 'flex', gap: '8px', justifyContent: 'center'}}>
+                                                    <ModernTooltip content="Ver Detalhes do Pedido">
+                                                        <button className="btn-small" style={{background: '#f8fafc', borderColor: '#cbd5e1', color: '#475569', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalDetalhes(p)}>
+                                                            <Icons.Eye size={16} />
+                                                        </button>
+                                                    </ModernTooltip>
+                                                    
+                                                    {p.estado === 'pendente' ? (
+                                                        <>
+                                                            <ModernTooltip content="Aprovar">
+                                                                <button className="btn-small" style={{background: '#f0fdf4', borderColor: '#bbf7d0', color: '#16a34a', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalConfirmacao(p, 'aprovar')}>
+                                                                    <Icons.Check size={16} />
+                                                                </button>
+                                                            </ModernTooltip>
+                                                            <ModernTooltip content="Rejeitar">
+                                                                <button className="btn-small" style={{background: '#fef2f2', borderColor: '#fecaca', color: '#ef4444', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalConfirmacao(p, 'rejeitar')}>
+                                                                    <Icons.X size={16} />
+                                                                </button>
+                                                            </ModernTooltip>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <ModernTooltip content="Aceitar Cancelamento">
+                                                                <button className="btn-small" style={{background: '#fef2f2', borderColor: '#fecaca', color: '#ef4444', fontWeight:'bold', fontSize:'0.8rem'}} onClick={() => abrirModalConfirmacao(p, 'aceitar_cancelamento')}>Aceitar</button>
+                                                            </ModernTooltip>
+                                                            <ModernTooltip content="Recusar Cancelamento">
+                                                                <button className="btn-small" style={{background: '#f8fafc', borderColor: '#cbd5e1', color: '#64748b', fontSize:'0.8rem'}} onClick={() => abrirModalConfirmacao(p, 'recusar_cancelamento')}>Recusar</button>
+                                                            </ModernTooltip>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );    
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    ) : <div style={{textAlign: 'center', padding: '40px', color: '#94a3b8', background: '#f8fafc', borderRadius: '12px', display:'flex', flexDirection:'column', alignItems:'center', gap:'10px'}}>
+                            <Icons.Inbox size={40} color="#cbd5e1" />
+                            <span style={{fontSize:'0.95rem'}}>Não há deslocações pendentes.</span>
+                        </div>}
+                </div>
+            </div>
+        )}
+
+        {activeView === 'tolerancias' && (
+            <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
+                <div className="card" style={{padding: '25px', borderRadius: '12px', background: 'white', boxShadow: '0 2px 10px rgba(0,0,0,0.02)'}}>
+                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: '20px'}}>
+                        <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+                            <Icons.Clock size={24} color="#1e293b" />
+                            <div>
+                                <h3 style={{margin: 0, color: '#1e293b'}}>Tolerâncias de Ponto</h3>
+                                <p style={{margin:'4px 0 0 0', color:'#64748b', fontSize:'0.85rem'}}>Dias dispensados que não contam como férias para os colaboradores.</p>
+                            </div>
+                        </div>
+                        <button className="btn-primary" onClick={() => { setNewTolerancia({ nome: '', data: '', tipo: 'global', user_id: '' }); setShowToleranciaModal(true); }} style={{padding: '10px 20px', display:'flex', alignItems:'center', gap:'8px'}}>
+                            <Icons.Flag size={16} /> Nova Tolerância
+                        </button>
+                    </div>
+                    {tolerancias.length > 0 ? (
+                        <div className="table-responsive">
+                            <table className="data-table" style={{width: '100%', borderCollapse: 'collapse', textAlign: 'left'}}>
+                                <thead>
+                                    <tr style={{borderBottom: '2px solid #f1f5f9', color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase'}}>
+                                        <th style={{padding: '12px'}}>Designação</th>
+                                        <th style={{padding: '12px'}}>Data</th>
+                                        <th style={{padding: '12px'}}>Âmbito</th>
+                                        <th style={{padding: '12px', textAlign: 'center'}}>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {tolerancias.map(t => {
+                                        const colab = t.user_id ? colaboradores.find(c => c.id === t.user_id) : null;
+                                        return (
+                                            <tr key={t.id} style={{borderBottom: '1px solid #f1f5f9'}}>
+                                                <td style={{padding: '12px', fontWeight: '500', color: '#1e293b'}}>{t.nome}</td>
+                                                <td style={{padding: '12px', color: '#475569'}}>{t.data ? new Date(t.data + 'T00:00:00').toLocaleDateString('pt-PT') : '-'}</td>
+                                                <td style={{padding: '12px'}}>
+                                                    {t.user_id ? (
+                                                        <span style={{background: '#f0fdf4', color: '#166534', padding: '4px 10px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: '600', display:'inline-flex', alignItems:'center', gap:'4px'}}>
+                                                            <Icons.User size={12} /> {colab?.nome || 'Individual'}
+                                                        </span>
+                                                    ) : (
+                                                        <span style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimaryDark)', padding: '4px 10px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: '600', display:'inline-flex', alignItems:'center', gap:'4px'}}>
+                                                            <Icons.Users size={12} /> Global
+                                                        </span>
+                                                    )}
+                                                </td>
+                                                <td style={{padding: '12px', textAlign: 'center'}}>
+                                                    <ModernTooltip content="Eliminar">
+                                                        <button className="btn-small" style={{background: '#fef2f2', borderColor: '#fecaca', color: '#ef4444', display:'flex', alignItems:'center', padding:'6px', margin:'0 auto'}} onClick={() => handleDeleteTolerancia(t.id)}>
+                                                            <Icons.Trash size={16} />
+                                                        </button>
+                                                    </ModernTooltip>
+                                                </td>
+                                            </tr>
                                       );
                                   })}
                               </tbody>
