@@ -39,7 +39,8 @@ const Icons = {
   Phone: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>,
   Mail: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>,
   Play: ({ size = 12, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>,
-  Stop: ({ size = 12, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none"><rect x="6" y="6" width="12" height="12" rx="2" ry="2"></rect></svg>
+  Stop: ({ size = 12, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none"><rect x="6" y="6" width="12" height="12" rx="2" ry="2"></rect></svg>,
+  Landmark: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="22" x2="21" y2="22"></line><line x1="6" y1="18" x2="6" y2="11"></line><line x1="10" y1="18" x2="10" y2="11"></line><line x1="14" y1="18" x2="14" y2="11"></line><line x1="18" y1="18" x2="18" y2="11"></line><polygon points="12 2 20 7 4 7"></polygon></svg>
 };
 
 const ModalPortal = ({ children }) => {
@@ -129,6 +130,7 @@ export default function Clientes() {
     certidao_permanente: "", validade_certidao: "",
     rcbe: "", validade_rcbe: "", ativo: true,
     eh_empresa_consultora: false,
+    eh_organismo: false,
     avatar_url: "",
     termos_gerais: ""
   };
@@ -1121,8 +1123,13 @@ export default function Clientes() {
   let processedClientes = [...clientes];
 
   if (statusTab === "ativos") {
-    processedClientes = processedClientes.filter((c) => c.ativo === true);
+    // Mostra ativos que NÃO são organismos
+    processedClientes = processedClientes.filter((c) => c.ativo === true && !c.eh_organismo);
+  } else if (statusTab === "organismos") {
+    // Mostra apenas organismos ativos
+    processedClientes = processedClientes.filter((c) => c.eh_organismo === true && c.ativo === true);
   } else {
+    // Arquivados
     processedClientes = processedClientes.filter((c) => c.ativo === false);
   }
 
@@ -1544,6 +1551,7 @@ export default function Clientes() {
       validade_rcbe: form.validade_rcbe || null,
       ativo: form.ativo,
       eh_empresa_consultora: Boolean(form.eh_empresa_consultora),
+      eh_organismo: Boolean(form.eh_organismo),
       termos_gerais: form.termos_gerais || null
     };
 
@@ -1758,7 +1766,13 @@ export default function Clientes() {
           onClick={() => setStatusTab("ativos")}
           style={{padding: '12px 25px', background: statusTab === 'ativos' ? 'white' : '#e2e8f0', color: statusTab === 'ativos' ? 'var(--color-btnPrimary)' : '#64748b', border: 'none', borderRadius: '12px 12px 0 0', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display:'flex', alignItems:'center', gap:'8px'}}
         >
-          <Icons.Building /> Ativos
+          <Icons.Building /> Empresas
+        </button>
+        <button
+          onClick={() => setStatusTab("organismos")}
+          style={{padding: '12px 25px', background: statusTab === 'organismos' ? 'white' : '#e2e8f0', color: statusTab === 'organismos' ? 'var(--color-btnPrimary)' : '#64748b', border: 'none', borderRadius: '12px 12px 0 0', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display:'flex', alignItems:'center', gap:'8px'}}
+        >
+          <Icons.Landmark /> Organismos
         </button>
         <button
           onClick={() => setStatusTab("arquivados")}
@@ -2331,7 +2345,20 @@ export default function Clientes() {
                             <option value="sim">Sim</option>
                           </select>
                         </div>
-                        <div></div>
+                        <div>
+
+                          <label style={labelStyle}>É Organismo Público?</label>
+                          <select
+                            value={form.eh_organismo ? "sim" : "nao"}
+                            onChange={(e) => setForm({ ...form, eh_organismo: e.target.value === "sim" })}
+                            style={inputStyle}
+                            className="input-focus"
+                            disabled={isViewOnly}
+                          >
+                            <option value="nao">Não</option>
+                            <option value="sim">Sim</option>
+                          </select>
+                        </div>
                       </div>
 
                       {!isViewOnly && <button type="submit" className="btn-primary hover-shadow" style={{width:'100%', marginTop:'20px', padding:'15px', fontSize:'1.05rem', fontWeight: 'bold'}}>Guardar Dados Base</button>}
