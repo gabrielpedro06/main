@@ -375,6 +375,10 @@ export default function RecursosHumanos() {
   const [notification, setNotification] = useState({ show: false, message: '', type: 'success' });
   const [isSubmitting, setIsSubmitting] = useState(false);
     const [isApplyingBulkSA, setIsApplyingBulkSA] = useState(false);
+    // States para seleção múltipla
+  const [selectedPedidosPendentes, setSelectedPedidosPendentes] = useState([]);
+  const [selectedPedidosKm, setSelectedPedidosKm] = useState([]);
+  const [bulkApproveModal, setBulkApproveModal] = useState({ show: false, tipo: null, pedidos: [] });
 
   const toLocalDateString = (date) => {
       const year = date.getFullYear();
@@ -986,6 +990,113 @@ export default function RecursosHumanos() {
           showNotification("Ação executada com sucesso!", "success"); 
       } catch (error) {
           showNotification("Erro ao processar: " + error.message, "error"); 
+      }
+  }
+
+// --- FUNÇÕES DE SELEÇÃO E APROVAÇÃO EM MASSA ---
+  const handleSelectAll = (e, lista, setter) => {
+      if (e.target.checked) {
+          const validIds = lista.filter(p => p.estado === 'pendente').map(p => p.id);
+          setter(validIds);
+      } else {
+          setter([]);
+      }
+  };
+
+  const handleSelectOne = (e, id, setter) => {
+      if (e.target.checked) {
+          setter(prev => [...prev, id]);
+      } else {
+          setter(prev => prev.filter(item => item !== id));
+      }
+  };
+
+  // 1. Apenas abre o modal e guarda os pedidos que vão ser aprovados
+  function abrirModalAprovacaoMassa(tipoTabela) {
+      const ids = tipoTabela === 'ausencias' ? selectedPedidosPendentes : selectedPedidosKm;
+      const pedidosList = tipoTabela === 'ausencias' ? pedidosPendentes : pedidosKmPendentes;
+      const pedidos = pedidosList.filter(p => ids.includes(p.id) && p.estado === 'pendente');
+
+      if(pedidos.length === 0) return showNotification("Selecione apenas novos pedidos válidos.", "error");
+
+      setBulkApproveModal({ show: true, tipo: tipoTabela, pedidos });
+  }
+
+  // 2. Executa a aprovação de facto (substitui o antigo handleAprovarEmMassa)
+  async function executarAprovarEmMassa() {
+      const { tipo, pedidos } = bulkApproveModal;
+      const ids = pedidos.map(p => p.id);
+      
+      setIsSubmitting(true);
+      const usersToSync = new Set();
+
+      try {
+          for (const pedido of pedidos) {
+              const eFerias = isVacationType(pedido.tipo);
+              const isKmRequest = pedido.tipo === KM_REQUEST_TYPE;
+              const profile = colaboradores.find((c) => c.id === pedido.user_id);
+              const diasLimiteAnual = getAnnualVacationLimitFromProfile(profile);
+              const diasPedidoFerias = eFerias && !pedido.is_parcial
+                  ? calcularDiasFeriasComTolerancias(pedido.user_id, pedido.data_inicio, pedido.data_fim || pedido.data_inicio)
+                  : 0;
+
+              // Validações de saldo para férias
+              if (diasPedidoFerias > 0 && !isKmRequest) {
+                  if (!hasDiasFeriasTotalColumn) {
+                      const saldoAtual = getDiasDisponiveisPorUserId(pedido.user_id);
+                      if (diasPedidoFerias > saldoAtual) {
+                          throw new Error(`Saldo insuficiente para ${profile.nome}. Abortado.`);
+                      }
+                  } else {
+                      const saldoCheck = await validarSaldoFeriasParaIntervalo({
+                          supabaseClient: supabase,
+                          userId: pedido.user_id,
+                          dataInicio: pedido.data_inicio,
+                          dataFim: pedido.data_fim || pedido.data_inicio,
+                          excluirPedidoId: pedido.id,
+                          diasLimiteAnual,
+                          tolerancias,
+                      });
+                      if (!saldoCheck.ok) throw new Error(`Saldo insuficiente para ${profile.nome}. Abortado.`);
+                  }
+              }
+
+              // Update na Base de Dados
+              const { error } = await supabase.from("ferias").update({ estado: 'aprovado' }).eq("id", pedido.id);
+              if (error) throw error;
+
+              // Gestão de saldos locais
+              if (!isKmRequest && pedido.user_id) {
+                  if (hasDiasFeriasTotalColumn) {
+                      usersToSync.add(pedido.user_id);
+                  } else if (diasPedidoFerias > 0) {
+                      await atualizarSaldoFeriasDireto(pedido.user_id, -diasPedidoFerias);
+                  }
+              }
+          }
+
+          if (usersToSync.size > 0) {
+              await sincronizarSaldoFeriasDosPerfis(Array.from(usersToSync));
+          }
+
+          if (tipo === 'ausencias') {
+              setSelectedPedidosPendentes([]);
+              setPedidosPendentes(prev => prev.filter(p => !ids.includes(p.id)));
+          } else {
+              setSelectedPedidosKm([]);
+              setPedidosKmPendentes(prev => prev.filter(p => !ids.includes(p.id)));
+          }
+
+          if (selectedUser) fetchHistoricoUser(selectedUser);
+          fetchDadosMensais();
+          fetchColaboradores();
+          
+          showNotification(`Foram aprovados ${pedidos.length} pedido(s) com sucesso!`, "success");
+          setBulkApproveModal({ show: false, tipo: null, pedidos: [] }); // Fecha o modal no fim
+      } catch (error) {
+          showNotification("Erro na aprovação múltipla: " + error.message, "error");
+      } finally {
+          setIsSubmitting(false);
       }
   }
 
@@ -1892,17 +2003,34 @@ export default function RecursosHumanos() {
 
       {activeView === 'pedidos' && (
           <div style={{display: 'flex', flexDirection: 'column', gap: '30px'}}>
+              
               {/* TABELA DE AUSÊNCIAS (Férias, Baixas, etc.) */}
               <div className="card" style={{padding: '25px', borderRadius: '12px', background: 'white', boxShadow: '0 2px 10px rgba(0,0,0,0.02)'}}>
-                  <div style={{display:'flex', alignItems:'center', gap:'10px', marginBottom: '20px'}}>
-                      <Icons.Flag size={24} color="#1e293b" />
-                      <h3 style={{margin: 0, color: '#1e293b'}}>Ausências Pendentes</h3>
+                  <div style={{display:'flex', alignItems:'center', justifyContent: 'space-between', flexWrap:'wrap', gap:'10px', marginBottom: '20px'}}>
+                      <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+                          <Icons.Flag size={24} color="#1e293b" />
+                          <h3 style={{margin: 0, color: '#1e293b'}}>Ausências Pendentes</h3>
+                      </div>
+                      {selectedPedidosPendentes.length > 0 && (
+                          <button onClick={() => abrirModalAprovacaoMassa('ausencias')} disabled={isSubmitting} className="btn-small" style={{background: '#16a34a', color: 'white', border: 'none', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', borderRadius: '8px', boxShadow: '0 4px 6px rgba(22, 163, 74, 0.2)'}}>
+                              <Icons.Check size={16} /> Aprovar Selecionados ({selectedPedidosPendentes.length})
+                          </button>
+                      )}
                   </div>
                   {pedidosPendentes.length > 0 ? (
                       <div className="table-responsive">
                         <table className="data-table" style={{width: '100%', borderCollapse: 'collapse', textAlign: 'left'}}>
                             <thead>
                                 <tr style={{borderBottom: '2px solid #f1f5f9', color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase'}}>
+                                    <th style={{padding: '12px', width: '40px', textAlign: 'center'}}>
+                                        <input 
+                                            type="checkbox" 
+                                            onChange={(e) => handleSelectAll(e, pedidosPendentes, setSelectedPedidosPendentes)} 
+                                            checked={pedidosPendentes.filter(p => p.estado === 'pendente').length > 0 && selectedPedidosPendentes.length === pedidosPendentes.filter(p => p.estado === 'pendente').length}
+                                            style={{cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--color-btnPrimary)'}}
+                                            title="Selecionar todos os novos pedidos"
+                                        />
+                                    </th>
                                     <th style={{padding: '12px'}}>Colaborador</th>
                                     <th style={{padding: '12px'}}>Tipo</th>
                                     <th style={{padding: '12px'}}>Período</th>
@@ -1913,7 +2041,17 @@ export default function RecursosHumanos() {
                             </thead>
                             <tbody>
                                 {pedidosPendentes.map(p => (
-                                    <tr key={p.id} style={{background: p.estado === 'pedido_cancelamento' ? '#fefce8' : 'transparent', borderBottom: '1px solid #f1f5f9'}}>
+                                    <tr key={p.id} style={{background: p.estado === 'pedido_cancelamento' ? '#fefce8' : (selectedPedidosPendentes.includes(p.id) ? '#f0f9ff' : 'transparent'), borderBottom: '1px solid #f1f5f9'}}>
+                                        <td style={{padding: '12px', textAlign: 'center'}}>
+                                            {p.estado === 'pendente' && (
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={selectedPedidosPendentes.includes(p.id)} 
+                                                    onChange={(e) => handleSelectOne(e, p.id, setSelectedPedidosPendentes)}
+                                                    style={{cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--color-btnPrimary)'}}
+                                                />
+                                            )}
+                                        </td>
                                         <td style={{padding: '12px', fontWeight: 'bold', color: 'var(--color-btnPrimary)'}}>{p.profiles?.nome}</td>
                                         <td style={{padding: '12px', color: '#334155'}}>{formatAbsenceTypeLabel(p.tipo)}</td>
                                         <td style={{padding: '12px', color: '#334155'}}>
@@ -1979,15 +2117,31 @@ export default function RecursosHumanos() {
 
               {/* TABELA DE PEDIDOS DE KM's */}
               <div className="card" style={{padding: '25px', borderRadius: '12px', background: 'white', boxShadow: '0 2px 10px rgba(0,0,0,0.02)'}}>
-                  <div style={{display:'flex', alignItems:'center', gap:'10px', marginBottom: '20px'}}>
-                      <Icons.Inbox size={24} color="#1e293b" />
-                      <h3 style={{margin: 0, color: '#1e293b'}}>Deslocações Pendentes</h3>
+                  <div style={{display:'flex', alignItems:'center', justifyContent: 'space-between', flexWrap:'wrap', gap:'10px', marginBottom: '20px'}}>
+                      <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+                          <Icons.Inbox size={24} color="#1e293b" />
+                          <h3 style={{margin: 0, color: '#1e293b'}}>Deslocações Pendentes</h3>
+                      </div>
+                      {selectedPedidosKm.length > 0 && (
+                          <button onClick={() => abrirModalAprovacaoMassa('kms')} disabled={isSubmitting} className="btn-small" style={{background: '#16a34a', color: 'white', border: 'none', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', borderRadius: '8px', boxShadow: '0 4px 6px rgba(22, 163, 74, 0.2)'}}>
+                              <Icons.Check size={16} /> Aprovar Selecionados ({selectedPedidosKm.length})
+                          </button>
+                      )}
                   </div>
                   {pedidosKmPendentes.length > 0 ? (
                       <div className="table-responsive">
                         <table className="data-table" style={{width: '100%', borderCollapse: 'collapse', textAlign: 'left'}}>
                             <thead>
                                 <tr style={{borderBottom: '2px solid #f1f5f9', color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase'}}>
+                                    <th style={{padding: '12px', width: '40px', textAlign: 'center'}}>
+                                        <input 
+                                            type="checkbox" 
+                                            onChange={(e) => handleSelectAll(e, pedidosKmPendentes, setSelectedPedidosKm)} 
+                                            checked={pedidosKmPendentes.filter(p => p.estado === 'pendente').length > 0 && selectedPedidosKm.length === pedidosKmPendentes.filter(p => p.estado === 'pendente').length}
+                                            style={{cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--color-btnPrimary)'}}
+                                            title="Selecionar todos os novos pedidos"
+                                        />
+                                    </th>
                                     <th style={{padding: '12px'}}>Colaborador</th>
                                     <th style={{padding: '12px'}}>Origem</th>
                                     <th style={{padding: '12px'}}>Destino</th>
@@ -1999,74 +2153,82 @@ export default function RecursosHumanos() {
                             </thead>
                             <tbody>
                                 {pedidosKmPendentes.map(p => {
-
                                     const acumuladoMes = calcularTotalKmAprovadosNoMes(p.user_id, p.data_inicio, ausenciasMes);
-
+                                    
                                     return (
-                                        <tr key={p.id} style={{background: p.estado === 'pedido_cancelamento' ? '#fefce8' : 'transparent', borderBottom: '1px solid #f1f5f9'}}>
-                                            <td style={{padding: '10px', fontWeight: 'bold', color: 'var(--color-btnPrimary)'}}>{p.profiles?.nome}</td>
-                                            <td style={{padding: '10px', color: '#334155', fontWeight: '500'}}>{p.km_origem || '-'}</td>
-                                            <td style={{padding: '10px', color: '#334155', fontWeight: '500'}}>{p.km_destino || '-'}</td>
-                                            <td style={{padding: '10px'}}>
-                                                <div style={{display:'flex', flexDirection:'column'}}>
-                                                    <span style={{fontSize:'0.95rem', fontWeight:'600', color: '#16a34a'}}>{p.km_total ?? 0} km</span>
-                                                    <span style={{fontSize:'0.7rem', color: '#64748b'}}> Já aprovados no mês: <strong>{acumuladoMes} km</strong></span>
-                                                </div>       
-                                            </td>
+                                    <tr key={p.id} style={{background: p.estado === 'pedido_cancelamento' ? '#fefce8' : (selectedPedidosKm.includes(p.id) ? '#f0f9ff' : 'transparent'), borderBottom: '1px solid #f1f5f9'}}>
+                                        <td style={{padding: '12px', textAlign: 'center'}}>
+                                            {p.estado === 'pendente' && (
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={selectedPedidosKm.includes(p.id)} 
+                                                    onChange={(e) => handleSelectOne(e, p.id, setSelectedPedidosKm)}
+                                                    style={{cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--color-btnPrimary)'}}
+                                                />
+                                            )}
+                                        </td>
+                                        <td style={{padding: '12px', fontWeight: 'bold', color: 'var(--color-btnPrimary)'}}>{p.profiles?.nome}</td>
+                                        <td style={{padding: '12px', color: '#334155', fontWeight: '500'}}>{p.km_origem || '-'}</td>
+                                        <td style={{padding: '12px', color: '#334155', fontWeight: '500'}}>{p.km_destino || '-'}</td>
+                                        <td style={{padding: '12px'}}>
+                                            <div style={{display:'flex', flexDirection:'column'}}>
+                                                <span style={{fontSize:'0.95rem', fontWeight:'600', color: '#16a34a'}}>+{p.km_total ?? 0} km</span>
+                                                <span style={{fontSize:'0.7rem', color: '#64748b'}}> Já aprovados no mês: <strong>{acumuladoMes} km</strong></span>
+                                            </div>       
+                                        </td>
 
-                                            <td style={{padding: '10px', color: '#334155'}}>{new Date(p.data_inicio).toLocaleDateString('pt-PT')}</td>
-                                            <td style={{padding: '10px'}}>
-                                                {p.estado === 'pendente' ? 
-                                                    <span style={{background: 'var(--color-borderColorLight)', color: 'var(--color-btnPrimary)', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold'}}>Novo Pedido</span> : 
-                                                    <span style={{background: '#fef08a', color: '#854d0e', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', display:'flex', alignItems:'center', gap:'4px', width:'max-content'}}><Icons.Alert size={12}/> Cancelamento</span>
-                                                }
-                                            </td>
-                                            <td style={{padding: '12px', textAlign: 'center'}}>
-                                                <div style={{display: 'flex', gap: '8px', justifyContent: 'center'}}>
-                                                    <ModernTooltip content="Ver Detalhes do Pedido">
-                                                        <button className="btn-small" style={{background: '#f8fafc', borderColor: '#cbd5e1', color: '#475569', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalDetalhes(p)}>
-                                                            <Icons.Eye size={16} />
-                                                        </button>
-                                                    </ModernTooltip>
-                                                    
-                                                    {p.estado === 'pendente' ? (
-                                                        <>
-                                                            <ModernTooltip content="Aprovar">
-                                                                <button className="btn-small" style={{background: '#f0fdf4', borderColor: '#bbf7d0', color: '#16a34a', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalConfirmacao(p, 'aprovar')}>
-                                                                    <Icons.Check size={16} />
-                                                                </button>
-                                                            </ModernTooltip>
-                                                            <ModernTooltip content="Rejeitar">
-                                                                <button className="btn-small" style={{background: '#fef2f2', borderColor: '#fecaca', color: '#ef4444', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalConfirmacao(p, 'rejeitar')}>
-                                                                    <Icons.X size={16} />
-                                                                </button>
-                                                            </ModernTooltip>
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <ModernTooltip content="Aceitar Cancelamento">
-                                                                <button className="btn-small" style={{background: '#fef2f2', borderColor: '#fecaca', color: '#ef4444', fontWeight:'bold', fontSize:'0.8rem'}} onClick={() => abrirModalConfirmacao(p, 'aceitar_cancelamento')}>Aceitar</button>
-                                                            </ModernTooltip>
-                                                            <ModernTooltip content="Recusar Cancelamento">
-                                                                <button className="btn-small" style={{background: '#f8fafc', borderColor: '#cbd5e1', color: '#64748b', fontSize:'0.8rem'}} onClick={() => abrirModalConfirmacao(p, 'recusar_cancelamento')}>Recusar</button>
-                                                            </ModernTooltip>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    );    
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
-                    ) : <div style={{textAlign: 'center', padding: '40px', color: '#94a3b8', background: '#f8fafc', borderRadius: '12px', display:'flex', flexDirection:'column', alignItems:'center', gap:'10px'}}>
-                            <Icons.Inbox size={40} color="#cbd5e1" />
-                            <span style={{fontSize:'0.95rem'}}>Não há deslocações pendentes.</span>
-                        </div>}
-                </div>
-            </div>
-        )}
+                                        <td style={{padding: '12px', color: '#334155'}}>{new Date(p.data_inicio).toLocaleDateString('pt-PT')}</td>
+                                        <td style={{padding: '12px'}}>
+                                            {p.estado === 'pendente' ? 
+                                                <span style={{background: 'var(--color-borderColorLight)', color: 'var(--color-btnPrimary)', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold'}}>Novo Pedido</span> : 
+                                                <span style={{background: '#fef08a', color: '#854d0e', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', display:'flex', alignItems:'center', gap:'4px', width:'max-content'}}><Icons.Alert size={12}/> Cancelamento</span>
+                                            }
+                                        </td>
+                                        <td style={{padding: '12px', textAlign: 'center'}}>
+                                            <div style={{display: 'flex', gap: '8px', justifyContent: 'center'}}>
+                                                <ModernTooltip content="Ver Detalhes do Pedido">
+                                                    <button className="btn-small" style={{background: '#f8fafc', borderColor: '#cbd5e1', color: '#475569', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalDetalhes(p)}>
+                                                        <Icons.Eye size={16} />
+                                                    </button>
+                                                </ModernTooltip>
+                                                
+                                                {p.estado === 'pendente' ? (
+                                                    <>
+                                                        <ModernTooltip content="Aprovar">
+                                                            <button className="btn-small" style={{background: '#f0fdf4', borderColor: '#bbf7d0', color: '#16a34a', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalConfirmacao(p, 'aprovar')}>
+                                                                <Icons.Check size={16} />
+                                                            </button>
+                                                        </ModernTooltip>
+                                                        <ModernTooltip content="Rejeitar">
+                                                            <button className="btn-small" style={{background: '#fef2f2', borderColor: '#fecaca', color: '#ef4444', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalConfirmacao(p, 'rejeitar')}>
+                                                                <Icons.X size={16} />
+                                                            </button>
+                                                        </ModernTooltip>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <ModernTooltip content="Aceitar Cancelamento">
+                                                            <button className="btn-small" style={{background: '#fef2f2', borderColor: '#fecaca', color: '#ef4444', fontWeight:'bold', fontSize:'0.8rem'}} onClick={() => abrirModalConfirmacao(p, 'aceitar_cancelamento')}>Aceitar</button>
+                                                        </ModernTooltip>
+                                                        <ModernTooltip content="Recusar Cancelamento">
+                                                            <button className="btn-small" style={{background: '#f8fafc', borderColor: '#cbd5e1', color: '#64748b', fontSize:'0.8rem'}} onClick={() => abrirModalConfirmacao(p, 'recusar_cancelamento')}>Recusar</button>
+                                                        </ModernTooltip>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )})}
+                            </tbody>
+                        </table>
+                      </div>
+                  ) : <div style={{textAlign: 'center', padding: '40px', color: '#94a3b8', background: '#f8fafc', borderRadius: '12px', display:'flex', flexDirection:'column', alignItems:'center', gap:'10px'}}>
+                        <Icons.Inbox size={40} color="#cbd5e1" />
+                        <span style={{fontSize:'0.95rem'}}>Não há deslocações pendentes.</span>
+                    </div>}
+              </div>
+          </div>
+      )}
 
         {activeView === 'tolerancias' && (
             <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
@@ -3018,7 +3180,73 @@ export default function RecursosHumanos() {
                   grid-template-columns: 1fr !important;
               }
           }
-      `}</style>
+      `}
+      {/* --- NOVO MODAL DE APROVAÇÃO EM MASSA COM RESUMO --- */}
+      {bulkApproveModal.show && (
+          <ModalPortal>
+              <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999}}>
+                  <div style={{background:'white', padding:'30px', borderRadius:'16px', width:'450px', maxWidth: '90%', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', maxHeight: '90vh', overflowY: 'auto'}}>
+                      <div style={{display:'flex', justifyContent:'center', marginBottom: '15px'}}>
+                          <div style={{background:'#dcfce7', padding:'15px', borderRadius:'50%', color:'#16a34a'}}><Icons.Check size={32}/></div>
+                      </div>
+                      <h3 style={{marginTop: 0, color: '#1e293b'}}>Aprovação em Massa</h3>
+                      <p style={{color: '#64748b', marginBottom: '20px', lineHeight: '1.5', fontSize:'0.95rem'}}>
+                          Está prestes a aprovar <b>{bulkApproveModal.pedidos.length}</b> pedido(s) de {bulkApproveModal.tipo === 'kms' ? 'deslocação' : 'ausência'}.
+                      </p>
+
+                      {/* RESUMO DINÂMICO DE KM'S COM HISTÓRICO */}
+                      {bulkApproveModal.tipo === 'kms' && (
+                          <div style={{background: '#f8fafc', padding: '15px', borderRadius: '8px', textAlign: 'left', marginBottom: '25px', border: '1px solid #e2e8f0'}}>
+                              <h4 style={{margin: '0 0 10px 0', color: '#475569', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Resumo de KM's por Colaborador:</h4>
+                              
+                              {/* Lógica melhorada para agrupar e calcular o histórico */}
+                              {Object.values(
+                                  bulkApproveModal.pedidos.reduce((acc, p) => {
+                                      const userId = p.user_id;
+                                      // Se o utilizador ainda não está no acumulador, cria o registo base dele
+                                      if (!acc[userId]) {
+                                          acc[userId] = {
+                                              nome: p.profiles?.nome || 'Desconhecido',
+                                              kmsNovos: 0,
+                                              kmsAprovados: calcularTotalKmAprovadosNoMes(userId, p.data_inicio, ausenciasMes)
+                                          };
+                                      }
+                                      // Soma os km's dos pedidos pendentes que vão ser aprovados
+                                      acc[userId].kmsNovos += (Number(p.km_total) || 0);
+                                      return acc;
+                                  }, {})
+                              ).map((resumo, index) => {
+                                  const novoTotal = resumo.kmsAprovados + resumo.kmsNovos;
+                                  
+                                  return (
+                                      <div key={index} style={{display: 'flex', flexDirection: 'column', padding: '10px 0', borderBottom: '1px dashed #cbd5e1'}}>
+                                          <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '0.95rem'}}>
+                                              <span style={{color: '#334155', fontWeight: '600'}}>{resumo.nome}</span>
+                                              <span style={{color: '#16a34a', fontWeight: 'bold'}}>+{Number(resumo.kmsNovos).toFixed(2)} km</span>
+                                          </div>
+                                          <div style={{fontSize: '0.8rem', color: '#64748b', display: 'flex', justifyContent: 'space-between'}}>
+                                              <span>Já aprovados: <b>{Number(resumo.kmsAprovados).toFixed(2)} km</b></span>
+                                              <span>&rarr; Novo Total: <b style={{color: '#1e293b'}}>{Number(novoTotal).toFixed(2)} km</b></span>
+                                          </div>
+                                      </div>
+                                  );
+                              })}
+                          </div>
+                      )}
+
+                      <div style={{display: 'flex', gap: '10px', justifyContent: 'center'}}>
+                          <button onClick={() => setBulkApproveModal({ show: false, tipo: null, pedidos: [] })} disabled={isSubmitting} style={{padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white', color:'#475569', fontWeight:'bold', flex: 1, cursor:'pointer'}}>
+                              Cancelar
+                          </button>
+                          <button onClick={executarAprovarEmMassa} disabled={isSubmitting} style={{padding: '12px', borderRadius: '8px', border: 'none', flex: 1, color: 'white', background: '#16a34a', fontWeight:'bold', cursor:'pointer', opacity: isSubmitting ? 0.7 : 1}}>
+                              {isSubmitting ? 'A aprovar...' : 'Confirmar Aprovação'}
+                          </button>
+                      </div>
+                  </div>
+              </div>
+          </ModalPortal>
+      )}
+      </style>
     </div>
   );
 }
