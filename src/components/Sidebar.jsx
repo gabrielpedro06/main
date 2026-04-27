@@ -283,9 +283,9 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
             </li>
 
             <li className={isActive('/dashboard/clientes')}>
-              <Link to="/dashboard/clientes" title={getSidebarTooltip("Clientes")}>
+              <Link to="/dashboard/clientes" title={getSidebarTooltip("Entidades")}>
                 <span className="icon"><Icons.Users /></span> 
-                <span className="link-text">Clientes</span>
+                <span className="link-text">Entidades</span>
               </Link>
             </li>
 

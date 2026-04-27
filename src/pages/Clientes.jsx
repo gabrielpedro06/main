@@ -718,7 +718,7 @@ export default function Clientes() {
         if (updated > 0) {
           showToast(`${updated} descrição(ões) de CAE existentes foram atualizadas.`, "success");
         } else {
-          showToast("Os CAEs encontrados já estão associados a este cliente.", "info");
+          showToast("Os CAEs encontrados já estão associados a esta Entidade.", "info");
         }
         return;
       }
@@ -735,7 +735,7 @@ export default function Clientes() {
         if (inserted > 0) {
           showToast(`${inserted} CAE importados e guardados automaticamente.`, "success");
         } else {
-          showToast("Os CAEs encontrados já estavam associados a este cliente.", "info");
+          showToast("Os CAEs encontrados já estavam associados a esta Entidade.", "info");
         }
         if (updated > 0) {
           showToast(`${updated} descrição(ões) de CAE existentes foram atualizadas.`, "success");
@@ -848,7 +848,7 @@ export default function Clientes() {
         const clienteExistente = await findExistingClienteByNif(nifDigitado);
         if (clienteExistente && String(clienteExistente.id) !== String(editId || "")) {
           showToast(
-            `Já existe uma empresa com este NIF: ${clienteExistente.marca || "Sem nome"}.`,
+            `Já existe uma Entidade com este NIF: ${clienteExistente.marca || "Sem nome"}.`,
             "warning"
           );
           return;
@@ -1039,7 +1039,7 @@ export default function Clientes() {
                       distrito: dataGeo.distrito || prev.distrito,
                       regiao: dataGeo.regiao || dataGeo.distrito || prev.regiao
                   }));
-                  showToast("Morada preenchida com precisão! 📍", "success");
+                  showToast("Morada preenchida com precisão!", "success");
                   return; // Sucesso, não precisa de ir ao Plano B
               }
           }
@@ -1062,7 +1062,7 @@ export default function Clientes() {
                   distrito: address.county || address.state_district || address.state || prev.distrito,
                   regiao: address.region || address.state || address.county || prev.regiao
               }));
-              showToast("Morada preenchida (via mapa global)! 📍", "success");
+              showToast("Morada preenchida (via mapa global)! ", "success");
           } else {
               showToast("Código postal não encontrado.", "warning");
           }
@@ -1112,7 +1112,7 @@ export default function Clientes() {
                   distrito: prev.distrito || address.state_district || address.county || address.state || "",
                   regiao: prev.regiao || address.region || address.state || ""
               }));
-              showToast("Distrito e Região preenchidos! 📍", "success");
+              showToast("Distrito e Região preenchidos!", "success");
           }
       } catch (error) {
           console.error("Erro no fallback do concelho:", error);
@@ -1512,7 +1512,7 @@ export default function Clientes() {
 
     setConfirmDialog({
         show: true,
-        message: `Tem a certeza que deseja ${acaoTexto.toLowerCase()} esta empresa?`,
+        message: `Tem a certeza que deseja ${acaoTexto.toLowerCase()} esta Entidade?`,
         confirmText: `Sim, ${acaoTexto}`,
         isDanger: !novoEstado,
         onConfirm: async () => {
@@ -1524,9 +1524,9 @@ export default function Clientes() {
               setClientes(clientes.map(c => c.id === id ? { ...c, ativo: novoEstado } : c));
               if (editId === id) setForm({ ...form, ativo: novoEstado });
 
-              showToast(`Empresa ${acaoTexto.toLowerCase()}a com sucesso!`, "success");
+              showToast(`Entidade ${acaoTexto.toLowerCase()}a com sucesso!`, "success");
             } catch (error) {
-              showToast(`Erro ao ${acaoTexto.toLowerCase()} empresa: ` + error.message, "error");
+              showToast(`Erro ao ${acaoTexto.toLowerCase()} Entidade: ` + error.message, "error");
             }
         }
     });
@@ -1571,8 +1571,8 @@ export default function Clientes() {
       }
 
       let msg = editId
-        ? "Empresa atualizada!"
-        : "Empresa criada! Verifica as abas que foram pré-preenchidas.";
+        ? "Entidade atualizada!"
+        : "Entidade criada! Verifica as abas que foram pré-preenchidas.";
 
       if (pendingAutoCaes.length > 0 && clienteId) {
         try {
@@ -1602,7 +1602,7 @@ export default function Clientes() {
 
   async function saveSubItem(tabela, dados, stateSetter, listaAtual, resetState, resetValue, closeFormSetter) {
     if (isViewOnly) return;
-    if (!editId) return showToast("Guarda primeiro os Dados da Empresa (Aba Geral) no fundo do ecrã.", "warning");
+    if (!editId) return showToast("Guarda primeiro os Dados da Entidade (Aba Geral) no fundo do ecrã.", "warning");
 
     if (tabela === "caes_cliente") {
       const codigoNormalizado = String(dados?.codigo || "").trim();
@@ -1735,8 +1735,8 @@ export default function Clientes() {
         <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
             <div style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '12px', borderRadius: '12px', display: 'flex'}}><Icons.Building size={24} /></div>
             <div>
-                <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>Clientes</h1>
-                <p style={{color: '#64748b', margin: 0, fontWeight: '500', fontSize: '0.9rem'}}>{statusTab === "ativos" ? "Carteira de Clientes Ativos" : "Arquivo de Clientes"}</p>
+                <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>Entidades</h1>
+                <p style={{color: '#64748b', margin: 0, fontWeight: '500', fontSize: '0.9rem'}}>{statusTab === "ativos" ? "Carteira de Entidades Ativas" : statusTab === "organismos" ? "Carteira de Organismos" : "Arquivo de Entidades"}</p>
             </div>
         </div>
         <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
@@ -1756,7 +1756,7 @@ export default function Clientes() {
             </div>
           )}
           <button className="btn-cta" onClick={handleNovo}>
-              <Icons.Plus /> Nova Empresa
+              <Icons.Plus /> Nova Entidade
           </button>
         </div>
       </div>
@@ -1766,7 +1766,7 @@ export default function Clientes() {
           onClick={() => setStatusTab("ativos")}
           style={{padding: '12px 25px', background: statusTab === 'ativos' ? 'white' : '#e2e8f0', color: statusTab === 'ativos' ? 'var(--color-btnPrimary)' : '#64748b', border: 'none', borderRadius: '12px 12px 0 0', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display:'flex', alignItems:'center', gap:'8px'}}
         >
-          <Icons.Building /> Empresas
+          <Icons.Building /> Entidades
         </button>
         <button
           onClick={() => setStatusTab("organismos")}
@@ -1785,7 +1785,7 @@ export default function Clientes() {
       <div style={{background: 'white', padding: '12px 20px', borderRadius: '0 10px 10px 10px', border: '1px solid #e2e8f0', marginBottom: '25px', display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap'}}>
         <div style={{flex: 1, minWidth: '250px', position: 'relative'}}>
             <span style={{position: 'absolute', left: '12px', top: '10px', color: '#94a3b8'}}><Icons.Search /></span>
-          <input type="text" placeholder="Procurar por Empresa, Sigla ou NIF..." value={busca} onChange={(e) => setBusca(e.target.value)} style={{width: '100%', padding: '8px 12px 8px 38px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.85rem', boxSizing: 'border-box'}} />
+          <input type="text" placeholder="Procurar por Entidade, Sigla ou NIF..." value={busca} onChange={(e) => setBusca(e.target.value)} style={{width: '100%', padding: '8px 12px 8px 38px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.85rem', boxSizing: 'border-box'}} />
         </div>
         <div style={{display: 'inline-flex', alignItems: 'center', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '4px', marginLeft: 'auto'}}>
           <button
@@ -1877,7 +1877,7 @@ export default function Clientes() {
                                 onClick={() => handleToggleAtivo(c.id, c.ativo)} 
                                 style={{padding: '12px 12px', border: 'none', background: 'transparent', color: '#ef4444', cursor: 'pointer', transition: '0.2s'}}
                                 className="hover-red-text"
-                                title="Arquivar Empresa"
+                                title="Arquivar Entidade"
                               >
                                 <Icons.Archive />
                               </button>
@@ -1887,7 +1887,7 @@ export default function Clientes() {
                                     onClick={() => handleToggleAtivo(c.id, c.ativo)} 
                                     style={{padding: '12px 20px', border: 'none', background: 'transparent', color: '#16a34a', cursor: 'pointer', transition: '0.2s'}}
                                     className="hover-green-text"
-                                    title="Reativar Empresa"
+                                    title="Reativar Entidade"
                                 >
                                     <Icons.Restore />
                                 </button>
@@ -1899,7 +1899,7 @@ export default function Clientes() {
                 <div style={{gridColumn: '1 / -1', textAlign: 'center', padding: '60px', background: 'white', borderRadius: '16px', border: '1px dashed #cbd5e1'}}>
                     <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px', color: '#cbd5e1'}}><Icons.Inbox size={60} /></div>
                     <h3 style={{color: '#1e293b', margin: '0 0 5px 0', fontSize: '1.2rem'}}>Vazio por aqui.</h3>
-                    <p style={{color: '#64748b', margin: 0}}>Nenhum cliente encontrado com os filtros atuais.</p>
+                    <p style={{color: '#64748b', margin: 0}}>Nenhuma Entidade encontrado com os filtros atuais.</p>
                 </div>
             )}
         </div>
@@ -1910,7 +1910,7 @@ export default function Clientes() {
               <table className="data-table clients-list-table" style={{minWidth: '980px'}}>
                 <thead>
                   <tr>
-                    <th>Empresa</th>
+                    <th>Entidade</th>
                     <th>Sigla</th>
                     <th>NIF</th>
                     <th>Localidade</th>
@@ -1980,7 +1980,7 @@ export default function Clientes() {
             <div style={{textAlign: 'center', padding: '60px', background: 'white', borderRadius: '16px', border: '1px dashed #cbd5e1'}}>
               <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px', color: '#cbd5e1'}}><Icons.Inbox size={60} /></div>
               <h3 style={{color: '#1e293b', margin: '0 0 5px 0', fontSize: '1.2rem'}}>Vazio por aqui.</h3>
-              <p style={{color: '#64748b', margin: 0}}>Nenhum cliente encontrado com os filtros atuais.</p>
+              <p style={{color: '#64748b', margin: 0}}>Nenhuma Entidade encontrada com os filtros atuais.</p>
             </div>
           )}
         </div>
@@ -2176,13 +2176,13 @@ export default function Clientes() {
                 <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
                     <div style={{width:'48px', height:'48px', borderRadius:'50%', overflow:'hidden', border:'1px solid var(--color-borderColor)', background:'var(--color-bgSecondary)', display:'flex', alignItems:'center', justifyContent:'center'}}>
                       {form.avatar_url ? (
-                        <img src={form.avatar_url} alt="Logo cliente" style={{width:'100%', height:'100%', objectFit:'cover'}} />
+                        <img src={form.avatar_url} alt="Logo Entidade" style={{width:'100%', height:'100%', objectFit:'cover'}} />
                       ) : (
                         <Icons.Building size={22} color="var(--color-btnPrimary)" />
                       )}
                     </div>
                     <h3 style={{margin:0, color:'#1e293b', fontSize:'1.4rem', fontWeight:'800'}}>
-                        {isViewOnly ? `Perfil: ${form.marca}` : (editId ? `Editar: ${form.marca}` : "Nova Empresa")}
+                        {isViewOnly ? `Perfil: ${form.marca}` : (editId ? `Editar: ${form.marca}` : "Nova Entidade")}
                     </h3>
                     {form.ativo === false && <span style={{background: '#e2e8f0', color: '#475569', fontSize: '0.75rem', padding: '4px 10px', borderRadius: '6px', fontWeight: 'bold'}}>INATIVO</span>}
                 </div>
@@ -2250,11 +2250,11 @@ export default function Clientes() {
                                         onChange={e => setForm(f => ({ ...f, termos_gerais: e.target.value }))}
                                         rows={16}
                                         style={{ width: '100%', minHeight: 220, fontSize: '1.05rem', borderRadius: 10, border: '1px solid #cbd5e1', padding: '18px', background: '#f8fafc', color: '#1e293b', resize: 'vertical', fontFamily: 'inherit', marginBottom: 16 }}
-                                        placeholder="Insira aqui os Termos Gerais ou Condições Gerais da empresa consultora..."
+                                        placeholder="Insira aqui os Termos Gerais ou Condições Gerais da Entidade Consultora..."
                                         disabled={isViewOnly}
                                       />
                                       <div style={{ fontSize: '1rem', color: '#64748b', marginBottom: 10 }}>
-                                        Este texto será usado automaticamente nas propostas e pode ser personalizado por cliente.
+                                        Este texto será usado automaticamente nas propostas e pode ser personalizado por Entidade.
                                       </div>
                                       {!isViewOnly && <button className="btn-primary hover-shadow" onClick={handleSubmitGeral} style={{marginTop: 10, fontSize: '1.08rem', padding: '13px 32px'}}>Guardar Termos Gerais</button>}
                                     </div>
@@ -2272,7 +2272,7 @@ export default function Clientes() {
                         {isViewOnly ? (
                           <div style={{width:'64px', height:'64px', borderRadius:'50%', overflow:'hidden', border:'2px solid var(--color-borderColorLight)', background:'#f1f5f9', display:'flex', alignItems:'center', justifyContent:'center'}}>
                             {form.avatar_url ? (
-                              <img src={form.avatar_url} alt="Foto cliente" style={{width:'100%', height:'100%', objectFit:'cover'}} />
+                              <img src={form.avatar_url} alt="Foto Entidade" style={{width:'100%', height:'100%', objectFit:'cover'}} />
                             ) : (
                               <span style={{fontSize:'1.5rem', color:'#94a3b8'}}>🏢</span>
                             )}
@@ -2280,7 +2280,7 @@ export default function Clientes() {
                         ) : (
                           <label title="Clique para alterar foto" style={{width:'64px', height:'64px', borderRadius:'50%', overflow:'hidden', border:'2px solid var(--color-borderColorLight)', background:'#f1f5f9', display:'flex', alignItems:'center', justifyContent:'center', cursor: uploading ? 'wait' : 'pointer'}}>
                             {form.avatar_url ? (
-                              <img src={form.avatar_url} alt="Foto cliente" style={{width:'100%', height:'100%', objectFit:'cover'}} />
+                              <img src={form.avatar_url} alt="Foto Entidade" style={{width:'100%', height:'100%', objectFit:'cover'}} />
                             ) : (
                               <span style={{fontSize:'1.5rem', color:'#94a3b8'}}>🏢</span>
                             )}
@@ -2321,7 +2321,7 @@ export default function Clientes() {
                         <div>
                             <label style={labelStyle}>Website</label>
                             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                <input type="text" value={form.website} onChange={e => setForm({...form, website: e.target.value})} placeholder="www.empresa.pt" style={{ ...inputStyle, marginBottom: 0, flex: 1 }} className="input-focus" />
+                                <input type="text" value={form.website} onChange={e => setForm({...form, website: e.target.value})} placeholder="www.entidade.pt" style={{ ...inputStyle, marginBottom: 0, flex: 1 }} className="input-focus" />
                                 {form.website && (
                                     <a href={form.website.startsWith('http') ? form.website : `https://${form.website}`} target="_blank" rel="noopener noreferrer" title="Abrir Website" className="btn-icon-link">
                                         <Icons.ExternalLink />
@@ -2333,7 +2333,7 @@ export default function Clientes() {
 
                       <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px', marginTop:'10px'}}>
                         <div>
-                          <label style={labelStyle}>Empresa Consultora</label>
+                          <label style={labelStyle}>Entidade Consultora</label>
                           <select
                             value={form.eh_empresa_consultora ? "sim" : "nao"}
                             onChange={(e) => setForm({ ...form, eh_empresa_consultora: e.target.value === "sim" })}
@@ -2391,8 +2391,8 @@ export default function Clientes() {
                                     const relacaoInfo = p.relacao_cliente === 'parceiro'
                                         ? { label: 'Parceiro', bg: '#f3e8ff', color: '#7e22ce' }
                                         : p.relacao_cliente === 'cliente_unico_e_parceiro'
-                                            ? { label: 'Cliente + Parceiro', bg: '#ede9fe', color: '#5b21b6' }
-                                            : { label: 'Cliente Único', bg: 'var(--color-borderColorLight)', color: 'var(--color-btnPrimaryDark)' };
+                                            ? { label: 'Entidade + Parceiro', bg: '#ede9fe', color: '#5b21b6' }
+                                            : { label: 'Entidade Única', bg: 'var(--color-borderColorLight)', color: 'var(--color-btnPrimaryDark)' };
 
                                     return (
                                         <div key={p.id} onClick={() => navigate(`/dashboard/projetos/${p.id}`)} style={{background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', flexDirection:'column', justifyContent: 'space-between', opacity: isDone ? 0.6 : 1, cursor:'pointer', transition:'0.2s'}} className="hover-shadow hover-blue-border">
@@ -2426,7 +2426,7 @@ export default function Clientes() {
                         ) : (
                             <div style={{textAlign: 'center', padding: '60px', background: 'white', borderRadius: '12px', border: '1px dashed #cbd5e1'}}>
                                 <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px', color: '#cbd5e1'}}><Icons.Inbox size={48} /></div>
-                                <h4 style={{color: '#1e293b', margin: '0 0 5px 0', fontSize:'1.2rem'}}>Este cliente ainda não tem projetos.</h4>
+                                <h4 style={{color: '#1e293b', margin: '0 0 5px 0', fontSize:'1.2rem'}}>Esta entidade ainda não tem projetos.</h4>
                                 <p style={{color:'#64748b'}}>Cria um novo projeto e ele aparecerá aqui automaticamente.</p>
                             </div>
                         )}
@@ -2578,7 +2578,7 @@ export default function Clientes() {
                 {activeTab === 'contactos' && (
                   <div>
                     <div style={{display:'flex', justifyContent:'space-between', marginBottom:'15px', alignItems:'center'}}>
-                      <h4 style={{margin:0, fontSize:'1.1rem', color:'#1e293b'}}>Equipa do Cliente</h4>
+                      <h4 style={{margin:0, fontSize:'1.1rem', color:'#1e293b'}}>Equipa da Entidade</h4>
                       {!isViewOnly && !showAddContacto && <button className="btn-small-add hover-shadow" onClick={() => { setNovoContacto(initContacto); setIsOutroCargo(false); setShowAddContacto(true); }} style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.Plus /> Adicionar Pessoa</button>}
                     </div>
                     
@@ -2628,7 +2628,7 @@ export default function Clientes() {
                           </div>
                           <div>
                               <label style={labelStyle}>Email</label>
-                              <input type="email" placeholder="joao@empresa.pt" value={novoContacto.email} onChange={e => setNovoContacto({...novoContacto, email: e.target.value})} style={inputStyle} className="input-focus" />
+                              <input type="email" placeholder="joao@entidade.pt" value={novoContacto.email} onChange={e => setNovoContacto({...novoContacto, email: e.target.value})} style={inputStyle} className="input-focus" />
                           </div>
                           <div>
                               <label style={labelStyle}>Telefone / Telemóvel</label>
@@ -2781,11 +2781,11 @@ export default function Clientes() {
                       onChange={e => setForm(f => ({ ...f, termos_gerais: e.target.value }))}
                       rows={16}
                       style={{ width: '100%', minHeight: 220, fontSize: '1.05rem', borderRadius: 10, border: '1px solid #cbd5e1', padding: '18px', background: '#f8fafc', color: '#1e293b', resize: 'vertical', fontFamily: 'inherit', marginBottom: 16 }}
-                      placeholder="Insira aqui os Termos Gerais ou Condições Gerais da empresa consultora..."
+                      placeholder="Insira aqui os Termos Gerais ou Condições Gerais da Entidade Consultora..."
                       disabled={isViewOnly}
                     />
                     <div style={{ fontSize: '1rem', color: '#64748b', marginBottom: 10 }}>
-                      Este texto será usado automaticamente nas propostas e pode ser personalizado por cliente.
+                      Este texto será usado automaticamente nas propostas e pode ser personalizado por Entidade.
                     </div>
                     {!isViewOnly && <button className="btn-primary hover-shadow" onClick={handleSubmitGeral} style={{marginTop: 10, fontSize: '1.08rem', padding: '13px 32px'}}>Guardar Termos Gerais</button>}
                   </div>
@@ -2795,7 +2795,7 @@ export default function Clientes() {
                 {activeTab === 'acessos' && podeVerAcessos && (
                   <div>
                     <div style={{background: '#fffbeb', padding: '20px', borderRadius: '12px', borderLeft: '5px solid #f59e0b', marginBottom: '25px', color:'#b45309', fontWeight:'600', fontSize:'0.95rem', display: 'flex', alignItems: 'center', gap: '10px'}}>
-                      <Icons.Alert size={20} color="#b45309" /> Acesso Restrito de Administração. Não partilhe estas credenciais fora da plataforma.
+                      <Icons.Alert size={20} color="#b45309" /> Acesso Restrito para Administração. Não partilhe estas credenciais fora da plataforma.
                     </div>
                     
                     <div style={{display:'flex', justifyContent:'space-between', marginBottom:'20px', alignItems:'center'}}>
@@ -2906,7 +2906,7 @@ export default function Clientes() {
             onMouseLeave={handleCropMouseUp}
           >
             <div style={{color:'white',marginBottom:'12px',textAlign:'center'}}>
-              <div style={{fontSize:'1.1rem',fontWeight:'bold'}}>Recortar Foto do Cliente</div>
+              <div style={{fontSize:'1.1rem',fontWeight:'bold'}}>Recortar Foto do Entidade</div>
               <div style={{fontSize:'0.78rem',color:'rgba(255,255,255,0.55)',marginTop:'3px'}}>Arrasta para mover · Scroll para aproximar/afastar</div>
             </div>
 
