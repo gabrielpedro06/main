@@ -288,7 +288,7 @@ export default function DashboardHome() {
               let brandName = "";
               
               if (activeRow.subtarefa_id) {
-                  const { data: res } = await supabase.from("subtarefas").select("titulo, tarefas(atividades(projeto_id, projetos(titulo, clientes(marca, sigla))))").eq("id", activeRow.subtarefa_id).maybeSingle();
+                  const { data: res } = await supabase.from("subtarefas").select("titulo, tarefas(atividades(projeto_id, projetos(titulo, clientes!cliente_id(marca, sigla))))").eq("id", activeRow.subtarefa_id).maybeSingle();
                   if (res) {
                       title = res.titulo;
                       const ativ = Array.isArray(res.tarefas?.atividades) ? res.tarefas.atividades[0] : res.tarefas?.atividades;
@@ -301,7 +301,7 @@ export default function DashboardHome() {
                   }
               } else if (activeRow.task_id || activeRow.tarefa_id) {
                   const taskId = activeRow.task_id || activeRow.tarefa_id;
-                  const { data: res } = await supabase.from("tarefas").select("titulo, atividades(projeto_id, projetos(titulo, clientes(marca, sigla)))").eq("id", taskId).maybeSingle();
+                  const { data: res } = await supabase.from("tarefas").select("titulo, atividades(projeto_id, projetos(titulo, clientes!cliente_id(marca, sigla)))").eq("id", taskId).maybeSingle();
                   if (res) {
                       title = res.titulo;
                       const ativ = Array.isArray(res.atividades) ? res.atividades[0] : res.atividades;
@@ -313,7 +313,7 @@ export default function DashboardHome() {
                       }
                   }
               } else if (activeRow.atividade_id) {
-                  const { data: res } = await supabase.from("atividades").select("titulo, projeto_id, projetos(titulo, clientes(marca, sigla))").eq("id", activeRow.atividade_id).maybeSingle();
+                  const { data: res } = await supabase.from("atividades").select("titulo, projeto_id, projetos(titulo, clientes!cliente_id(marca, sigla))").eq("id", activeRow.atividade_id).maybeSingle();
                   if (res) {
                       title = res.titulo;
                       const proj = Array.isArray(res.projetos) ? res.projetos[0] : res.projetos;
@@ -324,7 +324,7 @@ export default function DashboardHome() {
                       }
                   }
               } else if (activeRow.projeto_id) {
-                  const { data: res } = await supabase.from("projetos").select("titulo, clientes(marca, sigla)").eq("id", activeRow.projeto_id).maybeSingle();
+                  const { data: res } = await supabase.from("projetos").select("titulo, clientes!cliente_id(marca, sigla)").eq("id", activeRow.projeto_id).maybeSingle();
                   if (res) {
                       title = res.titulo;
                       projName = res.titulo;
@@ -654,25 +654,25 @@ export default function DashboardHome() {
       ] = await Promise.all([
           supabase
               .from("tarefas")
-              .select(`*, atividades ( titulo, data_fim, projetos ( id, titulo, codigo_projeto, cliente_texto, clientes(marca, sigla) ) )`)
+              .select(`*, atividades ( titulo, data_fim, projetos ( id, titulo, codigo_projeto, cliente_texto, clientes!cliente_id(marca, sigla) ) )`)
               .eq("responsavel_id", user.id)
               .neq("estado", "concluido")
               .neq("estado", "cancelado"),
           supabase
               .from("tarefas")
-              .select(`*, atividades ( titulo, data_fim, projetos ( id, titulo, codigo_projeto, cliente_texto, clientes(marca, sigla) ) )`)
+              .select(`*, atividades ( titulo, data_fim, projetos ( id, titulo, codigo_projeto, cliente_texto, clientes!cliente_id(marca, sigla) ) )`)
               .contains("colaboradores_extra", [user.id])
               .neq("estado", "concluido")
               .neq("estado", "cancelado"),
           supabase
               .from("atividades")
-              .select(`*, projetos ( id, titulo, codigo_projeto, cliente_texto, clientes(marca, sigla) )`)
+              .select(`*, projetos ( id, titulo, codigo_projeto, cliente_texto, clientes!cliente_id(marca, sigla) )`)
               .eq("responsavel_id", user.id)
               .neq("estado", "concluido")
               .neq("estado", "cancelado"),
           supabase
               .from("atividades")
-              .select(`*, projetos ( id, titulo, codigo_projeto, cliente_texto, clientes(marca, sigla) )`)
+              .select(`*, projetos ( id, titulo, codigo_projeto, cliente_texto, clientes!cliente_id(marca, sigla) )`)
               .contains("colaboradores_extra", [user.id])
               .neq("estado", "concluido")
               .neq("estado", "cancelado"),
@@ -824,25 +824,25 @@ export default function DashboardHome() {
           ] = await Promise.all([
               supabase
                   .from("tarefas")
-                  .select(`*, atividades ( titulo, data_fim, projetos ( id, titulo, codigo_projeto, cliente_texto, clientes(marca, sigla) ) )`)
+                  .select(`*, atividades ( titulo, data_fim, projetos ( id, titulo, codigo_projeto, cliente_texto, clientes!cliente_id(marca, sigla) ) )`)
                   .eq("responsavel_id", user.id)
                   .neq("estado", "concluido")
                   .neq("estado", "cancelado"),
               supabase
                   .from("tarefas")
-                  .select(`*, atividades ( titulo, data_fim, projetos ( id, titulo, codigo_projeto, cliente_texto, clientes(marca, sigla) ) )`)
+                  .select(`*, atividades ( titulo, data_fim, projetos ( id, titulo, codigo_projeto, cliente_texto, clientes!cliente_id(marca, sigla) ) )`)
                   .contains("colaboradores_extra", [user.id])
                   .neq("estado", "concluido")
                   .neq("estado", "cancelado"),
               supabase
                   .from("atividades")
-                  .select(`*, projetos ( id, titulo, codigo_projeto, cliente_texto, clientes(marca, sigla) )`)
+                  .select(`*, projetos ( id, titulo, codigo_projeto, cliente_texto, clientes!cliente_id(marca, sigla) )`)
                   .eq("responsavel_id", user.id)
                   .neq("estado", "concluido")
                   .neq("estado", "cancelado"),
               supabase
                   .from("atividades")
-                  .select(`*, projetos ( id, titulo, codigo_projeto, cliente_texto, clientes(marca, sigla) )`)
+                  .select(`*, projetos ( id, titulo, codigo_projeto, cliente_texto, clientes!cliente_id(marca, sigla) )`)
                   .contains("colaboradores_extra", [user.id])
                   .neq("estado", "concluido")
                   .neq("estado", "cancelado"),

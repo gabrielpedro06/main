@@ -206,7 +206,7 @@ const isMissingColumnError = (error) => {
     return error.code === "42703" || /column .* does not exist/i.test(error.message || "");
 };
 
-const MIN_SA_WORK_SECONDS = 4 * 60 * 60;
+const MIN_SA_WORK_SECONDS = 5 * 60 * 60;
 
 const timeToSeconds = (timeValue) => {
     if (!timeValue || typeof timeValue !== "string") return null;
@@ -1702,7 +1702,7 @@ export default function RecursosHumanos() {
                                     diasDescontadosSA++;
                                     continue;
                                 }
-                                // Para os restantes dias, só descontar se for anterior a hoje e não tiver registo >=4h nem ausência
+                                // Para os restantes dias, só descontar se for anterior a hoje e não tiver registo >=5h nem ausência
                                 const isPast = dateStr < hojeStr;
                                 if (!isPast) continue;
                                 const assid = (assiduidadeMes || []).find(a => a.data_registo === dateStr);
@@ -2609,8 +2609,8 @@ export default function RecursosHumanos() {
                                     Processamento {currentDate.toLocaleDateString('pt-PT', {month:'long'})}
                                 </h4>
                                 <div style={{display:'flex', justifyContent:'space-between', marginBottom:'12px', fontSize:'0.9rem', color:'#334155'}}><span>Dias úteis do mês</span><span style={{color:'#64748b'}}>{stats.diasUteisMes}</span></div>
-                                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'12px', fontSize:'0.9rem', color:'#334155'}}><span>Dias Trabalhados (&gt;=4h)</span><span style={{fontWeight:'600'}}>{stats.countTrabalho}</span></div>
-                                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'12px', fontSize:'0.9rem', color:'#ef4444', fontWeight:'500'}}><span>Dias Descontados (&lt;4h / ausência)</span><span style={{color:'#fca5a5'}}>{stats.diasDescontadosSA}</span></div>
+                                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'12px', fontSize:'0.9rem', color:'#334155'}}><span>Dias Trabalhados (&gt;=5h)</span><span style={{fontWeight:'600'}}>{stats.countTrabalho}</span></div>
+                                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'12px', fontSize:'0.9rem', color:'#ef4444', fontWeight:'500'}}><span>Dias Descontados (&lt;5h / ausência)</span><span style={{color:'#fca5a5'}}>{stats.diasDescontadosSA}</span></div>
                                 <div style={{display:'flex', justifyContent:'space-between', marginBottom:'12px', fontSize:'0.9rem', color:'#334155'}}><span>Férias</span><span style={{color:'#94a3b8'}}>{stats.countFerias}</span></div>
                                 <div style={{display:'flex', justifyContent:'space-between', marginBottom:'12px', fontSize:'0.9rem', color:'#ef4444', fontWeight:'500'}}><span>Faltas</span><span style={{color:'#fca5a5'}}>{stats.countFaltas}</span></div>
                                 <div style={{display:'flex', justifyContent:'space-between', marginBottom:'12px', fontSize:'0.9rem', color:'#8b5cf6'}}><span>Baixas</span><span style={{color:'#c4b5fd'}}>{stats.countBaixas}</span></div>
