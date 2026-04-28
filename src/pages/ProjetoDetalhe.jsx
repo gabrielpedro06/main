@@ -205,12 +205,13 @@ export default function ProjetoDetalhe() {
   };
 
   const getProjetoClientIds = (projLike) => {
-      if (!projLike) return [];
-      const ids = [];
-      if (projLike.cliente_id) ids.push(projLike.cliente_id);
-      ids.push(...normalizeIdsList(projLike.parceiros_ids));
-      return [...new Set(ids.map((v) => String(v)).filter(Boolean))];
-  };
+    if (!projLike) return [];
+    const ids = [];
+    if (projLike.cliente_id) ids.push(projLike.cliente_id);
+    ids.push(...normalizeIdsList(projLike.parceiros_ids));
+    if (projLike.organismo_id) ids.push(projLike.organismo_id);
+    return [...new Set(ids.map((v) => String(v)).filter(Boolean))];
+};
 
   // --- REFS PARA DRAG & DROP NATIVO ---
   const dragAtivItem = useRef();
@@ -421,11 +422,15 @@ export default function ProjetoDetalhe() {
   async function fetchProjetoDetails() {
     setLoading(true);
     
-    const { data: projData } = await supabase.from("projetos").select("*, clientes(marca, sigla), tipos_projeto(nome), profiles(nome)").eq("id", id).single();
-    if (projData) { setProjeto(projData); setFormGeral(projData); }
+    // 👇 ALTERAÇÃO 1: adicionado !cliente_id a seguir a clientes
+    const { data: projData } = await supabase.from("projetos").select("*, clientes!cliente_id(marca, sigla), tipos_projeto(nome), profiles(nome)").eq("id", id).single();
+    if (projData) { 
+        setProjeto(projData); 
+        setFormGeral({ ...projData, has_organismo: !!projData.organismo_id }); 
+    }
 
     const [{ data: cliData }, { data: staffData }, { data: tiposData }] = await Promise.all([
-        supabase.from("clientes").select("id, marca, sigla").order("marca"),
+        supabase.from("clientes").select("id, marca, sigla, eh_organismo").order("marca"), // Adicionado eh_organismo para preencher dropdowns
         supabase.from("profiles").select("id, nome, email").order("nome"),
         supabase.from("tipos_projeto").select("id, nome").order("nome")
     ]);
@@ -437,7 +442,7 @@ export default function ProjetoDetalhe() {
     if (entidadeIds.length > 0) {
         const { data: contactosData } = await supabase
             .from("contactos_cliente")
-            .select("id, cliente_id, nome_contacto, cargo, email, clientes(marca, sigla)")
+            .select("id, cliente_id, nome_contacto, cargo, email, clientes(marca, sigla)") // Aqui não precisa porque é só uma chave forasteira
             .in("cliente_id", entidadeIds)
             .order("nome_contacto", { ascending: true });
         setEntidadePessoas(contactosData || []);
@@ -1288,8 +1293,10 @@ export default function ProjetoDetalhe() {
               programa: formGeral.programa, aviso: formGeral.aviso, codigo_projeto: formGeral.codigo_projeto,
               descricao: formGeral.descricao, observacoes: formGeral.observacoes,
               investimento: formGeral.investimento, incentivo: formGeral.incentivo,
-              tipo_projeto_id: formGeral.tipo_projeto_id || null
+              tipo_projeto_id: formGeral.tipo_projeto_id || null,
+              organismo_id: formGeral.has_organismo && formGeral.organismo_id ? formGeral.organismo_id : null
           };
+
           const { error } = await supabase.from("projetos").update(payload).eq("id", id);
           if (error) throw error;
           showToast("Projeto atualizado com sucesso!");
@@ -1718,6 +1725,15 @@ export default function ProjetoDetalhe() {
       clientDisplay = `🤝 Parceria: ${parceirosNomes}`;
   }
 
+  // 👇 NOVA LÓGICA: Procurar o nome do Organismo para mostrar no cabeçalho
+  let organismoDisplay = null;
+  if (projeto.organismo_id) {
+      const org = clientes.find(c => String(c.id) === String(projeto.organismo_id));
+      if (org) {
+          organismoDisplay = getClientDisplayName(org) || org.marca;
+      }
+  }
+
   const canNavigateToClient = !projeto.is_parceria && Boolean(projeto?.cliente_id);
   const handleClientHeaderClick = () => {
       if (!canNavigateToClient) return;
@@ -1782,40 +1798,50 @@ export default function ProjetoDetalhe() {
               </h1>
 
               <div style={{display: 'flex', gap: '25px', flexWrap: 'wrap', alignItems: 'center'}}>
+                  
+                  {/* 👇 BLOCO DO CLIENTE ATUALIZADO */}
                   <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
                       <div style={{width: '40px', height: '40px', borderRadius: '10px', background: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)'}}>
                           <Icons.Building />
                       </div>
                       <div>
                           <div style={{fontSize: '0.65rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', marginBottom: '2px', letterSpacing: '0.05em'}}>Cliente / Local</div>
-                                                    <div>
-                                                        {String(clientDisplay)
-                                                            .split(/, ?/)
-                                                            .map((item, idx) => (
-                                                                <button
-                                                                    key={idx}
-                                                                    type="button"
-                                                                    onClick={handleClientHeaderClick}
-                                                                    style={{
-                                                                        fontSize: '0.95rem',
-                                                                        color: canNavigateToClient ? 'var(--color-btnPrimaryDark)' : '#1e293b',
-                                                                        fontWeight: '700',
-                                                                        border: 'none',
-                                                                        background: 'transparent',
-                                                                        padding: 0,
-                                                                        cursor: canNavigateToClient ? 'pointer' : 'default',
-                                                                        textDecoration: canNavigateToClient ? 'underline' : 'none',
-                                                                        textUnderlineOffset: '3px',
-                                                                        display: 'block',
-                                                                        textAlign: 'left',
-                                                                        marginBottom: 2
-                                                                    }}
-                                                                    title={canNavigateToClient ? 'Abrir cliente' : ''}
-                                                                >
-                                                                    {item}
-                                                                </button>
-                                                            ))}
-                                                    </div>
+                          <div>
+                              {String(clientDisplay)
+                                  .split(/, ?/)
+                                  .map((item, idx) => (
+                                      <button
+                                          key={idx}
+                                          type="button"
+                                          onClick={handleClientHeaderClick}
+                                          style={{
+                                              fontSize: '0.95rem',
+                                              color: canNavigateToClient ? 'var(--color-btnPrimaryDark)' : '#1e293b',
+                                              fontWeight: '700',
+                                              border: 'none',
+                                              background: 'transparent',
+                                              padding: 0,
+                                              cursor: canNavigateToClient ? 'pointer' : 'default',
+                                              textDecoration: canNavigateToClient ? 'underline' : 'none',
+                                              textUnderlineOffset: '3px',
+                                              display: 'block',
+                                              textAlign: 'left',
+                                              marginBottom: 2
+                                          }}
+                                          title={canNavigateToClient ? 'Abrir cliente' : ''}
+                                      >
+                                          {item}
+                                      </button>
+                                  ))}
+                              {/* 👇 NOVA ETIQUETA COM O NOME DO ORGANISMO */}
+                              {organismoDisplay && (
+                                  <div style={{marginTop: '4px'}}>
+                                      <span style={{fontSize: '0.7rem', background: '#fef3c7', color: '#b45309', padding: '2px 8px', borderRadius: '6px', fontWeight: '800', border: '1px solid #fde68a', display: 'inline-flex', alignItems: 'center', gap: '4px'}}>
+                                          <Icons.Building size={10} /> Organismo: {organismoDisplay}
+                                      </span>
+                                  </div>
+                              )}
+                          </div>
                       </div>
                   </div>
 
@@ -2474,6 +2500,42 @@ export default function ProjetoDetalhe() {
                         </div>
                     )}
 
+                    <div style={{display: 'grid', gridTemplateColumns: formGeral.has_organismo ? '1fr 1fr' : '1fr', gap: '15px', marginBottom: '20px'}}>
+                            <div>
+                                <label style={labelStyle}>Envolve Organismo Público?</label>
+                                <select
+                                    value={formGeral.has_organismo ? 'sim' : 'nao'}
+                                    onChange={e => {
+                                        const hasOrg = e.target.value === 'sim';
+                                        setFormGeral({...formGeral, has_organismo: hasOrg, organismo_id: hasOrg ? formGeral.organismo_id : null});
+                                    }}
+                                    style={{...inputStyle, cursor: 'pointer'}}
+                                    className="input-focus"
+                                >
+                                    <option value="nao">Não</option>
+                                    <option value="sim">Sim</option>
+                                </select>
+                            </div>
+
+                            {formGeral.has_organismo && (
+                                <div>
+                                    <label style={labelStyle}>Organismo Lider / Principal *</label>
+                                    <select
+                                        value={formGeral.organismo_id || ""}
+                                        onChange={e => setFormGeral({...formGeral, organismo_id: e.target.value})}
+                                        style={{...inputStyle, cursor: 'pointer', borderColor: 'var(--color-btnPrimary)', background: 'var(--color-bgSecondary)'}}
+                                        className="input-focus"
+                                        required={formGeral.has_organismo}
+                                    >
+                                        <option value="">-- Selecione o Organismo --</option>
+                                        {clientes.filter(c => c.eh_organismo).map(c => (
+                                            <option key={c.id} value={c.id}>{getClientDisplayName(c) || c.marca}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+                        </div>
+
                     <div style={{marginBottom: '30px'}}>
                         <label style={labelStyle}>Outros Colaboradores Envolvidos</label>
                         <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px'}}>
@@ -2565,7 +2627,7 @@ export default function ProjetoDetalhe() {
 
                     <div style={{marginTop: '28px', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: '14px', padding: '18px 20px'}}>
                         <div style={{display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px', color: '#9a3412', fontWeight: '800'}}>
-                            <Icons.AlertTriangle size={16} /> Zona de Arquivo / Apagamento
+                            <Icons.AlertTriangle size={16} /> Zona de Arquivo / Apagar
                         </div>
                         <p style={{margin: '0 0 16px 0', color: '#9a3412', fontSize: '0.85rem', lineHeight: 1.5}}>
                             Arquivar remove o projeto das listas normais sem perder histórico. Apagar elimina permanentemente o projeto e os registos associados.

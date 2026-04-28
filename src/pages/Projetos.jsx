@@ -177,6 +177,7 @@ export default function Projetos() {
     titulo: "", descricao: "", 
     cliente_id: "", cliente_texto: "", 
     is_parceria: false, parceiros_ids: [],
+    has_organismo: false, organismo_id: "",
     tipo_projeto_id: "",
     responsavel_id: "", colaboradores: [],
     estado: "pendente", data_inicio: "", data_fim: "",
@@ -279,7 +280,8 @@ export default function Projetos() {
 
       const targetClientIds = [
           ...(form.cliente_id ? [String(form.cliente_id)] : []),
-          ...((form.parceiros_ids || []).map((id) => String(id)) || [])
+          ...((form.parceiros_ids || []).map((id) => String(id)) || []),
+          ...(form.has_organismo && form.organismo_id ? [String(form.organismo_id)] : [])
       ];
       const uniqueClientIds = [...new Set(targetClientIds.filter(Boolean))];
 
@@ -353,7 +355,7 @@ export default function Projetos() {
       .from("projetos")
       .select(`
           *, 
-                    clientes ( marca, sigla ), 
+          clientes!cliente_id ( marca, sigla ), 
           tipos_projeto ( nome ), 
           profiles ( nome, email ),
           atividades ( 
@@ -369,7 +371,7 @@ export default function Projetos() {
     if (error) console.error("Erro no fetch:", error);
     else setProjetos(projData || []);
 
-    const { data: cliData } = await supabase.from("clientes").select("id, marca, sigla").order("marca");
+    const { data: cliData } = await supabase.from("clientes").select("id, marca, sigla, eh_organismo").order("marca");
     setClientes(cliData || []);
 
     const { data: tipoData } = await supabase.from("tipos_projeto").select("id, nome").order("nome");
@@ -713,6 +715,8 @@ export default function Projetos() {
         titulo: proj.titulo || "", descricao: proj.descricao || "", 
         cliente_id: proj.cliente_id || "", cliente_texto: proj.cliente_texto || "",
         is_parceria: normalizeBoolean(proj.is_parceria), parceiros_ids: normalizeIdsList(proj.parceiros_ids),
+        has_organismo: !!proj.organismo_id,
+        organismo_id: proj.organismo_id || "",
         tipo_projeto_id: proj.tipo_projeto_id || "", 
         responsavel_id: proj.responsavel_id || "", colaboradores: normalizeIdsList(proj.colaboradores),
         estado: proj.estado || "pendente", data_inicio: proj.data_inicio || "",
@@ -815,6 +819,9 @@ export default function Projetos() {
         (pid) => String(pid) !== String(payload.cliente_id)
     );
     payload.cliente_texto = "";
+
+    payload.organismo_id = payload.has_organismo && payload.organismo_id ? payload.organismo_id : null;
+    delete payload.has_organismo;
 
     try {
         if (editId) {
@@ -1675,6 +1682,46 @@ export default function Projetos() {
                                 </div>
                             </div>
                         )}
+                        
+                        {/* ROW: Organismos */}
+                        <div style={{display: 'grid', gridTemplateColumns: form.has_organismo ? '1fr 1fr' : '1fr', gap: '15px', marginBottom: '20px'}}>
+                            <div>
+                                <label style={labelStyle}>Envolve Organismo Público?</label>
+                                <select
+                                    value={form.has_organismo ? 'sim' : 'nao'}
+                                    onChange={e => {
+                                        const hasOrg = e.target.value === 'sim';
+                                        setForm({...form, has_organismo: hasOrg, organismo_id: hasOrg ? form.organismo_id : ""});
+                                    }}
+                                    style={{...inputStyle, cursor: 'pointer'}}
+                                    className="input-focus"
+                                    disabled={isViewOnly}
+                                >
+                                    <option value="nao">Não</option>
+                                    <option value="sim">Sim</option>
+                                </select>
+                            </div>
+
+                            {form.has_organismo && (
+                                <div>
+                                    <label style={labelStyle}>Organismo Lider / Principal *</label>
+                                    <select
+                                        value={form.organismo_id || ""}
+                                        onChange={e => setForm({...form, organismo_id: e.target.value})}
+                                        style={{...inputStyle, cursor: 'pointer', borderColor: 'var(--color-btnPrimary)', background: 'var(--color-bgSecondary)'}}
+                                        className="input-focus"
+                                        disabled={isViewOnly}
+                                        required={form.has_organismo}
+                                    >
+                                        <option value="">-- Selecione o Organismo --</option>
+                                        {/* Filtramos apenas os clientes que são organismos */}
+                                        {clientes.filter(c => c.eh_organismo).map(c => (
+                                            <option key={c.id} value={c.id}>{getClientDisplayName(c) || c.marca}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+                        </div>
 
                         {/* ROW: Colaboradores em formato PILL com filtro do Responsável */}
                         <div style={{marginBottom: '30px'}}>
