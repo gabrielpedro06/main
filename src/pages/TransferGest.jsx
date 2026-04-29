@@ -80,6 +80,7 @@ const INITIAL_FORM = {
   classificacao_transfergest: "",
   interesse_email_marketing: false,
   target: "",
+  campanha: "", // <--- CAMPO CAMPANHA
   estado: "novo",
   estado_historico: {},
   ativo: true,
@@ -246,6 +247,10 @@ export default function TransferGest() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // 💡 GESTÃO DE CAMPANHAS
+  const [campanhasDisponiveis, setCampanhasDisponiveis] = useState(["Campanha 1"]);
+  const [selectedCampanha, setSelectedCampanha] = useState("");
+
   const [activeStatusTab, setActiveStatusTab] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [showArchived, setShowArchived] = useState(false);
@@ -258,6 +263,7 @@ export default function TransferGest() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [importFile, setImportFile] = useState(null);
   const [importing, setImporting] = useState(false);
+  const [importCampanha, setImportCampanha] = useState("");
 
   const [showFormModal, setShowFormModal] = useState(false);
   const [isEditForm, setIsEditForm] = useState(false);
@@ -289,15 +295,33 @@ export default function TransferGest() {
     setTimeout(() => setNotification(null), 3200);
   };
 
-  const loadRows = async () => {
+  const fetchCampaignList = async () => {
+    const { data } = await supabase.from("transfergest_registos").select("campanha");
+    if (data) {
+      const unique = [...new Set(data.map(d => String(d.campanha || "Campanha 1").trim()))].sort();
+      setCampanhasDisponiveis(unique.length ? unique : ["Campanha 1"]);
+    }
+  };
+
+  // ALTERADO: loadRows agora aceita o nome e faz o SELECT filtrado na BD
+  const loadRows = async (campanhaNome) => {
+    if (!campanhaNome) return;
     setLoading(true);
-    const { data, error } = await supabase
+    
+    let query = supabase
       .from("transfergest_registos")
       .select("*")
       .order("created_at", { ascending: false });
 
+    // 💡 A MÁGIA: O filtro acontece na BD, não no navegador
+    if (campanhaNome !== "Todas") {
+      query = query.eq("campanha", campanhaNome);
+    }
+
+    const { data, error } = await query;
+
     if (error) {
-      showToast(`Erro ao carregar TransferGest: ${error.message}`, "error");
+      showToast(`Erro ao carregar: ${error.message}`, "error");
       setLoading(false);
       return;
     }
@@ -306,10 +330,19 @@ export default function TransferGest() {
     setLoading(false);
   };
 
+  // Efeito ao montar: carrega apenas os nomes das campanhas
   useEffect(() => {
-    loadRows();
+    fetchCampaignList();
   }, []);
 
+  // Efeito ao trocar campanha: limpa tudo e faz novo SELECT
+  useEffect(() => {
+    if (selectedCampanha) {
+      loadRows(selectedCampanha);
+      setActiveStatusTab("all");
+      setSelectedIds([]);
+    }
+  }, [selectedCampanha]);
   const filteredRows = useMemo(() => {
     const queryFilters = parseFilterQuery(searchTerm);
     const normalizedInteresse = queryFilters.interesse.toLowerCase();
@@ -340,26 +373,17 @@ export default function TransferGest() {
 
       if (queryFilters.textTerms.length) {
         const text = [
-          item.denominacao,
-          item.nome,
-          item.numero_contribuinte,
-          item.contacto_email,
-          item.numero_registo,
-          item.sede_localidade,
-          item.sede_concelho,
-          item.sede_distrito,
-          item.target,
-          item.classificacao_transfergest,
-        ]
-          .map((value) => String(value || "").toLowerCase())
-          .join(" ");
+          item.denominacao, item.nome, item.numero_contribuinte,
+          item.contacto_email, item.numero_registo, item.sede_localidade,
+          item.sede_concelho, item.sede_distrito, item.target, item.classificacao_transfergest,
+        ].map((value) => String(value || "").toLowerCase()).join(" ");
 
         if (!queryFilters.textTerms.every((term) => text.includes(term.toLowerCase()))) return false;
       }
 
       return true;
     });
-  }, [rows, showArchived, activeStatusTab, searchTerm]);
+  }, [rows, showArchived, activeStatusTab, searchTerm, selectedCampanha]);
 
   useEffect(() => {
     const visibleSet = new Set(filteredRows.map((item) => item.id));
@@ -371,18 +395,21 @@ export default function TransferGest() {
 
   const statusCounts = useMemo(() => {
     const counts = { all: 0 };
-    STATUS_OPTIONS.forEach((status) => {
-      counts[status.value] = 0;
-    });
+    STATUS_OPTIONS.forEach((status) => { counts[status.value] = 0; });
 
     rows.forEach((item) => {
       if (!showArchived && item.ativo === false) return;
+      
+      const itemCampanha = String(item.campanha || "Campanha 1").trim().toLowerCase();
+      const tabAtiva = String(selectedCampanha).trim().toLowerCase();
+      if (tabAtiva !== "todas" && itemCampanha !== tabAtiva) return; 
+
       counts.all += 1;
       if (counts[item.estado] !== undefined) counts[item.estado] += 1;
     });
 
     return counts;
-  }, [rows, showArchived]);
+  }, [rows, showArchived, selectedCampanha]);
 
   const toggleSelectAllVisible = () => {
     if (allVisibleSelected) {
@@ -398,7 +425,7 @@ export default function TransferGest() {
 
   const openCreateModal = () => {
     setIsEditForm(false);
-    setFormData({ ...INITIAL_FORM });
+    setFormData({ ...INITIAL_FORM, campanha: selectedCampanha && selectedCampanha !== "Todas" ? selectedCampanha : "Campanha 1" });
     setShowFormModal(true);
   };
 
@@ -410,6 +437,7 @@ export default function TransferGest() {
       ano: row.ano == null ? "" : String(row.ano),
       data_registo: row.data_registo || "",
       interesse_email_marketing: Boolean(row.interesse_email_marketing),
+      campanha: row.campanha || "Campanha 1"
     });
     setShowFormModal(true);
   };
@@ -430,6 +458,7 @@ export default function TransferGest() {
       estado: formData.estado || "novo",
       estado_historico: formData.estado_historico && typeof formData.estado_historico === "object" ? formData.estado_historico : {},
       interesse_email_marketing: Boolean(formData.interesse_email_marketing),
+      campanha: formData.campanha?.trim() || "Campanha 1",
     };
 
     if (!isEditForm) {
@@ -455,6 +484,10 @@ export default function TransferGest() {
     } else {
       setRows((prev) => [result.data, ...prev]);
       showToast("Registo criado com sucesso.");
+    }
+
+    if (!campanhasDisponiveis.includes(payload.campanha)) {
+      await fetchCampaignList();
     }
 
     setShowFormModal(false);
@@ -639,7 +672,7 @@ export default function TransferGest() {
       return;
     }
 
-    const headers = [...CSV_FIELDS.map((field) => field.label), "Estado", "Interesse (SIM/NAO)"];
+    const headers = [...CSV_FIELDS.map((field) => field.label), "Campanha", "Estado", "Interesse (SIM/NAO)"];
     const lines = [headers.join(";")];
 
     filteredRows.forEach((item) => {
@@ -651,6 +684,7 @@ export default function TransferGest() {
         return `"${String(value ?? "").replaceAll('"', '""')}"`;
       });
 
+      cells.push(`"${String(item.campanha || "Campanha 1").toUpperCase()}"`);
       cells.push(`"${String(item.estado || "").toUpperCase()}"`);
       cells.push(`"${item.interesse_email_marketing ? "SIM" : "NAO"}"`);
       lines.push(cells.join(";"));
@@ -718,6 +752,12 @@ export default function TransferGest() {
           return;
         }
 
+        // 💡 Lógica da Campanha no Import
+        let targetCampanha = importCampanha.trim();
+        if (!targetCampanha) {
+            targetCampanha = selectedCampanha && selectedCampanha !== "Todas" ? selectedCampanha : "Campanha 1";
+        }
+
         const parsed = [];
 
         for (let i = 1; i < lines.length; i += 1) {
@@ -743,6 +783,7 @@ export default function TransferGest() {
 
           row.estado = "novo";
           row.ativo = true;
+          row.campanha = targetCampanha; 
           row.estado_historico = buildStatusHistory({}, "novo", new Date().toISOString().slice(0, 10));
 
           parsed.push(row);
@@ -783,10 +824,14 @@ export default function TransferGest() {
         const { error: insertError } = await supabase.from("transfergest_registos").insert(deduped);
         if (insertError) throw insertError;
 
-        showToast(`${deduped.length} registos importados com sucesso.`);
+        showToast(`${deduped.length} registos importados com sucesso para a ${targetCampanha}.`);
         setShowImportModal(false);
         setImportFile(null);
-        await loadRows();
+        setImportCampanha("");
+        
+        setSelectedCampanha(targetCampanha);
+        await fetchCampaignList();
+        await loadRows(targetCampanha);
       } catch (error) {
         showToast(`Erro ao importar CSV: ${error.message}`, "error");
       } finally {
@@ -799,28 +844,103 @@ export default function TransferGest() {
 
   return (
     <div className="page-container transfergest-page" style={{ maxWidth: "100%", paddingBottom: "36px" }}>
-      <div className="page-header" style={{ background: "white", padding: "20px 25px", borderRadius: "12px", border: "1px solid #e2e8f0", marginBottom: "14px", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "15px", flexWrap: "wrap" }}>
+      <div className="page-header" style={{ background: "white", padding: "20px 25px", borderRadius: "12px", border: "1px solid #e2e8f0", marginBottom: "20px", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "15px", flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
-          <div style={{ background: "var(--color-bgSecondary)", color: "var(--color-btnPrimary)", padding: "12px", borderRadius: "12px", display: "flex" }}>
+          <div
+            style={{ background: "var(--color-bgSecondary)", color: "var(--color-btnPrimary)", padding: "12px", borderRadius: "12px", display: "flex", cursor: "pointer" }}
+            onClick={() => setSelectedCampanha("")}
+            title="Voltar ao menu de campanhas"
+          >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="4" width="18" height="16" rx="2"></rect>
-              <line x1="7" y1="8" x2="17" y2="8"></line>
-              <line x1="7" y1="12" x2="17" y2="12"></line>
-              <line x1="7" y1="16" x2="13" y2="16"></line>
+              <rect x="3" y="3" width="7" height="7"></rect>
+              <rect x="14" y="3" width="7" height="7"></rect>
+              <rect x="14" y="14" width="7" height="7"></rect>
+              <rect x="3" y="14" width="7" height="7"></rect>
             </svg>
           </div>
           <div>
             <h1 style={{ margin: 0, color: "#0f172a", fontSize: "1.8rem", fontWeight: "900", letterSpacing: "-0.02em" }}>TransferGest</h1>
-            <p style={{ color: "#64748b", margin: 0, fontWeight: "500", fontSize: "0.9rem" }}>Carteira de Clientes Ativos</p>
+            <p style={{ color: "#64748b", margin: 0, fontWeight: "500", fontSize: "0.9rem" }}>
+              {selectedCampanha ? `Campanha: ${selectedCampanha}` : "Selecao de Campanha"}
+            </p>
           </div>
         </div>
 
         <div className="tg-header-actions" style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", justifyContent: "flex-end" }}>
+          {selectedCampanha && <button className="btn-outline" onClick={() => setSelectedCampanha("")}>Voltar ao Menu</button>}
           <button className="btn-outline" onClick={() => setShowImportModal(true)}>Importar CSV</button>
-          <button className="btn-outline" onClick={exportCsv}>Exportar CSV</button>
-          <button className="btn-outline" onClick={() => setShowSendModal(true)} disabled={!selectedIds.length}>Campanha Email</button>
           <button className="btn-cta" onClick={openCreateModal}>+ Novo Registo</button>
         </div>
+      </div>
+
+      {/* 💡 TABS DE CAMPANHA */}
+      {!selectedCampanha ? (
+        <div style={{ padding: "20px 0" }}>
+          <div className="campaign-menu-grid">
+            <button type="button" onClick={() => setSelectedCampanha("Todas")} className="campaign-menu-card all">
+              <div className="icon">ALL</div>
+              <div className="info">
+                <h3>Todas as Campanhas</h3>
+                <p>Ver todos os registos sem filtro de campanha.</p>
+              </div>
+              <div className="arrow">-&gt;</div>
+            </button>
+
+            {campanhasDisponiveis.map((camp) => (
+              <button type="button" key={camp} onClick={() => setSelectedCampanha(camp)} className="campaign-menu-card">
+                <div className="icon">TG</div>
+                <div className="info">
+                  <h3>{camp}</h3>
+                  <p>Gerir contactos e envios desta campanha.</p>
+                </div>
+                <div className="arrow">-&gt;</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <>
+      <div style={{ display: 'none' }} className="custom-scrollbar">
+        <button
+           onClick={() => { setSelectedCampanha("Todas"); setSelectedIds([]); setActiveStatusTab("all"); }}
+           style={{
+              padding: '10px 20px',
+              borderRadius: '12px',
+              border: selectedCampanha === "Todas" ? '2px solid var(--color-btnPrimary)' : '1px solid #cbd5e1',
+              background: selectedCampanha === "Todas" ? 'var(--color-bgSecondary)' : 'white',
+              color: selectedCampanha === "Todas" ? 'var(--color-btnPrimaryDark)' : '#475569',
+              fontWeight: '800',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              transition: '0.2s',
+              boxShadow: selectedCampanha === "Todas" ? '0 4px 10px rgba(59, 130, 246, 0.15)' : '0 2px 4px rgba(0,0,0,0.02)'
+           }}
+           className="hover-shadow"
+        >
+           🌍 Todas
+        </button>
+
+        {campanhasDisponiveis.map(c => (
+           <button
+              key={c}
+              onClick={() => { setSelectedCampanha(c); setSelectedIds([]); setActiveStatusTab("all");}}
+              style={{
+                 padding: '10px 20px',
+                 borderRadius: '12px',
+                 border: selectedCampanha === c ? '2px solid var(--color-btnPrimary)' : '1px solid #cbd5e1',
+                 background: selectedCampanha === c ? 'var(--color-bgSecondary)' : 'white',
+                 color: selectedCampanha === c ? 'var(--color-btnPrimaryDark)' : '#475569',
+                 fontWeight: '800',
+                 cursor: 'pointer',
+                 whiteSpace: 'nowrap',
+                 transition: '0.2s',
+                 boxShadow: selectedCampanha === c ? '0 4px 10px rgba(59, 130, 246, 0.15)' : '0 2px 4px rgba(0,0,0,0.02)'
+              }}
+              className="hover-shadow"
+           >
+              🚀 {c}
+           </button>
+        ))}
       </div>
 
       <div className="tg-status-tabs">
@@ -867,7 +987,18 @@ export default function TransferGest() {
           <div className="tg-toolbar-stats" style={{ color: "var(--color-textSecondary)", fontSize: "0.85rem", whiteSpace: "nowrap", marginLeft: "auto" }}>
             {filteredRows.length} encontrados / {selectedIds.length} selecionados
           </div>
+          <div className="tg-toolbar-actions" style={{ display: "flex", alignItems: "center", flexWrap: "wrap" }}>
+            <button className="btn-outline" onClick={() => setShowBulkStatusModal(true)} disabled={!selectedIds.length}>Alterar Estado</button>
+            <button className="btn-outline" onClick={() => setShowSendModal(true)} disabled={!selectedIds.length}>Campanha Email</button>
+            <button className="btn-outline" onClick={exportCsv}>Exportar CSV</button>
+          </div>
         </div>
+
+        {loading && (
+          <div style={{ padding: "60px", textAlign: "center", color: "var(--color-textSecondary)", fontWeight: 700 }}>
+            Carregando dados da {selectedCampanha}...
+          </div>
+        )}
 
         <div className="tg-cards-grid">
           {!loading && filteredRows.map((item) => {
@@ -959,6 +1090,9 @@ export default function TransferGest() {
         )}
       </div>
 
+        </>
+      )}
+
       {showFormModal && (
         <ModalPortal>
           <div style={{ position: "fixed", inset: 0, background: "rgba(2, 6, 23, 0.65)", backdropFilter: "blur(4px)", zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
@@ -970,6 +1104,23 @@ export default function TransferGest() {
 
               <form onSubmit={saveForm}>
                 <div style={{ display: "grid", gap: "12px", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+                  
+                  {/* 💡 INPUT PARA CAMPANHA NO FORMULÁRIO */}
+                  <div style={{ gridColumn: "span 2", background: "var(--color-bgSecondary)", padding: "10px", borderRadius: "8px", border: "1px solid var(--color-borderColor)" }}>
+                    <label style={{...labelStyle, color: "var(--color-btnPrimaryDark)"}}>Associar a Campanha *</label>
+                    <input 
+                       required 
+                       list="campanhas-list"
+                       value={formData.campanha || ""} 
+                       onChange={(e) => setFormData((prev) => ({ ...prev, campanha: e.target.value }))} 
+                       placeholder="Escreva ou escolha uma campanha"
+                       style={{...inputStyle, borderColor: "var(--color-btnPrimary)"}} 
+                    />
+                    <datalist id="campanhas-list">
+                       {campanhasDisponiveis.map(c => <option key={c} value={c} />)}
+                    </datalist>
+                  </div>
+
                   <div style={{ gridColumn: "span 2" }}>
                     <label style={labelStyle}>Denominacao *</label>
                     <input required value={formData.denominacao || ""} onChange={(e) => setFormData((prev) => ({ ...prev, denominacao: e.target.value }))} style={inputStyle} />
@@ -1084,6 +1235,9 @@ export default function TransferGest() {
             <div style={{ width: "100%", maxWidth: "980px", maxHeight: "90vh", overflowY: "auto", background: "var(--color-cardBg, #fff)", borderRadius: "14px", border: "1px solid var(--color-borderColor)", padding: "18px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px", marginBottom: "16px", flexWrap: "wrap" }}>
                 <div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--color-btnPrimary)", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>
+                     {formatDisplayValue(detailItem.campanha)}
+                  </div>
                   <h3 style={{ margin: 0, color: "#0f172a", fontSize: "1.25rem", fontWeight: 900 }}>{formatDisplayValue(detailItem.denominacao)}</h3>
                   <p style={{ margin: "6px 0 0", color: "#64748b", fontSize: "0.9rem" }}>{formatDisplayValue(detailItem.nome)}</p>
                 </div>
@@ -1149,6 +1303,23 @@ export default function TransferGest() {
           <div style={{ position: "fixed", inset: 0, background: "rgba(2, 6, 23, 0.65)", backdropFilter: "blur(4px)", zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
             <div style={{ width: "100%", maxWidth: "760px", background: "var(--color-cardBg, #fff)", borderRadius: "14px", border: "1px solid var(--color-borderColor)", padding: "18px" }}>
               <h3 style={{ marginTop: 0 }}>Importar CSV TransferGest</h3>
+              
+              {/* 💡 INPUT PARA CAMPANHA NO IMPORT (Livre + Sugestões) */}
+              <div style={{ background: "var(--color-bgSecondary)", padding: "12px", borderRadius: "8px", border: "1px solid var(--color-btnPrimary)", marginBottom: "14px" }}>
+                <label style={{...labelStyle, color: "var(--color-btnPrimaryDark)"}}>Para que campanha vai este ficheiro?</label>
+                <input 
+                   type="text"
+                   list="import-campanhas-list"
+                   value={importCampanha} 
+                   onChange={(e) => setImportCampanha(e.target.value)} 
+                   placeholder="Escreva um nome novo ou escolha da lista"
+                   style={{...inputStyle, borderColor: "var(--color-btnPrimary)"}} 
+                />
+                <datalist id="import-campanhas-list">
+                   {campanhasDisponiveis.map(c => <option key={c} value={c} />)}
+                </datalist>
+              </div>
+
               <p style={{ color: "var(--color-textSecondary)", marginTop: "6px" }}>O CSV deve conter todos os campos abaixo no cabecalho.</p>
               <div style={{ background: "var(--color-bgSecondary)", border: "1px solid var(--color-borderColor)", borderRadius: "10px", padding: "10px", maxHeight: "200px", overflowY: "auto", marginBottom: "14px" }}>
                 {CSV_FIELDS.map((field) => (
@@ -1283,6 +1454,73 @@ export default function TransferGest() {
       {notification && <div className={`toast-container ${notification.type}`}>{notification.message}</div>}
 
       <style>{`
+        .transfergest-page .campaign-menu-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+          gap: 20px;
+        }
+
+        .transfergest-page .campaign-menu-card {
+          width: 100%;
+          text-align: left;
+          background: white;
+          border: 1px solid #e2e8f0;
+          border-radius: 16px;
+          padding: 25px;
+          display: flex;
+          align-items: center;
+          gap: 20px;
+          cursor: pointer;
+          transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+          font: inherit;
+        }
+
+        .transfergest-page .campaign-menu-card:hover {
+          transform: translateY(-5px);
+          border-color: var(--color-btnPrimary);
+          box-shadow: 0 15px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .transfergest-page .campaign-menu-card.all {
+          background: linear-gradient(135deg, #ffffff 0%, #f0f7ff 100%);
+        }
+
+        .transfergest-page .campaign-menu-card .icon {
+          width: 48px;
+          height: 48px;
+          border-radius: 14px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          background: var(--color-bgSecondary);
+          color: var(--color-btnPrimary);
+          font-size: 0.78rem;
+          font-weight: 900;
+          flex: 0 0 auto;
+        }
+
+        .transfergest-page .campaign-menu-card h3 {
+          margin: 0;
+          font-size: 1.15rem;
+          font-weight: 800;
+          color: #0f172a;
+        }
+
+        .transfergest-page .campaign-menu-card p {
+          margin: 4px 0 0;
+          font-size: 0.85rem;
+          color: #64748b;
+          line-height: 1.4;
+        }
+
+        .transfergest-page .campaign-menu-card .arrow {
+          margin-left: auto;
+          font-size: 1.2rem;
+          color: #cbd5e1;
+          font-weight: 900;
+        }
+
         .transfergest-page .tg-status-tabs {
           display: flex;
           gap: 6px;
