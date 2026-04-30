@@ -154,7 +154,9 @@ export default function Projetos() {
   const [mostrarConcluidos, setMostrarConcluidos] = useState(false);
     const [viewMode, setViewMode] = useState("cards");
   const [showOnlyMine, setShowOnlyMine] = useState(true); 
+  const [menuPrincipal, setMenuPrincipal] = useState("tipo");
   const [selectedCategoria, setSelectedCategoria] = useState(null); 
+  const [selectedEstado, setSelectedEstado] = useState(null); 
 
   const [clientes, setClientes] = useState([]);
   const [tipos, setTipos] = useState([]);
@@ -701,6 +703,7 @@ export default function Projetos() {
     setForm({ 
         ...initialForm, 
         tipo_projeto_id: (selectedCategoria && selectedCategoria !== 'sem-categoria') ? selectedCategoria : "", 
+        estado: selectedEstado || initialForm.estado,
         data_inicio: new Date().toISOString().split('T')[0] 
     });
     setActiveTab("geral"); 
@@ -989,33 +992,56 @@ export default function Projetos() {
       return false; 
   };
 
-  const projetosFiltrados = projetos.filter(p => {
+  const estadosProjeto = [
+      { id: 'pendente', nome: 'Pendente', color: '#f59e0b' },
+      { id: 'em_curso', nome: 'Em Curso', color: '#10b981' },
+      { id: 'em_analise', nome: 'Em Análise', color: '#6366f1' },
+      { id: 'concluido', nome: 'Concluído', color: '#64748b' },
+      { id: 'cancelado', nome: 'Cancelado', color: '#ef4444' }
+  ];
+
+  const normalizeText = (value) => String(value || '').toLowerCase();
+
+  const matchesBaseFilters = (p) => {
     if (!checkUserInvolvement(p)) return false;
 
     const termo = busca.toLowerCase();
-        const matchBusca = p.titulo?.toLowerCase().includes(termo) || p.clientes?.marca?.toLowerCase().includes(termo) || p.clientes?.sigla?.toLowerCase().includes(termo) || p.codigo_projeto?.toLowerCase().includes(termo);
+        const matchBusca = normalizeText(p.titulo).includes(termo) || normalizeText(p.clientes?.marca).includes(termo) || normalizeText(p.clientes?.sigla).includes(termo) || normalizeText(p.codigo_projeto).includes(termo);
     if (!matchBusca) return false;
 
     const isInactive = p.estado === 'concluido' || p.estado === 'cancelado';
     if (!mostrarConcluidos && isInactive) return false;
-    
+
+    return true;
+  };
+
+  const projetosFiltrados = projetos.filter(p => {
+    if (!matchesBaseFilters(p)) return false;
+
     if (selectedCategoria) {
         if (selectedCategoria === 'sem-categoria' && p.tipo_projeto_id) return false;
         if (selectedCategoria !== 'sem-categoria' && p.tipo_projeto_id !== selectedCategoria) return false;
     }
 
+    if (selectedEstado && p.estado !== selectedEstado) return false;
+
     return true;
   });
 
   const countsPerCategory = {};
+  const countsPerEstado = {};
   projetos.forEach(p => {
-      if (!checkUserInvolvement(p)) return;
-      const termo = busca.toLowerCase();
-      if (!(p.titulo?.toLowerCase().includes(termo) || p.clientes?.marca?.toLowerCase().includes(termo) || p.clientes?.sigla?.toLowerCase().includes(termo) || p.codigo_projeto?.toLowerCase().includes(termo))) return;
-      if (!mostrarConcluidos && (p.estado === 'concluido' || p.estado === 'cancelado')) return;
+      if (!matchesBaseFilters(p)) return;
 
       const catId = p.tipo_projeto_id || 'sem-categoria';
-      countsPerCategory[catId] = (countsPerCategory[catId] || 0) + 1;
+      if (!selectedEstado || p.estado === selectedEstado) {
+          countsPerCategory[catId] = (countsPerCategory[catId] || 0) + 1;
+      }
+
+      if (!selectedCategoria || (selectedCategoria === 'sem-categoria' ? !p.tipo_projeto_id : p.tipo_projeto_id === selectedCategoria)) {
+          const estadoId = p.estado || 'pendente';
+          countsPerEstado[estadoId] = (countsPerEstado[estadoId] || 0) + 1;
+      }
   });
 
   const renderDeadline = (dateString, estado) => {
@@ -1040,6 +1066,114 @@ export default function Projetos() {
       if (!id) return '#94a3b8'; 
       const hash = String(id).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
       return projectColors[hash % projectColors.length];
+  };
+
+  const getEstadoInfo = (estado) => estadosProjeto.find(e => e.id === estado) || { id: estado || 'pendente', nome: (estado || 'pendente').replace('_', ' '), color: '#64748b' };
+  const selectedCategoriaNome = selectedCategoria === 'sem-categoria' ? 'Projetos Avulsos' : tipos.find(t => t.id === selectedCategoria)?.nome;
+  const selectedEstadoNome = selectedEstado ? getEstadoInfo(selectedEstado).nome : '';
+  const isProjectListOpen = Boolean(selectedCategoria && selectedEstado);
+
+  const resetProjectMenus = () => {
+      setSelectedCategoria(null);
+      setSelectedEstado(null);
+  };
+
+  const switchMenuPrincipal = (nextMenu) => {
+      setMenuPrincipal(nextMenu);
+      resetProjectMenus();
+  };
+
+  const handleVoltarProjetos = () => {
+      if (isProjectListOpen) {
+          if (menuPrincipal === 'tipo') setSelectedEstado(null);
+          else setSelectedCategoria(null);
+          return;
+      }
+
+      resetProjectMenus();
+  };
+
+  const renderViewModeToggle = () => (
+      <div style={{display: 'inline-flex', alignItems: 'center', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '4px', marginLeft: 'auto'}}>
+          <button
+              type="button"
+              onClick={() => setViewMode("cards")}
+              className={viewMode === "cards" ? "marketing-view-toggle-btn active" : "marketing-view-toggle-btn"}
+          >
+              Cards
+          </button>
+          <button
+              type="button"
+              onClick={() => setViewMode("list")}
+              className={viewMode === "list" ? "marketing-view-toggle-btn active" : "marketing-view-toggle-btn"}
+          >
+              Lista
+          </button>
+      </div>
+  );
+
+  const renderMenuItems = (items, emptyTitle, emptyText) => {
+      const visibleItems = items.filter(item => item.count > 0 || busca || mostrarConcluidos);
+
+      if (visibleItems.length === 0) {
+          return (
+              <div style={{textAlign: 'center', padding: '60px', background: 'white', borderRadius: '16px', border: '1px dashed #cbd5e1'}}>
+                  <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px', color: '#cbd5e1'}}><Icons.Inbox /></div>
+                  <h3 style={{color: '#1e293b', margin: '0 0 5px 0'}}>{emptyTitle}</h3>
+                  <p style={{color: '#64748b', margin: 0}}>{emptyText}</p>
+              </div>
+          );
+      }
+
+      if (viewMode === "list") {
+          return (
+              <div className="table-responsive" style={{borderRadius: '14px'}}>
+                  <table className="data-table project-list-table" style={{minWidth: '720px'}}>
+                      <thead>
+                          <tr>
+                              <th>Menu</th>
+                              <th>Total</th>
+                              <th style={{textAlign: 'right'}}>Abrir</th>
+                          </tr>
+                      </thead>
+                      <tbody>
+                          {visibleItems.map(item => (
+                              <tr key={item.id} className="project-list-row" onClick={item.onClick} style={{cursor: 'pointer', background: 'white', boxShadow: `inset 4px 0 0 ${item.color}`}}>
+                                  <td>
+                                      <span style={{fontWeight: '800', color: '#0f172a'}}>{item.nome}</span>
+                                  </td>
+                                  <td>
+                                      <span style={{background: `${item.color}20`, color: item.color, padding: '4px 12px', borderRadius: '20px', fontWeight: 'bold', fontSize: '0.85rem'}}>{item.count}</span>
+                                  </td>
+                                  <td style={{textAlign: 'right', color: '#94a3b8', fontWeight: '700'}}>
+                                      Abrir <Icons.ArrowRight />
+                                  </td>
+                              </tr>
+                          ))}
+                      </tbody>
+                  </table>
+              </div>
+          );
+      }
+
+      return (
+          <div className="category-grid">
+              {visibleItems.map(item => (
+                  <div
+                      key={item.id}
+                      onClick={item.onClick}
+                      className="category-card"
+                      style={{ borderTop: `5px solid ${item.color}` }}
+                  >
+                      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                          <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.2rem'}}>{item.nome}</h3>
+                          <span style={{background: `${item.color}20`, color: item.color, padding: '4px 12px', borderRadius: '20px', fontWeight: 'bold', fontSize: '0.85rem'}}>{item.count}</span>
+                      </div>
+                      <p style={{margin: '15px 0 0 0', fontSize: '0.85rem', color: '#94a3b8', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px'}}>{item.actionLabel || 'Abrir portfolio'} <Icons.ArrowRight /></p>
+                  </div>
+              ))}
+          </div>
+      );
   };
 
   const sectionTitleStyle = { fontSize: '0.8rem', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '15px', marginTop: '20px', borderBottom: '1px solid #e2e8f0', paddingBottom: '5px', display: 'flex', alignItems: 'center', gap: '6px' };
@@ -1069,6 +1203,46 @@ export default function Projetos() {
 
   const tipoSelecionadoUI = tipos.find(t => String(t.id) === String(form.tipo_projeto_id));
   const isFormacaoSelected = tipoSelecionadoUI?.nome?.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes('forma');
+  const tipoMenuItems = [
+      ...tipos.map(t => ({
+          id: t.id,
+          nome: t.nome,
+          count: countsPerCategory[t.id] || 0,
+          color: getColorForCategory(t.id),
+          actionLabel: selectedEstado ? 'Escolher tipo' : 'Abrir portfolio',
+          onClick: () => setSelectedCategoria(t.id)
+      })),
+      ...(countsPerCategory['sem-categoria'] > 0 ? [{
+          id: 'sem-categoria',
+          nome: 'Projetos Avulsos',
+          count: countsPerCategory['sem-categoria'] || 0,
+          color: '#94a3b8',
+          actionLabel: selectedEstado ? 'Escolher tipo' : 'Ver projetos sem modelo',
+          onClick: () => setSelectedCategoria('sem-categoria')
+      }] : [])
+  ];
+  const estadoMenuItems = estadosProjeto.map(estado => ({
+      id: estado.id,
+      nome: estado.nome,
+      count: countsPerEstado[estado.id] || 0,
+      color: estado.color,
+      actionLabel: selectedCategoria ? 'Escolher estado' : 'Abrir estados',
+      onClick: () => setSelectedEstado(estado.id)
+  }));
+  const currentMenuTitle = isProjectListOpen
+      ? `${selectedCategoriaNome} - ${selectedEstadoNome}`
+      : selectedCategoria
+          ? `Estados de ${selectedCategoriaNome}`
+          : selectedEstado
+              ? `Tipos em ${selectedEstadoNome}`
+              : (menuPrincipal === 'tipo' ? 'Tipos de Projeto' : 'Estados de Projeto');
+  const currentMenuSubtitle = isProjectListOpen
+      ? `${projetosFiltrados.length} projeto${projetosFiltrados.length === 1 ? '' : 's'} encontrado${projetosFiltrados.length === 1 ? '' : 's'}`
+      : selectedCategoria
+          ? 'Escolhe agora o estado para filtrar estes projetos.'
+          : selectedEstado
+              ? 'Escolhe agora o tipo de projeto dentro deste estado.'
+              : 'Escolhe por onde queres começar a navegar.';
 
   if (loading) return <div className="page-container" style={{display:'flex', justifyContent:'center', alignItems:'center', height:'80vh'}}><div className="pulse-dot-white" style={{background:'var(--color-btnPrimary)'}}></div></div>;
 
@@ -1111,7 +1285,23 @@ export default function Projetos() {
         </div>
       </div>
 
-      <div style={{background: '#f8fafc', padding: '12px 20px', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '25px', display: 'flex', gap: '15px', alignItems: 'center'}}>
+      <div style={{background: '#f8fafc', padding: '12px 20px', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '25px', display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap'}}>
+        <div style={{display: 'flex', background: '#e2e8f0', borderRadius: '8px', padding: '4px', border: '1px solid #cbd5e1'}}>
+            <button
+                type="button"
+                onClick={() => switchMenuPrincipal("tipo")}
+                style={{padding: '6px 14px', borderRadius: '6px', border: 'none', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', transition: '0.2s', background: menuPrincipal === "tipo" ? 'white' : 'transparent', color: menuPrincipal === "tipo" ? 'var(--color-btnPrimary)' : '#64748b', boxShadow: menuPrincipal === "tipo" ? '0 2px 4px rgba(0,0,0,0.05)' : 'none'}}
+            >
+                Tipos
+            </button>
+            <button
+                type="button"
+                onClick={() => switchMenuPrincipal("estado")}
+                style={{padding: '6px 14px', borderRadius: '6px', border: 'none', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', transition: '0.2s', background: menuPrincipal === "estado" ? 'white' : 'transparent', color: menuPrincipal === "estado" ? 'var(--color-btnPrimary)' : '#64748b', boxShadow: menuPrincipal === "estado" ? '0 2px 4px rgba(0,0,0,0.05)' : 'none'}}
+            >
+                Estados
+            </button>
+        </div>
         <div style={{flex: 1, position: 'relative'}}>
             <span style={{position: 'absolute', left: '12px', top: '9px', color: '#94a3b8', fontSize: '0.85rem'}}><Icons.Search /></span>
             <input type="text" placeholder="Procurar projeto, código ou cliente..." value={busca} onChange={e => setBusca(e.target.value)} style={{width: '100%', padding: '8px 12px 8px 36px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.85rem', boxSizing: 'border-box'}} className="input-focus" />
@@ -1119,92 +1309,55 @@ export default function Projetos() {
         <label style={{display:'flex', alignItems:'center', gap:'6px', cursor:'pointer', fontSize:'0.85rem', color: '#475569', fontWeight: 'bold'}}>
           <input type="checkbox" checked={mostrarConcluidos} onChange={e => setMostrarConcluidos(e.target.checked)} style={{width:'16px', height:'16px', accentColor: '#10b981'}} /> Mostrar Arquivados
         </label>
+        {renderViewModeToggle()}
       </div>
 
-      {!selectedCategoria && (
+      {!isProjectListOpen && (
           <div className="fade-in">
-              <h2 style={{fontSize: '1.2rem', color: '#475569', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.FolderOpen /> Áreas de Projeto</h2>
-              
-              <div className="category-grid">
-                  {tipos.map(t => {
-                      const count = countsPerCategory[t.id] || 0;
-                      const color = getColorForCategory(t.id);
-                      if (count === 0 && !busca && !mostrarConcluidos) return null; 
-
-                      return (
-                          <div 
-                              key={t.id} 
-                              onClick={() => setSelectedCategoria(t.id)}
-                              className="category-card"
-                              style={{ borderTop: `5px solid ${color}` }}
+              <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '15px', marginBottom: '20px', borderBottom: '1px solid #cbd5e1', paddingBottom: '15px', flexWrap: 'wrap'}}>
+                  <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
+                      {(selectedCategoria || selectedEstado) && (
+                          <button 
+                              onClick={handleVoltarProjetos}
+                              style={{background: 'white', border: '1px solid #cbd5e1', padding: '8px 15px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', color: '#475569', display: 'flex', alignItems: 'center', gap: '6px', transition: '0.2s'}}
+                              className="hover-shadow"
                           >
-                              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                                  <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.2rem'}}>{t.nome}</h3>
-                                  <span style={{background: `${color}20`, color: color, padding: '4px 12px', borderRadius: '20px', fontWeight: 'bold', fontSize: '0.85rem'}}>{count}</span>
-                              </div>
-                              <p style={{margin: '15px 0 0 0', fontSize: '0.85rem', color: '#94a3b8', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px'}}>Abrir portfólio <Icons.ArrowRight /></p>
-                          </div>
-                      );
-                  })}
-
-                  {(countsPerCategory['sem-categoria'] > 0) && (
-                      <div 
-                          onClick={() => setSelectedCategoria('sem-categoria')}
-                          className="category-card"
-                          style={{ borderTop: `5px solid #94a3b8` }}
-                      >
-                          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                              <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.2rem'}}>Projetos Avulsos</h3>
-                              <span style={{background: `#f1f5f9`, color: '#64748b', padding: '4px 12px', borderRadius: '20px', fontWeight: 'bold', fontSize: '0.85rem'}}>{countsPerCategory['sem-categoria']}</span>
-                          </div>
-                          <p style={{margin: '15px 0 0 0', fontSize: '0.85rem', color: '#94a3b8', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px'}}>Ver projetos sem modelo <Icons.ArrowRight /></p>
+                              <Icons.ArrowLeft /> Voltar
+                          </button>
+                      )}
+                      <div>
+                          <h2 style={{margin: 0, fontSize: '1.4rem', color: '#1e293b', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                              <Icons.FolderOpen /> {currentMenuTitle}
+                          </h2>
+                          <p style={{margin: '4px 0 0 0', color: '#64748b', fontSize: '0.88rem', fontWeight: '600'}}>{currentMenuSubtitle}</p>
                       </div>
-                  )}
-              </div>
-              
-              {Object.keys(countsPerCategory).length === 0 && (
-                  <div style={{textAlign: 'center', padding: '60px', background: 'white', borderRadius: '16px', border: '1px dashed #cbd5e1'}}>
-                      <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px', color: '#cbd5e1'}}><Icons.Inbox /></div>
-                      <h3 style={{color: '#1e293b', margin: '0 0 5px 0'}}>Nenhum projeto encontrado.</h3>
-                      <p style={{color: '#64748b', margin: 0}}>Clica em "Novo Projeto" para começar a trabalhar.</p>
                   </div>
+              </div>
+              {renderMenuItems(
+                  selectedCategoria ? estadoMenuItems : selectedEstado ? tipoMenuItems : (menuPrincipal === 'tipo' ? tipoMenuItems : estadoMenuItems),
+                  'Nenhum projeto encontrado.',
+                  'Clica em "Novo Projeto" para começar a trabalhar.'
               )}
           </div>
       )}
 
-      {selectedCategoria && (
+      {isProjectListOpen && (
           <div className="fade-in">
               <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '15px', marginBottom: '20px', borderBottom: '1px solid #cbd5e1', paddingBottom: '15px', flexWrap: 'wrap'}}>
                   <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
-                  <button 
-                      onClick={() => setSelectedCategoria(null)}
-                      style={{background: 'white', border: '1px solid #cbd5e1', padding: '8px 15px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', color: '#475569', display: 'flex', alignItems: 'center', gap: '6px', transition: '0.2s'}}
-                      className="hover-shadow"
-                  >
-                      <Icons.ArrowLeft /> Voltar às Áreas
-                  </button>
-                  <h2 style={{margin: 0, fontSize: '1.4rem', color: '#1e293b', fontWeight: '800'}}>
-                      {selectedCategoria === 'sem-categoria' ? 'Projetos Avulsos' : tipos.find(t => t.id === selectedCategoria)?.nome}
-                  </h2>
-              </div>
-                  <div style={{display: 'inline-flex', alignItems: 'center', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '4px', marginLeft: 'auto'}}>
-                      <button
-                          type="button"
-                          onClick={() => setViewMode("cards")}
-                          className={viewMode === "cards" ? "marketing-view-toggle-btn active" : "marketing-view-toggle-btn"}
+                      <button 
+                          onClick={handleVoltarProjetos}
+                          style={{background: 'white', border: '1px solid #cbd5e1', padding: '8px 15px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', color: '#475569', display: 'flex', alignItems: 'center', gap: '6px', transition: '0.2s'}}
+                          className="hover-shadow"
                       >
-                          Cards
+                          <Icons.ArrowLeft /> Voltar
                       </button>
-                      <button
-                          type="button"
-                          onClick={() => setViewMode("list")}
-                          className={viewMode === "list" ? "marketing-view-toggle-btn active" : "marketing-view-toggle-btn"}
-                      >
-                          Lista
-                      </button>
+                      <div>
+                          <h2 style={{margin: 0, fontSize: '1.4rem', color: '#1e293b', fontWeight: '800'}}>{currentMenuTitle}</h2>
+                          <p style={{margin: '4px 0 0 0', color: '#64748b', fontSize: '0.88rem', fontWeight: '600'}}>{currentMenuSubtitle}</p>
+                      </div>
                   </div>
               </div>
-
               {viewMode === "cards" ? (
                   <div className="project-grid">
                       {projetosFiltrados.length > 0 ? projetosFiltrados.map(p => {
