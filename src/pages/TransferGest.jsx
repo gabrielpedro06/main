@@ -311,7 +311,8 @@ export default function TransferGest() {
     let query = supabase
       .from("transfergest_registos")
       .select("*")
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .range(0, 9999); // aumentar limite para 9999 registos
 
     // 💡 A MÁGIA: O filtro acontece na BD, não no navegador
     if (campanhaNome !== "Todas") {
@@ -844,6 +845,7 @@ export default function TransferGest() {
 
   return (
     <div className="page-container transfergest-page" style={{ maxWidth: "100%", paddingBottom: "36px" }}>
+
       <div className="page-header" style={{ background: "white", padding: "20px 25px", borderRadius: "12px", border: "1px solid #e2e8f0", marginBottom: "20px", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "15px", flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
           <div
@@ -860,15 +862,47 @@ export default function TransferGest() {
           </div>
           <div>
             <h1 style={{ margin: 0, color: "#0f172a", fontSize: "1.8rem", fontWeight: "900", letterSpacing: "-0.02em" }}>TransferGest</h1>
-            <p style={{ color: "#64748b", margin: 0, fontWeight: "500", fontSize: "0.9rem" }}>
-              {selectedCampanha ? `Campanha: ${selectedCampanha}` : "Selecao de Campanha"}
-            </p>
+            {/* Menu de seleção de campanha mais bonito */}
+            {selectedCampanha ? (
+              <select
+                value={selectedCampanha}
+                onChange={e => setSelectedCampanha(e.target.value)}
+                style={{
+                  marginTop: 4,
+                  padding: "6px 16px",
+                  borderRadius: 8,
+                  border: "1px solid #cbd5e1",
+                  fontWeight: 700,
+                  fontSize: "1rem",
+                  background: "#f8fafc",
+                  color: "#222", // preto para visibilidade
+                  outline: "none",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+                  cursor: "pointer"
+                }}
+              >
+                {campanhasDisponiveis.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            ) : (
+              <p style={{ color: "#64748b", margin: 0, fontWeight: "500", fontSize: "0.9rem" }}>
+                Seleção de Campanha
+              </p>
+            )}
           </div>
         </div>
 
         <div className="tg-header-actions" style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", justifyContent: "flex-end" }}>
-          {selectedCampanha && <button className="btn-outline" onClick={() => setSelectedCampanha("")}>Voltar ao Menu</button>}
           <button className="btn-outline" onClick={() => setShowImportModal(true)}>Importar CSV</button>
+          <button className="btn-outline" onClick={exportCsv}>Exportar CSV</button>
+          {/* Botões de ação principais no header */}
+          {selectedCampanha && (
+            <>
+              <button className="btn-outline" onClick={() => setShowBulkStatusModal(true)} disabled={!selectedIds.length}>Alterar Estado</button>
+              <button className="btn-outline" onClick={() => setShowSendModal(true)} disabled={!selectedIds.length}>Campanha Email</button>
+            </>
+          )}
           <button className="btn-cta" onClick={openCreateModal}>+ Novo Registo</button>
         </div>
       </div>
@@ -877,23 +911,29 @@ export default function TransferGest() {
       {!selectedCampanha ? (
         <div style={{ padding: "20px 0" }}>
           <div className="campaign-menu-grid">
-            <button type="button" onClick={() => setSelectedCampanha("Todas")} className="campaign-menu-card all">
-              <div className="icon">ALL</div>
+            <button type="button" onClick={() => setSelectedCampanha("Todas")} className="campaign-menu-card all" style={{ transition: "0.2s", boxShadow: "0 2px 8px rgba(59,130,246,0.08)", border: "2px solid var(--color-btnPrimary)", background: "#f8fafc", color: "#3730a3" }}>
+              <div className="icon" style={{ fontWeight: 900, fontSize: 18, background: "#ede9fe", color: "#7c3aed", borderRadius: 8, padding: 8 }}>ALL</div>
               <div className="info">
-                <h3>Todas as Campanhas</h3>
-                <p>Ver todos os registos sem filtro de campanha.</p>
+                <h3 style={{ margin: 0, fontWeight: 800 }}>Todas as Campanhas</h3>
+                <p style={{ margin: 0 }}>Ver todos os registos sem filtro de campanha.</p>
               </div>
-              <div className="arrow">-&gt;</div>
+              <div className="arrow" style={{ fontWeight: 900, fontSize: 22, color: "#7c3aed" }}>→</div>
             </button>
 
             {campanhasDisponiveis.map((camp) => (
-              <button type="button" key={camp} onClick={() => setSelectedCampanha(camp)} className="campaign-menu-card">
-                <div className="icon">TG</div>
+              <button
+                type="button"
+                key={camp}
+                onClick={() => setSelectedCampanha(camp)}
+                className="campaign-menu-card"
+                style={{ transition: "0.2s", boxShadow: "0 2px 8px rgba(59,130,246,0.08)", border: "2px solid var(--color-btnPrimary)", background: "#fff", color: "#3730a3", marginLeft: 12 }}
+              >
+                <div className="icon" style={{ fontWeight: 900, fontSize: 18, background: "#fef3c7", color: "#b45309", borderRadius: 8, padding: 8 }}>TG</div>
                 <div className="info">
-                  <h3>{camp}</h3>
-                  <p>Gerir contactos e envios desta campanha.</p>
+                  <h3 style={{ margin: 0, fontWeight: 800 }}>{camp}</h3>
+                  <p style={{ margin: 0 }}>Gerir contactos e envios desta campanha.</p>
                 </div>
-                <div className="arrow">-&gt;</div>
+                <div className="arrow" style={{ fontWeight: 900, fontSize: 22, color: "#b45309" }}>→</div>
               </button>
             ))}
           </div>
@@ -988,9 +1028,6 @@ export default function TransferGest() {
             {filteredRows.length} encontrados / {selectedIds.length} selecionados
           </div>
           <div className="tg-toolbar-actions" style={{ display: "flex", alignItems: "center", flexWrap: "wrap" }}>
-            <button className="btn-outline" onClick={() => setShowBulkStatusModal(true)} disabled={!selectedIds.length}>Alterar Estado</button>
-            <button className="btn-outline" onClick={() => setShowSendModal(true)} disabled={!selectedIds.length}>Campanha Email</button>
-            <button className="btn-outline" onClick={exportCsv}>Exportar CSV</button>
           </div>
         </div>
 
