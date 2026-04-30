@@ -213,6 +213,26 @@ export default function ProjetoDetalhe() {
     return [...new Set(ids.map((v) => String(v)).filter(Boolean))];
 };
 
+  useEffect(() => {
+      const entidadeIds = getProjetoClientIds(formGeral);
+      if (entidadeIds.length === 0) {
+          setEntidadePessoas([]);
+          return;
+      }
+
+      let cancelled = false;
+      (async () => {
+          const { data } = await supabase
+              .from("contactos_cliente")
+              .select("id, cliente_id, nome_contacto, cargo, email, clientes(marca, sigla)")
+              .in("cliente_id", entidadeIds)
+              .order("nome_contacto", { ascending: true });
+          if (!cancelled) setEntidadePessoas(data || []);
+      })();
+
+      return () => { cancelled = true; };
+  }, [formGeral.cliente_id, formGeral.parceiros_ids, formGeral.organismo_id]);
+
   // --- REFS PARA DRAG & DROP NATIVO ---
   const dragAtivItem = useRef();
   const dragAtivOverItem = useRef();
@@ -1294,7 +1314,8 @@ export default function ProjetoDetalhe() {
               descricao: formGeral.descricao, observacoes: formGeral.observacoes,
               investimento: formGeral.investimento, incentivo: formGeral.incentivo,
               tipo_projeto_id: formGeral.tipo_projeto_id || null,
-              organismo_id: formGeral.has_organismo && formGeral.organismo_id ? formGeral.organismo_id : null
+              organismo_id: formGeral.has_organismo && formGeral.organismo_id ? formGeral.organismo_id : null,
+              organismo_contacto_id: formGeral.has_organismo && formGeral.organismo_id && formGeral.organismo_contacto_id ? formGeral.organismo_contacto_id : null
           };
 
           const { error } = await supabase.from("projetos").update(payload).eq("id", id);
@@ -1317,6 +1338,10 @@ export default function ProjetoDetalhe() {
           const nome = p.nome_contacto || p.email || "Contacto";
           return { id: p.id, label: `${nome}${cargo}${empresa}`, source: "entity" };
       });
+
+  const organismoPessoas = formGeral.has_organismo && formGeral.organismo_id
+      ? (entidadePessoas || []).filter(p => String(p.cliente_id) === String(formGeral.organismo_id))
+      : [];
 
   const assigneeOptions = [...internalAssigneeOptions, ...entityAssigneeOptions];
 
@@ -1734,6 +1759,15 @@ export default function ProjetoDetalhe() {
       }
   }
 
+  let organismoPessoaDisplay = null;
+  if (projeto.organismo_contacto_id) {
+      const contactoOrg = entidadePessoas.find(c => String(c.id) === String(projeto.organismo_contacto_id));
+      if (contactoOrg) {
+          const nome = contactoOrg.nome_contacto || contactoOrg.email || "Contacto";
+          organismoPessoaDisplay = contactoOrg.cargo ? `${nome} (${contactoOrg.cargo})` : nome;
+      }
+  }
+
   const canNavigateToClient = !projeto.is_parceria && Boolean(projeto?.cliente_id);
   const handleClientHeaderClick = () => {
       if (!canNavigateToClient) return;
@@ -1838,6 +1872,13 @@ export default function ProjetoDetalhe() {
                                   <div style={{marginTop: '4px'}}>
                                       <span style={{fontSize: '0.7rem', background: '#fef3c7', color: '#b45309', padding: '2px 8px', borderRadius: '6px', fontWeight: '800', border: '1px solid #fde68a', display: 'inline-flex', alignItems: 'center', gap: '4px'}}>
                                           <Icons.Building size={10} /> Organismo: {organismoDisplay}
+                                      </span>
+                                  </div>
+                              )}
+                              {organismoPessoaDisplay && (
+                                  <div style={{marginTop: '4px'}}>
+                                      <span style={{fontSize: '0.7rem', background: '#eff6ff', color: '#1d4ed8', padding: '2px 8px', borderRadius: '6px', fontWeight: '800', border: '1px solid #bfdbfe', display: 'inline-flex', alignItems: 'center', gap: '4px'}}>
+                                          <Icons.User size={10} /> Pessoa: {organismoPessoaDisplay}
                                       </span>
                                   </div>
                               )}
@@ -2507,7 +2548,7 @@ export default function ProjetoDetalhe() {
                                     value={formGeral.has_organismo ? 'sim' : 'nao'}
                                     onChange={e => {
                                         const hasOrg = e.target.value === 'sim';
-                                        setFormGeral({...formGeral, has_organismo: hasOrg, organismo_id: hasOrg ? formGeral.organismo_id : null});
+                                        setFormGeral({...formGeral, has_organismo: hasOrg, organismo_id: hasOrg ? formGeral.organismo_id : null, organismo_contacto_id: hasOrg ? formGeral.organismo_contacto_id : null});
                                     }}
                                     style={{...inputStyle, cursor: 'pointer'}}
                                     className="input-focus"
@@ -2522,7 +2563,7 @@ export default function ProjetoDetalhe() {
                                     <label style={labelStyle}>Organismo Lider / Principal *</label>
                                     <select
                                         value={formGeral.organismo_id || ""}
-                                        onChange={e => setFormGeral({...formGeral, organismo_id: e.target.value})}
+                                        onChange={e => setFormGeral({...formGeral, organismo_id: e.target.value, organismo_contacto_id: null})}
                                         style={{...inputStyle, cursor: 'pointer', borderColor: 'var(--color-btnPrimary)', background: 'var(--color-bgSecondary)'}}
                                         className="input-focus"
                                         required={formGeral.has_organismo}
@@ -2535,6 +2576,28 @@ export default function ProjetoDetalhe() {
                                 </div>
                             )}
                         </div>
+
+                    {formGeral.has_organismo && formGeral.organismo_id && (
+                        <div style={{marginBottom: '20px'}}>
+                            <label style={labelStyle}>Pessoa do Organismo</label>
+                            <select
+                                value={formGeral.organismo_contacto_id || ""}
+                                onChange={e => setFormGeral({...formGeral, organismo_contacto_id: e.target.value})}
+                                style={{...inputStyle, cursor: 'pointer'}}
+                                className="input-focus"
+                            >
+                                <option value="">-- Sem pessoa definida --</option>
+                                {organismoPessoas.map(p => {
+                                    const nome = p.nome_contacto || p.email || "Contacto";
+                                    const cargo = p.cargo ? ` (${p.cargo})` : "";
+                                    return <option key={p.id} value={p.id}>{`${nome}${cargo}`}</option>;
+                                })}
+                            </select>
+                            {organismoPessoas.length === 0 && (
+                                <div style={{marginTop: '6px', color: '#94a3b8', fontSize: '0.8rem', fontStyle: 'italic'}}>Este organismo ainda não tem contactos registados.</div>
+                            )}
+                        </div>
+                    )}
 
                     <div style={{marginBottom: '30px'}}>
                         <label style={labelStyle}>Outros Colaboradores Envolvidos</label>

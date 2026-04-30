@@ -179,7 +179,7 @@ export default function Projetos() {
     titulo: "", descricao: "", 
     cliente_id: "", cliente_texto: "", 
     is_parceria: false, parceiros_ids: [],
-    has_organismo: false, organismo_id: "",
+    has_organismo: false, organismo_id: "", organismo_contacto_id: "",
     tipo_projeto_id: "",
     responsavel_id: "", colaboradores: [],
     estado: "pendente", data_inicio: "", data_fim: "",
@@ -231,6 +231,7 @@ export default function Projetos() {
                     is_parceria: normalizeBoolean(prefill.is_parceria),
                     parceiros_ids: normalizeIdsList(prefill.parceiros_ids),
                     colaboradores: normalizeIdsList(prefill.colaboradores),
+                    organismo_contacto_id: prefill.organismo_contacto_id || "",
                     data_inicio: prefill.data_inicio || new Date().toISOString().split('T')[0]
                 });
             } else if (location.state.prefillClienteId) {
@@ -303,7 +304,7 @@ export default function Projetos() {
       })();
 
       return () => { cancelled = true; };
-  }, [showModal, form.cliente_id, form.parceiros_ids]);
+  }, [showModal, form.cliente_id, form.parceiros_ids, form.has_organismo, form.organismo_id]);
 
   const showToast = (message, type = 'success') => {
       setNotification({ message, type });
@@ -720,6 +721,7 @@ export default function Projetos() {
         is_parceria: normalizeBoolean(proj.is_parceria), parceiros_ids: normalizeIdsList(proj.parceiros_ids),
         has_organismo: !!proj.organismo_id,
         organismo_id: proj.organismo_id || "",
+        organismo_contacto_id: proj.organismo_contacto_id || "",
         tipo_projeto_id: proj.tipo_projeto_id || "", 
         responsavel_id: proj.responsavel_id || "", colaboradores: normalizeIdsList(proj.colaboradores),
         estado: proj.estado || "pendente", data_inicio: proj.data_inicio || "",
@@ -824,6 +826,7 @@ export default function Projetos() {
     payload.cliente_texto = "";
 
     payload.organismo_id = payload.has_organismo && payload.organismo_id ? payload.organismo_id : null;
+    payload.organismo_contacto_id = payload.organismo_id && payload.organismo_contacto_id ? payload.organismo_contacto_id : null;
     delete payload.has_organismo;
 
     try {
@@ -1203,6 +1206,9 @@ export default function Projetos() {
 
   const tipoSelecionadoUI = tipos.find(t => String(t.id) === String(form.tipo_projeto_id));
   const isFormacaoSelected = tipoSelecionadoUI?.nome?.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes('forma');
+  const organismoPessoas = form.has_organismo && form.organismo_id
+      ? entidadePessoas.filter(p => String(p.cliente_id) === String(form.organismo_id))
+      : [];
   const tipoMenuItems = [
       ...tipos.map(t => ({
           id: t.id,
@@ -1844,7 +1850,7 @@ export default function Projetos() {
                                     value={form.has_organismo ? 'sim' : 'nao'}
                                     onChange={e => {
                                         const hasOrg = e.target.value === 'sim';
-                                        setForm({...form, has_organismo: hasOrg, organismo_id: hasOrg ? form.organismo_id : ""});
+                                        setForm({...form, has_organismo: hasOrg, organismo_id: hasOrg ? form.organismo_id : "", organismo_contacto_id: hasOrg ? form.organismo_contacto_id : ""});
                                     }}
                                     style={{...inputStyle, cursor: 'pointer'}}
                                     className="input-focus"
@@ -1860,7 +1866,7 @@ export default function Projetos() {
                                     <label style={labelStyle}>Organismo Lider / Principal *</label>
                                     <select
                                         value={form.organismo_id || ""}
-                                        onChange={e => setForm({...form, organismo_id: e.target.value})}
+                                        onChange={e => setForm({...form, organismo_id: e.target.value, organismo_contacto_id: ""})}
                                         style={{...inputStyle, cursor: 'pointer', borderColor: 'var(--color-btnPrimary)', background: 'var(--color-bgSecondary)'}}
                                         className="input-focus"
                                         disabled={isViewOnly}
@@ -1877,6 +1883,29 @@ export default function Projetos() {
                         </div>
 
                         {/* ROW: Colaboradores em formato PILL com filtro do Responsável */}
+                        {form.has_organismo && form.organismo_id && (
+                            <div style={{marginBottom: '20px'}}>
+                                <label style={labelStyle}>Pessoa do Organismo</label>
+                                <select
+                                    value={form.organismo_contacto_id || ""}
+                                    onChange={e => setForm({...form, organismo_contacto_id: e.target.value})}
+                                    style={{...inputStyle, cursor: 'pointer'}}
+                                    className="input-focus"
+                                    disabled={isViewOnly}
+                                >
+                                    <option value="">-- Sem pessoa definida --</option>
+                                    {organismoPessoas.map(p => {
+                                        const nome = p.nome_contacto || p.email || "Contacto";
+                                        const cargo = p.cargo ? ` (${p.cargo})` : "";
+                                        return <option key={p.id} value={p.id}>{`${nome}${cargo}`}</option>;
+                                    })}
+                                </select>
+                                {organismoPessoas.length === 0 && (
+                                    <div style={{marginTop: '6px', color: '#94a3b8', fontSize: '0.8rem', fontStyle: 'italic'}}>Este organismo ainda não tem contactos registados.</div>
+                                )}
+                            </div>
+                        )}
+
                         <div style={{marginBottom: '30px'}}>
                             <label style={labelStyle}>Outros Colaboradores Envolvidos</label>
                             <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px'}}>
