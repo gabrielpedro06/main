@@ -850,35 +850,46 @@ export default function PropostasComerciais() {
           })
           .eq("id", proposta.db_id);
       } else {
-        const { data: numerosExistentes, error: errorSeq } = await supabase
-          .from("propostas_comerciais")
-          .select("id")
-          .ilike("numero_proposta_str", `${sigla}-${ano}-%`);
+          // 1. Procurar o último número gerado para esta empresa/ano de forma decrescente
+          const { data: ultimaProposta, error: errorSeq } = await supabase
+            .from("propostas_comerciais")
+            .select("numero_proposta_str")
+            .ilike("numero_proposta_str", `${sigla}-${ano}-%`)
+            .order("numero_proposta_str", { ascending: false })
+            .limit(1)
+            .maybeSingle();
 
-        if (errorSeq) throw errorSeq;
+          if (errorSeq) throw errorSeq;
 
-        const sequencial = String((numerosExistentes?.length || 0) + 1).padStart(3, "0");
-        numeroFinal = `${sigla}-${ano}-${sequencial}`;
+          let proximoNumero = 1;
+          if (ultimaProposta?.numero_proposta_str) {
+            // Extrai os últimos 3 dígitos e soma 1
+            const partes = ultimaProposta.numero_proposta_str.split("-");
+            const ultimoSequencial = parseInt(partes[partes.length - 1]);
+            proximoNumero = ultimoSequencial + 1;
+          }
 
-        // CREATE new proposal
-        result = await supabase
-          .from("propostas_comerciais")
-          .insert([
-            {
-              numero_proposta_str: numeroFinal,
-              sigla_empresa: sigla,
-              empresa_consultora_id: empresaConsultora.id,
-              cliente_id: cliente.id,
-              contato_cliente_id: cliente.contacto_id || null,
-              tipo_projeto_id: tiposProjetoSelecionados[0]?.id || null,
-              programa_id: programa?.id || null,
-              estado: proposta.estado,
-              plano_pagamentos: planoPagamentosConsolidado,
-              payload,
-            },
-          ])
-          .select();
-      }
+          numeroFinal = `${sigla}-${ano}-${String(proximoNumero).padStart(3, "0")}`;
+
+          // 2. CREATE com tratamento de erro específico
+          result = await supabase
+            .from("propostas_comerciais")
+            .insert([
+              {
+                numero_proposta_str: numeroFinal,
+                sigla_empresa: sigla,
+                empresa_consultora_id: empresaConsultora.id,
+                cliente_id: cliente.id,
+                contato_cliente_id: cliente.contacto_id || null,
+                tipo_projeto_id: tiposProjetoSelecionados[0]?.id || null,
+                programa_id: programa?.id || null,
+                estado: proposta.estado,
+                plano_pagamentos: planoPagamentosConsolidado,
+                payload,
+              },
+            ])
+            .select();
+        }
 
       if (result.error) {
         throw result.error;
