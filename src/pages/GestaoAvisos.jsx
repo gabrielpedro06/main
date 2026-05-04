@@ -94,8 +94,6 @@ export default function GestaoAvisos() {
 
   const [avisoFormData, setAvisoFormData] = useState({
     codigo: "",
-    nome: "",
-    descricao: "",
     fases: [createBlankFase(0)],
     ativo: true,
   });
@@ -144,8 +142,8 @@ export default function GestaoAvisos() {
     setLoading(true);
     try {
       const [avisosRes, programasRes] = await Promise.all([
-        supabase.from("avisos").select("*").order("nome", { ascending: true }),
-        supabase.from("programas_financiamento").select("*").order("nome", { ascending: true }),
+        supabase.from("avisos").select("*").order("codigo", { ascending: true }),
+        supabase.from("programas_financiamento").select("*").order("codigo", { ascending: true }),
       ]);
 
       if (avisosRes.error) throw avisosRes.error;
@@ -172,8 +170,6 @@ export default function GestaoAvisos() {
     if (aviso) {
       setAvisoFormData({
         codigo: aviso.codigo,
-        nome: aviso.nome,
-        descricao: aviso.descricao || "",
         fases: normalizeFases(aviso.fases),
         ativo: aviso.ativo !== false,
       });
@@ -181,8 +177,6 @@ export default function GestaoAvisos() {
     } else {
       setAvisoFormData({
         codigo: "",
-        nome: "",
-        descricao: "",
         fases: [createBlankFase(0)],
         ativo: true,
       });
