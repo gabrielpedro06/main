@@ -86,10 +86,16 @@ export default function GestaoAvisos() {
     tipo_incentivo: "fundo perdido (não reembolsável)",
     investimento_minimo: 0,
     regiao: "",
+    objetivos: "",
+    area_geografica: "",
+    acoes_elegiveis: "",
+    condicoes_especificas: "",
     descricao: "",
     aviso_id: "",
     ativo: true,
   });
+
+  const [novoAvisoEmPrograma, setNovoAvisoEmPrograma] = useState(false);
 
   const avisosById = useMemo(
     () => Object.fromEntries(avisos.map((aviso) => [String(aviso.id), aviso])),
@@ -166,6 +172,9 @@ export default function GestaoAvisos() {
   const handleCloseAvisoModal = () => {
     setAvisoModalOpen(false);
     setEditingAvisoId(null);
+    if (novoAvisoEmPrograma) {
+      setNovoAvisoEmPrograma(false);
+    }
   };
 
   const handleAvisoInputChange = (e) => {
@@ -231,7 +240,7 @@ export default function GestaoAvisos() {
         if (error) throw error;
         showNotification("Aviso atualizado com sucesso");
       } else {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from("avisos")
           .insert([
             {
@@ -241,10 +250,14 @@ export default function GestaoAvisos() {
               fases: normalizeFases(avisoFormData.fases),
               ativo: avisoFormData.ativo,
             },
-          ]);
+          ]).select();
 
         if (error) throw error;
         showNotification("Aviso criado com sucesso");
+
+        if (novoAvisoEmPrograma && data && data.length > 0) {
+          setProgramaFormData((prev) => ({ ...prev, aviso_id: data[0].id }));
+        }
       }
 
       handleCloseAvisoModal();
@@ -283,6 +296,10 @@ export default function GestaoAvisos() {
         tipo_incentivo: programa.tipo_incentivo || "fundo perdido (não reembolsável)",
         investimento_minimo: Number(programa.investimento_minimo || 0),
         regiao: programa.regiao || "",
+        objetivos: programa.objetivos || "",
+        area_geografica: programa.area_geografica || "",
+        acoes_elegiveis: programa.acoes_elegiveis || "",
+        condicoes_especificas: programa.condicoes_especificas || "",
         descricao: programa.descricao || "",
         aviso_id: programa.aviso_id || "",
         ativo: programa.ativo !== false,
@@ -296,6 +313,10 @@ export default function GestaoAvisos() {
         tipo_incentivo: "fundo perdido (não reembolsável)",
         investimento_minimo: 0,
         regiao: "",
+        objetivos: "",
+        area_geografica: "",
+        acoes_elegiveis: "",
+        condicoes_especificas: "",
         descricao: "",
         aviso_id: "",
         ativo: true,
@@ -341,6 +362,10 @@ export default function GestaoAvisos() {
         tipo_incentivo: programaFormData.tipo_incentivo,
         investimento_minimo: programaFormData.investimento_minimo,
         regiao: programaFormData.regiao || null,
+        objetivos: programaFormData.objetivos || null,
+        area_geografica: programaFormData.area_geografica || null,
+        acoes_elegiveis: programaFormData.acoes_elegiveis || null,
+        condicoes_especificas: programaFormData.condicoes_especificas || null,
         descricao: programaFormData.descricao || null,
         aviso_id: programaFormData.aviso_id || null,
         ativo: programaFormData.ativo,
@@ -390,14 +415,12 @@ export default function GestaoAvisos() {
 
   return (
     <div className="page-container">
-      <div className="card" style={{ marginBottom: "20px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
-          <div>
-            <h1 style={{ margin: 0, marginBottom: "4px" }}>Programas & Avisos</h1>
-            <p className="muted" style={{ margin: 0 }}>
-              Gerencie programas de financiamento e os seus avisos associados
-            </p>
-          </div>
+      <div className="page-header" style={{background: 'white', padding: '20px 25px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '15px', flexWrap: 'wrap'}}>
+        <div>
+          <h1 style={{ margin: 0, color: '#1e293b', fontSize: '1.5rem', fontWeight: 'bold' }}>Programas & Avisos</h1>
+          <p style={{ margin: '5px 0 0 0', color: '#64748b' }}>
+            Gerencie programas de financiamento e os seus avisos associados
+          </p>
         </div>
       </div>
 
@@ -553,7 +576,7 @@ export default function GestaoAvisos() {
           >
             <div
               className="modal-content"
-              style={{ width: "min(600px, 90vw)", maxHeight: "90vh", overflow: "hidden" }}
+              style={{ width: "800px", maxWidth: "90vw", maxHeight: "90vh", overflow: "hidden" }}
               onClick={(e) => e.stopPropagation()}
             >
               <div className="modal-header">
@@ -570,6 +593,26 @@ export default function GestaoAvisos() {
 
               <div className="modal-body">
                 <form onSubmit={handleProgramaSubmit}>
+                  <div style={{ marginBottom: "12px" }}>
+                    <label style={{ display: "block", marginBottom: "6px", fontWeight: 500 }}>
+                      Nome
+                    </label>
+                    <input
+                      type="text"
+                      name="nome"
+                      value={programaFormData.nome}
+                      onChange={handleProgramaInputChange}
+                      placeholder="ex. Compete 2030"
+                      style={{
+                        width: "100%",
+                        padding: "8px 12px",
+                        border: "1px solid #ccc",
+                        borderRadius: "4px",
+                        fontFamily: "inherit",
+                      }}
+                    />
+                  </div>
+
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "12px" }}>
                     <div>
                       <label style={{ display: "block", marginBottom: "6px", fontWeight: 500 }}>
@@ -592,14 +635,19 @@ export default function GestaoAvisos() {
                     </div>
                     <div>
                       <label style={{ display: "block", marginBottom: "6px", fontWeight: 500 }}>
-                        Nome
+                        Aviso Relacionado
                       </label>
-                      <input
-                        type="text"
-                        name="nome"
-                        value={programaFormData.nome}
-                        onChange={handleProgramaInputChange}
-                        placeholder="ex. Compete 2030"
+                      <select
+                        name="aviso_id"
+                        value={programaFormData.aviso_id}
+                        onChange={(e) => {
+                          if (e.target.value === "novo") {
+                            setNovoAvisoEmPrograma(true);
+                            handleOpenAvisoModal();
+                          } else {
+                            handleProgramaInputChange(e);
+                          }
+                        }}
                         style={{
                           width: "100%",
                           padding: "8px 12px",
@@ -607,7 +655,15 @@ export default function GestaoAvisos() {
                           borderRadius: "4px",
                           fontFamily: "inherit",
                         }}
-                      />
+                      >
+                        <option value="">— Sem aviso —</option>
+                        <option value="novo" style={{ fontWeight: "bold", color: "#2563eb" }}>+ CRIAR NOVO AVISO</option>
+                        {avisos.map((aviso) => (
+                          <option key={aviso.id} value={aviso.id}>
+                            {aviso.codigo} - {aviso.nome}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
 
@@ -667,7 +723,7 @@ export default function GestaoAvisos() {
                         name="regiao"
                         value={programaFormData.regiao}
                         onChange={handleProgramaInputChange}
-                        placeholder="ex. Algarve"
+                        placeholder="ex. Algarve, Norte"
                         style={{
                           width: "100%",
                           padding: "8px 12px",
@@ -679,12 +735,14 @@ export default function GestaoAvisos() {
                     </div>
                     <div>
                       <label style={{ display: "block", marginBottom: "6px", fontWeight: 500 }}>
-                        Aviso Relacionado
+                        Investimento Mínimo (€)
                       </label>
-                      <select
-                        name="aviso_id"
-                        value={programaFormData.aviso_id}
+                      <input
+                        type="number"
+                        name="investimento_minimo"
+                        value={programaFormData.investimento_minimo}
                         onChange={handleProgramaInputChange}
+                        min="0"
                         style={{
                           width: "100%",
                           padding: "8px 12px",
@@ -692,36 +750,89 @@ export default function GestaoAvisos() {
                           borderRadius: "4px",
                           fontFamily: "inherit",
                         }}
-                      >
-                        <option value="">— Sem aviso —</option>
-                        {avisos.map((aviso) => (
-                          <option key={aviso.id} value={aviso.id}>
-                            {aviso.codigo} - {aviso.nome}
-                          </option>
-                        ))}
-                      </select>
-                      <div className="field-hint" style={{ marginTop: "6px" }}>
-                        Os prazos são definidos no aviso associado.
-                      </div>
+                      />
                     </div>
                   </div>
 
                   <div style={{ marginBottom: "12px" }}>
                     <label style={{ display: "block", marginBottom: "6px", fontWeight: 500 }}>
-                      Investimento Mínimo (€)
+                      Área Geográfica
                     </label>
                     <input
-                      type="number"
-                      name="investimento_minimo"
-                      value={programaFormData.investimento_minimo}
+                      type="text"
+                      name="area_geografica"
+                      value={programaFormData.area_geografica}
                       onChange={handleProgramaInputChange}
-                      min="0"
+                      placeholder="Área de aplicação..."
                       style={{
                         width: "100%",
                         padding: "8px 12px",
                         border: "1px solid #ccc",
                         borderRadius: "4px",
                         fontFamily: "inherit",
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ marginBottom: "12px" }}>
+                    <label style={{ display: "block", marginBottom: "6px", fontWeight: 500 }}>
+                      Objetivos
+                    </label>
+                    <textarea
+                      name="objetivos"
+                      value={programaFormData.objetivos}
+                      onChange={handleProgramaInputChange}
+                      placeholder="Objetivos do programa..."
+                      rows="3"
+                      style={{
+                        width: "100%",
+                        padding: "8px 12px",
+                        border: "1px solid #ccc",
+                        borderRadius: "4px",
+                        fontFamily: "inherit",
+                        resize: "vertical",
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ marginBottom: "12px" }}>
+                    <label style={{ display: "block", marginBottom: "6px", fontWeight: 500 }}>
+                      Ações Elegíveis
+                    </label>
+                    <textarea
+                      name="acoes_elegiveis"
+                      value={programaFormData.acoes_elegiveis}
+                      onChange={handleProgramaInputChange}
+                      placeholder="Ações elegíveis..."
+                      rows="3"
+                      style={{
+                        width: "100%",
+                        padding: "8px 12px",
+                        border: "1px solid #ccc",
+                        borderRadius: "4px",
+                        fontFamily: "inherit",
+                        resize: "vertical",
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ marginBottom: "12px" }}>
+                    <label style={{ display: "block", marginBottom: "6px", fontWeight: 500 }}>
+                      Condições Específicas
+                    </label>
+                    <textarea
+                      name="condicoes_especificas"
+                      value={programaFormData.condicoes_especificas}
+                      onChange={handleProgramaInputChange}
+                      placeholder="Condições específicas..."
+                      rows="3"
+                      style={{
+                        width: "100%",
+                        padding: "8px 12px",
+                        border: "1px solid #ccc",
+                        borderRadius: "4px",
+                        fontFamily: "inherit",
+                        resize: "vertical",
                       }}
                     />
                   </div>
@@ -747,17 +858,38 @@ export default function GestaoAvisos() {
                     />
                   </div>
 
-                  <div style={{ marginBottom: "20px", display: "flex", alignItems: "center", gap: "8px" }}>
-                    <input
-                      type="checkbox"
-                      name="ativo"
-                      checked={programaFormData.ativo}
-                      onChange={handleProgramaInputChange}
-                      id="programaAtivo"
-                    />
-                    <label htmlFor="programaAtivo" style={{ margin: 0, cursor: "pointer" }}>
-                      Ativo
+                  <div style={{ marginBottom: "24px" }}>
+                    <label style={{ display: "block", marginBottom: "8px", fontWeight: 500 }}>
+                      Estado
                     </label>
+                    <div style={{ display: "flex", gap: "10px" }}>
+                      <button
+                        type="button"
+                        onClick={() => handleProgramaInputChange({ target: { name: 'ativo', type: 'checkbox', checked: true } })}
+                        style={{
+                          flex: 1, padding: "10px", borderRadius: "6px", cursor: "pointer", transition: "all 0.2s",
+                          border: programaFormData.ativo ? "2px solid #16a34a" : "1px solid #e2e8f0",
+                          background: programaFormData.ativo ? "#dcfce7" : "#f8fafc",
+                          color: programaFormData.ativo ? "#16a34a" : "#64748b",
+                          fontWeight: programaFormData.ativo ? "bold" : "normal",
+                        }}
+                      >
+                        {programaFormData.ativo ? "✓" : ""} Ativo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleProgramaInputChange({ target: { name: 'ativo', type: 'checkbox', checked: false } })}
+                        style={{
+                          flex: 1, padding: "10px", borderRadius: "6px", cursor: "pointer", transition: "all 0.2s",
+                          border: !programaFormData.ativo ? "2px solid #ef4444" : "1px solid #e2e8f0",
+                          background: !programaFormData.ativo ? "#fee2e2" : "#f8fafc",
+                          color: !programaFormData.ativo ? "#ef4444" : "#64748b",
+                          fontWeight: !programaFormData.ativo ? "bold" : "normal",
+                        }}
+                      >
+                        {!programaFormData.ativo ? "✗" : ""} Inativo
+                      </button>
+                    </div>
                   </div>
 
                   <div style={{ display: "flex", gap: "10px" }}>
@@ -790,7 +922,7 @@ export default function GestaoAvisos() {
           >
             <div
               className="modal-content"
-              style={{ width: "min(500px, 90vw)", maxHeight: "90vh", overflow: "hidden" }}
+              style={{ width: "700px", maxWidth: "90vw", maxHeight: "90vh", overflow: "hidden" }}
               onClick={(e) => e.stopPropagation()}
             >
               <div className="modal-header">
@@ -927,17 +1059,38 @@ export default function GestaoAvisos() {
                     </div>
                   </div>
 
-                  <div style={{ marginBottom: "20px", display: "flex", alignItems: "center", gap: "8px" }}>
-                    <input
-                      type="checkbox"
-                      name="ativo"
-                      checked={avisoFormData.ativo}
-                      onChange={handleAvisoInputChange}
-                      id="avisoAtivo"
-                    />
-                    <label htmlFor="avisoAtivo" style={{ margin: 0, cursor: "pointer" }}>
-                      Ativo
+                  <div style={{ marginBottom: "24px" }}>
+                    <label style={{ display: "block", marginBottom: "8px", fontWeight: 500 }}>
+                      Estado
                     </label>
+                    <div style={{ display: "flex", gap: "10px" }}>
+                      <button
+                        type="button"
+                        onClick={() => handleAvisoInputChange({ target: { name: 'ativo', type: 'checkbox', checked: true } })}
+                        style={{
+                          flex: 1, padding: "10px", borderRadius: "6px", cursor: "pointer", transition: "all 0.2s",
+                          border: avisoFormData.ativo ? "2px solid #16a34a" : "1px solid #e2e8f0",
+                          background: avisoFormData.ativo ? "#dcfce7" : "#f8fafc",
+                          color: avisoFormData.ativo ? "#16a34a" : "#64748b",
+                          fontWeight: avisoFormData.ativo ? "bold" : "normal",
+                        }}
+                      >
+                        {avisoFormData.ativo ? "✓" : ""} Ativo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleAvisoInputChange({ target: { name: 'ativo', type: 'checkbox', checked: false } })}
+                        style={{
+                          flex: 1, padding: "10px", borderRadius: "6px", cursor: "pointer", transition: "all 0.2s",
+                          border: !avisoFormData.ativo ? "2px solid #ef4444" : "1px solid #e2e8f0",
+                          background: !avisoFormData.ativo ? "#fee2e2" : "#f8fafc",
+                          color: !avisoFormData.ativo ? "#ef4444" : "#64748b",
+                          fontWeight: !avisoFormData.ativo ? "bold" : "normal",
+                        }}
+                      >
+                        {!avisoFormData.ativo ? "✗" : ""} Inativo
+                      </button>
+                    </div>
                   </div>
 
                   <div style={{ display: "flex", gap: "10px" }}>
