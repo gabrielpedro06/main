@@ -440,16 +440,23 @@ export default function PropostasComerciais() {
           .order("nome");
         setTiposProj(tipos || []);
 
+        // Carregar Avisos
         const { data: avisosData } = await supabase
           .from("avisos")
           .select("*")
-          .order("nome", { ascending: true });
-        setAvisos(avisosData || []);
+          .order("codigo", { ascending: true });
+        
+        // Tratar o campo 'fases' que vem como string do banco
+        const avisosTratados = (avisosData || []).map(a => ({
+          ...a,
+          fases: typeof a.fases === 'string' ? JSON.parse(a.fases) : (a.fases || [])
+        }));
+        setAvisos(avisosTratados);
 
-        // Load programs
+        // Carregar Programas
         const { data: progs } = await supabase
           .from("programas_financiamento")
-          .select("id, codigo, nome, aviso, aviso_id, pct, tipo_incentivo, investimento_minimo, regiao, descricao, ativo")
+          .select("*")
           .eq("ativo", true)
           .order("nome");
         setProgramas(progs || []);
@@ -1711,10 +1718,14 @@ export default function PropostasComerciais() {
   );
   const programaId = programa?.id ? String(programa.id) : "";
   const selectedPrograma = programa || null;
-  const selectedAviso = useMemo(
-    () => avisos.find((a) => String(a.id) === String(selectedPrograma?.aviso_id || "")) || null,
-    [avisos, selectedPrograma],
-  );
+  const selectedAviso = useMemo(() => {
+    if (!programa) return null;
+    // Tenta pelo ID, se não conseguir, tenta pelo campo "aviso" (string)
+    return avisos.find(a => 
+      String(a.id) === String(programa.aviso_id) || 
+      (programa.aviso && a.codigo === programa.aviso)
+    ) || null;
+  }, [avisos, programa]);
 
   // Data collection for saving
   const recolherDados = () => ({
@@ -2112,73 +2123,80 @@ export default function PropostasComerciais() {
                     </div>
 
                     {selectedPrograma && (
-                      <div className="card-inner">
-                        <div className="section-heading">Personalizar Programa</div>
-                        <div className="field-grid">
-                          <div className="field">
-                            <label>Nome do sistema de incentivos</label>
-                            <input type="text" value={selectedPrograma.nome || ""} readOnly />
-                          </div>
-                          <div className="field">
-                            <label>Referência do aviso</label>
-                            <input
-                              type="text"
-                              value={selectedAviso?.codigo || selectedPrograma.aviso || ""}
-                              readOnly
-                            />
-                          </div>
-                          <div className="field">
-                            <label>Incentivo (%)</label>
-                            <input type="number" value={Number(selectedPrograma.pct || 0)} readOnly />
-                          </div>
-                          <div className="field">
-                            <label>Tipo de incentivo</label>
-                            <select value={selectedPrograma.tipo || selectedPrograma.tipo_incentivo || ""} disabled>
-                              <option value={selectedPrograma.tipo || selectedPrograma.tipo_incentivo || ""}>
-                                {selectedPrograma.tipo || selectedPrograma.tipo_incentivo || "—"}
-                              </option>
-                            </select>
-                          </div>
-                          <div className="field">
-                            <label>Investimento mínimo (€)</label>
-                            <input
-                              type="number"
-                              value={Number(selectedPrograma.inv_min ?? selectedPrograma.investimento_minimo ?? 0)}
-                              readOnly
-                            />
-                          </div>
-                          <div className="field">
-                            <label>Região</label>
-                            <input type="text" value={selectedPrograma.regiao || ""} readOnly />
-                          </div>
-
-                          {normalizeAvisoFases(selectedAviso?.fases).slice(0, 2).map((fase, index) => (
-                            <div className="field" key={`${fase.nome}-${index}`}>
-                              <label>{index === 0 ? "Prazo 1.ª fase" : "Prazo 2.ª fase (opcional)"}</label>
-                              <input type="text" value={formatDatePt(fase.prazo)} readOnly />
+                      <div className="propostas-custom-details">
+                        <div className="card-inner" style={{ borderLeft: '4px solid #6366f1', background: '#f8fafc' }}>
+                          <div className="section-heading">Configuração Detalhada: {selectedPrograma.nome}</div>
+                          
+                          {/* GRELHA PRINCIPAL: AVISO E TOTAIS */}
+                          <div className="field-grid">
+                            <div className="field">
+                              <label>Referência do Aviso</label>
+                              <div className="summary-value" style={{ color: '#1e40af', fontWeight: 'bold' }}>
+                                {selectedAviso?.codigo || selectedPrograma.aviso || "Aviso não vinculado"}
+                              </div>
                             </div>
-                          ))}
+                            <div className="field">
+                              <label>Incentivo Máximo</label>
+                              <div className="badge badge-success" style={{ fontSize: '1rem' }}>
+                                {selectedPrograma.pct}% ({selectedPrograma.tipo_incentivo})
+                              </div>
+                            </div>
+                            <div className="field">
+                              <label>Investimento Mínimo</label>
+                              <div className="summary-value">{formatCurrency(selectedPrograma.investimento_minimo)}</div>
+                            </div>
+                            <div className="field">
+                              <label>Região / Área Geográfica</label>
+                              <div className="summary-value">{selectedPrograma.regiao || selectedPrograma.area_geografica}</div>
+                            </div>
+                          </div>
 
-                          {normalizeAvisoFases(selectedAviso?.fases).length > 2 && (
-                            <div className="field span-2">
-                              <label>Fases adicionais</label>
-                              <div className="propostas-pill-list" style={{ marginTop: "0" }}>
-                                {normalizeAvisoFases(selectedAviso?.fases).slice(2).map((fase, index) => (
-                                  <span key={`${fase.nome}-${index}`} className="badge badge-warning">
-                                    {fase.nome}: {formatDatePt(fase.prazo)}
-                                  </span>
+                          <hr style={{ margin: '20px 0', borderColor: '#e2e8f0' }} />
+
+                          {/* TIMELINE DE FASES DO AVISO */}
+                          {selectedAviso?.fases && (
+                            <div className="fases-timeline" style={{ marginBottom: '25px' }}>
+                              <label style={{ display: 'block', marginBottom: '10px', fontWeight: '600', color: '#475569' }}>
+                                Prazos de Candidatura (Fases do Aviso)
+                              </label>
+                              <div style={{ display: 'flex', gap: '15px' }}>
+                                {/* O campo fases vem como string JSON, garantimos o parse no loadData */}
+                                {selectedAviso.fases.map((fase, idx) => (
+                                  <div key={idx} className="fase-item" style={{
+                                    flex: 1, padding: '10px', borderRadius: '8px', background: '#fff', border: '1px solid #cbd5e1'
+                                  }}>
+                                    <strong style={{ fontSize: '0.8rem', color: '#6366f1' }}>{fase.nome}</strong>
+                                    <div style={{ fontSize: '1.1rem', fontWeight: 'bold' }}>{formatDatePt(fase.prazo)}</div>
+                                  </div>
                                 ))}
                               </div>
                             </div>
                           )}
 
-                          <div className="field span-2">
-                            <label>Descrição resumida do aviso</label>
-                            <textarea
-                              rows="3"
-                              value={selectedAviso?.descricao || selectedPrograma.descricao || ""}
-                              readOnly
-                            />
+                          {/* BLOCOS DE TEXTO (CONDIÇÕES E AÇÕES) */}
+                          <div className="info-blocks-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                            
+                            <div className="info-block">
+                              <label style={{ fontWeight: 'bold', color: '#0f172a' }}> Objetivos do Programa</label>
+                              <div className="text-content-box">
+                                {selectedPrograma.objetivos || selectedPrograma.descricao}
+                              </div>
+                            </div>
+
+                            <div className="info-block">
+                              <label style={{ fontWeight: 'bold', color: '#0f172a' }}> Ações Elegíveis</label>
+                              <div className="text-content-box">
+                                {selectedPrograma.acoes_elegiveis || "Consultar regulamento do aviso."}
+                              </div>
+                            </div>
+
+                            <div className="info-block span-2" style={{ gridColumn: 'span 2' }}>
+                              <label style={{ fontWeight: 'bold', color: '#b45309' }}> Condições Específicas / Critérios de Elegibilidade</label>
+                              <div className="text-content-box" style={{ background: '#fffcf5', border: '1px solid #fef3c7' }}>
+                                {selectedPrograma.condicoes_especificas}
+                              </div>
+                            </div>
+
                           </div>
                         </div>
                       </div>
