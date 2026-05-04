@@ -16,11 +16,18 @@ const Icons = {
     </svg>
   ),
   Plus: () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
       <line x1="12" y1="5" x2="12" y2="19" />
       <line x1="5" y1="12" x2="19" y2="12" />
     </svg>
   ),
+  Warning: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  )
 };
 
 const ModalPortal = ({ children }) => createPortal(children, document.body);
@@ -52,6 +59,12 @@ const formatDatePt = (isoDate) => {
   return date.toLocaleDateString("pt-PT");
 };
 
+// Formatador de números (ex: 1000 -> 1 000)
+const formatNumber = (num) => {
+  if (num === null || num === undefined || num === "") return "";
+  return new Intl.NumberFormat("pt-PT").format(num);
+};
+
 const TIPO_INCENTIVO_OPTIONS = [
   "fundo perdido (não reembolsável)",
   "subsídio",
@@ -64,8 +77,16 @@ export default function GestaoAvisos() {
   const [avisos, setAvisos] = useState([]);
   const [programas, setProgramas] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // Modais de Formulário
   const [avisoModalOpen, setAvisoModalOpen] = useState(false);
   const [programaModalOpen, setProgramaModalOpen] = useState(false);
+  
+  // Modal de Confirmação (Substitui o window.confirm)
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const [confirmMessage, setConfirmMessage] = useState("");
+  const [confirmAction, setConfirmAction] = useState(null);
+
   const [editingAvisoId, setEditingAvisoId] = useState(null);
   const [editingProgramaId, setEditingProgramaId] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -87,6 +108,7 @@ export default function GestaoAvisos() {
     investimento_minimo: 0,
     regiao: "",
     objetivos: "",
+    entidades_elegiveis: "", 
     area_geografica: "",
     acoes_elegiveis: "",
     condicoes_especificas: "",
@@ -99,7 +121,7 @@ export default function GestaoAvisos() {
 
   const avisosById = useMemo(
     () => Object.fromEntries(avisos.map((aviso) => [String(aviso.id), aviso])),
-    [avisos],
+    [avisos]
   );
 
   useEffect(() => {
@@ -107,7 +129,7 @@ export default function GestaoAvisos() {
   }, []);
 
   useEffect(() => {
-    const hasOpenModal = avisoModalOpen || programaModalOpen;
+    const hasOpenModal = avisoModalOpen || programaModalOpen || confirmModalOpen;
     const previousOverflow = document.body.style.overflow;
     if (hasOpenModal) {
       document.body.style.overflow = "hidden";
@@ -116,7 +138,7 @@ export default function GestaoAvisos() {
     return () => {
       document.body.style.overflow = previousOverflow;
     };
-  }, [avisoModalOpen, programaModalOpen]);
+  }, [avisoModalOpen, programaModalOpen, confirmModalOpen]);
 
   const loadData = async () => {
     setLoading(true);
@@ -196,7 +218,7 @@ export default function GestaoAvisos() {
     setAvisoFormData((prev) => ({
       ...prev,
       fases: normalizeFases(prev.fases).map((fase, currentIndex) =>
-        currentIndex === index ? { ...fase, [field]: value } : fase,
+        currentIndex === index ? { ...fase, [field]: value } : fase
       ),
     }));
   };
@@ -211,11 +233,6 @@ export default function GestaoAvisos() {
   const handleAvisoSubmit = async (e) => {
     e.preventDefault();
 
-    if (!avisoFormData.nome.trim()) {
-      showNotification("Nome é obrigatório", "error");
-      return;
-    }
-
     if (!avisoFormData.codigo.trim()) {
       showNotification("Código é obrigatório", "error");
       return;
@@ -229,8 +246,6 @@ export default function GestaoAvisos() {
           .from("avisos")
           .update({
             codigo: avisoFormData.codigo,
-            nome: avisoFormData.nome,
-            descricao: avisoFormData.descricao || null,
             fases: normalizeFases(avisoFormData.fases),
             ativo: avisoFormData.ativo,
             updated_at: new Date().toISOString(),
@@ -245,12 +260,11 @@ export default function GestaoAvisos() {
           .insert([
             {
               codigo: avisoFormData.codigo,
-              nome: avisoFormData.nome,
-              descricao: avisoFormData.descricao || null,
               fases: normalizeFases(avisoFormData.fases),
               ativo: avisoFormData.ativo,
             },
-          ]).select();
+          ])
+          .select();
 
         if (error) throw error;
         showNotification("Aviso criado com sucesso");
@@ -270,19 +284,22 @@ export default function GestaoAvisos() {
     }
   };
 
-  const handleAvisoDelete = async (id) => {
-    if (!window.confirm("Tem certeza que deseja apagar este aviso?")) return;
-
-    try {
-      const { error } = await supabase.from("avisos").delete().eq("id", id);
-
-      if (error) throw error;
-      showNotification("Aviso apagado com sucesso");
-      await loadData();
-    } catch (error) {
-      console.error("Erro ao apagar aviso:", error);
-      showNotification("Erro ao apagar aviso", "error");
-    }
+  const handleAvisoDelete = (id) => {
+    setConfirmMessage("Tem a certeza que deseja apagar este aviso?");
+    setConfirmAction(() => async () => {
+      try {
+        const { error } = await supabase.from("avisos").delete().eq("id", id);
+        if (error) throw error;
+        showNotification("Aviso apagado com sucesso");
+        await loadData();
+      } catch (error) {
+        console.error("Erro ao apagar aviso:", error);
+        showNotification("Erro ao apagar aviso", "error");
+      } finally {
+        setConfirmModalOpen(false);
+      }
+    });
+    setConfirmModalOpen(true);
   };
 
   // ============ PROGRAMAS ============
@@ -297,6 +314,7 @@ export default function GestaoAvisos() {
         investimento_minimo: Number(programa.investimento_minimo || 0),
         regiao: programa.regiao || "",
         objetivos: programa.objetivos || "",
+        entidades_elegiveis: programa.entidades_elegiveis || "", 
         area_geografica: programa.area_geografica || "",
         acoes_elegiveis: programa.acoes_elegiveis || "",
         condicoes_especificas: programa.condicoes_especificas || "",
@@ -314,6 +332,7 @@ export default function GestaoAvisos() {
         investimento_minimo: 0,
         regiao: "",
         objetivos: "",
+        entidades_elegiveis: "", 
         area_geografica: "",
         acoes_elegiveis: "",
         condicoes_especificas: "",
@@ -336,6 +355,18 @@ export default function GestaoAvisos() {
     setProgramaFormData((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : type === "number" ? Number(value) : value,
+    }));
+  };
+
+  // Função dedicada para lidar com números formatados (em tempo real)
+  const handleFormattedNumberChange = (e, field) => {
+    // Remove tudo o que não for número
+    const rawValue = e.target.value.replace(/\D/g, "");
+    const numValue = rawValue === "" ? 0 : Number(rawValue);
+    
+    setProgramaFormData((prev) => ({
+      ...prev,
+      [field]: numValue,
     }));
   };
 
@@ -363,6 +394,7 @@ export default function GestaoAvisos() {
         investimento_minimo: programaFormData.investimento_minimo,
         regiao: programaFormData.regiao || null,
         objetivos: programaFormData.objetivos || null,
+        entidades_elegiveis: programaFormData.entidades_elegiveis || null,
         area_geografica: programaFormData.area_geografica || null,
         acoes_elegiveis: programaFormData.acoes_elegiveis || null,
         condicoes_especificas: programaFormData.condicoes_especificas || null,
@@ -398,93 +430,264 @@ export default function GestaoAvisos() {
     }
   };
 
-  const handleProgramaDelete = async (id) => {
-    if (!window.confirm("Tem certeza que deseja apagar este programa?")) return;
+  const handleProgramaDelete = (id) => {
+    setConfirmMessage("Tem a certeza que deseja apagar este programa?");
+    setConfirmAction(() => async () => {
+      try {
+        const { error } = await supabase.from("programas_financiamento").delete().eq("id", id);
+        if (error) throw error;
+        showNotification("Programa apagado com sucesso");
+        await loadData();
+      } catch (error) {
+        console.error("Erro ao apagar programa:", error);
+        showNotification("Erro ao apagar programa", "error");
+      } finally {
+        setConfirmModalOpen(false);
+      }
+    });
+    setConfirmModalOpen(true);
+  };
 
-    try {
-      const { error } = await supabase.from("programas_financiamento").delete().eq("id", id);
-
-      if (error) throw error;
-      showNotification("Programa apagado com sucesso");
-      await loadData();
-    } catch (error) {
-      console.error("Erro ao apagar programa:", error);
-      showNotification("Erro ao apagar programa", "error");
-    }
+  const styles = {
+    pageContainer: {
+      padding: "20px",
+      fontFamily: "inherit",
+    },
+    pageHeader: {
+      background: "#ffffff", 
+      padding: "24px 30px",
+      borderRadius: "12px",
+      border: "1px solid var(--color-borderColor)",
+      marginBottom: "24px",
+      boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      gap: "15px",
+      flexWrap: "wrap",
+    },
+    title: {
+      margin: 0,
+      color: "var(--color-textPrimary)",
+      fontSize: "1.5rem",
+      fontWeight: "700",
+    },
+    subtitle: {
+      margin: "6px 0 0 0",
+      color: "var(--color-textSecondary)",
+      fontSize: "0.95rem",
+    },
+    grid: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: "24px",
+      marginBottom: "20px",
+    },
+    panel: {
+      background: "#ffffff", 
+      borderRadius: "16px",
+      padding: "24px",
+      border: "1px solid var(--color-borderColorLight, var(--wow-border))",
+    },
+    panelHeader: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: "20px",
+    },
+    panelTitle: {
+      margin: 0,
+      fontSize: "0.85rem",
+      fontWeight: "800",
+      letterSpacing: "1.5px",
+      textTransform: "uppercase",
+      color: "var(--color-textPrimary)",
+    },
+    primaryBtn: {
+      background: "var(--color-btnPrimary)",
+      color: "var(--color-textWhite)",
+      border: "none",
+      borderRadius: "8px",
+      padding: "8px 16px",
+      display: "inline-flex",
+      alignItems: "center",
+      gap: "8px",
+      fontSize: "0.9rem",
+      fontWeight: "600",
+      cursor: "pointer",
+      transition: "all 0.2s ease-in-out",
+      boxShadow: "var(--color-btnPrimaryShadow, 0 4px 6px -1px rgba(0,0,0,0.1))",
+    },
+    cardItem: {
+      background: "#ffffff", 
+      padding: "20px",
+      borderRadius: "12px",
+      border: "1px solid var(--color-borderColorLight, var(--wow-border))",
+      marginBottom: "12px",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      transition: "transform 0.1s ease, box-shadow 0.1s ease",
+    },
+    cardCode: {
+      fontWeight: "700",
+      fontSize: "1.15rem", 
+      color: "var(--color-textPrimary)",
+      marginBottom: "4px",
+    },
+    cardName: {
+      fontWeight: "500",
+      fontSize: "0.8rem", 
+      color: "var(--color-textSecondary)",
+      marginBottom: "8px",
+    },
+    cardMeta: {
+      fontSize: "0.85rem",
+      color: "var(--color-textSecondary)",
+    },
+    actionBtnGroup: {
+      display: "flex",
+      gap: "8px",
+      alignItems: "center",
+    },
+    actionBtn: {
+      background: "#ffffff",
+      color: "var(--color-textSecondary)",
+      border: "1px solid var(--color-borderColor)",
+      borderRadius: "50%",
+      width: "34px",
+      height: "34px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      cursor: "pointer",
+      transition: "all 0.2s",
+    },
+    pill: {
+      display: "inline-flex",
+      alignItems: "center",
+      fontSize: "0.8rem",
+      background: "#ffffff",
+      color: "var(--color-textSecondary)",
+      padding: "4px 14px",
+      borderRadius: "9999px",
+      border: "1px solid var(--color-borderColor, var(--wow-border))",
+      fontWeight: "500",
+    },
+    pillHighlight: {
+      fontWeight: "700",
+      color: "var(--color-textPrimary)",
+    },
+    input: {
+      width: "100%",
+      padding: "10px 14px",
+      border: "1px solid var(--color-borderColor)",
+      borderRadius: "8px",
+      fontFamily: "inherit",
+      fontSize: "0.95rem",
+      background: "var(--color-bgTertiary, #fff)",
+      color: "var(--color-textPrimary)",
+    },
+    label: {
+      display: "block",
+      marginBottom: "6px",
+      fontWeight: "600",
+      fontSize: "0.9rem",
+      color: "var(--color-textPrimary)",
+    },
+    modalOverlay: {
+      position: "fixed",
+      top: 0,
+      left: 0,
+      width: "100vw",
+      height: "100vh",
+      background: "rgba(0, 0, 0, 0.5)",
+      backdropFilter: "blur(4px)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 9999,
+    },
+    modalContent: {
+      background: "var(--color-bgPrimary, #ffffff)",
+      borderRadius: "16px",
+      border: "1px solid var(--color-borderColor)",
+      boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+      display: "flex",
+      flexDirection: "column",
+    },
   };
 
   return (
-    <div className="page-container">
-      <div className="page-header" style={{background: 'white', padding: '20px 25px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '15px', flexWrap: 'wrap'}}>
+    <div style={styles.pageContainer}>
+      {/* HEADER */}
+      <div style={styles.pageHeader}>
         <div>
-          <h1 style={{ margin: 0, color: '#1e293b', fontSize: '1.5rem', fontWeight: 'bold' }}>Programas & Avisos</h1>
-          <p style={{ margin: '5px 0 0 0', color: '#64748b' }}>
-            Gerencie programas de financiamento e os seus avisos associados
-          </p>
+          <h1 style={styles.title}>Programas & Avisos</h1>
+          <p style={styles.subtitle}>Gerencie programas de financiamento e os seus avisos associados</p>
         </div>
       </div>
 
       {loading ? (
-        <div className="card" style={{ textAlign: "center", padding: "40px" }}>
-          <div className="muted">A carregar...</div>
+        <div style={{ textAlign: "center", padding: "60px", color: "var(--color-textLight)" }}>
+          A carregar...
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px" }}>
-          {/* PROGRAMAS PAINEL */}
-          <div className="card">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-              <div className="section-heading" style={{ margin: 0 }}>Programas</div>
-              <button className="btn-primary" type="button" onClick={() => handleOpenProgramaModal()}>
+        <div style={styles.grid}>
+          {/* ================= PROGRAMAS PANEL ================= */}
+          <div style={styles.panel}>
+            <div style={styles.panelHeader}>
+              <h2 style={styles.panelTitle}>Programas</h2>
+              <button style={styles.primaryBtn} type="button" onClick={() => handleOpenProgramaModal()}>
                 <Icons.Plus /> Novo
               </button>
             </div>
 
             {programas.length === 0 ? (
-              <div className="muted" style={{ textAlign: "center", padding: "40px 20px" }}>
+              <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--color-textLight)" }}>
                 <p>Nenhum programa criado ainda</p>
               </div>
             ) : (
-              <div style={{ display: "grid", gap: "10px", maxHeight: "500px", overflowY: "auto" }}>
+              <div style={{ display: "flex", flexDirection: "column", maxHeight: "650px", overflowY: "auto", paddingRight: "4px" }}>
                 {programas.map((programa) => (
                   <div
                     key={programa.id}
-                    style={{
-                      padding: "12px",
-                      background: "#f8f9fa",
-                      borderRadius: "6px",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "flex-start",
-                      opacity: programa.ativo ? 1 : 0.6,
-                    }}
+                    style={{ ...styles.cardItem, opacity: programa.ativo ? 1 : 0.5 }}
                   >
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 600, fontSize: "0.95rem" }}>{programa.nome}</div>
-                      <div className="muted" style={{ fontSize: "0.85rem", marginTop: "4px" }}>
-                        {programa.codigo} · {programa.pct}%
-                        {programa.regiao && ` · ${programa.regiao}`}
+                    <div style={{ flex: 1, paddingRight: "16px" }}>
+                      <div style={styles.cardCode}>{programa.codigo}</div>
+                      <div style={styles.cardName}>{programa.nome}</div>
+
+                      <div style={styles.cardMeta}>
+                        Incentivo: {formatNumber(programa.pct)}% 
+                        {programa.investimento_minimo > 0 && ` · Mín: ${formatNumber(programa.investimento_minimo)} €`}
+                        {programa.regiao && ` · Região: ${programa.regiao}`}
                       </div>
+
                       {programa.aviso_id && (
-                        <div className="muted" style={{ fontSize: "0.85rem", marginTop: "4px" }}>
-                          Aviso: {avisos.find((a) => a.id === programa.aviso_id)?.codigo || "—"}
+                        <div style={{ fontSize: "0.85rem", marginTop: "6px", color: "var(--color-btnPrimary)", fontWeight: 600 }}>
+                          Aviso: {avisosById[programa.aviso_id]?.codigo || "—"}
                         </div>
                       )}
                     </div>
-                    <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                      {!programa.ativo && <span className="badge badge-danger" style={{ fontSize: "0.75rem" }}>Inativo</span>}
+                    <div style={styles.actionBtnGroup}>
                       <button
-                        className="btn-small"
+                        style={styles.actionBtn}
                         type="button"
                         onClick={() => handleOpenProgramaModal(programa)}
                         title="Editar"
+                        onMouseOver={(e) => (e.currentTarget.style.borderColor = "var(--color-btnPrimary)")}
+                        onMouseOut={(e) => (e.currentTarget.style.borderColor = "var(--color-borderColor)")}
                       >
                         <Icons.Edit />
                       </button>
                       <button
-                        className="btn-small"
+                        style={styles.actionBtn}
                         type="button"
                         onClick={() => handleProgramaDelete(programa.id)}
                         title="Apagar"
+                        onMouseOver={(e) => { e.currentTarget.style.borderColor = "var(--wow-success, #ef4444)"; e.currentTarget.style.color = "var(--wow-success, #ef4444)" }}
+                        onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--color-borderColor)"; e.currentTarget.style.color = "var(--color-textSecondary)" }}
                       >
                         <Icons.Trash />
                       </button>
@@ -495,64 +698,61 @@ export default function GestaoAvisos() {
             )}
           </div>
 
-          {/* AVISOS PAINEL */}
-          <div className="card">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-              <div className="section-heading" style={{ margin: 0 }}>Avisos</div>
-              <button className="btn-primary" type="button" onClick={() => handleOpenAvisoModal()}>
+          {/* ================= AVISOS PANEL ================= */}
+          <div style={styles.panel}>
+            <div style={styles.panelHeader}>
+              <h2 style={styles.panelTitle}>Avisos</h2>
+              <button style={styles.primaryBtn} type="button" onClick={() => handleOpenAvisoModal()}>
                 <Icons.Plus /> Novo
               </button>
             </div>
 
             {avisos.length === 0 ? (
-              <div className="muted" style={{ textAlign: "center", padding: "40px 20px" }}>
+              <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--color-textLight)" }}>
                 <p>Nenhum aviso criado ainda</p>
               </div>
             ) : (
-              <div style={{ display: "grid", gap: "8px", maxHeight: "500px", overflowY: "auto" }}>
+              <div style={{ display: "flex", flexDirection: "column", maxHeight: "650px", overflowY: "auto", paddingRight: "4px" }}>
                 {avisos.map((aviso) => {
                   const fases = normalizeFases(aviso.fases);
-                  const primeiraFase = fases[0];
 
                   return (
                     <div
                       key={aviso.id}
-                      style={{
-                        padding: "10px 12px",
-                        background: "#f8f9fa",
-                        borderRadius: "6px",
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "flex-start",
-                        opacity: aviso.ativo ? 1 : 0.6,
-                      }}
+                      style={{ ...styles.cardItem, opacity: aviso.ativo ? 1 : 0.5 }}
                     >
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 600, fontSize: "0.95rem", lineHeight: 1.2 }}>{aviso.nome}</div>
-                        <div className="muted" style={{ fontSize: "0.84rem", marginTop: "2px" }}>
-                          {aviso.codigo}
-                        </div>
-                        <div className="muted" style={{ fontSize: "0.82rem", marginTop: "2px" }}>
-                          {fases.length} fase{fases.length === 1 ? "" : "s"}
-                          {primeiraFase ? ` · ${primeiraFase.nome}: ${formatDatePt(primeiraFase.prazo)}` : ""}
-                          {fases.length > 1 ? ` (+${fases.length - 1})` : ""}
+                      <div style={{ flex: 1, paddingRight: "16px" }}>
+                        <div style={styles.cardCode}>{aviso.codigo}</div>
+
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "12px" }}>
+                          {fases.map((fase, i) => (
+                            <div key={i} style={styles.pill}>
+                              <span>{fase.nome}</span>
+                              <span style={{ margin: "0 8px", opacity: 0.5 }}>→</span>
+                              <span style={styles.pillHighlight}>{formatDatePt(fase.prazo)}</span>
+                            </div>
+                          ))}
                         </div>
                       </div>
-                      <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                        {!aviso.ativo && <span className="badge badge-danger" style={{ fontSize: "0.75rem" }}>Inativo</span>}
+
+                      <div style={styles.actionBtnGroup}>
                         <button
-                          className="btn-small"
+                          style={styles.actionBtn}
                           type="button"
                           onClick={() => handleOpenAvisoModal(aviso)}
                           title="Editar"
+                          onMouseOver={(e) => (e.currentTarget.style.borderColor = "var(--color-btnPrimary)")}
+                          onMouseOut={(e) => (e.currentTarget.style.borderColor = "var(--color-borderColor)")}
                         >
                           <Icons.Edit />
                         </button>
                         <button
-                          className="btn-small"
+                          style={styles.actionBtn}
                           type="button"
                           onClick={() => handleAvisoDelete(aviso.id)}
                           title="Apagar"
+                          onMouseOver={(e) => { e.currentTarget.style.borderColor = "var(--wow-success, #ef4444)"; e.currentTarget.style.color = "var(--wow-success, #ef4444)" }}
+                          onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--color-borderColor)"; e.currentTarget.style.color = "var(--color-textSecondary)" }}
                         >
                           <Icons.Trash />
                         </button>
@@ -566,77 +766,54 @@ export default function GestaoAvisos() {
         </div>
       )}
 
-      {/* MODAL PROGRAMA */}
+      {/* MODAL PROGRAMA (AGORA MAIS LARGO E COM GRELHA PARA TEXTAREAS) */}
       {programaModalOpen && (
         <ModalPortal>
-          <div
-            className="modal-overlay"
-            onClick={handleCloseProgramaModal}
-            style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
-          >
+          <div style={styles.modalOverlay} onClick={handleCloseProgramaModal}>
             <div
-              className="modal-content"
-              style={{ width: "800px", maxWidth: "90vw", maxHeight: "90vh", overflow: "hidden" }}
+              style={{ ...styles.modalContent, width: "1100px", maxWidth: "95vw", maxHeight: "90vh", overflow: "hidden" }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="modal-header">
-                <h3 style={{ margin: 0 }}>{editingProgramaId ? "Editar Programa" : "Novo Programa"}</h3>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderBottom: "1px solid var(--color-borderColorLight)" }}>
+                <h3 style={{ margin: 0, color: "var(--color-textPrimary)" }}>{editingProgramaId ? "Editar Programa" : "Novo Programa"}</h3>
                 <button
-                  className="close-btn"
                   type="button"
                   onClick={handleCloseProgramaModal}
-                  style={{ cursor: "pointer", border: "none", background: "none", fontSize: "1.5rem" }}
+                  style={{ cursor: "pointer", border: "none", background: "none", fontSize: "1.5rem", color: "var(--color-textLight)" }}
                 >
                   ×
                 </button>
               </div>
 
-              <div className="modal-body">
+              <div style={{ padding: "24px", overflowY: "auto" }}>
                 <form onSubmit={handleProgramaSubmit}>
-                  <div style={{ marginBottom: "12px" }}>
-                    <label style={{ display: "block", marginBottom: "6px", fontWeight: 500 }}>
-                      Nome
-                    </label>
-                    <input
-                      type="text"
-                      name="nome"
-                      value={programaFormData.nome}
-                      onChange={handleProgramaInputChange}
-                      placeholder="ex. Compete 2030"
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        border: "1px solid #ccc",
-                        borderRadius: "4px",
-                        fontFamily: "inherit",
-                      }}
-                    />
-                  </div>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "12px" }}>
+                  
+                  {/* LINHA 1: NOME / CÓDIGO / AVISO */}
+                  <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: "16px", marginBottom: "16px" }}>
                     <div>
-                      <label style={{ display: "block", marginBottom: "6px", fontWeight: 500 }}>
-                        Código
-                      </label>
+                      <label style={styles.label}>Nome</label>
+                      <input
+                        type="text"
+                        name="nome"
+                        value={programaFormData.nome}
+                        onChange={handleProgramaInputChange}
+                        placeholder="ex. Compete 2030"
+                        style={styles.input}
+                      />
+                    </div>
+                    <div>
+                      <label style={styles.label}>Código</label>
                       <input
                         type="text"
                         name="codigo"
                         value={programaFormData.codigo}
                         onChange={handleProgramaInputChange}
                         placeholder="ex. COMPETE-2025-10"
-                        style={{
-                          width: "100%",
-                          padding: "8px 12px",
-                          border: "1px solid #ccc",
-                          borderRadius: "4px",
-                          fontFamily: "inherit",
-                        }}
+                        style={styles.input}
                       />
                     </div>
                     <div>
-                      <label style={{ display: "block", marginBottom: "6px", fontWeight: 500 }}>
-                        Aviso Relacionado
-                      </label>
+                      <label style={styles.label}>Aviso Relacionado</label>
                       <select
                         name="aviso_id"
                         value={programaFormData.aviso_id}
@@ -648,230 +825,144 @@ export default function GestaoAvisos() {
                             handleProgramaInputChange(e);
                           }
                         }}
-                        style={{
-                          width: "100%",
-                          padding: "8px 12px",
-                          border: "1px solid #ccc",
-                          borderRadius: "4px",
-                          fontFamily: "inherit",
-                        }}
+                        style={styles.input}
                       >
                         <option value="">— Sem aviso —</option>
-                        <option value="novo" style={{ fontWeight: "bold", color: "#2563eb" }}>+ CRIAR NOVO AVISO</option>
+                        <option value="novo" style={{ fontWeight: "bold", color: "var(--color-btnPrimary)" }}>+ CRIAR NOVO AVISO</option>
                         {avisos.map((aviso) => (
                           <option key={aviso.id} value={aviso.id}>
-                            {aviso.codigo} - {aviso.nome}
+                            {aviso.codigo} {aviso.nome ? `- ${aviso.nome}` : ""}
                           </option>
                         ))}
                       </select>
                     </div>
                   </div>
 
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "12px" }}>
+                  {/* LINHA 2: DADOS FINANCEIROS & GEOGRÁFICOS */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "16px", marginBottom: "24px" }}>
                     <div>
-                      <label style={{ display: "block", marginBottom: "6px", fontWeight: 500 }}>
-                        Incentivo (%)
-                      </label>
+                      <label style={styles.label}>Incentivo (%)</label>
                       <input
-                        type="number"
+                        type="text"
                         name="pct"
-                        value={programaFormData.pct}
-                        onChange={handleProgramaInputChange}
-                        min="0"
-                        max="100"
-                        style={{
-                          width: "100%",
-                          padding: "8px 12px",
-                          border: "1px solid #ccc",
-                          borderRadius: "4px",
-                          fontFamily: "inherit",
-                        }}
+                        value={programaFormData.pct === 0 ? "" : formatNumber(programaFormData.pct)}
+                        onChange={(e) => handleFormattedNumberChange(e, "pct")}
+                        placeholder="0"
+                        style={styles.input}
                       />
                     </div>
                     <div>
-                      <label style={{ display: "block", marginBottom: "6px", fontWeight: 500 }}>
-                        Tipo de Incentivo
-                      </label>
+                      <label style={styles.label}>Tipo de Incentivo</label>
                       <select
                         name="tipo_incentivo"
                         value={programaFormData.tipo_incentivo}
                         onChange={handleProgramaInputChange}
-                        style={{
-                          width: "100%",
-                          padding: "8px 12px",
-                          border: "1px solid #ccc",
-                          borderRadius: "4px",
-                          fontFamily: "inherit",
-                        }}
+                        style={styles.input}
                       >
                         {TIPO_INCENTIVO_OPTIONS.map((tipo) => (
-                          <option key={tipo} value={tipo}>
-                            {tipo}
-                          </option>
+                          <option key={tipo} value={tipo}>{tipo}</option>
                         ))}
                       </select>
                     </div>
-                  </div>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "12px" }}>
                     <div>
-                      <label style={{ display: "block", marginBottom: "6px", fontWeight: 500 }}>
-                        Região
-                      </label>
+                      <label style={styles.label}>Área Geográfica</label>
                       <input
                         type="text"
-                        name="regiao"
-                        value={programaFormData.regiao}
+                        name="area_geografica"
+                        value={programaFormData.area_geografica}
                         onChange={handleProgramaInputChange}
-                        placeholder="ex. Algarve, Norte"
-                        style={{
-                          width: "100%",
-                          padding: "8px 12px",
-                          border: "1px solid #ccc",
-                          borderRadius: "4px",
-                          fontFamily: "inherit",
-                        }}
+                        placeholder="Área de aplicação..."
+                        style={styles.input}
                       />
                     </div>
                     <div>
-                      <label style={{ display: "block", marginBottom: "6px", fontWeight: 500 }}>
-                        Investimento Mínimo (€)
-                      </label>
+                      <label style={styles.label}>Investimento Mínimo (€)</label>
                       <input
-                        type="number"
+                        type="text" 
                         name="investimento_minimo"
-                        value={programaFormData.investimento_minimo}
-                        onChange={handleProgramaInputChange}
-                        min="0"
-                        style={{
-                          width: "100%",
-                          padding: "8px 12px",
-                          border: "1px solid #ccc",
-                          borderRadius: "4px",
-                          fontFamily: "inherit",
-                        }}
+                        value={programaFormData.investimento_minimo === 0 ? "" : formatNumber(programaFormData.investimento_minimo)}
+                        onChange={(e) => handleFormattedNumberChange(e, "investimento_minimo")}
+                        placeholder="0"
+                        style={styles.input}
                       />
                     </div>
                   </div>
 
-                  <div style={{ marginBottom: "12px" }}>
-                    <label style={{ display: "block", marginBottom: "6px", fontWeight: 500 }}>
-                      Área Geográfica
-                    </label>
-                    <input
-                      type="text"
-                      name="area_geografica"
-                      value={programaFormData.area_geografica}
-                      onChange={handleProgramaInputChange}
-                      placeholder="Área de aplicação..."
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        border: "1px solid #ccc",
-                        borderRadius: "4px",
-                        fontFamily: "inherit",
-                      }}
-                    />
+                  {/* CAIXAS DE TEXTO EM GRELHA PARA REDUZIR SCROLL */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
+                    <div>
+                      <label style={styles.label}>Objetivos</label>
+                      <textarea
+                        name="objetivos"
+                        value={programaFormData.objetivos}
+                        onChange={handleProgramaInputChange}
+                        placeholder="Objetivos do programa..."
+                        rows="3"
+                        style={{ ...styles.input, resize: "vertical" }}
+                      />
+                    </div>
+                    <div>
+                      <label style={styles.label}>Entidades Elegíveis</label>
+                      <textarea
+                        name="entidades_elegiveis"
+                        value={programaFormData.entidades_elegiveis}
+                        onChange={handleProgramaInputChange}
+                        placeholder="Quais as entidades que se podem candidatar..."
+                        rows="3"
+                        style={{ ...styles.input, resize: "vertical" }}
+                      />
+                    </div>
                   </div>
 
-                  <div style={{ marginBottom: "12px" }}>
-                    <label style={{ display: "block", marginBottom: "6px", fontWeight: 500 }}>
-                      Objetivos
-                    </label>
-                    <textarea
-                      name="objetivos"
-                      value={programaFormData.objetivos}
-                      onChange={handleProgramaInputChange}
-                      placeholder="Objetivos do programa..."
-                      rows="3"
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        border: "1px solid #ccc",
-                        borderRadius: "4px",
-                        fontFamily: "inherit",
-                        resize: "vertical",
-                      }}
-                    />
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
+                    <div>
+                      <label style={styles.label}>Ações Elegíveis</label>
+                      <textarea
+                        name="acoes_elegiveis"
+                        value={programaFormData.acoes_elegiveis}
+                        onChange={handleProgramaInputChange}
+                        placeholder="Ações elegíveis..."
+                        rows="3"
+                        style={{ ...styles.input, resize: "vertical" }}
+                      />
+                    </div>
+                    <div>
+                      <label style={styles.label}>Condições Específicas</label>
+                      <textarea
+                        name="condicoes_especificas"
+                        value={programaFormData.condicoes_especificas}
+                        onChange={handleProgramaInputChange}
+                        placeholder="Condições específicas..."
+                        rows="3"
+                        style={{ ...styles.input, resize: "vertical" }}
+                      />
+                    </div>
                   </div>
 
-                  <div style={{ marginBottom: "12px" }}>
-                    <label style={{ display: "block", marginBottom: "6px", fontWeight: 500 }}>
-                      Ações Elegíveis
-                    </label>
-                    <textarea
-                      name="acoes_elegiveis"
-                      value={programaFormData.acoes_elegiveis}
-                      onChange={handleProgramaInputChange}
-                      placeholder="Ações elegíveis..."
-                      rows="3"
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        border: "1px solid #ccc",
-                        borderRadius: "4px",
-                        fontFamily: "inherit",
-                        resize: "vertical",
-                      }}
-                    />
-                  </div>
-
-                  <div style={{ marginBottom: "12px" }}>
-                    <label style={{ display: "block", marginBottom: "6px", fontWeight: 500 }}>
-                      Condições Específicas
-                    </label>
-                    <textarea
-                      name="condicoes_especificas"
-                      value={programaFormData.condicoes_especificas}
-                      onChange={handleProgramaInputChange}
-                      placeholder="Condições específicas..."
-                      rows="3"
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        border: "1px solid #ccc",
-                        borderRadius: "4px",
-                        fontFamily: "inherit",
-                        resize: "vertical",
-                      }}
-                    />
-                  </div>
-
-                  <div style={{ marginBottom: "12px" }}>
-                    <label style={{ display: "block", marginBottom: "6px", fontWeight: 500 }}>
-                      Descrição
-                    </label>
+                  <div style={{ marginBottom: "24px" }}>
+                    <label style={styles.label}>Descrição Completa</label>
                     <textarea
                       name="descricao"
                       value={programaFormData.descricao}
                       onChange={handleProgramaInputChange}
-                      placeholder="Descrição do programa..."
+                      placeholder="Descrição detalhada do programa..."
                       rows="3"
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        border: "1px solid #ccc",
-                        borderRadius: "4px",
-                        fontFamily: "inherit",
-                        resize: "vertical",
-                      }}
+                      style={{ ...styles.input, resize: "vertical" }}
                     />
                   </div>
 
-                  <div style={{ marginBottom: "24px" }}>
-                    <label style={{ display: "block", marginBottom: "8px", fontWeight: 500 }}>
-                      Estado
-                    </label>
+                  <div style={{ marginBottom: "24px", width: "50%" }}>
+                    <label style={styles.label}>Estado</label>
                     <div style={{ display: "flex", gap: "10px" }}>
                       <button
                         type="button"
                         onClick={() => handleProgramaInputChange({ target: { name: 'ativo', type: 'checkbox', checked: true } })}
                         style={{
-                          flex: 1, padding: "10px", borderRadius: "6px", cursor: "pointer", transition: "all 0.2s",
-                          border: programaFormData.ativo ? "2px solid #16a34a" : "1px solid #e2e8f0",
-                          background: programaFormData.ativo ? "#dcfce7" : "#f8fafc",
-                          color: programaFormData.ativo ? "#16a34a" : "#64748b",
-                          fontWeight: programaFormData.ativo ? "bold" : "normal",
+                          flex: 1, padding: "10px", borderRadius: "8px", cursor: "pointer", transition: "all 0.2s",
+                          border: programaFormData.ativo ? "2px solid var(--color-btnPrimary)" : "1px solid var(--color-borderColor)",
+                          background: programaFormData.ativo ? "var(--wow-primary-soft)" : "var(--color-bgPrimary)",
+                          color: programaFormData.ativo ? "var(--color-btnPrimary)" : "var(--color-textSecondary)",
+                          fontWeight: programaFormData.ativo ? "600" : "400",
                         }}
                       >
                         {programaFormData.ativo ? "✓" : ""} Ativo
@@ -880,11 +971,11 @@ export default function GestaoAvisos() {
                         type="button"
                         onClick={() => handleProgramaInputChange({ target: { name: 'ativo', type: 'checkbox', checked: false } })}
                         style={{
-                          flex: 1, padding: "10px", borderRadius: "6px", cursor: "pointer", transition: "all 0.2s",
-                          border: !programaFormData.ativo ? "2px solid #ef4444" : "1px solid #e2e8f0",
-                          background: !programaFormData.ativo ? "#fee2e2" : "#f8fafc",
-                          color: !programaFormData.ativo ? "#ef4444" : "#64748b",
-                          fontWeight: !programaFormData.ativo ? "bold" : "normal",
+                          flex: 1, padding: "10px", borderRadius: "8px", cursor: "pointer", transition: "all 0.2s",
+                          border: !programaFormData.ativo ? "2px solid #ef4444" : "1px solid var(--color-borderColor)",
+                          background: !programaFormData.ativo ? "#fee2e2" : "var(--color-bgPrimary)",
+                          color: !programaFormData.ativo ? "#ef4444" : "var(--color-textSecondary)",
+                          fontWeight: !programaFormData.ativo ? "600" : "400",
                         }}
                       >
                         {!programaFormData.ativo ? "✗" : ""} Inativo
@@ -892,17 +983,17 @@ export default function GestaoAvisos() {
                     </div>
                   </div>
 
-                  <div style={{ display: "flex", gap: "10px" }}>
-                    <button className="btn-primary" type="submit" disabled={isSubmitting}>
-                      {isSubmitting ? "A guardar..." : editingProgramaId ? "Atualizar" : "Criar"}
-                    </button>
+                  <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", borderTop: "1px solid var(--color-borderColorLight)", paddingTop: "20px" }}>
                     <button
-                      className="btn-soft-cta"
                       type="button"
                       onClick={handleCloseProgramaModal}
                       disabled={isSubmitting}
+                      style={{ ...styles.primaryBtn, background: "transparent", border: "1px solid var(--color-borderColor)", color: "var(--color-textPrimary)", boxShadow: "none" }}
                     >
                       Cancelar
+                    </button>
+                    <button style={styles.primaryBtn} type="submit" disabled={isSubmitting}>
+                      {isSubmitting ? "A guardar..." : editingProgramaId ? "Atualizar Programa" : "Criar Programa"}
                     </button>
                   </div>
                 </form>
@@ -915,140 +1006,79 @@ export default function GestaoAvisos() {
       {/* MODAL AVISO */}
       {avisoModalOpen && (
         <ModalPortal>
-          <div
-            className="modal-overlay"
-            onClick={handleCloseAvisoModal}
-            style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
-          >
+          <div style={styles.modalOverlay} onClick={handleCloseAvisoModal}>
             <div
-              className="modal-content"
-              style={{ width: "700px", maxWidth: "90vw", maxHeight: "90vh", overflow: "hidden" }}
+              style={{ ...styles.modalContent, width: "650px", maxWidth: "90vw", maxHeight: "90vh", overflow: "hidden" }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="modal-header">
-                <h3 style={{ margin: 0 }}>{editingAvisoId ? "Editar Aviso" : "Novo Aviso"}</h3>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderBottom: "1px solid var(--color-borderColorLight)" }}>
+                <h3 style={{ margin: 0, color: "var(--color-textPrimary)" }}>{editingAvisoId ? "Editar Aviso" : "Novo Aviso"}</h3>
                 <button
-                  className="close-btn"
                   type="button"
                   onClick={handleCloseAvisoModal}
-                  style={{ cursor: "pointer", border: "none", background: "none", fontSize: "1.5rem" }}
+                  style={{ cursor: "pointer", border: "none", background: "none", fontSize: "1.5rem", color: "var(--color-textLight)" }}
                 >
                   ×
                 </button>
               </div>
 
-              <div className="modal-body">
+              <div style={{ padding: "24px", overflowY: "auto" }}>
                 <form onSubmit={handleAvisoSubmit}>
-                  <div style={{ marginBottom: "16px" }}>
-                    <label style={{ display: "block", marginBottom: "6px", fontWeight: 500 }}>
-                      Código
-                    </label>
+                  <div style={{ marginBottom: "20px" }}>
+                    <label style={styles.label}>Código do Aviso</label>
                     <input
                       type="text"
                       name="codigo"
                       value={avisoFormData.codigo}
                       onChange={handleAvisoInputChange}
                       placeholder="ex. ALGARVE-2025-36"
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        border: "1px solid #ccc",
-                        borderRadius: "4px",
-                        fontFamily: "inherit",
-                      }}
+                      style={styles.input}
                     />
                   </div>
 
-                  <div style={{ marginBottom: "16px" }}>
-                    <label style={{ display: "block", marginBottom: "6px", fontWeight: 500 }}>
-                      Nome
-                    </label>
-                    <input
-                      type="text"
-                      name="nome"
-                      value={avisoFormData.nome}
-                      onChange={handleAvisoInputChange}
-                      placeholder="ex. SICE – Qualificação das PME"
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        border: "1px solid #ccc",
-                        borderRadius: "4px",
-                        fontFamily: "inherit",
-                      }}
-                    />
-                  </div>
-
-                  <div style={{ marginBottom: "16px" }}>
-                    <label style={{ display: "block", marginBottom: "6px", fontWeight: 500 }}>
-                      Descrição (opcional)
-                    </label>
-                    <textarea
-                      name="descricao"
-                      value={avisoFormData.descricao}
-                      onChange={handleAvisoInputChange}
-                      placeholder="Descrição do aviso..."
-                      rows="4"
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        border: "1px solid #ccc",
-                        borderRadius: "4px",
-                        fontFamily: "inherit",
-                        resize: "vertical",
-                      }}
-                    />
-                  </div>
-
-                  <div style={{ marginBottom: "16px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px", gap: "10px" }}>
-                      <label style={{ margin: 0, fontWeight: 500 }}>Fases / Prazos</label>
-                      <button type="button" className="btn-small" onClick={addAvisoFase}>
+                  <div style={{ marginBottom: "24px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                      <label style={{ ...styles.label, marginBottom: 0 }}>Fases / Prazos</label>
+                      <button
+                        type="button"
+                        onClick={addAvisoFase}
+                        style={{ ...styles.primaryBtn, background: "var(--wow-primary-soft)", color: "var(--color-btnPrimary)", padding: "4px 12px", boxShadow: "none", fontSize: "0.85rem" }}
+                      >
                         <Icons.Plus /> Adicionar fase
                       </button>
                     </div>
 
-                    <div style={{ display: "grid", gap: "10px" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                       {normalizeFases(avisoFormData.fases).map((fase, index) => (
-                        <div key={`${index}`} style={{ padding: "12px", border: "1px solid #e5e7eb", borderRadius: "8px", background: "#fafafa" }}>
-                          <div style={{ display: "grid", gridTemplateColumns: "1fr 180px auto", gap: "10px", alignItems: "end" }}>
+                        <div key={`${index}`} style={{ padding: "16px", border: "1px solid var(--color-borderColor)", borderRadius: "12px", background: "var(--color-bgSecondary)" }}>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 180px auto", gap: "12px", alignItems: "end" }}>
                             <div>
-                              <label style={{ display: "block", marginBottom: "6px", fontWeight: 500 }}>Nome da fase</label>
+                              <label style={{ ...styles.label, fontSize: "0.85rem" }}>Nome da fase</label>
                               <input
                                 type="text"
                                 value={fase.nome}
                                 onChange={(event) => updateAvisoFase(index, "nome", event.target.value)}
                                 placeholder={`Fase ${index + 1}`}
-                                style={{
-                                  width: "100%",
-                                  padding: "8px 12px",
-                                  border: "1px solid #ccc",
-                                  borderRadius: "4px",
-                                  fontFamily: "inherit",
-                                }}
+                                style={styles.input}
                               />
                             </div>
                             <div>
-                              <label style={{ display: "block", marginBottom: "6px", fontWeight: 500 }}>Prazo</label>
+                              <label style={{ ...styles.label, fontSize: "0.85rem" }}>Prazo</label>
                               <input
                                 type="date"
                                 value={fase.prazo}
                                 onChange={(event) => updateAvisoFase(index, "prazo", event.target.value)}
-                                style={{
-                                  width: "100%",
-                                  padding: "8px 12px",
-                                  border: "1px solid #ccc",
-                                  borderRadius: "4px",
-                                  fontFamily: "inherit",
-                                }}
+                                style={styles.input}
                               />
                             </div>
                             <div>
                               <button
                                 type="button"
-                                className="btn-small"
+                                style={{ ...styles.actionBtn, borderColor: "transparent", background: "transparent", width: "40px", height: "40px" }}
                                 onClick={() => removeAvisoFase(index)}
                                 disabled={normalizeFases(avisoFormData.fases).length === 1}
+                                onMouseOver={(e) => { e.currentTarget.style.color = "#ef4444" }}
+                                onMouseOut={(e) => { e.currentTarget.style.color = "var(--color-textSecondary)" }}
                               >
                                 <Icons.Trash />
                               </button>
@@ -1059,20 +1089,18 @@ export default function GestaoAvisos() {
                     </div>
                   </div>
 
-                  <div style={{ marginBottom: "24px" }}>
-                    <label style={{ display: "block", marginBottom: "8px", fontWeight: 500 }}>
-                      Estado
-                    </label>
+                  <div style={{ marginBottom: "30px" }}>
+                    <label style={styles.label}>Estado</label>
                     <div style={{ display: "flex", gap: "10px" }}>
                       <button
                         type="button"
                         onClick={() => handleAvisoInputChange({ target: { name: 'ativo', type: 'checkbox', checked: true } })}
                         style={{
-                          flex: 1, padding: "10px", borderRadius: "6px", cursor: "pointer", transition: "all 0.2s",
-                          border: avisoFormData.ativo ? "2px solid #16a34a" : "1px solid #e2e8f0",
-                          background: avisoFormData.ativo ? "#dcfce7" : "#f8fafc",
-                          color: avisoFormData.ativo ? "#16a34a" : "#64748b",
-                          fontWeight: avisoFormData.ativo ? "bold" : "normal",
+                          flex: 1, padding: "10px", borderRadius: "8px", cursor: "pointer", transition: "all 0.2s",
+                          border: avisoFormData.ativo ? "2px solid var(--color-btnPrimary)" : "1px solid var(--color-borderColor)",
+                          background: avisoFormData.ativo ? "var(--wow-primary-soft)" : "var(--color-bgPrimary)",
+                          color: avisoFormData.ativo ? "var(--color-btnPrimary)" : "var(--color-textSecondary)",
+                          fontWeight: avisoFormData.ativo ? "600" : "400",
                         }}
                       >
                         {avisoFormData.ativo ? "✓" : ""} Ativo
@@ -1081,11 +1109,11 @@ export default function GestaoAvisos() {
                         type="button"
                         onClick={() => handleAvisoInputChange({ target: { name: 'ativo', type: 'checkbox', checked: false } })}
                         style={{
-                          flex: 1, padding: "10px", borderRadius: "6px", cursor: "pointer", transition: "all 0.2s",
-                          border: !avisoFormData.ativo ? "2px solid #ef4444" : "1px solid #e2e8f0",
-                          background: !avisoFormData.ativo ? "#fee2e2" : "#f8fafc",
-                          color: !avisoFormData.ativo ? "#ef4444" : "#64748b",
-                          fontWeight: !avisoFormData.ativo ? "bold" : "normal",
+                          flex: 1, padding: "10px", borderRadius: "8px", cursor: "pointer", transition: "all 0.2s",
+                          border: !avisoFormData.ativo ? "2px solid #ef4444" : "1px solid var(--color-borderColor)",
+                          background: !avisoFormData.ativo ? "#fee2e2" : "var(--color-bgPrimary)",
+                          color: !avisoFormData.ativo ? "#ef4444" : "var(--color-textSecondary)",
+                          fontWeight: !avisoFormData.ativo ? "600" : "400",
                         }}
                       >
                         {!avisoFormData.ativo ? "✗" : ""} Inativo
@@ -1093,17 +1121,17 @@ export default function GestaoAvisos() {
                     </div>
                   </div>
 
-                  <div style={{ display: "flex", gap: "10px" }}>
-                    <button className="btn-primary" type="submit" disabled={isSubmitting}>
-                      {isSubmitting ? "A guardar..." : editingAvisoId ? "Atualizar" : "Criar"}
-                    </button>
+                  <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", borderTop: "1px solid var(--color-borderColorLight)", paddingTop: "20px" }}>
                     <button
-                      className="btn-soft-cta"
                       type="button"
                       onClick={handleCloseAvisoModal}
                       disabled={isSubmitting}
+                      style={{ ...styles.primaryBtn, background: "transparent", border: "1px solid var(--color-borderColor)", color: "var(--color-textPrimary)", boxShadow: "none" }}
                     >
                       Cancelar
+                    </button>
+                    <button style={styles.primaryBtn} type="submit" disabled={isSubmitting}>
+                      {isSubmitting ? "A guardar..." : editingAvisoId ? "Atualizar Aviso" : "Criar Aviso"}
                     </button>
                   </div>
                 </form>
@@ -1113,14 +1141,62 @@ export default function GestaoAvisos() {
         </ModalPortal>
       )}
 
+      {/* MODAL DE CONFIRMAÇÃO GLOBAL */}
+      {confirmModalOpen && (
+        <ModalPortal>
+          <div style={styles.modalOverlay} onClick={() => setConfirmModalOpen(false)}>
+            <div
+              style={{ ...styles.modalContent, width: "400px", maxWidth: "90vw", padding: "30px", textAlign: "center", alignItems: "center" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ marginBottom: "16px" }}>
+                <Icons.Warning />
+              </div>
+              <h3 style={{ margin: "0 0 12px 0", color: "var(--color-textPrimary)", fontSize: "1.25rem" }}>Confirmar Ação</h3>
+              <p style={{ margin: "0 0 24px 0", color: "var(--color-textSecondary)", lineHeight: "1.5" }}>
+                {confirmMessage}
+              </p>
+              <div style={{ display: "flex", gap: "12px", justifyContent: "center", width: "100%" }}>
+                <button
+                  type="button"
+                  onClick={() => setConfirmModalOpen(false)}
+                  style={{ ...styles.primaryBtn, flex: 1, justifyContent: "center", background: "transparent", border: "1px solid var(--color-borderColor)", color: "var(--color-textPrimary)", boxShadow: "none" }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (confirmAction) confirmAction();
+                  }}
+                  style={{ ...styles.primaryBtn, flex: 1, justifyContent: "center", background: "#ef4444", boxShadow: "none" }}
+                >
+                  Apagar
+                </button>
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
+
+      {/* TOAST NOTIFICATIONS */}
       {notification && (
         <div
-          className={`toast-notification ${notification.type}`}
           style={{
             position: "fixed",
-            bottom: "20px",
-            right: "20px",
-            zIndex: 9999,
+            bottom: "40px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 99999, 
+            background: notification.type === "error" ? "#ef4444" : "var(--color-btnPrimary)",
+            color: "var(--color-textWhite)",
+            padding: "14px 28px",
+            borderRadius: "50px", 
+            boxShadow: "0 10px 25px -5px rgba(0,0,0,0.2), 0 8px 10px -6px rgba(0,0,0,0.1)",
+            fontWeight: "600",
+            animation: "fadeIn 0.3s ease-in-out",
+            textAlign: "center",
+            minWidth: "max-content",
           }}
         >
           {notification.message}
