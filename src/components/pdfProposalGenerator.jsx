@@ -41,6 +41,30 @@ const formatEstadoLabel = (estado) => {
   return map[key] || safeValue(estado);
 };
 
+const formatModoHonorarioLabel = (modo) => {
+  const key = String(modo || '').trim().toLowerCase();
+  const map = {
+    fixo: 'Fixo',
+    variavel: 'Variável',
+    ambos: 'Ambos',
+  };
+  return map[key] || safeValue(modo);
+};
+
+const normalizeModoHonorario = (modo, item = {}) => {
+  const key = String(modo || '').trim().toLowerCase();
+  if (key === 'fixo' || key === 'variavel' || key === 'ambos') {
+    return key;
+  }
+
+  const hasFixed = Number(item?.valor_fixo || item?.num_horas || 0) > 0 || Number(item?.base_eur_hora || 0) > 0;
+  const hasVariable = Array.isArray(item?.valores_variaveis) && item.valores_variaveis.length > 0;
+
+  if (hasFixed && hasVariable) return 'ambos';
+  if (hasVariable) return 'variavel';
+  return 'fixo';
+};
+
 const loadImage = (url) =>
   new Promise((resolve) => {
     const img = new Image();
@@ -78,11 +102,14 @@ export const generateProposalPDF = async (params) => {
     cliente,
     empresaConsultora,
     tipoProjeto,
+    tiposProjetoSelecionados,
     programa,
     selectedPrograma,
     selectedAviso,
     modeloEstrutura,
     orcamentoLinhas,
+    orcamentoTiposProjeto,
+    servicosConfig,
     notasExclusoes,
     condicoesGerais,
     totais,
@@ -105,12 +132,16 @@ export const generateProposalPDF = async (params) => {
   const logoBase64 = await loadImage(logoPath);
 
   // Keep PDF ordering consistent with the order defined in the Services step.
-  const orderedTipoIds = (Array.isArray(orcamentoLinhas) ? orcamentoLinhas : [])
-    .map((linha) => String(linha?.id || ''))
+  const orderedTipoIds = (Array.isArray(orcamentoTiposProjeto) && orcamentoTiposProjeto.length > 0
+    ? orcamentoTiposProjeto
+    : Array.isArray(orcamentoLinhas) ? orcamentoLinhas : [])
+    .map((item) => String(item?.tipo_projeto_id || item?.id || ''))
     .filter(Boolean);
 
-  const orderedTipoNames = (Array.isArray(orcamentoLinhas) ? orcamentoLinhas : [])
-    .map((linha) => safeValue(linha?.nome))
+  const orderedTipoNames = (Array.isArray(orcamentoTiposProjeto) && orcamentoTiposProjeto.length > 0
+    ? orcamentoTiposProjeto
+    : Array.isArray(orcamentoLinhas) ? orcamentoLinhas : [])
+    .map((item) => safeValue(item?.nome))
     .filter((name) => name && name !== '—');
 
   const getTipoOrderIndex = (tipoProjetoId) => {
@@ -177,6 +208,82 @@ export const generateProposalPDF = async (params) => {
     doc.setTextColor(...COLORS.primary);
     doc.text(text, marginX, currentY);
     currentY += 5;
+  };
+
+  const drawParagraph = (text, options = {}) => {
+    const body = safeValue(text);
+    const width = Number(options.width || contentWidth);
+    const lines = doc.splitTextToSize(body, width);
+    lines.forEach((line) => {
+      if (currentY > pageHeight - pageReserve) addNewPage();
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(Number(options.size || 9.5));
+      doc.setTextColor(...(options.color || COLORS.primary));
+      doc.text(line, marginX, currentY);
+      currentY += Number(options.lineHeight || 4.2);
+    });
+    currentY += Number(options.gap || 2);
+  };
+
+  const drawDetailsTable = (rows) => {
+    const tableRows = (Array.isArray(rows) ? rows : []).map((row) => [safeValue(row.label), safeValue(row.value)]);
+    if (tableRows.length === 0) return;
+    autoTable(doc, {
+      startY: currentY,
+      margin: { left: marginX, right: marginX },
+      body: tableRows,
+      styles: { font: 'helvetica', fontSize: 8.7, cellPadding: 3, textColor: COLORS.primary, valign: 'top' },
+      columnStyles: {
+        0: { fontStyle: 'bold', cellWidth: 52 },
+        1: { cellWidth: contentWidth - 52 },
+      },
+      alternateRowStyles: { fillColor: COLORS.light },
+    });
+    currentY = doc.lastAutoTable.finalY + 8;
+  };
+
+  const renderKeyList = (title, items) => {
+    if (!Array.isArray(items) || items.length === 0) return;
+    drawTitle(title);
+    items.forEach((item, index) => {
+      drawParagraph(`${index + 1}. ${item}`);
+    });
+  };
+
+  const renderServiceBlock = (servico) => {
+    if (!servico) return;
+    ensureSpace(20);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(...COLORS.primary);
+    doc.text(safeValue(servico.nome), marginX, currentY);
+    currentY += 5;
+
+    const details = [];
+    if (servico.codigo) details.push(`Código: ${servico.codigo}`);
+    if (servico.descricao) details.push(`Descrição: ${servico.descricao}`);
+    if (servico.honorario_tipo) details.push(`Honorário: ${servico.honorario_tipo}`);
+    if (servico.honorario_valor != null) details.push(`Valor base: ${formatCurrency(servico.honorario_valor)}`);
+    if (servico.honorario_minimo != null) details.push(`Mínimo: ${formatCurrency(servico.honorario_minimo)}`);
+    if (servico.premio_aprovacao) {
+      const premioTexto = [servico.premio_fixo != null ? formatCurrency(servico.premio_fixo) : null, servico.premio_pct != null ? `${servico.premio_pct}%` : null].filter(Boolean).join(' + ');
+      if (premioTexto) details.push(`Prémio de aprovação: ${premioTexto}`);
+    }
+    if (servico.condicoes) details.push(`Condições: ${servico.condicoes}`);
+
+    if (details.length > 0) {
+      details.forEach((line) => drawParagraph(line, { size: 8.6, gap: 1.2 }));
+    }
+
+    if (Array.isArray(servico.entregaveis) && servico.entregaveis.length > 0) {
+      renderKeyList('Entregáveis', servico.entregaveis);
+    }
+
+    if (Array.isArray(servico.atividades) && servico.atividades.length > 0) {
+      renderKeyList('Atividades', servico.atividades);
+    }
+
+    currentY += 2;
   };
 
   // Starts each major section on its own page to avoid overlap and improve readability.
@@ -386,13 +493,15 @@ Gratos pela vossa atenção, ficamos ao dispor para qualquer questão adicional.
   currentY += 5;
   doc.text(`E: ${empresaConsultora?.email || '—'}`, marginX, currentY);
 
+  const numeroLabel = propNum && propNum !== '—' ? propNum : 'Por atribuir';
+  const tipoProjetoLabel = orderedTipoNames.length > 0 ? orderedTipoNames.join(' + ') : safeValue(tipoProjeto?.nome);
+  
   // ============================================================================
   // CONTEÚDO TÉCNICO (Página 3 em diante)
   // ============================================================================
   startMainSection('ENQUADRAMENTO');
 
   drawTitle('Detalhes da Proposta');
-  const numeroLabel = propNum && propNum !== '—' ? propNum : 'Por atribuir';
   drawTwoColumn(
     [
       { label: 'Número', value: numeroLabel },
@@ -412,22 +521,39 @@ Gratos pela vossa atenção, ficamos ao dispor para qualquer questão adicional.
   }
 
   drawTitle('Enquadramento de Financiamento');
-  const avisoLabel = selectedAviso?.nome || selectedAviso?.codigo || selectedPrograma?.aviso || '—';
   drawTwoColumn(
     [
       {
         label: 'Tipo de projeto',
         value: orderedTipoNames.length > 0 ? orderedTipoNames.join(' + ') : tipoProjeto?.nome,
       },
-      { label: 'Programa', value: programa?.nome || '—' },
-      { label: 'Aviso', value: avisoLabel },
     ],
     [
       { label: 'Investimento elegível', value: fmtCurrency ? fmtCurrency(proposta?.investimento || 0) : formatCurrency(proposta?.investimento || 0) },
       { label: 'Taxa de incentivo', value: programa?.pct ? `${programa.pct}%` : '—' },
-      { label: 'Dotação', value: selectedAviso?.dotacao != null ? (fmtCurrency ? fmtCurrency(selectedAviso.dotacao) : formatCurrency(selectedAviso.dotacao)) : '—' },
     ]
   );
+
+  if (programa?.nome || selectedAviso?.nome || selectedAviso?.codigo || selectedPrograma?.aviso) {
+    drawTitle('Programa e Aviso');
+    drawTwoColumn(
+      [
+        { label: 'Programa', value: programa?.nome || '—' },
+        { label: 'Objetivos', value: selectedPrograma?.objetivos || '—' },
+      ],
+      [
+        { label: 'Aviso', value: selectedAviso?.nome || selectedAviso?.codigo || selectedPrograma?.aviso || '—' },
+        { label: 'Ações elegíveis', value: selectedPrograma?.acoes_elegiveis || '—' },
+      ]
+    );
+    if (selectedPrograma?.descricao || selectedPrograma?.objetivos || selectedPrograma?.acoes_elegiveis || selectedPrograma?.condicoes_especificas) {
+      if (selectedPrograma?.descricao) drawParagraph(`Descrição: ${selectedPrograma.descricao}`);
+      if (selectedPrograma?.condicoes_especificas) drawParagraph(`Condições específicas: ${selectedPrograma.condicoes_especificas}`);
+      if (selectedAviso?.fases && selectedAviso.fases.length > 0) {
+        renderKeyList('Prazos / Fases do Aviso', selectedAviso.fases.map((fase) => `${fase.nome || 'Fase'} — ${formatDate(fase.prazo)}`));
+      }
+    }
+  }
 
   startMainSection('ATIVIDADES');
   
@@ -472,80 +598,75 @@ Gratos pela vossa atenção, ficamos ao dispor para qualquer questão adicional.
   }
 
   startMainSection('ORÇAMENTO');
-  
-  if (orcamentoLinhas && orcamentoLinhas.length > 0) {
+  const orcamentoTabelaRows = [];
+  const orcamentoTableStyles = [];
+
+  if (Array.isArray(orcamentoTiposProjeto) && orcamentoTiposProjeto.length > 0) {
+    orcamentoTiposProjeto.forEach((item) => {
+      const modo = normalizeModoHonorario(item.modo_honorario, item);
+      const pagamentoTexto = (item.plano_pagamentos || []).length > 0
+        ? (item.plano_pagamentos || [])
+            .map((pag) => `${Number(pag.percentagem || 0)}% ${safeValue(pag.descricao)}`)
+            .join('\n')
+        : '—';
+
+      if (modo !== 'variavel') {
+        orcamentoTabelaRows.push([
+          `Módulo ${safeValue(item.ordem)} - ${safeValue(item.nome)}`,
+          fmtCurrency ? fmtCurrency(item.valor_fixo || item.valor || 0) : formatCurrency(item.valor_fixo || item.valor || 0),
+          pagamentoTexto,
+        ]);
+        orcamentoTableStyles.push('fixed');
+      }
+
+      if (modo !== 'fixo' && Array.isArray(item.valores_variaveis) && item.valores_variaveis.length > 0) {
+        item.valores_variaveis.forEach((variavel) => {
+          const subtotalTexto = `${fmtCurrency ? fmtCurrency(variavel.valor_base || 0) : formatCurrency(variavel.valor_base || 0)} + ${Number(variavel.percentagem || 0)}% ${safeValue(variavel.variavel)}`;
+          orcamentoTabelaRows.push([
+            safeValue(variavel.servico || variavel.variavel || item.nome),
+            subtotalTexto,
+            safeValue(variavel.descricao),
+          ]);
+          orcamentoTableStyles.push('variable');
+        });
+      }
+    });
+  }
+
+  if (orcamentoTabelaRows.length > 0) {
     autoTable(doc, {
       startY: currentY,
       margin: { left: marginX, right: marginX },
-      head: [['Serviço', 'Descrição', 'Honorário', 'Valor']],
-      body: orcamentoLinhas.map((linha) => [
-        `Módulo ${safeValue(linha.codigo)}`,
-        safeValue(linha.nome),
-        safeValue(linha.honorarioLabel),
-        fmtCurrency ? fmtCurrency(linha.valor) : formatCurrency(linha.valor),
-      ]),
-      styles: { font: 'helvetica', fontSize: 8.5, cellPadding: 4, valign: 'middle', textColor: COLORS.primary },
+      head: [['Serviço', 'Subtotal', 'Condições de Pagamento']],
+      body: orcamentoTabelaRows,
+      styles: {
+        font: 'helvetica',
+        fontSize: 8.5,
+        cellPadding: 4,
+        valign: 'middle',
+        textColor: COLORS.primary,
+        overflow: 'linebreak',
+      },
       headStyles: { fillColor: COLORS.primary, textColor: COLORS.white, fontStyle: 'bold' },
+      columnStyles: {
+        0: { cellWidth: 58, fontStyle: 'bold' },
+        1: { cellWidth: 72, halign: 'center' },
+        2: { cellWidth: contentWidth - 130 },
+      },
       alternateRowStyles: { fillColor: COLORS.light },
+      didParseCell: (hookData) => {
+        const rowType = orcamentoTableStyles[hookData.row.index];
+        if (rowType === 'fixed') {
+          hookData.cell.styles.fontStyle = 'bold';
+        }
+        if (hookData.section === 'body' && hookData.column.index === 1 && rowType === 'variable') {
+          hookData.cell.styles.fontStyle = 'normal';
+        }
+      },
     });
-    currentY = doc.lastAutoTable.finalY + 8;
-  }
-
-  drawTitle('Condições de Pagamento');
-  if (!orcamentoLinhas || orcamentoLinhas.length === 0) {
-    drawFieldValue('', 'Sem serviços configurados', marginX, contentWidth);
+    currentY = doc.lastAutoTable.finalY + 10;
   } else {
-    const planos = [];
-    const ivaRate = Number(proposta?.iva || 23);
-    let baseDataEmissao = new Date(proposta?.data_aceite || proposta?.data || new Date());
-    if (Number.isNaN(baseDataEmissao.getTime())) {
-      baseDataEmissao = new Date();
-    }
-
-    orcamentoLinhas.forEach((linha) => {
-      (linha.plano_pagamentos || []).forEach((pag) => {
-        const percentagem = Number(pag.percentagem || 0);
-        const valorSemIva = Number(linha.valor || 0) * (percentagem / 100);
-        const valorIva = valorSemIva * (ivaRate / 100);
-        const valorComIva = valorSemIva + valorIva;
-
-        const dataEmissao = new Date(baseDataEmissao.getTime() + Number(pag.dias_apos_aceite || 0) * 24 * 60 * 60 * 1000);
-        const dataEmissaoStr = dataEmissao.toLocaleDateString('pt-PT', { month: '2-digit', year: 'numeric' });
-        const trimestre = `Q${Math.floor(dataEmissao.getMonth() / 3) + 1}-${dataEmissao.getFullYear()}`;
-
-        planos.push([
-          safeValue(linha.nome),
-          dataEmissaoStr,
-          trimestre,
-          safeValue(pag.descricao),
-          `${percentagem}%`,
-          fmtCurrency ? fmtCurrency(valorSemIva) : formatCurrency(valorSemIva),
-          fmtCurrency ? fmtCurrency(valorIva) : formatCurrency(valorIva),
-          fmtCurrency ? fmtCurrency(valorComIva) : formatCurrency(valorComIva),
-          `Dia ${Number(pag.dias_apos_aceite || 0)}${Number(pag.dias_apos_aceite || 0) === 0 ? ' (Imediato)' : ''}`
-        ]);
-      });
-    });
-
-    if (planos.length > 0) {
-      autoTable(doc, {
-        startY: currentY,
-        margin: { left: marginX, right: marginX },
-        head: [['Módulo', 'Data Emissão', 'Trimestre', 'Condição', '%', 's/IVA (€)', `IVA ${ivaRate}% (€)`, 'c/IVA (€)', 'Prazo']],
-        body: planos,
-        styles: { font: 'helvetica', fontSize: 8.2, cellPadding: 3, textColor: COLORS.primary },
-        headStyles: { fillColor: COLORS.primary, textColor: COLORS.white, fontStyle: 'bold' },
-        columnStyles: {
-          4: { halign: 'center' },
-          5: { halign: 'right' },
-          6: { halign: 'right' },
-          7: { halign: 'right' },
-          8: { halign: 'center' },
-        },
-        alternateRowStyles: { fillColor: COLORS.light },
-      });
-      currentY = doc.lastAutoTable.finalY + 10;
-    }
+    drawFieldValue('', 'Sem serviços configurados', marginX, contentWidth);
   }
 
   if (totais) {

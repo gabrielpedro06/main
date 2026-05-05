@@ -104,10 +104,14 @@ const INITIAL_ORCAMENTO_TIPO_PROJETO = {
   tipo_projeto_id: "",
   nome: "",
   ordem: 1,
+  modo_honorario: "fixo",
   num_horas: 0,
   base_eur_hora: 0,
+  valor_fixo: 0,
+  valor_variavel: 0,
   valor: 0,
   plano_pagamentos: [],
+  valores_variaveis: [],
 };
 const INITIAL_PROPOSTA = {
   db_id: "",
@@ -203,10 +207,69 @@ const decimalFormatter = new Intl.NumberFormat("pt-PT", {
 const DEFAULT_ORCAMENTO_HORAS = 0;
 const DEFAULT_ORCAMENTO_BASE_EUR = 50;
 
+const normalizeModoHonorario = (value, item = {}) => {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (["fixo", "variavel", "ambos"].includes(normalized)) return normalized;
+
+  const hasValoresVariaveis = Array.isArray(item?.valores_variaveis) && item.valores_variaveis.length > 0;
+  const hasFixedFields = item?.num_horas !== undefined || item?.base_eur_hora !== undefined;
+  const hasLegacyValor = Number(item?.valor || 0) > 0;
+
+  if (hasValoresVariaveis && (hasFixedFields || hasLegacyValor)) return "ambos";
+  if (hasValoresVariaveis) return "variavel";
+  return "fixo";
+};
+
+const getValorFixoOrcamentoTipo = (item = {}) => Number(item?.num_horas || 0) * Number(item?.base_eur_hora || 0);
+
+const getValorVariavelOrcamentoTipo = (item = {}) =>
+  (Array.isArray(item?.valores_variaveis) ? item.valores_variaveis : []).reduce(
+    (accumulator, variavel) => accumulator + Number(variavel?.valor_base || 0) * (Number(variavel?.percentagem || 0) / 100),
+    0
+  );
+
+const calcularOrcamentoTipoProjeto = (item = {}) => {
+  const modo = normalizeModoHonorario(item?.modo_honorario, item);
+  const valorFixo = modo === "variavel" ? 0 : getValorFixoOrcamentoTipo(item);
+  const valorVariavel = modo === "fixo" ? 0 : getValorVariavelOrcamentoTipo(item);
+  const total = valorFixo + valorVariavel;
+
+  return {
+    ...item,
+    modo_honorario: modo,
+    valor_fixo: Number(valorFixo || 0),
+    valor_variavel: Number(valorVariavel || 0),
+    valor: Number(total || 0),
+  };
+};
+
 const normalizeOrcamentoTipoProjetoItem = (item = {}, index = 0, fallbackHoras = DEFAULT_ORCAMENTO_HORAS, fallbackBase = DEFAULT_ORCAMENTO_BASE_EUR) => {
   const hasHoras = item?.num_horas !== undefined && item?.num_horas !== null;
   const hasBase = item?.base_eur_hora !== undefined && item?.base_eur_hora !== null;
   const legacyValor = Number(item?.valor || 0);
+  const modo = normalizeModoHonorario(item?.modo_honorario, item);
+
+  const valoresVariaveis = Array.isArray(item?.valores_variaveis)
+    ? item.valores_variaveis.map((v, vi) => ({
+        id: v?.id || `variavel-${index + 1}-${vi + 1}`,
+        servico: String(v?.servico || v?.nome || ""),
+        valor_base: Number(v?.valor_base || v?.valor || 0),
+        variavel: String(v?.variavel || v?.descricao || ""),
+        percentagem: Number(v?.percentagem || 0),
+        descricao: String(v?.descricao || ""),
+      }))
+    : [];
+
+  if (modo !== "fixo" && valoresVariaveis.length === 0) {
+    valoresVariaveis.push({
+      id: `variavel-${index + 1}-1`,
+      servico: "",
+      valor_base: 0,
+      variavel: "",
+      percentagem: 0,
+      descricao: "",
+    });
+  }
 
   const base = hasBase
     ? Number(item.base_eur_hora || 0)
@@ -220,16 +283,14 @@ const normalizeOrcamentoTipoProjetoItem = (item = {}, index = 0, fallbackHoras =
       ? legacyValor / base
       : Number(fallbackHoras || DEFAULT_ORCAMENTO_HORAS);
 
-  const total = Number(horas || 0) * Number(base || 0);
-
-  return {
+  return calcularOrcamentoTipoProjeto({
     ...INITIAL_ORCAMENTO_TIPO_PROJETO,
     ...item,
     ordem: Number(item?.ordem || index + 1),
     num_horas: Number(horas || 0),
     base_eur_hora: Number(base || 0),
-    valor: Number(total || 0),
-  };
+    valores_variaveis: valoresVariaveis,
+  });
 };
 
 const stepTitles = [
@@ -940,11 +1001,15 @@ export default function PropostasComerciais() {
         cliente,
         empresaConsultora,
         tipoProjeto: tiposProjetoSelecionados[0] || INITIAL_TIPO_PROJETO,
+        tiposProjetoSelecionados,
         programa,
         selectedPrograma,
         selectedAviso,
         modeloEstrutura,
         orcamentoLinhas,
+        orcamentoTiposProjeto,
+        servicosConfig: servicos,
+        planoPagamentosConsolidado,
         notasExclusoes,
         condicoesGerais,
         totais,
@@ -1341,17 +1406,19 @@ export default function PropostasComerciais() {
           ? (() => {
               const next = {
                 ...item,
-                [field]: Number(value || 0),
+                [field]: field === "modo_honorario" ? value : Number(value || 0),
               };
 
-              if (field === "num_horas" || field === "base_eur_hora") {
-                next.valor = Number(next.num_horas || 0) * Number(next.base_eur_hora || 0);
-              } else if (field === "valor") {
-                const base = Number(next.base_eur_hora || 0);
-                next.num_horas = base > 0 ? Number(next.valor || 0) / base : Number(next.valor || 0);
+              if (field === "modo_honorario") {
+                const modo = normalizeModoHonorario(value, next);
+                if (modo !== "fixo" && (!Array.isArray(next.valores_variaveis) || next.valores_variaveis.length === 0)) {
+                  next.valores_variaveis = [
+                    { id: `variavel-${String(tipoProjetoId)}-1`, servico: "", valor_base: 0, variavel: "", percentagem: 0, descricao: "" },
+                  ];
+                }
               }
 
-              return next;
+              return calcularOrcamentoTipoProjeto(next);
             })()
           : item
       )
@@ -1441,6 +1508,48 @@ export default function PropostasComerciais() {
         return {
           ...item,
           plano_pagamentos: (item.plano_pagamentos || []).filter((_, pagIndex) => pagIndex !== index),
+        };
+      })
+    );
+  };
+
+  const addVariavelTipoProjeto = (tipoProjetoId) => {
+    setOrcamentoTiposProjeto((previous) =>
+      previous.map((item) => {
+        if (String(item.tipo_projeto_id) !== String(tipoProjetoId)) return item;
+        const next = Array.isArray(item.valores_variaveis) ? [...item.valores_variaveis] : [];
+        next.push({ id: `variavel-${String(tipoProjetoId)}-${next.length + 1}`, servico: "", valor_base: 0, variavel: "", percentagem: 0, descricao: "" });
+        return calcularOrcamentoTipoProjeto({ ...item, valores_variaveis: next });
+      })
+    );
+  };
+
+  const updateVariavelTipoProjeto = (tipoProjetoId, index, field, value) => {
+    setOrcamentoTiposProjeto((previous) =>
+      previous.map((item) => {
+        if (String(item.tipo_projeto_id) !== String(tipoProjetoId)) return item;
+        const valoresVariaveis = (item.valores_variaveis || []).map((v, vi) =>
+          vi === index
+            ? {
+                ...v,
+                [field]: field === "valor_base" || field === "percentagem" ? Number(value || 0) : String(value || ""),
+              }
+            : v
+        );
+        return {
+          ...calcularOrcamentoTipoProjeto({ ...item, valores_variaveis: valoresVariaveis }),
+        };
+      })
+    );
+  };
+
+  const removeVariavelTipoProjeto = (tipoProjetoId, index) => {
+    setOrcamentoTiposProjeto((previous) =>
+      previous.map((item) => {
+        if (String(item.tipo_projeto_id) !== String(tipoProjetoId)) return item;
+        const valoresVariaveis = (item.valores_variaveis || []).filter((_, vi) => vi !== index);
+        return {
+          ...calcularOrcamentoTipoProjeto({ ...item, valores_variaveis: valoresVariaveis }),
         };
       })
     );
@@ -1643,14 +1752,14 @@ export default function PropostasComerciais() {
       tiposProjetoOrdenadosPorServico.map((tipo, index) => {
         const existing = previous.find((item) => String(item.tipo_projeto_id) === String(tipo.id));
         if (existing) {
-          return {
+          return calcularOrcamentoTipoProjeto({
             ...existing,
             nome: tipo.nome,
             ordem: index + 1,
-          };
+          });
         }
 
-        return {
+        return calcularOrcamentoTipoProjeto({
           ...normalizeOrcamentoTipoProjetoItem(
             {
               tipo_projeto_id: tipo.id,
@@ -1665,7 +1774,7 @@ export default function PropostasComerciais() {
           nome: tipo.nome,
           ordem: index + 1,
           plano_pagamentos: createPlanoPagamentoServico(),
-        };
+        });
       })
     );
   }, [tiposProjetoOrdenadosPorServico]);
@@ -1673,6 +1782,8 @@ export default function PropostasComerciais() {
   const orcamentoLinhas = useMemo(() => {
     return orcamentoTiposProjeto.map((item, index) => {
       const valor = Number(item.valor || 0);
+      const valorFixo = Number(item.valor_fixo || 0);
+      const valorVariavel = Number(item.valor_variavel || 0);
       const horas = Number(item.num_horas || 0);
       const base = Number(item.base_eur_hora || 0);
 
@@ -1680,10 +1791,14 @@ export default function PropostasComerciais() {
         id: item.tipo_projeto_id || `tipo-${index + 1}`,
         codigo: item.ordem || index + 1,
         nome: item.nome,
+        modo_honorario: normalizeModoHonorario(item.modo_honorario, item),
+        valor_fixo: valorFixo,
+        valor_variavel: valorVariavel,
         valor,
         honorarioLabel: `Num horas: ${decimalFormatter.format(horas)}h | Base: ${formatCurrency(base)}`,
         condicoes: "",
         plano_pagamentos: Array.isArray(item.plano_pagamentos) ? item.plano_pagamentos : [],
+        valores_variaveis: Array.isArray(item.valores_variaveis) ? item.valores_variaveis : [],
       };
     });
   }, [orcamentoTiposProjeto]);
@@ -1710,6 +1825,74 @@ export default function PropostasComerciais() {
       ),
     [orcamentoTiposProjeto]
   );
+
+  useEffect(() => {
+    setOrcamentoTiposProjeto((previous) => {
+      let changed = false;
+
+      const next = (Array.isArray(previous) ? previous : []).map((item) => {
+        const modo = normalizeModoHonorario(item?.modo_honorario, item);
+        if (modo === "fixo") return item;
+
+        if (Array.isArray(item.valores_variaveis) && item.valores_variaveis.length > 0) {
+          return item;
+        }
+
+        changed = true;
+        return {
+          ...item,
+          valores_variaveis: [
+            { id: `variavel-${String(item.tipo_projeto_id || item.id || "item")}-1`, servico: "", valor_base: 0, variavel: "", percentagem: 0, descricao: "" },
+          ],
+        };
+      });
+
+      return changed ? next.map((item) => calcularOrcamentoTipoProjeto(item)) : previous;
+    });
+  }, [orcamentoTiposProjeto]);
+
+  const serializarOrcamentoTiposProjeto = (tipos = []) =>
+    (Array.isArray(tipos) ? tipos : []).map((item) => {
+      const modo = normalizeModoHonorario(item?.modo_honorario, item);
+      const base = {
+        ...item,
+        modo_honorario: modo,
+      };
+
+      if (modo === "fixo") {
+        return {
+          ...base,
+          num_horas: Number(item?.num_horas || 0),
+          base_eur_hora: Number(item?.base_eur_hora || 0),
+          valor_fixo: Number(item?.valor_fixo || item?.valor || 0),
+          valor_variavel: 0,
+          valores_variaveis: [],
+          valor: Number(item?.valor_fixo || item?.valor || 0),
+        };
+      }
+
+      if (modo === "variavel") {
+        return {
+          ...base,
+          num_horas: 0,
+          base_eur_hora: 0,
+          valor_fixo: 0,
+          valor_variavel: Number(item?.valor_variavel || item?.valor || 0),
+          valores_variaveis: Array.isArray(item?.valores_variaveis) ? item.valores_variaveis : [],
+          valor: Number(item?.valor_variavel || item?.valor || 0),
+        };
+      }
+
+      return {
+        ...base,
+        num_horas: Number(item?.num_horas || 0),
+        base_eur_hora: Number(item?.base_eur_hora || 0),
+        valor_fixo: Number(item?.valor_fixo || 0),
+        valor_variavel: Number(item?.valor_variavel || 0),
+        valores_variaveis: Array.isArray(item?.valores_variaveis) ? item.valores_variaveis : [],
+        valor: Number(item?.valor || 0),
+      };
+    });
 
   // Compat layer for Step 3 visual block
   const programasDisponiveis = useMemo(
@@ -1745,7 +1928,7 @@ export default function PropostasComerciais() {
       total_sem_iva: totais.totalSemIva,
       total_iva: totais.totalIva,
       total_com_iva: totais.totalComIva,
-      tipos_projeto: orcamentoTiposProjeto,
+      tipos_projeto: serializarOrcamentoTiposProjeto(orcamentoTiposProjeto),
       plano_pagamentos: planoPagamentosConsolidado,
       notas: notasExclusoes,
     },
@@ -2411,6 +2594,9 @@ export default function PropostasComerciais() {
                   orcamentoTiposProjeto.map((item) => {
                     const totalPercentagemPagamentos = getPlanoPagamentosTotalPercentagem(item.plano_pagamentos);
                     const podeAdicionarParcela = totalPercentagemPagamentos < 100;
+                    const modoHonorario = item.modo_honorario || "fixo";
+                    const mostrarFixo = modoHonorario !== "variavel";
+                    const mostrarVariavel = modoHonorario !== "fixo";
 
                     return (
                     <div key={item.tipo_projeto_id} style={{ marginBottom: "16px", padding: "12px", background: "#f8f9fa", borderRadius: "8px" }}>
@@ -2418,58 +2604,77 @@ export default function PropostasComerciais() {
                         <strong>Tipo {item.ordem} — {item.nome || "Sem nome"}</strong>
                       </div>
 
-                      <div className="field-grid field-grid-3" style={{ marginBottom: "8px" }}>
-                        <div className="field">
-                          <label>Num horas</label>
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.25"
-                            value={Number(item.num_horas || 0)}
-                            onChange={(event) => updateOrcamentoTipoField(item.tipo_projeto_id, "num_horas", event.target.value)}
-                          />
-                        </div>
-                        <div className="field">
-                          <label>Base (EUR/h)</label>
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={Number(item.base_eur_hora || 0)}
-                            onChange={(event) => updateOrcamentoTipoField(item.tipo_projeto_id, "base_eur_hora", event.target.value)}
-                          />
-                        </div>
-                        <div className="field">
-                          <label>Total</label>
-                          <input
-                            type="text"
-                            value={formatCurrency(Number(item.valor || 0))}
-                            readOnly
-                          />
-                          <div className="field-hint">Total = Horas x Base</div>
-                        </div>
+                      <div className="field" style={{ marginBottom: "12px", maxWidth: 260 }}>
+                        <label>Modo de honorário</label>
+                        <select
+                          value={item.modo_honorario || "fixo"}
+                          onChange={(event) => updateOrcamentoTipoField(item.tipo_projeto_id, "modo_honorario", event.target.value)}
+                        >
+                          <option value="fixo">Fixo</option>
+                          <option value="variavel">Variável</option>
+                          <option value="ambos">Ambos</option>
+                        </select>
                       </div>
 
-                      <div className="section-subtitle" style={{ marginTop: "10px" }}>Plano de Pagamentos</div>
-                      
-                      <div style={{ overflowX: "auto", marginBottom: 12 }}>
-                        <table className="propostas-pagamentos-tabela" style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, background: "#fff" }}>
-                          <thead>
-                            <tr style={{ background: "#e7f0fa" }}>
-                              <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Nº Parcela</th>
-                              <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>%</th>
-                              <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Descrição</th>
-                              <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Dias após aceite</th>
-                              <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Data Emissão</th>
-                              <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Trimestre</th>
-                              <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>s/IVA (€)</th>
-                              <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>IVA {proposta.iva || 23}% (€)</th>
-                              <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>c/IVA (€)</th>
-                              <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}></th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {(item.plano_pagamentos || []).map((pag, index) => {
+                      {mostrarFixo && (
+                        <>
+                          <div className="section-subtitle" style={{ marginTop: "10px" }}>Honorário fixo</div>
+                        <div className="field-grid field-grid-3" style={{ marginBottom: "8px" }}>
+                          <div className="field">
+                            <label>Num horas</label>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.25"
+                              value={Number(item.num_horas || 0)}
+                              onChange={(event) => updateOrcamentoTipoField(item.tipo_projeto_id, "num_horas", event.target.value)}
+                            />
+                          </div>
+                          <div className="field">
+                            <label>Base (EUR/h)</label>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={Number(item.base_eur_hora || 0)}
+                              onChange={(event) => updateOrcamentoTipoField(item.tipo_projeto_id, "base_eur_hora", event.target.value)}
+                            />
+                          </div>
+                          <div className="field">
+                            <label>Valor Fixo</label>
+                            <input
+                              type="text"
+                              value={formatCurrency(Number(item.valor_fixo || 0))}
+                              readOnly
+                            />
+                            <div className="field-hint">Fixo = Horas x Base</div>
+                          </div>
+                        </div>
+                        </>
+                      )}
+
+                      {mostrarFixo && (
+                        <>
+                          <div className="section-subtitle" style={{ marginTop: "10px" }}>Plano de Pagamentos</div>
+                          
+                          <div style={{ overflowX: "auto", marginBottom: 12 }}>
+                            <table className="propostas-pagamentos-tabela" style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, background: "#fff" }}>
+                              <thead>
+                                <tr style={{ background: "#e7f0fa" }}>
+                                  <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Nº Parcela</th>
+                                  <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>%</th>
+                                  <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Descrição</th>
+                                  <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Dias após aceite</th>
+                                  <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Data Emissão</th>
+                                  <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Trimestre</th>
+                                  <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>s/IVA (€)</th>
+                                  <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>IVA {proposta.iva || 23}% (€)</th>
+                                  <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>c/IVA (€)</th>
+                                  <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}></th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {(item.plano_pagamentos || []).map((pag, index) => {
                               const somaOutras = (item.plano_pagamentos || []).reduce(
                                 (accumulator, pagamento, pagamentoIndex) =>
                                   pagamentoIndex === index
@@ -2538,41 +2743,95 @@ export default function PropostasComerciais() {
                                   </td>
                                 </tr>
                               );
-                            })}
-                            {/* Totais */}
-                            <tr style={{ background: "#f3f4f6", fontWeight: 600 }}>
-                              <td colSpan={6} style={{ textAlign: "right", padding: "6px 8px" }}>Totais</td>
-                              <td style={{ textAlign: "right", padding: "6px 8px" }}>
-                                {formatCurrency((item.plano_pagamentos || []).reduce((acc, pag) => acc + Number(item.valor || 0) * (Number(pag.percentagem || 0) / 100), 0))}
-                              </td>
-                              <td style={{ textAlign: "right", padding: "6px 8px" }}>
-                                {formatCurrency((item.plano_pagamentos || []).reduce((acc, pag) => acc + (Number(item.valor || 0) * (Number(pag.percentagem || 0) / 100)) * (Number(proposta.iva || 23) / 100), 0))}
-                              </td>
-                              <td style={{ textAlign: "right", padding: "6px 8px" }}>
-                                {formatCurrency((item.plano_pagamentos || []).reduce((acc, pag) => acc + (Number(item.valor || 0) * (Number(pag.percentagem || 0) / 100)) * (1 + (Number(proposta.iva || 23) / 100)), 0))}
-                              </td>
-                              <td></td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-                      <div
-                        className="field-hint"
-                        style={{
-                          marginBottom: "8px",
-                          color: totalPercentagemPagamentos === 100 ? "#047857" : "#b45309",
-                        }}
-                      >
-                        Total parcelas: {Number(totalPercentagemPagamentos.toFixed(2))}% {totalPercentagemPagamentos === 100 ? "(OK)" : "(deve ser 100%)"}
-                      </div>
-                      <button
-                        type="button"
-                        className="btn-soft-cta"
-                        onClick={() => addPagamentoTipoProjeto(item.tipo_projeto_id)}
-                        disabled={!podeAdicionarParcela}
-                      >
-                        Adicionar parcela
-                      </button>
+                                })}
+                                {/* Totais */}
+                                <tr style={{ background: "#f3f4f6", fontWeight: 600 }}>
+                                  <td colSpan={6} style={{ textAlign: "right", padding: "6px 8px" }}>Totais</td>
+                                  <td style={{ textAlign: "right", padding: "6px 8px" }}>
+                                    {formatCurrency((item.plano_pagamentos || []).reduce((acc, pag) => acc + Number(item.valor || 0) * (Number(pag.percentagem || 0) / 100), 0))}
+                                  </td>
+                                  <td style={{ textAlign: "right", padding: "6px 8px" }}>
+                                    {formatCurrency((item.plano_pagamentos || []).reduce((acc, pag) => acc + (Number(item.valor || 0) * (Number(pag.percentagem || 0) / 100)) * (Number(proposta.iva || 23) / 100), 0))}
+                                  </td>
+                                  <td style={{ textAlign: "right", padding: "6px 8px" }}>
+                                    {formatCurrency((item.plano_pagamentos || []).reduce((acc, pag) => acc + (Number(item.valor || 0) * (Number(pag.percentagem || 0) / 100)) * (1 + (Number(proposta.iva || 23) / 100)), 0))}
+                                  </td>
+                                  <td></td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                          <div
+                            className="field-hint"
+                            style={{
+                              marginBottom: "8px",
+                              color: totalPercentagemPagamentos === 100 ? "#047857" : "#b45309",
+                            }}
+                          >
+                            Total parcelas: {Number(totalPercentagemPagamentos.toFixed(2))}% {totalPercentagemPagamentos === 100 ? "(OK)" : "(deve ser 100%)"}
+                          </div>
+                          <button
+                            type="button"
+                            className="btn-soft-cta"
+                            onClick={() => addPagamentoTipoProjeto(item.tipo_projeto_id)}
+                            disabled={!podeAdicionarParcela}
+                          >
+                            Adicionar parcela
+                          </button>
+                        </>
+                      )}
+
+                      {(item.modo_honorario || "fixo") === "ambos" && (
+                        <div className="field-hint" style={{ marginBottom: 8 }}>
+                          Este tipo de projeto soma o valor fixo e os valores variáveis.
+                        </div>
+                      )}
+
+                      {mostrarVariavel && (
+                        <div style={{ marginBottom: 12, paddingTop: 4 }}>
+                          <div className="section-subtitle" style={{ marginTop: "10px", marginBottom: 8 }}>Valores Variáveis</div>
+                          {(item.valores_variaveis || []).length > 0 && (
+                            <div style={{ overflowX: "auto", marginBottom: 12 }}>
+                              <table className="propostas-pagamentos-tabela" style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, background: "#fff" }}>
+                                <thead>
+                                  <tr style={{ background: "#f1f5f9" }}>
+                                    <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Serviço</th>
+                                    <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Valor Base</th>
+                                    <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Variável com base no incentivo</th>
+                                    <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>%</th>
+                                    <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Condições de Pagamento</th>
+                                    <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}></th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {(item.valores_variaveis || []).map((v, vi) => (
+                                    <tr key={`${item.tipo_projeto_id}-var-${vi}`} style={{ borderBottom: "1px solid #e2e8f0" }}>
+                                      <td style={{ padding: "6px 8px", minWidth: 160 }}>
+                                        <input type="text" value={v.servico || ""} onChange={(e) => updateVariavelTipoProjeto(item.tipo_projeto_id, vi, "servico", e.target.value)} placeholder="Serviço" style={{ width: "100%" }} />
+                                      </td>
+                                      <td style={{ padding: "6px 8px", textAlign: "right", minWidth: 120 }}>
+                                        <input type="number" step="0.01" min="0" value={Number(v.valor_base || 0)} onChange={(e) => updateVariavelTipoProjeto(item.tipo_projeto_id, vi, "valor_base", e.target.value)} style={{ width: 120, textAlign: "right" }} />
+                                      </td>
+                                      <td style={{ padding: "6px 8px" }}>
+                                        <input type="text" value={v.variavel || ""} onChange={(e) => updateVariavelTipoProjeto(item.tipo_projeto_id, vi, "variavel", e.target.value)} placeholder="Ex.: 1% do incentivo" style={{ width: "100%" }} />
+                                      </td>
+                                      <td style={{ padding: "6px 8px", textAlign: "center", minWidth: 80 }}>
+                                        <input type="number" step="0.01" min="0" value={Number(v.percentagem || 0)} onChange={(e) => updateVariavelTipoProjeto(item.tipo_projeto_id, vi, "percentagem", e.target.value)} style={{ width: 80, textAlign: "center" }} />
+                                      </td>
+                                      <td style={{ padding: "6px 8px" }}>
+                                        <input type="text" value={v.descricao || ""} onChange={(e) => updateVariavelTipoProjeto(item.tipo_projeto_id, vi, "descricao", e.target.value)} placeholder="Descrição" style={{ width: "100%" }} />
+                                      </td>
+                                      <td style={{ textAlign: "center", padding: "2px 4px" }}>
+                                        <button type="button" className="btn-small" onClick={() => removeVariavelTipoProjeto(item.tipo_projeto_id, vi)}>x</button>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                     );
                   })
