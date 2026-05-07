@@ -65,6 +65,7 @@ export default function ListaPropostas() {
   const navigate = useNavigate();
   const [propostas, setPropostas] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filtroTipo, setFiltroTipo] = useState("todos");
   const [filtroEstado, setFiltroEstado] = useState("todos");
   const [busca, setBusca] = useState("");
   const [viewMode, setViewMode] = useState("cards");
@@ -167,12 +168,36 @@ export default function ListaPropostas() {
     return "—";
   };
 
+  const getTipoProposta = (proposta) => {
+    const payload = proposta.payload || {};
+    const tipo = String(payload.tipo_proposta || payload.proposta?.tipo || "").toLowerCase();
+    if (tipo.includes("form")) return "formacao";
+    if (tipo.includes("financ")) return "financiamento";
+    if (Array.isArray(payload.cursos) && payload.cursos.length > 0) return "formacao";
+    return "financiamento";
+  };
+
+  const getTipoPropostaLabel = (proposta) =>
+    getTipoProposta(proposta) === "formacao" ? "Formação" : "Financiamento";
+
+  const getCursosNome = (proposta) => {
+    const cursos = Array.isArray(proposta.payload?.cursos) ? proposta.payload.cursos : [];
+    const nomes = cursos.map((curso) => curso?.nome).filter(Boolean);
+    return nomes.join(" + ");
+  };
+
   const getTipoProjetoNome = (proposta) => {
+    if (getTipoProposta(proposta) === "formacao") {
+      return getCursosNome(proposta) || "Formação";
+    }
+
     if (proposta.payload?.tipo_projeto?.nome) {
       return proposta.payload.tipo_projeto.nome;
     }
     return "—";
   };
+
+  const getTituloProposta = (proposta) => getTipoProjetoNome(proposta);
 
   const getPropostaSigla = (proposta) => {
     const siglaPayload = proposta.payload?.empresa_consultora?.sigla;
@@ -222,26 +247,31 @@ export default function ListaPropostas() {
     const search = normalizeText(busca);
 
     return propostas.filter((proposta) => {
+      const matchesType = filtroTipo === "todos" || getTipoProposta(proposta) === filtroTipo;
       const matchesStatus = filtroEstado === "todos" || proposta.estado === filtroEstado;
       const matchesSearch = !search || [
         getPropostaNumero(proposta),
         getClienteNome(proposta),
+        getTipoPropostaLabel(proposta),
         getTipoProjetoNome(proposta),
         getEstadoLabel(proposta.estado),
       ].some((value) => normalizeText(value).includes(search));
 
-      return matchesStatus && matchesSearch;
+      return matchesType && matchesStatus && matchesSearch;
     });
-  }, [busca, filtroEstado, propostas]);
+  }, [busca, filtroTipo, filtroEstado, propostas]);
 
   const counts = useMemo(() => {
+    const propostasDoTipo = propostas.filter((proposta) => filtroTipo === "todos" || getTipoProposta(proposta) === filtroTipo);
     const base = PROPOSTA_ESTADOS.reduce((acc, item) => {
-      acc[item.value] = propostas.filter((proposta) => proposta.estado === item.value).length;
+      acc[item.value] = propostasDoTipo.filter((proposta) => proposta.estado === item.value).length;
       return acc;
     }, {});
-    base.todas = propostas.length;
+    base.todas = propostasDoTipo.length;
+    base.financiamento = propostas.filter((proposta) => getTipoProposta(proposta) === "financiamento").length;
+    base.formacao = propostas.filter((proposta) => getTipoProposta(proposta) === "formacao").length;
     return base;
-  }, [propostas]);
+  }, [propostas, filtroTipo]);
 
   const visiblePropostas = filteredPropostas;
 
@@ -392,6 +422,32 @@ export default function ListaPropostas() {
       </div>
 
       <div className="card propostas-list-panel">
+        <div className="propostas-status-tabs" style={{ marginBottom: "12px" }}>
+          <div>
+            <button
+              type="button"
+              className={`propostas-status-tab ${filtroTipo === "todos" ? "active" : ""}`}
+              onClick={() => setFiltroTipo("todos")}
+            >
+              Todas <span>{propostas.length}</span>
+            </button>
+            <button
+              type="button"
+              className={`propostas-status-tab ${filtroTipo === "financiamento" ? "active" : ""}`}
+              onClick={() => setFiltroTipo("financiamento")}
+            >
+              Financiamento <span>{counts.financiamento || 0}</span>
+            </button>
+            <button
+              type="button"
+              className={`propostas-status-tab ${filtroTipo === "formacao" ? "active" : ""}`}
+              onClick={() => setFiltroTipo("formacao")}
+            >
+              Formação <span>{counts.formacao || 0}</span>
+            </button>
+          </div>
+        </div>
+
         <div className="propostas-status-tabs">
           <div>
             {PROPOSTA_ESTADOS.map((estadoItem) => (
@@ -419,7 +475,7 @@ export default function ListaPropostas() {
             <span className="propostas-search-icon">⌕</span>
             <input
               type="text"
-              placeholder="Procurar por ID, cliente ou tipo de projeto..."
+              placeholder="Procurar por ID, cliente, curso ou tipo de projeto..."
               value={busca}
               onChange={(event) => setBusca(event.target.value)}
             />
@@ -481,8 +537,10 @@ export default function ListaPropostas() {
                     </select>
                   </div>
 
-                  <h3>{getClienteNome(proposta)}</h3>
-                  <p className="propostas-card-type">{getTipoProjetoNome(proposta)}</p>
+                  <h3>{getTituloProposta(proposta)}</h3>
+                  <p className="propostas-card-type">
+                    {getTipoPropostaLabel(proposta)} · {getClienteNome(proposta)}
+                  </p>
 
                   <div className="propostas-card-meta">
                     <div>
@@ -515,8 +573,9 @@ export default function ListaPropostas() {
                 <thead>
                   <tr>
                     <th>ID Proposta</th>
+                    <th>Proposta</th>
                     <th>Cliente</th>
-                    <th>Tipo de Projeto</th>
+                    <th>Tipo</th>
                     <th>Estado</th>
                     <th>Data de Criação</th>
                     <th style={{ width: "120px", textAlign: "center" }}>Ações</th>
@@ -528,8 +587,9 @@ export default function ListaPropostas() {
                       <td>
                         <strong>{getPropostaNumero(proposta)}</strong>
                       </td>
+                      <td>{getTituloProposta(proposta)}</td>
                       <td>{getClienteNome(proposta)}</td>
-                      <td>{getTipoProjetoNome(proposta)}</td>
+                      <td>{getTipoPropostaLabel(proposta)}</td>
                       <td>
                         <span className={getBadgeClass(proposta.estado)}>
                           {getEstadoLabel(proposta.estado)}

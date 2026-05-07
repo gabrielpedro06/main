@@ -131,6 +131,7 @@ export default function Clientes() {
     rcbe: "", validade_rcbe: "", ativo: true,
     eh_empresa_consultora: false,
     eh_organismo: false,
+    tem_cursos: false,
     avatar_url: "",
     termos_gerais: ""
   };
@@ -144,6 +145,8 @@ export default function Clientes() {
   const [pendingAutoCaes, setPendingAutoCaes] = useState([]);
   const [pendingAutoMorada, setPendingAutoMorada] = useState(null);
   
+  // Configurações de Entidade (textos internos)
+  
   // Histórico de Projetos do Cliente
   const [projetosCliente, setProjetosCliente] = useState([]);
 
@@ -155,6 +158,34 @@ export default function Clientes() {
   const initMorada = { morada: "", localidade: "", codigo_postal: "", concelho: "", distrito: "", regiao: "", notas: "" };
   const initAcesso = { tipo_acesso_id: "", utilizador: "", codigo: "" };
   const initCae = { codigo: "", descricao: "", principal: false };
+  const initialEntidadeConfig = {
+    texto_compromisso: "",
+    texto_esperamos_que_corresponda: "",
+    texto_para_aprovacao: "",
+    signatario_nome: "",
+    signatario_cargo: "",
+    signatario_telefone: "",
+    signatario_email: "",
+    texto_apresentacao_empresa: "",
+    texto_documentos_empresa: "",
+    texto_documentos_incentivo: "",
+    texto_demonstracao_financiamento: "",
+    texto_como_ajudamos: "",
+    texto_processo_trabalho: "",
+    texto_plano_pagamento: "",
+    texto_exclusoes: "",
+    texto_apresentacao_empresa_formacao: "",
+    texto_areas_formacao: "",
+    texto_proposta_formacao: "",
+    texto_descricao_servico: "",
+    texto_obrigacoes_consultora: "",
+    texto_obrigacoes_cliente: "",
+    texto_condicoes_realizacao: "",
+    texto_coordenacao_formacao: "",
+    imagem_certificacoes: "",
+  };
+
+  const [entidadeConfig, setEntidadeConfig] = useState(initialEntidadeConfig);
 
   const [novoContacto, setNovoContacto] = useState(initContacto);
   const [isOutroCargo, setIsOutroCargo] = useState(false);
@@ -1151,6 +1182,7 @@ export default function Clientes() {
     setEditId(null); setIsViewOnly(false);
     setForm(initialForm);
     setContactos([]); setMoradas([]); setAcessos([]); setCaes([]); setProjetosCliente([]);
+    setEntidadeConfig(initialEntidadeConfig); // Reset configurações
     setPendingAutoCaes([]);
     setPendingAutoMorada(null);
     setPodeVerAcessos(true);
@@ -1207,6 +1239,7 @@ export default function Clientes() {
     setTimeout(() => {
       setShowModal(false);
       setIsClosingPanel(false);
+      setEntidadeConfig(initialEntidadeConfig); // Reset configurações
     }, 360);
   }
 
@@ -1458,7 +1491,7 @@ export default function Clientes() {
   async function fetchSubDados(clienteId) {
     const projectFields = "id, titulo, estado, data_fim, codigo_projeto, cliente_id, parceiros_ids, created_at";
 
-    const [cData, mData, aData, tData, caeData, pData] = await Promise.all([
+    const [cData, mData, aData, tData, caeData, pData, configData] = await Promise.all([
         supabase.from("contactos_cliente").select("*").eq("cliente_id", clienteId),
         supabase.from("moradas_cliente").select("*").eq("cliente_id", clienteId),
         supabase
@@ -1470,8 +1503,16 @@ export default function Clientes() {
           .select("id, nome, url")
           .order("nome", { ascending: true }),
         supabase.from("caes_cliente").select("*").eq("cliente_id", clienteId),
-        supabase.from("projetos").select(projectFields).order("created_at", { ascending: false })
+        supabase.from("projetos").select(projectFields).order("created_at", { ascending: false }),
+        supabase.from("entidade_configuracoes").select("*").eq("cliente_id", clienteId).maybeSingle()
     ]);
+
+    // Carregar configurações
+    if (configData.data) {
+      setEntidadeConfig({ ...initialEntidadeConfig, ...configData.data });
+    } else {
+      setEntidadeConfig(initialEntidadeConfig);
+    }
 
     const clienteIdStr = String(clienteId);
     const projetosAssociados = (pData.data || [])
@@ -1552,6 +1593,7 @@ export default function Clientes() {
       ativo: form.ativo,
       eh_empresa_consultora: Boolean(form.eh_empresa_consultora),
       eh_organismo: Boolean(form.eh_organismo),
+      tem_cursos: Boolean(form.tem_cursos),
       termos_gerais: form.termos_gerais || null
     };
 
@@ -1573,6 +1615,40 @@ export default function Clientes() {
       let msg = editId
         ? "Entidade atualizada!"
         : "Entidade criada! Verifica as abas que foram pré-preenchidas.";
+
+      // Salvar configurações de entidade (se for consultora)
+      if (form.eh_empresa_consultora && clienteId && Object.keys(entidadeConfig).length > 0) {
+        try {
+          const configPayload = {
+            cliente_id: clienteId,
+            ...entidadeConfig
+          };
+          
+          // Verificar se já existe config
+          const { data: existingConfig } = await supabase
+            .from("entidade_configuracoes")
+            .select("id")
+            .eq("cliente_id", clienteId)
+            .maybeSingle();
+          
+          if (existingConfig) {
+            // Update
+            const { error } = await supabase
+              .from("entidade_configuracoes")
+              .update(configPayload)
+              .eq("cliente_id", clienteId);
+            if (error) throw error;
+          } else {
+            // Insert
+            const { error } = await supabase
+              .from("entidade_configuracoes")
+              .insert([configPayload]);
+            if (error) throw error;
+          }
+        } catch (configError) {
+          msg += ` Aviso: Não foi possível gravar as configurações: ${configError.message}`;
+        }
+      }
 
       if (pendingAutoCaes.length > 0 && clienteId) {
         try {
@@ -1724,6 +1800,7 @@ export default function Clientes() {
     { id: 'documentos', label: 'Documentos', icon: Icons.FileText },
     { id: 'plano', label: 'Plano', icon: Icons.Diamond },
     { id: 'acessos', label: 'Acessos', icon: Icons.Lock, requiresAcessos: true },
+    ...(form.eh_empresa_consultora ? [{ id: 'configuracoes', label: 'Configurações', icon: Icons.FileText }] : []),
     { id: 'termos', label: 'Termos Gerais', icon: Icons.FileText, onlyConsultora: true }
   ];
 
@@ -2331,7 +2408,7 @@ export default function Clientes() {
                         </div>
                       </div>
 
-                      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px', marginTop:'10px'}}>
+                      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'20px', marginTop:'10px'}}>
                         <div>
                           <label style={labelStyle}>Entidade Consultora</label>
                           <select
@@ -2346,11 +2423,23 @@ export default function Clientes() {
                           </select>
                         </div>
                         <div>
-
                           <label style={labelStyle}>É Organismo Público?</label>
                           <select
                             value={form.eh_organismo ? "sim" : "nao"}
                             onChange={(e) => setForm({ ...form, eh_organismo: e.target.value === "sim" })}
+                            style={inputStyle}
+                            className="input-focus"
+                            disabled={isViewOnly}
+                          >
+                            <option value="nao">Não</option>
+                            <option value="sim">Sim</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label style={labelStyle}>Disponibiliza Cursos?</label>
+                          <select
+                            value={form.tem_cursos ? "sim" : "nao"}
+                            onChange={(e) => setForm({ ...form, tem_cursos: e.target.value === "sim" })}
                             style={inputStyle}
                             className="input-focus"
                             disabled={isViewOnly}
@@ -2768,6 +2857,337 @@ export default function Clientes() {
                         </li>
                       ))}
                     </ul>
+                  </div>
+                )}
+
+                {/* --- ABA CONFIGURAÇÕES DE ENTIDADE (só para consultoras) --- */}
+                {activeTab === 'configuracoes' && form.eh_empresa_consultora && (
+                  <div style={{background:'white', padding:'40px', borderRadius:'16px', border:'1px solid #e2e8f0', maxWidth: 1200, margin: '0 auto', marginBottom: 30, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
+                    <div style={{fontSize: '1.3rem', fontWeight: 800, color: '#0f172a', marginBottom: 30}}>Configurações de Proposta</div>
+                    
+                    <div style={sectionTitleStyle}>Assinatura e Contacto da Proposta</div>
+                    <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', marginBottom: 18}}>
+                      <div>
+                        <label style={labelStyle}>Nome do Signatário</label>
+                        <input
+                          type="text"
+                          value={entidadeConfig.signatario_nome || ""}
+                          onChange={e => setEntidadeConfig({...entidadeConfig, signatario_nome: e.target.value})}
+                          style={inputStyle}
+                          placeholder="Nome a apresentar na proposta"
+                          disabled={isViewOnly}
+                        />
+                      </div>
+                      <div>
+                        <label style={labelStyle}>Cargo do Signatário</label>
+                        <input
+                          type="text"
+                          value={entidadeConfig.signatario_cargo || ""}
+                          onChange={e => setEntidadeConfig({...entidadeConfig, signatario_cargo: e.target.value})}
+                          style={inputStyle}
+                          placeholder="Cargo/função"
+                          disabled={isViewOnly}
+                        />
+                      </div>
+                      <div>
+                        <label style={labelStyle}>Telefone do Signatário</label>
+                        <input
+                          type="text"
+                          value={entidadeConfig.signatario_telefone || ""}
+                          onChange={e => setEntidadeConfig({...entidadeConfig, signatario_telefone: e.target.value})}
+                          style={inputStyle}
+                          placeholder="+351 900 000 000"
+                          disabled={isViewOnly}
+                        />
+                      </div>
+                      <div>
+                        <label style={labelStyle}>Email do Signatário</label>
+                        <input
+                          type="email"
+                          value={entidadeConfig.signatario_email || ""}
+                          onChange={e => setEntidadeConfig({...entidadeConfig, signatario_email: e.target.value})}
+                          style={inputStyle}
+                          placeholder="email@entidade.pt"
+                          disabled={isViewOnly}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={sectionTitleStyle}>Textos Comuns</div>
+                    <label style={labelStyle}>Texto de Compromisso</label>
+                    <textarea
+                      value={entidadeConfig.texto_compromisso || ""}
+                      onChange={e => setEntidadeConfig({...entidadeConfig, texto_compromisso: e.target.value})}
+                      rows={3}
+                      style={{...inputStyle, minHeight: 80, resize: 'vertical'}}
+                      placeholder="O nosso compromisso..."
+                      disabled={isViewOnly}
+                    />
+
+                    <label style={labelStyle}>Texto para Aprovação</label>
+                    <textarea
+                      value={entidadeConfig.texto_para_aprovacao || ""}
+                      onChange={e => setEntidadeConfig({...entidadeConfig, texto_para_aprovacao: e.target.value})}
+                      rows={2}
+                      style={{...inputStyle, minHeight: 60, resize: 'vertical'}}
+                      placeholder="Texto a apresentar para aprovação..."
+                      disabled={isViewOnly}
+                    />
+
+                    <label style={labelStyle}>Esperamos que Corresponda</label>
+                    <textarea
+                      value={entidadeConfig.texto_esperamos_que_corresponda || ""}
+                      onChange={e => setEntidadeConfig({...entidadeConfig, texto_esperamos_que_corresponda: e.target.value})}
+                      rows={2}
+                      style={{...inputStyle, minHeight: 60, resize: 'vertical'}}
+                      placeholder="Mensagem de fechamento..."
+                      disabled={isViewOnly}
+                    />
+
+                    {/* NEOMARCA - Campos de Financiamento */}
+                    {!form.tem_cursos && (
+                      <>
+                        <div style={sectionTitleStyle}>Apresentação da Entidade (Financiamento)</div>
+                        <label style={labelStyle}>Texto de Apresentação Empresa</label>
+                        <textarea
+                          value={entidadeConfig.texto_apresentacao_empresa || ""}
+                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_apresentacao_empresa: e.target.value})}
+                          rows={4}
+                          style={{...inputStyle, minHeight: 100, resize: 'vertical'}}
+                          placeholder="Texto de apresentação da empresa..."
+                          disabled={isViewOnly}
+                        />
+                        
+                        <label style={labelStyle}>Texto de Compromisso</label>
+                        <textarea
+                          value={entidadeConfig.texto_compromisso || ""}
+                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_compromisso: e.target.value})}
+                          rows={3}
+                          style={{...inputStyle, minHeight: 80, resize: 'vertical'}}
+                          placeholder="Nosso compromisso..."
+                          disabled={isViewOnly}
+                        />
+
+                        <div style={sectionTitleStyle}>Documentação</div>
+                        <label style={labelStyle}>Documentos da Empresa</label>
+                        <textarea
+                          value={entidadeConfig.texto_documentos_empresa || ""}
+                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_documentos_empresa: e.target.value})}
+                          rows={3}
+                          style={{...inputStyle, minHeight: 80, resize: 'vertical'}}
+                          placeholder="Descreva os documentos fornecidos pela empresa..."
+                          disabled={isViewOnly}
+                        />
+
+                        <label style={labelStyle}>Documentos de Incentivo</label>
+                        <textarea
+                          value={entidadeConfig.texto_documentos_incentivo || ""}
+                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_documentos_incentivo: e.target.value})}
+                          rows={3}
+                          style={{...inputStyle, minHeight: 80, resize: 'vertical'}}
+                          placeholder="Informações sobre incentivos..."
+                          disabled={isViewOnly}
+                        />
+
+                        <div style={sectionTitleStyle}>Processo e Financiamento</div>
+                        <label style={labelStyle}>Demonstração de Financiamento</label>
+                        <textarea
+                          value={entidadeConfig.texto_demonstracao_financiamento || ""}
+                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_demonstracao_financiamento: e.target.value})}
+                          rows={3}
+                          style={{...inputStyle, minHeight: 80, resize: 'vertical'}}
+                          placeholder="Como o financiamento funciona..."
+                          disabled={isViewOnly}
+                        />
+
+                        <label style={labelStyle}>Como Ajudamos</label>
+                        <textarea
+                          value={entidadeConfig.texto_como_ajudamos || ""}
+                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_como_ajudamos: e.target.value})}
+                          rows={3}
+                          style={{...inputStyle, minHeight: 80, resize: 'vertical'}}
+                          placeholder="Descreva como a empresa ajuda os clientes..."
+                          disabled={isViewOnly}
+                        />
+
+                        <label style={labelStyle}>Processo de Trabalho</label>
+                        <textarea
+                          value={entidadeConfig.texto_processo_trabalho || ""}
+                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_processo_trabalho: e.target.value})}
+                          rows={3}
+                          style={{...inputStyle, minHeight: 80, resize: 'vertical'}}
+                          placeholder="Descreva o processo de trabalho..."
+                          disabled={isViewOnly}
+                        />
+
+                        <label style={labelStyle}>Plano de Pagamento</label>
+                        <textarea
+                          value={entidadeConfig.texto_plano_pagamento || ""}
+                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_plano_pagamento: e.target.value})}
+                          rows={3}
+                          style={{...inputStyle, minHeight: 80, resize: 'vertical'}}
+                          placeholder="Condições de pagamento..."
+                          disabled={isViewOnly}
+                        />
+
+                        <label style={labelStyle}>Exclusões/Condições Especiais</label>
+                        <textarea
+                          value={entidadeConfig.texto_exclusoes || ""}
+                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_exclusoes: e.target.value})}
+                          rows={3}
+                          style={{...inputStyle, minHeight: 80, resize: 'vertical'}}
+                          placeholder="Exclusões ou condições especiais..."
+                          disabled={isViewOnly}
+                        />
+
+                        <div style={sectionTitleStyle}>Aprovação</div>
+                        <label style={labelStyle}>Texto para Aprovação</label>
+                        <textarea
+                          value={entidadeConfig.texto_para_aprovacao || ""}
+                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_para_aprovacao: e.target.value})}
+                          rows={2}
+                          style={{...inputStyle, minHeight: 60, resize: 'vertical'}}
+                          placeholder="Texto a apresentar para aprovação..."
+                          disabled={isViewOnly}
+                        />
+
+                        <label style={labelStyle}>Esperamos que Corresponda</label>
+                        <textarea
+                          value={entidadeConfig.texto_esperamos_que_corresponda || ""}
+                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_esperamos_que_corresponda: e.target.value})}
+                          rows={2}
+                          style={{...inputStyle, minHeight: 60, resize: 'vertical'}}
+                          placeholder="Mensagem de fechamento..."
+                          disabled={isViewOnly}
+                        />
+                      </>
+                    )}
+
+                    {/* 2SIGLAS - Campos de Formação */}
+                    {form.tem_cursos && (
+                      <>
+                        <div style={sectionTitleStyle}>Apresentação (Formação)</div>
+                        <label style={labelStyle}>Apresentação da Empresa - Formação</label>
+                        <textarea
+                          value={entidadeConfig.texto_apresentacao_empresa_formacao || ""}
+                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_apresentacao_empresa_formacao: e.target.value})}
+                          rows={4}
+                          style={{...inputStyle, minHeight: 100, resize: 'vertical'}}
+                          placeholder="Apresentação da empresa para propostas de formação..."
+                          disabled={isViewOnly}
+                        />
+
+                        <label style={labelStyle}>Áreas de Formação</label>
+                        <textarea
+                          value={entidadeConfig.texto_areas_formacao || ""}
+                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_areas_formacao: e.target.value})}
+                          rows={3}
+                          style={{...inputStyle, minHeight: 80, resize: 'vertical'}}
+                          placeholder="Principais áreas de formação oferecidas..."
+                          disabled={isViewOnly}
+                        />
+
+                        <div style={sectionTitleStyle}>Proposta</div>
+                        <label style={labelStyle}>Proposta de Formação</label>
+                        <textarea
+                          value={entidadeConfig.texto_proposta_formacao || ""}
+                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_proposta_formacao: e.target.value})}
+                          rows={3}
+                          style={{...inputStyle, minHeight: 80, resize: 'vertical'}}
+                          placeholder="Descrição geral da proposta de formação..."
+                          disabled={isViewOnly}
+                        />
+
+                        <label style={labelStyle}>Descrição do Serviço</label>
+                        <textarea
+                          value={entidadeConfig.texto_descricao_servico || ""}
+                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_descricao_servico: e.target.value})}
+                          rows={3}
+                          style={{...inputStyle, minHeight: 80, resize: 'vertical'}}
+                          placeholder="Descrição detalhada do serviço de formação..."
+                          disabled={isViewOnly}
+                        />
+
+                        <div style={sectionTitleStyle}>Obrigações</div>
+                        <label style={labelStyle}>Obrigações da Consultora</label>
+                        <textarea
+                          value={entidadeConfig.texto_obrigacoes_consultora || ""}
+                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_obrigacoes_consultora: e.target.value})}
+                          rows={3}
+                          style={{...inputStyle, minHeight: 80, resize: 'vertical'}}
+                          placeholder="Compromissos e obrigações da consultora..."
+                          disabled={isViewOnly}
+                        />
+
+                        <label style={labelStyle}>Obrigações do Cliente</label>
+                        <textarea
+                          value={entidadeConfig.texto_obrigacoes_cliente || ""}
+                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_obrigacoes_cliente: e.target.value})}
+                          rows={3}
+                          style={{...inputStyle, minHeight: 80, resize: 'vertical'}}
+                          placeholder="Compromissos e obrigações do cliente..."
+                          disabled={isViewOnly}
+                        />
+
+                        <div style={sectionTitleStyle}>Realização e Coordenação</div>
+                        <label style={labelStyle}>Condições de Realização</label>
+                        <textarea
+                          value={entidadeConfig.texto_condicoes_realizacao || ""}
+                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_condicoes_realizacao: e.target.value})}
+                          rows={3}
+                          style={{...inputStyle, minHeight: 80, resize: 'vertical'}}
+                          placeholder="Horários, locais, e outras condições de realização..."
+                          disabled={isViewOnly}
+                        />
+
+                        <label style={labelStyle}>Coordenação de Formação</label>
+                        <textarea
+                          value={entidadeConfig.texto_coordenacao_formacao || ""}
+                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_coordenacao_formacao: e.target.value})}
+                          rows={3}
+                          style={{...inputStyle, minHeight: 80, resize: 'vertical'}}
+                          placeholder="Informações sobre quem coordena a formação..."
+                          disabled={isViewOnly}
+                        />
+                      </>
+                    )}
+
+                    {form.tem_cursos && (
+                      <>
+                        <div style={sectionTitleStyle}>Condições Comerciais</div>
+                        <label style={labelStyle}>Plano de Pagamento Padrão</label>
+                        <textarea
+                          value={entidadeConfig.texto_plano_pagamento || ""}
+                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_plano_pagamento: e.target.value})}
+                          rows={3}
+                          style={{...inputStyle, minHeight: 80, resize: 'vertical'}}
+                          placeholder="Condições de pagamento a usar por defeito nas propostas de formação..."
+                          disabled={isViewOnly}
+                        />
+
+                        <label style={labelStyle}>Exclusões / Notas</label>
+                        <textarea
+                          value={entidadeConfig.texto_exclusoes || ""}
+                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_exclusoes: e.target.value})}
+                          rows={3}
+                          style={{...inputStyle, minHeight: 80, resize: 'vertical'}}
+                          placeholder="Exclusões, notas ou condições especiais..."
+                          disabled={isViewOnly}
+                        />
+                      </>
+                    )}
+
+                    {/* Campos Comuns */}
+                    <div style={sectionTitleStyle}>Certificações</div>
+                    <label style={labelStyle}>Imagem de Certificações</label>
+                    <input
+                      type="text"
+                      value={entidadeConfig.imagem_certificacoes || ""}
+                      onChange={e => setEntidadeConfig({...entidadeConfig, imagem_certificacoes: e.target.value})}
+                      style={inputStyle}
+                      placeholder="URL ou caminho da imagem de certificações"
+                      disabled={isViewOnly}
+                    />
                   </div>
                 )}
 

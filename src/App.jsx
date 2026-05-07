@@ -35,6 +35,7 @@ import GestaoTemplates from "./components/GestaoTemplates";
 import PropostasComerciais from "./pages/PropostasComerciais";
 import ListaPropostas from "./pages/ListaPropostas";
 import GestaoAvisos from "./pages/GestaoAvisos";
+import Cursos from "./pages/Cursos";
 
 export default function App() {
   return (
@@ -81,7 +82,10 @@ export default function App() {
             <Route path="admin" element={<ProtectedRoute allowedRoles={["admin", "administrador"]}><AdminDashboard /></ProtectedRoute>} />
             
             {/* MUDAMOS DE /templates PARA /modelos PARA COMBINAR COM O MENU */}
-            <Route path="modelos" element={<GestaoTemplates />} /> 
+            <Route path="modelos" element={<GestaoTemplates />} />
+            
+            {/* GESTÃO DE CURSOS */}
+            <Route path="cursos" element={<Cursos />} />
             
           </Route>
 
