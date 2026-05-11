@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "../services/supabase";
+import { generateFormacaoPDF } from "../components/pdfFormacaoGenerator";
 import "./../styles/dashboard.css";
 
 const stepTitles = [
@@ -143,6 +144,8 @@ const normalizeCurso = (curso = {}) => ({
   metodologia: curso.metodologia || "",
   honorarios_texto: curso.honorarios_texto || "",
   plano_pagamento: curso.plano_pagamento || "",
+  valor: Number(curso.valor ?? curso.preco ?? curso.valor_servico ?? 0),
+  consideracoes: curso.consideracoes || "",
   modulos: normalizeModulos(curso.modulos),
 });
 
@@ -158,7 +161,10 @@ const buildCondicoesFromCursos = (cursosSelecionados, previous = {}) => ({
   objetivos: joinCursoTexts(cursosSelecionados, "objetivos_pedagogicos"),
   metodologia: joinCursoTexts(cursosSelecionados, "metodologia"),
   honorarios: joinCursoTexts(cursosSelecionados, "honorarios_texto"),
-  plano_pagamento: joinCursoTexts(cursosSelecionados, "plano_pagamento") || previous.plano_pagamento || "",
+  // Não sobrepor o plano de pagamento com textos dos cursos.
+  // O `plano_pagamento` deverá vir das configurações da entidade (entidade_configuracoes)
+  // ou do valor previamente definido em `previous`.
+  plano_pagamento: previous.plano_pagamento || "",
 });
 
 export default function PropostasFormacao({ propostaId, initialEmpresaConsultoraId = "", onEmpresaConsultoraChange }) {
@@ -169,6 +175,7 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingDb, setIsLoadingDb] = useState(false);
   const [isSavingDb, setIsSavingDb] = useState(false);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
 
   const [empresasConsultoras, setEmpresasConsultoras] = useState([]);
@@ -298,6 +305,22 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
         ...INITIAL_CONDICOES,
         ...(payload?.condicoes_formacao || {}),
       });
+
+      // Garantir que o plano de pagamento carregado privilegia o texto da entidade
+      // (caso exista), em vez do texto vindo dos cursos.
+      try {
+        const { data: configData } = await supabase
+          .from("entidade_configuracoes")
+          .select("texto_plano_pagamento")
+          .eq("cliente_id", data.empresa_consultora_id)
+          .maybeSingle();
+        const textoPlano = configData?.texto_plano_pagamento || "";
+        if (textoPlano) {
+          setCondicoes((previous) => ({ ...previous, plano_pagamento: textoPlano }));
+        }
+      } catch (err) {
+        console.warn("Erro ao carregar texto_plano_pagamento ao abrir proposta:", err);
+      }
 
       if (Array.isArray(data.proposta_cursos)) {
         setCursosSelecionados(
@@ -689,6 +712,44 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
     }
   }
 
+  async function gerarPDF() {
+    if (!empresaConsultora.id || !cliente.id || cursosSelecionados.length === 0) {
+      showToast("Preencha empresa consultora, cliente e pelo menos um curso.");
+      return;
+    }
+
+    setIsGeneratingPDF(true);
+    try {
+      // Guardar proposta primeiro se ainda não foi guardada
+      let resultadoGuardar = null;
+      if (!proposta.db_id) {
+        resultadoGuardar = await guardarPropostaEmBD({ silent: true });
+        if (!resultadoGuardar) {
+          showToast("Erro ao guardar proposta antes de gerar PDF");
+          return;
+        }
+      }
+
+      // Gerar o PDF com os dados actuais
+      await generateFormacaoPDF({
+        propostaNumero: proposta.numero || resultadoGuardar?.numero,
+        proposta,
+        cliente,
+        empresaConsultora,
+        cursosSelecionados,
+        condicoes,
+        totais,
+      });
+
+      showToast("PDF gerado com sucesso!");
+    } catch (error) {
+      console.error("Erro ao gerar PDF:", error);
+      showToast(`Erro ao gerar PDF: ${error.message || "Ver consola"}`);
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  }
+
   function goStep(step) {
     setCurrentStep(Math.min(Math.max(step, 1), stepTitles.length));
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -1043,6 +1104,15 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
                       ) : (
                           <div className="muted">Este curso não tem módulos registados.</div>
                       )}
+                      <div style={{ marginTop: 12 }}>
+                        <div style={{ marginBottom: 6, fontWeight: 600 }}>Considerações</div>
+                        <textarea
+                          rows={3}
+                          style={{ width: "100%", padding: 8, borderRadius: 6, border: "1px solid #e2e8f0" }}
+                          value={curso.consideracoes || ""}
+                          onChange={(event) => updateCursoSelecionado(curso.id, "consideracoes", event.target.value)}
+                        />
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1242,8 +1312,8 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
                 <button className="btn-primary" type="button" onClick={guardarPropostaEmBD} disabled={isSavingDb}>
                   {isSavingDb ? "A guardar..." : "Guardar Proposta"}
                 </button>
-                <button className="btn-primary" type="button" onClick={() => showToast("Gerar PDF de formação ainda não implementado.")}>
-                  Gerar PDF
+                <button className="btn-primary" type="button" onClick={gerarPDF} disabled={isGeneratingPDF}>
+                  {isGeneratingPDF ? "A gerar..." : "Gerar PDF"}
                 </button>
               </div>
             )}

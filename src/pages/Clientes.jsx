@@ -1800,8 +1800,7 @@ export default function Clientes() {
     { id: 'documentos', label: 'Documentos', icon: Icons.FileText },
     { id: 'plano', label: 'Plano', icon: Icons.Diamond },
     { id: 'acessos', label: 'Acessos', icon: Icons.Lock, requiresAcessos: true },
-    ...(form.eh_empresa_consultora ? [{ id: 'configuracoes', label: 'Configurações', icon: Icons.FileText }] : []),
-    { id: 'termos', label: 'Termos Gerais', icon: Icons.FileText, onlyConsultora: true }
+    ...(form.eh_empresa_consultora ? [{ id: 'configuracoes', label: 'Configurações', icon: Icons.FileText }] : [])
   ];
 
   if (loading) return <div className="page-container" style={{display:'flex', justifyContent:'center', alignItems:'center', height:'80vh'}}><div className="pulse-dot-white" style={{background:'var(--color-btnPrimary)'}}></div></div>;
@@ -2315,27 +2314,6 @@ export default function Clientes() {
                           </button>
                         );
                       })}
-                  
-
-                                  {/* --- ABA TERMOS GERAIS (só para consultoras) --- */}
-                                  {false && activeTab === 'termos' && form.eh_empresa_consultora && (
-                                    <div style={{background:'white', padding:'40px', borderRadius:'16px', border:'1px solid #e2e8f0', maxWidth: 900, margin: '0 auto', marginBottom: 30, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
-                                      <div style={{fontSize: '1.3rem', fontWeight: 800, color: '#0f172a', marginBottom: 18}}>Termos Gerais / Condições Gerais</div>
-                                      <label style={{fontWeight: 600, color: '#475569', marginBottom: 6, display: 'block'}}>Texto Corrido dos Termos Gerais</label>
-                                      <textarea
-                                        value={form.termos_gerais || ""}
-                                        onChange={e => setForm(f => ({ ...f, termos_gerais: e.target.value }))}
-                                        rows={16}
-                                        style={{ width: '100%', minHeight: 220, fontSize: '1.05rem', borderRadius: 10, border: '1px solid #cbd5e1', padding: '18px', background: '#f8fafc', color: '#1e293b', resize: 'vertical', fontFamily: 'inherit', marginBottom: 16 }}
-                                        placeholder="Insira aqui os Termos Gerais ou Condições Gerais da Entidade Consultora..."
-                                        disabled={isViewOnly}
-                                      />
-                                      <div style={{ fontSize: '1rem', color: '#64748b', marginBottom: 10 }}>
-                                        Este texto será usado automaticamente nas propostas e pode ser personalizado por Entidade.
-                                      </div>
-                                      {!isViewOnly && <button className="btn-primary hover-shadow" onClick={handleSubmitGeral} style={{marginTop: 10, fontSize: '1.08rem', padding: '13px 32px'}}>Guardar Termos Gerais</button>}
-                                    </div>
-                                  )}
                   </aside>
                 )}
 
@@ -3188,14 +3166,9 @@ export default function Clientes() {
                       placeholder="URL ou caminho da imagem de certificações"
                       disabled={isViewOnly}
                     />
-                  </div>
-                )}
 
-                {/* --- ABA TERMOS GERAIS (só para consultoras) --- */}
-                {activeTab === 'termos' && form.eh_empresa_consultora && (
-                  <div style={{background:'white', padding:'40px', borderRadius:'16px', border:'1px solid #e2e8f0', maxWidth: 900, margin: '0 auto', marginBottom: 30, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
-                    <div style={{fontSize: '1.3rem', fontWeight: 800, color: '#0f172a', marginBottom: 18}}>Termos Gerais / Condições Gerais</div>
-                    <label style={{fontWeight: 600, color: '#475569', marginBottom: 6, display: 'block'}}>Texto Corrido dos Termos Gerais</label>
+                    <div style={sectionTitleStyle}>Termos Gerais</div>
+                    <label style={labelStyle}>Texto Corrido dos Termos Gerais</label>
                     <textarea
                       value={form.termos_gerais || ""}
                       onChange={e => setForm(f => ({ ...f, termos_gerais: e.target.value }))}
@@ -3207,7 +3180,19 @@ export default function Clientes() {
                     <div style={{ fontSize: '1rem', color: '#64748b', marginBottom: 10 }}>
                       Este texto será usado automaticamente nas propostas e pode ser personalizado por Entidade.
                     </div>
-                    {!isViewOnly && <button className="btn-primary hover-shadow" onClick={handleSubmitGeral} style={{marginTop: 10, fontSize: '1.08rem', padding: '13px 32px'}}>Guardar Termos Gerais</button>}
+
+                    {!isViewOnly && (
+                      <div style={{display:'flex', justifyContent:'flex-end', marginTop:'24px'}}>
+                        <button
+                          type="button"
+                          className="btn-primary hover-shadow"
+                          onClick={handleSubmitGeral}
+                          style={{fontSize: '1.08rem', padding: '13px 32px'}}
+                        >
+                          Guardar Alterações
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
 

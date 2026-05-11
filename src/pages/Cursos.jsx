@@ -71,6 +71,8 @@ const DEFAULT_FORM = {
   metodologia: '',
   honorarios_texto: '',
   plano_pagamento: '',
+  valor: 0,
+  consideracoes: '',
   modulos: [],
   ativo: true,
 };
@@ -158,6 +160,11 @@ function Toast({ notification, onClose }) {
 function formatDuration(value) {
   const hours = Number(value) || 0;
   return `${hours}h`;
+}
+
+function formatCurrency(value) {
+  const num = Number(value) || 0;
+  return num.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' });
 }
 
 function EmptyState({ onNew }) {
@@ -357,6 +364,32 @@ function CourseForm({ formData, setFormData, novoModulo, setNovoModulo, onAddMod
         </div>
       )}
 
+      <div style={sectionTitleStyle}>Preço e Considerações</div>
+      <div style={{ display: 'grid', gap: '14px' }}>
+        <div>
+          <label style={labelStyle}>Valor (€)</label>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={formData.valor}
+            onChange={(e) => setFormData({ ...formData, valor: e.target.value })}
+            style={{ ...fieldStyle, minHeight: 48 }}
+            disabled={!editable || isSaving}
+          />
+        </div>
+        <div>
+          <label style={labelStyle}>Considerações</label>
+          <textarea
+            value={formData.consideracoes}
+            onChange={(e) => setFormData({ ...formData, consideracoes: e.target.value })}
+            rows={3}
+            style={{ ...fieldStyle, minHeight: 92, resize: 'vertical' }}
+            disabled={!editable || isSaving}
+          />
+        </div>
+      </div>
+
       {editable && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderTop: '1px solid #e2e8f0', paddingTop: '16px' }}>
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', cursor: 'pointer', color: '#0f172a', fontWeight: 700 }}>
@@ -508,6 +541,8 @@ export default function Cursos() {
       metodologia: curso.metodologia || '',
       honorarios_texto: curso.honorarios_texto || '',
       plano_pagamento: curso.plano_pagamento || '',
+      valor: curso.valor ?? curso.preco ?? 0,
+      consideracoes: curso.consideracoes || '',
       modulos: Array.isArray(curso.modulos) ? curso.modulos : [],
       ativo: Boolean(curso.ativo),
     });
@@ -571,6 +606,8 @@ export default function Cursos() {
         metodologia: formData.metodologia || '',
         honorarios_texto: formData.honorarios_texto || '',
         plano_pagamento: formData.plano_pagamento || '',
+        valor: Number(formData.valor) || 0,
+        consideracoes: formData.consideracoes || '',
         modulos: Array.isArray(formData.modulos) ? formData.modulos : [],
         ativo: Boolean(formData.ativo),
       };
@@ -820,11 +857,13 @@ export default function Cursos() {
                 <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 18, padding: '18px' }}>
                   <div style={sectionTitleStyle}>Textos</div>
                   <div style={{ display: 'grid', gap: 10, color: '#475569', lineHeight: 1.55, fontSize: '0.94rem' }}>
-                    <div><strong style={{ color: '#0f172a' }}>Enquadramento:</strong> {formData.texto_enquadramento || 'Sem conteúdo.'}</div>
-                    <div><strong style={{ color: '#0f172a' }}>Objetivos:</strong> {formData.objetivos_pedagogicos || 'Sem conteúdo.'}</div>
-                    <div><strong style={{ color: '#0f172a' }}>Metodologia:</strong> {formData.metodologia || 'Sem conteúdo.'}</div>
-                    <div><strong style={{ color: '#0f172a' }}>Honorários:</strong> {formData.honorarios_texto || 'Sem conteúdo.'}</div>
-                    <div><strong style={{ color: '#0f172a' }}>Pagamento:</strong> {formData.plano_pagamento || 'Sem conteúdo.'}</div>
+                      <div><strong style={{ color: '#0f172a' }}>Enquadramento:</strong> {formData.texto_enquadramento || 'Sem conteúdo.'}</div>
+                      <div><strong style={{ color: '#0f172a' }}>Objetivos:</strong> {formData.objetivos_pedagogicos || 'Sem conteúdo.'}</div>
+                      <div><strong style={{ color: '#0f172a' }}>Metodologia:</strong> {formData.metodologia || 'Sem conteúdo.'}</div>
+                      <div><strong style={{ color: '#0f172a' }}>Honorários:</strong> {formData.honorarios_texto || 'Sem conteúdo.'}</div>
+                      <div><strong style={{ color: '#0f172a' }}>Pagamento:</strong> {formData.plano_pagamento || 'Sem conteúdo.'}</div>
+                      <div><strong style={{ color: '#0f172a' }}>Valor:</strong> {formatCurrency(formData.valor)}</div>
+                      <div><strong style={{ color: '#0f172a' }}>Considerações:</strong> {formData.consideracoes || 'Sem conteúdo.'}</div>
                   </div>
                 </div>
 

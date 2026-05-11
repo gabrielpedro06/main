@@ -198,6 +198,9 @@ export const generateProposalPDF = async (params) => {
     doc.setFontSize(14);
     doc.setTextColor(...COLORS.secondary);
     doc.text(text.toUpperCase(), marginX, currentY);
+    doc.setDrawColor(...COLORS.accent);
+    doc.setLineWidth(0.8);
+    doc.line(marginX, currentY + 2, marginX + 42, currentY + 2);
     currentY += 8;
   };
 
@@ -280,7 +283,7 @@ export const generateProposalPDF = async (params) => {
     }
 
     if (Array.isArray(servico.atividades) && servico.atividades.length > 0) {
-      renderKeyList('Atividades', servico.atividades);
+      renderKeyList('Serviços', servico.atividades);
     }
 
     currentY += 2;
@@ -386,6 +389,11 @@ export const generateProposalPDF = async (params) => {
   doc.setFillColor(...COLORS.white);
   doc.rect(0, 0, pageWidth, pageHeight, 'F');
 
+  doc.setFillColor(...COLORS.primary);
+  doc.rect(0, 0, pageWidth, 18, 'F');
+  doc.setFillColor(...COLORS.accent);
+  doc.rect(0, 18, pageWidth, 2, 'F');
+
   if (logoBase64) {
     doc.addImage(logoBase64, 'PNG', pageWidth / 2 - 25, 60, 50, 50);
   }
@@ -418,7 +426,7 @@ export const generateProposalPDF = async (params) => {
   doc.addPage();
   currentY = marginY;
 
-  startMainSection('CONTEXTO');
+  startMainSection('ÂMBITO DA PROPOSTA');
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
@@ -555,14 +563,14 @@ Gratos pela vossa atenção, ficamos ao dispor para qualquer questão adicional.
     }
   }
 
-  startMainSection('ATIVIDADES');
+  startMainSection('SERVIÇOS');
   
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(...COLORS.primary);
-  const txtAtividades = doc.splitTextToSize("A prestação dos serviços de consultoria propostos será orientada de forma a implementar as atividades que visam a submissão do pedido de financiamento, bem como a assessoria na gestão do projeto financiado.", contentWidth);
-  doc.text(txtAtividades, marginX, currentY);
-  currentY += txtAtividades.length * 4 + 6;
+  const txtServicos = doc.splitTextToSize("A prestação dos serviços de consultoria propostos será orientada de forma a implementar os serviços que visam a submissão do pedido de financiamento, bem como a assessoria na gestão do projeto financiado.", contentWidth);
+  doc.text(txtServicos, marginX, currentY);
+  currentY += txtServicos.length * 4 + 6;
 
   if (!orderedModeloEstrutura || orderedModeloEstrutura.length === 0) {
     drawFieldValue('', 'Sem etapas registadas', marginX, contentWidth);
@@ -688,7 +696,7 @@ Gratos pela vossa atenção, ficamos ao dispor para qualquer questão adicional.
     currentY = doc.lastAutoTable.finalY + 10;
   }
 
-  startMainSection('TERMOS GERAIS');
+  startMainSection('TERMOS E CONDIÇÕES');
 
   if (notasExclusoes && notasExclusoes.length > 0) {
     drawTitle('Notas e Exclusões');
