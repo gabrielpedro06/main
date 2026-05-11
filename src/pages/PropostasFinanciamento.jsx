@@ -126,6 +126,23 @@ const INITIAL_PROPOSTA = {
 const INITIAL_CONDICOES_GERAIS = {
   termos_gerais: "",
 };
+const INITIAL_ENTIDADE_CONFIG = {
+  texto_compromisso: "",
+  texto_esperamos_que_corresponda: "",
+  texto_para_aprovacao: "",
+  signatario_nome: "",
+  signatario_cargo: "",
+  signatario_telefone: "",
+  signatario_email: "",
+  texto_apresentacao_empresa: "",
+  texto_documentos_empresa: "",
+  texto_documentos_incentivo: "",
+  texto_demonstracao_financiamento: "",
+  texto_como_ajudamos: "",
+  texto_processo_trabalho: "",
+  texto_plano_pagamento: "",
+  texto_exclusoes: "",
+};
 const INITIAL_NOTAS = [
   "O valor proposto inclui Memória Descritiva e Estudo de Viabilidade Económica.",
   "Não inclui desenvolvimento de Estudos de Mercado, Benchmarking ou outros estudos adicionais solicitados pelo Organismo.",
@@ -433,6 +450,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
   // Proposal data
   const [proposta, setProposta] = useState(INITIAL_PROPOSTA);
   const [condicoesGerais, setCondicoesGerais] = useState(INITIAL_CONDICOES_GERAIS);
+  const [entidadeConfig, setEntidadeConfig] = useState(INITIAL_ENTIDADE_CONFIG);
   const [servicos, setServicos] = useState(initialServicos);
   const [modeloEstrutura, setModeloEstrutura] = useState([]);
   const [notasExclusoes, setNotasExclusoes] = useState(initialNotas);
@@ -761,6 +779,11 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
         setCondicoesGerais({
           termos_gerais: consultoraTermosGerais || payloadTermosGerais || "",
         });
+        setEntidadeConfig({
+          ...INITIAL_ENTIDADE_CONFIG,
+          ...(payload?.entidade_config || {}),
+          ...(payload?.entidade_configuracoes || {}),
+        });
 
         if (Array.isArray(payload?.servicos_config) && payload.servicos_config.length > 0) {
           setServicos(payload.servicos_config);
@@ -998,6 +1021,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
         db_id: saved.db_id || proposta.db_id,
         numero: saved.numero || proposta.numero,
       };
+      const proposalData = recolherDados();
 
       await generateProposalPDF({
         propostaNumero: propostaParaPdf.numero || propostaParaPdf.db_id,
@@ -1013,6 +1037,8 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
         orcamentoLinhas,
         orcamentoTiposProjeto,
         servicosConfig: servicos,
+        entidadeConfig,
+        proposalData,
         planoPagamentosConsolidado,
         notasExclusoes,
         condicoesGerais,
@@ -1047,6 +1073,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
         telemovel_signatario: "",
       };
       setEmpresaConsultora(empresaData);
+      setEntidadeConfig(INITIAL_ENTIDADE_CONFIG);
       setCondicoesGerais({
         termos_gerais: found.termos_gerais || "",
       });
@@ -1385,39 +1412,6 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
     );
   };
 
-  const updatePagamentoServico = (atividadeId, index, field, value) => {
-    setModeloEstrutura((previous) =>
-      previous.map((atividade) => {
-        if (atividade.id !== atividadeId) return atividade;
-
-        return {
-          ...atividade,
-          plano_pagamentos: (atividade.plano_pagamentos || []).map((pag, pagIndex) =>
-            pagIndex === index
-              ? {
-                  ...pag,
-                  [field]: field === "descricao" ? value : Number(value || 0),
-                }
-              : pag
-          ),
-        };
-      })
-    );
-  };
-
-  const removePagamentoServico = (atividadeId, index) => {
-    setModeloEstrutura((previous) =>
-      previous.map((atividade) => {
-        if (atividade.id !== atividadeId) return atividade;
-
-        return {
-          ...atividade,
-          plano_pagamentos: (atividade.plano_pagamentos || []).filter((_, pagIndex) => pagIndex !== index),
-        };
-      })
-    );
-  };
-
   const updateOrcamentoTipoField = (tipoProjetoId, field, value) => {
     setOrcamentoTiposProjeto((previous) =>
       previous.map((item) =>
@@ -1588,7 +1582,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
     }
 
     try {
-      const [moradaResult, contactosResult] = await Promise.all([
+      const [moradaResult, contactosResult, configResult] = await Promise.all([
         supabase
           .from("moradas_cliente")
           .select("morada, localidade, codigo_postal")
@@ -1600,6 +1594,11 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
           .select("*")
           .eq("cliente_id", consultoraId)
           .eq("faz_propostas", true),
+        supabase
+          .from("entidade_configuracoes")
+          .select("*")
+          .eq("cliente_id", consultoraId)
+          .maybeSingle(),
       ]);
 
       const morada =
@@ -1627,31 +1626,43 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
         ? contactos.find((c) => String(c.id) === String(baseConsultora.signatario_id)) || null
         : null;
       const contactoAtivo = contactoSelecionado || contactoDefault;
+      const configData = configResult.data || {};
+      const mergedConfig = {
+        ...INITIAL_ENTIDADE_CONFIG,
+        ...configData,
+      };
 
       if (baseConsultora) {
         setEmpresaConsultora((prev) => ({
           ...prev,
           ...baseConsultora,
           morada: baseConsultora.morada || morada || prev.morada || "",
-          telefone: contactoAtivo?.telefone || baseConsultora.telefone || prev.telefone || "",
-          email: contactoAtivo?.email || baseConsultora.email || prev.email || "",
+          telefone: contactoAtivo?.telefone || mergedConfig.signatario_telefone || baseConsultora.telefone || prev.telefone || "",
+          email: contactoAtivo?.email || mergedConfig.signatario_email || baseConsultora.email || prev.email || "",
           signatario_id: contactoAtivo?.id || baseConsultora.signatario_id || prev.signatario_id || "",
-          nome_signatario: contactoAtivo?.nome || baseConsultora.nome_signatario || prev.nome_signatario || "",
-          cargo_signatario: contactoAtivo?.cargo || baseConsultora.cargo_signatario || prev.cargo_signatario || "",
-          telemovel_signatario: contactoAtivo?.telefone || baseConsultora.telemovel_signatario || prev.telemovel_signatario || "",
+          nome_signatario: contactoAtivo?.nome || mergedConfig.signatario_nome || baseConsultora.nome_signatario || prev.nome_signatario || "",
+          cargo_signatario: contactoAtivo?.cargo || mergedConfig.signatario_cargo || baseConsultora.cargo_signatario || prev.cargo_signatario || "",
+          telemovel_signatario: contactoAtivo?.telefone || mergedConfig.signatario_telefone || baseConsultora.telemovel_signatario || prev.telemovel_signatario || "",
         }));
       } else {
         setEmpresaConsultora((prev) => ({
           ...prev,
           morada: prev.morada || morada,
-          telefone: contactoAtivo?.telefone || prev.telefone || "",
-          email: contactoAtivo?.email || prev.email || "",
+          telefone: contactoAtivo?.telefone || mergedConfig.signatario_telefone || prev.telefone || "",
+          email: contactoAtivo?.email || mergedConfig.signatario_email || prev.email || "",
           signatario_id: contactoAtivo?.id || prev.signatario_id || "",
-          nome_signatario: contactoAtivo?.nome || prev.nome_signatario || "",
-          cargo_signatario: contactoAtivo?.cargo || prev.cargo_signatario || "",
-          telemovel_signatario: contactoAtivo?.telefone || prev.telemovel_signatario || "",
+          nome_signatario: contactoAtivo?.nome || mergedConfig.signatario_nome || prev.nome_signatario || "",
+          cargo_signatario: contactoAtivo?.cargo || mergedConfig.signatario_cargo || prev.cargo_signatario || "",
+          telemovel_signatario: contactoAtivo?.telefone || mergedConfig.signatario_telefone || prev.telemovel_signatario || "",
         }));
       }
+
+      setCondicoesGerais((previous) => ({
+        ...previous,
+        termos_gerais: mergedConfig.texto_exclusoes || previous.termos_gerais || "",
+      }));
+
+      setEntidadeConfig(mergedConfig);
     } catch (error) {
       console.error("Erro ao carregar dados da consultora:", error);
       setContatosConsultora([]);
@@ -1938,6 +1949,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
     programa: programa || null,
     proposta,
     condicoes_gerais: condicoesGerais,
+    entidade_config: entidadeConfig,
     servicos: orcamentoLinhas,
     servicos_config: servicos,
     modelo_estrutura: modeloEstrutura,
@@ -1967,6 +1979,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
     setModeloEstrutura([]);
     setOrcamentoTiposProjeto([]);
     setNotasExclusoes(initialNotas());
+    setEntidadeConfig(INITIAL_ENTIDADE_CONFIG);
     setPlanoPagamentos(INITIAL_PLANO_PAGAMENTOS);
     setContatosConsultora([]);
     setContatosCliente([]);
@@ -2896,15 +2909,107 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
           {currentStep === 6 && (
             <section className="card propostas-section">
               <div className="section-heading">6 · Condições Gerais</div>
-              <div className="field-grid field-grid-1">
-                <div className="field">
-                  <label>Termos Gerais da Empresa Consultora</label>
-                  <textarea
-                    rows={10}
-                    value={condicoesGerais.termos_gerais || ""}
-                    readOnly
-                    placeholder="Selecione uma empresa consultora para carregar os Termos Gerais."
-                  />
+              <div className="card-inner">
+                <div className="section-heading">Apresentação e Abertura</div>
+                <div className="field-grid field-grid-1">
+                  <div className="field">
+                    <label>Apresentação da empresa</label>
+                    <textarea
+                      rows={6}
+                      value={entidadeConfig.texto_apresentacao_empresa || ""}
+                      onChange={(event) => setEntidadeConfig((previous) => ({ ...previous, texto_apresentacao_empresa: event.target.value }))}
+                      placeholder="Texto de apresentação da empresa."
+                    />
+                  </div>
+                  <div className="field">
+                    <label>Compromisso</label>
+                    <textarea
+                      rows={4}
+                      value={entidadeConfig.texto_compromisso || ""}
+                      onChange={(event) => setEntidadeConfig((previous) => ({ ...previous, texto_compromisso: event.target.value }))}
+                      placeholder="Texto de compromisso."
+                    />
+                  </div>
+                  <div className="field">
+                    <label>Esperamos que corresponda</label>
+                    <textarea
+                      rows={4}
+                      value={entidadeConfig.texto_esperamos_que_corresponda || ""}
+                      onChange={(event) => setEntidadeConfig((previous) => ({ ...previous, texto_esperamos_que_corresponda: event.target.value }))}
+                      placeholder="Texto intermédio que fecha a abertura."
+                    />
+                  </div>
+                  <div className="field">
+                    <label>Para aprovação</label>
+                    <textarea
+                      rows={4}
+                      value={entidadeConfig.texto_para_aprovacao || ""}
+                      onChange={(event) => setEntidadeConfig((previous) => ({ ...previous, texto_para_aprovacao: event.target.value }))}
+                      placeholder="Texto de pedido de aprovação."
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="card-inner">
+                <div className="section-heading">Documentos e Processo</div>
+                <div className="field-grid field-grid-1">
+                  <div className="field">
+                    <label>Documentos da empresa</label>
+                    <textarea rows={5} value={entidadeConfig.texto_documentos_empresa || ""} onChange={(event) => setEntidadeConfig((previous) => ({ ...previous, texto_documentos_empresa: event.target.value }))} placeholder="Lista ou explicação dos documentos da empresa." />
+                  </div>
+                  <div className="field">
+                    <label>Documentos do incentivo</label>
+                    <textarea rows={5} value={entidadeConfig.texto_documentos_incentivo || ""} onChange={(event) => setEntidadeConfig((previous) => ({ ...previous, texto_documentos_incentivo: event.target.value }))} placeholder="Documentos necessários ao incentivo." />
+                  </div>
+                  <div className="field">
+                    <label>Demonstração do financiamento</label>
+                    <textarea rows={5} value={entidadeConfig.texto_demonstracao_financiamento || ""} onChange={(event) => setEntidadeConfig((previous) => ({ ...previous, texto_demonstracao_financiamento: event.target.value }))} placeholder="Texto da demonstração de financiamento." />
+                  </div>
+                  <div className="field">
+                    <label>Como ajudamos</label>
+                    <textarea rows={5} value={entidadeConfig.texto_como_ajudamos || ""} onChange={(event) => setEntidadeConfig((previous) => ({ ...previous, texto_como_ajudamos: event.target.value }))} placeholder="Texto sobre como a consultora ajuda." />
+                  </div>
+                  <div className="field">
+                    <label>Processo de trabalho</label>
+                    <textarea rows={5} value={entidadeConfig.texto_processo_trabalho || ""} onChange={(event) => setEntidadeConfig((previous) => ({ ...previous, texto_processo_trabalho: event.target.value }))} placeholder="Texto sobre o processo de trabalho." />
+                  </div>
+                </div>
+              </div>
+
+              <div className="card-inner">
+                <div className="section-heading">Plano e Fecho</div>
+                <div className="field-grid field-grid-1">
+                  <div className="field">
+                    <label>Plano de pagamento</label>
+                    <textarea rows={5} value={entidadeConfig.texto_plano_pagamento || ""} onChange={(event) => setEntidadeConfig((previous) => ({ ...previous, texto_plano_pagamento: event.target.value }))} placeholder="Texto do plano de pagamento." />
+                  </div>
+                  <div className="field">
+                    <label>Exclusões</label>
+                    <textarea rows={5} value={entidadeConfig.texto_exclusoes || ""} onChange={(event) => setEntidadeConfig((previous) => ({ ...previous, texto_exclusoes: event.target.value }))} placeholder="Texto de exclusões e notas legais." />
+                  </div>
+                </div>
+              </div>
+
+              <div className="card-inner">
+                <div className="section-heading">Assinatura</div>
+                <div className="field-grid">
+                  <div className="field">
+                    <label>Nome do signatário</label>
+                    <input type="text" value={entidadeConfig.signatario_nome || ""} onChange={(event) => setEntidadeConfig((previous) => ({ ...previous, signatario_nome: event.target.value }))} />
+                  </div>
+                  <div className="field">
+                    <label>Cargo do signatário</label>
+                    <input type="text" value={entidadeConfig.signatario_cargo || ""} onChange={(event) => setEntidadeConfig((previous) => ({ ...previous, signatario_cargo: event.target.value }))} />
+                  </div>
+                  <div className="field">
+                    <label>Telefone do signatário</label>
+                    <input type="text" value={entidadeConfig.signatario_telefone || ""} onChange={(event) => setEntidadeConfig((previous) => ({ ...previous, signatario_telefone: event.target.value }))} />
+                  </div>
+                  <div className="field">
+                    <label>Email do signatário</label>
+                    <input type="email" value={entidadeConfig.signatario_email || ""} onChange={(event) => setEntidadeConfig((previous) => ({ ...previous, signatario_email: event.target.value }))} />
+                  </div>
                 </div>
               </div>
             </section>
@@ -2920,7 +3025,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                     {tiposProjetoSelecionados.length > 0
                       ? tiposProjetoSelecionados.map((item) => item.nome).join(" + ")
                       : "—"}
-                    {programa ? ` · ${programa.nome}` : ""} · {formatDatePt(proposta.data)}
+                    {programa ? ` · ${programa.codigo || programa.nome}` : ""} · {formatDatePt(proposta.data)}
                   </p>
                 </div>
               </div>
@@ -2944,7 +3049,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                 </div>
                 <div className="summary-card">
                   <div className="summary-label">Programa</div>
-                  <div className="summary-value">{programa?.nome || "—"}</div>
+                  <div className="summary-value">{programa?.codigo || programa?.nome || "—"}</div>
                 </div>
                 <div className="summary-card">
                   <div className="summary-label">Serviços</div>
