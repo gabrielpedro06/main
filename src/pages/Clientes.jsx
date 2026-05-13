@@ -1166,12 +1166,21 @@ export default function Clientes() {
 
   if (busca) {
       const textoBusca = busca.toLowerCase();
-      processedClientes = processedClientes.filter(c =>
-        c.marca?.toLowerCase().includes(textoBusca) ||
-        c.sigla?.toLowerCase().includes(textoBusca) ||
-        c.nif?.includes(textoBusca) ||
-        c.entidade?.toLowerCase().includes(textoBusca)
-      );
+      processedClientes = processedClientes.filter(c => {
+        // Busca nos campos diretos do cliente
+        const matchCliente = 
+          c.marca?.toLowerCase().includes(textoBusca) ||
+          c.sigla?.toLowerCase().includes(textoBusca) ||
+          c.nif?.includes(textoBusca) ||
+          c.entidade?.toLowerCase().includes(textoBusca);
+        
+        // Busca também nos nomes de contactos
+        const matchContactos = c.contactos_cliente?.some(contacto =>
+          contacto.nome_contacto?.toLowerCase().includes(textoBusca)
+        );
+        
+        return matchCliente || matchContactos;
+      });
   }
 
   processedClientes.sort((a, b) => (a.marca || "").localeCompare(b.marca || ""));
@@ -1861,7 +1870,7 @@ export default function Clientes() {
       <div style={{background: 'white', padding: '12px 20px', borderRadius: '0 10px 10px 10px', border: '1px solid #e2e8f0', marginBottom: '25px', display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap'}}>
         <div style={{flex: 1, minWidth: '250px', position: 'relative'}}>
             <span style={{position: 'absolute', left: '12px', top: '10px', color: '#94a3b8'}}><Icons.Search /></span>
-          <input type="text" placeholder="Procurar por Entidade, Sigla ou NIF..." value={busca} onChange={(e) => setBusca(e.target.value)} style={{width: '100%', padding: '8px 12px 8px 38px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.85rem', boxSizing: 'border-box'}} />
+          <input type="text" placeholder="Procurar por Entidade, Sigla, NIF ou Nome de Pessoa..." value={busca} onChange={(e) => setBusca(e.target.value)} style={{width: '100%', padding: '8px 12px 8px 38px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.85rem', boxSizing: 'border-box'}} />
         </div>
         <div style={{display: 'inline-flex', alignItems: 'center', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '4px', marginLeft: 'auto'}}>
           <button
