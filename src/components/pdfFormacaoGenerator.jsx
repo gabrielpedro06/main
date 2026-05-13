@@ -174,10 +174,12 @@ export const generateFormacaoPDF = async (params) => {
   const drawSectionTitle = (text) => {
     ensureSpace(20);
     currentY += 5;
+    doc.setFillColor(...COLORS.accent);
+    doc.rect(marginX, currentY - 4.5, 3, 6.5, 'F');
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(12);
     doc.setTextColor(...COLORS.primary);
-    doc.text(`${sectionCounter}. ${text.toUpperCase()}`, marginX, currentY);
+    doc.text(`${sectionCounter}. ${text.toUpperCase()}`, marginX + 6, currentY);
     sectionCounter++;
     currentY += 8;
   };
@@ -499,20 +501,42 @@ export const generateFormacaoPDF = async (params) => {
           drawParagraph(curso.elenco_modular);
         }
 
-        // Se existir o array de módulos, itera e imprime como lista
+        // Se existir o array de módulos, renderiza como tabela pequena alinhada à esquerda
         if (temModulosNoArray) {
-          curso.modulos.forEach((modulo, index) => {
-            const nomeModulo = modulo.nome || modulo.titulo || `Módulo ${index + 1}`;
-            const duracaoModulo = modulo.duracao_horas ? ` (${Number(modulo.duracao_horas)} horas)` : '';
-            
-            // Imprime o nome do módulo como um bullet point
-            drawParagraph(`• ${nomeModulo}${duracaoModulo}`, { color: COLORS.primary });
-            
-            // Se o módulo tiver alguma descrição/conteúdo extra associado
-            if (modulo.descricao || modulo.conteudo) {
-              drawParagraph(modulo.descricao || modulo.conteudo);
-            }
+          const modulosRows = curso.modulos.map((modulo, index) => [
+            safeValue(modulo.nome || modulo.titulo || `Módulo ${index + 1}`),
+            modulo.duracao_horas ? `${Number(modulo.duracao_horas)}h` : '—',
+          ]);
+
+          ensureSpace(40);
+          autoTable(doc, {
+            startY: currentY,
+            margin: { left: marginX, right: marginX + 70 },
+            head: [['Módulo', 'Duração']],
+            body: modulosRows,
+            styles: {
+              font: 'helvetica',
+              fontSize: 10,
+              cellPadding: { top: 1.8, right: 4, bottom: 1.8, left: 4 },
+              valign: 'middle',
+              textColor: COLORS.secondary,
+            },
+            headStyles: { 
+              fillColor: COLORS.accent, 
+              textColor: COLORS.white, 
+              fontStyle: 'bold',
+              fontSize: 10,
+              cellPadding: { top: 1.8, right: 4, bottom: 1.8, left: 4 },
+              valign: 'middle' 
+            },
+            columnStyles: {
+              0: { halign: 'left', cellWidth: 85 },
+              1: { halign: 'center', cellWidth: 30 },
+            },
+            alternateRowStyles: { fillColor: COLORS.light },
+            theme: 'grid',
           });
+          currentY = doc.lastAutoTable.finalY + 8;
         }
       }
 

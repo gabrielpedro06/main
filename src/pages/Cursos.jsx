@@ -163,23 +163,12 @@ function formatDuration(value) {
 }
 
 function formatCurrency(value) {
-  const num = Number(value) || 0;
-  return num.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' });
+  const amount = Number(value) || 0;
+  return amount.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' });
 }
 
-function EmptyState({ onNew }) {
-  return (
-    <div style={{ background: '#fff', border: '1px dashed #d8e0ea', borderRadius: '22px', padding: '42px 28px', textAlign: 'center', boxShadow: '0 8px 24px rgba(15, 23, 42, 0.04)' }}>
-      <div style={{ width: 68, height: 68, margin: '0 auto 16px auto', borderRadius: '18px', display: 'grid', placeItems: 'center', background: 'linear-gradient(135deg, #f8fafc, #eef2ff)', color: '#475569' }}>
-        <Icons.BookOpen size={28} />
-      </div>
-      <h3 style={{ margin: 0, fontSize: '1.15rem', color: '#0f172a', fontWeight: 800 }}>Nenhum curso encontrado</h3>
-      <p style={{ margin: '8px 0 22px 0', color: '#64748b' }}>Cria o primeiro curso para começares a gerir módulos e textos de proposta.</p>
-      <button onClick={onNew} style={{ border: 'none', borderRadius: '14px', padding: '12px 18px', background: 'linear-gradient(135deg, var(--color-btnPrimary), var(--color-btnPrimaryDark))', color: '#fff', fontWeight: 800, cursor: 'pointer', boxShadow: '0 12px 24px var(--color-btnPrimaryShadow)' }}>
-        Criar primeiro curso
-      </button>
-    </div>
-  );
+function getModulesHours(modules = []) {
+  return (Array.isArray(modules) ? modules : []).reduce((total, module) => total + Number(module.duracao_horas || 0), 0);
 }
 
 function CourseCard({ curso, onView, onEdit, onDelete }) {
@@ -234,9 +223,10 @@ function CourseCard({ curso, onView, onEdit, onDelete }) {
   );
 }
 
-function CourseForm({ formData, setFormData, novoModulo, setNovoModulo, onAddModulo, onRemoveModulo, onSubmit, submitLabel, onCancel, isSaving, editable = true }) {
+function CourseForm({ formData, setFormData, novoModulo, setNovoModulo, onAddModulo, onRemoveModulo, onSubmit, submitLabel, onCancel, isSaving, editable = true, editingModuleIdx, onEditModule, onCancelModuleForm }) {
   const modules = Array.isArray(formData.modulos) ? formData.modulos : [];
   const readOnlyStyle = editable ? {} : { background: '#f8fafc', color: '#475569' };
+  const totalHours = getModulesHours(modules);
 
   return (
     <form onSubmit={onSubmit} style={{ display: 'grid', gap: '18px' }}>
@@ -253,14 +243,12 @@ function CourseForm({ formData, setFormData, novoModulo, setNovoModulo, onAddMod
           />
         </div>
         <div>
-          <label style={labelStyle}>Duração (horas)</label>
+          <label style={labelStyle}>Duração total</label>
           <input
-            type="number"
-            min="0"
-            value={formData.duracao_horas}
-            onChange={(e) => setFormData({ ...formData, duracao_horas: e.target.value })}
-            style={{ ...fieldStyle, ...readOnlyStyle }}
-            disabled={!editable || isSaving}
+            type="text"
+            value={`${totalHours} horas`}
+            readOnly
+            style={{ ...fieldStyle, ...readOnlyStyle, background: '#f8fafc', color: '#0f172a', fontWeight: 700 }}
           />
         </div>
       </div>
@@ -326,19 +314,31 @@ function CourseForm({ formData, setFormData, novoModulo, setNovoModulo, onAddMod
             <div key={`${mod.nome || 'mod'}-${idx}`} style={{ border: '1px solid #e2e8f0', background: '#f8fafc', borderRadius: '16px', padding: '12px 14px', display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-start' }}>
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '0.92rem' }}>{mod.nome || 'Sem nome'}</div>
+                <div style={{ color: '#64748b', fontSize: '0.78rem', marginTop: 4, fontWeight: 700 }}>{Number(mod.duracao_horas || 0)}h</div>
                 {mod.conteudo && <div style={{ color: '#64748b', fontSize: '0.84rem', marginTop: 4, lineHeight: 1.4 }}>{mod.conteudo}</div>}
               </div>
               {editable && (
-                <button type="button" onClick={() => onRemoveModulo(idx)} style={{ border: '1px solid #fecaca', background: '#fff1f2', color: '#dc2626', borderRadius: '10px', width: 34, height: 34, display: 'grid', placeItems: 'center', cursor: 'pointer', flexShrink: 0 }} title="Remover módulo">
-                  <Icons.Trash size={15} />
-                </button>
+                <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                  <button type="button" onClick={() => onEditModule(idx)} style={{ border: '1px solid #dbeafe', background: '#eff6ff', color: '#0284c7', borderRadius: '10px', width: 34, height: 34, display: 'grid', placeItems: 'center', cursor: 'pointer' }} title="Editar módulo">
+                    <Icons.Edit size={15} />
+                  </button>
+                  <button type="button" onClick={() => onRemoveModulo(idx)} style={{ border: '1px solid #fecaca', background: '#fff1f2', color: '#dc2626', borderRadius: '10px', width: 34, height: 34, display: 'grid', placeItems: 'center', cursor: 'pointer' }} title="Remover módulo">
+                    <Icons.Trash size={15} />
+                  </button>
+                </div>
               )}
             </div>
           ))}
         </div>
       )}
 
-      {editable && (
+      {editable && editingModuleIdx === null && (
+        <button type="button" onClick={() => onEditModule(null)} style={{ border: '1px solid #cbd5e1', background: '#fff', color: '#0f172a', borderRadius: '12px', padding: '11px 14px', fontWeight: 800, cursor: 'pointer', width: '100%' }}>
+          + Criar novo módulo
+        </button>
+      )}
+
+      {editable && editingModuleIdx !== null && editingModuleIdx !== undefined && (
         <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '18px', padding: '14px' }}>
           <div style={{ display: 'grid', gap: '10px' }}>
             <input
@@ -346,6 +346,16 @@ function CourseForm({ formData, setFormData, novoModulo, setNovoModulo, onAddMod
               value={novoModulo.nome}
               onChange={(e) => setNovoModulo({ ...novoModulo, nome: e.target.value })}
               placeholder="Nome do módulo"
+              style={fieldStyle}
+              disabled={isSaving}
+            />
+            <input
+              type="number"
+              min="0"
+              step="0.5"
+              value={novoModulo.duracao_horas}
+              onChange={(e) => setNovoModulo({ ...novoModulo, duracao_horas: e.target.value })}
+              placeholder="Duração do módulo (horas)"
               style={fieldStyle}
               disabled={isSaving}
             />
@@ -357,9 +367,14 @@ function CourseForm({ formData, setFormData, novoModulo, setNovoModulo, onAddMod
               style={{ ...fieldStyle, minHeight: 72, resize: 'vertical' }}
               disabled={isSaving}
             />
-            <button type="button" onClick={onAddModulo} style={{ border: 'none', borderRadius: '12px', padding: '11px 14px', background: '#e2e8f0', color: '#0f172a', fontWeight: 800, cursor: 'pointer' }}>
-              + Adicionar Módulo
-            </button>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button type="button" onClick={onAddModulo} style={{ flex: 1, border: 'none', borderRadius: '12px', padding: '11px 14px', background: 'var(--color-btnPrimary)', color: '#fff', fontWeight: 800, cursor: 'pointer' }}>
+                {editingModuleIdx >= 0 ? 'Atualizar Módulo' : 'Adicionar Módulo'}
+              </button>
+              <button type="button" onClick={onCancelModuleForm} style={{ flex: 1, border: '1px solid #cbd5e1', borderRadius: '12px', padding: '11px 14px', background: '#fff', color: '#0f172a', fontWeight: 800, cursor: 'pointer' }}>
+                Cancelar
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -486,7 +501,8 @@ export default function Cursos() {
   const [drawerMode, setDrawerMode] = useState('view');
   const [editId, setEditId] = useState(null);
   const [formData, setFormData] = useState(DEFAULT_FORM);
-  const [novoModulo, setNovoModulo] = useState({ nome: '', conteudo: '' });
+  const [novoModulo, setNovoModulo] = useState({ nome: '', duracao_horas: 0, conteudo: '' });
+  const [editingModuleIdx, setEditingModuleIdx] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -520,7 +536,8 @@ export default function Cursos() {
 
   function resetForm() {
     setFormData(DEFAULT_FORM);
-    setNovoModulo({ nome: '', conteudo: '' });
+    setNovoModulo({ nome: '', duracao_horas: 0, conteudo: '' });
+    setEditingModuleIdx(null);
     setEditId(null);
   }
 
@@ -546,7 +563,7 @@ export default function Cursos() {
       modulos: Array.isArray(curso.modulos) ? curso.modulos : [],
       ativo: Boolean(curso.ativo),
     });
-    setNovoModulo({ nome: '', conteudo: '' });
+    setNovoModulo({ nome: '', duracao_horas: 0, conteudo: '' });
     setShowDrawer(true);
   }
 
@@ -565,7 +582,29 @@ export default function Cursos() {
       setShowDrawer(false);
       setIsClosingDrawer(false);
       setEditId(null);
+      setEditingModuleIdx(null);
     }, 360);
+  }
+
+  function handleEditModule(index) {
+    if (index === null) {
+      // Criar novo módulo - usar -1 para indicar modo de criação
+      setNovoModulo({ nome: '', duracao_horas: 0, conteudo: '' });
+      setEditingModuleIdx(-1);
+    } else {
+      // Editar módulo existente
+      const modules = Array.isArray(formData.modulos) ? formData.modulos : [];
+      const moduleToEdit = modules[index];
+      if (moduleToEdit) {
+        setNovoModulo({ nome: moduleToEdit.nome, duracao_horas: moduleToEdit.duracao_horas, conteudo: moduleToEdit.conteudo });
+        setEditingModuleIdx(index);
+      }
+    }
+  }
+
+  function handleCancelModuleForm() {
+    setNovoModulo({ nome: '', duracao_horas: 0, conteudo: '' });
+    setEditingModuleIdx(null);
   }
 
   function handleAddModulo() {
@@ -574,12 +613,24 @@ export default function Cursos() {
       return;
     }
 
+    const duracaoHoras = Number(novoModulo.duracao_horas) || 0;
     const modules = Array.isArray(formData.modulos) ? formData.modulos : [];
-    setFormData({
-      ...formData,
-      modulos: [...modules, { ...novoModulo, ordem: modules.length }],
-    });
-    setNovoModulo({ nome: '', conteudo: '' });
+
+    if (editingModuleIdx >= 0) {
+      // Atualizar módulo existente
+      const updatedModules = [...modules];
+      updatedModules[editingModuleIdx] = { ...novoModulo, duracao_horas: duracaoHoras };
+      setFormData({ ...formData, modulos: updatedModules });
+    } else {
+      // Adicionar novo módulo
+      setFormData({
+        ...formData,
+        modulos: [...modules, { ...novoModulo, duracao_horas: duracaoHoras, ordem: modules.length }],
+      });
+    }
+
+    setNovoModulo({ nome: '', duracao_horas: 0, conteudo: '' });
+    setEditingModuleIdx(null);
   }
 
   function handleRemoveModulo(index) {
@@ -588,6 +639,14 @@ export default function Cursos() {
       ...formData,
       modulos: modules.filter((_, i) => i !== index),
     });
+    // Se estava a editar o módulo que foi removido, cancela a edição
+    if (editingModuleIdx === index) {
+      handleCancelModuleForm();
+    }
+    // Se o índice que estava a editar era maior que o removido, decrementa
+    if (editingModuleIdx > index) {
+      setEditingModuleIdx(editingModuleIdx - 1);
+    }
   }
 
   async function saveCurso(isEdit) {
@@ -816,6 +875,9 @@ export default function Cursos() {
           setNovoModulo={setNovoModulo}
           onAddModulo={handleAddModulo}
           onRemoveModulo={handleRemoveModulo}
+          onEditModule={handleEditModule}
+          onCancelModuleForm={handleCancelModuleForm}
+          editingModuleIdx={editingModuleIdx}
           onSubmit={handleCreateSubmit}
           submitLabel="Criar Curso"
           onCancel={() => setShowCreateModal(false)}
@@ -898,11 +960,14 @@ export default function Cursos() {
               setNovoModulo={setNovoModulo}
               onAddModulo={handleAddModulo}
               onRemoveModulo={handleRemoveModulo}
+              onEditModule={handleEditModule}
+              onCancelModuleForm={handleCancelModuleForm}
+              editingModuleIdx={editingModuleIdx}
               onSubmit={handleDrawerSubmit}
               submitLabel="Guardar Alterações"
               onCancel={closeDrawer}
               isSaving={isSaving}
-              editable
+              editable={drawerMode === 'edit'}
             />
           )}
         </div>

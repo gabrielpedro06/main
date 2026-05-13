@@ -13,11 +13,7 @@ const COLORS = {
   light: [248, 249, 250],
 };
 
-const buildDefaultCartaApresentacao = (nomeEmpresa) => `Desde já agradeço a consulta e a oportunidade que concederam à ${nomeEmpresa} para vos apresentar os nossos serviços.
-
-O nosso compromisso é oferecer o nosso melhor conhecimento e dedicar os melhores recursos a este projeto, de modo a atingir os objetivos pretendidos e os resultados esperados no prazo desejado.
-
-Com vista a dar seguimento ao processo, remetemos a nossa proposta de prestação de serviços, onde apresentamos as opções e planos de colaboração.`;
+const buildDefaultCartaApresentacao = (nomeEmpresa) => `Desde já agradeço a consulta e a oportunidade que concederam à ${nomeEmpresa} para vos apresentar os nossos serviços.`;
 
 const DEFAULT_SERVICOS_INTRO = 'A prestação dos serviços de consultoria propostos será orientada de forma a implementar os serviços que visam a submissão do pedido de financiamento, bem como a assessoria na gestão do projeto financiado.';
 
@@ -108,6 +104,18 @@ const romanize = (num) => {
   return roman;
 };
 
+// Nova função de sanitização de texto (remove lixo invisível, corrige bullets e bytes nulos)
+const sanitizeText = (text) => {
+  if (!text) return '';
+  return String(text)
+    .replace(/\0/g, '')                     // Remove bytes nulos (resolve o problema do espaçamento A p o i o)
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')  // Remove caracteres invisíveis/zero-width
+    .replace(/[•▪]/g, '-')                // Substitui bullets estranhos do Word por hífen/traço
+    .replace(/[“”]/g, '"')                  // Normaliza aspas
+    .replace(/[‘’]/g, "'")                  // Normaliza pelicas
+    .replace(/\u00A0/g, ' ');               // Substitui non-breaking spaces por espaços normais
+};
+
 // ============================================================================
 // GERAÇÃO DO PDF
 // ============================================================================
@@ -151,6 +159,9 @@ export const generateProposalPDF = async (params) => {
   const sourceEntidadeConfig = proposal.entidade_config || entidadeConfig;
   const sourceTotais = proposal.totais || totais;
 
+  const isSelected = (item) => item?.selecionado !== false;
+  const visibleOrcamentoTiposProjeto = (Array.isArray(sourceOrcamentoTiposProjeto) ? sourceOrcamentoTiposProjeto : []).filter(isSelected);
+
   const config = { ...sourceCondicoesGerais, ...sourceEntidadeConfig };
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
@@ -170,17 +181,17 @@ export const generateProposalPDF = async (params) => {
   const certificacoesBase64 = await loadImage(config.imagem_certificacoes);
 
   // Ordenações e Nomes
-  const orderedTipoIds = (Array.isArray(sourceOrcamentoTiposProjeto) && sourceOrcamentoTiposProjeto.length > 0
-    ? sourceOrcamentoTiposProjeto : Array.isArray(sourceOrcamentoLinhas) ? sourceOrcamentoLinhas : [])
+  const orderedTipoIds = (visibleOrcamentoTiposProjeto.length > 0
+    ? visibleOrcamentoTiposProjeto : Array.isArray(sourceOrcamentoLinhas) ? sourceOrcamentoLinhas : [])
     .map((item) => String(item?.tipo_projeto_id || item?.id || '')).filter(Boolean);
 
-  const orderedTipoNames = (Array.isArray(sourceOrcamentoTiposProjeto) && sourceOrcamentoTiposProjeto.length > 0
-    ? sourceOrcamentoTiposProjeto : Array.isArray(sourceOrcamentoLinhas) ? sourceOrcamentoLinhas : [])
+  const orderedTipoNames = (visibleOrcamentoTiposProjeto.length > 0
+    ? visibleOrcamentoTiposProjeto : Array.isArray(sourceOrcamentoLinhas) ? sourceOrcamentoLinhas : [])
     .map((item) => safeValue(item?.nome)).filter((name) => name && name !== '—');
 
   const getTipoProjetoNome = (id) => {
     if (!id || id === 'default') return 'Serviços do Projeto';
-    const inOrcamento = (sourceOrcamentoTiposProjeto || []).find(t => String(t.tipo_projeto_id || t.id) === String(id));
+    const inOrcamento = (visibleOrcamentoTiposProjeto || []).find(t => String(t.tipo_projeto_id || t.id) === String(id));
     if (inOrcamento && inOrcamento.nome) return inOrcamento.nome;
     const inSelecionados = (sourceTiposProjetoSelecionados || []).find(t => String(t.id) === String(id));
     if (inSelecionados && inSelecionados.nome) return inSelecionados.nome;
@@ -200,6 +211,13 @@ export const generateProposalPDF = async (params) => {
     if (tipoOrderA !== tipoOrderB) return tipoOrderA - tipoOrderB;
     return Number(a?.ordem || 0) - Number(b?.ordem || 0);
   });
+
+  const visibleModeloEstrutura = orderedModeloEstrutura
+    .filter(isSelected)
+    .map((atividade) => ({
+      ...atividade,
+      tarefas: (Array.isArray(atividade?.tarefas) ? atividade.tarefas : []).filter(isSelected),
+    }));
 
   const cartaApresentacao = String(textosProposta?.carta_apresentacao || '').trim() || buildDefaultCartaApresentacao(sourceEmpresaConsultora?.nome?.toUpperCase() || 'nossa empresa');
   const servicosIntroducao = String(textosProposta?.servicos_introducao || config.texto_como_ajudamos || config.texto_processo_trabalho || '').trim() || DEFAULT_SERVICOS_INTRO;
@@ -273,7 +291,8 @@ export const generateProposalPDF = async (params) => {
 
   const drawParagraph = (text, options = {}) => {
     if (!text) return;
-    const body = String(text).replace(/\r\n/g, '\n').trim();
+    // Aplicamos a sanitização para remover bytes nulos e bullets estranhos
+    const body = sanitizeText(text).replace(/\r\n/g, '\n').trim();
     const width = Number(options.width || contentWidth);
     const paragraphs = body.split(/\n\s*\n/g).map((p) => p.trim()).filter(Boolean);
 
@@ -300,8 +319,7 @@ export const generateProposalPDF = async (params) => {
   };
 
   // ----------------------------------------------------------------------------
-  // NOVA FUNÇÃO: Linha de Campo Única (Substitui as Colunas Duplas)
-  // Faz com que Label e Valor fluam perfeitamente na horizontal e vertical
+  // Linha de Campo Única (Substitui as Colunas Duplas)
   // ----------------------------------------------------------------------------
   const drawFieldLine = (label, value) => {
     if (!value || value === '—') return;
@@ -316,11 +334,10 @@ export const generateProposalPDF = async (params) => {
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(...COLORS.secondary);
     
-    const valueStr = String(value).trim();
+    // Aplicamos a sanitização no valor que estamos a tentar desenhar
+    const valueStr = sanitizeText(value).trim();
     const inlineLines = doc.splitTextToSize(valueStr, contentWidth - labelWidth);
 
-    // Se o texto for curto, escreve na frente da Label.
-    // Se for comprido (várias linhas), escreve debaixo da Label ocupando toda a largura.
     if (inlineLines.length === 1) {
         doc.text(labelText, marginX, currentY);
         doc.text(inlineLines[0], marginX + labelWidth, currentY);
@@ -338,16 +355,16 @@ export const generateProposalPDF = async (params) => {
     if (!Array.isArray(items) || items.length === 0) return;
     drawTitle(title);
     items.forEach((item) => {
-      drawParagraph(`• ${item}`, { size: 9.5, lineHeight: 4.5, gap: 1 });
+      // Sanitizamos para o caso de a lista também vir com caracteres estranhos
+      const cleanItem = sanitizeText(item);
+      drawParagraph(`- ${cleanItem}`, { size: 9.5, lineHeight: 4.5, gap: 1 });
     });
     currentY += 3;
   };
 
-  let hasStartedMainSection = false;
   const startMainSection = (title) => {
-    if (hasStartedMainSection && currentY > marginY + 0.5) addNewPage();
+    ensureSpace(20);
     drawSectionTitle(title);
-    hasStartedMainSection = true;
   };
 
   // ============================================================================
@@ -388,7 +405,7 @@ export const generateProposalPDF = async (params) => {
   doc.text('PROPOSTA DE PRESTAÇÃO', contentX, 100);
   doc.text('DE SERVIÇOS', contentX, 105);
 
-  const projectName = selectedPrograma?.descricao || programa?.codigo || programa?.nome || 'Consultoria para apoio ao Financiamento';
+  const projectName = sourceSelectedPrograma?.descricao || sourcePrograma?.codigo || sourcePrograma?.nome || 'Consultoria para apoio ao Financiamento';
   doc.setFontSize(20);
   doc.setTextColor(...COLORS.accent); 
   const splitProject = doc.splitTextToSize(projectName, (pageWidth / 2) - rightPadding - 10);
@@ -454,10 +471,10 @@ export const generateProposalPDF = async (params) => {
   if (config.texto_para_aprovacao) drawParagraph(config.texto_para_aprovacao, { size: 10, lineHeight: 5.5, gap: 10, color: COLORS.secondary });
 
   // Assinatura Configurada
-  const signatarioNome = config.signatario_nome || empresaConsultora?.nome_signatario || 'A GERÊNCIA';
-  const signatarioCargo = config.signatario_cargo || empresaConsultora?.cargo_signatario || 'Direção';
-  const signatarioTel = config.signatario_telefone || empresaConsultora?.telefone || '—';
-  const signatarioEmail = config.signatario_email || empresaConsultora?.email || '—';
+  const signatarioNome = config.signatario_nome || sourceEmpresaConsultora?.nome_signatario || 'A GERÊNCIA';
+  const signatarioCargo = config.signatario_cargo || sourceEmpresaConsultora?.cargo_signatario || 'Direção';
+  const signatarioTel = config.signatario_telefone || sourceEmpresaConsultora?.telefone || '—';
+  const signatarioEmail = config.signatario_email || sourceEmpresaConsultora?.email || '—';
 
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...COLORS.primary);
@@ -479,6 +496,7 @@ export const generateProposalPDF = async (params) => {
   // ============================================================================
   const temApresentacao = config.texto_apresentacao_empresa || config.texto_como_ajudamos;
   if (temApresentacao) {
+      addNewPage();
       startMainSection('SOBRE NÓS');
       
       if (config.texto_apresentacao_empresa) {
@@ -490,82 +508,114 @@ export const generateProposalPDF = async (params) => {
           drawTitle('Como Ajudamos o seu Negócio');
           drawParagraph(config.texto_como_ajudamos, { size: 9.5, lineHeight: 5, color: COLORS.secondary });
       }
+      // Financiamento Custom Texts
+      if (config.texto_demonstracao_financiamento) {
+          startMainSection('SOBRE O FINANCIAMENTO');
+          drawParagraph(config.texto_demonstracao_financiamento, { size: 9.5, lineHeight: 5, color: COLORS.secondary });
+      }
+
+      if (config.texto_processo_trabalho) {
+          startMainSection('PROCESSO DE TRABALHO');
+          drawParagraph(config.texto_processo_trabalho, { size: 9.5, lineHeight: 5, color: COLORS.secondary });
+      }
+
+      if (servicosIntroducao) {
+          startMainSection('MÉTODO DE TRABALHO');
+          drawParagraph(servicosIntroducao, { size: 9.5, lineHeight: 5, color: COLORS.secondary });
+      }
   }
 
 
-  // ============================================================================
+// ============================================================================
   // ENQUADRAMENTO DO PROJETO (Totalmente numa coluna!)
   // ============================================================================
+  addNewPage();
   startMainSection('ENQUADRAMENTO DO PROJETO');
 
-  drawTitle('Detalhes Gerais');
-  drawFieldLine('Número da Proposta', numeroLabel);
-  drawFieldLine('Estado Atual', formatEstadoLabel(proposta?.estado));
-  drawFieldLine('Data de Emissão', dateFormatted);
-  drawFieldLine('Validade da Proposta', `${Number(proposta?.validade || 30)} dias`);
-  drawFieldLine('NIPC do Cliente', cliente?.nipc);
-  if (cliente?.setor_atividade) {
-      drawFieldLine('Setor de Atividade', cliente.setor_atividade);
-  }
+  if (sourcePrograma?.codigo || sourcePrograma?.nome || sourceSelectedAviso?.nome || sourceSelectedAviso?.codigo || sourceSelectedPrograma?.aviso) {
+    // 1. Garantir que o bloco todo cabe na página antes de começar, 
+    // para evitar que a caixa se parta a meio entre duas páginas (40 unidades costumam chegar)
+    ensureSpace(40); 
 
-  currentY += 6;
-  drawTitle('Detalhes de Financiamento');
-  drawFieldLine('Tipo de projeto', tipoProjetoLabel);
-  drawFieldLine('Investimento Elegível Previsto', fmtCurrency ? fmtCurrency(proposta?.investimento || 0) : formatCurrency(proposta?.investimento || 0));
-    if (sourcePrograma?.pct) drawFieldLine('Taxa de Incentivo', `${sourcePrograma.pct}%`);
+    const boxPadding = 5; 
+    const startBoxY = currentY;
 
-    if (sourcePrograma?.codigo || sourcePrograma?.nome || sourceSelectedAviso?.nome || sourceSelectedAviso?.codigo || sourceSelectedPrograma?.aviso) {
-    currentY += 6;
+    // 2. Padding superior interno (empurra o texto um pouco para baixo)
+    currentY += boxPadding + 2;
+
+    // 3. Renderizar os textos
     drawTitle('Programa e Aviso');
     drawFieldLine('Código do Programa', sourcePrograma?.codigo || sourcePrograma?.nome);
     drawFieldLine('Designação do Aviso', sourceSelectedAviso?.nome || sourceSelectedAviso?.codigo || sourceSelectedPrograma?.aviso);
+    if (sourcePrograma?.pct) drawFieldLine('Taxa de Incentivo', `${sourcePrograma.pct}%`);
 
-    currentY += 4;
+    // 4. Padding inferior interno (o drawFieldLine já deixa um ligeiro espaço, ajustamos apenas +2)
+    const endBoxY = currentY + 2;
+
+    // 5. Desenhar o Retângulo
+    doc.setDrawColor(...COLORS.accent);
+    doc.setLineWidth(0.6);
+    doc.rect(
+      marginX - boxPadding,             // X inicial (ligeiramente à esquerda da margem normal)
+      startBoxY,                        // Y inicial
+      contentWidth + (boxPadding * 2),  // Largura (largura do conteúdo + padding dos dois lados)
+      endBoxY - startBoxY,              // Altura calculada
+      'S'                               // 'S' significa Stroke (apenas borda)
+    );
+
+    // 6. Espaçamento exterior abaixo da caixa antes do próximo título ("Objetivos")
+    currentY += 8;
+  }
     if (sourceSelectedPrograma?.objetivos) {
-        drawTitle('Objetivos:');
+      drawTitle('Objetivos:');
       drawParagraph(sourceSelectedPrograma.objetivos, { size: 9, lineHeight: 4.5, color: COLORS.secondary });
     }
     if (sourceSelectedPrograma?.acoes_elegiveis) {
-        drawTitle('Ações elegíveis:');
+      drawTitle('Ações elegíveis:');
       drawParagraph(sourceSelectedPrograma.acoes_elegiveis, { size: 9, lineHeight: 4.5, color: COLORS.secondary });
     }
     if (sourceSelectedPrograma?.descricao) {
-        drawTitle('Descrição:');
+      drawTitle('Descrição:');
       drawParagraph(sourceSelectedPrograma.descricao, { size: 9, lineHeight: 4.5, color: COLORS.secondary });
     }
     if (sourceSelectedPrograma?.condicoes_especificas) {
-        drawTitle('Condições específicas:');
+      drawTitle('Condições específicas:');
       drawParagraph(sourceSelectedPrograma.condicoes_especificas, { size: 9, lineHeight: 4.5, color: COLORS.secondary });
     }
     if (sourceSelectedAviso?.fases && sourceSelectedAviso.fases.length > 0) {
-      renderKeyList('Prazos / Fases do Aviso', sourceSelectedAviso.fases.map((fase) => `${fase.nome || 'Fase'} — ${formatDate(fase.prazo)}`));
+      drawTitle('Prazos / Fases do Aviso');
+      const fasesRows = sourceSelectedAviso.fases.map((fase) => [
+        sanitizeText(fase.nome || 'Fase'),
+        formatDate(fase.prazo),
+      ]);
+      autoTable(doc, {
+        startY: currentY,
+        margin: { left: marginX, right: marginX + 100 },
+        head: [['Fase', 'Prazo']],
+        body: fasesRows,
+        styles: { font: 'helvetica', fontSize: 9, cellPadding: 4, valign: 'middle', textColor: COLORS.secondary },
+        headStyles: { fillColor: COLORS.accent, textColor: COLORS.white, fontStyle: 'bold' },
+        columnStyles: {
+          0: { halign: 'left' },
+          1: { halign: 'left' },
+        },
+        alternateRowStyles: { fillColor: COLORS.light },
+      });
+      currentY = doc.lastAutoTable.finalY + 8;
     }
-  }
-
-  // Financiamento Custom Texts
-  if (config.texto_demonstracao_financiamento) {
-      startMainSection('SOBRE O FINANCIAMENTO');
-      drawParagraph(config.texto_demonstracao_financiamento, { size: 9.5, lineHeight: 5, color: COLORS.secondary });
-  }
-
-  if (config.texto_processo_trabalho) {
-      startMainSection('PROCESSO DE TRABALHO');
-      drawParagraph(config.texto_processo_trabalho, { size: 9.5, lineHeight: 5, color: COLORS.secondary });
-  }
 
 
   // ============================================================================
   // SERVIÇOS 
   // ============================================================================
-  startMainSection('MÉTODO E SERVIÇOS A PRESTAR');
-  
-  drawParagraph(servicosIntroducao, { size: 10, lineHeight: 5, gap: 8 });
+  addNewPage();
+  startMainSection('SERVIÇOS A PRESTAR');
 
-  if (!orderedModeloEstrutura || orderedModeloEstrutura.length === 0) {
+  if (!visibleModeloEstrutura || visibleModeloEstrutura.length === 0) {
     drawFieldLine('Status', 'Sem atividades registadas');
   } else {
     const atividadesPorTipo = {};
-    orderedModeloEstrutura.forEach(atividade => {
+    visibleModeloEstrutura.forEach(atividade => {
        const id = atividade.tipo_projeto_id || 'default';
        if (!atividadesPorTipo[id]) atividadesPorTipo[id] = [];
        atividadesPorTipo[id].push(atividade);
@@ -605,7 +655,8 @@ export const generateProposalPDF = async (params) => {
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(9);
             doc.setTextColor(...COLORS.secondary);
-            const lines = doc.splitTextToSize(`• ${t.nome}`, contentWidth - 5);
+            const tNome = sanitizeText(t.nome);
+            const lines = doc.splitTextToSize(`- ${tNome}`, contentWidth - 5);
             doc.text(lines, marginX + 3, currentY);
             currentY += lines.length * 4.5;
           });
@@ -621,6 +672,7 @@ export const generateProposalPDF = async (params) => {
   // DOCUMENTAÇÃO
   // ============================================================================
   if (config.texto_documentos_empresa || config.texto_documentos_incentivo) {
+      addNewPage();
       startMainSection('DOCUMENTAÇÃO NECESSÁRIA');
       
       if (config.texto_documentos_empresa) {
@@ -642,16 +694,16 @@ export const generateProposalPDF = async (params) => {
   const orcamentoTabelaRows = [];
   const orcamentoTableStyles = [];
 
-  if (Array.isArray(orcamentoTiposProjeto) && orcamentoTiposProjeto.length > 0) {
-    orcamentoTiposProjeto.forEach((item) => {
+  if (Array.isArray(visibleOrcamentoTiposProjeto) && visibleOrcamentoTiposProjeto.length > 0) {
+    visibleOrcamentoTiposProjeto.forEach((item) => {
       const modo = normalizeModoHonorario(item.modo_honorario, item);
       const pagamentoTexto = (item.plano_pagamentos || []).length > 0
-        ? (item.plano_pagamentos || []).map((pag) => `${Number(pag.percentagem || 0)}% ${safeValue(pag.descricao)}`).join('\n')
+        ? (item.plano_pagamentos || []).map((pag) => `${Number(pag.percentagem || 0)}% ${sanitizeText(pag.descricao)}`).join('\n')
         : '—';
 
       if (modo !== 'variavel') {
         orcamentoTabelaRows.push([
-          `Módulo ${safeValue(item.ordem)} - ${safeValue(item.nome)}`,
+          `Módulo ${safeValue(item.ordem)} - ${sanitizeText(item.nome)}`,
           fmtCurrency ? fmtCurrency(item.valor_fixo || item.valor || 0) : formatCurrency(item.valor_fixo || item.valor || 0),
           pagamentoTexto,
         ]);
@@ -660,8 +712,8 @@ export const generateProposalPDF = async (params) => {
 
       if (modo !== 'fixo' && Array.isArray(item.valores_variaveis) && item.valores_variaveis.length > 0) {
         item.valores_variaveis.forEach((variavel) => {
-          const subtotalTexto = `${fmtCurrency ? fmtCurrency(variavel.valor_base || 0) : formatCurrency(variavel.valor_base || 0)} + ${Number(variavel.percentagem || 0)}% ${safeValue(variavel.variavel)}`;
-          orcamentoTabelaRows.push([ safeValue(variavel.servico || variavel.variavel || item.nome), subtotalTexto, safeValue(variavel.descricao) ]);
+          const subtotalTexto = `${fmtCurrency ? fmtCurrency(variavel.valor_base || 0) : formatCurrency(variavel.valor_base || 0)} + ${Number(variavel.percentagem || 0)}% ${sanitizeText(variavel.variavel)}`;
+          orcamentoTabelaRows.push([ sanitizeText(variavel.servico || variavel.variavel || item.nome), subtotalTexto, sanitizeText(variavel.descricao) ]);
           orcamentoTableStyles.push('variable');
         });
       }
@@ -719,38 +771,62 @@ export const generateProposalPDF = async (params) => {
   // ============================================================================
   // TERMOS E CONDIÇÕES E CERTIFICAÇÕES
   // ============================================================================
+  addNewPage();
   startMainSection('TERMOS E CONDIÇÕES');
 
+
+  // Preparar os textos configurados
+  const legalBody = String(config.termos_gerais || sourceCondicoesGerais?.termos_gerais || '').trim() || 'Sem termos gerais definidos.';
+
+  // 1. Informação Legal (Termos Gerais)
+  drawTitle('Informação Legal');
+  drawParagraph(legalBody, { size: 9, lineHeight: 4.5, color: COLORS.secondary });
+
+  // 2. Notas Específicas do Orçamento (Array)
   if (sourceNotasExclusoes && sourceNotasExclusoes.length > 0) {
-    drawTitle('Notas e Exclusões da Proposta');
+    startMainSection('Notas e Exclusões da Proposta');
     sourceNotasExclusoes.forEach((nota, index) => {
       drawParagraph(`${index + 1}. ${nota}`, { size: 9, lineHeight: 4.5, gap: 2, color: COLORS.secondary });
     });
     currentY += 4;
   }
 
-  if (config.texto_exclusoes) {
-      drawTitle('Exclusões e Condições Especiais');
-      drawParagraph(config.texto_exclusoes, { size: 9, lineHeight: 4.5, color: COLORS.secondary });
+  // ============================================================================
+  // RODAPÉ COM INFORMAÇÕES DA NEOMARCA
+  // ============================================================================
+  addNewPage();
+  
+  // Calcular o centro da página (altura e largura)
+  const centerY = pageHeight / 2 - 30;
+  const centerX = pageWidth / 2;
+  
+  // Logo da Neomarca (centrado horizontalmente)
+  if (logoBase64) {
+    const logoWidth = 40;
+    const logoHeight = 40;
+    doc.addImage(logoBase64, 'PNG', centerX - logoWidth / 2, centerY, logoWidth, logoHeight);
+    currentY = centerY + logoHeight + 12;
+  } else {
+    currentY = centerY + 12;
   }
 
-  drawTitle('Informação Legal');
-  const legalBody = String(config.termos_gerais || condicoesGerais?.termos_gerais || '').trim() || 'Sem termos gerais definidos.';
-  drawParagraph(legalBody, { size: 9, lineHeight: 4.5, color: COLORS.secondary });
+  // Informações da Neomarca (centradas)
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(...COLORS.primary);
+  doc.text('NEOMARCA, INOVAÇÃO E DESENVOLVIMENTO, LDA.', centerX, currentY, { align: 'center' });
+  currentY += 7;
 
-  // Certificações no Fim
-  if (certificacoesBase64) {
-      ensureSpace(40);
-      drawTitle('As Nossas Certificações');
-      
-      const props = doc.getImageProperties(certificacoesBase64);
-      const ratio = props.width / props.height;
-      const w = 140; // max width
-      const h = w / ratio;
-      
-      doc.addImage(certificacoesBase64, 'PNG', marginX, currentY, w, h, undefined, 'FAST');
-      currentY += h + 10;
-  }
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(...COLORS.secondary);
+  doc.text('NIPC: 503 495 140', centerX, currentY, { align: 'center' });
+  currentY += 5;
+  
+  doc.text('Rua Horta Machado, 2 - 8000-362 FARO', centerX, currentY, { align: 'center' });
+  currentY += 5;
+  
+  doc.text('T. 280 098 720 | info@neomarca.pt | www.neomarca.pt', centerX, currentY, { align: 'center' });
 
   // ============================================================================
   // RODAPÉS

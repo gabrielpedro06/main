@@ -123,31 +123,97 @@ const formatCurrency = (value) => currencyFormatter.format(Number(value) || 0);
 const getCursoValor = (curso = {}) =>
   Number(curso.valor || curso.preco || curso.preco_base || curso.valor_servico || curso.honorario_valor || 0);
 
+const parseHoras = (value) => {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase().replace(",", ".");
+    if (!normalized) return 0;
+    const match = normalized.match(/\d+(?:\.\d+)?/);
+    return match ? Number(match[0]) || 0 : 0;
+  }
+  return 0;
+};
+
+const extractModuloHoras = (modulo = {}) =>
+  parseHoras(
+    modulo.duracao_horas ??
+      modulo.duracao ??
+      modulo.horas ??
+      modulo.hora ??
+      modulo.carga_horaria ??
+      modulo.cargaHoraria ??
+      modulo.duracaoHoras ??
+      0
+  );
+
+const normalizeModulosArray = (arr = []) =>
+  arr.map((modulo, index) => ({
+    ...modulo,
+    ordem: modulo.ordem ?? index,
+    duracao_horas: extractModuloHoras(modulo),
+    nome: modulo.nome || modulo.titulo || "",
+  }));
+
 const normalizeModulos = (value) => {
-  if (Array.isArray(value)) return value;
-  if (typeof value === "string" && value.trim()) {
+  // Alguns registos antigos podem vir em formatos diferentes:
+  // array direto, string JSON, string JSON dentro de string, ou objeto com `modulos`.
+  if (Array.isArray(value)) return normalizeModulosArray(value);
+
+  if (value && typeof value === "object" && Array.isArray(value.modulos)) {
+    return normalizeModulosArray(value.modulos);
+  }
+
+  if (typeof value === "string") {
+    const trimmed = String(value).trim();
+    if (!trimmed) return [];
     try {
-      const parsed = JSON.parse(value);
-      return Array.isArray(parsed) ? parsed : [];
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) return normalizeModulosArray(parsed);
+      if (typeof parsed === "string") return normalizeModulos(parsed);
+      if (parsed && typeof parsed === "object" && Array.isArray(parsed.modulos)) {
+        return normalizeModulosArray(parsed.modulos);
+      }
     } catch (_error) {
       return [];
     }
   }
+
   return [];
 };
 
-const normalizeCurso = (curso = {}) => ({
-  ...curso,
-  duracao_horas: Number(curso.duracao_horas || 0),
-  texto_enquadramento: curso.texto_enquadramento || "",
-  objetivos_pedagogicos: curso.objetivos_pedagogicos || "",
-  metodologia: curso.metodologia || "",
-  honorarios_texto: curso.honorarios_texto || "",
-  plano_pagamento: curso.plano_pagamento || "",
-  valor: Number(curso.valor ?? curso.preco ?? curso.valor_servico ?? 0),
-  consideracoes: curso.consideracoes || "",
-  modulos: normalizeModulos(curso.modulos),
-});
+const normalizeCurso = (curso = {}) => {
+  const modulos = normalizeModulos(curso.modulos);
+  const horasModulos = modulos.length > 0
+    ? modulos.reduce((acc, m) => acc + extractModuloHoras(m), 0)
+    : 0;
+
+  return {
+    ...curso,
+    duracao_horas: horasModulos > 0 ? horasModulos : parseHoras(curso.duracao_horas),
+    texto_enquadramento: curso.texto_enquadramento || "",
+    objetivos_pedagogicos: curso.objetivos_pedagogicos || "",
+    metodologia: curso.metodologia || "",
+    honorarios_texto: curso.honorarios_texto || "",
+    plano_pagamento: curso.plano_pagamento || "",
+    valor: Number(curso.valor ?? curso.preco ?? curso.valor_servico ?? 0),
+    consideracoes: curso.consideracoes || "",
+    modulos,
+  };
+};
+
+const getCursoHoras = (curso = {}) => {
+  const modulos = normalizeModulos(curso.modulos);
+  // Se há módulos, soma as horas deles
+  if (Array.isArray(modulos) && modulos.length > 0) {
+    const totalModulos = modulos.reduce((acc, modulo) => {
+      const horas = extractModuloHoras(modulo);
+      return acc + horas;
+    }, 0);
+    if (totalModulos > 0) return totalModulos;
+  }
+  // Fallback para a duração do curso
+  return parseHoras(curso.duracao_horas);
+};
 
 const joinCursoTexts = (cursos, field) =>
   cursos
@@ -187,6 +253,8 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
   const [empresaConsultora, setEmpresaConsultora] = useState(INITIAL_EMPRESA);
   const [cliente, setCliente] = useState(INITIAL_CLIENTE);
   const [cursosSelecionados, setCursosSelecionados] = useState([]);
+  const [expandedCursos, setExpandedCursos] = useState({});
+  const [editingModulo, setEditingModulo] = useState(null); // { cursoId, index }
   const [proposta, setProposta] = useState(INITIAL_PROPOSTA);
   const [condicoes, setCondicoes] = useState(INITIAL_CONDICOES);
 
@@ -250,7 +318,7 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
       totalSemIva,
       totalIva,
       totalComIva: totalSemIva + totalIva,
-      horas: cursosSelecionados.reduce((acc, curso) => acc + Number(curso.duracao_horas || 0), 0),
+      horas: cursosSelecionados.reduce((acc, curso) => acc + getCursoHoras(curso), 0),
     };
   }, [cursosSelecionados, proposta.iva]);
 
@@ -554,18 +622,47 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
     }
   }
 
+  function toggleCursoModulos(cursoId) {
+    setExpandedCursos((previous) => ({
+      ...previous,
+      [cursoId]: !previous[cursoId],
+    }));
+  }
+
   function updateCursoSelecionado(cursoId, field, value) {
     setCursosSelecionados((previous) =>
       previous.map((curso) =>
         String(curso.id) === String(cursoId)
-          ? { ...curso, [field]: value }
+          ? { ...curso, [field]: field === "duracao_horas" ? Number(value) || 0 : value }
           : curso
       )
     );
   }
 
+  function updateModuloSelecionado(cursoId, moduloIndex, field, value) {
+    setCursosSelecionados((previous) =>
+      previous.map((curso) => {
+        if (String(curso.id) !== String(cursoId)) return curso;
+
+        const modulos = normalizeModulos(curso.modulos).map((modulo, index) => {
+          if (index !== moduloIndex) return modulo;
+          return {
+            ...modulo,
+            [field]: field === "duracao_horas" ? Number(value) || 0 : value,
+          };
+        });
+
+        return { ...curso, modulos };
+      })
+    );
+  }
+
   function removeCurso(cursoId) {
     setCursosSelecionados((previous) => previous.filter((item) => String(item.id) !== String(cursoId)));
+    // Reset editingModulo if it was from this course
+    if (editingModulo?.cursoId === cursoId) {
+      setEditingModulo(null);
+    }
   }
 
   function recolherDados() {
@@ -581,6 +678,7 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
         ...normalizeCurso(curso),
         ordem: curso.ordem || index + 1,
         valor: getCursoValor(curso),
+        duracao_horas: getCursoHoras(curso),
       })),
       condicoes_formacao: condicoes,
       totais,
@@ -619,7 +717,7 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
     const rows = cursosSelecionados.map((curso, index) => ({
       proposta_id: propostaDbId,
       curso_id: curso.id,
-      duracao_horas: Number(curso.duracao_horas || 0),
+      duracao_horas: getCursoHoras(curso),
       modulos_customizados: normalizeModulos(curso.modulos),
       ordem: index + 1,
     }));
@@ -1016,7 +1114,7 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
                           <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
                             <div>
                               <h4 style={{ margin: "0 0 8px 0", fontSize: "1rem", color: "#0f2240" }}>{curso.nome}</h4>
-                              <div className="muted">{Number(curso.duracao_horas || 0)} horas</div>
+                              <div className="muted">{getCursoHoras(curso)} horas</div>
                               {getCursoValor(curso) > 0 && (
                                 <div className="badge badge-success" style={{ marginTop: 10 }}>
                                   {formatCurrency(getCursoValor(curso))}
@@ -1051,14 +1149,7 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
                         {cursosSelecionados.map((curso) => (
                           <tr key={curso.id}>
                             <td style={{ padding: "8px", border: "1px solid #e2e8f0" }}>{curso.nome}</td>
-                            <td style={{ padding: "8px", border: "1px solid #e2e8f0", width: 120 }}>
-                              <input
-                                type="number"
-                                min="0"
-                                value={Number(curso.duracao_horas || 0)}
-                                onChange={(event) => updateCursoSelecionado(curso.id, "duracao_horas", event.target.value)}
-                              />
-                            </td>
+                                <td style={{ padding: "8px", border: "1px solid #e2e8f0", width: 120 }}>{getCursoHoras(curso)}h</td>
                             <td style={{ padding: "8px", border: "1px solid #e2e8f0", width: 140 }}>
                               <input
                                 type="number"
@@ -1084,37 +1175,135 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
               {cursosSelecionados.length > 0 && (
                 <div className="card-inner">
                   <div className="section-heading">Conteudos dos Cursos</div>
-                  {cursosSelecionados.map((curso) => (
-                    <div key={`${curso.id}-conteudos`} style={{ marginBottom: 18, paddingBottom: 16, borderBottom: "1px solid #e2e8f0" }}>
-                      <div className="section-subtitle" style={{ marginBottom: 8 }}>{curso.nome}</div>
-                      {normalizeModulos(curso.modulos).length > 0 ? (
-                        <div style={{ display: "grid", gap: 8 }}>
-                          {normalizeModulos(curso.modulos)
-                            .sort((a, b) => Number(a.ordem || 0) - Number(b.ordem || 0))
-                            .map((modulo, index) => (
-                              <div key={`${curso.id}-mod-${index}`} className="summary-card">
-                                <div className="summary-label">Módulo {index + 1}</div>
-                                <div className="summary-value">{modulo.nome || modulo.titulo || "-"}</div>
-                                {(modulo.conteudo || modulo.descricao) && (
-                                  <div className="muted" style={{ marginTop: 6 }}>{modulo.conteudo || modulo.descricao}</div>
-                                )}
+                  {cursosSelecionados.map((curso) => {
+                    const modulos = normalizeModulos(curso.modulos).sort((a, b) => Number(a.ordem || 0) - Number(b.ordem || 0));
+                    const isEditingAnyModuleOfThisCurso = editingModulo?.cursoId === curso.id;
+
+                    return (
+                      <div key={`${curso.id}-conteudos`} style={{ marginBottom: 18, paddingBottom: 16, borderBottom: "1px solid #e2e8f0" }}>
+                        <div className="section-subtitle" style={{ marginBottom: 12 }}>{curso.nome}</div>
+
+                        {modulos.length > 0 && !isEditingAnyModuleOfThisCurso && (
+                          <div style={{ display: "grid", gap: 10, marginBottom: 12 }}>
+                            {modulos.map((modulo, index) => (
+                              <div key={`${curso.id}-mod-${index}`} style={{ border: "1px solid #e2e8f0", background: "#f8fafc", borderRadius: "12px", padding: "12px 14px", display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
+                                <div style={{ minWidth: 0 }}>
+                                  <div style={{ fontWeight: 800, color: "#0f172a", fontSize: "0.92rem" }}>{modulo.nome || "Sem nome"}</div>
+                                  <div style={{ color: "#64748b", fontSize: "0.78rem", marginTop: 4, fontWeight: 700 }}>{Number(modulo.duracao_horas || 0)}h</div>
+                                  {modulo.conteudo && <div style={{ color: "#64748b", fontSize: "0.84rem", marginTop: 4, lineHeight: 1.4 }}>{modulo.conteudo}</div>}
+                                </div>
+                                <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingModulo({ cursoId: curso.id, index })}
+                                    style={{ border: "1px solid #dbeafe", background: "#eff6ff", color: "#0284c7", borderRadius: 10, width: 34, height: 34, display: "grid", placeItems: "center", cursor: "pointer" }}
+                                    title="Editar módulo"
+                                  >
+                                    ✎
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const updatedModulos = modulos.filter((_, i) => i !== index);
+                                      updateCursoSelecionado(curso.id, "modulos", updatedModulos);
+                                      if (editingModulo?.cursoId === curso.id && editingModulo?.index === index) {
+                                        setEditingModulo(null);
+                                      }
+                                    }}
+                                    style={{ border: "1px solid #fecaca", background: "#fff1f2", color: "#dc2626", borderRadius: 10, width: 34, height: 34, display: "grid", placeItems: "center", cursor: "pointer" }}
+                                    title="Remover módulo"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
                               </div>
                             ))}
+                          </div>
+                        )}
+
+                        {isEditingAnyModuleOfThisCurso && (
+                          <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 12, padding: 14, marginBottom: 12 }}>
+                            <div style={{ display: "grid", gap: 10 }}>
+                              {modulos[editingModulo.index] && (
+                                <>
+                                  <div>
+                                    <label style={{ display: "block", fontSize: "0.84rem", fontWeight: 700, color: "#475569", marginBottom: 6 }}>Nome do módulo</label>
+                                    <input
+                                      type="text"
+                                      value={modulos[editingModulo.index].nome || ""}
+                                      onChange={(e) => {
+                                        const updated = [...modulos];
+                                        updated[editingModulo.index] = { ...updated[editingModulo.index], nome: e.target.value };
+                                        updateCursoSelecionado(curso.id, "modulos", updated);
+                                      }}
+                                      style={{ width: "100%", padding: "10px 12px", border: "1px solid #dbe3ef", borderRadius: 10, fontSize: "0.96rem" }}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label style={{ display: "block", fontSize: "0.84rem", fontWeight: 700, color: "#475569", marginBottom: 6 }}>Duração (horas)</label>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step="0.5"
+                                      value={Number(modulos[editingModulo.index].duracao_horas || 0)}
+                                      onChange={(e) => {
+                                        const updated = [...modulos];
+                                        updated[editingModulo.index] = { ...updated[editingModulo.index], duracao_horas: Number(e.target.value) || 0 };
+                                        updateCursoSelecionado(curso.id, "modulos", updated);
+                                      }}
+                                      style={{ width: "100%", padding: "10px 12px", border: "1px solid #dbe3ef", borderRadius: 10, fontSize: "0.96rem" }}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label style={{ display: "block", fontSize: "0.84rem", fontWeight: 700, color: "#475569", marginBottom: 6 }}>Conteúdo</label>
+                                    <textarea
+                                      value={modulos[editingModulo.index].conteudo || ""}
+                                      onChange={(e) => {
+                                        const updated = [...modulos];
+                                        updated[editingModulo.index] = { ...updated[editingModulo.index], conteudo: e.target.value };
+                                        updateCursoSelecionado(curso.id, "modulos", updated);
+                                      }}
+                                      rows={2}
+                                      style={{ width: "100%", padding: "10px 12px", border: "1px solid #dbe3ef", borderRadius: 10, fontSize: "0.96rem", resize: "vertical" }}
+                                    />
+                                  </div>
+                                  <div style={{ display: "flex", gap: 10 }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditingModulo(null)}
+                                      style={{ flex: 1, border: "none", borderRadius: 10, padding: "10px 14px", background: "var(--color-btnPrimary)", color: "#fff", fontWeight: 800, cursor: "pointer" }}
+                                    >
+                                      Guardar
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditingModulo(null)}
+                                      style={{ flex: 1, border: "1px solid #cbd5e1", borderRadius: 10, padding: "10px 14px", background: "#fff", color: "#0f172a", fontWeight: 800, cursor: "pointer" }}
+                                    >
+                                      Cancelar
+                                    </button>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        <div style={{ marginTop: 12 }}>
+                          <div style={{ marginBottom: 6, fontWeight: 600 }}>Considerações</div>
+                          <textarea
+                            rows={3}
+                            style={{ width: "100%", padding: 8, borderRadius: 6, border: "1px solid #e2e8f0" }}
+                            value={curso.consideracoes || ""}
+                            onChange={(event) => updateCursoSelecionado(curso.id, "consideracoes", event.target.value)}
+                          />
                         </div>
-                      ) : (
-                          <div className="muted">Este curso não tem módulos registados.</div>
-                      )}
-                      <div style={{ marginTop: 12 }}>
-                        <div style={{ marginBottom: 6, fontWeight: 600 }}>Considerações</div>
-                        <textarea
-                          rows={3}
-                          style={{ width: "100%", padding: 8, borderRadius: 6, border: "1px solid #e2e8f0" }}
-                          value={curso.consideracoes || ""}
-                          onChange={(event) => updateCursoSelecionado(curso.id, "consideracoes", event.target.value)}
-                        />
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
+                  <div className="muted" style={{ marginTop: 12 }}>
+                    A duração total do curso é calculada automaticamente pela soma dos módulos.
+                  </div>
                 </div>
               )}
 

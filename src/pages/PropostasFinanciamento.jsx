@@ -1659,7 +1659,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
 
       setCondicoesGerais((previous) => ({
         ...previous,
-        termos_gerais: mergedConfig.texto_exclusoes || previous.termos_gerais || "",
+        termos_gerais: previous.termos_gerais || "",
       }));
 
       setEntidadeConfig(mergedConfig);
