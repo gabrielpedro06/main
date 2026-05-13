@@ -791,17 +791,14 @@ export default function ProjetoDetalhe() {
   };
 
   const deleteTimeLog = async (logId) => {
-      const confirmDelete = window.confirm("Apagar este registo de tempo?");
-      if (!confirmDelete) return;
-
-      try {
-          const { error } = await supabase.from("task_logs").delete().eq("id", logId);
-          if (error) throw error;
-          setLogs((prev) => prev.filter((l) => String(l.id) !== String(logId)));
-          showToast("Registo apagado.", "success");
-      } catch (err) {
-          showToast(`Erro ao apagar registo: ${err.message}`, "error");
-      }
+      openConfirmModal({
+          action: "delete-time-log",
+          title: "Apagar Registo de Tempo",
+          message: "Tens a certeza que pretendes apagar este registo de tempo? Esta ação não pode ser desfeita.",
+          confirmLabel: "Apagar",
+          confirmTone: "danger",
+          payload: { logId }
+      });
   };
 
   const getPersonLabelById = (personId) => {
@@ -1659,6 +1656,20 @@ export default function ProjetoDetalhe() {
       if (confirmModal.action === "delete-item") {
           const payload = confirmModal.payload || {};
           await deleteItemDirect(payload.tabela, payload.itemId);
+          closeConfirmModal();
+          return;
+      }
+
+      if (confirmModal.action === "delete-time-log") {
+          const payload = confirmModal.payload || {};
+          try {
+              const { error } = await supabase.from("task_logs").delete().eq("id", payload.logId);
+              if (error) throw error;
+              setLogs((prev) => prev.filter((l) => String(l.id) !== String(payload.logId)));
+              showToast("Registo apagado.", "success");
+          } catch (err) {
+              showToast(`Erro ao apagar registo: ${err.message}`, "error");
+          }
           closeConfirmModal();
       }
   }
