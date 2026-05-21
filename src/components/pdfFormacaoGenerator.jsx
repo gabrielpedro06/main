@@ -51,6 +51,44 @@ const safeValue = (value) => {
   return text || '—';
 };
 
+const formatAddressForPdf = (value) => {
+  const text = String(value ?? '').trim();
+  if (!text) return '';
+
+  const parts = text
+    .split(/\s+-\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .filter((part, index, array) => {
+      if (index === 0) return true;
+      return part.toLowerCase() !== array[index - 1].toLowerCase();
+    });
+
+  const postalCodeIndex = parts.findIndex((part) => /^\d{4}-\d{3}$/.test(part));
+  if (postalCodeIndex !== -1) {
+    const beforePostalCode = parts.slice(0, postalCodeIndex).join(' - ');
+    const afterPostalCode = parts.slice(postalCodeIndex).join(' - ');
+    return beforePostalCode ? `${beforePostalCode}\n${afterPostalCode}` : afterPostalCode;
+  }
+
+  return parts.join(' - ');
+};
+
+const formatPhoneForPdf = (value) => {
+  const text = String(value ?? '').trim();
+  if (!text) return '';
+
+  const compact = text.replace(/\s+/g, ' ').trim();
+  const match = compact.match(/^(\+\d{2,3})\s*(.*)$/);
+  if (!match) return compact;
+
+  const prefix = match[1];
+  const number = match[2].trim();
+  if (!number) return prefix;
+
+  return `${prefix} ${number}`;
+};
+
 const cleanTextToBullets = (text) => {
   if (!text) return '';
 
@@ -89,6 +127,14 @@ const getLogoPath = (empresaConsultora) => {
   const nome = (empresaConsultora.nome || '').toLowerCase();
   if (nome.includes('2siglas') || nome.includes('2 siglas') || nome.includes('duas siglas')) return '/2siglas.png';
   return '/neomarca.png';
+};
+
+const interpolate = (text, vars = {}) => {
+  if (!text) return '';
+  return String(text).replace(/\{([a-zA-Z0-9_]+)\}/g, (match, key) => {
+    const v = vars[key];
+    return v === undefined || v === null ? '' : String(v);
+  });
 };
 
 // ============================================================================
@@ -194,41 +240,113 @@ export const generateFormacaoPDF = async (params) => {
   };
 
   const drawJustifiedLine = (lineText, textX, textWidth, lineHeight, color, isLastLine = false) => {
-    const words = lineText.trim().split(/\s+/).filter(Boolean);
-    const textOptions = {
-      align: 'left',
-    };
+    // Suporte a *negrito* inline: vamos dividir a linha em palavras mantendo a informação se
+    // cada palavra está dentro de *...* (bold). Para efeitos de quebra, o caller já
+    // removeu os asteriscos antes de chamar splitTextToSize; aqui fazemos a renderização
+    // respeitando os tokens estilizados.
+    const textOptions = { align: 'left' };
 
-    if (isLastLine || words.length <= 1) {
+    // Se for a última linha e não houver marcação de negrito, desenha simples
+    if (isLastLine && !lineText.includes('*')) {
       doc.text(lineText, textX, currentY, textOptions);
       currentY += lineHeight;
       return;
     }
 
-    const totalWordsWidth = words.reduce((sum, word) => sum + doc.getTextWidth(word), 0);
-    const availableSpace = textWidth - totalWordsWidth;
-    const gaps = words.length - 1;
-    const extraSpace = gaps > 0 ? availableSpace / gaps : 0;
+    // Parser simples: detecta *...* e marca as palavras entre como bold.
+    const tokens = [];
+    // Construir array de segmentos com flag bold
+    let idx = 0;
+    let inBold = false;
+    let buffer = '';
+    const pushBuffer = (bold) => {
+      if (!buffer) return;
+      buffer
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .forEach((w) => tokens.push({ text: w, bold }));
+      buffer = '';
+    };
 
-    if (!Number.isFinite(extraSpace) || extraSpace <= 0) {
+    // Percorre a string original (mantendo '*' como delimitadores)
+    while (idx < lineText.length) {
+      const ch = lineText[idx];
+      if (ch === '*') {
+        pushBuffer(inBold);
+        inBold = !inBold;
+        idx++;
+        continue;
+      }
+      buffer += ch;
+      idx++;
+    }
+    pushBuffer(inBold);
+
+    if (tokens.length === 0) {
       doc.text(lineText, textX, currentY, textOptions);
+      currentY += lineHeight;
+      return;
+    }
+
+    // Calcular largura total das palavras (cada uma com o seu estilo ao medir)
+    const spaceWidth = doc.getTextWidth(' ');
+    const totalWordsWidth = tokens.reduce((sum, tk) => {
+      doc.setFont('helvetica', tk.bold ? 'bold' : 'normal');
+      return sum + doc.getTextWidth(tk.text);
+    }, 0);
+
+    const gaps = tokens.length - 1;
+    const baselineWidth = totalWordsWidth + gaps * spaceWidth;
+    const extraPerGap = gaps > 0 ? (textWidth - baselineWidth) / gaps : 0;
+
+    // Se a linha contém texto em negrito, evitar justificação para não alargar espaços
+    const hasBold = tokens.some((tk) => tk.bold === true);
+    if (hasBold) {
+      let cursorX = textX;
+      tokens.forEach((tk) => {
+        doc.setFont('helvetica', tk.bold ? 'bold' : 'normal');
+        doc.text(tk.text, cursorX, currentY, textOptions);
+        cursorX += doc.getTextWidth(tk.text) + spaceWidth;
+      });
+      currentY += lineHeight;
+      return;
+    }
+
+    if (!Number.isFinite(extraPerGap) || extraPerGap <= 0) {
+      // Sem espaço extra para justificação — desenha com espaçamento normal
+      let cursorX = textX;
+      tokens.forEach((tk) => {
+        doc.setFont('helvetica', tk.bold ? 'bold' : 'normal');
+        doc.text(tk.text, cursorX, currentY, textOptions);
+        cursorX += doc.getTextWidth(tk.text) + spaceWidth;
+      });
       currentY += lineHeight;
       return;
     }
 
     doc.setTextColor(...color);
     let cursorX = textX;
-    words.forEach((word, index) => {
-      doc.text(word, cursorX, currentY, textOptions);
-      cursorX += doc.getTextWidth(word);
-      if (index < words.length - 1) cursorX += extraSpace;
+    tokens.forEach((tk, index) => {
+      doc.setFont('helvetica', tk.bold ? 'bold' : 'normal');
+      doc.text(tk.text, cursorX, currentY, textOptions);
+      cursorX += doc.getTextWidth(tk.text) + spaceWidth + extraPerGap;
     });
     currentY += lineHeight;
   };
 
   const drawParagraph = (text, options = {}) => {
     if (!text) return;
-    const body = cleanTextToBullets(text);
+    const vars = {
+      cliente: cliente?.nome || '',
+      empresa: empresaConsultora?.nome || '',
+      proposta_numero: proposta?.numero || propostaNumero || '',
+      data_proposta: formatDate(proposta?.data || ''),
+      total: formatCurrency(totais?.totalComIva || 0),
+    };
+
+    const interpolated = interpolate(text, vars);
+    const body = cleanTextToBullets(interpolated);
 
     const paragraphs = body
         .split(/\n\s*\n/g)
@@ -370,7 +488,7 @@ export const generateFormacaoPDF = async (params) => {
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
-    doc.setTextColor(60, 60, 60);
+    doc.setTextColor(255, 255, 255);
     doc.text(website, contentX, 212);
 
   // ============================================================================
@@ -396,19 +514,36 @@ export const generateFormacaoPDF = async (params) => {
   currentY += 5;
   
   doc.setFont('helvetica', 'normal');
-  if(clienteMorada) { doc.text(clienteMorada, marginX, currentY); currentY += 5; }
-  currentY += 10;
+  if (clienteMorada) {
+    currentY += 4;
+    drawParagraph(formatAddressForPdf(clienteMorada));
+  }
+  currentY += 5;
 
   if (condicoes?.compromisso) drawParagraph(condicoes.compromisso);
   if (condicoes?.esperamos_que_corresponda) drawParagraph(condicoes.esperamos_que_corresponda);
   if (condicoes?.para_aprovacao) drawParagraph(condicoes.para_aprovacao);
 
   currentY += 10;
+  const rightX = pageWidth - marginX;
   doc.setFont('helvetica', 'bold');
-  doc.text(`${empresaConsultora?.nome_signatario?.toUpperCase() || 'DIREÇÃO COMERCIAL'}`, marginX, currentY);
+  doc.text(`${empresaConsultora?.nome_signatario?.toUpperCase() || 'DIREÇÃO COMERCIAL'}`, rightX, currentY, { align: 'right' });
   currentY += 5;
   doc.setFont('helvetica', 'normal');
-  doc.text(`${empresaConsultora?.telefone || ''} | ${empresaConsultora?.email || 'geral@empresa.pt'}`, marginX, currentY);
+  const telefoneFormatado = formatPhoneForPdf(empresaConsultora?.telefone || '');
+  const emailTexto = empresaConsultora?.email || 'geral@empresa.pt';
+
+  if (telefoneFormatado) {
+    doc.text(telefoneFormatado, rightX, currentY, { align: 'right' });
+    currentY += telefoneFormatado.includes('\n') ? 10 : 5;
+  }
+
+  doc.text(emailTexto, rightX, currentY, { align: 'right' });
+  currentY += 5;
+
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(8);
+  doc.text('(documento não assinado - enviado por email)', rightX, currentY, { align: 'right' });
 
   // ============================================================================
   // PÁGINAS SEGUINTES: INFORMAÇÕES GERAIS E CONDIÇÕES
@@ -549,7 +684,7 @@ export const generateFormacaoPDF = async (params) => {
       // 15º METODOLOGIA
       if (curso.metodologia) {
         addNewPage();
-        drawTitle('METODOLOGIA');
+        drawSectionTitle('METODOLOGIA');
         drawParagraph(curso.metodologia);
       }
     });
@@ -596,6 +731,19 @@ export const generateFormacaoPDF = async (params) => {
       theme: 'grid',
     });
     currentY = doc.lastAutoTable.finalY + 10;
+
+    if (condicoes?.nota_honorarios) {
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(9);
+      doc.setTextColor(...COLORS.secondary);
+      const noteLines = doc.splitTextToSize(cleanTextToBullets(condicoes.nota_honorarios), contentWidth);
+      noteLines.forEach((line) => {
+        ensureSpace(6);
+        doc.text(line, marginX, currentY);
+        currentY += 5;
+      });
+      currentY += 3;
+    }
   }
 
   // ============================================================================

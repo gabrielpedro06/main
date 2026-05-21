@@ -174,6 +174,7 @@ export default function Clientes() {
     texto_processo_trabalho: "",
     texto_plano_pagamento: "",
     texto_exclusoes: "",
+    texto_nota_honorarios: "",
     texto_apresentacao_empresa_formacao: "",
     texto_areas_formacao: "",
     texto_proposta_formacao: "",
@@ -3027,6 +3028,16 @@ export default function Clientes() {
                           disabled={isViewOnly}
                         />
 
+                        <label style={labelStyle}>Nota dos Honorários</label>
+                        <textarea
+                          value={entidadeConfig.texto_nota_honorarios || ""}
+                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_nota_honorarios: e.target.value})}
+                          rows={3}
+                          style={{...inputStyle, minHeight: 80, resize: 'vertical'}}
+                          placeholder='Os valores apresentados estão isentos de IVA. Proposta para um máx. 15 pax'
+                          disabled={isViewOnly}
+                        />
+
                         <div style={sectionTitleStyle}>Aprovação</div>
                         <label style={labelStyle}>Texto para Aprovação</label>
                         <textarea
@@ -3188,6 +3199,18 @@ export default function Clientes() {
                     />
                     <div style={{ fontSize: '1rem', color: '#64748b', marginBottom: 10 }}>
                       Este texto será usado automaticamente nas propostas e pode ser personalizado por Entidade.
+                    </div>
+
+                    <div style={{ marginTop: 12 }}>
+                      <label style={labelStyle}>Nota dos Honorários (visível)</label>
+                      <textarea
+                        value={entidadeConfig.texto_nota_honorarios || ""}
+                        onChange={e => setEntidadeConfig({...entidadeConfig, texto_nota_honorarios: e.target.value})}
+                        rows={3}
+                        style={{...inputStyle, minHeight: 80, resize: 'vertical'}}
+                        placeholder='Os valores apresentados estão isentos de IVA. Proposta para um máx. 15 pax'
+                        disabled={isViewOnly}
+                      />
                     </div>
 
                     {!isViewOnly && (

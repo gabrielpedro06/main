@@ -34,6 +34,7 @@ create table if not exists public.entidade_configuracoes (
   texto_plano_pagamento text,                      -- "Plano de Pagamento"
   -- (Termos gerais, Confidencialidade, etc. já estão em clientes.termos_gerais)
   texto_exclusoes text,                            -- "Exclusões da Proposta"
+  texto_nota_honorarios text,                      -- Nota a mostrar abaixo da tabela de honorários
   
   -- 2SIGLAS - Propostas de Formação (quando tem_cursos = true)
   -- Seção 2: Âmbito (reutiliza compromisso, esperamos, para_aprovacao acima)

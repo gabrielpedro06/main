@@ -69,6 +69,7 @@ const INITIAL_CONDICOES = {
   objetivos: "",
   metodologia: "",
   honorarios: "",
+  nota_honorarios: "",
   plano_pagamento: "",
   obrigacoes_consultora: "",
   obrigacoes_cliente: "",
@@ -476,8 +477,9 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
         obrigacoes_cliente: config.texto_obrigacoes_cliente || previous.obrigacoes_cliente || "",
         condicoes_realizacao: config.texto_condicoes_realizacao || previous.condicoes_realizacao || "",
         coordenacao_formacao: config.texto_coordenacao_formacao || previous.coordenacao_formacao || "",
+        nota_honorarios: config.texto_nota_honorarios || previous.nota_honorarios || "",
         plano_pagamento: previous.plano_pagamento || config.texto_plano_pagamento || "",
-        notas: previous.notas || config.texto_exclusoes || "",
+        notas: config.texto_exclusoes || previous.notas || "",
         imagem_certificacoes: config.imagem_certificacoes || previous.imagem_certificacoes || "",
         termos_gerais: baseConsultora?.termos_gerais || previous.termos_gerais || "",
       }));
@@ -1382,6 +1384,10 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
                     <textarea rows={4} value={condicoes.honorarios} onChange={setField(setCondicoes, "honorarios")} />
                   </div>
                   <div className="field">
+                    <label>Nota dos honorários</label>
+                    <textarea rows={3} value={condicoes.nota_honorarios} onChange={setField(setCondicoes, "nota_honorarios")} placeholder='Os valores apresentados estão isentos de IVA. Proposta para um máx. 15 pax' />
+                  </div>
+                  <div className="field">
                     <label>Plano de pagamento</label>
                     <textarea rows={4} value={condicoes.plano_pagamento} onChange={setField(setCondicoes, "plano_pagamento")} />
                   </div>
@@ -1484,6 +1490,12 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
                   </div>
                 </div>
               </div>
+              {condicoes.nota_honorarios && (
+                <div className="card-inner">
+                  <div className="section-heading">Nota dos Honorários</div>
+                  <div style={{ padding: '8px 0', color: '#374151', whiteSpace: 'pre-wrap' }}>{condicoes.nota_honorarios}</div>
+                </div>
+              )}
             </section>
           )}
 
