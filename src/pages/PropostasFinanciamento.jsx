@@ -237,6 +237,8 @@ const normalizeModoHonorario = (value, item = {}) => {
   return "fixo";
 };
 
+const getVariavelServicoPadrao = (item = {}) => String(item?.nome || "").trim();
+
 const getValorFixoOrcamentoTipo = (item = {}) => Number(item?.num_horas || 0) * Number(item?.base_eur_hora || 0);
 
 const getValorVariavelOrcamentoTipo = (item = {}) =>
@@ -261,6 +263,7 @@ const calcularOrcamentoTipoProjeto = (item = {}) => {
 };
 
 const normalizeOrcamentoTipoProjetoItem = (item = {}, index = 0, fallbackHoras = DEFAULT_ORCAMENTO_HORAS, fallbackBase = DEFAULT_ORCAMENTO_BASE_EUR) => {
+  const defaultServicoNome = getVariavelServicoPadrao(item);
   const hasHoras = item?.num_horas !== undefined && item?.num_horas !== null;
   const hasBase = item?.base_eur_hora !== undefined && item?.base_eur_hora !== null;
   const legacyValor = Number(item?.valor || 0);
@@ -274,17 +277,21 @@ const normalizeOrcamentoTipoProjetoItem = (item = {}, index = 0, fallbackHoras =
         variavel: String(v?.variavel || v?.descricao || ""),
         percentagem: Number(v?.percentagem || 0),
         descricao: String(v?.descricao || ""),
+        num_parcelas: Number(v?.num_parcelas || 1),
+        frequencia: Number(v?.frequencia || 30),
       }))
     : [];
 
   if (modo !== "fixo" && valoresVariaveis.length === 0) {
     valoresVariaveis.push({
       id: `variavel-${index + 1}-1`,
-      servico: "",
+      servico: defaultServicoNome,
       valor_base: 0,
       variavel: "",
       percentagem: 0,
       descricao: "",
+      num_parcelas: 1,
+      frequencia: 30,
     });
   }
 
@@ -456,6 +463,9 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
   const [notasExclusoes, setNotasExclusoes] = useState(initialNotas);
   const [planoPagamentos, setPlanoPagamentos] = useState(INITIAL_PLANO_PAGAMENTOS);
 
+  // Preview do número/ID da proposta antes de gravar
+  const [previewNumero, setPreviewNumero] = useState("");
+
   // UI state
   const [toastMessage, setToastMessage] = useState("");
   const [isSavingDb, setIsSavingDb] = useState(false);
@@ -464,6 +474,45 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
   
   // Tipo de proposta (detectado automaticamente)
   const [tipoProposta, setTipoProposta] = useState("financiamento"); // financiamento | formacao
+
+  // Gera um preview do número da proposta (não grava nada)
+  const gerarPreviewNumero = async () => {
+    try {
+      if (!empresaConsultora?.sigla || proposta?.db_id) {
+        setPreviewNumero("");
+        return;
+      }
+
+      const sigla = empresaConsultora.sigla || "PRO";
+      const ano = new Date().getFullYear();
+
+      const { data: ultimaProposta, error: errorSeq } = await supabase
+        .from("propostas_comerciais")
+        .select("numero_proposta_str")
+        .ilike("numero_proposta_str", `${sigla}-${ano}-%`)
+        .order("numero_proposta_str", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (errorSeq) throw errorSeq;
+
+      let proximoNumero = 1;
+      if (ultimaProposta?.numero_proposta_str) {
+        const partes = ultimaProposta.numero_proposta_str.split("-");
+        const ultimoSequencial = parseInt(partes[partes.length - 1]);
+        proximoNumero = ultimoSequencial + 1;
+      }
+
+      setPreviewNumero(`${sigla}-${ano}-${String(proximoNumero).padStart(3, "0")}`);
+    } catch (err) {
+      console.error("Erro ao gerar preview do número da proposta:", err);
+      setPreviewNumero("");
+    }
+  };
+
+  useEffect(() => {
+    void gerarPreviewNumero();
+  }, [empresaConsultora?.sigla, proposta?.db_id]);
 
   // ========================================================================
   // DATA LOADING
@@ -1531,7 +1580,16 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
       previous.map((item) => {
         if (String(item.tipo_projeto_id) !== String(tipoProjetoId)) return item;
         const next = Array.isArray(item.valores_variaveis) ? [...item.valores_variaveis] : [];
-        next.push({ id: `variavel-${String(tipoProjetoId)}-${next.length + 1}`, servico: "", valor_base: 0, variavel: "", percentagem: 0, descricao: "" });
+        next.push({
+          id: `variavel-${String(tipoProjetoId)}-${next.length + 1}`,
+          servico: getVariavelServicoPadrao(item),
+          valor_base: 0,
+          variavel: "",
+          percentagem: 0,
+          descricao: "",
+          num_parcelas: 1,
+          frequencia: 30,
+        });
         return calcularOrcamentoTipoProjeto({ ...item, valores_variaveis: next });
       })
     );
@@ -1545,7 +1603,9 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
           vi === index
             ? {
                 ...v,
-                [field]: field === "valor_base" || field === "percentagem" ? Number(value || 0) : String(value || ""),
+                [field]: field === "valor_base" || field === "percentagem" || field === "num_parcelas" || field === "frequencia"
+                  ? Number(value || 0)
+                  : String(value || ""),
               }
             : v
         );
@@ -1872,7 +1932,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
         return {
           ...item,
           valores_variaveis: [
-            { id: `variavel-${String(item.tipo_projeto_id || item.id || "item")}-1`, servico: "", valor_base: 0, variavel: "", percentagem: 0, descricao: "" },
+            { id: `variavel-${String(item.tipo_projeto_id || item.id || "item")}-1`, servico: "", valor_base: 0, variavel: "", percentagem: 0, descricao: "", num_parcelas: 1, frequencia: 30 },
           ],
         };
       });
@@ -1884,6 +1944,12 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
   const serializarOrcamentoTiposProjeto = (tipos = []) =>
     (Array.isArray(tipos) ? tipos : []).map((item) => {
       const modo = normalizeModoHonorario(item?.modo_honorario, item);
+      const valoresVariaveis = (Array.isArray(item?.valores_variaveis) ? item.valores_variaveis : []).map((variavel) => ({
+        ...variavel,
+        servico: String(variavel?.servico || item?.nome || ""),
+        num_parcelas: Number(variavel?.num_parcelas || 1),
+        frequencia: Number(variavel?.frequencia || 30),
+      }));
       const base = {
         ...item,
         modo_honorario: modo,
@@ -1908,7 +1974,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
           base_eur_hora: 0,
           valor_fixo: 0,
           valor_variavel: Number(item?.valor_variavel || item?.valor || 0),
-          valores_variaveis: Array.isArray(item?.valores_variaveis) ? item.valores_variaveis : [],
+          valores_variaveis: valoresVariaveis,
           valor: Number(item?.valor_variavel || item?.valor || 0),
         };
       }
@@ -1919,7 +1985,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
         base_eur_hora: Number(item?.base_eur_hora || 0),
         valor_fixo: Number(item?.valor_fixo || 0),
         valor_variavel: Number(item?.valor_variavel || 0),
-        valores_variaveis: Array.isArray(item?.valores_variaveis) ? item.valores_variaveis : [],
+        valores_variaveis: valoresVariaveis,
         valor: Number(item?.valor || 0),
       };
     });
@@ -2133,7 +2199,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                       type="text"
                       placeholder="Auto: SIGLA-2026-{id}"
                       readOnly
-                      value={proposta.numero || (empresaConsultora.sigla ? `${empresaConsultora.sigla}-${new Date().getFullYear()}-...` : "")}
+                      value={proposta.numero || previewNumero || (empresaConsultora.sigla ? `${empresaConsultora.sigla}-${new Date().getFullYear()}-...` : "")}
                     />
                   </div>
                   <div className="field">
@@ -2613,12 +2679,6 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
           {currentStep === 5 && (
             <section className="card propostas-section">
               <div className="section-heading">5 · Orçamento</div>
-              <div className="field-grid field-grid-1">
-                <div className="field">
-                  <label>Taxa de IVA (%)</label>
-                  <input type="number" value={proposta.iva || 23} onChange={setField(setProposta, "iva")} min="0" max="100" />
-                </div>
-              </div>
 
               <div className="card-inner">
                 <div className="section-heading">Tipos de Projeto Selecionados</div>
@@ -2651,7 +2711,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                       {mostrarFixo && (
                         <>
                           <div className="section-subtitle" style={{ marginTop: "10px" }}>Honorário fixo</div>
-                        <div className="field-grid field-grid-3" style={{ marginBottom: "8px" }}>
+                        <div className="field-grid" style={{ marginBottom: "8px", display: "grid", gridTemplateColumns: "1fr 1fr 1fr 180px", gap: "12px" }}>
                           <div className="field">
                             <label>Num horas</label>
                             <input
@@ -2681,6 +2741,16 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                             />
                             <div className="field-hint">Fixo = Horas x Base</div>
                           </div>
+                          
+                          <div className="field">
+                            <label>Taxa de IVA (%)</label>
+                            <input 
+                              type="number" 
+                              value={proposta.iva || 23} onChange={setField(setProposta, "iva")} min="0" max="100" 
+                            />
+                          </div>
+
+
                         </div>
                         </>
                       )}
@@ -2829,9 +2899,11 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                                   <tr style={{ background: "#f1f5f9" }}>
                                     <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Serviço</th>
                                     <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Valor Base</th>
-                                    <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Variável com base no incentivo</th>
+                                    <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Base de Cálculo do Variável</th>
                                     <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>%</th>
                                     <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Condições de Pagamento</th>
+                                    <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Num. Parcelas</th>
+                                    <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Frequência (dias)</th>
                                     <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}></th>
                                   </tr>
                                 </thead>
@@ -2839,7 +2911,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                                   {(item.valores_variaveis || []).map((v, vi) => (
                                     <tr key={`${item.tipo_projeto_id}-var-${vi}`} style={{ borderBottom: "1px solid #e2e8f0" }}>
                                       <td style={{ padding: "6px 8px", minWidth: 160 }}>
-                                        <input type="text" value={v.servico || ""} onChange={(e) => updateVariavelTipoProjeto(item.tipo_projeto_id, vi, "servico", e.target.value)} placeholder="Serviço" style={{ width: "100%" }} />
+                                        <input type="text" value={v.servico || item.nome || ""} onChange={(e) => updateVariavelTipoProjeto(item.tipo_projeto_id, vi, "servico", e.target.value)} placeholder={item.nome || "Serviço"} style={{ width: "100%" }} />
                                       </td>
                                       <td style={{ padding: "6px 8px", textAlign: "right", minWidth: 120 }}>
                                         <input type="number" step="0.01" min="0" value={Number(v.valor_base || 0)} onChange={(e) => updateVariavelTipoProjeto(item.tipo_projeto_id, vi, "valor_base", e.target.value)} style={{ width: 120, textAlign: "right" }} />
@@ -2852,6 +2924,12 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                                       </td>
                                       <td style={{ padding: "6px 8px" }}>
                                         <input type="text" value={v.descricao || ""} onChange={(e) => updateVariavelTipoProjeto(item.tipo_projeto_id, vi, "descricao", e.target.value)} placeholder="Descrição" style={{ width: "100%" }} />
+                                      </td>
+                                      <td style={{ padding: "6px 8px", textAlign: "center", minWidth: 100 }}>
+                                        <input type="number" min="1" step="1" value={Number(v.num_parcelas || 1)} onChange={(e) => updateVariavelTipoProjeto(item.tipo_projeto_id, vi, "num_parcelas", e.target.value)} style={{ width: 90, textAlign: "center" }} />
+                                      </td>
+                                      <td style={{ padding: "6px 8px", textAlign: "center", minWidth: 130 }}>
+                                        <input type="number" min="0" step="1" value={Number(v.frequencia || 30)} onChange={(e) => updateVariavelTipoProjeto(item.tipo_projeto_id, vi, "frequencia", e.target.value)} style={{ width: 110, textAlign: "center" }} />
                                       </td>
                                       <td style={{ textAlign: "center", padding: "2px 4px" }}>
                                         <button type="button" className="btn-small" onClick={() => removeVariavelTipoProjeto(item.tipo_projeto_id, vi)}>x</button>
