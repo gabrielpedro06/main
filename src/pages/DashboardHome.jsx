@@ -91,6 +91,8 @@ export default function DashboardHome() {
     const [recentTasksVisibleCount, setRecentTasksVisibleCount] = useState(2);
   const [alertModal, setAlertModal] = useState({ show: false, message: "" });
     const [notification, setNotification] = useState(null);
+        const [projectNotifications, setProjectNotifications] = useState([]);
+        const [notificationsLoading, setNotificationsLoading] = useState(false);
     const [timerSwitchModal, setTimerSwitchModal] = useState({
             show: false,
             message: "",
@@ -122,25 +124,86 @@ export default function DashboardHome() {
         return proximoAniversario.toLocaleDateString("pt-PT", formatOptions);
     }
 
+    async function loadProjectNotifications() {
+        if (!user?.id) return;
+
+        setNotificationsLoading(true);
+        try {
+            const { data, error } = await supabase
+                .from("notificacoes_projetos")
+                .select("id, project_id, titulo, mensagem, link, tipo, is_read, created_at")
+                .eq("user_id", user.id)
+                .eq("is_read", false)
+                .order("created_at", { ascending: false })
+                .limit(5);
+
+            if (error) throw error;
+            setProjectNotifications(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.error("Erro ao carregar notificações de projeto:", error);
+        } finally {
+            setNotificationsLoading(false);
+        }
+    }
+
+    async function markProjectNotificationAsRead(notificationId) {
+        if (!notificationId || !user?.id) return;
+
+        const { error } = await supabase
+            .from("notificacoes_projetos")
+            .update({ is_read: true, read_at: new Date().toISOString() })
+            .eq("id", notificationId)
+            .eq("user_id", user.id);
+
+        if (error) {
+            console.error("Erro ao marcar notificação como lida:", error);
+            return;
+        }
+
+        setProjectNotifications((current) => current.filter((notificationItem) => notificationItem.id !== notificationId));
+    }
+
+    async function openProjectNotification(notificationItem) {
+        if (!notificationItem) return;
+
+        await markProjectNotificationAsRead(notificationItem.id);
+
+        if (notificationItem.project_id) {
+            navigate(`/dashboard/projetos/${notificationItem.project_id}`);
+            return;
+        }
+
+        if (notificationItem.link) {
+            navigate(notificationItem.link.replace(window.location.origin, ""));
+        }
+    }
+
   useEffect(() => {
     if (user) {
       refreshDashboardWorkItems();
       fetchStats();
       fetchUserProfile();
+      loadProjectNotifications();
       loadUsersOnline();
       fetchAniversarios(); 
       checkActiveLog(); 
 
       const handleVisibilityRefresh = () => {
           if (document.visibilityState === 'visible') refreshDashboardWorkItems();
+          if (document.visibilityState === 'visible') loadProjectNotifications();
       };
 
       const handleWindowFocus = () => {
           refreshDashboardWorkItems();
+          loadProjectNotifications();
       };
 
       const handleTaskLogsUpdated = () => {
           refreshDashboardWorkItems();
+      };
+
+      const handleProjectNotificationsUpdated = () => {
+          loadProjectNotifications();
       };
       
       const hoje = new Date();
@@ -159,6 +222,7 @@ export default function DashboardHome() {
             window.addEventListener('focus', handleWindowFocus);
             document.addEventListener('visibilitychange', handleVisibilityRefresh);
                         window.addEventListener('task-logs-updated', handleTaskLogsUpdated);
+                        window.addEventListener('project-notifications-updated', handleProjectNotificationsUpdated);
 
       return () => {
           clearInterval(relogioInterval);
@@ -167,6 +231,7 @@ export default function DashboardHome() {
                     window.removeEventListener('focus', handleWindowFocus);
                     document.removeEventListener('visibilitychange', handleVisibilityRefresh);
                                         window.removeEventListener('task-logs-updated', handleTaskLogsUpdated);
+                                        window.removeEventListener('project-notifications-updated', handleProjectNotificationsUpdated);
       };
     }
   }, [user]);
@@ -177,7 +242,8 @@ export default function DashboardHome() {
                     fetchTarefasPessoais(),
                 fetchTarefasEmAnalise(),
                 fetchRecentWorkLogs(),
-                    checkActiveLog()
+                checkActiveLog(),
+                loadProjectNotifications()
             ]);
     }
 
@@ -1247,6 +1313,42 @@ export default function DashboardHome() {
         
         {/* COLUNA ESQUERDA: Stats, Assiduidade, Histórico, Equipa & Aniversários */}
         <div style={{display: 'flex', flexDirection: 'column', gap: '24px'}}>
+
+            {(notificationsLoading || projectNotifications.length > 0) && (
+                <div className="card boom-reveal" style={{ '--d': '55ms', padding: '18px', borderRadius: '18px', border: '1px solid #f3d59f', background: 'linear-gradient(135deg, #fffaf0 0%, #fff 100%)', boxShadow: '0 12px 30px rgba(245, 158, 11, 0.08)' }}>
+                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '14px'}}>
+                        <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+                            <div style={{width: '38px', height: '38px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff4db', color: '#b45309'}}>
+                                <Icons.AlertTriangle size={18} />
+                            </div>
+                            <div>
+                                <div style={{fontSize: '0.72rem', fontWeight: '800', color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.08em'}}>Alerta de Projeto</div>
+                                <div style={{fontSize: '1rem', fontWeight: '800', color: '#1e293b'}}>Tem {projectNotifications.length} novo{projectNotifications.length === 1 ? '' : 's'} projeto{projectNotifications.length === 1 ? '' : 's'} atribuído{projectNotifications.length === 1 ? '' : 's'}</div>
+                            </div>
+                        </div>
+                        <span style={{background: '#fff4db', color: '#b45309', padding: '6px 10px', borderRadius: '999px', fontSize: '0.75rem', fontWeight: '800'}}>{projectNotifications.length}</span>
+                    </div>
+
+                    {notificationsLoading ? (
+                        <div style={{color: '#64748b', fontSize: '0.9rem'}}>A carregar notificações...</div>
+                    ) : (
+                        <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
+                            {projectNotifications.map((notificationItem) => (
+                                <div key={notificationItem.id} style={{display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', padding: '14px', borderRadius: '14px', background: '#ffffff', border: '1px solid #f1e4c8'}}>
+                                    <div style={{minWidth: 0}}>
+                                        <div style={{fontWeight: '800', color: '#0f172a', marginBottom: '4px'}}>{notificationItem.titulo}</div>
+                                        <div style={{fontSize: '0.92rem', color: '#475569', lineHeight: 1.45}}>{notificationItem.mensagem}</div>
+                                    </div>
+                                    <div style={{display: 'flex', gap: '8px', flexShrink: 0}}>
+                                        <button type="button" onClick={() => openProjectNotification(notificationItem)} className="btn-primary hover-shadow" style={{padding: '10px 14px', borderRadius: '10px', fontSize: '0.85rem', whiteSpace: 'nowrap'}}>Abrir projeto</button>
+                                        <button type="button" onClick={() => markProjectNotificationAsRead(notificationItem.id)} className="btn-small hover-shadow" style={{padding: '10px 12px', borderRadius: '10px', fontSize: '0.8rem', background: '#fff', border: '1px solid #e2e8f0', color: '#475569'}}>Marcar lida</button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
             
             {/* --- OS 3 CARTÕES DE RESUMO --- */}
             <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>

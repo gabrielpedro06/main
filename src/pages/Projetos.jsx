@@ -202,6 +202,84 @@ export default function Projetos() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const isLocalHost = (hostname) => {
+      const normalized = String(hostname || "").toLowerCase();
+      return normalized === "localhost" || normalized === "127.0.0.1" || normalized === "::1";
+  };
+
+  const getProjectNotificationsApiBase = () => {
+      const rawBase = import.meta.env.VITE_PROJECT_NOTIFICATIONS_API_BASE || import.meta.env.VITE_MARKETING_API_BASE || "";
+      const trimmed = String(rawBase || "").trim().replace(/\/+$/, "");
+
+      if (trimmed) return trimmed;
+
+      if (typeof window !== "undefined" && isLocalHost(window.location.hostname)) {
+          return null;
+      }
+
+      return "";
+  };
+
+  const getProjectUrl = (projectId) => {
+      const baseUrl = window.location.origin.replace(/\/$/, "");
+      return `${baseUrl}/dashboard/projetos/${projectId}`;
+  };
+
+  const notifyProjectCreated = async (project, responsibleId) => {
+      if (!project?.id || !responsibleId) return;
+
+      const responsibleProfile = (staff || []).find((s) => String(s.id) === String(responsibleId)) || null;
+      const responsibleEmail = responsibleProfile?.email || null;
+      const responsibleName = responsibleProfile?.nome || responsibleProfile?.email || "Responsável";
+      const clientRecord = (clientes || []).find((client) => String(client.id) === String(project.cliente_id)) || null;
+      const clientName = getClientDisplayName(clientRecord) || project.cliente_texto || "";
+      const projectUrl = getProjectUrl(project.id);
+
+      const notificationPayload = {
+          user_id: responsibleId,
+          project_id: project.id,
+          created_by: user?.id || null,
+          tipo: "project_created",
+          titulo: `Novo projeto atribuído: ${project.titulo}`,
+          mensagem: clientName
+              ? `Foi criado o projeto "${project.titulo}" para ${clientName}.`
+              : `Foi criado o projeto "${project.titulo}".`,
+          link: projectUrl,
+          is_read: false,
+      };
+
+      const { error: notificationError } = await supabase.from("notificacoes_projetos").insert([notificationPayload]);
+      if (notificationError) {
+          console.error("Erro ao criar notificação do projeto:", notificationError);
+      }
+
+      if (responsibleEmail) {
+          try {
+              const apiBase = getProjectNotificationsApiBase();
+              if (apiBase === null) {
+                  console.info("Envio de email de notificação de projeto desativado neste ambiente.");
+              } else {
+                  const endpoint = `${apiBase}/api/project-notifications/send-created`;
+                  await fetch(endpoint, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                      email: responsibleEmail,
+                      projectTitle: project.titulo,
+                      projectUrl,
+                      responsibleName,
+                      clientName,
+                  }),
+                  });
+              }
+          } catch (emailError) {
+              console.error("Erro ao enviar email do novo projeto:", emailError);
+          }
+      }
+
+      window.dispatchEvent(new CustomEvent("project-notifications-updated"));
+  };
+
   useEffect(() => {
       if (!showModal && quickOrganismoModal.show) {
           closeQuickOrganismoModal();
@@ -1117,6 +1195,8 @@ export default function Projetos() {
 
                 if (!payload.data_fim) await supabase.from("projetos").update({ data_fim: currentAtivDate }).eq("id", newProj.id);
             }
+
+            await notifyProjectCreated(newProj, payload.responsavel_id || null);
             
             showToast("Projeto criado com sucesso!");
             setShowModal(false); 
