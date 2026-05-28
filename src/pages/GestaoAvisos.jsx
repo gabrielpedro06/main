@@ -76,6 +76,7 @@ const TIPO_INCENTIVO_OPTIONS = [
 export default function GestaoAvisos() {
   const [avisos, setAvisos] = useState([]);
   const [programas, setProgramas] = useState([]);
+  const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
   
   // Modais de Formulário
@@ -103,6 +104,7 @@ export default function GestaoAvisos() {
     nome: "",
     pct: 0,
     tipo_incentivo: "fundo perdido (não reembolsável)",
+    entidade_financiadora_id: "",
     investimento_minimo: 0,
     regiao: "",
     objetivos: "",
@@ -120,6 +122,31 @@ export default function GestaoAvisos() {
   const avisosById = useMemo(
     () => Object.fromEntries(avisos.map((aviso) => [String(aviso.id), aviso])),
     [avisos]
+  );
+
+  const clientesById = useMemo(
+    () => Object.fromEntries(clientes.map((cliente) => [String(cliente.id), cliente])),
+    [clientes]
+  );
+
+  const getAvisoFasesById = (avisoId) => {
+    if (!avisoId) return [];
+    return normalizeFases(avisosById[String(avisoId)]?.fases || []);
+  };
+
+  const getClientDisplayName = (client) => {
+    if (!client) return "";
+    const nome = client.marca?.trim() || "";
+    const sigla = client.sigla?.trim() || "";
+    if (nome && sigla) return `${nome} (${sigla})`;
+    if (nome) return nome;
+    if (sigla) return sigla;
+    return "";
+  };
+
+  const organismos = useMemo(
+    () => clientes.filter((cliente) => cliente.eh_organismo && cliente.ativo !== false),
+    [clientes]
   );
 
   useEffect(() => {
@@ -141,9 +168,10 @@ export default function GestaoAvisos() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [avisosRes, programasRes] = await Promise.all([
+      const [avisosRes, programasRes, clientesRes] = await Promise.all([
         supabase.from("avisos").select("*").order("codigo", { ascending: true }),
         supabase.from("programas_financiamento").select("*").order("codigo", { ascending: true }),
+        supabase.from("clientes").select("id, marca, sigla, eh_organismo, ativo").order("marca", { ascending: true }),
       ]);
 
       if (avisosRes.error) throw avisosRes.error;
@@ -151,6 +179,7 @@ export default function GestaoAvisos() {
 
       setAvisos(avisosRes.data || []);
       setProgramas(programasRes.data || []);
+      setClientes(clientesRes.data || []);
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
       showNotification("Erro ao carregar dados", "error");
@@ -305,6 +334,7 @@ export default function GestaoAvisos() {
         nome: programa.nome || "",
         pct: Number(programa.pct || 0),
         tipo_incentivo: programa.tipo_incentivo || "fundo perdido (não reembolsável)",
+        entidade_financiadora_id: programa.entidade_financiadora_id || "",
         investimento_minimo: Number(programa.investimento_minimo || 0),
         regiao: programa.regiao || "",
         objetivos: programa.objetivos || "",
@@ -323,6 +353,7 @@ export default function GestaoAvisos() {
         nome: "",
         pct: 0,
         tipo_incentivo: "fundo perdido (não reembolsável)",
+        entidade_financiadora_id: "",
         investimento_minimo: 0,
         regiao: "",
         objetivos: "",
@@ -385,6 +416,7 @@ export default function GestaoAvisos() {
         nome: programaFormData.nome,
         pct: programaFormData.pct,
         tipo_incentivo: programaFormData.tipo_incentivo,
+        entidade_financiadora_id: programaFormData.entidade_financiadora_id || null,
         investimento_minimo: programaFormData.investimento_minimo,
         regiao: programaFormData.regiao || null,
         objetivos: programaFormData.objetivos || null,
@@ -658,6 +690,28 @@ export default function GestaoAvisos() {
                         {programa.regiao && ` · Região: ${programa.regiao}`}
                       </div>
 
+                      {(programa.entidade_financiadora_id || programa.aviso_id) && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "10px", fontSize: "0.85rem", color: "var(--color-textSecondary)" }}>
+                          {programa.entidade_financiadora_id && (
+                            <div>
+                              <strong style={{ color: "var(--color-textPrimary)" }}>Entidade Financiadora:</strong> {getClientDisplayName(clientesById[String(programa.entidade_financiadora_id)]) || "—"}
+                            </div>
+                          )}
+                          {programa.aviso_id && (
+                            <div>
+                              <strong style={{ color: "var(--color-textPrimary)" }}>Fases de candidatura:</strong>
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "6px" }}>
+                                {getAvisoFasesById(programa.aviso_id).map((fase, index) => (
+                                  <span key={`${programa.id}-${index}`} style={styles.pill}>
+                                    {fase.nome}: <span style={{ ...styles.pillHighlight, marginLeft: "6px" }}>{formatDatePt(fase.prazo)}</span>
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       {programa.aviso_id && (
                         <div style={{ fontSize: "0.85rem", marginTop: "6px", color: "var(--color-btnPrimary)", fontWeight: 600 }}>
                           Aviso: {avisosById[programa.aviso_id]?.codigo || "—"}
@@ -859,6 +913,20 @@ export default function GestaoAvisos() {
                       </select>
                     </div>
                     <div>
+                      <label style={styles.label}>Entidade Financiadora</label>
+                      <select
+                        name="entidade_financiadora_id"
+                        value={programaFormData.entidade_financiadora_id}
+                        onChange={handleProgramaInputChange}
+                        style={styles.input}
+                      >
+                        <option value="">— Selecionar organismo —</option>
+                        {organismos.map((organismo) => (
+                          <option key={organismo.id} value={organismo.id}>{getClientDisplayName(organismo) || organismo.marca}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
                       <label style={styles.label}>Área Geográfica</label>
                       <input
                         type="text"
@@ -881,6 +949,21 @@ export default function GestaoAvisos() {
                       />
                     </div>
                   </div>
+
+                  {programaFormData.aviso_id && getAvisoFasesById(programaFormData.aviso_id).length > 0 && (
+                    <div style={{ marginBottom: "24px", padding: "16px", borderRadius: "12px", border: "1px solid var(--color-borderColor)", background: "var(--color-bgSecondary)" }}>
+                      <label style={{ ...styles.label, marginBottom: "10px" }}>Datas das fases de candidatura</label>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                        {getAvisoFasesById(programaFormData.aviso_id).map((fase, index) => (
+                          <div key={`${programaFormData.aviso_id}-${index}`} style={styles.pill}>
+                            <span>{fase.nome}</span>
+                            <span style={{ margin: "0 8px", opacity: 0.5 }}>→</span>
+                            <span style={styles.pillHighlight}>{formatDatePt(fase.prazo)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* CAIXAS DE TEXTO EM GRELHA PARA REDUZIR SCROLL */}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>

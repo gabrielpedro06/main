@@ -47,6 +47,65 @@ const ModalPortal = ({ children }) => {
   return createPortal(children, document.body);
 };
 
+const ToggleSwitch = ({ checked, onChange, disabled = false, labelOn = "Sim", labelOff = "Não" }) => {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => {
+        if (disabled) return;
+        onChange(!checked);
+      }}
+      disabled={disabled}
+      style={{
+        width: '100%',
+        border: '1px solid #cbd5e1',
+        borderRadius: '12px',
+        background: checked ? 'var(--color-bgSecondary)' : '#fff',
+        padding: '10px 12px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '12px',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        color: checked ? 'var(--color-btnPrimaryDark)' : '#475569',
+        fontWeight: '700',
+        boxSizing: 'border-box',
+        opacity: disabled ? 0.7 : 1,
+      }}
+    >
+      <span style={{fontSize: '0.92rem'}}>{checked ? labelOn : labelOff}</span>
+      <span
+        aria-hidden="true"
+        style={{
+          width: '44px',
+          height: '26px',
+          borderRadius: '999px',
+          background: checked ? 'var(--color-btnPrimary)' : '#cbd5e1',
+          position: 'relative',
+          flexShrink: 0,
+          transition: 'background 0.18s ease',
+        }}
+      >
+        <span
+          style={{
+            position: 'absolute',
+            top: '3px',
+            left: checked ? '22px' : '3px',
+            width: '20px',
+            height: '20px',
+            borderRadius: '50%',
+            background: '#fff',
+            boxShadow: '0 1px 4px rgba(15, 23, 42, 0.2)',
+            transition: 'left 0.18s ease',
+          }}
+        />
+      </span>
+    </button>
+  );
+};
+
 const CARGO_OPTIONS = [
   "Gerente",
   "Contabilista Certificado(CC)",
@@ -1803,6 +1862,7 @@ export default function Clientes() {
   const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', marginBottom: '10px', color: '#1e293b' };
   const modalTabs = [
     { id: 'geral', label: 'Geral', icon: Icons.ClipboardList },
+    { id: 'funcoes', label: 'Funções', icon: Icons.Activity },
     { id: 'moradas', label: 'Moradas', icon: Icons.MapPin },
     { id: 'contactos', label: 'Pessoas', icon: Icons.Users },
     { id: 'projetos', label: 'Projetos', icon: Icons.Rocket },
@@ -2396,49 +2456,46 @@ export default function Clientes() {
                         </div>
                       </div>
 
+                      {!isViewOnly && <button type="submit" className="btn-primary hover-shadow" style={{width:'100%', marginTop:'20px', padding:'15px', fontSize:'1.05rem', fontWeight: 'bold'}}>Guardar Dados Base</button>}
+                    </fieldset>
+                  </form>
+                )}
+
+                {/* --- ABA FUNÇÕES --- */}
+                {activeTab === 'funcoes' && (
+                  <form onSubmit={handleSubmitGeral}>
+                    <fieldset disabled={isViewOnly} style={{border: 'none', padding: 0, margin: 0}}>
                       <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'20px', marginTop:'10px'}}>
                         <div>
                           <label style={labelStyle}>Entidade Consultora</label>
-                          <select
-                            value={form.eh_empresa_consultora ? "sim" : "nao"}
-                            onChange={(e) => setForm({ ...form, eh_empresa_consultora: e.target.value === "sim" })}
-                            style={inputStyle}
-                            className="input-focus"
+                          <ToggleSwitch
+                            checked={Boolean(form.eh_empresa_consultora)}
+                            onChange={(value) => setForm({ ...form, eh_empresa_consultora: value })}
                             disabled={isViewOnly}
-                          >
-                            <option value="nao">Não</option>
-                            <option value="sim">Sim</option>
-                          </select>
+                          />
+                          <p style={{margin:'6px 0 0 0', fontSize:'0.78rem', color:'#64748b'}}>Ativa a área de configurações extra da entidade se for uma empresa consultora.</p>
                         </div>
                         <div>
-                          <label style={labelStyle}>É Organismo Público?</label>
-                          <select
-                            value={form.eh_organismo ? "sim" : "nao"}
-                            onChange={(e) => setForm({ ...form, eh_organismo: e.target.value === "sim" })}
-                            style={inputStyle}
-                            className="input-focus"
+                          <label style={labelStyle}>É Entidade Financiadora?</label>
+                          <ToggleSwitch
+                            checked={Boolean(form.eh_organismo)}
+                            onChange={(value) => setForm({ ...form, eh_organismo: value })}
                             disabled={isViewOnly}
-                          >
-                            <option value="nao">Não</option>
-                            <option value="sim">Sim</option>
-                          </select>
+                          />
+                          <p style={{margin:'6px 0 0 0', fontSize:'0.78rem', color:'#64748b'}}>Usa esta opção quando a é uma entidade financiadora.</p>
                         </div>
                         <div>
                           <label style={labelStyle}>Disponibiliza Cursos?</label>
-                          <select
-                            value={form.tem_cursos ? "sim" : "nao"}
-                            onChange={(e) => setForm({ ...form, tem_cursos: e.target.value === "sim" })}
-                            style={inputStyle}
-                            className="input-focus"
+                          <ToggleSwitch
+                            checked={Boolean(form.tem_cursos)}
+                            onChange={(value) => setForm({ ...form, tem_cursos: value })}
                             disabled={isViewOnly}
-                          >
-                            <option value="nao">Não</option>
-                            <option value="sim">Sim</option>
-                          </select>
+                          />
+                          <p style={{margin:'6px 0 0 0', fontSize:'0.78rem', color:'#64748b'}}>Marca se a entidade promove formação ou cursos próprios.</p>
                         </div>
                       </div>
 
-                      {!isViewOnly && <button type="submit" className="btn-primary hover-shadow" style={{width:'100%', marginTop:'20px', padding:'15px', fontSize:'1.05rem', fontWeight: 'bold'}}>Guardar Dados Base</button>}
+                      {!isViewOnly && <button type="submit" className="btn-primary hover-shadow" style={{width:'100%', marginTop:'20px', padding:'15px', fontSize:'1.05rem', fontWeight: 'bold'}}>Guardar Funções</button>}
                     </fieldset>
                   </form>
                 )}

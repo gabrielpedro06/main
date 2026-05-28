@@ -123,6 +123,34 @@ const normalizeBoolean = (raw) => {
     return Boolean(raw);
 };
 
+const createBlankProjetoFase = (index = 0) => ({
+    nome: `Fase ${index + 1}`,
+    prazo: "",
+});
+
+const normalizeProjetoFases = (value) => {
+    if (!Array.isArray(value) || value.length === 0) return [];
+
+    return value
+        .map((fase, index) => {
+            if (typeof fase === "string") {
+                return createBlankProjetoFase(index);
+            }
+
+            return {
+                nome: String(fase?.nome || fase?.fase || `Fase ${index + 1}`).trim(),
+                prazo: String(fase?.prazo || fase?.data || "").trim(),
+            };
+        })
+        .filter((fase) => fase.nome || fase.prazo);
+};
+
+const getLastProjetoFaseDate = (fases) => {
+    const normalized = normalizeProjetoFases(fases);
+    const dates = normalized.map((fase) => fase.prazo).filter(Boolean);
+    return dates.length > 0 ? dates[dates.length - 1] : "";
+};
+
 export default function Projetos() {
   const { user } = useAuth();
   const navigate = useNavigate(); 
@@ -130,6 +158,8 @@ export default function Projetos() {
 
   const [projetos, setProjetos] = useState([]);
   const [loading, setLoading] = useState(true);
+    const [programas, setProgramas] = useState([]);
+    const [avisos, setAvisos] = useState([]);
   
   const [activeLog, setActiveLog] = useState(null); 
     const [activeLogTitle, setActiveLogTitle] = useState("");
@@ -168,8 +198,15 @@ export default function Projetos() {
   const [isViewOnly, setIsViewOnly] = useState(false);
   const [activeTab, setActiveTab] = useState("geral");
     const [parceiroSelecionado, setParceiroSelecionado] = useState("");
+    const [quickOrganismoModal, setQuickOrganismoModal] = useState({ show: false, marca: "", sigla: "", nif: "", entidade: "", website: "", isSubmitting: false });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+      if (!showModal && quickOrganismoModal.show) {
+          closeQuickOrganismoModal();
+      }
+  }, [showModal]);
 
   // States para a Preview de Atividades
   const [templateTree, setTemplateTree] = useState([]);
@@ -183,7 +220,8 @@ export default function Projetos() {
     tipo_projeto_id: "",
     responsavel_id: "", colaboradores: [],
     estado: "pendente", data_inicio: "", data_fim: "",
-    observacoes: "", programa: "", aviso: "", codigo_projeto: "",
+        observacoes: "", programa: "", aviso: "", codigo_projeto: "",
+        programa_id: "", aviso_id: "", prazos_fases: [],
     investimento: 0, incentivo: 0
   };
 
@@ -193,6 +231,61 @@ export default function Projetos() {
     fetchData();
     checkActiveLog();
   }, [user]);
+
+    const getProgramaById = (programaId) => programas.find((programa) => String(programa.id) === String(programaId)) || null;
+    const getAvisoById = (avisoId) => avisos.find((aviso) => String(aviso.id) === String(avisoId)) || null;
+    const normalizeCode = (v) => String(v || "").trim().toLowerCase();
+    const getAvisoForPrograma = (programa) => {
+        if (!programa) return null;
+
+        // Prefer explicit FK
+        if (programa.aviso_id) {
+            const byId = getAvisoById(programa.aviso_id);
+            if (byId) return byId;
+        }
+
+        // Try several textual fields (legacy data may store aviso code in different props)
+        const raw = String(programa.aviso || programa.aviso_codigo || programa.codigo || "").trim();
+        if (!raw) return null;
+        const codigo = raw.toLowerCase();
+
+        // Exact normalized match
+        let found = avisos.find((av) => normalizeCode(av.codigo) === codigo);
+        if (found) return found;
+
+        // Partial/contains match (tolerate prefixes/suffixes)
+        found = avisos.find((av) => normalizeCode(av.codigo).includes(codigo) || codigo.includes(normalizeCode(av.codigo)));
+        if (found) return found;
+
+        // Try matching by aviso name as a last resort
+        found = avisos.find((av) => normalizeCode(av.nome).includes(codigo) || codigo.includes(normalizeCode(av.nome)));
+        if (found) return found;
+
+        return null;
+    };
+
+    // Fetch a single aviso from server by id and add to local cache
+    const fetchAvisoFromServer = async (avisoId) => {
+        if (!avisoId) return null;
+        try {
+            const { data, error } = await supabase.from('avisos').select('*').eq('id', avisoId).maybeSingle();
+            if (error) {
+                console.error('Erro ao buscar aviso por id:', avisoId, error);
+                return null;
+            }
+            if (data) {
+                setAvisos((prev) => {
+                    const exists = prev.find(a => String(a.id) === String(data.id));
+                    if (exists) return prev;
+                    return [data, ...prev];
+                });
+            }
+            return data || null;
+        } catch (e) {
+            console.error('Exceção ao buscar aviso por id:', avisoId, e);
+            return null;
+        }
+    };
 
   useEffect(() => {
       let cancelled = false;
@@ -373,6 +466,35 @@ export default function Projetos() {
 
     if (error) console.error("Erro no fetch:", error);
     else setProjetos(projData || []);
+
+        // Load programas normally
+        const { data: programasData, error: programasError } = await supabase.from("programas_financiamento").select("id, codigo, nome, aviso, aviso_id, ativo").order("codigo", { ascending: true });
+        if (programasError) console.error('Erro ao buscar programas:', programasError);
+        setProgramas(programasData || []);
+
+        // Load avisos robustly using select('*') to avoid column-mismatch errors
+        let avisosData = null;
+        try {
+            const { data, error } = await supabase.from("avisos").select("*").order("codigo", { ascending: true });
+            if (error) throw error;
+            avisosData = data || [];
+        } catch (errAvisos) {
+            console.error('Erro ao buscar avisos com select(*):', errAvisos);
+            // As a last resort, try a minimal select to at least get ids/codigo
+            try {
+                const { data: dataFallback, error: errFallback } = await supabase.from("avisos").select("id, codigo, ativo").order("codigo", { ascending: true });
+                if (errFallback) throw errFallback;
+                avisosData = dataFallback || [];
+                console.warn('Avisos carregados com fallback mínimo (id,codigo,ativo).');
+            } catch (err2) {
+                console.error('Erro ao buscar avisos (fallback mínimo):', err2);
+                avisosData = [];
+            }
+        }
+
+        setAvisos(avisosData || []);
+
+        // debug logs removed
 
     const { data: cliData } = await supabase.from("clientes").select("id, marca, sigla, eh_organismo").order("marca");
     setClientes(cliData || []);
@@ -705,7 +827,8 @@ export default function Projetos() {
         ...initialForm, 
         tipo_projeto_id: (selectedCategoria && selectedCategoria !== 'sem-categoria') ? selectedCategoria : "", 
         estado: selectedEstado || initialForm.estado,
-        data_inicio: new Date().toISOString().split('T')[0] 
+                data_inicio: new Date().toISOString().split('T')[0],
+                prazos_fases: [] 
     });
     setActiveTab("geral"); 
     setShowModal(true);
@@ -715,6 +838,17 @@ export default function Projetos() {
     e.stopPropagation();
     setEditId(proj.id); setIsViewOnly(false);
         setParceiroSelecionado("");
+    const matchedPrograma = programas.find((programa) =>
+        String(programa.id) === String(proj.programa_id || "") ||
+        String(programa.codigo || "").trim() === String(proj.programa || "").trim() ||
+        String(programa.nome || "").trim() === String(proj.programa || "").trim()
+    ) || null;
+    const matchedAviso = avisos.find((aviso) =>
+        String(aviso.id) === String(proj.aviso_id || "") ||
+        String(aviso.codigo || "").trim() === String(proj.aviso || "").trim()
+    ) || null;
+    const avisoBase = matchedAviso || getAvisoForPrograma(matchedPrograma);
+    const projetoFases = normalizeProjetoFases(proj.prazos_fases || avisoBase?.fases || []);
     setForm({
         titulo: proj.titulo || "", descricao: proj.descricao || "", 
         cliente_id: proj.cliente_id || "", cliente_texto: proj.cliente_texto || "",
@@ -725,8 +859,11 @@ export default function Projetos() {
         tipo_projeto_id: proj.tipo_projeto_id || "", 
         responsavel_id: proj.responsavel_id || "", colaboradores: normalizeIdsList(proj.colaboradores),
         estado: proj.estado || "pendente", data_inicio: proj.data_inicio || "",
-        data_fim: proj.data_fim || "", observacoes: proj.observacoes || "",
-        programa: proj.programa || "", aviso: proj.aviso || "",
+        data_fim: proj.data_fim || getLastProjetoFaseDate(projetoFases) || "", observacoes: proj.observacoes || "",
+        programa: proj.programa || matchedPrograma?.nome || "", aviso: proj.aviso || matchedAviso?.codigo || avisoBase?.codigo || "",
+        programa_id: matchedPrograma?.id || proj.programa_id || "",
+        aviso_id: matchedAviso?.id || proj.aviso_id || avisoBase?.id || "",
+        prazos_fases: projetoFases,
         codigo_projeto: proj.codigo_projeto || "", investimento: proj.investimento || 0, incentivo: proj.incentivo || 0
     });
     setActiveTab("geral");
@@ -787,16 +924,30 @@ export default function Projetos() {
     setIsSubmitting(true);
     const payload = { ...form };
 
+    const selectedPrograma = getProgramaById(payload.programa_id);
+    const selectedAviso = getAvisoById(payload.aviso_id) || getAvisoForPrograma(selectedPrograma);
+    const normalizedFases = normalizeProjetoFases(payload.prazos_fases);
+
                 payload.titulo = (payload.titulo || "").trim();
 
         payload.is_parceria = normalizeBoolean(payload.is_parceria);
         payload.parceiros_ids = normalizeIdsList(payload.parceiros_ids);
         payload.colaboradores = normalizeIdsList(payload.colaboradores);
+        payload.programa_id = selectedPrograma?.id || null;
+        payload.aviso_id = selectedAviso?.id || null;
+        payload.prazos_fases = normalizedFases;
+        payload.programa = selectedPrograma ? `${selectedPrograma.codigo ? `${selectedPrograma.codigo} - ` : ""}${selectedPrograma.nome || ""}`.trim() : (payload.programa || "").trim();
+        payload.aviso = selectedAviso?.codigo || (payload.aviso || "").trim();
 
     if (payload.cliente_id === "") payload.cliente_id = null;
     if (payload.tipo_projeto_id === "") payload.tipo_projeto_id = null;
     if (payload.responsavel_id === "") payload.responsavel_id = null;
     if (payload.data_fim === "") payload.data_fim = null;
+
+    if (normalizedFases.length > 0) {
+        const lastPhaseDate = getLastProjetoFaseDate(normalizedFases);
+        if (lastPhaseDate) payload.data_fim = lastPhaseDate;
+    }
 
     if (!editId) {
         const missingFields = [];
@@ -805,6 +956,7 @@ export default function Projetos() {
         if (!payload.tipo_projeto_id) missingFields.push("Tipo de Projeto");
         if (!payload.responsavel_id) missingFields.push("Responsável Global");
         if (!payload.data_fim) missingFields.push("Data de Fim");
+        if ((payload.programa_id || payload.aviso_id) && normalizedFases.length === 0) missingFields.push("Datas das fases do aviso");
 
         if (missingFields.length > 0) {
             showToast(`Para criar o projeto preenche: ${missingFields.join(", ")}.`, "warning");
@@ -844,7 +996,7 @@ export default function Projetos() {
             if (payload.tipo_projeto_id && templateTree.length > 0) {
                 showToast("A preparar as atividades do projeto...", "info");
                 let projDateStr = payload.data_inicio || new Date().toISOString().split('T')[0];
-                const projEndStr = payload.data_fim || null; 
+                const projEndStr = payload.data_fim || getLastProjetoFaseDate(payload.prazos_fases) || null; 
                 let currentAtivDate = projDateStr;
                 const templateToRealAtividade = new Map();
 
@@ -1096,6 +1248,72 @@ export default function Projetos() {
       resetProjectMenus();
   };
 
+    const selectedPrograma = getProgramaById(form.programa_id);
+    const selectedAviso = getAvisoById(form.aviso_id) || getAvisoForPrograma(selectedPrograma);
+  const fasesProjeto = normalizeProjetoFases(form.prazos_fases);
+  const fasesEfetivas = fasesProjeto.length > 0 ? fasesProjeto : normalizeProjetoFases(selectedAviso?.fases);
+
+  const handleProgramaChange = async (programaId) => {
+      const programa = getProgramaById(programaId);
+      let aviso = getAvisoForPrograma(programa);
+    // debug log removed
+
+      // If aviso not found but programa.aviso_id exists, fetch that aviso on-demand
+      if (!aviso && programa?.aviso_id) {
+          aviso = await fetchAvisoFromServer(programa.aviso_id);
+      }
+
+      const fases = normalizeProjetoFases(aviso?.fases);
+
+      setForm((prev) => ({
+          ...prev,
+          programa_id: programaId,
+          programa: programa ? `${programa.codigo ? `${programa.codigo} - ` : ""}${programa.nome || ""}`.trim() : "",
+          aviso_id: aviso?.id || "",
+          aviso: aviso?.codigo || "",
+          prazos_fases: fases,
+          data_fim: fases.length > 0 ? getLastProjetoFaseDate(fases) : prev.data_fim,
+      }));
+  };
+
+  // DEBUG: log when selected programa/aviso change in form
+  useEffect(() => {
+      // debug effect removed
+  }, [form.programa_id, form.aviso_id, programas, avisos]);
+
+  const updateProjetoFase = (index, field, value) => {
+      setForm((prev) => {
+          const fases = normalizeProjetoFases(prev.prazos_fases);
+          return {
+              ...prev,
+              prazos_fases: fases.map((fase, currentIndex) => (
+                  currentIndex === index ? { ...fase, [field]: value } : fase
+              )),
+          };
+      });
+  };
+
+  const addProjetoFase = () => {
+      setForm((prev) => {
+          const fases = normalizeProjetoFases(prev.prazos_fases);
+          return {
+              ...prev,
+              prazos_fases: [...fases, createBlankProjetoFase(fases.length)],
+          };
+      });
+  };
+
+  const removeProjetoFase = (index) => {
+      setForm((prev) => {
+          const fases = normalizeProjetoFases(prev.prazos_fases).filter((_, currentIndex) => currentIndex !== index);
+          return {
+              ...prev,
+              prazos_fases: fases,
+              data_fim: fases.length > 0 ? getLastProjetoFaseDate(fases) : prev.data_fim,
+          };
+      });
+  };
+
   const renderViewModeToggle = () => (
       <div style={{display: 'inline-flex', alignItems: 'center', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '4px', marginLeft: 'auto'}}>
           <button
@@ -1183,6 +1401,204 @@ export default function Projetos() {
   const labelStyle = { display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' };
   const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box' };
   const actionBtnStyle = { background: 'transparent', border: 'none', cursor: 'pointer', padding: '6px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.6, transition: '0.2s' };
+
+  const sanitizeNif = (value) => String(value || "").replace(/\D/g, "").slice(0, 9);
+
+  const extractNifApiErrorMessage = (data) => {
+      if (!data || typeof data !== "object") return null;
+      const candidates = [data.error, data.message, data.msg, data.detail, data.status];
+      const found = candidates.find((value) => typeof value === "string" && value.trim().length > 0);
+      return found ? found.trim() : null;
+  };
+
+  const buildSiglaFromTitle = (title) => {
+      if (!title || typeof title !== "string") return "";
+      const stopWords = new Set(["de", "da", "do", "das", "dos", "e", "a", "o", "the", "and"]);
+      const words = title
+          .replace(/[.,;:()]/g, " ")
+          .split(/\s+/)
+          .map((word) => word.trim())
+          .filter(Boolean)
+          .filter((word) => !stopWords.has(word.toLowerCase()));
+      if (!words.length) return "";
+      return words.slice(0, 5).map((word) => word[0]).join("").toUpperCase().slice(0, 20);
+  };
+
+  async function fetchNifRecord(nif) {
+      const nifSanitizado = sanitizeNif(nif);
+      if (nifSanitizado.length !== 9) return null;
+
+      const params = new URLSearchParams({ json: "1", q: nifSanitizado });
+      const nifApiKey = (import.meta.env.VITE_NIFPT_KEY || "9beb59d324c1477245e04e0b5988bdd2").trim();
+      if (nifApiKey) params.set("key", nifApiKey);
+
+      const response = await fetch(`/nif-api/?${params.toString()}`);
+      if (!response.ok) throw new Error("Erro na comunicação com a API.");
+
+      const contentType = response.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+          throw new Error("Resposta inválida do serviço NIF. Verifica o proxy /nif-api.");
+      }
+
+      const data = await response.json();
+      const apiErrorMessage = extractNifApiErrorMessage(data);
+      if (apiErrorMessage) throw new Error(apiErrorMessage);
+
+      if (data?.credits?.left?.day === 0) {
+          throw new Error("limite diário de consultas atingido");
+      }
+
+      return data?.records?.[nifSanitizado] || data?.[nifSanitizado] || null;
+  }
+
+  const openQuickOrganismoModal = () => {
+      const organismoAtual = form.organismo_id ? clientes.find(c => String(c.id) === String(form.organismo_id)) : null;
+      setQuickOrganismoModal({
+          show: true,
+          marca: organismoAtual?.marca || "",
+          sigla: organismoAtual?.sigla || "",
+          nif: organismoAtual?.nif || "",
+          entidade: organismoAtual?.entidade || "",
+          website: organismoAtual?.website || "",
+          isSubmitting: false
+      });
+  };
+
+  const closeQuickOrganismoModal = () => {
+      setQuickOrganismoModal({ show: false, marca: "", sigla: "", nif: "", entidade: "", website: "", isSubmitting: false });
+  };
+
+  const createQuickOrganismo = async (e) => {
+      e.preventDefault();
+      if (quickOrganismoModal.isSubmitting) return;
+
+      const marca = quickOrganismoModal.marca.trim();
+      const nif = String(quickOrganismoModal.nif || "").replace(/\D/g, "").slice(0, 9);
+      if (!marca) {
+          showToast("Indica o nome do organismo.", "warning");
+          return;
+      }
+
+      if (nif && nif.length !== 9) {
+          showToast("O NIF tem de ter 9 dígitos.", "warning");
+          return;
+      }
+
+      setQuickOrganismoModal(prev => ({ ...prev, isSubmitting: true }));
+
+      try {
+          if (nif) {
+              const { data: existente, error: nifError } = await supabase
+                  .from("clientes")
+                  .select("id, marca, sigla, nif, entidade, website, eh_organismo")
+                  .eq("nif", nif)
+                  .maybeSingle();
+              if (nifError) throw nifError;
+
+              if (existente?.id) {
+                  setClientes(prev => {
+                      const restantes = prev.filter(c => String(c.id) !== String(existente.id));
+                      return [{ ...existente }, ...restantes];
+                  });
+                  setForm(prev => ({
+                      ...prev,
+                      has_organismo: true,
+                      organismo_id: existente.id,
+                      organismo_contacto_id: ""
+                  }));
+                  setQuickOrganismoModal({ show: false, marca: "", sigla: "", nif: "", entidade: "", website: "", isSubmitting: false });
+                  showToast("Organismo já existia e foi selecionado.", "success");
+                  return;
+              }
+          }
+
+          const payload = {
+              marca,
+              sigla: quickOrganismoModal.sigla.trim() || null,
+              nif: nif || null,
+              entidade: quickOrganismoModal.entidade.trim() || marca,
+              website: quickOrganismoModal.website.trim() || null,
+              ativo: true,
+              eh_organismo: true,
+              eh_empresa_consultora: false,
+              plano: "Standard",
+              tem_cursos: false
+          };
+
+          const { data, error } = await supabase.from("clientes").insert([payload]).select("id, marca, sigla, nif, entidade, website, eh_organismo").single();
+          if (error) throw error;
+
+          setClientes(prev => [{ ...data }, ...prev]);
+          setForm(prev => ({
+              ...prev,
+              has_organismo: true,
+              organismo_id: data.id,
+              organismo_contacto_id: ""
+          }));
+          setQuickOrganismoModal({ show: false, marca: "", sigla: "", nif: "", entidade: "", website: "", isSubmitting: false });
+          showToast("Organismo criado e selecionado no projeto.", "success");
+      } catch (err) {
+          setQuickOrganismoModal(prev => ({ ...prev, isSubmitting: false }));
+          showToast(`Erro ao criar organismo: ${err.message}`, "error");
+      }
+  };
+
+  const handleQuickOrganismoNifChange = async (e) => {
+      const nifDigitado = sanitizeNif(e.target.value);
+      setQuickOrganismoModal(prev => ({ ...prev, nif: nifDigitado }));
+
+      if (nifDigitado.length < 9) return;
+
+      try {
+          const clienteExistente = await supabase
+              .from("clientes")
+              .select("id, marca, sigla, nif, entidade, website, eh_organismo")
+              .eq("nif", nifDigitado)
+              .limit(1)
+              .maybeSingle();
+
+          if (clienteExistente?.data?.id) {
+              setClientes(prev => {
+                  const restantes = prev.filter(c => String(c.id) !== String(clienteExistente.data.id));
+                  return [{ ...clienteExistente.data }, ...restantes];
+              });
+              setForm(prev => ({
+                  ...prev,
+                  has_organismo: true,
+                  organismo_id: clienteExistente.data.id,
+                  organismo_contacto_id: ""
+              }));
+              showToast("Organismo já existe e foi selecionado.", "success");
+              closeQuickOrganismoModal();
+              return;
+          }
+      } catch {
+          // Se a verificação local falhar, continuamos com a consulta pública.
+      }
+
+      try {
+          showToast("A consultar dados no NIF.pt...", "info");
+          const record = await fetchNifRecord(nifDigitado);
+          if (!record) {
+              showToast("NIF.pt não devolveu dados para este NIF.", "warning");
+              return;
+          }
+
+          const title = record.title || "";
+          const website = record.contacts?.website || "";
+          const sigla = buildSiglaFromTitle(title);
+
+          setQuickOrganismoModal(prev => ({
+              ...prev,
+              marca: prev.marca || title,
+              entidade: prev.entidade || title,
+              sigla: prev.sigla || sigla,
+              website: prev.website || website
+          }));
+      } catch (err) {
+          showToast(`NIF.pt indisponível: ${err.message}`, "warning");
+      }
+  };
 
   const getProjetoClientDisplay = (projeto) => {
       if (!projeto) return { text: 'Sem Cliente', isParceria: false };
@@ -1878,6 +2294,14 @@ export default function Projetos() {
                                             <option key={c.id} value={c.id}>{getClientDisplayName(c) || c.marca}</option>
                                         ))}
                                     </select>
+                                    <button
+                                        type="button"
+                                        onClick={openQuickOrganismoModal}
+                                        disabled={isViewOnly}
+                                        style={{marginTop: '8px', border: '1px dashed #cbd5e1', background: 'white', color: 'var(--color-btnPrimary)', padding: '8px 12px', borderRadius: '8px', cursor: isViewOnly ? 'not-allowed' : 'pointer', fontWeight: '700', fontSize: '0.85rem'}}
+                                    >
+                                        + Criar organismo sem sair daqui
+                                    </button>
                                 </div>
                             )}
                         </div>
@@ -1975,11 +2399,115 @@ export default function Projetos() {
 
                         {/* 3. PLANEAMENTO */}
                         <div style={sectionTitleStyle}><Icons.Calendar /> Planeamento & Avisos</div>
-                        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '15px', marginBottom: '30px'}}>
-                            <div><label style={labelStyle}>Data Início Base</label><input type="date" value={form.data_inicio || ''} onChange={e => setForm({...form, data_inicio: e.target.value})} style={inputStyle} className="input-focus" required /></div>
-                            <div><label style={labelStyle}>Data Fim Final</label><input type="date" value={form.data_fim || ''} onChange={e => setForm({...form, data_fim: e.target.value})} style={{...inputStyle, border: form.data_fim ? '1px solid #fca5a5' : '1px solid #cbd5e1'}} className="input-focus" /></div>
-                            <div><label style={labelStyle}>Programa</label><input type="text" value={form.programa || ''} onChange={e => setForm({...form, programa: e.target.value})} placeholder="P2030 / PRR" style={inputStyle} className="input-focus" /></div>
-                            <div><label style={labelStyle}>Aviso</label><input type="text" value={form.aviso || ''} onChange={e => setForm({...form, aviso: e.target.value})} placeholder="Ex: 01/C16" style={inputStyle} className="input-focus" /></div>
+                        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '18px'}}>
+                            <div>
+                                <label style={labelStyle}>Programa</label>
+                                <select
+                                    value={form.programa_id || ''}
+                                    onChange={(e) => handleProgramaChange(e.target.value)}
+                                    style={{...inputStyle, cursor: 'pointer'}}
+                                    className="input-focus"
+                                >
+                                    <option value="">-- Sem programa associado --</option>
+                                    {programas.filter((programa) => programa.ativo !== false).map((programa) => (
+                                        <option key={programa.id} value={programa.id}>
+                                            {`${programa.codigo ? `${programa.codigo} - ` : ''}${programa.nome || 'Programa'}`}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label style={labelStyle}>Aviso</label>
+                                <input
+                                    type="text"
+                                    value={selectedAviso ? `${selectedAviso.codigo ? `${selectedAviso.codigo} - ` : ''}${selectedAviso.nome || 'Aviso'}` : 'Sem aviso associado ao programa'}
+                                    readOnly
+                                    style={{...inputStyle, background: '#f8fafc', color: '#475569'}}
+                                    className="input-focus"
+                                />
+                                <p style={{margin: '6px 0 0 0', fontSize: '0.78rem', color: '#64748b'}}>
+                                    Este campo é definido automaticamente a partir do programa selecionado.
+                                </p>
+                                {/* debug UI removed */}
+                            </div>
+                        </div>
+
+                        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '20px'}}>
+                            <div>
+                                <label style={labelStyle}>Data Início Base</label>
+                                <input type="date" value={form.data_inicio || ''} onChange={e => setForm({...form, data_inicio: e.target.value})} style={inputStyle} className="input-focus" required />
+                            </div>
+                            <div>
+                                <label style={labelStyle}>Data Fim Final</label>
+                                <input
+                                    type="date"
+                                    value={form.data_fim || ''}
+                                    onChange={e => setForm({...form, data_fim: e.target.value})}
+                                    style={{...inputStyle, border: form.data_fim ? '1px solid #fca5a5' : '1px solid #cbd5e1'}}
+                                    className="input-focus"
+                                    disabled={fasesEfetivas.length > 0}
+                                />
+                                {fasesEfetivas.length > 0 && (
+                                    <p style={{margin: '6px 0 0 0', fontSize: '0.78rem', color: '#64748b'}}>
+                                        Esta data é calculada pela última fase do aviso.
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+
+                        <div style={{marginBottom: '30px', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', background: '#f8fafc'}}>
+                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '12px'}}>
+                                <div>
+                                    <div style={{fontSize: '0.8rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Fases do Projeto</div>
+                                    <div style={{fontSize: '0.85rem', color: '#64748b'}}>Preenche as datas de término por fase. Se o aviso tiver fases, estas entram automaticamente.</div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={addProjetoFase}
+                                    style={{...inputStyle, width: 'auto', padding: '8px 12px', marginBottom: 0, cursor: 'pointer', background: 'white', fontWeight: '700'}}
+                                    className="hover-shadow"
+                                >
+                                    + Adicionar fase
+                                </button>
+                            </div>
+
+                            <div style={{display: 'grid', gap: '12px'}}>
+                                {(fasesEfetivas.length > 0 ? fasesEfetivas : [createBlankProjetoFase(0)]).map((fase, index) => (
+                                    <div key={`${fase.nome || 'fase'}-${index}`} style={{display: 'grid', gridTemplateColumns: '1fr 180px auto', gap: '12px', alignItems: 'end', padding: '12px', borderRadius: '10px', background: 'white', border: '1px solid #e2e8f0'}}>
+                                        <div>
+                                            <label style={labelStyle}>Nome da fase</label>
+                                            <input
+                                                type="text"
+                                                value={fase.nome || ''}
+                                                onChange={(e) => updateProjetoFase(index, 'nome', e.target.value)}
+                                                style={inputStyle}
+                                                className="input-focus"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label style={labelStyle}>Data de término</label>
+                                            <input
+                                                type="date"
+                                                value={fase.prazo || ''}
+                                                onChange={(e) => updateProjetoFase(index, 'prazo', e.target.value)}
+                                                style={inputStyle}
+                                                className="input-focus"
+                                            />
+                                        </div>
+                                        <div>
+                                            <button
+                                                type="button"
+                                                onClick={() => removeProjetoFase(index)}
+                                                disabled={fasesEfetivas.length <= 1 && fasesProjeto.length <= 1}
+                                                style={{...inputStyle, width: '40px', height: '40px', padding: 0, marginBottom: 0, cursor: 'pointer', background: 'white'}}
+                                                className="hover-shadow"
+                                            >
+                                                <Icons.Trash size={14} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
 
                         {/* 4. PREVIEW DAS ATIVIDADES (APENAS CRIAÇÃO E SE HOUVER MODELO) */}
@@ -2154,6 +2682,95 @@ export default function Projetos() {
             </div>
           </div>
         </ModalPortal>
+      )}
+
+      {quickOrganismoModal.show && (
+          <ModalPortal>
+              <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.72)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:100000}}>
+                  <div style={{width:'min(520px, 92vw)', background:'white', borderRadius:'16px', boxShadow:'0 25px 50px -12px rgba(0,0,0,0.25)', overflow:'hidden'}}>
+                      <div style={{padding:'18px 22px', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center', background:'#f8fafc'}}>
+                          <div>
+                              <h3 style={{margin:0, color:'#1e293b', fontSize:'1.15rem', fontWeight:'800'}}>Criar organismo</h3>
+                              <p style={{margin:'4px 0 0 0', color:'#64748b', fontSize:'0.85rem'}}>O projeto fica em aberto enquanto crias a entidade.</p>
+                          </div>
+                          <button type="button" onClick={closeQuickOrganismoModal} style={{background:'transparent', border:'none', cursor:'pointer', color:'#94a3b8', display:'flex', alignItems:'center', justifyContent:'center'}}>
+                              <Icons.Close size={20} />
+                          </button>
+                      </div>
+
+                      <form onSubmit={createQuickOrganismo} style={{padding:'22px'}}>
+                          <div style={{display:'grid', gap:'14px'}}>
+                              <div>
+                                  <label style={labelStyle}>Nome do organismo *</label>
+                                  <input
+                                      type="text"
+                                      value={quickOrganismoModal.marca}
+                                      onChange={(e) => setQuickOrganismoModal(prev => ({ ...prev, marca: e.target.value }))}
+                                      placeholder="Ex: Município de..."
+                                      style={inputStyle}
+                                      className="input-focus"
+                                  />
+                              </div>
+                              <div>
+                                  <label style={labelStyle}>NIF</label>
+                                  <input
+                                      type="text"
+                                      inputMode="numeric"
+                                      maxLength={9}
+                                      value={quickOrganismoModal.nif}
+                                      onChange={handleQuickOrganismoNifChange}
+                                      placeholder="Ex: 500000000"
+                                      style={inputStyle}
+                                      className="input-focus"
+                                  />
+                              </div>
+                              <div>
+                                  <label style={labelStyle}>Sigla</label>
+                                  <input
+                                      type="text"
+                                      value={quickOrganismoModal.sigla}
+                                      onChange={(e) => setQuickOrganismoModal(prev => ({ ...prev, sigla: e.target.value }))}
+                                      placeholder="Opcional"
+                                      style={inputStyle}
+                                      className="input-focus"
+                                  />
+                              </div>
+                              <div>
+                                  <label style={labelStyle}>Entidade Legal</label>
+                                  <input
+                                      type="text"
+                                      value={quickOrganismoModal.entidade}
+                                      onChange={(e) => setQuickOrganismoModal(prev => ({ ...prev, entidade: e.target.value }))}
+                                      placeholder="Opcional"
+                                      style={inputStyle}
+                                      className="input-focus"
+                                  />
+                              </div>
+                              <div>
+                                  <label style={labelStyle}>Website</label>
+                                  <input
+                                      type="text"
+                                      value={quickOrganismoModal.website}
+                                      onChange={(e) => setQuickOrganismoModal(prev => ({ ...prev, website: e.target.value }))}
+                                      placeholder="www.entidade.pt"
+                                      style={inputStyle}
+                                      className="input-focus"
+                                  />
+                              </div>
+                          </div>
+
+                          <div style={{display:'flex', gap:'10px', justifyContent:'flex-end', marginTop:'20px'}}>
+                              <button type="button" onClick={closeQuickOrganismoModal} style={{padding:'10px 14px', borderRadius:'10px', border:'1px solid #cbd5e1', background:'white', color:'#475569', fontWeight:'700', cursor:'pointer'}}>
+                                  Cancelar
+                              </button>
+                              <button type="submit" disabled={quickOrganismoModal.isSubmitting} style={{padding:'10px 14px', borderRadius:'10px', border:'none', background:'var(--color-btnPrimary)', color:'white', fontWeight:'800', cursor:'pointer', opacity: quickOrganismoModal.isSubmitting ? 0.7 : 1}}>
+                                  {quickOrganismoModal.isSubmitting ? 'A criar...' : 'Criar e selecionar'}
+                              </button>
+                          </div>
+                      </form>
+                  </div>
+              </div>
+          </ModalPortal>
       )}
 
       {notification && <div className={`toast-container ${notification.type}`}>{notification.type === 'success' ? '✅' : '⚠️'} {notification.message}</div>}

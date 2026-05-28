@@ -2894,42 +2894,42 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                           <div className="section-subtitle" style={{ marginTop: "10px", marginBottom: 8 }}>Valores Variáveis</div>
                           {(item.valores_variaveis || []).length > 0 && (
                             <div style={{ overflowX: "auto", marginBottom: 12 }}>
-                              <table className="propostas-pagamentos-tabela" style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, background: "#fff" }}>
+                              <table className="propostas-pagamentos-tabela" style={{ width: "100%", minWidth: "1180px", borderCollapse: "collapse", fontSize: 13, background: "#fff", tableLayout: "fixed" }}>
                                 <thead>
                                   <tr style={{ background: "#f1f5f9" }}>
-                                    <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Serviço</th>
-                                    <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Valor Base</th>
-                                    <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Base de Cálculo do Variável</th>
-                                    <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>%</th>
-                                    <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Condições de Pagamento</th>
-                                    <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Num. Parcelas</th>
-                                    <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Frequência (dias)</th>
-                                    <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}></th>
+                                    <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0", width: "20%" }}>Serviço</th>
+                                    <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0", width: "8%" }}>Valor Base</th>
+                                    <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0", width: "18%" }}>Base de Cálculo do Variável</th>
+                                    <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0", width: "6%" }}>%</th>
+                                    <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0", width: "22%" }}>Condições de Pagamento</th>
+                                    <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0", width: "10%" }}>Num. Parcelas</th>
+                                    <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0", width: "10%" }}>Frequência (dias)</th>
+                                    <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0", width: "4%" }}></th>
                                   </tr>
                                 </thead>
                                 <tbody>
                                   {(item.valores_variaveis || []).map((v, vi) => (
                                     <tr key={`${item.tipo_projeto_id}-var-${vi}`} style={{ borderBottom: "1px solid #e2e8f0" }}>
-                                      <td style={{ padding: "6px 8px", minWidth: 160 }}>
-                                        <input type="text" value={v.servico || item.nome || ""} onChange={(e) => updateVariavelTipoProjeto(item.tipo_projeto_id, vi, "servico", e.target.value)} placeholder={item.nome || "Serviço"} style={{ width: "100%" }} />
+                                      <td style={{ padding: "6px 8px" }}>
+                                        <input type="text" value={v.servico || item.nome || ""} onChange={(e) => updateVariavelTipoProjeto(item.tipo_projeto_id, vi, "servico", e.target.value)} placeholder={item.nome || "Serviço"} style={{ width: "100%", minWidth: 180 }} />
                                       </td>
-                                      <td style={{ padding: "6px 8px", textAlign: "right", minWidth: 120 }}>
-                                        <input type="number" step="0.01" min="0" value={Number(v.valor_base || 0)} onChange={(e) => updateVariavelTipoProjeto(item.tipo_projeto_id, vi, "valor_base", e.target.value)} style={{ width: 120, textAlign: "right" }} />
+                                      <td style={{ padding: "6px 8px", textAlign: "right" }}>
+                                        <input type="number" step="0.01" min="0" value={Number(v.valor_base || 0)} onChange={(e) => updateVariavelTipoProjeto(item.tipo_projeto_id, vi, "valor_base", e.target.value)} style={{ width: "100%", minWidth: 84, textAlign: "right" }} />
                                       </td>
                                       <td style={{ padding: "6px 8px" }}>
-                                        <input type="text" value={v.variavel || ""} onChange={(e) => updateVariavelTipoProjeto(item.tipo_projeto_id, vi, "variavel", e.target.value)} placeholder="Ex.: 1% do incentivo" style={{ width: "100%" }} />
+                                        <input type="text" value={v.variavel || ""} onChange={(e) => updateVariavelTipoProjeto(item.tipo_projeto_id, vi, "variavel", e.target.value)} placeholder="Ex.: 1% do incentivo" style={{ width: "100%", minWidth: 170 }} />
                                       </td>
-                                      <td style={{ padding: "6px 8px", textAlign: "center", minWidth: 80 }}>
-                                        <input type="number" step="0.01" min="0" value={Number(v.percentagem || 0)} onChange={(e) => updateVariavelTipoProjeto(item.tipo_projeto_id, vi, "percentagem", e.target.value)} style={{ width: 80, textAlign: "center" }} />
+                                      <td style={{ padding: "6px 8px", textAlign: "center" }}>
+                                        <input type="number" step="0.01" min="0" value={Number(v.percentagem || 0)} onChange={(e) => updateVariavelTipoProjeto(item.tipo_projeto_id, vi, "percentagem", e.target.value)} style={{ width: "100%", minWidth: 56, textAlign: "center" }} />
                                       </td>
                                       <td style={{ padding: "6px 8px" }}>
-                                        <input type="text" value={v.descricao || ""} onChange={(e) => updateVariavelTipoProjeto(item.tipo_projeto_id, vi, "descricao", e.target.value)} placeholder="Descrição" style={{ width: "100%" }} />
+                                        <input type="text" value={v.descricao || ""} onChange={(e) => updateVariavelTipoProjeto(item.tipo_projeto_id, vi, "descricao", e.target.value)} placeholder="Descrição" style={{ width: "100%", minWidth: 180 }} />
                                       </td>
-                                      <td style={{ padding: "6px 8px", textAlign: "center", minWidth: 100 }}>
-                                        <input type="number" min="1" step="1" value={Number(v.num_parcelas || 1)} onChange={(e) => updateVariavelTipoProjeto(item.tipo_projeto_id, vi, "num_parcelas", e.target.value)} style={{ width: 90, textAlign: "center" }} />
+                                      <td style={{ padding: "6px 8px", textAlign: "center" }}>
+                                        <input type="number" min="1" step="1" value={Number(v.num_parcelas || 1)} onChange={(e) => updateVariavelTipoProjeto(item.tipo_projeto_id, vi, "num_parcelas", e.target.value)} style={{ width: "100%", minWidth: 70, textAlign: "center" }} />
                                       </td>
-                                      <td style={{ padding: "6px 8px", textAlign: "center", minWidth: 130 }}>
-                                        <input type="number" min="0" step="1" value={Number(v.frequencia || 30)} onChange={(e) => updateVariavelTipoProjeto(item.tipo_projeto_id, vi, "frequencia", e.target.value)} style={{ width: 110, textAlign: "center" }} />
+                                      <td style={{ padding: "6px 8px", textAlign: "center" }}>
+                                        <input type="number" min="0" step="1" value={Number(v.frequencia || 30)} onChange={(e) => updateVariavelTipoProjeto(item.tipo_projeto_id, vi, "frequencia", e.target.value)} style={{ width: "100%", minWidth: 84, textAlign: "center" }} />
                                       </td>
                                       <td style={{ textAlign: "center", padding: "2px 4px" }}>
                                         <button type="button" className="btn-small" onClick={() => removeVariavelTipoProjeto(item.tipo_projeto_id, vi)}>x</button>

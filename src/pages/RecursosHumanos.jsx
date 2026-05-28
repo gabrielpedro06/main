@@ -220,6 +220,12 @@ const timeToSeconds = (timeValue) => {
     return (h * 3600) + (m * 60) + s;
 };
 
+const formatCurrency = (value) =>
+    new Intl.NumberFormat("pt-PT", {
+        style: "currency",
+        currency: "EUR",
+    }).format(Number(value) || 0);
+
 const getEffectiveWorkedSeconds = (attendanceRow) => {
     const entradaSeg = timeToSeconds(attendanceRow?.hora_entrada);
     const saidaSeg = timeToSeconds(attendanceRow?.hora_saida);
@@ -3045,6 +3051,41 @@ export default function RecursosHumanos() {
                           {(confirmModal.acao === 'aceitar_cancelamento' || confirmModal.acao === 'cancelar_direto') && <span>Tens a certeza que queres cancelar e devolver os dias ao colaborador (se férias)?</span>}
                           {confirmModal.acao === 'recusar_cancelamento' && <span>Queres recusar o pedido de cancelamento e manter o registo aprovado?</span>}
                       </p>
+                      {confirmModal.pedido?.tipo === KM_REQUEST_TYPE && confirmModal.acao === 'aprovar' && (
+                          (() => {
+                              const kmPedidoAtual = Number(confirmModal.pedido?.km_total || 0);
+                              const valorKm = parseKmRate(valorKmReembolso);
+                              const kmAprovadosMes = calcularTotalKmAprovadosNoMes(confirmModal.pedido?.user_id, confirmModal.pedido?.data_inicio, ausenciasMes);
+                              const valorAprovadosMes = kmAprovadosMes * valorKm;
+                              const kmTotalDepois = kmAprovadosMes + kmPedidoAtual;
+                              const valorTotalDepois = kmTotalDepois * valorKm;
+
+                              return (
+                                  <div style={{background:'#f8fafc', padding:'12px', borderRadius:'8px', border:'1px solid #e2e8f0', marginBottom:'20px', textAlign:'left'}}>
+                                      <div style={{display:'flex', justifyContent:'space-between', gap:'12px', marginBottom:'6px', fontSize:'0.9rem', color:'#334155'}}>
+                                          <span>Já aprovados:</span>
+                                          <b>{kmAprovadosMes.toFixed(2)} km</b>
+                                      </div>
+                                      <div style={{display:'flex', justifyContent:'space-between', gap:'12px', marginBottom:'6px', fontSize:'0.9rem', color:'#334155'}}>
+                                          <span>Valor já aprovado:</span>
+                                          <b>{formatCurrency(valorAprovadosMes)}</b>
+                                      </div>
+                                      <div style={{display:'flex', justifyContent:'space-between', gap:'12px', marginBottom:'6px', fontSize:'0.9rem', color:'#334155'}}>
+                                          <span>Pedido atual:</span>
+                                          <b>{kmPedidoAtual.toFixed(2)} km</b>
+                                      </div>
+                                      <div style={{display:'flex', justifyContent:'space-between', gap:'12px', marginBottom:'6px', fontSize:'0.9rem', color:'#334155'}}>
+                                          <span>Valor €/km:</span>
+                                          <b>{formatCurrency(valorKm)}</b>
+                                      </div>
+                                      <div style={{display:'flex', justifyContent:'space-between', gap:'12px', fontSize:'0.95rem', color:'#1e293b'}}>
+                                          <span>Total após aprovar:</span>
+                                          <b style={{color:'#16a34a'}}>{formatCurrency(valorTotalDepois)}</b>
+                                      </div>
+                                  </div>
+                              );
+                          })()
+                      )}
                       <div style={{display: 'flex', gap: '10px', justifyContent: 'center'}}>
                           <button onClick={() => setConfirmModal({ show: false, pedido: null, acao: null })} style={{padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white', color:'#475569', fontWeight:'bold', flex: 1, cursor:'pointer'}}>Voltar</button>
                           <button onClick={executarAcaoRH} style={{padding: '12px', borderRadius: '8px', border: 'none', flex: 1, color: 'white', background: ['aprovar', 'recusar_cancelamento'].includes(confirmModal.acao) ? '#16a34a' : '#ef4444', fontWeight:'bold', cursor:'pointer'}}>
@@ -3229,6 +3270,8 @@ export default function RecursosHumanos() {
                                   }, {})
                               ).map((resumo, index) => {
                                   const novoTotal = resumo.kmsAprovados + resumo.kmsNovos;
+                                  const valorNovo = resumo.kmsNovos * parseKmRate(valorKmReembolso);
+                                  const valorNovoTotal = novoTotal * parseKmRate(valorKmReembolso);
                                   
                                   return (
                                       <div key={index} style={{display: 'flex', flexDirection: 'column', padding: '10px 0', borderBottom: '1px dashed #cbd5e1'}}>
@@ -3240,9 +3283,45 @@ export default function RecursosHumanos() {
                                               <span>Já aprovados: <b>{Number(resumo.kmsAprovados).toFixed(2)} km</b></span>
                                               <span>&rarr; Novo Total: <b style={{color: '#1e293b'}}>{Number(novoTotal).toFixed(2)} km</b></span>
                                           </div>
+                                          <div style={{fontSize: '0.8rem', color: '#64748b', display: 'flex', justifyContent: 'space-between', marginTop: '4px'}}>
+                                              <span>Novo valor: <b>{formatCurrency(valorNovo)}</b></span>
+                                              <span>Total valor: <b style={{color: '#1e293b'}}>{formatCurrency(valorNovoTotal)}</b></span>
+                                          </div>
                                       </div>
                                   );
                               })}
+                              <div style={{marginTop:'12px', paddingTop:'12px', borderTop:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', gap:'12px', fontSize:'0.95rem', color:'#334155'}}>
+                                  <span>Total já aprovados:</span>
+                                  <b>{Object.values(bulkApproveModal.pedidos.reduce((acc, p) => {
+                                      const userId = p.user_id;
+                                      if (!acc[userId]) {
+                                          acc[userId] = {
+                                              kmsAprovados: calcularTotalKmAprovadosNoMes(userId, p.data_inicio, ausenciasMes)
+                                          };
+                                      }
+                                      return acc;
+                                  }, {})).reduce((sum, resumo) => sum + (Number(resumo.kmsAprovados) || 0), 0).toFixed(2)} km</b>
+                              </div>
+                              <div style={{display:'flex', justifyContent:'space-between', gap:'12px', marginTop:'6px', fontSize:'0.95rem', color:'#1e293b'}}>
+                                  <span>Valor já aprovado:</span>
+                                  <b style={{color:'#16a34a'}}>{formatCurrency(Object.values(bulkApproveModal.pedidos.reduce((acc, p) => {
+                                      const userId = p.user_id;
+                                      if (!acc[userId]) {
+                                          acc[userId] = {
+                                              kmsAprovados: calcularTotalKmAprovadosNoMes(userId, p.data_inicio, ausenciasMes)
+                                          };
+                                      }
+                                      return acc;
+                                  }, {})).reduce((sum, resumo) => sum + (Number(resumo.kmsAprovados) || 0), 0) * parseKmRate(valorKmReembolso))}</b>
+                              </div>
+                              <div style={{marginTop:'12px', paddingTop:'12px', borderTop:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', gap:'12px', fontSize:'0.95rem', color:'#334155'}}>
+                                  <span>Total de Km's selecionados:</span>
+                                  <b>{Number(bulkApproveModal.pedidos.reduce((sum, p) => sum + (Number(p.km_total) || 0), 0)).toFixed(2)} km</b>
+                              </div>
+                              <div style={{display:'flex', justifyContent:'space-between', gap:'12px', marginTop:'6px', fontSize:'0.95rem', color:'#1e293b'}}>
+                                  <span>Total a aprovar:</span>
+                                  <b style={{color:'#16a34a'}}>{formatCurrency(bulkApproveModal.pedidos.reduce((sum, p) => sum + (Number(p.km_total) || 0), 0) * parseKmRate(valorKmReembolso))}</b>
+                              </div>
                           </div>
                       )}
 

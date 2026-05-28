@@ -97,6 +97,32 @@ const getFileBaseName = (fileName = "") => {
     return parts.join(".") || "documento";
 };
 
+const createBlankProjetoFase = (index = 0) => ({
+    nome: `Fase ${index + 1}`,
+    prazo: "",
+});
+
+const normalizeProjetoFases = (value) => {
+    if (!Array.isArray(value) || value.length === 0) return [];
+
+    return value
+        .map((fase, index) => {
+            if (typeof fase === "string") return createBlankProjetoFase(index);
+
+            return {
+                nome: String(fase?.nome || fase?.fase || `Fase ${index + 1}`).trim(),
+                prazo: String(fase?.prazo || fase?.data || "").trim(),
+            };
+        })
+        .filter((fase) => fase.nome || fase.prazo);
+};
+
+const getLastProjetoFaseDate = (fases) => {
+    const normalized = normalizeProjetoFases(fases);
+    const dates = normalized.map((fase) => fase.prazo).filter(Boolean);
+    return dates.length > 0 ? dates[dates.length - 1] : "";
+};
+
 const ANALYSIS_DESTINATION_OPTIONS = [
     { value: "proprio", label: "Proprio" },
     { value: "colega", label: "Colega" },
@@ -141,6 +167,21 @@ export default function ProjetoDetalhe() {
   // Estados UI - Visão Geral
   const [isEditingGeral, setIsEditingGeral] = useState(false);
   const [formGeral, setFormGeral] = useState({});
+    // Formatação de números com separador de milhares (pt-PT)
+    const formatNumber = (value) => {
+        if (value === null || value === undefined || value === "") return "";
+        const num = Number(value);
+        if (!Number.isFinite(num)) return "";
+        return num.toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    };
+
+    const parseNumberInput = (raw) => {
+        if (raw === null || raw === undefined || raw === "") return "";
+        // Remove espaços, pontos de milhares e troca vírgula decimal por ponto
+        const cleaned = String(raw).replace(/\s/g, '').replace(/\./g, '').replace(/,/g, '.');
+        const num = Number(cleaned);
+        return Number.isFinite(num) ? num : '';
+    };
   const [clientes, setClientes] = useState([]);
   const [staff, setStaff] = useState([]);
   const [entidadePessoas, setEntidadePessoas] = useState([]);
@@ -446,7 +487,7 @@ export default function ProjetoDetalhe() {
     const { data: projData } = await supabase.from("projetos").select("*, clientes!cliente_id(marca, sigla), tipos_projeto(nome), profiles(nome)").eq("id", id).single();
     if (projData) { 
         setProjeto(projData); 
-        setFormGeral({ ...projData, has_organismo: !!projData.organismo_id }); 
+        setFormGeral({ ...projData, has_organismo: !!projData.organismo_id, prazos_fases: normalizeProjetoFases(projData.prazos_fases) }); 
     }
 
     const [{ data: cliData }, { data: staffData }, { data: tiposData }] = await Promise.all([
@@ -1310,10 +1351,17 @@ export default function ProjetoDetalhe() {
               programa: formGeral.programa, aviso: formGeral.aviso, codigo_projeto: formGeral.codigo_projeto,
               descricao: formGeral.descricao, observacoes: formGeral.observacoes,
               investimento: formGeral.investimento, incentivo: formGeral.incentivo,
+              programa_id: formGeral.programa_id || null,
+              aviso_id: formGeral.aviso_id || null,
+              prazos_fases: normalizeProjetoFases(formGeral.prazos_fases),
               tipo_projeto_id: formGeral.tipo_projeto_id || null,
               organismo_id: formGeral.has_organismo && formGeral.organismo_id ? formGeral.organismo_id : null,
               organismo_contacto_id: formGeral.has_organismo && formGeral.organismo_id && formGeral.organismo_contacto_id ? formGeral.organismo_contacto_id : null
           };
+
+          if (payload.prazos_fases.length > 0) {
+              payload.data_fim = getLastProjetoFaseDate(payload.prazos_fases) || payload.data_fim;
+          }
 
           const { error } = await supabase.from("projetos").update(payload).eq("id", id);
           if (error) throw error;
@@ -1726,7 +1774,9 @@ export default function ProjetoDetalhe() {
   if (loading) return <div className="page-container" style={{display:'flex', justifyContent:'center', alignItems:'center', height:'80vh'}}><div className="pulse-dot-white" style={{background:'var(--color-btnPrimary)'}}></div></div>;
   if (!projeto) return <div className="page-container"><p>Projeto não encontrado.</p><button onClick={() => navigate(-1)}>Voltar</button></div>;
 
-  const statusTheme = getProjectStatusTheme(projeto.estado);
+    const statusTheme = getProjectStatusTheme(projeto.estado);
+    const projetoFases = normalizeProjetoFases(formGeral.prazos_fases);
+    const deadlineFinal = formGeral.data_fim || getLastProjetoFaseDate(projetoFases);
   const labelStyle = { display: 'block', marginBottom: '6px', fontSize: '0.75rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' };
   const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', marginBottom: '15px', transition: 'all 0.2s', color: '#1e293b' };
   const sectionTitleStyle = { fontSize: '0.8rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px', marginBottom: '15px', marginTop: '5px' };
@@ -2674,7 +2724,7 @@ export default function ProjetoDetalhe() {
 
                             <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px'}}>
                                 <div><label style={labelStyle}>Data Início</label><input type="date" value={formGeral.data_inicio || ''} onChange={e => setFormGeral({...formGeral, data_inicio: e.target.value})} style={inputStyle} className="input-focus" /></div>
-                                <div><label style={labelStyle}>Deadline</label><input type="date" value={formGeral.data_fim || ''} onChange={e => setFormGeral({...formGeral, data_fim: e.target.value})} style={inputStyle} className="input-focus" /></div>
+                                <div><label style={labelStyle}>Deadline</label><input type="date" value={deadlineFinal || ''} onChange={e => setFormGeral({...formGeral, data_fim: e.target.value})} style={inputStyle} className="input-focus" /></div>
                                 <div>
                                     <label style={labelStyle}>Estado</label>
                                     <select value={formGeral.estado || 'pendente'} onChange={e => setFormGeral({...formGeral, estado: e.target.value})} style={{...inputStyle, fontWeight: 'bold'}} className="input-focus">
@@ -2682,14 +2732,30 @@ export default function ProjetoDetalhe() {
                                     </select>
                                 </div>
                             </div>
+
+                            <div style={{marginTop: '18px', padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0', background: '#f8fafc'}}>
+                                <label style={labelStyle}>Fases do Programa / Aviso</label>
+                                {projetoFases.length > 0 ? (
+                                    <div style={{display: 'grid', gap: '10px'}}>
+                                        {projetoFases.map((fase, index) => (
+                                            <div key={`${fase.nome || 'fase'}-${index}`} style={{display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', padding: '10px 12px', borderRadius: '10px', background: 'white', border: '1px solid #e2e8f0'}}>
+                                                <div style={{fontWeight: '700', color: '#1e293b'}}>{fase.nome || `Fase ${index + 1}`}</div>
+                                                <div style={{fontWeight: '800', color: '#475569'}}>{fase.prazo ? new Date(`${fase.prazo}T00:00:00`).toLocaleDateString('pt-PT') : 'Sem data'}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div style={{color: '#94a3b8', fontSize: '0.85rem'}}>Sem fases registadas para este projeto.</div>
+                                )}
+                            </div>
                         </div>
 
                         <div>
                             <div style={{background: 'var(--color-bgSecondary)', padding: '20px', borderRadius: '12px', border: '1px solid var(--color-borderColor)', marginBottom: '20px'}}>
                                 <h4 style={{margin: '0 0 15px 0', color: 'var(--color-btnPrimaryHover)', display: 'flex', alignItems: 'center', gap: '8px', fontSize:'1rem'}}><Icons.Dollar /> Financeiro</h4>
                                 <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
-                                    <div><label style={{...labelStyle, color: 'var(--color-btnPrimaryDark)'}}>Investimento (€)</label><input type="number" step="0.01" value={formGeral.investimento || 0} onChange={e => setFormGeral({...formGeral, investimento: e.target.value})} style={{...inputStyle, borderColor: 'var(--color-borderColor)', marginBottom:0}} className="input-focus" /></div>
-                                    <div><label style={{...labelStyle, color: 'var(--color-btnPrimaryDark)'}}>Incentivo (€)</label><input type="number" step="0.01" value={formGeral.incentivo || 0} onChange={e => setFormGeral({...formGeral, incentivo: e.target.value})} style={{...inputStyle, borderColor: 'var(--color-borderColor)', color: 'var(--color-btnPrimary)', marginBottom:0}} className="input-focus" /></div>
+                                    <div><label style={{...labelStyle, color: 'var(--color-btnPrimaryDark)'}}>Investimento (€)</label><input type="text" value={formatNumber(formGeral.investimento)} onChange={e => setFormGeral({...formGeral, investimento: parseNumberInput(e.target.value)})} style={{...inputStyle, borderColor: 'var(--color-borderColor)', marginBottom:0}} className="input-focus" /></div>
+                                    <div><label style={{...labelStyle, color: 'var(--color-btnPrimaryDark)'}}>Incentivo (€)</label><input type="text" value={formatNumber(formGeral.incentivo)} onChange={e => setFormGeral({...formGeral, incentivo: parseNumberInput(e.target.value)})} style={{...inputStyle, borderColor: 'var(--color-borderColor)', color: 'var(--color-btnPrimary)', marginBottom:0}} className="input-focus" /></div>
                                 </div>
                             </div>
                             <label style={labelStyle}>Descrição Pública</label>
@@ -3035,11 +3101,11 @@ export default function ProjetoDetalhe() {
                               
                               {/* 👇 COM CONDIÇÃO - SÓ APARECE SE EXIGIDO NAS CONFIGURAÇÕES */}
                               {deveMostrarCampoItem(atividadeModal.data.info_adicional, 'investimento') && (
-                                  <div style={{flex: '1 1 200px'}}><label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight: 'bold'}}>Invest. (€)</label><input type="number" step="0.01" value={atividadeModal.data.investimento || 0} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, investimento: e.target.value}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0}} className="input-focus" /></div>
+                                  <div style={{flex: '1 1 200px'}}><label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight: 'bold'}}>Invest. (€)</label><input type="text" value={formatNumber(atividadeModal.data.investimento)} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, investimento: parseNumberInput(e.target.value)}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0}} className="input-focus" /></div>
                               )}
                               
                               {deveMostrarCampoItem(atividadeModal.data.info_adicional, 'incentivo') && (
-                                  <div style={{flex: '1 1 200px'}}><label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight: 'bold'}}>Incentivo (€)</label><input type="number" step="0.01" value={atividadeModal.data.incentivo || 0} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, incentivo: e.target.value}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0}} className="input-focus" /></div>
+                                  <div style={{flex: '1 1 200px'}}><label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight: 'bold'}}>Incentivo (€)</label><input type="text" value={formatNumber(atividadeModal.data.incentivo)} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, incentivo: parseNumberInput(e.target.value)}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0}} className="input-focus" /></div>
                               )}
 
                               {deveMostrarCampoItem(atividadeModal.data.info_adicional, 'financiamento') && (
@@ -3209,11 +3275,11 @@ export default function ProjetoDetalhe() {
 
                               {/* 👇 COM CONDIÇÃO - SÓ APARECEM SE EXIGIDOS */}
                               {deveMostrarCampoItem(tarefaModal.data.info_adicional, 'investimento') && (
-                                  <div style={{flex: '1 1 150px'}}><label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight:'bold'}}>Investimento (€)</label><input type="number" step="0.01" value={tarefaModal.data.investimento || 0} onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, investimento: e.target.value}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0, width: '100%'}} className="input-focus" /></div>
+                                  <div style={{flex: '1 1 150px'}}><label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight:'bold'}}>Investimento (€)</label><input type="text" value={formatNumber(tarefaModal.data.investimento)} onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, investimento: parseNumberInput(e.target.value)}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0, width: '100%'}} className="input-focus" /></div>
                               )}
 
                               {deveMostrarCampoItem(tarefaModal.data.info_adicional, 'incentivo') && (
-                                  <div style={{flex: '1 1 150px'}}><label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight:'bold'}}>Incentivo (€)</label><input type="number" step="0.01" value={tarefaModal.data.incentivo || 0} onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, incentivo: e.target.value}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0, width: '100%'}} className="input-focus" /></div>
+                                  <div style={{flex: '1 1 150px'}}><label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight:'bold'}}>Incentivo (€)</label><input type="text" value={formatNumber(tarefaModal.data.incentivo)} onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, incentivo: parseNumberInput(e.target.value)}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0, width: '100%'}} className="input-focus" /></div>
                               )}
 
                               {deveMostrarCampoItem(tarefaModal.data.info_adicional, 'financiamento') && (
