@@ -167,20 +167,37 @@ export default function ProjetoDetalhe() {
   // Estados UI - Visão Geral
   const [isEditingGeral, setIsEditingGeral] = useState(false);
   const [formGeral, setFormGeral] = useState({});
-    // Formatação de números com separador de milhares (pt-PT)
+    // Formatação de números com separador de milhares por espaço e decimal com ponto.
     const formatNumber = (value) => {
         if (value === null || value === undefined || value === "") return "";
         const num = Number(value);
         if (!Number.isFinite(num)) return "";
-        return num.toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        const [integerPart, decimalPart] = num.toFixed(2).split(".");
+        const groupedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+        return `${groupedInteger}.${decimalPart}`;
     };
 
     const parseNumberInput = (raw) => {
         if (raw === null || raw === undefined || raw === "") return "";
-        // Remove espaços, pontos de milhares e troca vírgula decimal por ponto
-        const cleaned = String(raw).replace(/\s/g, '').replace(/\./g, '').replace(/,/g, '.');
-        const num = Number(cleaned);
-        return Number.isFinite(num) ? num : '';
+
+        const text = String(raw).trim();
+        if (!text) return "";
+
+        const lastComma = text.lastIndexOf(",");
+        const lastDot = text.lastIndexOf(".");
+        const decimalSeparator = lastComma > lastDot ? "," : ".";
+
+        let normalized = text.replace(/\s/g, "");
+
+        if (decimalSeparator === ",") {
+            normalized = normalized.replace(/\./g, "").replace(",", ".");
+        } else {
+            normalized = normalized.replace(/,/g, "");
+        }
+
+        const num = Number(normalized);
+        return Number.isFinite(num) ? num : "";
     };
   const [clientes, setClientes] = useState([]);
   const [staff, setStaff] = useState([]);
