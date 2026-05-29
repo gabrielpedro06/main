@@ -706,7 +706,7 @@ export const generateFormacaoPDF = async (params) => {
       startY: currentY + 5,
       pageBreak: 'avoid',
       margin: { left: marginX, right: marginX },
-      head: [['#', 'Curso', 'Duração', 'Valor']],
+      head: [['#', 'Curso', 'Duração', 'Valor/Grupo']],
       body: orcamentoRows,
       styles: {
         font: 'helvetica',
