@@ -131,6 +131,83 @@ const ANALYSIS_DESTINATION_OPTIONS = [
     { value: "organismo", label: "Organismo" }
 ];
 
+const GANTT_WINDOW_OPTIONS = [
+    { value: "1m", label: "Neste mes", months: 1 },
+    { value: "2m", label: "2 meses", months: 2 },
+    { value: "6m", label: "6 meses", months: 6 },
+    { value: "total", label: "Total", months: null }
+];
+
+const parseIsoDateSafe = (raw) => {
+    if (!raw) return null;
+    const str = String(raw).trim();
+    if (!str) return null;
+    const base = str.includes("T") ? str.slice(0, 10) : str;
+    const dt = new Date(`${base}T00:00:00`);
+    return Number.isNaN(dt.getTime()) ? null : dt;
+};
+
+const startOfMonth = (date) => new Date(date.getFullYear(), date.getMonth(), 1);
+const endOfMonth = (date) => new Date(date.getFullYear(), date.getMonth() + 1, 0);
+const addMonths = (date, amount) => new Date(date.getFullYear(), date.getMonth() + amount, date.getDate());
+
+const dayDiff = (start, end) => {
+    const msPerDay = 24 * 60 * 60 * 1000;
+    return Math.round((end.getTime() - start.getTime()) / msPerDay);
+};
+
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+const getProgressByState = (estado) => {
+    if (estado === "concluido") return 100;
+    if (estado === "em_curso") return 65;
+    if (estado === "em_analise") return 45;
+    if (estado === "pendente") return 20;
+    return 0;
+};
+
+const buildGanttItems = (atividades = []) => {
+    const rows = [];
+
+    atividades.forEach((atividade) => {
+        const atividadeStart = parseIsoDateSafe(atividade.data_inicio) || parseIsoDateSafe(atividade.created_at) || parseIsoDateSafe(atividade.data_fim);
+        const atividadeEnd = parseIsoDateSafe(atividade.data_fim) || atividadeStart;
+
+        if (atividadeStart && atividadeEnd) {
+            rows.push({
+                id: `atividade-${atividade.id}`,
+                label: atividade.titulo || "Atividade",
+                subtitle: "Atividade",
+                estado: atividade.estado,
+                progress: getProgressByState(atividade.estado),
+                start: atividadeStart,
+                end: atividadeEnd,
+                type: "atividade"
+            });
+        }
+
+        (atividade.tarefas || []).forEach((tarefa) => {
+            const tarefaStart = parseIsoDateSafe(tarefa.data_inicio) || parseIsoDateSafe(tarefa.created_at) || parseIsoDateSafe(tarefa.data_fim) || atividadeStart;
+            const tarefaEnd = parseIsoDateSafe(tarefa.data_fim) || tarefaStart || atividadeEnd;
+
+            if (!tarefaStart || !tarefaEnd) return;
+
+            rows.push({
+                id: `tarefa-${tarefa.id}`,
+                label: tarefa.titulo || "Tarefa",
+                subtitle: atividade.titulo || "Tarefa",
+                estado: tarefa.estado,
+                progress: getProgressByState(tarefa.estado),
+                start: tarefaStart,
+                end: tarefaEnd,
+                type: "tarefa"
+            });
+        });
+    });
+
+    return rows.sort((a, b) => a.start.getTime() - b.start.getTime());
+};
+
 export default function ProjetoDetalhe() {
   const { id } = useParams(); 
   const navigate = useNavigate();
@@ -142,6 +219,7 @@ export default function ProjetoDetalhe() {
   const [logs, setLogs] = useState([]); 
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("atividades");
+    const [ganttWindow, setGanttWindow] = useState("1m");
   const [notification, setNotification] = useState(null);
     const [transitionPromptOpen, setTransitionPromptOpen] = useState(false);
   const [projectActionLoading, setProjectActionLoading] = useState(false);
@@ -1852,6 +1930,53 @@ export default function ProjetoDetalhe() {
       navigate('/dashboard/clientes', { state: { openClienteId: projeto.cliente_id } });
   };
 
+  const ganttItems = buildGanttItems(atividades);
+  const ganttNow = new Date();
+  const selectedWindow = GANTT_WINDOW_OPTIONS.find((option) => option.value === ganttWindow) || GANTT_WINDOW_OPTIONS[0];
+
+  const ganttWindowStart = (() => {
+      if (selectedWindow.value !== "total") {
+          return startOfMonth(ganttNow);
+      }
+      if (ganttItems.length === 0) return startOfMonth(ganttNow);
+      return new Date(Math.min(...ganttItems.map((item) => item.start.getTime())));
+  })();
+
+  const ganttWindowEnd = (() => {
+      if (selectedWindow.value !== "total") {
+          return endOfMonth(addMonths(ganttWindowStart, (selectedWindow.months || 1) - 1));
+      }
+      if (ganttItems.length === 0) return endOfMonth(ganttNow);
+      return new Date(Math.max(...ganttItems.map((item) => item.end.getTime())));
+  })();
+
+  const ganttDurationDays = Math.max(1, dayDiff(ganttWindowStart, ganttWindowEnd) + 1);
+  const visibleGanttItems = ganttItems.filter((item) => item.end >= ganttWindowStart && item.start <= ganttWindowEnd);
+  const concludedItems = visibleGanttItems.filter((item) => item.estado === "concluido").length;
+  const visibleCompletion = visibleGanttItems.length > 0
+      ? Math.round((concludedItems / visibleGanttItems.length) * 100)
+      : 0;
+
+  const monthMarkers = (() => {
+      const marks = [];
+      const cursor = startOfMonth(ganttWindowStart);
+      while (cursor <= ganttWindowEnd) {
+          const dayOffset = clamp(dayDiff(ganttWindowStart, cursor), 0, ganttDurationDays);
+          marks.push({
+              key: `${cursor.getFullYear()}-${cursor.getMonth()}`,
+              label: cursor.toLocaleDateString("pt-PT", { month: "short", year: "numeric" }),
+              left: (dayOffset / ganttDurationDays) * 100
+          });
+          cursor.setMonth(cursor.getMonth() + 1);
+      }
+      return marks;
+  })();
+
+  const todayPercent = (() => {
+      if (ganttNow < ganttWindowStart || ganttNow > ganttWindowEnd) return null;
+      return (clamp(dayDiff(ganttWindowStart, ganttNow), 0, ganttDurationDays) / ganttDurationDays) * 100;
+  })();
+
   return (
         <div className="page-container" style={{maxWidth: '1200px', margin: '0 auto', paddingBottom: '50px'}}>
 
@@ -2014,6 +2139,10 @@ export default function ProjetoDetalhe() {
         <button style={{background: 'none', border: 'none', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: activeTab === 'relatorio' ? '800' : '600', color: activeTab === 'relatorio' ? 'var(--color-btnPrimary)' : '#64748b', cursor: 'pointer', padding: '10px 20px', position: 'relative', transition: '0.2s'}} onClick={() => setActiveTab('relatorio')} className="tab-hover">
             <Icons.Clock /> Relatório de Tempos
             {activeTab === 'relatorio' && <div style={{position:'absolute', bottom:'-12px', left:0, right:0, height:'3px', background:'var(--color-btnPrimary)', borderRadius:'3px 3px 0 0'}} />}
+        </button>
+        <button style={{background: 'none', border: 'none', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: activeTab === 'gantt' ? '800' : '600', color: activeTab === 'gantt' ? 'var(--color-btnPrimary)' : '#64748b', cursor: 'pointer', padding: '10px 20px', position: 'relative', transition: '0.2s'}} onClick={() => setActiveTab('gantt')} className="tab-hover">
+            <Icons.Calendar /> Gantt
+            {activeTab === 'gantt' && <div style={{position:'absolute', bottom:'-12px', left:0, right:0, height:'3px', background:'var(--color-btnPrimary)', borderRadius:'3px 3px 0 0'}} />}
         </button>
         <button style={{background: 'none', border: 'none', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: activeTab === 'geral' ? '800' : '600', color: activeTab === 'geral' ? 'var(--color-btnPrimary)' : '#64748b', cursor: 'pointer', padding: '10px 20px', position: 'relative', transition: '0.2s'}} onClick={() => setActiveTab('geral')} className="tab-hover">
             <Icons.Settings /> Configurações e Dados
@@ -2490,7 +2619,124 @@ export default function ProjetoDetalhe() {
         )}
 
         {/* =========================================
-            ABA 3: VISÃO GERAL (Formulário)
+            ABA 3: GANTT
+        ========================================= */}
+        {activeTab === 'gantt' && (
+            <div style={{background: 'white', padding: '28px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0'}}>
+                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '16px', flexWrap: 'wrap'}}>
+                    <div>
+                        <h2 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '10px'}}><Icons.Calendar size={22} color="var(--color-btnPrimary)" /> Gantt do Projeto</h2>
+                        <p style={{margin: '6px 0 0 0', color: '#64748b', fontSize: '0.86rem'}}>
+                            Janela atual: {ganttWindowStart.toLocaleDateString('pt-PT')} ate {ganttWindowEnd.toLocaleDateString('pt-PT')}
+                        </p>
+                    </div>
+                    <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap'}}>
+                        {GANTT_WINDOW_OPTIONS.map((option) => (
+                            <button
+                                key={option.value}
+                                type="button"
+                                onClick={() => setGanttWindow(option.value)}
+                                style={{
+                                    border: option.value === ganttWindow ? '1px solid var(--color-btnPrimary)' : '1px solid #cbd5e1',
+                                    background: option.value === ganttWindow ? 'var(--color-bgSecondary)' : '#ffffff',
+                                    color: option.value === ganttWindow ? 'var(--color-btnPrimary)' : '#475569',
+                                    borderRadius: '999px',
+                                    padding: '7px 12px',
+                                    cursor: 'pointer',
+                                    fontWeight: '700',
+                                    fontSize: '0.8rem'
+                                }}
+                            >
+                                {option.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div style={{display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '10px', marginBottom: '16px'}}>
+                    <div style={{background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '10px 12px'}}>
+                        <div style={{fontSize: '0.72rem', color: '#64748b', textTransform: 'uppercase', fontWeight: '800', marginBottom: '4px'}}>Itens visiveis</div>
+                        <div style={{fontSize: '1.2rem', color: '#0f172a', fontWeight: '900'}}>{visibleGanttItems.length}</div>
+                    </div>
+                    <div style={{background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '10px 12px'}}>
+                        <div style={{fontSize: '0.72rem', color: '#64748b', textTransform: 'uppercase', fontWeight: '800', marginBottom: '4px'}}>Concluidos</div>
+                        <div style={{fontSize: '1.2rem', color: '#0f172a', fontWeight: '900'}}>{concludedItems}</div>
+                    </div>
+                    <div style={{background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '10px 12px'}}>
+                        <div style={{fontSize: '0.72rem', color: '#64748b', textTransform: 'uppercase', fontWeight: '800', marginBottom: '4px'}}>Ponto de situacao</div>
+                        <div style={{fontSize: '1.2rem', color: 'var(--color-btnPrimary)', fontWeight: '900'}}>{visibleCompletion}%</div>
+                    </div>
+                </div>
+
+                <div style={{display: 'flex', gap: '14px', alignItems: 'center', fontSize: '0.76rem', color: '#64748b', marginBottom: '10px', flexWrap: 'wrap'}}>
+                    <span style={{display: 'inline-flex', alignItems: 'center', gap: '6px'}}><span style={{width: '10px', height: '10px', borderRadius: '999px', background: 'var(--color-btnPrimary)'}}></span> Atividade</span>
+                    <span style={{display: 'inline-flex', alignItems: 'center', gap: '6px'}}><span style={{width: '10px', height: '10px', borderRadius: '999px', background: 'var(--color-btnPrimaryHover)'}}></span> Tarefa</span>
+                    <span style={{display: 'inline-flex', alignItems: 'center', gap: '6px'}}><span style={{width: '1px', height: '12px', background: 'var(--color-btnPrimaryDark)'}}></span> Hoje</span>
+                </div>
+
+                <div className="custom-scrollbar" style={{overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '12px'}}>
+                    <div style={{minWidth: '860px'}}>
+                        <div style={{display: 'grid', gridTemplateColumns: '280px 1fr', borderBottom: '1px solid #e2e8f0', background: '#f8fafc'}}>
+                            <div style={{padding: '10px 12px', color: '#64748b', fontSize: '0.73rem', fontWeight: '800', textTransform: 'uppercase'}}>Item</div>
+                            <div style={{position: 'relative', padding: '10px 0 10px 0'}}>
+                                {monthMarkers.map((mark) => (
+                                    <div key={mark.key} style={{position: 'absolute', left: `${mark.left}%`, top: '2px', transform: 'translateX(-1px)', fontSize: '0.72rem', color: '#94a3b8', whiteSpace: 'nowrap'}}>{mark.label}</div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {visibleGanttItems.length === 0 && (
+                            <div style={{padding: '16px', color: '#94a3b8', textAlign: 'center'}}>Sem atividades/tarefas com datas dentro desta janela.</div>
+                        )}
+
+                        {visibleGanttItems.map((item) => {
+                            const rawStart = dayDiff(ganttWindowStart, item.start);
+                            const rawEnd = dayDiff(ganttWindowStart, item.end) + 1;
+                            const clampedStart = clamp(rawStart, 0, ganttDurationDays);
+                            const clampedEnd = clamp(rawEnd, 0, ganttDurationDays);
+                            const leftPct = (clampedStart / ganttDurationDays) * 100;
+                            const widthPct = Math.max((clampedEnd - clampedStart) / ganttDurationDays * 100, 0.8);
+                            const barColor = item.type === 'atividade' ? 'var(--color-btnPrimary)' : 'var(--color-btnPrimaryHover)';
+
+                            return (
+                                <div key={item.id} style={{display: 'grid', gridTemplateColumns: '280px 1fr', borderBottom: '1px solid #f1f5f9'}}>
+                                    <div style={{padding: '10px 12px'}}>
+                                        <div style={{display: 'flex', alignItems: 'center', gap: '7px', color: '#0f172a', fontWeight: '700', fontSize: '0.86rem'}}>
+                                            <span style={{width: '8px', height: '8px', borderRadius: '999px', background: barColor}}></span>
+                                            {item.label}
+                                        </div>
+                                        <div style={{fontSize: '0.73rem', color: '#64748b'}}>{item.subtitle} • {(item.estado || '').replace('_', ' ') || 'sem estado'}</div>
+                                    </div>
+                                    <div style={{position: 'relative', padding: '10px 10px'}}>
+                                        {todayPercent !== null && <div style={{position: 'absolute', left: `${todayPercent}%`, top: 0, bottom: 0, width: '1px', background: 'var(--color-btnPrimaryDark)', opacity: 0.85}}></div>}
+                                        <div style={{position: 'relative', height: '22px', borderRadius: '999px', background: '#f8fafc'}}>
+                                            <div
+                                                className="gantt-bar"
+                                                style={{
+                                                    position: 'absolute',
+                                                    left: `${leftPct}%`,
+                                                    width: `${widthPct}%`,
+                                                    top: '3px',
+                                                    bottom: '3px',
+                                                    borderRadius: '999px',
+                                                    background: barColor
+                                                }}
+                                                title={`${item.start.toLocaleDateString('pt-PT')} - ${item.end.toLocaleDateString('pt-PT')}`}
+                                            >
+                                                <span style={{position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.68rem', color: '#ffffff', fontWeight: '700'}}>{item.progress}%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* =========================================
+            ABA 4: VISÃO GERAL (Formulário)
         ========================================= */}
         {activeTab === 'geral' && (
             <div style={{background: 'white', padding: '35px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0'}}>
@@ -3623,6 +3869,9 @@ export default function ProjetoDetalhe() {
           
           @keyframes pulse { 0% {box-shadow:0 0 0 0 rgba(239,68,68,0.7)} 70% {box-shadow:0 0 0 6px rgba(239,68,68,0)} 100% {box-shadow:0 0 0 0 rgba(239,68,68,0)}} 
           .pulse-dot-white { width: 8px; height: 8px; background-color: white; border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; }
+
+                    .gantt-bar { transition: transform 0.18s ease, filter 0.18s ease; }
+                    .gantt-bar:hover { transform: scaleY(1.05); filter: brightness(1.05); }
       `}</style>
     </div>
   );
