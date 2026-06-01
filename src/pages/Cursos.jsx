@@ -171,9 +171,14 @@ function getModulesHours(modules = []) {
   return (Array.isArray(modules) ? modules : []).reduce((total, module) => total + Number(module.duracao_horas || 0), 0);
 }
 
+function isCourseActive(curso) {
+  return curso?.ativo !== false;
+}
+
 function CourseCard({ curso, onView, onEdit, onDelete }) {
   const accent = getCourseAccent(curso.nome);
   const modulesCount = Array.isArray(curso.modulos) ? curso.modulos.length : 0;
+  const active = isCourseActive(curso);
 
   return (
     <div style={{ background: '#fff', borderRadius: '22px', border: '1px solid #dbe3ef', boxShadow: '0 8px 24px rgba(15, 23, 42, 0.05)', overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 240 }}>
@@ -201,7 +206,7 @@ function CourseCard({ curso, onView, onEdit, onDelete }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Icons.BookOpen size={15} color="#94a3b8" />
             <span style={{ color: curso.ativo ? '#059669' : '#dc2626', fontWeight: 700 }}>
-              {curso.ativo ? 'Ativo' : 'Inativo'}
+              {active ? 'Ativo' : 'Inativo'}
             </span>
           </div>
         </div>
@@ -537,7 +542,6 @@ export default function Cursos() {
       const { data, error } = await supabase
         .from('cursos')
         .select('*')
-        .eq('criado_por', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -759,7 +763,7 @@ export default function Cursos() {
     let result = cursos;
 
     if (statusTab === 'ativos') {
-      result = result.filter((curso) => curso.ativo === true);
+      result = result.filter((curso) => isCourseActive(curso));
     } else if (statusTab === 'inativos') {
       result = result.filter((curso) => curso.ativo === false);
     }
@@ -829,7 +833,7 @@ export default function Cursos() {
                 <Icons.BookOpen size={16} /> 
                 Ativos
                 <span style={{ background: statusTab === 'ativos' ? 'var(--color-bgSecondary)' : '#cbd5e1', padding: '2px 8px', borderRadius: '6px', fontSize: '0.7rem' }}>
-                  {cursos.filter(c => c.ativo).length}
+                  {cursos.filter((curso) => isCourseActive(curso)).length}
                 </span>
               </button>
 
