@@ -223,6 +223,28 @@ function CourseCard({ curso, onView, onEdit, onDelete }) {
   );
 }
 
+function EmptyState({ onNew }) {
+  return (
+    <div style={{ minHeight: 320, display: 'grid', placeItems: 'center', padding: '28px 16px' }}>
+      <div style={{ maxWidth: 520, width: '100%', textAlign: 'center', border: '1px solid #e2e8f0', background: 'linear-gradient(180deg, #fff, #f8fafc)', borderRadius: 24, padding: '34px 28px', boxShadow: '0 14px 36px rgba(15, 23, 42, 0.06)' }}>
+        <div style={{ width: 72, height: 72, borderRadius: 24, margin: '0 auto 18px', display: 'grid', placeItems: 'center', background: 'linear-gradient(135deg, var(--color-bgSecondary), #fff)', color: 'var(--color-btnPrimary)', boxShadow: '0 14px 30px rgba(37, 99, 235, 0.12)' }}>
+          <Icons.BookOpen size={32} />
+        </div>
+        <h3 style={{ margin: '0 0 10px', fontSize: '1.2rem', fontWeight: 900, color: '#0f172a' }}>Ainda não existem cursos neste filtro</h3>
+        <p style={{ margin: '0 auto 22px', color: '#64748b', lineHeight: 1.55, maxWidth: 420 }}>
+          Cria um curso novo para começares a organizar os conteúdos, módulos e textos comerciais.
+        </p>
+        <button type="button" onClick={onNew} style={{ border: 'none', borderRadius: 14, padding: '12px 18px', background: 'linear-gradient(135deg, var(--color-btnPrimary), var(--color-btnPrimaryDark))', color: '#fff', fontWeight: 900, cursor: 'pointer', boxShadow: '0 12px 24px var(--color-btnPrimaryShadow)' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <Icons.Plus size={16} />
+            Novo Curso
+          </span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function CourseForm({ formData, setFormData, novoModulo, setNovoModulo, onAddModulo, onRemoveModulo, onSubmit, submitLabel, onCancel, isSaving, editable = true, editingModuleIdx, onEditModule, onCancelModuleForm }) {
   const modules = Array.isArray(formData.modulos) ? formData.modulos : [];
   const readOnlyStyle = editable ? {} : { background: '#f8fafc', color: '#475569' };
