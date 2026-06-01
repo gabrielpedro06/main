@@ -45,6 +45,12 @@ const ModalPortal = ({ children }) => {
   return createPortal(children, document.body);
 };
 
+function formatHourShort(value) {
+    if (!value) return '--:--';
+    const text = String(value);
+    return text.slice(0, 5) || '--:--';
+}
+
 export default function Ferias({ forcedType = null }) {
     const KM_REQUEST_TYPE = "Pedido de Km's";
     const TOLERANCIA_TIPO = "Tolerância de Ponto";
@@ -487,7 +493,7 @@ export default function Ferias({ forcedType = null }) {
                         <>
                             <div style={{fontWeight: '600', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.Calendar size={14} /> {formatDate(p.data_inicio)}</div>
                             <div style={{fontSize: '0.75rem', color: '#64748b', marginTop: '6px', background: '#f1f5f9', padding: '4px 8px', borderRadius: '6px', display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 'bold'}}>
-                                <Icons.Clock size={12} /> {p.hora_inicio.slice(0,5)} {p.hora_fim ? `às ${p.hora_fim.slice(0,5)}` : '(Saída)'}
+                                <Icons.Clock size={12} /> {formatHourShort(p.hora_inicio)} {p.hora_fim ? `às ${formatHourShort(p.hora_fim)}` : '(Saída)'}
                             </div>
                         </>
                     ) : p.tipo === KM_REQUEST_TYPE ? (
