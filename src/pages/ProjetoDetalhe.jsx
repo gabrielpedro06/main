@@ -168,44 +168,75 @@ const getProgressByState = (estado) => {
 
 const buildGanttItems = (atividades = []) => {
     const rows = [];
-
     atividades.forEach((atividade) => {
+        const tarefas = Array.isArray(atividade.tarefas) ? atividade.tarefas : [];
         const atividadeStart = parseIsoDateSafe(atividade.data_inicio) || parseIsoDateSafe(atividade.created_at) || parseIsoDateSafe(atividade.data_fim);
         const atividadeEnd = parseIsoDateSafe(atividade.data_fim) || atividadeStart;
 
-        if (atividadeStart && atividadeEnd) {
+        // Precompute task infos including progress (from subtarefas when present)
+        const tarefaInfos = (tarefas || []).map((tarefa) => {
+            const tarefaStart = parseIsoDateSafe(tarefa.data_inicio) || parseIsoDateSafe(tarefa.created_at) || parseIsoDateSafe(tarefa.data_fim) || atividadeStart;
+            const tarefaEnd = parseIsoDateSafe(tarefa.data_fim) || tarefaStart || atividadeEnd;
+
+            const subtarefas = Array.isArray(tarefa.subtarefas) ? tarefa.subtarefas : [];
+            let tarefaProgress = 0;
+            if (subtarefas.length > 0) {
+                const done = subtarefas.filter(s => s.estado === 'concluido').length;
+                tarefaProgress = Math.round((done / subtarefas.length) * 100);
+            } else {
+                if (tarefa.estado === 'concluido') tarefaProgress = 100;
+                else if (tarefa.estado === 'pendente') tarefaProgress = 0;
+                else tarefaProgress = getProgressByState(tarefa.estado);
+            }
+
+            return {
+                tarefa,
+                start: tarefaStart,
+                end: tarefaEnd,
+                progress: tarefaProgress
+            };
+        }).filter(ti => ti.start && ti.end);
+
+        // Activity progress: percent of tasks completed (task considered complete when progress >= 100)
+        let atividadeProgress = getProgressByState(atividade.estado);
+        if (tarefaInfos.length > 0) {
+            const completedTasks = tarefaInfos.filter(ti => (ti.progress || 0) >= 100).length;
+            atividadeProgress = Math.round((completedTasks / tarefaInfos.length) * 100);
+        }
+
+        if (atividadeStart && atividadeEnd && tarefaInfos.length > 0) {
             rows.push({
                 id: `atividade-${atividade.id}`,
                 label: atividade.titulo || "Atividade",
                 subtitle: "Atividade",
                 estado: atividade.estado,
-                progress: getProgressByState(atividade.estado),
+                progress: atividadeProgress,
                 start: atividadeStart,
                 end: atividadeEnd,
-                type: "atividade"
+                type: "atividade",
+                activityId: String(atividade.id),
+                rowType: "group"
+            });
+
+            // Push task rows in the same order as tarefas
+            tarefaInfos.forEach((ti) => {
+                rows.push({
+                    id: `tarefa-${ti.tarefa.id}`,
+                    label: ti.tarefa.titulo || "Tarefa",
+                    estado: ti.tarefa.estado,
+                    progress: ti.progress,
+                    start: ti.start,
+                    end: ti.end,
+                    type: "tarefa",
+                    activityId: String(atividade.id),
+                    activityLabel: atividade.titulo || "Atividade",
+                    rowType: "task"
+                });
             });
         }
-
-        (atividade.tarefas || []).forEach((tarefa) => {
-            const tarefaStart = parseIsoDateSafe(tarefa.data_inicio) || parseIsoDateSafe(tarefa.created_at) || parseIsoDateSafe(tarefa.data_fim) || atividadeStart;
-            const tarefaEnd = parseIsoDateSafe(tarefa.data_fim) || tarefaStart || atividadeEnd;
-
-            if (!tarefaStart || !tarefaEnd) return;
-
-            rows.push({
-                id: `tarefa-${tarefa.id}`,
-                label: tarefa.titulo || "Tarefa",
-                subtitle: atividade.titulo || "Tarefa",
-                estado: tarefa.estado,
-                progress: getProgressByState(tarefa.estado),
-                start: tarefaStart,
-                end: tarefaEnd,
-                type: "tarefa"
-            });
-        });
     });
 
-    return rows.sort((a, b) => a.start.getTime() - b.start.getTime());
+    return rows;
 };
 
 export default function ProjetoDetalhe() {
@@ -219,7 +250,7 @@ export default function ProjetoDetalhe() {
   const [logs, setLogs] = useState([]); 
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("atividades");
-    const [ganttWindow, setGanttWindow] = useState("1m");
+    const [ganttWindow, setGanttWindow] = useState("total");
   const [notification, setNotification] = useState(null);
     const [transitionPromptOpen, setTransitionPromptOpen] = useState(false);
   const [projectActionLoading, setProjectActionLoading] = useState(false);
@@ -1931,6 +1962,25 @@ export default function ProjetoDetalhe() {
   };
 
   const ganttItems = buildGanttItems(atividades);
+    // Generate a consistent color per activity based on its title (keeps tasks visually inside the same theme)
+    const hashToHue = (text = "") => {
+        let h = 0;
+        for (let i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) % 360;
+        return h;
+    };
+
+    const activityColors = (atividades || []).reduce((acc, a) => {
+        const key = String(a.id);
+        const hue = hashToHue(a.titulo || key || String(Math.random()));
+        const base = `hsl(${hue}, 70%, 45%)`;
+        const lightSolid = `hsl(${hue}, 60%, 92%)`; // softer, less saturated pastel
+        const light = `linear-gradient(90deg, ${lightSolid} 0%, rgba(255,255,255,0.96) 100%)`;
+        const border = `hsla(${hue}, 60%, 45%, 0.14)`;
+        const glow = `hsla(${hue}, 60%, 45%, 0.10)`;
+
+        acc[key] = { base, light, lightSolid, border, glow };
+        return acc;
+    }, {});
   const ganttNow = new Date();
   const selectedWindow = GANTT_WINDOW_OPTIONS.find((option) => option.value === ganttWindow) || GANTT_WINDOW_OPTIONS[0];
 
@@ -1957,17 +2007,31 @@ export default function ProjetoDetalhe() {
       ? Math.round((concludedItems / visibleGanttItems.length) * 100)
       : 0;
 
+    const ganttScaleColumns = Math.max(12, Math.ceil(ganttDurationDays / 21));
+  const ganttColumnWidthPct = 100 / ganttScaleColumns;
+    const ganttFrameColumns = '190px minmax(0, 1fr)';
+
   const monthMarkers = (() => {
       const marks = [];
       const cursor = startOfMonth(ganttWindowStart);
+      const visibleMonths = Math.max(1, (ganttWindowEnd.getFullYear() - ganttWindowStart.getFullYear()) * 12 + ganttWindowEnd.getMonth() - ganttWindowStart.getMonth() + 1);
+      const stepMonths = selectedWindow.value === "total"
+          ? Math.max(1, Math.ceil(visibleMonths / 12))
+          : visibleMonths > 5
+              ? 2
+              : 1;
+      let monthIndex = 0;
       while (cursor <= ganttWindowEnd) {
-          const dayOffset = clamp(dayDiff(ganttWindowStart, cursor), 0, ganttDurationDays);
-          marks.push({
-              key: `${cursor.getFullYear()}-${cursor.getMonth()}`,
-              label: cursor.toLocaleDateString("pt-PT", { month: "short", year: "numeric" }),
-              left: (dayOffset / ganttDurationDays) * 100
-          });
+          if (monthIndex % stepMonths === 0) {
+              const dayOffset = clamp(dayDiff(ganttWindowStart, cursor), 0, ganttDurationDays);
+              marks.push({
+                  key: `${cursor.getFullYear()}-${cursor.getMonth()}`,
+                  label: cursor.toLocaleDateString("pt-PT", { month: "short", year: "numeric" }),
+                  left: (dayOffset / ganttDurationDays) * 100
+              });
+          }
           cursor.setMonth(cursor.getMonth() + 1);
+          monthIndex += 1;
       }
       return marks;
   })();
@@ -2136,13 +2200,13 @@ export default function ProjetoDetalhe() {
             <Icons.ClipboardList /> Board de Atividades
             {activeTab === 'atividades' && <div style={{position:'absolute', bottom:'-12px', left:0, right:0, height:'3px', background:'var(--color-btnPrimary)', borderRadius:'3px 3px 0 0'}} />}
         </button>
-        <button style={{background: 'none', border: 'none', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: activeTab === 'relatorio' ? '800' : '600', color: activeTab === 'relatorio' ? 'var(--color-btnPrimary)' : '#64748b', cursor: 'pointer', padding: '10px 20px', position: 'relative', transition: '0.2s'}} onClick={() => setActiveTab('relatorio')} className="tab-hover">
-            <Icons.Clock /> Relatório de Tempos
-            {activeTab === 'relatorio' && <div style={{position:'absolute', bottom:'-12px', left:0, right:0, height:'3px', background:'var(--color-btnPrimary)', borderRadius:'3px 3px 0 0'}} />}
-        </button>
         <button style={{background: 'none', border: 'none', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: activeTab === 'gantt' ? '800' : '600', color: activeTab === 'gantt' ? 'var(--color-btnPrimary)' : '#64748b', cursor: 'pointer', padding: '10px 20px', position: 'relative', transition: '0.2s'}} onClick={() => setActiveTab('gantt')} className="tab-hover">
             <Icons.Calendar /> Gantt
             {activeTab === 'gantt' && <div style={{position:'absolute', bottom:'-12px', left:0, right:0, height:'3px', background:'var(--color-btnPrimary)', borderRadius:'3px 3px 0 0'}} />}
+        </button>
+        <button style={{background: 'none', border: 'none', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: activeTab === 'relatorio' ? '800' : '600', color: activeTab === 'relatorio' ? 'var(--color-btnPrimary)' : '#64748b', cursor: 'pointer', padding: '10px 20px', position: 'relative', transition: '0.2s'}} onClick={() => setActiveTab('relatorio')} className="tab-hover">
+            <Icons.Clock /> Relatório de Tempos
+            {activeTab === 'relatorio' && <div style={{position:'absolute', bottom:'-12px', left:0, right:0, height:'3px', background:'var(--color-btnPrimary)', borderRadius:'3px 3px 0 0'}} />}
         </button>
         <button style={{background: 'none', border: 'none', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: activeTab === 'geral' ? '800' : '600', color: activeTab === 'geral' ? 'var(--color-btnPrimary)' : '#64748b', cursor: 'pointer', padding: '10px 20px', position: 'relative', transition: '0.2s'}} onClick={() => setActiveTab('geral')} className="tab-hover">
             <Icons.Settings /> Configurações e Dados
@@ -2622,11 +2686,11 @@ export default function ProjetoDetalhe() {
             ABA 3: GANTT
         ========================================= */}
         {activeTab === 'gantt' && (
-            <div style={{background: 'white', padding: '28px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0'}}>
-                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '16px', flexWrap: 'wrap'}}>
+            <div style={{background: 'white', padding: '20px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0'}}>
+                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '12px', flexWrap: 'wrap'}}>
                     <div>
-                        <h2 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '10px'}}><Icons.Calendar size={22} color="var(--color-btnPrimary)" /> Gantt do Projeto</h2>
-                        <p style={{margin: '6px 0 0 0', color: '#64748b', fontSize: '0.86rem'}}>
+                        <h2 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.2rem'}}><Icons.Calendar size={18} color="var(--color-btnPrimary)" /> Gantt do Projeto</h2>
+                        <p style={{margin: '4px 0 0 0', color: '#64748b', fontSize: '0.8rem'}}>
                             Janela atual: {ganttWindowStart.toLocaleDateString('pt-PT')} ate {ganttWindowEnd.toLocaleDateString('pt-PT')}
                         </p>
                     </div>
@@ -2641,10 +2705,10 @@ export default function ProjetoDetalhe() {
                                     background: option.value === ganttWindow ? 'var(--color-bgSecondary)' : '#ffffff',
                                     color: option.value === ganttWindow ? 'var(--color-btnPrimary)' : '#475569',
                                     borderRadius: '999px',
-                                    padding: '7px 12px',
+                                    padding: '6px 10px',
                                     cursor: 'pointer',
                                     fontWeight: '700',
-                                    fontSize: '0.8rem'
+                                    fontSize: '0.76rem'
                                 }}
                             >
                                 {option.label}
@@ -2653,34 +2717,34 @@ export default function ProjetoDetalhe() {
                     </div>
                 </div>
 
-                <div style={{display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '10px', marginBottom: '16px'}}>
-                    <div style={{background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '10px 12px'}}>
-                        <div style={{fontSize: '0.72rem', color: '#64748b', textTransform: 'uppercase', fontWeight: '800', marginBottom: '4px'}}>Itens visiveis</div>
-                        <div style={{fontSize: '1.2rem', color: '#0f172a', fontWeight: '900'}}>{visibleGanttItems.length}</div>
+                <div style={{display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '8px', marginBottom: '12px'}}>
+                    <div style={{background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '8px 10px'}}>
+                        <div style={{fontSize: '0.67rem', color: '#64748b', textTransform: 'uppercase', fontWeight: '800', marginBottom: '2px'}}>Itens visiveis</div>
+                        <div style={{fontSize: '1.05rem', color: '#0f172a', fontWeight: '900'}}>{visibleGanttItems.length}</div>
                     </div>
-                    <div style={{background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '10px 12px'}}>
-                        <div style={{fontSize: '0.72rem', color: '#64748b', textTransform: 'uppercase', fontWeight: '800', marginBottom: '4px'}}>Concluidos</div>
-                        <div style={{fontSize: '1.2rem', color: '#0f172a', fontWeight: '900'}}>{concludedItems}</div>
+                    <div style={{background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '8px 10px'}}>
+                        <div style={{fontSize: '0.67rem', color: '#64748b', textTransform: 'uppercase', fontWeight: '800', marginBottom: '2px'}}>Concluidos</div>
+                        <div style={{fontSize: '1.05rem', color: '#0f172a', fontWeight: '900'}}>{concludedItems}</div>
                     </div>
-                    <div style={{background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '10px 12px'}}>
-                        <div style={{fontSize: '0.72rem', color: '#64748b', textTransform: 'uppercase', fontWeight: '800', marginBottom: '4px'}}>Ponto de situacao</div>
-                        <div style={{fontSize: '1.2rem', color: 'var(--color-btnPrimary)', fontWeight: '900'}}>{visibleCompletion}%</div>
+                    <div style={{background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '8px 10px'}}>
+                        <div style={{fontSize: '0.67rem', color: '#64748b', textTransform: 'uppercase', fontWeight: '800', marginBottom: '2px'}}>Ponto de situacao</div>
+                        <div style={{fontSize: '1.05rem', color: 'var(--color-btnPrimary)', fontWeight: '900'}}>{visibleCompletion}%</div>
                     </div>
                 </div>
 
-                <div style={{display: 'flex', gap: '14px', alignItems: 'center', fontSize: '0.76rem', color: '#64748b', marginBottom: '10px', flexWrap: 'wrap'}}>
+                <div style={{display: 'flex', gap: '12px', alignItems: 'center', fontSize: '0.72rem', color: '#64748b', marginBottom: '8px', flexWrap: 'wrap'}}>
                     <span style={{display: 'inline-flex', alignItems: 'center', gap: '6px'}}><span style={{width: '10px', height: '10px', borderRadius: '999px', background: 'var(--color-btnPrimary)'}}></span> Atividade</span>
                     <span style={{display: 'inline-flex', alignItems: 'center', gap: '6px'}}><span style={{width: '10px', height: '10px', borderRadius: '999px', background: 'var(--color-btnPrimaryHover)'}}></span> Tarefa</span>
                     <span style={{display: 'inline-flex', alignItems: 'center', gap: '6px'}}><span style={{width: '1px', height: '12px', background: 'var(--color-btnPrimaryDark)'}}></span> Hoje</span>
                 </div>
 
-                <div className="custom-scrollbar" style={{overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '12px'}}>
-                    <div style={{minWidth: '860px'}}>
-                        <div style={{display: 'grid', gridTemplateColumns: '280px 1fr', borderBottom: '1px solid #e2e8f0', background: '#f8fafc'}}>
-                            <div style={{padding: '10px 12px', color: '#64748b', fontSize: '0.73rem', fontWeight: '800', textTransform: 'uppercase'}}>Item</div>
-                            <div style={{position: 'relative', padding: '10px 0 10px 0'}}>
+                <div className="custom-scrollbar gantt-scrollbar" style={{overflow: 'hidden', border: '1px solid #e2e8f0', borderRadius: '12px'}}>
+                    <div style={{width: '100%'}}>
+                        <div style={{display: 'grid', gridTemplateColumns: ganttFrameColumns, borderBottom: '1px solid #e2e8f0', background: '#f8fafc'}}>
+                            <div style={{padding: '8px 10px', color: '#64748b', fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase'}}>Item</div>
+                            <div style={{position: 'relative', padding: '8px 0 8px 0', minHeight: '24px', background: `repeating-linear-gradient(to right, transparent 0, transparent calc(${ganttColumnWidthPct}% - 1px), rgba(226,232,240,0.8) calc(${ganttColumnWidthPct}% - 1px), rgba(226,232,240,0.8) ${ganttColumnWidthPct}%)`}}>
                                 {monthMarkers.map((mark) => (
-                                    <div key={mark.key} style={{position: 'absolute', left: `${mark.left}%`, top: '2px', transform: 'translateX(-1px)', fontSize: '0.72rem', color: '#94a3b8', whiteSpace: 'nowrap'}}>{mark.label}</div>
+                                    <div key={mark.key} style={{position: 'absolute', left: `${mark.left}%`, top: '1px', transform: 'translateX(-1px)', fontSize: '0.68rem', color: '#64748b', whiteSpace: 'nowrap', background: '#f8fafc', padding: '0 3px', maxWidth: '96px', overflow: 'hidden', textOverflow: 'ellipsis'}}>{mark.label}</div>
                                 ))}
                             </div>
                         </div>
@@ -2696,34 +2760,50 @@ export default function ProjetoDetalhe() {
                             const clampedEnd = clamp(rawEnd, 0, ganttDurationDays);
                             const leftPct = (clampedStart / ganttDurationDays) * 100;
                             const widthPct = Math.max((clampedEnd - clampedStart) / ganttDurationDays * 100, 0.8);
-                            const barColor = item.type === 'atividade' ? 'var(--color-btnPrimary)' : 'var(--color-btnPrimaryHover)';
+                            const isGroupRow = item.rowType === 'group';
+                            const activityColorSet = activityColors[item.activityId] || null;
+                            const fallbackBase = 'var(--color-btnPrimary)';
+                            const fallbackLightSolid = 'rgba(59,130,246,0.12)';
+                            const fallbackGlow = 'rgba(37, 99, 235, 0.28)';
+
+                            const barBase = activityColorSet ? activityColorSet.base : fallbackBase;
+                            const barFill = item.type === 'atividade'
+                                ? barBase
+                                : (activityColorSet ? activityColorSet.lightSolid : fallbackLightSolid);
+                            const barGlow = activityColorSet ? activityColorSet.glow : fallbackGlow;
+                            const barBorder = item.type === 'tarefa' ? (activityColorSet ? `1px solid ${activityColorSet.border}` : '1px solid rgba(59, 130, 246, 0.18)') : 'none';
 
                             return (
-                                <div key={item.id} style={{display: 'grid', gridTemplateColumns: '280px 1fr', borderBottom: '1px solid #f1f5f9'}}>
-                                    <div style={{padding: '10px 12px'}}>
-                                        <div style={{display: 'flex', alignItems: 'center', gap: '7px', color: '#0f172a', fontWeight: '700', fontSize: '0.86rem'}}>
-                                            <span style={{width: '8px', height: '8px', borderRadius: '999px', background: barColor}}></span>
+                                <div key={item.id} style={{display: 'grid', gridTemplateColumns: ganttFrameColumns, borderBottom: '1px solid #f1f5f9', background: isGroupRow ? '#fafcff' : '#ffffff'}}>
+                                    <div style={{padding: '8px 10px', paddingLeft: isGroupRow ? '10px' : '22px', borderLeft: isGroupRow ? `3px solid ${barBase}` : `3px solid ${barBase}`}}>
+                                        <div style={{display: 'flex', alignItems: 'center', gap: '6px', color: '#0f172a', fontWeight: '700', fontSize: isGroupRow ? '0.8rem' : '0.76rem', lineHeight: 1.25}}>
+                                            <span style={{width: '7px', height: '7px', borderRadius: '999px', background: barBase, flexShrink: 0}}></span>
                                             {item.label}
                                         </div>
-                                        <div style={{fontSize: '0.73rem', color: '#64748b'}}>{item.subtitle} • {(item.estado || '').replace('_', ' ') || 'sem estado'}</div>
+                                        {isGroupRow && (
+                                            <div style={{fontSize: '0.68rem', color: '#64748b'}}>{(item.estado || '').replace('_', ' ') || 'sem estado'}</div>
+                                        )}
                                     </div>
-                                    <div style={{position: 'relative', padding: '10px 10px'}}>
+                                    <div style={{position: 'relative', padding: '8px 8px', background: `repeating-linear-gradient(to right, transparent 0, transparent calc(${ganttColumnWidthPct}% - 1px), rgba(226,232,240,0.8) calc(${ganttColumnWidthPct}% - 1px), rgba(226,232,240,0.8) ${ganttColumnWidthPct}%)`}}>
                                         {todayPercent !== null && <div style={{position: 'absolute', left: `${todayPercent}%`, top: 0, bottom: 0, width: '1px', background: 'var(--color-btnPrimaryDark)', opacity: 0.85}}></div>}
-                                        <div style={{position: 'relative', height: '22px', borderRadius: '999px', background: '#f8fafc'}}>
+                                        <div style={{position: 'relative', height: isGroupRow ? '18px' : '16px', borderRadius: '999px', background: '#f8fafc', boxShadow: 'inset 0 0 0 1px rgba(226,232,240,0.7)'}}>
                                             <div
                                                 className="gantt-bar"
                                                 style={{
                                                     position: 'absolute',
                                                     left: `${leftPct}%`,
                                                     width: `${widthPct}%`,
-                                                    top: '3px',
-                                                    bottom: '3px',
+                                                    top: '1px',
+                                                    bottom: '1px',
                                                     borderRadius: '999px',
-                                                    background: barColor
+                                                    background: barFill,
+                                                    border: barBorder,
+                                                    boxShadow: `0 0 0 1px ${barGlow}, 0 5px 12px ${barGlow}`,
+                                                    opacity: isGroupRow ? 0.95 : 1
                                                 }}
                                                 title={`${item.start.toLocaleDateString('pt-PT')} - ${item.end.toLocaleDateString('pt-PT')}`}
                                             >
-                                                <span style={{position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.68rem', color: '#ffffff', fontWeight: '700'}}>{item.progress}%</span>
+                                                <span style={{position: 'absolute', right: '6px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.62rem', color: item.type === 'atividade' ? '#ffffff' : '#374151', fontWeight: '800'}}>{item.progress}%</span>
                                             </div>
                                         </div>
                                     </div>
@@ -3862,6 +3942,9 @@ export default function ProjetoDetalhe() {
           .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
           .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
           .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
+
+          .gantt-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+          .gantt-scrollbar::-webkit-scrollbar { display: none; height: 0; width: 0; }
 
           @keyframes taskFocusPulse { 0% { transform: scale(1); } 50% { transform: scale(1.01); } 100% { transform: scale(1); } }
 
