@@ -578,9 +578,9 @@ export default function Projetos() {
     setClientes(cliData || []);
 
     const { data: tipoData } = await supabase.from("tipos_projeto").select("id, nome").order("nome");
-    setTipos(tipoData || []);
+        setTipos(tipoData || []); 
 
-    const { data: staffData } = await supabase.from("profiles").select("id, nome, email").order("nome");
+    const { data: staffData } = await supabase.from("profiles").select("id, nome, email, ativo").order("nome");
     setStaff(staffData || []);
 
     setLoading(false);
@@ -2257,7 +2257,9 @@ export default function Projetos() {
                                     className="input-focus"
                                 >
                                     <option value="">-- Selecione --</option>
-                                    {staff.map(s => <option key={s.id} value={s.id}>{s.nome || s.email}</option>)}
+                                    {staff
+                                        .filter(s => s.ativo !== false || String(s.id) === String(form.responsavel_id))
+                                        .map(s => <option key={s.id} value={s.id}>{s.nome || s.email}{s.ativo === false ? ' (Inativo)' : ''}</option>)}
                                 </select>
                             </div>
                         </div>
@@ -2418,15 +2420,16 @@ export default function Projetos() {
                                     <div className="pill-container" style={{minHeight: '60px'}}>
                                         {staff
                                             .filter(s => String(s.id) !== String(form.responsavel_id || ''))
+                                            .filter(s => s.ativo !== false || (form.colaboradores || []).includes(s.id))
                                             .map(s => {
                                                 const isSelected = (form.colaboradores || []).map(id => String(id)).includes(String(s.id));
                                                 return (
                                                     <div 
-                                                        key={`int-${s.id}`}
+                                                        key={`colab-int-${s.id}`}
                                                         onClick={() => !isViewOnly && handleToggleColaborador(s.id)}
                                                         className={`pill-checkbox ${isSelected ? 'selected' : ''}`}
                                                     >
-                                                        {s.nome || s.email}
+                                                        {s.nome || s.email}{s.ativo === false ? ' (Inativo)' : ''}
                                                     </div>
                                                 )
                                         })}

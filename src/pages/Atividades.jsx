@@ -124,7 +124,7 @@ export default function Atividades() {
     const { data: projData } = await supabase.from("projetos").select("id, titulo, codigo_projeto").neq("estado", "cancelado");
     setProjetos(projData || []);
 
-    const { data: staffData } = await supabase.from("profiles").select("id, nome, email").order("nome");
+    const { data: staffData } = await supabase.from("profiles").select("id, nome, email, ativo").order("nome");
     setStaff(staffData || []);
 
         const atividadeIds = (ativData || []).map((a) => a.id).filter(Boolean);
@@ -678,7 +678,9 @@ export default function Atividades() {
                             <label style={labelStyle}>Responsável</label>
                             <select value={form.responsavel_id} onChange={e => setForm({...form, responsavel_id: e.target.value})} style={{...inputStyle, cursor: 'pointer'}} className="input-focus">
                                 <option value="">-- Ninguém (Atribuir Depois) --</option>
-                                {staff.map(s => <option key={s.id} value={s.id}>{s.nome || s.email}</option>)}
+                                {staff
+                                    .filter(s => s.ativo !== false || String(s.id) === String(form.responsavel_id))
+                                    .map(s => <option key={s.id} value={s.id}>{s.nome || s.email}{s.ativo === false ? ' (Inativo)' : ''}</option>)}
                             </select>
                         </div>
                     </div>
@@ -758,7 +760,9 @@ export default function Atividades() {
                                             <label style={labelStyle}>Colaborador</label>
                                             <select value={timeLogForm.user_id} onChange={e => setTimeLogForm(prev => ({...prev, user_id: e.target.value}))} style={inputStyle} required>
                                                 <option value="">Selecionar...</option>
-                                                {staff.map(s => <option key={s.id} value={s.id}>{s.nome || s.email}</option>)}
+                                                {staff
+                                                    .filter(s => s.ativo !== false || String(s.id) === String(timeLogForm.user_id))
+                                                    .map(s => <option key={s.id} value={s.id}>{s.nome || s.email}{s.ativo === false ? ' (Inativo)' : ''}</option>)}
                                             </select>
                                         </div>
                                         <div>

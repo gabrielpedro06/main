@@ -462,7 +462,7 @@ export default function Tarefas() {
                 : supabase.from("tarefas").select(`*, atividades!inner(*, projetos!inner(id, titulo, cliente_id, parceiros_ids, clientes!cliente_id(id, marca, sigla))), profiles:criado_por(nome)`).contains("colaboradores_extra", [user.id]),
             querySubtarefas,
             supabase.from("atividades").select("id, titulo, projetos(titulo)").not("projeto_id", "is", null).neq("estado", "cancelado"),
-            supabase.from("profiles").select("id, nome, email").order("nome"),
+            supabase.from("profiles").select("id, nome, email, ativo").order("nome"),
             supabase.from("clientes").select("id, marca, sigla").order("marca"),
             supabase.from("projetos").select("id, titulo").order("titulo"),
             supabase.from("contactos_cliente").select("id, cliente_id, nome_contacto, cargo, email, clientes(marca, sigla)")
@@ -1513,7 +1513,7 @@ export default function Tarefas() {
 
   const internalAssigneeOptions = (staff || [])
       .filter((s) => Boolean(s?.id))
-      .map((s) => ({ id: String(s.id), label: s.nome || s.email || 'Colaborador interno' }));
+      .map((s) => ({ id: String(s.id), label: s.nome || s.email || 'Colaborador interno', ativo: s.ativo !== false }));
 
   const currentModalAtividade = (() => {
       if (editType === 'atividade' && editId) {
@@ -1548,7 +1548,9 @@ export default function Tarefas() {
       <>
           {internalAssigneeOptions.length > 0 && (
               <optgroup label="Equipa Interna">
-                  {internalAssigneeOptions.map((opt) => <option key={`int-${opt.id}`} value={opt.id}>{opt.label}</option>)}
+                  {internalAssigneeOptions
+                      .filter(opt => opt.ativo || String(opt.id) === String(form.responsavel_id))
+                      .map((opt) => <option key={`int-${opt.id}`} value={opt.id}>{opt.label}{!opt.ativo ? ' (Inativo)' : ''}</option>)}
               </optgroup>
           )}
           {modalEntityAssigneeOptions.length > 0 && (
@@ -1868,7 +1870,9 @@ export default function Tarefas() {
                                       <label style={labelStyle}>Colaborador</label>
                                       <select value={timeLogForm.user_id} onChange={(e) => setTimeLogForm(prev => ({...prev, user_id: e.target.value}))} style={inputStyle} required>
                                           <option value="">Selecionar...</option>
-                                          {staff.map((s) => <option key={s.id} value={s.id}>{s.nome || s.email}</option>)}
+                                          {staff
+                                              .filter(s => s.ativo !== false || String(s.id) === String(timeLogForm.user_id))
+                                              .map((s) => <option key={s.id} value={s.id}>{s.nome || s.email}{s.ativo === false ? ' (Inativo)' : ''}</option>)}
                                       </select>
                                   </div>
                                   <div>
@@ -2090,7 +2094,10 @@ export default function Tarefas() {
                                 <div style={{background: 'white', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', maxHeight: '100px', overflowY: 'auto'}} className="custom-scrollbar">
                                     <div style={{fontSize: '0.7rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px'}}>Equipa Interna</div>
                                     <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap'}}>
-                                        {internalAssigneeOptions.filter(s => String(s.id) !== String(form.responsavel_id || '')).map(s => {
+                                        {internalAssigneeOptions
+                                            .filter(s => String(s.id) !== String(form.responsavel_id || ''))
+                                            .filter(s => s.ativo || (form.colaboradores_extra || []).map(String).includes(String(s.id)))
+                                            .map(s => {
                                             const isChecked = Array.isArray(form.colaboradores_extra) && form.colaboradores_extra.map((id) => String(id)).includes(String(s.id));
                                             return (
                                                 <div 
@@ -2103,7 +2110,7 @@ export default function Tarefas() {
                                                         padding: '4px 10px', borderRadius: '15px', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', gap: '4px'
                                                     }}
                                                 >
-                                                    {isChecked && '✓'} {s.label}
+                                                    {isChecked && '✓'} {s.label}{!s.ativo ? ' (Inativo)' : ''}
                                                 </div>
                                             )
                                         })}
@@ -2580,4 +2587,3 @@ export default function Tarefas() {
     </div>
   );
 }
-

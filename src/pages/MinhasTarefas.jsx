@@ -141,7 +141,7 @@ export default function MinhasTarefas() {
       setLoading(true);
       await Promise.all([
           (async () => {
-              const { data: staffData } = await supabase.from("profiles").select("id, nome, email").order("nome");
+              const { data: staffData } = await supabase.from("profiles").select("id, nome, email, ativo").order("nome");
               setStaff(staffData || []);
           })(),
           checkActiveLog(),
@@ -1187,7 +1187,13 @@ export default function MinhasTarefas() {
                                       }} 
                                       style={{width: '100%', padding: '12px 15px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', cursor: 'pointer', transition: '0.2s'}} className="input-focus"
                                   >
-                                      {staff.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
+                                      {staff
+                                          .filter(s => s.ativo !== false || String(s.id) === String(editModal.data.responsavel_id))
+                                          .map(s => (
+                                              <option key={s.id} value={s.id}>
+                                                  {s.nome || s.email}{s.ativo === false ? ' (Inativo)' : ''}
+                                              </option>
+                                          ))}
                                   </select>
                               </div>
                               <div>
@@ -1199,13 +1205,16 @@ export default function MinhasTarefas() {
                           <div style={{marginBottom: '20px'}}>
                               <label style={{display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Partilhar com mais alguém?</label>
                               <div style={{background: 'white', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '12px', maxHeight: '120px', overflowY: 'auto'}} className="custom-scrollbar input-focus">
-                                  <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap'}}>
-                                      {staff.filter(s => s.id !== editModal.data.responsavel_id).map(s => {
+                                  <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap'}}> 
+                                      {staff
+                                          .filter(s => s.id !== editModal.data.responsavel_id)
+                                          .filter(s => s.ativo !== false || (editModal.data.colaboradores_extra || []).includes(s.id))
+                                          .map(s => {
                                           const isChecked = Array.isArray(editModal.data.colaboradores_extra) && editModal.data.colaboradores_extra.includes(s.id);
                                           const sNome = getSafeFirstName(s.nome, s.email);
                                           return (
                                               <div key={s.id} onClick={() => toggleColaboradorExtra(s.id)} style={{ background: isChecked ? 'var(--color-bgSecondary)' : '#f8fafc', color: isChecked ? 'var(--color-btnPrimary)' : '#64748b', border: `1px solid ${isChecked ? 'var(--color-btnPrimary)' : '#e2e8f0'}`, padding: '6px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', gap: '6px' }} className="hover-shadow">
-                                                  {isChecked && '✓'} {sNome}
+                                                      {isChecked && '✓'} {sNome}{s.ativo === false ? ' (Inativo)' : ''}
                                               </div>
                                           )
                                       })}
@@ -1340,7 +1349,9 @@ export default function MinhasTarefas() {
                                   <label style={{display: 'block', marginBottom: '4px', fontSize: '0.78rem', color: '#64748b', fontWeight: '700'}}>Colaborador</label>
                                   <select value={timeLogForm.user_id} onChange={e => setTimeLogForm(prev => ({...prev, user_id: e.target.value}))} style={{width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1'}} required>
                                       <option value="">Selecionar...</option>
-                                      {staff.map((s) => <option key={s.id} value={s.id}>{s.nome || s.email}</option>)}
+                                      {staff
+                                          .filter(s => s.ativo !== false || String(s.id) === String(timeLogForm.user_id))
+                                          .map((s) => <option key={s.id} value={s.id}>{s.nome || s.email}{s.ativo === false ? ' (Inativo)' : ''}</option>)}
                                   </select>
                               </div>
                               <div>
@@ -1529,4 +1540,3 @@ export default function MinhasTarefas() {
     </div>
   );
 }
-

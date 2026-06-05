@@ -618,7 +618,7 @@ export default function ProjetoDetalhe() {
 
     const [{ data: cliData }, { data: staffData }, { data: tiposData }] = await Promise.all([
         supabase.from("clientes").select("id, marca, sigla, eh_organismo").order("marca"), // Adicionado eh_organismo para preencher dropdowns
-        supabase.from("profiles").select("id, nome, email").order("nome"),
+        supabase.from("profiles").select("id, nome, email, ativo").order("nome"),
         supabase.from("tipos_projeto").select("id, nome").order("nome")
     ]);
     setClientes(cliData || []);
@@ -1499,7 +1499,7 @@ export default function ProjetoDetalhe() {
 
   const internalAssigneeOptions = (staff || [])
       .filter((s) => Boolean(s?.id))
-      .map((s) => ({ id: s.id, label: s.nome || s.email || "Colaborador interno", source: "internal" }));
+      .map((s) => ({ id: s.id, label: s.nome || s.email || "Colaborador interno", source: "internal", ativo: s.ativo !== false }));
 
   const entityAssigneeOptions = (entidadePessoas || [])
       .filter((p) => Boolean(p?.id))
@@ -2487,7 +2487,7 @@ export default function ProjetoDetalhe() {
                                         title="Responsável da nova tarefa"
                                     >
                                         <option value="">Responsável (opcional)</option>
-                                        {renderAssigneeOptionGroups()}
+                                        {renderAssigneeOptionGroups(novaTarefaNome.responsavel_id)}
                                     </select>
                                 </form>
                             </div>
@@ -2506,7 +2506,7 @@ export default function ProjetoDetalhe() {
                             title="Responsável da nova atividade"
                         >
                             <option value="">Responsável (opcional)</option>
-                            {renderAssigneeOptionGroups()}
+                            {renderAssigneeOptionGroups(novaAtividadeResponsavel)}
                         </select>
                         <button type="submit" className="btn-primary hover-shadow" style={{borderRadius: '8px', padding: '0 25px', fontSize: '0.95rem', background: '#64748b', display: 'flex', alignItems: 'center', gap: '8px'}}>
                             <Icons.Plus /> Criar Bloco
@@ -2634,7 +2634,9 @@ export default function ProjetoDetalhe() {
                                 <label style={{display:'block', marginBottom:'6px', fontSize:'0.8rem', fontWeight:'700', color:'#475569'}}>Colaborador</label>
                                 <select value={timeLogForm.user_id} onChange={(e) => setTimeLogForm((prev) => ({ ...prev, user_id: e.target.value }))} style={{width:'100%', padding:'10px 12px', borderRadius:'8px', border:'1px solid #cbd5e1'}} required>
                                     <option value="">Selecionar...</option>
-                                    {staff.map((s) => <option key={s.id} value={s.id}>{s.nome || s.email}</option>)}
+                                    {staff
+                                        .filter(s => s.ativo !== false || String(s.id) === String(timeLogForm.user_id))
+                                        .map((s) => <option key={s.id} value={s.id}>{s.nome || s.email}{s.ativo === false ? ' (Inativo)' : ''}</option>)}
                                 </select>
                             </div>
 
@@ -2861,7 +2863,9 @@ export default function ProjetoDetalhe() {
                                 }));
                             }} style={{...inputStyle, cursor: 'pointer'}} className="input-focus">
                                 <option value="">- Ninguém -</option>
-                                {staff.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
+                                {staff
+                                    .filter(s => s.ativo !== false || String(s.id) === String(formGeral.responsavel_id))
+                                    .map(s => <option key={s.id} value={s.id}>{s.nome}{s.ativo === false ? ' (Inativo)' : ''}</option>)}
                             </select>
                         </div>
                         <div>
@@ -3378,7 +3382,7 @@ export default function ProjetoDetalhe() {
                                       setAtividadeModal({show: true, data: {...atividadeModal.data, responsavel_id: newResp, colaboradores_extra: extras.filter(id => id !== newResp)}})
                                   }} style={{...inputStyle, marginBottom: 0}} className="input-focus">
                                       <option value="">- Ninguém -</option>
-                                      {renderAssigneeOptionGroups()}
+                                      {renderAssigneeOptionGroups(atividadeModal.data?.responsavel_id)}
                                   </select>
                               </div>
                           </div>
@@ -3389,7 +3393,10 @@ export default function ProjetoDetalhe() {
                                   <div>
                                       <div style={{fontSize: '0.7rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px'}}>Equipa Interna</div>
                                       <div className="pill-container custom-scrollbar" style={{padding: '8px', maxHeight: '88px', overflowY: 'auto'}}>
-                                          {internalAssigneeOptions.filter(s => String(s.id) !== String(atividadeModal.data.responsavel_id || '')).map(s => {
+                                          {internalAssigneeOptions
+                                              .filter(s => String(s.id) !== String(atividadeModal.data.responsavel_id || ''))
+                                              .filter(s => s.ativo || (Array.isArray(atividadeModal.data.colaboradores_extra) && atividadeModal.data.colaboradores_extra.map(id => String(id)).includes(String(s.id))))
+                                              .map(s => {
                                               const isSelected = Array.isArray(atividadeModal.data.colaboradores_extra) && atividadeModal.data.colaboradores_extra.map(id => String(id)).includes(String(s.id));
                                               return (
                                                   <div
@@ -3398,7 +3405,7 @@ export default function ProjetoDetalhe() {
                                                       className={`pill-checkbox ${isSelected ? 'selected' : ''}`}
                                                       style={{fontSize: '0.72rem', padding: '5px 10px'}}
                                                   >
-                                                      {s.label}
+                                                      {s.label}{!s.ativo ? ' (Inativo)' : ''}
                                                   </div>
                                               )
                                           })}
@@ -3541,7 +3548,7 @@ export default function ProjetoDetalhe() {
                                       setTarefaModal({...tarefaModal, data: {...tarefaModal.data, responsavel_id: newResp, colaboradores_extra: extras.filter(id => id !== newResp)}})
                                   }} style={{...inputStyle, marginBottom: 0}} className="input-focus">
                                       <option value="">- Ninguém -</option>
-                                      {renderAssigneeOptionGroups()}
+                                      {renderAssigneeOptionGroups(tarefaModal.data?.responsavel_id)}
                                   </select>
                               </div>
                           </div>
@@ -3552,7 +3559,10 @@ export default function ProjetoDetalhe() {
                                   <div>
                                       <div style={{fontSize: '0.7rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px'}}>Equipa Interna</div>
                                       <div className="pill-container custom-scrollbar" style={{padding: '8px', maxHeight: '88px', overflowY: 'auto'}}>
-                                          {internalAssigneeOptions.filter(s => String(s.id) !== String(tarefaModal.data.responsavel_id || '')).map(s => {
+                                          {internalAssigneeOptions
+                                              .filter(s => String(s.id) !== String(tarefaModal.data.responsavel_id || ''))
+                                              .filter(s => s.ativo || (Array.isArray(tarefaModal.data.colaboradores_extra) && tarefaModal.data.colaboradores_extra.map(id => String(id)).includes(String(s.id))))
+                                              .map(s => {
                                               const isSelected = Array.isArray(tarefaModal.data.colaboradores_extra) && tarefaModal.data.colaboradores_extra.map(id => String(id)).includes(String(s.id));
                                               return (
                                                   <div
@@ -3561,7 +3571,7 @@ export default function ProjetoDetalhe() {
                                                       className={`pill-checkbox ${isSelected ? 'selected' : ''}`}
                                                       style={{fontSize: '0.72rem', padding: '5px 10px'}}
                                                   >
-                                                      {s.label}
+                                                      {s.label}{!s.ativo ? ' (Inativo)' : ''}
                                                   </div>
                                               )
                                           })}

@@ -384,7 +384,9 @@ export default function RecursosHumanos() {
     // States para seleção múltipla
   const [selectedPedidosPendentes, setSelectedPedidosPendentes] = useState([]);
   const [selectedPedidosKm, setSelectedPedidosKm] = useState([]);
-  const [bulkApproveModal, setBulkApproveModal] = useState({ show: false, tipo: null, pedidos: [] });
+    const [bulkApproveModal, setBulkApproveModal] = useState({ show: false, tipo: null, pedidos: [] });
+    const [toleranciasTab, setToleranciasTab] = useState("tolerancias");
+    const [userStatusModal, setUserStatusModal] = useState({ show: false, profile: null, nextActive: true });
 
   const toLocalDateString = (date) => {
       const year = date.getFullYear();
@@ -553,6 +555,22 @@ export default function RecursosHumanos() {
 
   const showNotification = (msg, type = 'success') => {
       setNotification({ show: true, message: msg, type });
+  };
+
+  const colaboradoresAtivos = colaboradores.filter((c) => c.ativo !== false);
+  const colaboradoresInativos = colaboradores.filter((c) => c.ativo === false);
+
+  const openUserStatusModal = (profile) => {
+      if (!profile) return;
+      setUserStatusModal({
+          show: true,
+          profile,
+          nextActive: profile.ativo === false,
+      });
+  };
+
+  const closeUserStatusModal = () => {
+      setUserStatusModal({ show: false, profile: null, nextActive: true });
   };
 
   async function getDiasLimiteAnualAtualPorUserId(userId) {
@@ -834,6 +852,7 @@ export default function RecursosHumanos() {
 
             return {
                 ...profile,
+                ativo: profile.ativo !== false,
                 empresas_internas: empresasInternas,
                 dias_ferias_total: hasDiasFeriasTotalColumn
                     ? (profile.dias_ferias_total ?? null)
@@ -1227,16 +1246,30 @@ export default function RecursosHumanos() {
       } catch (err) { showNotification("Erro ao atualizar: " + err.message, "error"); }
   }
 
-  async function handleDeleteUser(id) {
-      if(!window.confirm("ATENÇÃO: Tem a certeza que quer apagar este colaborador?\n\nIsto irá apagar todos os dados de férias, assiduidade e perfil desta pessoa permanentemente.")) return;
+  async function handleToggleUserActive() {
+      const profile = userStatusModal.profile;
+      if (!profile) return;
+
+      const nextActive = userStatusModal.nextActive;
+      const actionLabel = nextActive ? "reativado" : "desativado";
+
       try {
-          const { error } = await supabase.from("profiles").delete().eq("id", id);
+          const { error } = await supabase
+              .from("profiles")
+              .update({ ativo: nextActive })
+              .eq("id", profile.id);
           if (error) throw error;
 
-          showNotification("Colaborador apagado com sucesso!", "success");
-          setSelectedUser(null);
+          setColaboradores((prev) => prev.map((c) => (c.id === profile.id ? { ...c, ativo: nextActive } : c)));
+          if (selectedUser === profile.id && !nextActive) {
+              setSelectedUser(null);
+              setIsEditingUser(false);
+          }
+
+          closeUserStatusModal();
+          showNotification(`Colaborador ${actionLabel} com sucesso!`, "success");
           fetchColaboradores();
-      } catch (err) { showNotification("Erro ao apagar: " + err.message, "error"); }
+      } catch (err) { showNotification("Erro ao alterar estado do colaborador: " + err.message, "error"); }
   }
 
   async function handleBulkUpdateSA() {
@@ -1996,7 +2029,7 @@ export default function RecursosHumanos() {
                     <p style={{margin:'5px 0 0 0', color:'#64748b', fontSize:'0.9rem'}}>Aprovações, salários e dados pessoais.</p>
                 </div>
             </div>
-            <div style={{display: 'flex', gap: '10px'}}>
+            <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end'}}>
                 <button className={activeView === 'gestao' ? 'btn-primary' : 'btn-small'} onClick={() => setActiveView('gestao')} style={{padding: '10px 20px', display:'flex', alignItems:'center', gap:'8px'}}>
                     <Icons.Chart size={18} /> Gestão
                 </button>
@@ -2006,6 +2039,9 @@ export default function RecursosHumanos() {
                 </button>
                 <button className={activeView === 'tolerancias' ? 'btn-primary' : 'btn-small'} onClick={() => setActiveView('tolerancias')} style={{padding: '10px 20px', display:'flex', alignItems:'center', gap:'8px'}}>
                     <Icons.Clock size={18} /> Tolerâncias
+                </button>
+                <button className={activeView === 'inativos' ? 'btn-primary' : 'btn-small'} onClick={() => setActiveView('inativos')} style={{padding: '10px 20px', display:'flex', alignItems:'center', gap:'8px'}}>
+                    <Icons.User size={18} /> Colaboradores Inativos
                 </button>
             </div>
         </div>
@@ -2251,19 +2287,27 @@ export default function RecursosHumanos() {
         {activeView === 'tolerancias' && (
             <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
                 <div className="card" style={{padding: '25px', borderRadius: '12px', background: 'white', boxShadow: '0 2px 10px rgba(0,0,0,0.02)'}}>
-                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: '20px'}}>
+                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'14px', marginBottom: '20px'}}>
                         <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
                             <Icons.Clock size={24} color="#1e293b" />
                             <div>
-                                <h3 style={{margin: 0, color: '#1e293b'}}>Tolerâncias de Ponto</h3>
-                                <p style={{margin:'4px 0 0 0', color:'#64748b', fontSize:'0.85rem'}}>Dias dispensados que não contam como férias para os colaboradores.</p>
+                                <h3 style={{margin: 0, color: '#1e293b'}}>{toleranciasTab === 'tolerancias' ? 'Tolerâncias de Ponto' : 'Colaboradores inativos'}</h3>
+                                <p style={{margin:'4px 0 0 0', color:'#64748b', fontSize:'0.85rem'}}>{toleranciasTab === 'tolerancias' ? 'Dias dispensados que não contam como férias para os colaboradores.' : 'Colaboradores arquivados que continuam associados aos dados históricos.'}</p>
                             </div>
                         </div>
-                        <button className="btn-primary" onClick={() => { setNewTolerancia({ nome: '', data: '', tipo: 'global', user_id: '' }); setShowToleranciaModal(true); }} style={{padding: '10px 20px', display:'flex', alignItems:'center', gap:'8px'}}>
-                            <Icons.Flag size={16} /> Nova Tolerância
-                        </button>
+                        <div style={{display:'flex', alignItems:'center', gap:'10px', flexWrap:'wrap'}}>
+                            <div style={{display:'none', gap:'6px', background:'#f8fafc', padding:'4px', borderRadius:'10px', border:'1px solid #e2e8f0'}}>
+                                <button type="button" onClick={() => setToleranciasTab('tolerancias')} style={{padding:'8px 14px', border:'none', borderRadius:'8px', background: toleranciasTab === 'tolerancias' ? 'white' : 'transparent', color: toleranciasTab === 'tolerancias' ? 'var(--color-btnPrimary)' : '#64748b', fontWeight:'700', cursor:'pointer', boxShadow: toleranciasTab === 'tolerancias' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none'}}>Tolerâncias</button>
+                                <button type="button" onClick={() => setToleranciasTab('inativos')} style={{padding:'8px 14px', border:'none', borderRadius:'8px', background: toleranciasTab === 'inativos' ? 'white' : 'transparent', color: toleranciasTab === 'inativos' ? 'var(--color-btnPrimary)' : '#64748b', fontWeight:'700', cursor:'pointer', boxShadow: toleranciasTab === 'inativos' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none'}}>Colaboradores inativos <span style={{marginLeft:'6px', color:'#dc2626'}}>({colaboradoresInativos.length})</span></button>
+                            </div>
+                            {toleranciasTab === 'tolerancias' && (
+                                <button className="btn-primary" onClick={() => { setNewTolerancia({ nome: '', data: '', tipo: 'global', user_id: '' }); setShowToleranciaModal(true); }} style={{padding: '10px 20px', display:'flex', alignItems:'center', gap:'8px'}}>
+                                    <Icons.Flag size={16} /> Nova Tolerância
+                                </button>
+                            )}
+                        </div>
                     </div>
-                    {tolerancias.length > 0 ? (
+                    {toleranciasTab === 'tolerancias' ? (tolerancias.length > 0 ? (
                         <div className="table-responsive">
                             <table className="data-table" style={{width: '100%', borderCollapse: 'collapse', textAlign: 'left'}}>
                                 <thead>
@@ -2310,10 +2354,81 @@ export default function RecursosHumanos() {
                           <Icons.Clock size={40} color="#cbd5e1" />
                           <span style={{fontSize:'0.95rem'}}>Nenhuma tolerância definida. Adicione dias dispensados que não devem contar como férias.</span>
                       </div>
+                  )) : (
+                      <div style={{display:'flex', flexDirection:'column', gap:'8px', maxHeight:'360px', overflowY:'auto'}}>
+                          {colaboradoresInativos.length > 0 ? (
+                              colaboradoresInativos.map((colaborador) => (
+                                  <div key={colaborador.id} style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:'12px', padding:'12px 14px', border:'1px solid #e2e8f0', borderRadius:'10px', background:'#f8fafc'}}>
+                                      <div style={{minWidth: 0}}>
+                                          <div style={{display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap'}}>
+                                              <strong style={{color:'#1e293b'}}>{colaborador.nome}</strong>
+                                              <span style={{fontSize:'0.72rem', background:'#fee2e2', color:'#991b1b', padding:'3px 8px', borderRadius:'999px', fontWeight:'700'}}>
+                                                  Desativado
+                                              </span>
+                                          </div>
+                                          <div style={{marginTop:'4px', color:'#64748b', fontSize:'0.82rem'}}>{formatCompaniesLabel(colaborador)}</div>
+                                      </div>
+                                      <button
+                                          type="button"
+                                          onClick={() => openUserStatusModal(colaborador)}
+                                          style={{padding:'8px 14px', borderRadius:'8px', border:'1px solid #bbf7d0', background:'#f0fdf4', color:'#16a34a', fontWeight:'700', cursor:'pointer', whiteSpace:'nowrap'}}
+                                      >
+                                          Reativar
+                                      </button>
+                                  </div>
+                              ))
+                          ) : (
+                              <div style={{padding:'18px', textAlign:'center', color:'#94a3b8', background:'#f8fafc', borderRadius:'10px', border:'1px dashed #e2e8f0'}}>
+                                  Não há colaboradores desativados.
+                              </div>
+                          )}
+                      </div>
                   )}
               </div>
           </div>
       )}
+
+        {activeView === 'inativos' && (
+            <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
+                <div className="card" style={{padding: '25px', borderRadius: '12px', background: 'white', boxShadow: '0 2px 10px rgba(0,0,0,0.02)'}}>
+                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'14px', marginBottom: '20px'}}>
+                        <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+                            <Icons.User size={24} color="#1e293b" />
+                            <div>
+                                <h3 style={{margin: 0, color: '#1e293b'}}>Colaboradores inativos</h3>
+                                <p style={{margin:'4px 0 0 0', color:'#64748b', fontSize:'0.85rem'}}>Colaboradores arquivados que continuam associados aos dados históricos.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div style={{display:'flex', flexDirection:'column', gap:'8px', maxHeight:'360px', overflowY:'auto'}}>
+                        {colaboradoresInativos.length > 0 ? (
+                            colaboradoresInativos.map((colaborador) => (
+                                <div key={colaborador.id} style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:'12px', padding:'12px 14px', border:'1px solid #e2e8f0', borderRadius:'10px', background:'#f8fafc'}}>
+                                    <div style={{minWidth: 0}}>
+                                        <div style={{display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap'}}>
+                                            <strong style={{color:'#1e293b'}}>{colaborador.nome}</strong>
+                                            <span style={{fontSize:'0.72rem', background:'#fee2e2', color:'#991b1b', padding:'3px 8px', borderRadius:'999px', fontWeight:'700'}}>Desativado</span>
+                                        </div>
+                                        <div style={{marginTop:'4px', color:'#64748b', fontSize:'0.82rem'}}>{formatCompaniesLabel(colaborador)}</div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => openUserStatusModal(colaborador)}
+                                        style={{padding:'8px 14px', borderRadius:'8px', border:'1px solid #bbf7d0', background:'#f0fdf4', color:'#16a34a', fontWeight:'700', cursor:'pointer', whiteSpace:'nowrap'}}
+                                    >
+                                        Reativar
+                                    </button>
+                                </div>
+                            ))
+                        ) : (
+                            <div style={{padding:'18px', textAlign:'center', color:'#94a3b8', background:'#f8fafc', borderRadius:'10px', border:'1px dashed #e2e8f0'}}>
+                                Não há colaboradores desativados.
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        )}
 
       {activeView === 'gestao' && (
           <>
@@ -2351,7 +2466,7 @@ export default function RecursosHumanos() {
                         setSelectedUser(e.target.value || null);
                     }} style={{padding: '10px 15px', borderRadius: '8px', minWidth: '250px', border:'1px solid #cbd5e1', color:'#1e293b', fontWeight:'500'}}>
                         <option value="">Visão Geral Global</option>
-                        {colaboradores.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                        {colaboradoresAtivos.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
                     </select>
                     {!selectedUser && (
                         <>
@@ -2375,7 +2490,7 @@ export default function RecursosHumanos() {
                             </button>
                         </>
                     )}
-                    <button onClick={() => { 
+                                        <button onClick={() => { 
                       setIsEditingAbsence(false);
                       setEditingAbsenceData(null);
                                             setNewAbsence({ user_id: selectedUser || "", tipo: "Férias", data_inicio: "", data_fim: "", is_parcial: false, hora_inicio: "", hora_fim: "", motivo: "", km_origem: "", km_destino: "", km_total: "" }); 
@@ -2600,8 +2715,8 @@ export default function RecursosHumanos() {
                                                 <button type="button" onClick={handleUpdateUserProfile} style={{flex:1, padding:'10px', background:'var(--color-btnPrimary)', color:'white', border:'none', borderRadius:'6px', fontWeight:'bold'}}>Gravar</button>
                                             </div>
                                             <div style={{marginTop: '25px', paddingTop: '15px', borderTop: '1px solid #e2e8f0', textAlign: 'center'}}>
-                                                <button type="button" onClick={() => handleDeleteUser(selectedUser)} style={{background: '#fee2e2', color: '#ef4444', border: 'none', padding: '10px 15px', borderRadius: '6px', fontSize: '0.85rem', fontWeight:'bold', cursor: 'pointer', width: '100%', display:'flex', alignItems:'center', justifyContent:'center', gap:'8px'}}>
-                                                    <Icons.Trash size={16} /> Apagar Colaborador
+                                                <button type="button" onClick={() => openUserStatusModal(currentUserProfile)} style={{background: '#fee2e2', color: '#ef4444', border: 'none', padding: '10px 15px', borderRadius: '6px', fontSize: '0.85rem', fontWeight:'bold', cursor: 'pointer', width: '100%', display:'flex', alignItems:'center', justifyContent:'center', gap:'8px'}}>
+                                                    <Icons.Trash size={16} /> Desativar Colaborador
                                                 </button>
                                             </div>
                                         </div>
@@ -2909,7 +3024,7 @@ export default function RecursosHumanos() {
                         <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Colaborador</label>
                         <select required value={newAbsence.user_id} onChange={e => setNewAbsence({...newAbsence, user_id: e.target.value})} style={{...inputStyle, background: isEditingAbsence || !!selectedUser ? '#f8fafc' : 'white'}} disabled={isEditingAbsence || !!selectedUser}>
                             <option value="">Selecione Colaborador...</option>
-                            {colaboradores.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                            {colaboradoresAtivos.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
                         </select>
                         
                         <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Motivo da Ausência</label>
@@ -3132,6 +3247,38 @@ export default function RecursosHumanos() {
           </ModalPortal>
       )}
 
+      {userStatusModal.show && userStatusModal.profile && (
+          <ModalPortal>
+              <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999}}>
+                  <div style={{background:'white', padding:'30px', borderRadius:'16px', width:'420px', maxWidth:'92%', textAlign:'center', boxShadow:'0 25px 50px -12px rgba(0, 0, 0, 0.25)'}}>
+                      <div style={{display:'flex', justifyContent:'center', marginBottom:'15px'}}>
+                          <div style={{background: userStatusModal.nextActive ? '#dcfce7' : '#fee2e2', padding:'15px', borderRadius:'50%', color: userStatusModal.nextActive ? '#16a34a' : '#ef4444'}}>
+                              {userStatusModal.nextActive ? <Icons.Check size={32}/> : <Icons.Alert size={32}/>}
+                          </div>
+                      </div>
+                      <h3 style={{marginTop:0, color:'#1e293b'}}>
+                          {userStatusModal.nextActive ? 'Reativar colaborador' : 'Confirmar desativação'}
+                      </h3>
+                      <p style={{color:'#64748b', marginBottom:'25px', lineHeight:'1.5', fontSize:'0.95rem'}}>
+                          {userStatusModal.nextActive ? (
+                              <span>Tem a certeza que quer <b>reativar</b> <b>{userStatusModal.profile.nome}</b>?</span>
+                          ) : (
+                              <span>Tem a certeza que quer <b>desativar</b> <b>{userStatusModal.profile.nome}</b>? O registo ficará arquivado como ex-colaborador e os dados históricos mantêm-se.</span>
+                          )}
+                      </p>
+                      <div style={{display:'flex', gap:'10px', justifyContent:'center'}}>
+                          <button onClick={closeUserStatusModal} style={{padding:'12px', borderRadius:'8px', border:'1px solid #cbd5e1', background:'white', color:'#475569', fontWeight:'bold', flex:1, cursor:'pointer'}}>
+                              Cancelar
+                          </button>
+                          <button onClick={handleToggleUserActive} style={{padding:'12px', borderRadius:'8px', border:'none', flex:1, color:'white', background: userStatusModal.nextActive ? '#16a34a' : '#ef4444', fontWeight:'bold', cursor:'pointer'}}>
+                              {userStatusModal.nextActive ? 'Reativar' : 'Desativar'}
+                          </button>
+                      </div>
+                  </div>
+              </div>
+          </ModalPortal>
+      )}
+
       {/* Modal de Notificação */}
       {notification.show && (
           <ModalPortal>
@@ -3187,7 +3334,7 @@ export default function RecursosHumanos() {
                                   <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Colaborador</label>
                                   <select required value={newTolerancia.user_id} onChange={e => setNewTolerancia({...newTolerancia, user_id: e.target.value})} style={{...inputStyle, marginTop:'4px', background:'white'}}>
                                       <option value="">Selecione Colaborador...</option>
-                                      {colaboradores.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                                      {colaboradoresAtivos.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
                                   </select>
                               </>
                           )}
