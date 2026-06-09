@@ -280,34 +280,27 @@ export default function ProjetoDetalhe() {
     const formatNumber = (value) => {
         if (value === null || value === undefined || value === "") return "";
         const num = Number(value);
-        if (!Number.isFinite(num)) return "";
+        if (!Number.isFinite(num)) return value;
 
-        const [integerPart, decimalPart] = num.toFixed(2).split(".");
-        const groupedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-        return `${groupedInteger}.${decimalPart}`;
+        return new Intl.NumberFormat('fr-FR', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(num).replace(',', '.');
     };
 
     const parseNumberInput = (raw) => {
-        if (raw === null || raw === undefined || raw === "") return "";
+        if (raw === null || raw === undefined) return "";
+        
+        let normalized = String(raw).replace(/\s/g, "");
+        
+        normalized = normalized.replace(',', '.');
 
-        const text = String(raw).trim();
-        if (!text) return "";
-
-        const lastComma = text.lastIndexOf(",");
-        const lastDot = text.lastIndexOf(".");
-        const decimalSeparator = lastComma > lastDot ? "," : ".";
-
-        let normalized = text.replace(/\s/g, "");
-
-        if (decimalSeparator === ",") {
-            normalized = normalized.replace(/\./g, "").replace(",", ".");
-        } else {
-            normalized = normalized.replace(/,/g, "");
-        }
+        if (normalized.endsWith('.')) return normalized;
 
         const num = Number(normalized);
-        return Number.isFinite(num) ? num : "";
+        return Number.isFinite(num) ? num : normalized;
     };
+
   const [clientes, setClientes] = useState([]);
   const [staff, setStaff] = useState([]);
   const [entidadePessoas, setEntidadePessoas] = useState([]);
@@ -1469,6 +1462,14 @@ export default function ProjetoDetalhe() {
               (pid) => String(pid) !== String(formGeral.cliente_id)
           );
 
+          const limpaParaSupabase = (val) => {
+                if (val === null || val === undefined || val === "") return 0;
+                // Remove espaços visuais que a máscara aplica
+                const limpo = String(val).replace(/\s/g, "");
+                const num = Number(limpo);
+                return Number.isFinite(num) ? num : 0;
+            };
+
           const payload = {
               titulo: formGeral.titulo, cliente_id: formGeral.cliente_id, responsavel_id: formGeral.responsavel_id,
               is_parceria: formGeral.is_parceria, parceiros_ids: formGeral.is_parceria ? parceirosSanitizados : [],
@@ -1478,7 +1479,8 @@ export default function ProjetoDetalhe() {
               programa: formGeral.programa, aviso: formGeral.aviso, codigo_projeto: formGeral.codigo_projeto,
               numero_projeto: formGeral.numero_projeto || "",
               descricao: formGeral.descricao, observacoes: formGeral.observacoes,
-              investimento: formGeral.investimento, incentivo: formGeral.incentivo,
+              investimento: limpaParaSupabase(formGeral.investimento),
+              incentivo: limpaParaSupabase(formGeral.incentivo),
               programa_id: formGeral.programa_id || null,
               aviso_id: formGeral.aviso_id || null,
               prazos_fases: normalizeProjetoFases(formGeral.prazos_fases),
@@ -3133,11 +3135,37 @@ export default function ProjetoDetalhe() {
                                 const isFormacaoLocal = tipoSelecionadoLocal?.eh_formacao === true;
                                 if (isFormacaoLocal) return null;
                                 return (
-                                    <div style={{background: 'var(--color-bgSecondary)', padding: '20px', borderRadius: '12px', border: '1px solid var(--color-borderColor)', marginBottom: '20px'}}>
-                                        <h4 style={{margin: '0 0 15px 0', color: 'var(--color-btnPrimaryHover)', display: 'flex', alignItems: 'center', gap: '8px', fontSize:'1rem'}}><Icons.Dollar /> Financeiro</h4>
-                                        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
-                                            <div><label style={{...labelStyle, color: 'var(--color-btnPrimaryDark)'}}>Investimento (€)</label><input type="text" value={formatNumber(formGeral.investimento)} onChange={e => setFormGeral({...formGeral, investimento: parseNumberInput(e.target.value)})} style={{...inputStyle, borderColor: 'var(--color-borderColor)', marginBottom:0}} className="input-focus" /></div>
-                                            <div><label style={{...labelStyle, color: 'var(--color-btnPrimaryDark)'}}>Incentivo (€)</label><input type="text" value={formatNumber(formGeral.incentivo)} onChange={e => setFormGeral({...formGeral, incentivo: parseNumberInput(e.target.value)})} style={{...inputStyle, borderColor: 'var(--color-borderColor)', color: 'var(--color-btnPrimary)', marginBottom:0}} className="input-focus" /></div>
+                                    <div style={{ background: 'var(--color-bgSecondary)', padding: '20px', borderRadius: '12px', border: '1px solid var(--color-borderColor)', marginBottom: '20px' }}>
+                                        <h4 style={{ margin: '0 0 15px 0', color: 'var(--color-btnPrimaryHover)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1rem' }}><Icons.Dollar /> Financeiro</h4>
+                                        
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                                            {/* Campo Investimento */}
+                                            <div>
+                                                <label style={{ ...labelStyle, color: 'var(--color-btnPrimaryDark)' }}>Investimento (€)</label>
+                                                <input 
+                                                    type="text" 
+                                                    /* 💡 SE NÃO ESTIVER A EDITAR, MOSTRA FORÇADAMENTE FORMATADO */
+                                                    value={isEditingGeral ? (formGeral.investimento ?? "") : formatNumber(formGeral.investimento)} 
+                                                    onChange={e => setFormGeral({ ...formGeral, investimento: parseNumberInput(e.target.value) })}
+                                                    onBlur={e => setFormGeral({ ...formGeral, investimento: formatNumber(parseNumberInput(e.target.value)) })}
+                                                    style={{ ...inputStyle, borderColor: 'var(--color-borderColor)', marginBottom: 0 }} 
+                                                    className="input-focus" 
+                                                />
+                                            </div>
+                                            
+                                            {/* Campo Incentivo */}
+                                            <div>
+                                                <label style={{ ...labelStyle, color: 'var(--color-btnPrimaryDark)' }}>Incentivo (€)</label>
+                                                <input 
+                                                    type="text" 
+                                                    /* 💡 SE NÃO ESTIVER A EDITAR, MOSTRA FORÇADAMENTE FORMATADO */
+                                                    value={isEditingGeral ? (formGeral.incentivo ?? "") : formatNumber(formGeral.incentivo)} 
+                                                    onChange={e => setFormGeral({ ...formGeral, incentivo: parseNumberInput(e.target.value) })}
+                                                    onBlur={e => setFormGeral({ ...formGeral, incentivo: formatNumber(parseNumberInput(e.target.value)) })}
+                                                    style={{ ...inputStyle, borderColor: 'var(--color-borderColor)', color: 'var(--color-btnPrimary)', marginBottom: 0 }} 
+                                                    className="input-focus" 
+                                                />
+                                            </div>
                                         </div>
                                     </div>
                                 );

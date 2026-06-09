@@ -904,24 +904,66 @@ export default function Clientes() {
   async function fetchClientes() {
     setLoading(true);
     
-    const { data: cliData, error: errCli } = await supabase
-        .from("clientes")
-        .select("*, contactos_cliente(nome_contacto, email, telefone)")
-        .order("created_at", { ascending: false });
+    try {
+      // 1. Vamos buscar os clientes e contactos de forma simples e segura
+      const { data: cliData, error: errCli } = await supabase
+          .from("clientes")
+          .select("*, contactos_cliente(nome_contacto, email, telefone)")
+          .order("created_at", { ascending: false });
 
-    const { data: morData } = await supabase
-        .from("moradas_cliente")
-        .select("cliente_id, localidade, concelho");
+      // 2. Vamos buscar as moradas
+      const { data: morData } = await supabase
+          .from("moradas_cliente")
+          .select("cliente_id, localidade, concelho");
 
-    if (!errCli && cliData) {
-        const clientesComMorada = cliData.map(c => {
-            const moradas = morData?.filter(m => m.cliente_id === c.id) || [];
-            return { ...c, moradas_cliente: moradas, ativo: c.ativo !== false }; 
-        });
-        setClientes(clientesComMorada);
+      // 3. Vamos buscar TODOS os projetos de forma independente para cruzar os dados
+      const { data: projData, error: errProj } = await supabase
+          .from("projetos")
+          .select("id, estado, cliente_id, parceiros_ids");
+
+      if (!errCli && cliData) {
+          const clientesComDados = cliData.map(c => {
+              // Filtrar moradas deste cliente
+              const moradas = morData?.filter(m => m.cliente_id === c.id) || [];
+              
+              // Mapear e cruzar os projetos deste cliente (seja como dono ou parceiro)
+              const projetosDoCliente = (projData || []).filter(p => {
+                const isMainClient = String(p.cliente_id || "") === String(c.id);
+                
+                // Trata o PostgreSQL array literal ou JSON string dos parceiros
+                let parceiros = [];
+                if (Array.isArray(p.parceiros_ids)) {
+                  parceiros = p.parceiros_ids.map(String);
+                } else if (typeof p.parceiros_ids === "string") {
+                  try {
+                    parceiros = JSON.parse(p.parceiros_ids).map(String);
+                  } catch {
+                    parceiros = p.parceiros_ids.replace(/[{}]/g, "").split(",").map(id => id.trim());
+                  }
+                }
+                const isPartner = parceiros.includes(String(c.id));
+                
+                return isMainClient || isPartner;
+              });
+
+              return { 
+                ...c, 
+                moradas_cliente: moradas, 
+                projetos: projetosDoCliente, // Injeta os projetos calculados com segurança aqui
+                ativo: c.ativo !== false 
+              }; 
+          });
+          
+          setClientes(clientesComDados);
+      } else if (errCli) {
+          console.error("Erro ao carregar clientes:", errCli);
+          showToast("Erro ao carregar lista de Entidades", "error");
+      }
+    } catch (err) {
+      console.error("Erro inesperado no fetchClientes:", err);
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   }
 
   // --- INTEGRAÇÃO NIF.PT + SICAE ---
@@ -1980,6 +2022,59 @@ export default function Clientes() {
                                 <h2 style={{margin: 0, fontSize: '1.25rem', color: '#1e293b', fontWeight: '800', lineHeight: '1.2'}}>{c.marca || "Sem nome"}</h2>
                                 {c.sigla?.trim() && <span style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimaryDark)', border: '1px solid var(--color-borderColor)', padding: '3px 8px', borderRadius: '999px', fontSize: '0.68rem', fontWeight: '800', letterSpacing: '0.04em'}}>{c.sigla}</span>}
                               </div>
+
+                            {/* --- NOVA FLAG COMPACTA E MINIMALISTA DE PROJETOS --- */}
+                            {(() => {
+                              const projList = c.projetos || [];
+                              const totalProjetos = projList.length;
+
+                              if (totalProjetos === 0) return null;
+
+                              // Mapeamento exato segundo a imagem image_2a1e3d.png
+                              const totalPendentes = projList.filter(p => p.estado === 'pendente').length;
+                              const totalEmAnalise = projList.filter(p => p.estado === 'em_analise' || p.estado === 'analise').length;
+                              const totalEmCurso = projList.filter(p => p.estado === 'em_curso' || p.estado === 'ativo').length;
+                              const totalConcluidos = projList.filter(p => p.estado === 'concluido').length;
+                              const totalCancelados = projList.filter(p => p.estado === 'cancelado').length;
+
+                              return (
+                                <div style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  flexWrap: 'wrap',
+                                  gap: '6px',
+                                  marginTop: '6px',
+                                  fontSize: '0.72rem',
+                                  fontWeight: '700',
+                                  color: '#64748b'
+                                }}>
+                                  <span>💼 {totalProjetos} {totalProjetos === 1 ? 'Proj.' : 'Projs.'} (</span>
+                                  
+                                  {totalEmCurso > 0 && (
+                                    <span style={{ color: '#16a34a' }}>{totalEmCurso} em curso · </span>
+                                  )}
+                                  
+                                  {totalEmAnalise > 0 && (
+                                    <span style={{ color: '#8b5cf6' }}>{totalEmAnalise} em análise · </span>
+                                  )}
+                                  
+                                  {totalPendentes > 0 && (
+                                    <span style={{ color: '#f59e0b' }}>{totalPendentes} pend. · </span>
+                                  )}
+                                  
+                                  {totalConcluidos > 0 && (
+                                    <span style={{ color: '#2563eb' }}>{totalConcluidos} concl. · </span>
+                                  )}
+
+                                  {totalCancelados > 0 && (
+                                    <span style={{ color: '#94a3b8', textDecoration: 'line-through' }}>{totalCancelados} canc. · </span>
+                                  )}
+                                  
+                                  {/* Remove o último ponto decorativo retirando o espaço final da string ou fechando o parêntesis */}
+                                  <span style={{ marginLeft: '-4px' }}>)</span>
+                                </div>
+                              );
+                            })()}
                             
                             <div style={{display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '15px'}}>
                                 {moradaRef ? (
