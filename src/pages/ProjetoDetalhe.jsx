@@ -585,6 +585,7 @@ export default function ProjetoDetalhe() {
             programa: projeto.programa,
             aviso: projeto.aviso,
             codigo_projeto: projeto.codigo_projeto,
+            numero_projeto: projeto.numero_projeto,
             investimento: projeto.investimento,
             incentivo: projeto.incentivo,
             descricao: projeto.descricao,
@@ -1475,6 +1476,7 @@ export default function ProjetoDetalhe() {
               cliente_texto: "",
               estado: formGeral.estado, data_inicio: formGeral.data_inicio, data_fim: formGeral.data_fim,
               programa: formGeral.programa, aviso: formGeral.aviso, codigo_projeto: formGeral.codigo_projeto,
+              numero_projeto: formGeral.numero_projeto || "",
               descricao: formGeral.descricao, observacoes: formGeral.observacoes,
               investimento: formGeral.investimento, incentivo: formGeral.incentivo,
               programa_id: formGeral.programa_id || null,
@@ -3081,8 +3083,9 @@ export default function ProjetoDetalhe() {
                                 const isFormacaoLocal = tipoSelecionadoLocal?.eh_formacao === true;
                                 if (isFormacaoLocal) return null;
                                 return (
-                                    <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px'}}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
                                         <div><label style={labelStyle}>Código</label><input type="text" value={formGeral.codigo_projeto || ''} onChange={e => setFormGeral({...formGeral, codigo_projeto: e.target.value})} style={inputStyle} className="input-focus" /></div>
+                                        <div><label style={labelStyle}>Número</label><input type="text" value={formGeral.numero_projeto || ''} onChange={e => setFormGeral({...formGeral, numero_projeto: e.target.value})} style={inputStyle} className="input-focus" /></div>
                                         <div><label style={labelStyle}>Programa</label><input type="text" value={formGeral.programa || ''} onChange={e => setFormGeral({...formGeral, programa: e.target.value})} style={inputStyle} className="input-focus" /></div>
                                         <div><label style={labelStyle}>Aviso</label><input type="text" value={formGeral.aviso || ''} onChange={e => setFormGeral({...formGeral, aviso: e.target.value})} style={inputStyle} className="input-focus" /></div>
                                     </div>
@@ -3117,7 +3120,7 @@ export default function ProjetoDetalhe() {
                                                 ))}
                                             </div>
                                         ) : (
-                                            <div style={{color: '#94a3b8', fontSize: '0.85rem'}}>Sem fases registadas para este projeto.</div>
+                                            <div style={{color: '#94a3b8', fontSize: '0.85rem'}}>Sem fases registadas...</div>
                                         )}
                                     </div>
                                 );

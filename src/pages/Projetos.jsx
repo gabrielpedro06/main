@@ -217,7 +217,7 @@ export default function Projetos() {
     tipo_projeto_id: "",
     responsavel_id: "", colaboradores: [],
     estado: "pendente", data_inicio: "", data_fim: "",
-        observacoes: "", programa: "", aviso: "", codigo_projeto: "",
+        observacoes: "", programa: "", aviso: "", codigo_projeto: "", numero_projeto: "",
         programa_id: "", aviso_id: "", prazos_fases: [],
     investimento: 0, incentivo: 0
   };
@@ -948,7 +948,7 @@ export default function Projetos() {
         programa_id: matchedPrograma?.id || proj.programa_id || "",
         aviso_id: matchedAviso?.id || proj.aviso_id || avisoBase?.id || "",
         prazos_fases: projetoFases,
-        codigo_projeto: proj.codigo_projeto || "", investimento: proj.investimento || 0, incentivo: proj.incentivo || 0
+        codigo_projeto: proj.codigo_projeto || "", numero_projeto: proj.numero_projeto || "", investimento: proj.investimento || 0, incentivo: proj.incentivo || 0
     });
     setActiveTab("geral");
     setCurrentStep(1);
@@ -1031,7 +1031,6 @@ export default function Projetos() {
 
     if (normalizedFases.length > 0) {
         const lastPhaseDate = getLastProjetoFaseDate(normalizedFases);
-        if (lastPhaseDate) payload.data_fim = lastPhaseDate;
     }
 
     if (!editId) {
@@ -1359,7 +1358,6 @@ export default function Projetos() {
           aviso_id: aviso?.id || "",
           aviso: aviso?.codigo || "",
           prazos_fases: fases,
-          data_fim: fases.length > 0 ? getLastProjetoFaseDate(fases) : prev.data_fim,
       }));
   };
 
@@ -1396,7 +1394,6 @@ export default function Projetos() {
           return {
               ...prev,
               prazos_fases: fases,
-              data_fim: fases.length > 0 ? getLastProjetoFaseDate(fases) : prev.data_fim,
           };
       });
   };
@@ -2577,9 +2574,15 @@ export default function Projetos() {
                                                 </div>
                                             </div>
 
-                                            <div style={{marginBottom: '20px', maxWidth: '50%', paddingRight: '7.5px'}}>
-                                                <label style={labelStyle}>Código de Projeto</label>
-                                                <input type="text" value={form.codigo_projeto} onChange={e => setForm({...form, codigo_projeto: e.target.value})} placeholder="Ex: P2026-001" style={inputStyle} className="input-focus" />
+                                            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '20px'}}>
+                                                <div>
+                                                    <label style={labelStyle}>Código de Projeto</label>
+                                                    <input type="text" value={form.codigo_projeto} onChange={e => setForm({...form, codigo_projeto: e.target.value})} placeholder="Ex: ALGARVE-FEDER-03107000" style={inputStyle} className="input-focus" />
+                                                </div>
+                                                <div>
+                                                    <label style={labelStyle}>Número do Projeto</label>
+                                                    <input type="text" value={form.numero_projeto || ""} onChange={e => setForm({...form, numero_projeto: e.target.value})} placeholder="Ex: 12345" style={inputStyle} className="input-focus" />
+                                                </div>
                                             </div>
                                         </>
                                     )}
