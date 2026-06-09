@@ -421,13 +421,14 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
     /* Novo container clicável para o Logo */
     .logo-toggle-container {
         flex-shrink: 0;
-        padding: 20px 14px;
-        border-bottom: 1px solid rgba(255,255,255,0.05);
+        padding: 24px 16px 16px 16px; /* Aumentado ligeiramente o espaço no topo */
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: background 0.2s ease, padding 0.2s ease;
+        transition: background 0.2s ease;
+        width: 100%;
+        box-sizing: border-box;
     }
 
     .logo-toggle-container:hover {
@@ -435,10 +436,18 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
     }
 
     /* Animações suaves ao trocar o logo */
-    .logo-full, .logo-icon {
+    .logo-full {
         animation: fadeIn 0.15s ease-out;
-        max-height: 45px;
         width: 100%;
+        max-width: 160px;
+        height: auto !important; 
+        object-fit: contain;
+    }
+
+    .logo-icon {
+        animation: fadeIn 0.15s ease-out;
+        max-height: 38px;     /* Mantém o tamanho que disseste que já estava bom */
+        width: auto;
         object-fit: contain;
     }
 
