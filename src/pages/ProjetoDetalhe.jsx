@@ -619,7 +619,7 @@ export default function ProjetoDetalhe() {
     const [{ data: cliData }, { data: staffData }, { data: tiposData }] = await Promise.all([
         supabase.from("clientes").select("id, marca, sigla, eh_organismo").order("marca"), // Adicionado eh_organismo para preencher dropdowns
         supabase.from("profiles").select("id, nome, email, ativo").order("nome"),
-        supabase.from("tipos_projeto").select("id, nome").order("nome")
+        supabase.from("tipos_projeto").select("id, nome, eh_formacao").order("nome")
     ]);
     setClientes(cliData || []);
     setStaff(staffData || []);
@@ -2848,7 +2848,7 @@ export default function ProjetoDetalhe() {
                                 const isParc = e.target.value === 'parceria';
                                 setFormGeral({...formGeral, is_parceria: isParc, parceiros_ids: isParc ? (formGeral.parceiros_ids || []) : []});
                             }} style={{...inputStyle, cursor: 'pointer'}} className="input-focus">
-                                <option value="unico">👤 Cliente Único</option>
+                                <option value="unico">👤 Individual </option>
                                 <option value="parceria">🤝 Parceria (Vários)</option>
                             </select>
                         </div>
@@ -2949,63 +2949,76 @@ export default function ProjetoDetalhe() {
                         </div>
                     )}
 
-                    <div style={{display: 'grid', gridTemplateColumns: formGeral.has_organismo ? '1fr 1fr' : '1fr', gap: '15px', marginBottom: '20px'}}>
-                            <div>
-                                <label style={labelStyle}>Envolve Organismo Público?</label>
-                                <select
-                                    value={formGeral.has_organismo ? 'sim' : 'nao'}
-                                    onChange={e => {
-                                        const hasOrg = e.target.value === 'sim';
-                                        setFormGeral({...formGeral, has_organismo: hasOrg, organismo_id: hasOrg ? formGeral.organismo_id : null, organismo_contacto_id: hasOrg ? formGeral.organismo_contacto_id : null});
-                                    }}
-                                    style={{...inputStyle, cursor: 'pointer'}}
-                                    className="input-focus"
-                                >
-                                    <option value="nao">Não</option>
-                                    <option value="sim">Sim</option>
-                                </select>
-                            </div>
+                    {(() => {
+                        const tipoSelecionado = tiposProjeto.find(t => String(t.id) === String(formGeral.tipo_projeto_id));
+                        const isProjetoFormacao = tipoSelecionado?.eh_formacao === true;
+                        
+                        return (
+                            <>
+                                {!isProjetoFormacao && (
+                                    <>
+                                        <div style={{display: 'grid', gridTemplateColumns: formGeral.has_organismo ? '1fr 1fr' : '1fr', gap: '15px', marginBottom: '20px'}}>
+                                                <div>
+                                                    <label style={labelStyle}>Envolve Entidade Financiadora?</label>
+                                                    <select
+                                                        value={formGeral.has_organismo ? 'sim' : 'nao'}
+                                                        onChange={e => {
+                                                            const hasOrg = e.target.value === 'sim';
+                                                            setFormGeral({...formGeral, has_organismo: hasOrg, organismo_id: hasOrg ? formGeral.organismo_id : null, organismo_contacto_id: hasOrg ? formGeral.organismo_contacto_id : null});
+                                                        }}
+                                                        style={{...inputStyle, cursor: 'pointer'}}
+                                                        className="input-focus"
+                                                    >
+                                                        <option value="nao">Não</option>
+                                                        <option value="sim">Sim</option>
+                                                    </select>
+                                                </div>
 
-                            {formGeral.has_organismo && (
-                                <div>
-                                    <label style={labelStyle}>Organismo Lider / Principal *</label>
-                                    <select
-                                        value={formGeral.organismo_id || ""}
-                                        onChange={e => setFormGeral({...formGeral, organismo_id: e.target.value, organismo_contacto_id: null})}
-                                        style={{...inputStyle, cursor: 'pointer', borderColor: 'var(--color-btnPrimary)', background: 'var(--color-bgSecondary)'}}
-                                        className="input-focus"
-                                        required={formGeral.has_organismo}
-                                    >
-                                        <option value="">-- Selecione o Organismo --</option>
-                                        {clientes.filter(c => c.eh_organismo).map(c => (
-                                            <option key={c.id} value={c.id}>{getClientDisplayName(c) || c.marca}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            )}
-                        </div>
+                                                {formGeral.has_organismo && (
+                                                    <div>
+                                                        <label style={labelStyle}>Organismo Lider / Principal *</label>
+                                                        <select
+                                                            value={formGeral.organismo_id || ""}
+                                                            onChange={e => setFormGeral({...formGeral, organismo_id: e.target.value, organismo_contacto_id: null})}
+                                                            style={{...inputStyle, cursor: 'pointer', borderColor: 'var(--color-btnPrimary)', background: 'var(--color-bgSecondary)'}}
+                                                            className="input-focus"
+                                                            required={formGeral.has_organismo}
+                                                        >
+                                                            <option value="">-- Selecione o Organismo --</option>
+                                                            {clientes.filter(c => c.eh_organismo).map(c => (
+                                                                <option key={c.id} value={c.id}>{getClientDisplayName(c) || c.marca}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                )}
+                                            </div>
 
-                    {formGeral.has_organismo && formGeral.organismo_id && (
-                        <div style={{marginBottom: '20px'}}>
-                            <label style={labelStyle}>Pessoa do Organismo</label>
-                            <select
-                                value={formGeral.organismo_contacto_id || ""}
-                                onChange={e => setFormGeral({...formGeral, organismo_contacto_id: e.target.value})}
-                                style={{...inputStyle, cursor: 'pointer'}}
-                                className="input-focus"
-                            >
-                                <option value="">-- Sem pessoa definida --</option>
-                                {organismoPessoas.map(p => {
-                                    const nome = p.nome_contacto || p.email || "Contacto";
-                                    const cargo = p.cargo ? ` (${p.cargo})` : "";
-                                    return <option key={p.id} value={p.id}>{`${nome}${cargo}`}</option>;
-                                })}
-                            </select>
-                            {organismoPessoas.length === 0 && (
-                                <div style={{marginTop: '6px', color: '#94a3b8', fontSize: '0.8rem', fontStyle: 'italic'}}>Este organismo ainda não tem contactos registados.</div>
-                            )}
-                        </div>
-                    )}
+                                        {formGeral.has_organismo && formGeral.organismo_id && (
+                                            <div style={{marginBottom: '20px'}}>
+                                                <label style={labelStyle}>Pessoa do Organismo</label>
+                                                <select
+                                                    value={formGeral.organismo_contacto_id || ""}
+                                                    onChange={e => setFormGeral({...formGeral, organismo_contacto_id: e.target.value})}
+                                                    style={{...inputStyle, cursor: 'pointer'}}
+                                                    className="input-focus"
+                                                >
+                                                    <option value="">-- Sem pessoa definida --</option>
+                                                    {organismoPessoas.map(p => {
+                                                        const nome = p.nome_contacto || p.email || "Contacto";
+                                                        const cargo = p.cargo ? ` (${p.cargo})` : "";
+                                                        return <option key={p.id} value={p.id}>{`${nome}${cargo}`}</option>;
+                                                    })}
+                                                </select>
+                                                {organismoPessoas.length === 0 && (
+                                                    <div style={{marginTop: '6px', color: '#94a3b8', fontSize: '0.8rem', fontStyle: 'italic'}}>Este organismo ainda não tem contactos registados.</div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+                            </>
+                        );
+                    })()}
 
                     <div style={{marginBottom: '30px'}}>
                         <label style={labelStyle}>Outros Colaboradores Envolvidos</label>
@@ -3063,11 +3076,18 @@ export default function ProjetoDetalhe() {
                             <label style={labelStyle}>Nome do Projeto</label>
                             <input type="text" value={formGeral.titulo || ''} onChange={e => setFormGeral({...formGeral, titulo: e.target.value})} style={{...inputStyle, fontWeight: 'bold', color: '#0f172a'}} className="input-focus" />
                             
-                            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px'}}>
-                                <div><label style={labelStyle}>Código</label><input type="text" value={formGeral.codigo_projeto || ''} onChange={e => setFormGeral({...formGeral, codigo_projeto: e.target.value})} style={inputStyle} className="input-focus" /></div>
-                                <div><label style={labelStyle}>Programa</label><input type="text" value={formGeral.programa || ''} onChange={e => setFormGeral({...formGeral, programa: e.target.value})} style={inputStyle} className="input-focus" /></div>
-                                <div><label style={labelStyle}>Aviso</label><input type="text" value={formGeral.aviso || ''} onChange={e => setFormGeral({...formGeral, aviso: e.target.value})} style={inputStyle} className="input-focus" /></div>
-                            </div>
+                            {(() => {
+                                const tipoSelecionadoLocal = tiposProjeto.find(t => String(t.id) === String(formGeral.tipo_projeto_id));
+                                const isFormacaoLocal = tipoSelecionadoLocal?.eh_formacao === true;
+                                if (isFormacaoLocal) return null;
+                                return (
+                                    <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px'}}>
+                                        <div><label style={labelStyle}>Código</label><input type="text" value={formGeral.codigo_projeto || ''} onChange={e => setFormGeral({...formGeral, codigo_projeto: e.target.value})} style={inputStyle} className="input-focus" /></div>
+                                        <div><label style={labelStyle}>Programa</label><input type="text" value={formGeral.programa || ''} onChange={e => setFormGeral({...formGeral, programa: e.target.value})} style={inputStyle} className="input-focus" /></div>
+                                        <div><label style={labelStyle}>Aviso</label><input type="text" value={formGeral.aviso || ''} onChange={e => setFormGeral({...formGeral, aviso: e.target.value})} style={inputStyle} className="input-focus" /></div>
+                                    </div>
+                                );
+                            })()}
 
                             <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px'}}>
                                 <div><label style={labelStyle}>Data Início</label><input type="date" value={formGeral.data_inicio || ''} onChange={e => setFormGeral({...formGeral, data_inicio: e.target.value})} style={inputStyle} className="input-focus" /></div>
@@ -3080,31 +3100,45 @@ export default function ProjetoDetalhe() {
                                 </div>
                             </div>
 
-                            <div style={{marginTop: '18px', padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0', background: '#f8fafc'}}>
-                                <label style={labelStyle}>Fases do Programa / Aviso</label>
-                                {projetoFases.length > 0 ? (
-                                    <div style={{display: 'grid', gap: '10px'}}>
-                                        {projetoFases.map((fase, index) => (
-                                            <div key={`${fase.nome || 'fase'}-${index}`} style={{display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', padding: '10px 12px', borderRadius: '10px', background: 'white', border: '1px solid #e2e8f0'}}>
-                                                <div style={{fontWeight: '700', color: '#1e293b'}}>{fase.nome || `Fase ${index + 1}`}</div>
-                                                <div style={{fontWeight: '800', color: '#475569'}}>{fase.prazo ? new Date(`${fase.prazo}T00:00:00`).toLocaleDateString('pt-PT') : 'Sem data'}</div>
+                            {(() => {
+                                const tipoSelecionadoLocal = tiposProjeto.find(t => String(t.id) === String(formGeral.tipo_projeto_id));
+                                const isFormacaoLocal = tipoSelecionadoLocal?.eh_formacao === true;
+                                if (isFormacaoLocal) return null;
+                                return (
+                                    <div style={{marginTop: '18px', padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0', background: '#f8fafc'}}>
+                                        <label style={labelStyle}>Fases do Programa / Aviso</label>
+                                        {projetoFases.length > 0 ? (
+                                            <div style={{display: 'grid', gap: '10px'}}>
+                                                {projetoFases.map((fase, index) => (
+                                                    <div key={`${fase.nome || 'fase'}-${index}`} style={{display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', padding: '10px 12px', borderRadius: '10px', background: 'white', border: '1px solid #e2e8f0'}}>
+                                                        <div style={{fontWeight: '700', color: '#1e293b'}}>{fase.nome || `Fase ${index + 1}`}</div>
+                                                        <div style={{fontWeight: '800', color: '#475569'}}>{fase.prazo ? new Date(`${fase.prazo}T00:00:00`).toLocaleDateString('pt-PT') : 'Sem data'}</div>
+                                                    </div>
+                                                ))}
                                             </div>
-                                        ))}
+                                        ) : (
+                                            <div style={{color: '#94a3b8', fontSize: '0.85rem'}}>Sem fases registadas para este projeto.</div>
+                                        )}
                                     </div>
-                                ) : (
-                                    <div style={{color: '#94a3b8', fontSize: '0.85rem'}}>Sem fases registadas para este projeto.</div>
-                                )}
-                            </div>
+                                );
+                            })()}
                         </div>
 
                         <div>
-                            <div style={{background: 'var(--color-bgSecondary)', padding: '20px', borderRadius: '12px', border: '1px solid var(--color-borderColor)', marginBottom: '20px'}}>
-                                <h4 style={{margin: '0 0 15px 0', color: 'var(--color-btnPrimaryHover)', display: 'flex', alignItems: 'center', gap: '8px', fontSize:'1rem'}}><Icons.Dollar /> Financeiro</h4>
-                                <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
-                                    <div><label style={{...labelStyle, color: 'var(--color-btnPrimaryDark)'}}>Investimento (€)</label><input type="text" value={formatNumber(formGeral.investimento)} onChange={e => setFormGeral({...formGeral, investimento: parseNumberInput(e.target.value)})} style={{...inputStyle, borderColor: 'var(--color-borderColor)', marginBottom:0}} className="input-focus" /></div>
-                                    <div><label style={{...labelStyle, color: 'var(--color-btnPrimaryDark)'}}>Incentivo (€)</label><input type="text" value={formatNumber(formGeral.incentivo)} onChange={e => setFormGeral({...formGeral, incentivo: parseNumberInput(e.target.value)})} style={{...inputStyle, borderColor: 'var(--color-borderColor)', color: 'var(--color-btnPrimary)', marginBottom:0}} className="input-focus" /></div>
-                                </div>
-                            </div>
+                            {(() => {
+                                const tipoSelecionadoLocal = tiposProjeto.find(t => String(t.id) === String(formGeral.tipo_projeto_id));
+                                const isFormacaoLocal = tipoSelecionadoLocal?.eh_formacao === true;
+                                if (isFormacaoLocal) return null;
+                                return (
+                                    <div style={{background: 'var(--color-bgSecondary)', padding: '20px', borderRadius: '12px', border: '1px solid var(--color-borderColor)', marginBottom: '20px'}}>
+                                        <h4 style={{margin: '0 0 15px 0', color: 'var(--color-btnPrimaryHover)', display: 'flex', alignItems: 'center', gap: '8px', fontSize:'1rem'}}><Icons.Dollar /> Financeiro</h4>
+                                        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
+                                            <div><label style={{...labelStyle, color: 'var(--color-btnPrimaryDark)'}}>Investimento (€)</label><input type="text" value={formatNumber(formGeral.investimento)} onChange={e => setFormGeral({...formGeral, investimento: parseNumberInput(e.target.value)})} style={{...inputStyle, borderColor: 'var(--color-borderColor)', marginBottom:0}} className="input-focus" /></div>
+                                            <div><label style={{...labelStyle, color: 'var(--color-btnPrimaryDark)'}}>Incentivo (€)</label><input type="text" value={formatNumber(formGeral.incentivo)} onChange={e => setFormGeral({...formGeral, incentivo: parseNumberInput(e.target.value)})} style={{...inputStyle, borderColor: 'var(--color-borderColor)', color: 'var(--color-btnPrimary)', marginBottom:0}} className="input-focus" /></div>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
                             <label style={labelStyle}>Descrição Pública</label>
                             <textarea rows="3" value={formGeral.descricao || ''} onChange={e => setFormGeral({...formGeral, descricao: e.target.value})} style={{...inputStyle, resize: 'vertical', fontSize:'0.85rem'}} className="input-focus" />
                             <label style={{...labelStyle, color: '#b45309', marginTop: '5px'}}>Observações Internas</label>

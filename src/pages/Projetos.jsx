@@ -155,6 +155,8 @@ export default function Projetos() {
   const { user } = useAuth();
   const navigate = useNavigate(); 
   const location = useLocation(); 
+  const [currentStep, setCurrentStep] = useState(1);
+  const TOTAL_STEPS = 5;
 
   const [projetos, setProjetos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -179,6 +181,7 @@ export default function Projetos() {
         const attendancePendingActionRef = useRef(null);
   
   const [confirmDialog, setConfirmDialog] = useState({ show: false, message: '', confirmText: 'Confirmar', isDanger: true, onConfirm: null });
+  const [alertDialog, setAlertDialog] = useState({ show: false, message: '', title: 'Aviso' });
   
   const [busca, setBusca] = useState("");
   const [mostrarConcluidos, setMostrarConcluidos] = useState(false);
@@ -202,6 +205,25 @@ export default function Projetos() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // States para a Preview de Atividades
+  const [templateTree, setTemplateTree] = useState([]);
+  const [templateSelection, setTemplateSelection] = useState({});
+
+  const initialForm = {
+    titulo: "", descricao: "", 
+    cliente_id: "", cliente_texto: "", 
+    is_parceria: false, parceiros_ids: [],
+    has_organismo: false, organismo_id: "", organismo_contacto_id: "",
+    tipo_projeto_id: "",
+    responsavel_id: "", colaboradores: [],
+    estado: "pendente", data_inicio: "", data_fim: "",
+        observacoes: "", programa: "", aviso: "", codigo_projeto: "",
+        programa_id: "", aviso_id: "", prazos_fases: [],
+    investimento: 0, incentivo: 0
+  };
+
+  const [form, setForm] = useState(initialForm);
+        
   const isLocalHost = (hostname) => {
       const normalized = String(hostname || "").toLowerCase();
       return normalized === "localhost" || normalized === "127.0.0.1" || normalized === "::1";
@@ -285,25 +307,6 @@ export default function Projetos() {
           closeQuickOrganismoModal();
       }
   }, [showModal]);
-
-  // States para a Preview de Atividades
-  const [templateTree, setTemplateTree] = useState([]);
-  const [templateSelection, setTemplateSelection] = useState({});
-
-  const initialForm = {
-    titulo: "", descricao: "", 
-    cliente_id: "", cliente_texto: "", 
-    is_parceria: false, parceiros_ids: [],
-    has_organismo: false, organismo_id: "", organismo_contacto_id: "",
-    tipo_projeto_id: "",
-    responsavel_id: "", colaboradores: [],
-    estado: "pendente", data_inicio: "", data_fim: "",
-        observacoes: "", programa: "", aviso: "", codigo_projeto: "",
-        programa_id: "", aviso_id: "", prazos_fases: [],
-    investimento: 0, incentivo: 0
-  };
-
-  const [form, setForm] = useState(initialForm);
 
   useEffect(() => {
     fetchData();
@@ -414,6 +417,7 @@ export default function Projetos() {
             setEditId(null);
             setIsViewOnly(false);
             setActiveTab("geral");
+            setCurrentStep(1);
             setShowModal(true); 
             // Limpa para não repetir ao atualizar a página
             navigate(location.pathname, { replace: true, state: {} });
@@ -440,6 +444,7 @@ export default function Projetos() {
           setEditId(null);
           setIsViewOnly(false);
           setActiveTab("geral");
+          setCurrentStep(1);
           setShowModal(true); 
           
           navigate(location.pathname, { replace: true, state: {} });
@@ -577,7 +582,7 @@ export default function Projetos() {
     const { data: cliData } = await supabase.from("clientes").select("id, marca, sigla, eh_organismo").order("marca");
     setClientes(cliData || []);
 
-    const { data: tipoData } = await supabase.from("tipos_projeto").select("id, nome").order("nome");
+    const { data: tipoData } = await supabase.from("tipos_projeto").select("id, nome, eh_formacao").order("nome");
         setTipos(tipoData || []); 
 
     const { data: staffData } = await supabase.from("profiles").select("id, nome, email, ativo").order("nome");
@@ -909,6 +914,7 @@ export default function Projetos() {
                 prazos_fases: [] 
     });
     setActiveTab("geral"); 
+    setCurrentStep(1);
     setShowModal(true);
   }
 
@@ -945,6 +951,7 @@ export default function Projetos() {
         codigo_projeto: proj.codigo_projeto || "", investimento: proj.investimento || 0, incentivo: proj.incentivo || 0
     });
     setActiveTab("geral");
+    setCurrentStep(1);
     setShowModal(true);
   }
 
@@ -1701,7 +1708,6 @@ export default function Projetos() {
   };
 
   const tipoSelecionadoUI = tipos.find(t => String(t.id) === String(form.tipo_projeto_id));
-  const isFormacaoSelected = tipoSelecionadoUI?.nome?.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes('forma');
   const organismoPessoas = form.has_organismo && form.organismo_id
       ? entidadePessoas.filter(p => String(p.cliente_id) === String(form.organismo_id))
       : [];
@@ -2046,6 +2052,24 @@ export default function Projetos() {
           </ModalPortal>
       )}
 
+      {/* 💡 MODAL DE AVISO (SUBSTITUTO DO ALERT) */}
+      {alertDialog.show && (
+          <ModalPortal>
+              <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999}}>
+                  <div style={{background: 'white', padding: '30px', borderRadius: '16px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out'}}>
+                      <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px'}}><Icons.Alert color="var(--color-btnPrimary)" /></div>
+                      <h3 style={{margin: '0 0 10px 0', color: '#1e293b', fontSize: '1.25rem'}}>{alertDialog.title || 'Aviso'}</h3>
+                      <p style={{color: '#64748b', fontSize: '0.95rem', marginBottom: '25px', lineHeight: '1.5', whiteSpace: 'pre-line'}}>
+                          {alertDialog.message}
+                      </p>
+                      <div style={{display: 'flex', justifyContent: 'center'}}>
+                          <button onClick={() => setAlertDialog({show: false, message: '', title: ''})} style={{width: '100%', padding: '12px', borderRadius: '10px', border: 'none', background: 'var(--color-btnPrimary)', color: 'white', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">OK</button>
+                      </div>
+                  </div>
+              </div>
+          </ModalPortal>
+      )}
+
       <TimerSwitchModal
           open={timerSwitchModal.show}
           title="Trocar Cronometro Ativo"
@@ -2193,12 +2217,13 @@ export default function Projetos() {
           </ModalPortal>
       )}
 
-      {/* --- MODAL CRIAR/EDITAR PROJETO --- */}
+{/* --- MODAL CRIAR/EDITAR PROJETO (WIZARD 5 PASSOS) --- */}
       {showModal && (
         <ModalPortal>
           <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(15, 23, 42, 0.7)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:99999}} onClick={() => setShowModal(false)}>
-            <div style={{background:'#fff', width:'95%', maxWidth:'850px', borderRadius:'16px', boxShadow:'0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow:'hidden', display:'flex', flexDirection:'column', maxHeight:'92vh', animation: 'fadeIn 0.2s ease-out'}} onClick={e => e.stopPropagation()}>
+            <div style={{background:'#fff', width:'95%', maxWidth:'1000px', minHeight: '650px', borderRadius:'16px', boxShadow:'0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow:'hidden', display:'flex', flexDirection:'column', maxHeight:'92vh', animation: 'fadeIn 0.2s ease-out'}} onClick={e => e.stopPropagation()}>
               
+              {/* --- CABEÇALHO --- */}
               <div style={{padding:'20px 25px', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center', background:'#f8fafc'}}>
                 <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
                     <span style={{background:'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding:'10px', borderRadius:'10px', display: 'flex'}}><Icons.Rocket size={24} /></span>
@@ -2207,653 +2232,637 @@ export default function Projetos() {
                 <button onClick={() => setShowModal(false)} style={{background:'transparent', border:'none', cursor:'pointer', color:'#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center'}} className="hover-red-text"><Icons.Close size={20} /></button>
               </div>
 
-              <div className="tabs" style={{padding: '15px 30px 0 30px', background: '#fff', borderBottom: '1px solid #e2e8f0', display: 'flex', gap: '5px'}}>
-                <button className={activeTab === 'geral' ? 'active' : ''} onClick={() => setActiveTab('geral')} style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.ClipboardList /> Geral & Atividades</button>
-                <button className={activeTab === 'investimento' ? 'active' : ''} onClick={() => setActiveTab('investimento')} style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.Dollar /> Investimento</button>
-                <button className={activeTab === 'notas' ? 'active' : ''} onClick={() => setActiveTab('notas')} style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.FileText /> Notas</button>
+              {/* --- STEPPER VISUAL --- */}
+              <div style={{padding: '20px 30px', background: '#fff', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                <div style={{display: 'flex', gap: '10px', alignItems: 'center', width: '100%'}}>
+                  {[
+                    { num: 1, label: 'Base & Entidade' },
+                    { num: 2, label: 'Organismo & Equipa' },
+                    { num: 3, label: 'Planeamento' },
+                    { num: 4, label: 'Atividades' },
+                    { num: 5, label: 'Finanças & Notas' }
+                  ].map(step => (
+                    <div key={step.num} style={{display: 'flex', alignItems: 'center', flex: 1, opacity: currentStep >= step.num ? 1 : 0.4}}>
+                      <div style={{
+                        width: '30px', height: '30px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                        background: currentStep >= step.num ? 'var(--color-btnPrimary)' : '#e2e8f0', 
+                        color: currentStep >= step.num ? 'white' : '#64748b', fontWeight: 'bold', fontSize: '0.9rem',
+                        flexShrink: 0
+                      }}>
+                        {currentStep > step.num ? <Icons.Check size={16} /> : step.num}
+                      </div>
+                      <span style={{marginLeft: '8px', fontSize: '0.85rem', fontWeight: currentStep === step.num ? '700' : '500', color: currentStep === step.num ? '#1e293b' : '#64748b', whiteSpace: 'nowrap'}}>
+                        {step.label}
+                      </span>
+                      {step.num < 5 && <div style={{flex: 1, height: '2px', background: currentStep > step.num ? 'var(--color-btnPrimary)' : '#e2e8f0', margin: '0 10px'}}></div>}
+                    </div>
+                  ))}
+                </div>
               </div>
 
+              {/* --- CORPO DO FORMULÁRIO --- */}
               <div style={{padding:'30px', overflowY:'auto', background:'white', flex: 1}} className="custom-scrollbar">
-                <form onSubmit={handleSubmit}>
+                <form id="project-form" onSubmit={handleSubmit}>
                   <fieldset disabled={isViewOnly} style={{border:'none', padding:0, margin: 0}}>
                     
-                    {activeTab === 'geral' && (
-                      <div>
-                        {/* 1. ENQUADRAMENTO MOVEU-SE PARA O TOPO */}
-                        <div style={{...sectionTitleStyle, marginTop: 0}}><Icons.Building /> Enquadramento</div>
-                        
-                        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '20px'}}>
-                            <div>
-                                <label style={labelStyle}>Tipologia</label>
-                                <select value={form.is_parceria ? 'parceria' : 'unico'} onChange={e => {
-                                    const isParc = e.target.value === 'parceria';
-                                    setForm({...form, is_parceria: isParc, parceiros_ids: isParc ? form.parceiros_ids : []});
-                                }} style={{...inputStyle, cursor: 'pointer'}} className="input-focus">
-                                    <option value="unico">👤 Individual </option>
-                                    <option value="parceria">🤝 Parceria (Vários)</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label style={labelStyle}>Tipo de Projeto (Modelo)</label>
-                                <select value={form.tipo_projeto_id || ''} onChange={e => setForm({...form, tipo_projeto_id: e.target.value})} style={{...inputStyle, cursor: 'pointer'}} disabled={!!editId} className="input-focus">
-                                    <option value="">-- Em Branco --</option>
-                                    {tipos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
-                                </select>
-                            </div>
-                            <div>
-                                <label style={labelStyle}>Responsável Global</label>
-                                <select 
-                                    value={form.responsavel_id || ''} 
-                                    onChange={e => {
-                                        const newResp = e.target.value;
-                                        setForm(prev => ({
-                                            ...prev, 
-                                            responsavel_id: newResp,
-                                            // Se o novo responsável estava na lista de colaboradores extras, removemo-lo
-                                            colaboradores: prev.colaboradores.filter(id => id !== newResp) 
-                                        }));
-                                    }} 
-                                    style={{...inputStyle, cursor: 'pointer'}} 
-                                    className="input-focus"
-                                >
-                                    <option value="">-- Selecione --</option>
-                                    {staff
-                                        .filter(s => s.ativo !== false || String(s.id) === String(form.responsavel_id))
-                                        .map(s => <option key={s.id} value={s.id}>{s.nome || s.email}{s.ativo === false ? ' (Inativo)' : ''}</option>)}
-                                </select>
-                            </div>
-                        </div>
+                    {/* Variável que controla a visibilidade baseada no modelo selecionado */}
+                    {(() => {
+                        const tipoSelecionado = tipos.find(t => String(t.id) === String(form.tipo_projeto_id));
+                        const isProjetoFormacao = tipoSelecionado?.eh_formacao === true;
 
-                        {/* ROW: Cliente principal + parceiros */}
-                        <div style={{display: 'grid', gridTemplateColumns: form.is_parceria ? '1fr 1fr' : '1fr', gap: '15px', marginBottom: form.is_parceria ? '10px' : '20px'}}>
-                            <div>
-                                <label style={labelStyle}>Entidade Lider *</label>
-                                <select
-                                    value={form.cliente_id || ''}
-                                    onChange={e => {
-                                        const selectedId = e.target.value;
-                                        setForm(prev => ({
-                                            ...prev,
-                                            cliente_id: selectedId,
-                                            parceiros_ids: (prev.parceiros_ids || []).filter(pid => String(pid) !== String(selectedId))
-                                        }));
-                                        setParceiroSelecionado("");
-                                    }}
-                                    required
-                                    style={{...inputStyle, cursor: 'pointer'}}
-                                    className="input-focus"
-                                >
-                                    <option value="">-- Selecione o Cliente --</option>
-                                    {clientes.map(c => <option key={c.id} value={c.id}>{getClientDisplayName(c) || c.marca}</option>)}
-                                </select>
-                            </div>
-
-                            {form.is_parceria && (
-                                <div>
-                                    <label style={labelStyle}>Entidades Parceiras</label>
-                                    <select
-                                        value={parceiroSelecionado}
-                                        onChange={e => {
-                                            const selected = e.target.value;
-                                            setParceiroSelecionado(selected);
-                                            if (!selected) return;
-                                            setForm(prev => {
-                                                if (String(selected) === String(prev.cliente_id)) return prev;
-                                                if ((prev.parceiros_ids || []).includes(selected)) return prev;
-                                                return { ...prev, parceiros_ids: [...(prev.parceiros_ids || []), selected] };
-                                            });
-                                            setParceiroSelecionado("");
-                                        }}
-                                        style={{...inputStyle, cursor: 'pointer'}}
-                                        className="input-focus"
-                                    >
-                                        <option value="">-- Adicionar entidade parceira --</option>
-                                        {clientes
-                                            .filter(c => String(c.id) !== String(form.cliente_id || ''))
-                                            .filter(c => !(form.parceiros_ids || []).includes(c.id))
-                                            .map(c => <option key={c.id} value={c.id}>{getClientDisplayName(c) || c.marca}</option>)}
-                                    </select>
-                                </div>
-                            )}
-                        </div>
-
-                        {form.is_parceria && (
-                            <div style={{marginBottom: '20px'}}>
-                                <label style={labelStyle}>Entidades Selecionadas</label>
-                                <div className="pill-container" style={{width: '100%', boxSizing: 'border-box'}}>
-                                    {(form.parceiros_ids || []).length === 0 && <span style={{color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic'}}>Sem parceiros selecionados.</span>}
-                                    {(form.parceiros_ids || []).map(pid => {
-                                        const parceiro = clientes.find(c => String(c.id) === String(pid));
-                                        if (!parceiro) return null;
-                                        return (
-                                            <div
-                                                key={pid}
-                                                onClick={() => !isViewOnly && handleToggleParceiro(pid)}
-                                                className="pill-checkbox selected"
-                                                title="Remover parceiro"
-                                            >
-                                                {getClientDisplayName(parceiro) || parceiro.marca} ✕
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        )}
-                        
-                        {/* ROW: Organismos */}
-                        <div style={{display: 'grid', gridTemplateColumns: form.has_organismo ? '1fr 1fr' : '1fr', gap: '15px', marginBottom: '20px'}}>
-                            <div>
-                                <label style={labelStyle}>Envolve Organismo Público?</label>
-                                <select
-                                    value={form.has_organismo ? 'sim' : 'nao'}
-                                    onChange={e => {
-                                        const hasOrg = e.target.value === 'sim';
-                                        setForm({...form, has_organismo: hasOrg, organismo_id: hasOrg ? form.organismo_id : "", organismo_contacto_id: hasOrg ? form.organismo_contacto_id : ""});
-                                    }}
-                                    style={{...inputStyle, cursor: 'pointer'}}
-                                    className="input-focus"
-                                    disabled={isViewOnly}
-                                >
-                                    <option value="nao">Não</option>
-                                    <option value="sim">Sim</option>
-                                </select>
-                            </div>
-
-                            {form.has_organismo && (
-                                <div>
-                                    <label style={labelStyle}>Organismo Lider / Principal *</label>
-                                    <select
-                                        value={form.organismo_id || ""}
-                                        onChange={e => setForm({...form, organismo_id: e.target.value, organismo_contacto_id: ""})}
-                                        style={{...inputStyle, cursor: 'pointer', borderColor: 'var(--color-btnPrimary)', background: 'var(--color-bgSecondary)'}}
-                                        className="input-focus"
-                                        disabled={isViewOnly}
-                                        required={form.has_organismo}
-                                    >
-                                        <option value="">-- Selecione o Organismo --</option>
-                                        {/* Filtramos apenas os clientes que são organismos */}
-                                        {clientes.filter(c => c.eh_organismo).map(c => (
-                                            <option key={c.id} value={c.id}>{getClientDisplayName(c) || c.marca}</option>
-                                        ))}
-                                    </select>
-                                    <button
-                                        type="button"
-                                        onClick={openQuickOrganismoModal}
-                                        disabled={isViewOnly}
-                                        style={{marginTop: '8px', border: '1px dashed #cbd5e1', background: 'white', color: 'var(--color-btnPrimary)', padding: '8px 12px', borderRadius: '8px', cursor: isViewOnly ? 'not-allowed' : 'pointer', fontWeight: '700', fontSize: '0.85rem'}}
-                                    >
-                                        + Criar organismo sem sair daqui
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* ROW: Colaboradores em formato PILL com filtro do Responsável */}
-                        {form.has_organismo && form.organismo_id && (
-                            <div style={{marginBottom: '20px'}}>
-                                <label style={labelStyle}>Pessoa do Organismo</label>
-                                <select
-                                    value={form.organismo_contacto_id || ""}
-                                    onChange={e => setForm({...form, organismo_contacto_id: e.target.value})}
-                                    style={{...inputStyle, cursor: 'pointer'}}
-                                    className="input-focus"
-                                    disabled={isViewOnly}
-                                >
-                                    <option value="">-- Sem pessoa definida --</option>
-                                    {organismoPessoas.map(p => {
-                                        const nome = p.nome_contacto || p.email || "Contacto";
-                                        const cargo = p.cargo ? ` (${p.cargo})` : "";
-                                        return <option key={p.id} value={p.id}>{`${nome}${cargo}`}</option>;
-                                    })}
-                                </select>
-                                {organismoPessoas.length === 0 && (
-                                    <div style={{marginTop: '6px', color: '#94a3b8', fontSize: '0.8rem', fontStyle: 'italic'}}>Este organismo ainda não tem contactos registados.</div>
-                                )}
-                            </div>
-                        )}
-
-                        <div style={{marginBottom: '30px'}}>
-                            <label style={labelStyle}>Outros Colaboradores Envolvidos</label>
-                            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px'}}>
-                                <div>
-                                    <div style={{fontSize: '0.74rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px'}}>Equipa Interna</div>
-                                    <div className="pill-container" style={{minHeight: '60px'}}>
-                                        {staff
-                                            .filter(s => String(s.id) !== String(form.responsavel_id || ''))
-                                            .filter(s => s.ativo !== false || (form.colaboradores || []).includes(s.id))
-                                            .map(s => {
-                                                const isSelected = (form.colaboradores || []).map(id => String(id)).includes(String(s.id));
-                                                return (
-                                                    <div 
-                                                        key={`colab-int-${s.id}`}
-                                                        onClick={() => !isViewOnly && handleToggleColaborador(s.id)}
-                                                        className={`pill-checkbox ${isSelected ? 'selected' : ''}`}
-                                                    >
-                                                        {s.nome || s.email}{s.ativo === false ? ' (Inativo)' : ''}
-                                                    </div>
-                                                )
-                                        })}
-                                        {staff.filter(s => String(s.id) !== String(form.responsavel_id || '')).length === 0 && (
-                                            <span style={{color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic'}}>Sem pessoas internas disponíveis.</span>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <div style={{fontSize: '0.74rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px'}}>Pessoas das Entidades</div>
-                                    <div className="pill-container" style={{minHeight: '60px'}}>
-                                        {entidadePessoas
-                                            .filter(s => String(s.id) !== String(form.responsavel_id || ''))
-                                            .map(s => {
-                                                const isSelected = (form.colaboradores || []).map(id => String(id)).includes(String(s.id));
-                                                const base = s.nome_contacto || s.email || 'Contacto';
-                                                const cargo = s.cargo ? ` (${s.cargo})` : '';
-                                                const marca = getClientDisplayName(s.clientes) ? ` - ${getClientDisplayName(s.clientes)}` : '';
-                                                return (
-                                                    <div 
-                                                        key={`ent-${s.id}`}
-                                                        onClick={() => !isViewOnly && handleToggleColaborador(s.id)}
-                                                        className={`pill-checkbox ${isSelected ? 'selected' : ''}`}
-                                                    >
-                                                        {`${base}${cargo}${marca}`}
-                                                    </div>
-                                                )
-                                        })}
-                                        {entidadePessoas.filter(s => String(s.id) !== String(form.responsavel_id || '')).length === 0 && (
-                                            <span style={{color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic'}}>Sem contactos das entidades selecionadas.</span>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* 2. TÍTULO E CÓDIGO */}
-                        <div style={sectionTitleStyle}><Icons.FileText /> Identificação</div>
-                        <div style={{display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px', marginBottom: '30px'}}>
-                            <div>
-                                <label style={labelStyle}>Título do Projeto *</label>
-                                <input type="text" value={form.titulo} onChange={e => setForm({...form, titulo: e.target.value})} required style={{...inputStyle, fontSize:'1.1rem', padding:'12px', fontWeight: 'bold'}} className="input-focus" />
-                            </div>
-                            <div>
-                                <label style={labelStyle}>Código de Projeto</label>
-                                <input type="text" value={form.codigo_projeto} onChange={e => setForm({...form, codigo_projeto: e.target.value})} placeholder="Ex: P2026-001" style={inputStyle} className="input-focus" />
-                            </div>
-                        </div>
-
-                        {/* 3. PLANEAMENTO */}
-                        <div style={sectionTitleStyle}><Icons.Calendar /> Planeamento & Avisos</div>
-                        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '18px'}}>
-                            <div>
-                                <label style={labelStyle}>Programa</label>
-                                <select
-                                    value={form.programa_id || ''}
-                                    onChange={(e) => handleProgramaChange(e.target.value)}
-                                    style={{...inputStyle, cursor: 'pointer'}}
-                                    className="input-focus"
-                                >
-                                    <option value="">-- Sem programa associado --</option>
-                                    {programas.filter((programa) => programa.ativo !== false).map((programa) => (
-                                        <option key={programa.id} value={programa.id}>
-                                            {`${programa.codigo ? `${programa.codigo} - ` : ''}${programa.nome || 'Programa'}`}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div>
-                                <label style={labelStyle}>Aviso</label>
-                                <input
-                                    type="text"
-                                    value={selectedAviso ? `${selectedAviso.codigo ? `${selectedAviso.codigo} - ` : ''}${selectedAviso.nome || 'Aviso'}` : 'Sem aviso associado ao programa'}
-                                    readOnly
-                                    style={{...inputStyle, background: '#f8fafc', color: '#475569'}}
-                                    className="input-focus"
-                                />
-                                <p style={{margin: '6px 0 0 0', fontSize: '0.78rem', color: '#64748b'}}>
-                                    Este campo é definido automaticamente a partir do programa selecionado.
-                                </p>
-                                {/* debug UI removed */}
-                            </div>
-                        </div>
-
-                        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '20px'}}>
-                            <div>
-                                <label style={labelStyle}>Data Início Base</label>
-                                <input type="date" value={form.data_inicio || ''} onChange={e => setForm({...form, data_inicio: e.target.value})} style={inputStyle} className="input-focus" required />
-                            </div>
-                            <div>
-                                <label style={labelStyle}>Data Fim Final</label>
-                                <input
-                                    type="date"
-                                    value={form.data_fim || ''}
-                                    onChange={e => setForm({...form, data_fim: e.target.value})}
-                                    style={{...inputStyle, border: form.data_fim ? '1px solid #fca5a5' : '1px solid #cbd5e1'}}
-                                    className="input-focus"
-                                    disabled={fasesEfetivas.length > 0}
-                                />
-                                {fasesEfetivas.length > 0 && (
-                                    <p style={{margin: '6px 0 0 0', fontSize: '0.78rem', color: '#64748b'}}>
-                                        Esta data é calculada pela última fase do aviso.
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-
-                        <div style={{marginBottom: '30px', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', background: '#f8fafc'}}>
-                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '12px'}}>
-                                <div>
-                                    <div style={{fontSize: '0.8rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Fases do Projeto</div>
-                                    <div style={{fontSize: '0.85rem', color: '#64748b'}}>Preenche as datas de término por fase. Se o aviso tiver fases, estas entram automaticamente.</div>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={addProjetoFase}
-                                    style={{...inputStyle, width: 'auto', padding: '8px 12px', marginBottom: 0, cursor: 'pointer', background: 'white', fontWeight: '700'}}
-                                    className="hover-shadow"
-                                >
-                                    + Adicionar fase
-                                </button>
-                            </div>
-
-                            <div style={{display: 'grid', gap: '12px'}}>
-                                {(fasesEfetivas.length > 0 ? fasesEfetivas : [createBlankProjetoFase(0)]).map((fase, index) => (
-                                    <div key={`${fase.nome || 'fase'}-${index}`} style={{display: 'grid', gridTemplateColumns: '1fr 180px auto', gap: '12px', alignItems: 'end', padding: '12px', borderRadius: '10px', background: 'white', border: '1px solid #e2e8f0'}}>
-                                        <div>
-                                            <label style={labelStyle}>Nome da fase</label>
-                                            <input
-                                                type="text"
-                                                value={fase.nome || ''}
-                                                onChange={(e) => updateProjetoFase(index, 'nome', e.target.value)}
-                                                style={inputStyle}
-                                                className="input-focus"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label style={labelStyle}>Data de término</label>
-                                            <input
-                                                type="date"
-                                                value={fase.prazo || ''}
-                                                onChange={(e) => updateProjetoFase(index, 'prazo', e.target.value)}
-                                                style={inputStyle}
-                                                className="input-focus"
-                                            />
-                                        </div>
-                                        <div>
-                                            <button
-                                                type="button"
-                                                onClick={() => removeProjetoFase(index)}
-                                                disabled={fasesEfetivas.length <= 1 && fasesProjeto.length <= 1}
-                                                style={{...inputStyle, width: '40px', height: '40px', padding: 0, marginBottom: 0, cursor: 'pointer', background: 'white'}}
-                                                className="hover-shadow"
-                                            >
-                                                <Icons.Trash size={14} />
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* 4. PREVIEW DAS ATIVIDADES (APENAS CRIAÇÃO E SE HOUVER MODELO) */}
-                        {!editId && templateTree.length > 0 && (
+                        return (
                             <>
-                                <div style={sectionTitleStyle}><Icons.ListTree /> Pré-visualização de Atividades Geradas</div>
-                                <div style={{background: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '30px'}}>
-                                    <p style={{fontSize: '0.85rem', color: '#64748b', margin: '0 0 15px 0'}}>
-                                        O modelo escolhido inclui a seguinte estrutura. Desmarca os itens que não precisas gerar para este projeto em específico. O responsável global e os colaboradores selecionados acima serão automaticamente atribuídos.
-                                    </p>
+                                {/* ========== PASSO 1: BASE E ENTIDADE DO PROJETO ========== */}
+                                {currentStep === 1 && (
+                                  <div className="fade-in">
+                                    <div style={{...sectionTitleStyle, marginTop: 0}}><Icons.Building /> Enquadramento Base</div>
                                     
-                                    {/* Árvore Estilo Acordeão/Cards */}
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                        {templateTree.map(ativ => {
-                                            const isSelected = templateSelection[`a_${ativ.id}`];
-                                            return (
-                                                <div key={`a_${ativ.id}`} style={{ background: 'white', borderRadius: '10px', border: `1px solid ${isSelected ? 'var(--color-borderColor)' : '#e2e8f0'}`, overflow: 'hidden', transition: 'all 0.2s', boxShadow: isSelected ? '0 2px 8px rgba(59,130,246,0.05)' : 'none' }}>
-                                                    
-                                                    {/* Activity Header */}
-                                                    <div 
-                                                        onClick={() => toggleTemplateSelection('a', ativ.id)}
-                                                        style={{ background: isSelected ? 'var(--color-bgSecondary)' : '#f8fafc', padding: '14px 18px', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', borderBottom: isSelected && ativ.tarefas?.length ? '1px solid #e2e8f0' : 'none' }}
-                                                    >
-                                                        <input type="checkbox" checked={isSelected} readOnly style={{ accentColor: 'var(--color-btnPrimary)', width: '18px', height: '18px', pointerEvents: 'none' }} />
-                                                        <span style={{ fontWeight: '700', fontSize: '1rem', color: isSelected ? 'var(--color-btnPrimaryDark)' : '#64748b' }}>{ativ.nome}</span>
-                                                    </div>
+                                    <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px'}}>
+                                      <div>
+                                          <label style={labelStyle}>Tipo de Projeto (Modelo) *</label>
+                                          <select value={form.tipo_projeto_id || ''} onChange={e => setForm({...form, tipo_projeto_id: e.target.value})} style={{...inputStyle, cursor: 'pointer', borderColor: 'var(--color-btnPrimary)', background: 'var(--color-bgSecondary)'}} disabled={!!editId} className="input-focus" required>
+                                              <option value="">-- Selecione o Modelo --</option>
+                                              {tipos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
+                                          </select>
+                                      </div>
+                                      <div>
+                                          <label style={labelStyle}>Responsável Global *</label>
+                                          <select 
+                                              value={form.responsavel_id || ''} 
+                                              onChange={e => {
+                                                  const newResp = e.target.value;
+                                                  setForm(prev => ({
+                                                      ...prev, 
+                                                      responsavel_id: newResp,
+                                                      colaboradores: prev.colaboradores.filter(id => id !== newResp) 
+                                                  }));
+                                              }} 
+                                              style={{...inputStyle, cursor: 'pointer'}} 
+                                              className="input-focus"
+                                              required
+                                          >
+                                              <option value="">-- Selecione o Responsável --</option>
+                                              {staff
+                                                  .filter(s => s.ativo !== false || String(s.id) === String(form.responsavel_id))
+                                                  .map(s => <option key={s.id} value={s.id}>{s.nome || s.email}{s.ativo === false ? ' (Inativo)' : ''}</option>)}
+                                          </select>
+                                      </div>
+                                    </div>
 
-                                                    {/* Tasks Container */}
-                                                    {isSelected && ativ.tarefas?.length > 0 && (
-                                                        <div style={{ padding: '15px 18px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                                                            {ativ.tarefas.map(tar => {
-                                                                const isTarSelected = templateSelection[`t_${tar.id}`];
-                                                                return (
-                                                                    <div key={`t_${tar.id}`} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                                            <Icons.ArrowRight size={14} color={isTarSelected ? "var(--color-btnPrimary)" : "#cbd5e1"} />
-                                                                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: isTarSelected ? '700' : '500', color: isTarSelected ? '#334155' : '#94a3b8', fontSize: '0.95rem' }}>
-                                                                                <input type="checkbox" checked={isTarSelected} onChange={() => toggleTemplateSelection('t', tar.id)} style={{ accentColor: 'var(--color-btnPrimary)', width: '16px', height: '16px', cursor: 'pointer' }} />
-                                                                                {tar.nome}
-                                                                            </label>
-                                                                        </div>
-                                                                        
-                                                                        {/* Subtasks Container */}
-                                                                        {isTarSelected && tar.subtarefas?.length > 0 && (
-                                                                            <div style={{ paddingLeft: '32px', display: 'flex', flexDirection: 'column', gap: '8px', borderLeft: '2px solid #f1f5f9', marginLeft: '7px' }}>
-                                                                                {tar.subtarefas.map(sub => {
-                                                                                    const isSubSelected = templateSelection[`s_${sub.id}`];
-                                                                                    return (
-                                                                                        <label key={`s_${sub.id}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: isSubSelected ? '#475569' : '#94a3b8', fontSize: '0.85rem', fontWeight: isSubSelected ? '600' : '400' }}>
-                                                                                            <input type="checkbox" checked={isSubSelected} onChange={() => toggleTemplateSelection('s', sub.id)} style={{ accentColor: 'var(--color-btnPrimary)', width: '14px', height: '14px', cursor: 'pointer' }} />
-                                                                                            {sub.nome}
-                                                                                        </label>
-                                                                                    );
-                                                                                })}
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                );
-                                                            })}
-                                                        </div>
+                                    <div style={{marginBottom: '30px'}}>
+                                        <label style={labelStyle}>Título do Projeto *</label>
+                                        <input type="text" value={form.titulo} onChange={e => setForm({...form, titulo: e.target.value})} required style={{...inputStyle, fontSize:'1.1rem', padding:'12px', fontWeight: 'bold'}} className="input-focus" />
+                                    </div>
+
+                                    <div style={sectionTitleStyle}><Icons.Users /> Entidade(s) do Projeto</div>
+                                    
+                                    <div style={{display: 'grid', gridTemplateColumns: form.is_parceria ? '1fr 1fr' : '1fr 1fr', gap: '15px', marginBottom: form.is_parceria ? '10px' : '20px'}}>
+                                        <div>
+                                            <label style={labelStyle}>Tipologia</label>
+                                            <select value={form.is_parceria ? 'parceria' : 'unico'} onChange={e => {
+                                                const isParc = e.target.value === 'parceria';
+                                                setForm({...form, is_parceria: isParc, parceiros_ids: isParc ? form.parceiros_ids : []});
+                                            }} style={{...inputStyle, cursor: 'pointer'}} className="input-focus">
+                                                <option value="unico">👤 Individual (Apenas Cliente Lider)</option>
+                                                <option value="parceria">🤝 Parceria (Vários Clientes/Entidades)</option>
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label style={labelStyle}>Entidade Lider *</label>
+                                            <select
+                                                value={form.cliente_id || ''}
+                                                onChange={e => {
+                                                    const selectedId = e.target.value;
+                                                    setForm(prev => ({
+                                                        ...prev,
+                                                        cliente_id: selectedId,
+                                                        parceiros_ids: (prev.parceiros_ids || []).filter(pid => String(pid) !== String(selectedId))
+                                                    }));
+                                                    setParceiroSelecionado("");
+                                                }}
+                                                required
+                                                style={{...inputStyle, cursor: 'pointer'}}
+                                                className="input-focus"
+                                            >
+                                                <option value="">-- Selecione o Cliente --</option>
+                                                {clientes.map(c => <option key={c.id} value={c.id}>{getClientDisplayName(c) || c.marca}</option>)}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    {form.is_parceria && (
+                                        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '20px'}}>
+                                            <div>
+                                                <label style={labelStyle}>Entidades Parceiras</label>
+                                                <select
+                                                    value={parceiroSelecionado}
+                                                    onChange={e => {
+                                                        const selected = e.target.value;
+                                                        setParceiroSelecionado(selected);
+                                                        if (!selected) return;
+                                                        setForm(prev => {
+                                                            if (String(selected) === String(prev.cliente_id)) return prev;
+                                                            if ((prev.parceiros_ids || []).includes(selected)) return prev;
+                                                            return { ...prev, parceiros_ids: [...(prev.parceiros_ids || []), selected] };
+                                                        });
+                                                        setParceiroSelecionado("");
+                                                    }}
+                                                    style={{...inputStyle, cursor: 'pointer'}}
+                                                    className="input-focus"
+                                                >
+                                                    <option value="">-- Adicionar entidade parceira --</option>
+                                                    {clientes
+                                                        .filter(c => String(c.id) !== String(form.cliente_id || ''))
+                                                        .filter(c => !(form.parceiros_ids || []).includes(c.id))
+                                                        .map(c => <option key={c.id} value={c.id}>{getClientDisplayName(c) || c.marca}</option>)}
+                                                </select>
+                                            </div>
+                                            
+                                            <div>
+                                                <label style={labelStyle}>Entidades Selecionadas</label>
+                                                <div className="pill-container" style={{width: '100%', boxSizing: 'border-box'}}>
+                                                    {(form.parceiros_ids || []).length === 0 && <span style={{color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic'}}>Sem parceiros selecionados.</span>}
+                                                    {(form.parceiros_ids || []).map(pid => {
+                                                        const parceiro = clientes.find(c => String(c.id) === String(pid));
+                                                        if (!parceiro) return null;
+                                                        return (
+                                                            <div
+                                                                key={pid}
+                                                                onClick={() => !isViewOnly && handleToggleParceiro(pid)}
+                                                                className="pill-checkbox selected"
+                                                                title="Remover parceiro"
+                                                            >
+                                                                {getClientDisplayName(parceiro) || parceiro.marca} ✕
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* ========== PASSO 2: ORGANISMO FINANCIADOR & EQUIPA ========== */}
+                                {currentStep === 2 && (
+                                  <div className="fade-in">
+                                    
+                                    {/* Esconde a Entidade Financiadora se for Formação */}
+                                    {!isProjetoFormacao && (
+                                        <>
+                                            <div style={{...sectionTitleStyle, marginTop: 0}}><Icons.Building /> Entidade Financiadora</div>
+                                            
+                                            <div style={{display: 'grid', gridTemplateColumns: form.has_organismo ? '1fr 1fr' : '1fr 1fr', gap: '15px', marginBottom: '20px'}}>
+                                                <div>
+                                                    <label style={labelStyle}>Envolve Entidade Financiadora?</label>
+                                                    <select
+                                                        value={form.has_organismo ? 'sim' : 'nao'}
+                                                        onChange={e => {
+                                                            const hasOrg = e.target.value === 'sim';
+                                                            setForm({...form, has_organismo: hasOrg, organismo_id: hasOrg ? form.organismo_id : "", organismo_contacto_id: hasOrg ? form.organismo_contacto_id : ""});
+                                                        }}
+                                                        style={{...inputStyle, cursor: 'pointer'}}
+                                                        className="input-focus"
+                                                        disabled={isViewOnly}
+                                                    >
+                                                        <option value="nao">Não</option>
+                                                        <option value="sim">Sim</option>
+                                                    </select>
+                                                </div>
+
+                                                {form.has_organismo && (
+                                                    <div>
+                                                        <label style={labelStyle}>Organismo Lider / Principal *</label>
+                                                        <select
+                                                            value={form.organismo_id || ""}
+                                                            onChange={e => setForm({...form, organismo_id: e.target.value, organismo_contacto_id: ""})}
+                                                            style={{...inputStyle, cursor: 'pointer', borderColor: 'var(--color-btnPrimary)', background: 'var(--color-bgSecondary)'}}
+                                                            className="input-focus"
+                                                            disabled={isViewOnly}
+                                                            required={form.has_organismo}
+                                                        >
+                                                            <option value="">-- Selecione o Organismo --</option>
+                                                            {clientes.filter(c => c.eh_organismo).map(c => (
+                                                                <option key={c.id} value={c.id}>{getClientDisplayName(c) || c.marca}</option>
+                                                            ))}
+                                                        </select>
+                                                        <button
+                                                            type="button"
+                                                            onClick={openQuickOrganismoModal}
+                                                            disabled={isViewOnly}
+                                                            style={{marginTop: '8px', border: '1px dashed #cbd5e1', background: 'white', color: 'var(--color-btnPrimary)', padding: '8px 12px', borderRadius: '8px', cursor: isViewOnly ? 'not-allowed' : 'pointer', fontWeight: '700', fontSize: '0.85rem'}}
+                                                        >
+                                                            + Criar organismo sem sair daqui
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {form.has_organismo && form.organismo_id && (
+                                                <div style={{marginBottom: '30px', maxWidth: '50%', paddingRight: '7.5px'}}>
+                                                    <label style={labelStyle}>Pessoa do Organismo</label>
+                                                    <select
+                                                        value={form.organismo_contacto_id || ""}
+                                                        onChange={e => setForm({...form, organismo_contacto_id: e.target.value})}
+                                                        style={{...inputStyle, cursor: 'pointer'}}
+                                                        className="input-focus"
+                                                        disabled={isViewOnly}
+                                                    >
+                                                        <option value="">-- Sem pessoa definida --</option>
+                                                        {organismoPessoas.map(p => {
+                                                            const nome = p.nome_contacto || p.email || "Contacto";
+                                                            const cargo = p.cargo ? ` (${p.cargo})` : "";
+                                                            return <option key={p.id} value={p.id}>{`${nome}${cargo}`}</option>;
+                                                        })}
+                                                    </select>
+                                                    {organismoPessoas.length === 0 && (
+                                                        <div style={{marginTop: '6px', color: '#94a3b8', fontSize: '0.8rem', fontStyle: 'italic'}}>Este organismo ainda não tem contactos registados.</div>
                                                     )}
                                                 </div>
-                                            )
-                                        })}
+                                            )}
+                                        </>
+                                    )}
+
+                                    <div style={{...sectionTitleStyle, marginTop: isProjetoFormacao ? 0 : 30}}><Icons.Users /> Equipa Envolvida no Projeto</div>
+                                    <div style={{marginBottom: '10px'}}>
+                                        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px'}}>
+                                            <div>
+                                                <div style={{fontSize: '0.74rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px'}}>Colaboradores Internos</div>
+                                                <div className="pill-container" style={{minHeight: '60px', padding: '15px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0'}}>
+                                                    {staff
+                                                        .filter(s => String(s.id) !== String(form.responsavel_id || ''))
+                                                        .filter(s => s.ativo !== false || (form.colaboradores || []).includes(s.id))
+                                                        .map(s => {
+                                                            const isSelected = (form.colaboradores || []).map(id => String(id)).includes(String(s.id));
+                                                            return (
+                                                                <div 
+                                                                    key={`colab-int-${s.id}`}
+                                                                    onClick={() => !isViewOnly && handleToggleColaborador(s.id)}
+                                                                    className={`pill-checkbox ${isSelected ? 'selected' : ''}`}
+                                                                >
+                                                                    {s.nome || s.email}{s.ativo === false ? ' (Inativo)' : ''}
+                                                                </div>
+                                                            )
+                                                    })}
+                                                    {staff.filter(s => String(s.id) !== String(form.responsavel_id || '')).length === 0 && (
+                                                        <span style={{color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic'}}>Sem pessoas internas disponíveis.</span>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <div style={{fontSize: '0.74rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px'}}>Contactos das Entidades</div>
+                                                <div className="pill-container" style={{minHeight: '60px', padding: '15px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0'}}>
+                                                    {entidadePessoas
+                                                        .filter(s => String(s.id) !== String(form.responsavel_id || ''))
+                                                        .map(s => {
+                                                            const isSelected = (form.colaboradores || []).map(id => String(id)).includes(String(s.id));
+                                                            const base = s.nome_contacto || s.email || 'Contacto';
+                                                            const cargo = s.cargo ? ` (${s.cargo})` : '';
+                                                            const marca = getClientDisplayName(s.clientes) ? ` - ${getClientDisplayName(s.clientes)}` : '';
+                                                            return (
+                                                                <div 
+                                                                    key={`ent-${s.id}`}
+                                                                    onClick={() => !isViewOnly && handleToggleColaborador(s.id)}
+                                                                    className={`pill-checkbox ${isSelected ? 'selected' : ''}`}
+                                                                >
+                                                                    {`${base}${cargo}${marca}`}
+                                                                </div>
+                                                            )
+                                                    })}
+                                                    {entidadePessoas.filter(s => String(s.id) !== String(form.responsavel_id || '')).length === 0 && (
+                                                        <span style={{color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic'}}>Sem contactos das entidades selecionadas.</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* ========== PASSO 3: PLANEAMENTO ========== */}
+                                {currentStep === 3 && (
+                                  <div className="fade-in">
+                                    <div style={{...sectionTitleStyle, marginTop: 0}}><Icons.Calendar /> Planeamento & Enquadramento</div>
+                                    
+                                    {!isProjetoFormacao && (
+                                        <>
+                                            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '18px'}}>
+                                                <div>
+                                                    <label style={labelStyle}>Programa</label>
+                                                    <select
+                                                        value={form.programa_id || ''}
+                                                        onChange={(e) => handleProgramaChange(e.target.value)}
+                                                        style={{...inputStyle, cursor: 'pointer'}}
+                                                        className="input-focus"
+                                                    >
+                                                        <option value="">-- Sem programa associado --</option>
+                                                        {programas.filter((programa) => programa.ativo !== false).map((programa) => (
+                                                            <option key={programa.id} value={programa.id}>
+                                                                {`${programa.codigo ? `${programa.codigo} - ` : ''}${programa.nome || 'Programa'}`}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label style={labelStyle}>Aviso</label>
+                                                    <input
+                                                        type="text"
+                                                        value={selectedAviso ? `${selectedAviso.codigo ? `${selectedAviso.codigo} - ` : ''}${selectedAviso.nome || 'Aviso'}` : 'Sem aviso associado ao programa'}
+                                                        readOnly
+                                                        style={{...inputStyle, background: '#f8fafc', color: '#475569'}}
+                                                        className="input-focus"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div style={{marginBottom: '20px', maxWidth: '50%', paddingRight: '7.5px'}}>
+                                                <label style={labelStyle}>Código de Projeto</label>
+                                                <input type="text" value={form.codigo_projeto} onChange={e => setForm({...form, codigo_projeto: e.target.value})} placeholder="Ex: P2026-001" style={inputStyle} className="input-focus" />
+                                            </div>
+                                        </>
+                                    )}
+
+                                    <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '20px'}}>
+                                        <div>
+                                            <label style={labelStyle}>Data Início Base</label>
+                                            <input type="date" value={form.data_inicio || ''} onChange={e => setForm({...form, data_inicio: e.target.value})} style={inputStyle} className="input-focus" required />
+                                        </div>
+                                        <div>
+                                            <label style={labelStyle}>Data Fim</label>
+                                            <input
+                                                type="date"
+                                                value={form.data_fim || ''}
+                                                onChange={e => setForm({...form, data_fim: e.target.value})}
+                                                style={{...inputStyle, border: form.data_fim ? '1px solid #fca5a5' : '1px solid #cbd5e1'}}
+                                                className="input-focus"
+                                            />
+                                        </div>
                                     </div>
 
-                                </div>
-                            </>
-                        )}
-
-                        <div style={sectionTitleStyle}><Icons.Check /> Estado do Projeto</div>
-                        <div style={{display: 'flex', gap: '10px', marginBottom: '25px'}}>
-                            {[
-                                {val: 'pendente', label: 'Pendente'}, 
-                                {val: 'em_curso', label: 'Em Curso'}, 
-                                {val: 'em_analise', label: 'Em Análise'}, 
-                                {val: 'concluido', label: 'Concluído'}, 
-                                {val: 'cancelado', label: 'Cancelado'}
-                            ].map(st => (
-                                <div key={st.val} onClick={() => !isViewOnly && setForm({...form, estado: st.val})}
-                                    style={{
-                                        flex: 1, textAlign: 'center', padding: '10px', borderRadius: '8px', cursor: isViewOnly ? 'default' : 'pointer',
-                                        fontSize: '0.8rem', fontWeight: '700',
-                                        background: form.estado === st.val ? 'var(--color-btnPrimary)' : '#f8fafc',
-                                        color: form.estado === st.val ? 'white' : '#64748b',
-                                        border: form.estado === st.val ? '1px solid var(--color-btnPrimary)' : '1px solid #e2e8f0',
-                                        transition: 'all 0.2s', textTransform: 'uppercase', letterSpacing: '0.05em'
-                                    }}
-                                >
-                                    {st.label}
-                                </div>
-                            ))}
-                        </div>
-                      </div>
-                    )}
-
-                                        {activeTab === 'investimento' && (
-                                            <div className="fade-in" style={{background:'#f8fafc', padding:'30px', borderRadius:'12px', border:'1px solid #e2e8f0'}}>
-                                                <div style={{marginBottom: '25px'}}>
-                                                    <h4 style={{margin:0, color:'#1e293b', fontSize: '1.1rem', fontWeight: '800'}}>
-                                                        Valores de Investimento
-                                                    </h4>
-                                                </div>
-
-                                                <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px'}}>
-                                                    <div>
-                                                        <label style={labelStyle}>Investimento Elegível (€)</label>
-                                                        <input 
-                                                            type="number" 
-                                                            step="0.01" 
-                                                            value={form.investimento || 0} 
-                                                            onChange={e => setForm({...form, investimento: e.target.value})} 
-                                                            style={{
-                                                                width: '100%', 
-                                                                padding: '10px 12px', 
-                                                                borderRadius: '8px', 
-                                                                border: '1px solid #cbd5e1', 
-                                                                fontSize:'1.2rem', 
-                                                                background: 'white'
-                                                            }} 
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label style={labelStyle}>Incentivo Atribuído (€)</label>
-                                                        <input 
-                                                            type="number" 
-                                                            step="0.01" 
-                                                            value={form.incentivo || 0} 
-                                                            onChange={e => setForm({...form, incentivo: e.target.value})} 
-                                                            style={{
-                                                                width: '100%', 
-                                                                padding: '10px 12px', 
-                                                                borderRadius: '8px', 
-                                                                border: '1px solid #cbd5e1', 
-                                                                fontSize:'1.2rem', 
-                                                                background: 'white'
-                                                            }} 
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <p style={{marginTop: '20px', fontSize: '0.85rem', color: '#64748b'}}>
-                                                    Estes valores podem ser ajustados mais tarde nos detalhes do projeto.
-                                                </p>
+                                    {!isProjetoFormacao && (
+                                        <div style={{marginBottom: '10px', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', background: '#f8fafc'}}>
+                                            <div style={{marginBottom: '16px'}}>
+                                                <div style={{fontSize: '0.8rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Fases do Projeto</div>
+                                                <div style={{fontSize: '0.85rem', color: '#64748b'}}>As fases são importadas automaticamente a partir do Aviso selecionado.</div>
                                             </div>
-                                        )}
 
-                    {activeTab === 'notas' && (
-                      <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px'}}>
-                          <div>
-                              <label style={labelStyle}>Descrição Geral</label>
-                              <textarea rows="8" value={form.descricao || ''} onChange={e => setForm({...form, descricao: e.target.value})} style={{...inputStyle, resize:'none'}} placeholder="Resumo do projeto..." className="input-focus" />
-                          </div>
-                          <div>
-                              <label style={labelStyle}>Observações Internas</label>
-                              <textarea rows="8" value={form.observacoes || ''} onChange={e => setForm({...form, observacoes: e.target.value})} style={{...inputStyle, resize:'none', background:'#fffbeb', borderColor:'#fde68a'}} placeholder="Notas importantes..." className="input-focus-alert" />
-                          </div>
-                      </div>
-                    )}
+                                            <div style={{display: 'grid', gap: '12px'}}>
+                                                {fasesEfetivas && fasesEfetivas.length > 0 ? (
+                                                    fasesEfetivas.map((fase, index) => (
+                                                        <div key={`fase-${index}`} style={{display: 'grid', gridTemplateColumns: '1fr 180px', gap: '12px', alignItems: 'end', padding: '12px', borderRadius: '10px', background: 'white', border: '1px solid #e2e8f0'}}>
+                                                            <div>
+                                                                <label style={labelStyle}>Nome da fase</label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={fase.nome || ''}
+                                                                    readOnly
+                                                                    style={{...inputStyle, background: '#f1f5f9', color: '#64748b', cursor: 'not-allowed'}}
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label style={labelStyle}>Data de término</label>
+                                                                <input
+                                                                    type="date"
+                                                                    value={fase.prazo || ''}
+                                                                    onChange={(e) => updateProjetoFase(index, 'prazo', e.target.value)}
+                                                                    style={inputStyle}
+                                                                    className="input-focus"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    ))
+                                                ) : (
+                                                    <div style={{padding: '20px', textAlign: 'center', color: '#94a3b8', background: 'white', borderRadius: '8px', border: '1px dashed #cbd5e1', fontSize: '0.9rem', fontStyle: 'italic'}}>
+                                                        Sem fases definidas. Seleciona um programa/aviso para carregar as fases.
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* ========== PASSO 4: ATIVIDADES ========== */}
+                                {currentStep === 4 && (
+                                  <div className="fade-in">
+                                    <div style={{...sectionTitleStyle, marginTop: 0}}><Icons.ListTree /> Pré-visualização de Atividades</div>
+                                    
+                                    {!editId && templateTree.length > 0 ? (
+                                        <div style={{background: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '10px'}}>
+                                            <p style={{fontSize: '0.85rem', color: '#64748b', margin: '0 0 15px 0'}}>
+                                                Abaixo está a estrutura gerada pelo modelo selecionado. Podes desmarcar itens que não se aplicam a este projeto específico.
+                                            </p>
+                                            
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                                {templateTree.map(ativ => {
+                                                    const isSelected = templateSelection[`a_${ativ.id}`];
+                                                    return (
+                                                        <div key={`a_${ativ.id}`} style={{ background: 'white', borderRadius: '10px', border: `1px solid ${isSelected ? 'var(--color-borderColor)' : '#e2e8f0'}`, overflow: 'hidden', transition: 'all 0.2s', boxShadow: isSelected ? '0 2px 8px rgba(59,130,246,0.05)' : 'none' }}>
+                                                            
+                                                            <div 
+                                                                onClick={() => toggleTemplateSelection('a', ativ.id)}
+                                                                style={{ background: isSelected ? 'var(--color-bgSecondary)' : '#f8fafc', padding: '14px 18px', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', borderBottom: isSelected && ativ.tarefas?.length ? '1px solid #e2e8f0' : 'none' }}
+                                                            >
+                                                                <input type="checkbox" checked={isSelected} readOnly style={{ accentColor: 'var(--color-btnPrimary)', width: '18px', height: '18px', pointerEvents: 'none' }} />
+                                                                <span style={{ fontWeight: '700', fontSize: '1rem', color: isSelected ? 'var(--color-btnPrimaryDark)' : '#64748b' }}>{ativ.nome}</span>
+                                                            </div>
+
+                                                            {isSelected && ativ.tarefas?.length > 0 && (
+                                                                <div style={{ padding: '15px 18px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                                                                    {ativ.tarefas.map(tar => {
+                                                                        const isTarSelected = templateSelection[`t_${tar.id}`];
+                                                                        return (
+                                                                            <div key={`t_${tar.id}`} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                                                    <Icons.ArrowRight size={14} color={isTarSelected ? "var(--color-btnPrimary)" : "#cbd5e1"} />
+                                                                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: isTarSelected ? '700' : '500', color: isTarSelected ? '#334155' : '#94a3b8', fontSize: '0.95rem' }}>
+                                                                                        <input type="checkbox" checked={isTarSelected} onChange={() => toggleTemplateSelection('t', tar.id)} style={{ accentColor: 'var(--color-btnPrimary)', width: '16px', height: '16px', cursor: 'pointer' }} />
+                                                                                        {tar.nome}
+                                                                                    </label>
+                                                                                </div>
+                                                                                
+                                                                                {isTarSelected && tar.subtarefas?.length > 0 && (
+                                                                                    <div style={{ paddingLeft: '32px', display: 'flex', flexDirection: 'column', gap: '8px', borderLeft: '2px solid #f1f5f9', marginLeft: '7px' }}>
+                                                                                        {tar.subtarefas.map(sub => {
+                                                                                            const isSubSelected = templateSelection[`s_${sub.id}`];
+                                                                                            return (
+                                                                                                <label key={`s_${sub.id}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: isSubSelected ? '#475569' : '#94a3b8', fontSize: '0.85rem', fontWeight: isSubSelected ? '600' : '400' }}>
+                                                                                                    <input type="checkbox" checked={isSubSelected} onChange={() => toggleTemplateSelection('s', sub.id)} style={{ accentColor: 'var(--color-btnPrimary)', width: '14px', height: '14px', cursor: 'pointer' }} />
+                                                                                                    {sub.nome}
+                                                                                                </label>
+                                                                                            );
+                                                                                        })}
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div style={{padding: '30px', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1'}}>
+                                            {editId ? 
+                                                "A estrutura do projeto já foi gerada e está em curso. Edições nas atividades devem ser feitas na página de Detalhe do Projeto." : 
+                                                "Por favor seleciona um 'Tipo de Projeto (Modelo)' no Passo 1 para ver a estrutura a ser gerada."
+                                            }
+                                        </div>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* ========== PASSO 5: FINANÇAS & NOTAS ========== */}
+                                {currentStep === 5 && (
+                                  <div className="fade-in">
+                                    {!isProjetoFormacao && (
+                                        <>
+                                            <div style={{...sectionTitleStyle, marginTop: 0}}><Icons.Dollar /> Valores de Investimento</div>
+                                            
+                                            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px', background:'#f8fafc', padding:'20px', borderRadius:'12px', border:'1px solid #e2e8f0', marginBottom: '30px'}}>
+                                                <div>
+                                                    <label style={labelStyle}>Investimento Elegível (€)</label>
+                                                    <input 
+                                                        type="text" 
+                                                        value={form.investimento || form.investimento === 0 ? new Intl.NumberFormat('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(form.investimento) : ''} 
+                                                        onChange={e => {
+                                                            const apenasNumeros = e.target.value.replace(/\D/g, "");
+                                                            const valorReal = apenasNumeros ? Number(apenasNumeros) / 100 : 0;
+                                                            setForm({...form, investimento: valorReal});
+                                                        }} 
+                                                        style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize:'1.2rem', background: 'white', textAlign: 'right' }} 
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label style={labelStyle}>Incentivo Atribuído (€)</label>
+                                                    <input 
+                                                        type="text" 
+                                                        value={form.incentivo || form.incentivo === 0 ? new Intl.NumberFormat('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(form.incentivo) : ''} 
+                                                        onChange={e => {
+                                                            const apenasNumeros = e.target.value.replace(/\D/g, "");
+                                                            const valorReal = apenasNumeros ? Number(apenasNumeros) / 100 : 0;
+                                                            setForm({...form, incentivo: valorReal});
+                                                        }} 
+                                                        style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize:'1.2rem', background: 'white', textAlign: 'right' }} 
+                                                    />
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
+
+                                    <div style={{...sectionTitleStyle, marginTop: isProjetoFormacao ? 0 : 30}}><Icons.FileText /> Notas Adicionais</div>
+                                    <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px', marginBottom: '30px'}}>
+                                        <div>
+                                            <label style={labelStyle}>Descrição Geral</label>
+                                            <textarea rows="6" value={form.descricao || ''} onChange={e => setForm({...form, descricao: e.target.value})} style={{...inputStyle, resize:'none'}} placeholder="Resumo do projeto..." className="input-focus" />
+                                        </div>
+                                        <div>
+                                            <label style={labelStyle}>Observações Internas</label>
+                                            <textarea rows="6" value={form.observacoes || ''} onChange={e => setForm({...form, observacoes: e.target.value})} style={{...inputStyle, resize:'none', background:'#fffbeb', borderColor:'#fde68a'}} placeholder="Notas importantes..." className="input-focus-alert" />
+                                        </div>
+                                    </div>
+
+                                    <div style={sectionTitleStyle}><Icons.Check /> Estado do Projeto</div>
+                                    <div style={{display: 'flex', gap: '10px', marginBottom: '10px'}}>
+                                        {[
+                                            {val: 'pendente', label: 'Pendente'}, 
+                                            {val: 'em_curso', label: 'Em Curso'}, 
+                                            {val: 'em_analise', label: 'Em Análise'}, 
+                                            {val: 'concluido', label: 'Concluído'}, 
+                                            {val: 'cancelado', label: 'Cancelado'}
+                                        ].map(st => (
+                                            <div key={st.val} onClick={() => !isViewOnly && setForm({...form, estado: st.val})}
+                                                style={{
+                                                    flex: 1, textAlign: 'center', padding: '10px', borderRadius: '8px', cursor: isViewOnly ? 'default' : 'pointer',
+                                                    fontSize: '0.8rem', fontWeight: '700',
+                                                    background: form.estado === st.val ? 'var(--color-btnPrimary)' : '#f8fafc',
+                                                    color: form.estado === st.val ? 'white' : '#64748b',
+                                                    border: form.estado === st.val ? '1px solid var(--color-btnPrimary)' : '1px solid #e2e8f0',
+                                                    transition: 'all 0.2s', textTransform: 'uppercase', letterSpacing: '0.05em'
+                                                }}
+                                            >
+                                                {st.label}
+                                            </div>
+                                        ))}
+                                    </div>
+                                  </div>
+                                )}
+                            </>
+                        );
+                    })()}
 
                   </fieldset>
-
-                  {!isViewOnly && (
-                      <div style={{display:'flex', gap:'15px', marginTop:'30px', paddingTop:'20px', borderTop:'1px solid #f1f5f9', justifyContent: 'flex-end'}}>
-                          <button type="button" onClick={() => setShowModal(false)} style={{padding:'14px 20px', borderRadius:'10px', border:'1px solid #cbd5e1', background:'white', color:'#64748b', fontWeight:'700', cursor:'pointer', transition: '0.2s'}} className="hover-shadow">Cancelar</button>
-                          <button type="submit" disabled={isSubmitting} className="btn-primary hover-shadow" style={{padding:'14px 30px', borderRadius:'10px', border:'none', background:'var(--color-btnPrimary)', color:'white', fontWeight:'700', cursor:'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: '0.2s'}}>
-                              {isSubmitting ? "A guardar..." : (editId ? <><Icons.Save /> Guardar Alterações</> : <><Icons.Rocket /> Criar Projeto</>)}
-                          </button>
-                      </div>
-                  )}
                 </form>
               </div>
+
+              {/* --- RODAPÉ / NAVEGAÇÃO DO WIZARD --- */}
+              {!isViewOnly && (
+                <div style={{padding:'20px 30px', background:'#f8fafc', borderTop:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems: 'center'}}>
+                  
+                  <div>
+                    <button 
+                      type="button" 
+                      onClick={() => setShowModal(false)} 
+                      style={{background:'transparent', border:'none', color:'#94a3b8', fontWeight:'600', cursor:'pointer'}} 
+                      className="hover-red-text"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+
+                  <div style={{display: 'flex', gap: '15px'}}>
+                    {currentStep > 1 && (
+                      <button 
+                        type="button" 
+                        onClick={() => setCurrentStep(prev => prev - 1)} 
+                        style={{padding:'12px 24px', borderRadius:'10px', border:'1px solid #cbd5e1', background:'white', color:'#475569', fontWeight:'700', cursor:'pointer', transition: '0.2s', display: 'flex', alignItems: 'center'}} 
+                        className="hover-shadow"
+                      >
+                        <Icons.ArrowLeft size={16} style={{marginRight: '8px'}}/> Anterior
+                      </button>
+                    )}
+
+                    {currentStep < 5 ? (
+                      <button 
+                        type="button" 
+                        onClick={() => {
+                          if (currentStep === 1 && (!form.tipo_projeto_id || !form.titulo || !form.responsavel_id || !form.cliente_id)) {
+                              setAlertDialog({
+                                  show: true,
+                                  title: "Atenção",
+                                  message: "Por favor preenche o Modelo, Responsável Global, Título e Entidade Líder antes de avançar."
+                              });
+                              return;
+                          }
+                          setCurrentStep(prev => prev + 1);
+                        }} 
+                        className="btn-primary hover-shadow" 
+                        style={{padding:'12px 24px', borderRadius:'10px', border:'none', background:'var(--color-btnPrimary)', color:'white', fontWeight:'700', cursor:'pointer', transition: '0.2s', display: 'flex', alignItems: 'center'}}
+                      >
+                        Seguinte <Icons.ArrowRight size={16} style={{marginLeft: '8px'}}/>
+                      </button>
+                    ) : (
+                      <button 
+                        type="button" 
+                        onClick={() => document.getElementById('project-form').dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))}
+                        disabled={isSubmitting} 
+                        className="btn-primary hover-shadow" 
+                        style={{padding:'12px 30px', borderRadius:'10px', border:'none', background:'var(--color-btnPrimary)', color:'white', fontWeight:'700', cursor:'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: '0.2s'}}
+                      >
+                        {isSubmitting ? "A guardar..." : (editId ? <><Icons.Save /> Guardar Alterações</> : <><Icons.Rocket /> Concluir e Criar</>)}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </ModalPortal>
-      )}
-
-      {quickOrganismoModal.show && (
-          <ModalPortal>
-              <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.72)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:100000}}>
-                  <div style={{width:'min(520px, 92vw)', background:'white', borderRadius:'16px', boxShadow:'0 25px 50px -12px rgba(0,0,0,0.25)', overflow:'hidden'}}>
-                      <div style={{padding:'18px 22px', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center', background:'#f8fafc'}}>
-                          <div>
-                              <h3 style={{margin:0, color:'#1e293b', fontSize:'1.15rem', fontWeight:'800'}}>Criar organismo</h3>
-                              <p style={{margin:'4px 0 0 0', color:'#64748b', fontSize:'0.85rem'}}>O projeto fica em aberto enquanto crias a entidade.</p>
-                          </div>
-                          <button type="button" onClick={closeQuickOrganismoModal} style={{background:'transparent', border:'none', cursor:'pointer', color:'#94a3b8', display:'flex', alignItems:'center', justifyContent:'center'}}>
-                              <Icons.Close size={20} />
-                          </button>
-                      </div>
-
-                      <form onSubmit={createQuickOrganismo} style={{padding:'22px'}}>
-                          <div style={{display:'grid', gap:'14px'}}>
-                              <div>
-                                  <label style={labelStyle}>Nome do organismo *</label>
-                                  <input
-                                      type="text"
-                                      value={quickOrganismoModal.marca}
-                                      onChange={(e) => setQuickOrganismoModal(prev => ({ ...prev, marca: e.target.value }))}
-                                      placeholder="Ex: Município de..."
-                                      style={inputStyle}
-                                      className="input-focus"
-                                  />
-                              </div>
-                              <div>
-                                  <label style={labelStyle}>NIF</label>
-                                  <input
-                                      type="text"
-                                      inputMode="numeric"
-                                      maxLength={9}
-                                      value={quickOrganismoModal.nif}
-                                      onChange={handleQuickOrganismoNifChange}
-                                      placeholder="Ex: 500000000"
-                                      style={inputStyle}
-                                      className="input-focus"
-                                  />
-                              </div>
-                              <div>
-                                  <label style={labelStyle}>Sigla</label>
-                                  <input
-                                      type="text"
-                                      value={quickOrganismoModal.sigla}
-                                      onChange={(e) => setQuickOrganismoModal(prev => ({ ...prev, sigla: e.target.value }))}
-                                      placeholder="Opcional"
-                                      style={inputStyle}
-                                      className="input-focus"
-                                  />
-                              </div>
-                              <div>
-                                  <label style={labelStyle}>Entidade Legal</label>
-                                  <input
-                                      type="text"
-                                      value={quickOrganismoModal.entidade}
-                                      onChange={(e) => setQuickOrganismoModal(prev => ({ ...prev, entidade: e.target.value }))}
-                                      placeholder="Opcional"
-                                      style={inputStyle}
-                                      className="input-focus"
-                                  />
-                              </div>
-                              <div>
-                                  <label style={labelStyle}>Website</label>
-                                  <input
-                                      type="text"
-                                      value={quickOrganismoModal.website}
-                                      onChange={(e) => setQuickOrganismoModal(prev => ({ ...prev, website: e.target.value }))}
-                                      placeholder="www.entidade.pt"
-                                      style={inputStyle}
-                                      className="input-focus"
-                                  />
-                              </div>
-                          </div>
-
-                          <div style={{display:'flex', gap:'10px', justifyContent:'flex-end', marginTop:'20px'}}>
-                              <button type="button" onClick={closeQuickOrganismoModal} style={{padding:'10px 14px', borderRadius:'10px', border:'1px solid #cbd5e1', background:'white', color:'#475569', fontWeight:'700', cursor:'pointer'}}>
-                                  Cancelar
-                              </button>
-                              <button type="submit" disabled={quickOrganismoModal.isSubmitting} style={{padding:'10px 14px', borderRadius:'10px', border:'none', background:'var(--color-btnPrimary)', color:'white', fontWeight:'800', cursor:'pointer', opacity: quickOrganismoModal.isSubmitting ? 0.7 : 1}}>
-                                  {quickOrganismoModal.isSubmitting ? 'A criar...' : 'Criar e selecionar'}
-                              </button>
-                          </div>
-                      </form>
-                  </div>
-              </div>
-          </ModalPortal>
       )}
 
       {notification && <div className={`toast-container ${notification.type}`}>{notification.type === 'success' ? '✅' : '⚠️'} {notification.message}</div>}

@@ -46,6 +46,7 @@ export default function GestaoTemplates() {
   const [inputOrdem, setInputOrdem] = useState(1);
   const [inputDias, setInputDias] = useState(0);
   const [inputDescricao, setInputDescricao] = useState("");
+  const [inputEhFormacao, setInputEhFormacao] = useState(false);
     const [inputTemPrograma, setInputTemPrograma] = useState(false);
     const [inputDefaultNumHoras, setInputDefaultNumHoras] = useState(0);
     const [inputDefaultBaseEurHora, setInputDefaultBaseEurHora] = useState(0);
@@ -272,6 +273,7 @@ export default function GestaoTemplates() {
             setInputDias(0);
             setInputDescricao("");
             setInputTemPrograma(false);
+            setInputEhFormacao(false);
             setInputDefaultNumHoras(0);
             setInputDefaultBaseEurHora(50);
             setInputDepAtividadeId("");
@@ -291,6 +293,7 @@ export default function GestaoTemplates() {
             setInputDias(item.dias_estimados || 0);
             setInputDescricao(item.descricao || "");
             setInputTemPrograma(!!item.tem_programa);
+            setInputEhFormacao(!!item.eh_formacao);
             setInputDefaultNumHoras(Number(item.default_num_horas || 0));
             setInputDefaultBaseEurHora(Number(item.default_base_eur_hora || 50));
             setInputDepAtividadeId(item.depende_de_template_atividade_id || "");
@@ -351,6 +354,7 @@ export default function GestaoTemplates() {
               const payload = {
                   nome: inputValue,
                   tem_programa: inputTemPrograma,
+                  eh_formacao: inputEhFormacao,
                   default_num_horas: Number(inputDefaultNumHoras || 0),
                   default_base_eur_hora: Number(inputDefaultBaseEurHora || 0),
               };
@@ -644,6 +648,9 @@ export default function GestaoTemplates() {
                                                         {t.tem_programa && (
                                                             <span style={{ ...styles.badge('dep'), fontSize: '0.62rem' }}><Icons.Doc/></span>
                                                         )}
+                                                        {t.eh_formacao && (
+                                                            <span style={{ ...styles.badge('time'), fontSize: '0.62rem', border: '1px solid #c084fc', background: '#f3e8ff', color: '#7e22ce' }}><Icons.Doc/></span>
+                                                        )}
                         </div>
                         <div style={styles.actionsGroup} className="actions-group">
                             <button onClick={(e) => { e.stopPropagation(); openEditModal('tipo_projeto', t); }} style={styles.actionBtn} className="hover-icon-blue"><Icons.Edit/></button>
@@ -828,6 +835,11 @@ export default function GestaoTemplates() {
                                   <label htmlFor="tipoTemPrograma" style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '15px', fontWeight: 600, color: '#334155', cursor: 'pointer'}}>
                                       <input id="tipoTemPrograma" type="checkbox" checked={inputTemPrograma} onChange={(e) => setInputTemPrograma(e.target.checked)} style={{width:16, height:16, minWidth:16, minHeight:16, maxWidth:16, maxHeight:16, flex:'none'}} />
                                       Este tipo de projeto requer programa de financiamento
+                                  </label>
+
+                                  <label htmlFor="tipoEhFormacao" style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '15px', fontWeight: 600, color: '#334155', cursor: 'pointer'}}>
+                                      <input id="tipoEhFormacao" type="checkbox" checked={inputEhFormacao} onChange={(e) => setInputEhFormacao(e.target.checked)} style={{width:16, height:16, minWidth:16, minHeight:16, maxWidth:16, maxHeight:16, flex:'none'}} />
+                                      É um projeto de Formação
                                   </label>
 
                                   <div style={{display: 'flex', gap: '12px'}}>
