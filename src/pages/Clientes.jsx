@@ -1600,7 +1600,7 @@ export default function Clientes() {
   }
 
   async function fetchSubDados(clienteId) {
-    const projectFields = "id, titulo, estado, data_fim, codigo_projeto, cliente_id, parceiros_ids, created_at";
+    const projectFields = "id, titulo, estado, data_inicio, data_fim, investimento, incentivo, codigo_projeto, cliente_id, parceiros_ids, is_parceria, created_at";
 
     const [cData, mData, aData, tData, caeData, pData, configData] = await Promise.all([
         supabase.from("contactos_cliente").select("*").eq("cliente_id", clienteId),
@@ -1629,13 +1629,35 @@ export default function Clientes() {
     const projetosAssociados = (pData.data || [])
       .filter(proj => {
         const isMainClient = String(proj.cliente_id || "") === clienteIdStr;
-        const parceiros = normalizeParceirosIds(proj.parceiros_ids);
+        
+        // Tratamento robusto para parceiros (Igual ao fetchClientes)
+        let parceiros = [];
+        if (Array.isArray(proj.parceiros_ids)) {
+          parceiros = proj.parceiros_ids.map(String);
+        } else if (typeof proj.parceiros_ids === "string") {
+          try {
+            parceiros = JSON.parse(proj.parceiros_ids).map(String);
+          } catch {
+            parceiros = proj.parceiros_ids.replace(/[{}]/g, "").split(",").map(id => id.trim());
+          }
+        }
+        
         const isPartner = parceiros.includes(clienteIdStr);
         return isMainClient || isPartner;
       })
       .map(proj => {
         const isMainClient = String(proj.cliente_id || "") === clienteIdStr;
-        const parceiros = normalizeParceirosIds(proj.parceiros_ids);
+        
+        let parceiros = [];
+        if (Array.isArray(proj.parceiros_ids)) {
+          parceiros = proj.parceiros_ids.map(String);
+        } else if (typeof proj.parceiros_ids === "string") {
+          try {
+            parceiros = JSON.parse(proj.parceiros_ids).map(String);
+          } catch {
+            parceiros = proj.parceiros_ids.replace(/[{}]/g, "").split(",").map(id => id.trim());
+          }
+        }
         const isPartner = parceiros.includes(clienteIdStr);
 
         let relacao_cliente = "cliente_unico";
@@ -1649,13 +1671,13 @@ export default function Clientes() {
         const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
         return bTime - aTime;
       });
-    
+
     setContactos(cData.data || []); 
     setMoradas(mData.data || []); 
     setAcessos(aData.data || []); 
     setTiposAcessosCatalogo(tData.data || []);
     setCaes(caeData.data || []);
-    setProjetosCliente(projetosAssociados);
+    setProjetosCliente(projetosAssociados); // Injeta com segurança os 4 projetos de volta
   }
 
   function handleToggleAtivo(id, estadoAtual) {
@@ -2616,41 +2638,84 @@ export default function Clientes() {
                         {projetosCliente.length > 0 ? (
                             <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: '15px'}}>
                                 {projetosCliente.map(p => {
-                                    const isDone = p.estado === 'concluido';
-                                    const relacaoInfo = p.relacao_cliente === 'parceiro'
-                                        ? { label: 'Parceiro', bg: '#f3e8ff', color: '#7e22ce' }
-                                        : p.relacao_cliente === 'cliente_unico_e_parceiro'
-                                            ? { label: 'Entidade + Parceiro', bg: '#ede9fe', color: '#5b21b6' }
-                                            : { label: 'Entidade Única', bg: 'var(--color-borderColorLight)', color: 'var(--color-btnPrimaryDark)' };
+                                  const isDone = p.estado === 'concluido';
+                                  
+                                  // Configuração visual das tags com base no campo is_parceria real
+                                  let relacaoInfo = { label: 'Entidade Única', bg: 'var(--color-borderColorLight)', color: 'var(--color-btnPrimaryDark)' };
 
-                                    return (
-                                        <div key={p.id} onClick={() => navigate(`/dashboard/projetos/${p.id}`)} style={{background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', flexDirection:'column', justifyContent: 'space-between', opacity: isDone ? 0.6 : 1, cursor:'pointer', transition:'0.2s'}} className="hover-shadow hover-blue-border">
-                                            <div style={{display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px'}}>
-                                                <span style={{fontSize: '0.7rem', background: isDone ? '#f1f5f9' : 'var(--color-bgSecondary)', color: isDone ? '#64748b' : 'var(--color-btnPrimary)', padding: '4px 10px', borderRadius: '12px', fontWeight: 'bold', textTransform: 'uppercase'}}>{p.estado.replace('_', ' ')}</span>
+                                  if (p.is_parceria === true) {
+                                      // Se a entidade atual for o cliente_id principal do projeto, ele lidera a parceria
+                                      if (p.relacao_cliente === 'cliente_unico' || p.relacao_cliente === 'cliente_unico_e_parceiro') {
+                                          relacaoInfo = { label: 'Parceria (Líder)', bg: '#fef3c7', color: '#d97706' }; // Dourado
+                                      } else {
+                                          // Se ele for um dos IDs no array parceiros_ids
+                                          relacaoInfo = { label: 'Parceiro', bg: '#f3e8ff', color: '#7e22ce' }; // Roxo
+                                      }
+                                  } else if (p.relacao_cliente === 'parceiro') {
+                                      relacaoInfo = { label: 'Parceiro', bg: '#f3e8ff', color: '#7e22ce' };
+                                  }
+
+                                  // Formatação de valores monetários Euro (€)
+                                  const formatCurrency = (val) => {
+                                    if (val === null || val === undefined) return '-';
+                                    return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(val);
+                                  };
+
+                                  return (
+                                      <div key={p.id} onClick={() => navigate(`/dashboard/projetos/${p.id}`)} style={{background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', flexDirection:'column', justifyContent: 'space-between', opacity: isDone ? 0.6 : 1, cursor:'pointer', transition:'0.2s'}} className="hover-shadow hover-blue-border">
+                                          
+                                          {/* Cabeçalho do Card */}
+                                          <div style={{display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap'}}>
+                                              <span style={{fontSize: '0.7rem', background: isDone ? '#f1f5f9' : 'var(--color-bgSecondary)', color: isDone ? '#64748b' : 'var(--color-btnPrimary)', padding: '4px 10px', borderRadius: '12px', fontWeight: 'bold', textTransform: 'uppercase'}}>{p.estado.replace('_', ' ')}</span>
                                               <span style={{fontSize: '0.68rem', background: relacaoInfo.bg, color: relacaoInfo.color, padding: '4px 10px', borderRadius: '12px', fontWeight: 'bold'}}>{relacaoInfo.label}</span>
-                                                {p.codigo_projeto && <span style={{fontSize: '0.75rem', color: '#94a3b8', fontWeight: 'bold'}}>{p.codigo_projeto}</span>}
-                                            </div>
-                                            <h4 style={{margin: '0 0 15px 0', fontSize: '1.1rem', color: '#1e293b', textDecoration: isDone ? 'line-through' : 'none', lineHeight:'1.3'}}>{p.titulo}</h4>
-                                            
-                                            <div style={{display: 'flex', alignItems: 'center', justifyContent:'space-between', borderTop:'1px solid #f1f5f9', paddingTop:'10px'}}>
-                                                {p.data_fim ? <span style={{fontSize: '0.85rem', color: '#64748b', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.Calendar /> {new Date(p.data_fim).toLocaleDateString('pt-PT')}</span> : <span style={{fontSize: '0.85rem', color: '#cbd5e1'}}>Sem Prazo</span>}
-                                                <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
-                                                  <button
-                                                    type="button"
-                                                    onClick={(e) => openProjectTimerModal(p, e)}
-                                                    disabled={isDone}
-                                                    style={{border: isDone ? '1px solid #cbd5e1' : '1px solid #bbf7d0', background: isDone ? '#f1f5f9' : '#f0fdf4', color: isDone ? '#94a3b8' : '#166534', borderRadius:'999px', padding:'6px 12px', fontWeight:'700', fontSize:'0.78rem', display:'inline-flex', alignItems:'center', gap:'6px', cursor:isDone ? 'not-allowed' : 'pointer'}}
-                                                    className="hover-shadow"
-                                                    title={isDone ? "Projeto concluído: cronómetro indisponível" : "Iniciar cronómetro neste projeto"}
-                                                  >
-                                                    <Icons.Play size={11} /> Iniciar
-                                                  </button>
-                                                  <span style={{fontSize: '0.85rem', color: 'var(--color-btnPrimary)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}}>Abrir <Icons.ArrowRight /></span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )
-                                })}
+                                              {p.codigo_projeto && <span style={{fontSize: '0.75rem', color: '#94a3b8', fontWeight: 'bold', marginLeft: 'auto'}}>{p.codigo_projeto}</span>}
+                                          </div>
+
+                                          {/* Título do Projeto */}
+                                          <h4 style={{margin: '0 0 15px 0', fontSize: '1.1rem', color: '#1e293b', textDecoration: isDone ? 'line-through' : 'none', lineHeight:'1.3', fontWeight: '800'}}>{p.titulo}</h4>
+                                          
+                                          {/* --- NOVA SECÇÃO: DATAS E VALORES --- */}
+                                          <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', background: '#f8fafc', padding: '12px', borderRadius: '8px', marginBottom: '15px', fontSize: '0.82rem'}}>
+                                              <div>
+                                                <span style={{color: '#64748b', display: 'block', fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', marginBottom: '2px'}}>Duração</span>
+                                                <span style={{fontWeight: '600', color: '#334155', display: 'flex', alignItems: 'center', gap: '4px'}}>
+                                                  📅 {p.data_inicio ? new Date(p.data_inicio).toLocaleDateString('pt-PT', {month: '2-digit', year: 'numeric'}) : '—'} 
+                                                  <span style={{color: '#94a3b8'}}>al</span> 
+                                                  {p.data_fim ? new Date(p.data_fim).toLocaleDateString('pt-PT', {month: '2-digit', year: 'numeric'}) : '—'}
+                                                </span>
+                                              </div>
+                                              <div>
+                                                <span style={{color: '#64748b', display: 'block', fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', marginBottom: '2px'}}>Investimento</span>
+                                                <span style={{fontWeight: '700', color: '#0f172a'}}>{formatCurrency(p.investimento)}</span>
+                                              </div>
+                                              <div style={{gridColumn: '2', marginTop: '-2px'}}>
+                                                <span style={{color: '#64748b', display: 'block', fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', marginBottom: '2px'}}>Incentivo</span>
+                                                <span style={{fontWeight: '700', color: '#16a34a'}}>{formatCurrency(p.incentivo)}</span>
+                                              </div>
+                                          </div>
+                                          
+                                          {/* Rodapé de Ações */}
+                                          <div style={{display: 'flex', alignItems: 'center', justifyContent:'space-between', borderTop:'1px solid #f1f5f9', paddingTop:'10px'}}>
+                                              <span style={{fontSize: '0.8rem', color: '#94a3b8', fontWeight: '500'}}>
+                                                Criado em {p.created_at ? new Date(p.created_at).toLocaleDateString('pt-PT') : '—'}
+                                              </span>
+                                              <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
+                                                <button
+                                                  type="button"
+                                                  onClick={(e) => openProjectTimerModal(p, e)}
+                                                  disabled={isDone}
+                                                  style={{border: isDone ? '1px solid #cbd5e1' : '1px solid #bbf7d0', background: isDone ? '#f1f5f9' : '#f0fdf4', color: isDone ? '#94a3b8' : '#166534', borderRadius:'999px', padding:'6px 12px', fontWeight:'700', fontSize:'0.78rem', display:'inline-flex', alignItems:'center', gap:'6px', cursor:isDone ? 'not-allowed' : 'pointer'}}
+                                                  className="hover-shadow"
+                                                  title={isDone ? "Projeto concluído: cronómetro indisponível" : "Iniciar cronómetro neste projeto"}
+                                                >
+                                                  <Icons.Play size={11} /> Iniciar
+                                                </button>
+                                                <span style={{fontSize: '0.85rem', color: 'var(--color-btnPrimary)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}}>Abrir <Icons.ArrowRight /></span>
+                                              </div>
+                                          </div>
+                                      </div>
+                                  )
+                              })}
                             </div>
                         ) : (
                             <div style={{textAlign: 'center', padding: '60px', background: 'white', borderRadius: '12px', border: '1px dashed #cbd5e1'}}>
