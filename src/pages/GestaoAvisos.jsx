@@ -30,7 +30,7 @@ const Icons = {
     </svg>
   ),
   Briefcase: () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#704214" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
       <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
     </svg>
@@ -109,7 +109,7 @@ const TIPO_INCENTIVO_OPTIONS = [
   "taxa reduzida",
 ];
 
-const CARD_TOP_COLORS = ["#ff4d6d", "#ff479c", "#704214", "#ffb703"];
+const CARD_TOP_COLORS = ["#ff4d6d", "#ff479c", "#475569", "#ffb703"];
 
 export default function GestaoAvisos() {
   const [avisos, setAvisos] = useState([]);
@@ -175,12 +175,17 @@ export default function GestaoAvisos() {
 
   const getClientDisplayName = (client) => {
     if (!client) return "";
+    const sigla = client.sigla?.trim() || "";
+    const nome = client.marca?.trim() || "";
+    return sigla || nome;
+  };
+
+  const getClientSelectName = (client) => {
+    if (!client) return "";
     const nome = client.marca?.trim() || "";
     const sigla = client.sigla?.trim() || "";
     if (nome && sigla) return `${nome} (${sigla})`;
-    if (nome) return nome;
-    if (sigla) return sigla;
-    return "";
+    return nome || sigla;
   };
 
   const organismos = useMemo(
@@ -270,7 +275,7 @@ export default function GestaoAvisos() {
 
     if (programa) {
       setProgramaFormData({
-        codigo: programa.codigo || "",
+        codigo: program.codigo || "",
         nome: programa.nome || "",
         pct: Number(programa.pct || 0),
         tipo_incentivo: programa.tipo_incentivo || "fundo perdido (não reembolsável)",
@@ -435,7 +440,7 @@ export default function GestaoAvisos() {
         entidades_elegiveis: programaFormData.entidades_elegiveis || null,
         area_geografica: programaFormData.area_geografica || null,
         acoes_elegiveis: programaFormData.acoes_elegiveis || null,
-        condicoes_specificas: programaFormData.condicoes_especificas || null,
+        condicoes_especificas: programaFormData.condicoes_especificas || null,
         descricao: programaFormData.descricao || null,
         aviso_id: finalAvisoId,
         ativo: programaFormData.ativo,
@@ -498,19 +503,18 @@ export default function GestaoAvisos() {
     },
     headerLeft: { display: "flex", alignItems: "center", gap: "16px" },
     iconBox: {
-      background: "#fff8f0", border: "1px solid #ffeacc", width: "46px", height: "46px", borderRadius: "10px",
+      background: "#f8fafc", border: "1px solid #e2e8f0", width: "46px", height: "46px", borderRadius: "10px",
       display: "flex", alignItems: "center", justifyContent: "center"
     },
     title: { margin: 0, color: "#1a2530", fontSize: "1.45rem", fontWeight: "800" },
     subtitle: { margin: "2px 0 0 0", color: "#7f8c8d", fontSize: "0.88rem" },
     headerActionBtn: {
-      background: "#704214", color: "#ffffff", border: "none", borderRadius: "50px", padding: "12px 24px",
+      background: "var(--color-btnPrimary, #3b82f6)", color: "#ffffff", border: "none", borderRadius: "50px", padding: "12px 24px",
       display: "inline-flex", alignItems: "center", gap: "8px", fontSize: "0.92rem", fontWeight: "700",
-      cursor: "pointer", boxShadow: "0 4px 12px rgba(112, 66, 20, 0.2)", transition: "opacity 0.15s",
+      cursor: "pointer", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)", transition: "opacity 0.15s",
     },
-    tabsContainer: { display: "flex", gap: "4px", paddingLeft: "8px", marginBottom: "-1px", position: "relative", zIndex: 2 },
     tabButton: (isActive) => ({
-      background: isActive ? "#ffffff" : "#e4e7eb", color: isActive ? "#704214" : "#4a5568",
+      background: isActive ? "#ffffff" : "#e4e7eb", color: isActive ? "var(--color-btnPrimary, #3b82f6)" : "#475569",
       border: "1px solid #eef0f2", borderBottom: isActive ? "1px solid #ffffff" : "1px solid #eef0f2",
       padding: "8px 20px", borderTopLeftRadius: "10px", borderTopRightRadius: "10px", fontSize: "0.88rem", fontWeight: "700",
       cursor: "pointer", transition: "all 0.15s"
@@ -527,27 +531,32 @@ export default function GestaoAvisos() {
     },
     toggleWrapper: { display: "flex", background: "#f1f3f5", padding: "3px", borderRadius: "8px", border: "1px solid #e2e8f0" },
     toggleBtnActive: {
-      background: "#ffffff", color: "#704214", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+      background: "#ffffff", color: "var(--color-btnPrimary, #3b82f6)", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.01)",
       padding: "6px 14px", borderRadius: "6px", fontSize: "0.82rem", fontWeight: "700", cursor: "default"
     },
     toggleBtnInactive: { background: "none", border: "none", color: "#6c757d", padding: "6px 14px", fontSize: "0.82rem", fontWeight: "600", cursor: "pointer" },
-    gridCards: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "24px" },
+    
+    // CORRIGIDO: Fixado em exatamente 4 colunas em ecrãs largos, descendo para 1 em ecrãs muito pequenos (telemóvel)
+    gridCards: { 
+      display: "grid", 
+      gridTemplateColumns: "repeat(auto-fill, minmax(calc(25% - 20px), 1fr))", 
+      gap: "20px" 
+    },
+    
     cardContainer: {
       background: "#ffffff", borderRadius: "14px", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.02), 0 1px 3px rgba(0, 0, 0, 0.01)",
       border: "1px solid #eef0f2", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden",
     },
-    cardBody: { padding: "20px 20px 76px 20px", flex: 1 },
-    topBadge: { background: "#f1f3f5", color: "#6c757d", fontSize: "0.72rem", fontWeight: "700", padding: "4px 10px", borderRadius: "6px", display: "inline-block", marginBottom: "14px", letterSpacing: "0.5px", textTransform: "uppercase" },
-    titleRow: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px", marginBottom: "14px" },
-    cardTitle: { fontSize: "1.25rem", fontWeight: "800", color: "#1a2530", margin: 0, lineHeight: "1.25" },
-    initialsBadge: { background: "#fff8f0", border: "1px solid #ffeacc", color: "#b07d42", fontSize: "0.75rem", fontWeight: "800", padding: "3px 8px", borderRadius: "10px", whiteSpace: "nowrap" },
-    infoLine: { display: "flex", alignItems: "center", gap: "8px", fontSize: "0.88rem", color: "#4a5568", marginBottom: "10px", lineHeight: "1.4" },
+    cardBody: { padding: "24px 20px 76px 20px", flex: 1 },
+    titleRow: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px", marginBottom: "16px" },
+    cardTitle: { fontSize: "1.12rem", fontWeight: "800", color: "#1a2530", margin: 0, lineHeight: "1.3" },
+    infoLine: { display: "flex", alignItems: "center", gap: "8px", fontSize: "0.88rem", color: "#4a5568", marginBottom: "12px", lineHeight: "1.4" },
     textMuted: { color: "#a0aec0", fontStyle: "italic" },
     cardFooter: { position: "absolute", bottom: 0, left: 0, right: 0, height: "52px", borderTop: "1px solid #f0f2f5", background: "#fafbfc", display: "flex" },
-    footerMainBtn: { flex: 1, background: "none", border: "none", borderRight: "1px solid #f0f2f5", color: "#704214", fontWeight: "700", fontSize: "0.9rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" },
+    footerMainBtn: { flex: 1, background: "none", border: "none", borderRight: "1px solid #f0f2f5", color: "var(--color-btnPrimary, #3b82f6)", fontWeight: "700", fontSize: "0.9rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" },
     footerIconBtn: { width: "52px", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" },
     modalContent: { background: "#ffffff", borderRadius: "16px", boxShadow: "0 24px 38px 3px rgba(0,0,0,0.14)", display: "flex", flexDirection: "column" },
-    sectionTitle: { fontSize: "0.95rem", fontWeight: "700", color: "#704214", margin: "24px 0 12px 0", paddingBottom: "6px", borderBottom: "2px solid #f1f5f9" },
+    sectionTitle: { fontSize: "0.95rem", fontWeight: "700", color: "var(--color-btnPrimary, #3b82f6)", margin: "24px 0 12px 0", paddingBottom: "6px", borderBottom: "2px solid #f1f5f9" },
     modalOverlay: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0, 0, 0, 0.5)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 },
     label: { display: "block", marginBottom: "6px", fontSize: "0.85rem", fontWeight: "600", color: "#4a5568" },
     input: { width: "100%", padding: "10px 12px", border: "1px solid #cbd5e1", borderRadius: "8px", fontSize: "0.9rem", color: "#1e293b", outline: "none", boxSizing: "border-box" }
@@ -606,7 +615,7 @@ export default function GestaoAvisos() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={styles.searchInput}
-            onFocus={(e) => e.currentTarget.style.borderColor = "#704214"}
+            onFocus={(e) => e.currentTarget.style.borderColor = "var(--color-btnPrimary, #3b82f6)"}
             onBlur={(e) => e.currentTarget.style.borderColor = "#cbd5e1"}
           />
         </div>
@@ -639,26 +648,22 @@ export default function GestaoAvisos() {
                 }}
               >
                 <div style={styles.cardBody}>
-                  <div style={styles.topBadge}>{programa.tipo_incentivo || "Geral"}</div>
-
                   <div style={styles.titleRow}>
                     <h2 style={styles.cardTitle}>{programa.nome}</h2>
-                    <span style={styles.initialsBadge}>{programa.codigo}</span>
                   </div>
 
-                  {/* ALTERAÇÃO: Secção do Aviso movida para aqui (logo a seguir ao Nome do Programa) */}
                   {programa.aviso_id && (
                     <div style={{ marginTop: "4px", marginBottom: "16px", padding: "10px 12px", background: "#f8fafc", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-                        <div style={{ fontSize: "0.75rem", fontWeight: "700", color: "#64748b", textTransform: "uppercase" }}>
-                          Aviso: <span style={{ color: "#704214" }}>{avisosById[programa.aviso_id]?.codigo}</span>
+                        <div style={{ display: "inline-flex", gap: "4px", fontSize: "0.75rem", fontWeight: "700", color: "#64748b", textTransform: "uppercase" }}>
+                          AVISO: <span style={{ color: "var(--color-btnPrimary, #3b82f6)" }}>{avisosById[programa.aviso_id]?.codigo}</span>
                         </div>
                         <button
                           type="button"
                           onClick={() => handleOpenAvisoModal(programa.aviso_id)}
-                          style={{ background: "none", border: "none", color: "#704214", fontSize: "0.75rem", fontWeight: "700", cursor: "pointer", padding: 0, textDecoration: "underline" }}
+                          style={{ background: "none", border: "none", color: "var(--color-btnPrimary, #3b82f6)", fontSize: "0.75rem", fontWeight: "700", cursor: "pointer", padding: 0, textDecoration: "underline" }}
                         >
-                          Gerir Aviso
+                          Gerir
                         </button>
                       </div>
                       {fasesDoAviso.length > 0 ? (
@@ -685,8 +690,6 @@ export default function GestaoAvisos() {
                     </span>
                   </div>
 
-                  {/* REMOVIDO: A linha da Área Geográfica (referente à imagem image_113173.png) foi completamente removida daqui */}
-
                   <div style={styles.infoLine}>
                     <span style={{ display: "flex" }}><Icons.CardUser /></span>
                     {programa.entidade_financiadora_id ? (
@@ -702,7 +705,7 @@ export default function GestaoAvisos() {
                     style={styles.footerMainBtn} 
                     type="button"
                     onClick={() => handleOpenProgramaModal(programa, true)}
-                    onMouseOver={(e) => e.currentTarget.style.background = "#f4f1ee"}
+                    onMouseOver={(e) => e.currentTarget.style.background = "var(--color-bgSecondary, #f8fafc)"}
                     onMouseOut={(e) => e.currentTarget.style.background = "none"}
                   >
                     <span style={{ display: "flex" }}><Icons.CardEye /></span> Ver Detalhes
@@ -712,20 +715,20 @@ export default function GestaoAvisos() {
                     type="button"
                     title="Editar Programa"
                     onClick={() => handleOpenProgramaModal(programa, false)}
-                    onMouseOver={(e) => e.currentTarget.style.background = "#fffbeb"}
+                    onMouseOver={(e) => e.currentTarget.style.background = "#fff7ed"}
                     onMouseOut={(e) => e.currentTarget.style.background = "none"}
                   >
-                    <span style={{ color: "#f39c12", display: "flex" }}><Icons.Edit /></span>
+                    <span style={{ color: "#c2410c", display: "flex" }}><Icons.Edit /></span>
                   </button>
                   <button 
                     style={styles.footerIconBtn} 
                     type="button"
                     title="Arquivar (Mover para Inativos)"
                     onClick={() => handleProgramaArchive(programa.id)}
-                    onMouseOver={(e) => e.currentTarget.style.background = "#f1f5f9"}
+                    onMouseOver={(e) => e.currentTarget.style.background = "#fee2e2"}
                     onMouseOut={(e) => e.currentTarget.style.background = "none"}
                   >
-                    <span style={{ color: "#64748b", display: "flex" }}><Icons.Archive /></span>
+                    <span style={{ color: "#ef4444", display: "flex" }}><Icons.Archive /></span>
                   </button>
                 </div>
               </div>
@@ -795,7 +798,9 @@ export default function GestaoAvisos() {
                       >
                         <option value="">— Selecionar organismo —</option>
                         {organismos.map((organismo) => (
-                          <option key={organismo.id} value={organismo.id}>{getClientDisplayName(organismo) || organismo.marca}</option>
+                          <option key={organismo.id} value={organismo.id}>
+                            {getClientSelectName(organismo)}
+                          </option>
                         ))}
                       </select>
                     </div>
@@ -880,7 +885,7 @@ export default function GestaoAvisos() {
                           <button
                             type="button"
                             onClick={() => setCriarNovoAvisoInline(true)}
-                            style={{ ...styles.headerActionBtn, background: "#f0f2f5", color: "#704214", boxShadow: "none", height: "42px", padding: "0 16px", borderRadius: "8px" }}
+                            style={{ ...styles.headerActionBtn, background: "#f0f2f5", color: "var(--color-btnPrimary, #3b82f6)", boxShadow: "none", height: "42px", padding: "0 16px", borderRadius: "8px" }}
                           >
                             <Icons.Plus /> Criar Novo Aviso de Raiz
                           </button>
@@ -1029,9 +1034,9 @@ export default function GestaoAvisos() {
                         onClick={() => handleProgramaInputChange({ target: { name: 'ativo', type: 'checkbox', checked: true } })}
                         style={{
                           flex: 1, padding: "10px", borderRadius: "8px", cursor: isViewOnly ? "default" : "pointer", transition: "all 0.2s",
-                          border: programaFormData.ativo ? "2px solid #704214" : "1px solid #cbd5e1",
-                          background: programaFormData.ativo ? "#fff8f0" : "#ffffff",
-                          color: programaFormData.ativo ? "#704214" : "#64748b",
+                          border: programaFormData.ativo ? "2px solid var(--color-btnPrimary, #3b82f6)" : "1px solid #cbd5e1",
+                          background: programaFormData.ativo ? "var(--color-bgSecondary, #f8fafc)" : "#ffffff",
+                          color: programaFormData.ativo ? "var(--color-btnPrimary, #3b82f6)" : "#64748b",
                           fontWeight: programaFormData.ativo ? "600" : "400",
                         }}
                       >
@@ -1168,7 +1173,7 @@ export default function GestaoAvisos() {
       {/* MODAL DE CONFIRMAÇÃO GLOBAL */}
       {confirmModalOpen && (
         <ModalPortal>
-          <div style={styles.modalOverlay} onClick={() => setConfirmModalOpen(false)}>
+          <div style={styles.modalOverlay} onClick={handleCloseNavModal || (() => setConfirmModalOpen(false))}>
             <div
               style={{ ...styles.modalContent, width: "400px", maxWidth: "90vw", padding: "30px", textAlign: "center", alignItems: "center" }}
               onClick={(e) => e.stopPropagation()}
@@ -1189,7 +1194,7 @@ export default function GestaoAvisos() {
                 <button
                   type="button"
                   onClick={() => { if (confirmAction) confirmAction(); }}
-                  style={{ ...styles.headerActionBtn, flex: 1, justifyContent: "center", background: "#704214", boxShadow: "none" }}
+                  style={{ ...styles.headerActionBtn, flex: 1, justifyContent: "center", background: "var(--color-btnPrimary, #3b82f6)", boxShadow: "none" }}
                 >
                   Confirmar
                 </button>
@@ -1205,7 +1210,7 @@ export default function GestaoAvisos() {
           <div
             style={{
               position: "fixed", bottom: "40px", left: "50%", transform: "translateX(-50%)", zIndex: 99999, 
-              background: notification.type === "error" ? "#ef4444" : "#704214", color: "#ffffff",
+              background: notification.type === "error" ? "#ef4444" : "var(--color-btnPrimary, #3b82f6)", color: "#ffffff",
               padding: "14px 28px", borderRadius: "50px", boxShadow: "0 10px 25px rgba(0,0,0,0.15)",
               fontWeight: "600", textAlign: "center", minWidth: "max-content",
             }}
