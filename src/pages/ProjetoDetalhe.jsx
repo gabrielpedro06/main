@@ -842,10 +842,10 @@ export default function ProjetoDetalhe() {
       return message.includes("subtarefa_id") && (message.includes("schema cache") || message.includes("column"));
   };
 
-  const buildTimeLogPayload = (formState, existingLog = null) => {
+  const buildTimeLogPayload = (formState) => {
       const userId = formState.user_id || "";
       const duration = Math.max(1, parseInt(formState.duration_minutes, 10) || 0);
-      if (!userId || !formState.target_id || duration <= 0) return null;
+      if (!userId || !formState.target_id || duration <= 0 || !formState.date || !formState.start_time) return null;
 
       let atividadeId = null;
       let taskId = null;
@@ -866,8 +866,13 @@ export default function ProjetoDetalhe() {
           atividadeId = selectedTask.atividade_id;
       }
 
-      const referenceStart = existingLog?.start_time ? new Date(existingLog.start_time) : new Date(Date.now() - duration * 60 * 1000);
-      const startTime = isNaN(referenceStart.getTime()) ? new Date(Date.now() - duration * 60 * 1000) : referenceStart;
+      // Construct start time from date and time inputs
+      const [year, month, day] = formState.date.split('-').map(Number);
+      const [hour, minute] = formState.start_time.split(':').map(Number);
+      const startTime = new Date(year, month - 1, day, hour, minute);
+
+      if (isNaN(startTime.getTime())) return null;
+
       const endTime = new Date(startTime.getTime() + duration * 60 * 1000);
 
       return {
@@ -884,22 +889,28 @@ export default function ProjetoDetalhe() {
 
   const openCreateTimeLogModal = () => {
       const firstTaskId = taskOptions[0]?.id || "";
+      const now = new Date();
       setTimeLogForm({
           user_id: user?.id || "",
           target_type: "tarefa",
           target_id: firstTaskId,
-          duration_minutes: "30"
+          duration_minutes: "30",
+          date: now.toISOString().split('T')[0],
+          start_time: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
       });
       setTimeLogModal({ show: true, mode: "create", logId: null });
   };
 
   const openEditTimeLogModal = (log) => {
       const targetInfo = getTargetOptionByLog(log);
+      const logDate = log.start_time ? new Date(log.start_time) : new Date();
       setTimeLogForm({
           user_id: log.user_id || "",
           target_type: targetInfo.target_type,
           target_id: targetInfo.target_id,
-          duration_minutes: String(log.duration_minutes || "")
+          duration_minutes: String(log.duration_minutes || ""),
+          date: logDate.toISOString().split('T')[0],
+          start_time: `${String(logDate.getHours()).padStart(2, '0')}:${String(logDate.getMinutes()).padStart(2, '0')}`
       });
       setTimeLogModal({ show: true, mode: "edit", logId: log.id });
   };
@@ -913,7 +924,8 @@ export default function ProjetoDetalhe() {
       if (timeLogSaving) return;
 
       const existingLog = logs.find((l) => String(l.id) === String(timeLogModal.logId));
-      const payload = buildTimeLogPayload(timeLogForm, existingLog);
+      const payload = buildTimeLogPayload(timeLogForm);
+      
       if (!payload) {
           showToast("Preenche colaborador, item e minutos válidos.", "warning");
           return;
@@ -922,20 +934,24 @@ export default function ProjetoDetalhe() {
       setTimeLogSaving(true);
       try {
           if (timeLogModal.mode === "edit" && existingLog) {
-              let { error } = await supabase.from("task_logs").update(payload).eq("id", existingLog.id);
+              let { error } = await supabase.from("task_logs").update(payload).eq("id", timeLogModal.logId);
+              
               if (error && isMissingSubtaskColumnError(error)) {
                   const retryPayload = { ...payload };
-                  delete retryPayload.subtarefa_id;
-                  const retry = await supabase.from("task_logs").update(retryPayload).eq("id", existingLog.id);
+                  delete retryPayload.subtarefa_id; // Subtarefa_id pode não existir na tabela antiga
+                  
+                  const retry = await supabase.from("task_logs").update(retryPayload).eq("id", timeLogModal.logId);
                   error = retry.error;
               }
               if (error) throw error;
               showToast("Registo de tempo atualizado.", "success");
           } else {
               let { error } = await supabase.from("task_logs").insert([payload]);
+              
               if (error && isMissingSubtaskColumnError(error)) {
                   const retryPayload = { ...payload };
                   delete retryPayload.subtarefa_id;
+                  
                   const retry = await supabase.from("task_logs").insert([retryPayload]);
                   error = retry.error;
               }
@@ -2642,6 +2658,17 @@ export default function ProjetoDetalhe() {
                                         .filter(s => s.ativo !== false || String(s.id) === String(timeLogForm.user_id))
                                         .map((s) => <option key={s.id} value={s.id}>{s.nome || s.email}{s.ativo === false ? ' (Inativo)' : ''}</option>)}
                                 </select>
+                            </div>
+
+                            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px'}}>
+                                <div>
+                                    <label style={{display:'block', marginBottom:'6px', fontSize:'0.8rem', fontWeight:'700', color:'#475569'}}>Data do Registo</label>
+                                    <input type="date" value={timeLogForm.date} onChange={(e) => setTimeLogForm((prev) => ({ ...prev, date: e.target.value }))} style={{width:'100%', padding:'10px 12px', borderRadius:'8px', border:'1px solid #cbd5e1'}} required />
+                                </div>
+                                <div>
+                                    <label style={{display:'block', marginBottom:'6px', fontSize:'0.8rem', fontWeight:'700', color:'#475569'}}>Hora de Início</label>
+                                    <input type="time" value={timeLogForm.start_time} onChange={(e) => setTimeLogForm((prev) => ({ ...prev, start_time: e.target.value }))} style={{width:'100%', padding:'10px 12px', borderRadius:'8px', border:'1px solid #cbd5e1'}} required />
+                                </div>
                             </div>
 
                             <div style={{display:'grid', gridTemplateColumns:'160px 1fr', gap:'10px'}}>

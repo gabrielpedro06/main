@@ -350,27 +350,75 @@ export default function WidgetCalendar() {
               <div style={{display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', flex: 1, alignContent: 'start'}}>
                   {diasCalendario.map((dia, index) => {
                       if (!dia) return <div key={index} style={{background: '#f8fafc', borderRadius: '6px'}}></div>;
+                      
                       const evtsDoDia = eventos.filter(e => e.dia === dia);
                       const isToday = dia === new Date().getDate() && mesAtual === new Date().getMonth() && anoAtual === new Date().getFullYear();
+                      
+                      // 💡 Detetar o dia da semana (0 = Domingo, 6 = Sábado)
+                      const diaDaSemana = new Date(anoAtual, mesAtual, dia).getDay();
+                      const isFimDeSemana = diaDaSemana === 0 || diaDaSemana === 6;
+
+                      // Definir cor de fundo dinâmica com base no estado do dia
+                      let backgroundColor = 'white';
+                      let borderColor = '#f1f5f9';
+
+                      if (isToday) {
+                          backgroundColor = 'var(--color-bgSecondary)';
+                          borderColor = 'var(--color-borderColor)';
+                      } else if (isFimDeSemana) {
+                          backgroundColor = '#f0f4f8'; // Tom cinzento/azul do teu 2º print
+                          borderColor = '#e2e8f0';
+                      }
 
                       return (
                           <div key={index} onClick={() => { setDataAtual(new Date(anoAtual, mesAtual, dia)); setViewMode('day'); }}
                               style={{
-                                  minHeight: '50px', display: 'flex', flexDirection: 'column', borderRadius: '6px', 
-                                  background: isToday ? 'var(--color-bgSecondary)' : 'white', border: isToday ? '1px solid var(--color-borderColor)' : '1px solid #f1f5f9',
-                                  padding: '4px', fontSize: '0.85rem', cursor: 'pointer', overflow: 'hidden'
+                                  minHeight: '60px', // Um pouco mais alto para acomodar o texto do fim de semana
+                                  display: 'flex', 
+                                  flexDirection: 'column', 
+                                  justifyContent: 'space-between',
+                                  borderRadius: '6px', 
+                                  background: backgroundColor, 
+                                  border: `1px solid ${borderColor}`,
+                                  padding: '6px', 
+                                  fontSize: '0.85rem', 
+                                  cursor: 'pointer', 
+                                  overflow: 'hidden',
+                                  position: 'relative'
                               }}
                               onMouseOver={(e) => e.currentTarget.style.borderColor = '#cbd5e1'}
-                              onMouseOut={(e) => e.currentTarget.style.borderColor = isToday ? 'var(--color-borderColor)' : '#f1f5f9'}
+                              onMouseOut={(e) => e.currentTarget.style.borderColor = isToday ? 'var(--color-borderColor)' : (isFimDeSemana ? '#e2e8f0' : '#f1f5f9')}
                           >
-                              <span style={{fontSize: '0.7rem', fontWeight: 'bold', color: isToday ? 'var(--color-btnPrimary)' : (evtsDoDia.find(e=>e.tipo==='feriado') ? '#ef4444' : '#94a3b8'), marginBottom: '2px'}}>{dia}</span>
-                              <div style={{display: 'flex', flexDirection: 'column', gap: '2px'}}>
-                                  {evtsDoDia.slice(0, 2).map((ev, i) => (
-                                      <div key={i} style={{fontSize: '0.6rem', background: ev.bg, color: ev.txt, padding: '2px 4px', borderRadius: '4px', fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>
-                                          {ev.displayName}
-                                      </div>
-                                  ))}
-                                  {evtsDoDia.length > 2 && <span style={{fontSize: '0.6rem', color: '#94a3b8', textAlign: 'center'}}>+{evtsDoDia.length - 2}</span>}
+                              {/* Topo do Card: Número do Dia */}
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <span style={{
+                                      fontSize: '0.7rem', 
+                                      fontWeight: 'bold', 
+                                      color: isToday ? 'var(--color-btnPrimary)' : (evtsDoDia.find(e=>e.tipo==='feriado') ? '#ef4444' : '#94a3b8')
+                                  }}>
+                                      {dia}
+                                  </span>
+                              </div>
+
+                              {/* Conteúdo: Eventos ou Texto de Fim de Semana */}
+                              <div style={{display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '4px', flex: 1, justifyContent: 'end'}}>
+                                  {evtsDoDia.length > 0 ? (
+                                      <>
+                                          {evtsDoDia.slice(0, 2).map((ev, i) => (
+                                              <div key={i} style={{fontSize: '0.6rem', background: ev.bg, color: ev.txt, padding: '2px 4px', borderRadius: '4px', fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>
+                                                  {ev.displayName}
+                                              </div>
+                                          ))}
+                                          {evtsDoDia.length > 2 && <span style={{fontSize: '0.6rem', color: '#94a3b8', textAlign: 'center'}}>+{evtsDoDia.length - 2}</span>}
+                                      </>
+                                  ) : (
+                                      // Se for fim de semana e não tiver eventos/feriados, mostra o texto discreto
+                                      isFimDeSemana && (
+                                          <span style={{fontSize: '0.6rem', color: '#94a3b8', fontWeight: '500', paddingLeft: '2px', marginBottom: '2px'}}>
+                                              Fim de Semana
+                                          </span>
+                                      )
+                                  )}
                               </div>
                           </div>
                       );

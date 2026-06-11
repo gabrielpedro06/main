@@ -1887,11 +1887,21 @@ export default function RecursosHumanos() {
       
       for (let d = 1; d <= daysInMonth; d++) {
           const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-          let content = null;
-          let cellStyle = { background: '#fff', minHeight: '80px', position: 'relative' }; 
-          let cellBorderColor = '#f1f5f9';
+          const dayOfWeek = new Date(year, month, d).getDay();
           
+          // Definição das condições base do dia
+          const isFimSemana = dayOfWeek === 0 || dayOfWeek === 6; // 0 = Domingo, 6 = Sábado
           const feriado = feriadosDoMes.find(f => f.d === d);
+          const assidDia = assiduidadeMes.some(a => a.data_registo === dateStr);
+
+          // Configurações padrão de estilo da célula
+          let tipo = "util";
+          let cor = "#fff";
+          let textoCor = "#94a3b8";
+          let badge = "";
+          let cellBorderColor = '#f1f5f9';
+          let content = null;
+          
           const toleranciaGlobalNoDia = !selectedUser
               ? ausenciasMes.find(
                     a =>
@@ -1902,69 +1912,96 @@ export default function RecursosHumanos() {
                         a.data_fim >= dateStr,
                 )
               : null;
-          if (feriado) {
-              cellStyle.background = '#fee2e2';
-              cellBorderColor = '#fca5a5';
+
+          // Aplicação da sua configuração para Fim de Semana (caso não haja assiduidade registada)
+          if (isFimSemana && !assidDia) {
+              tipo = "fimSemana";
+              cor = "#f1f5f9"; // Fundo cinza suave como na imagem_1d8661.png
+              textoCor = "#94a3b8";
+              badge = "Fim de Semana";
+              cellBorderColor = '#e2e8f0';
           }
+          // Prioridade visual para Feriados
+          else if (feriado) {
+              tipo = "feriado";
+              cor = "#fee2e2"; 
+              textoCor = "#ef4444";
+              cellBorderColor = '#fca5a5';
+              badge = feriado.nome;
+          }
+          // Tolerância de Ponto Global
           else if (toleranciaGlobalNoDia) {
-              cellStyle.background = 'var(--color-borderColorLight)';
+              tipo = "tolerancia";
+              cor = 'var(--color-borderColorLight)';
+              textoCor = 'var(--color-btnPrimary)';
               cellBorderColor = 'var(--color-borderColorLight)';
+              badge = toleranciaGlobalNoDia.motivo || 'Tolerância de Ponto';
           }
 
+          // Se houver um utilizador selecionado (Visão Individual)
           if (selectedUser) {
-              const trabalhou = assiduidadeMes.some(a => a.data_registo === dateStr);
               const ausencia = ausenciasMes.find(a => a.tipo !== KM_REQUEST_TYPE && a.data_inicio <= dateStr && a.data_fim >= dateStr);
               
-              if (trabalhou) { 
-                  cellStyle.background = '#f0fdf4';
+              if (assidDia) { 
+                  cor = '#f0fdf4';
                   cellBorderColor = '#bbf7d0'; 
+                  textoCor = '#16a34a';
                   content = <div style={{display:'flex', justifyContent:'center'}}><Icons.Check color="#16a34a" size={20} /></div>; 
               } 
-              else if (ausencia) {
+              // Só mostra ausência/férias se NÃO for fim de semana nem feriado
+              else if (ausencia && !isFimSemana && !feriado) {
                   const tipoNormalizado = normalizeAbsenceType(ausencia.tipo);
                   if (isToleranceType(tipoNormalizado)) {
-                      cellStyle.background = 'var(--color-bgSecondary)';
+                      cor = 'var(--color-bgSecondary)';
                       cellBorderColor = 'var(--color-borderColor)';
                       content = <div style={{display:'flex', justifyContent:'center'}}><Icons.Clock color="var(--color-btnPrimary)" size={20}/></div>;
                   }
                   else if (isVacationType(tipoNormalizado)) { 
-                      cellStyle.background = '#fefce8'; 
+                      cor = '#fefce8'; 
                       content = <div style={{display:'flex', justifyContent:'center'}}>{ausencia.is_parcial ? <Icons.Clock color="#ca8a04" size={20}/> : <Icons.Sun color="#ca8a04" size={20}/>}</div>; 
                   }
                   else if (tipoNormalizado.includes('falta')) { 
-                      cellStyle.background = '#fef2f2'; 
+                      cor = '#fef2f2'; 
                       content = <div style={{display:'flex', justifyContent:'center'}}>{ausencia.is_parcial ? <Icons.Clock color="#ef4444" size={20}/> : <Icons.X color="#ef4444" size={20}/>}</div>; 
                   }
                   else { 
-                      cellStyle.background = '#faf5ff'; 
+                      cor = '#faf5ff'; 
                       content = <div style={{display:'flex', justifyContent:'center'}}>{ausencia.is_parcial ? <Icons.Clock color="#a855f7" size={20}/> : <Icons.HeartPulse color="#a855f7" size={20}/>}</div>; 
                   }
               } else if (feriado) {
                   content = <div style={{display:'flex', justifyContent:'center', marginTop:'5px'}}><Icons.Flag color="#991b1b" size={16}/></div>;
               }
-          } else {
-              const ausentesNoDia = ausenciasMes.filter(a => a.tipo !== KM_REQUEST_TYPE && a.data_inicio <= dateStr && a.data_fim >= dateStr);
-              const ausentesNoDiaParaBarras = ausentesNoDia.filter(
-                  a => !(toleranciaGlobalNoDia && a.user_id === null && !a.is_parcial && isToleranceType(a.tipo)),
-              );
+          } 
+          // Se não houver utilizador selecionado (Visão Global)
+          else {
               let bars = [];
-              if (ausentesNoDiaParaBarras.length > 0) {
-                  bars = ausentesNoDiaParaBarras.map((a, i) => {
-                      const user = colaboradores.find(c => c.id === a.user_id);
-                      const tipoNormalizado = normalizeAbsenceType(a.tipo);
-                      let barColor = '#fcd34d'; 
-                      if (isToleranceType(tipoNormalizado)) barColor = 'var(--color-btnPrimary)';
-                      if (tipoNormalizado.includes('falta')) barColor = '#fca5a5';
-                      if (tipoNormalizado.includes('baixa') || tipoNormalizado.includes('doenca') || tipoNormalizado.includes('acidente')) barColor = '#d8b4fe';
-                      if (a.is_parcial) barColor = '#94a3b8';
-                      const ownerLabel = a.user_id ? (user?.nome || 'Desconhecido') : 'Global';
-                      return (
-                          <ModernTooltip key={i} content={`${ownerLabel}: ${formatAbsenceTypeLabel(a.tipo)} ${a.is_parcial ? '(Horas)' : ''}`}>
-                              <div style={{height: '6px', background: barColor, borderRadius: '3px', width: '100%'}} />
-                          </ModernTooltip>
-                      );
-                  });
+
+              // BLOQUEIO CRÍTICO: Só renderiza barras de férias/ausências em dias úteis de trabalho
+              if (!isFimSemana && !feriado) {
+                  const ausentesNoDia = ausenciasMes.filter(a => a.tipo !== KM_REQUEST_TYPE && a.data_inicio <= dateStr && a.data_fim >= dateStr);
+                  const ausentesNoDiaParaBarras = ausentesNoDia.filter(
+                      a => !(toleranciaGlobalNoDia && a.user_id === null && !a.is_parcial && isToleranceType(a.tipo)),
+                  );
+
+                  if (ausentesNoDiaParaBarras.length > 0) {
+                      bars = ausentesNoDiaParaBarras.map((a, i) => {
+                          const user = colaboradores.find(c => c.id === a.user_id);
+                          const tipoNormalizado = normalizeAbsenceType(a.tipo);
+                          let barColor = '#fcd34d'; 
+                          if (isToleranceType(tipoNormalizado)) barColor = 'var(--color-btnPrimary)';
+                          if (tipoNormalizado.includes('falta')) barColor = '#fca5a5';
+                          if (tipoNormalizado.includes('baixa') || tipoNormalizado.includes('doenca') || tipoNormalizado.includes('acidente')) barColor = '#d8b4fe';
+                          if (a.is_parcial) barColor = '#94a3b8';
+                          const ownerLabel = a.user_id ? (user?.nome || 'Desconhecido') : 'Global';
+                          return (
+                              <ModernTooltip key={i} content={`${ownerLabel}: ${formatAbsenceTypeLabel(a.tipo)} ${a.is_parcial ? '(Horas)' : ''}`}>
+                                  <div style={{height: '6px', background: barColor, borderRadius: '3px', width: '100%'}} />
+                              </ModernTooltip>
+                          );
+                      });
+                  }
               }
+
               content = (
                   <div style={{display: 'flex', flexDirection: 'column', gap: '2px', width: '100%', marginTop:'5px'}}>
                       {feriado && (
@@ -1979,6 +2016,10 @@ export default function RecursosHumanos() {
                               </div>
                           </ModernTooltip>
                       )}
+                      {/* Apresentação do Badge de Fim de Semana conforme a sua config */}
+                      {badge && !feriado && !toleranciaGlobalNoDia && (
+                          <span style={{fontSize: '0.7rem', color: textoCor, fontStyle: 'italic'}}>{badge}</span>
+                      )}
                       {bars}
                   </div>
               );
@@ -1988,13 +2029,24 @@ export default function RecursosHumanos() {
               ? `Feriado: ${feriado.nome}`
               : (toleranciaGlobalNoDia
                     ? `Global: ${toleranciaGlobalNoDia.motivo || formatAbsenceTypeLabel(toleranciaGlobalNoDia.tipo)}`
-                    : '');
-          const numeroDiaCor = feriado ? '#ef4444' : (toleranciaGlobalNoDia ? 'var(--color-btnPrimary)' : '#94a3b8');
+                    : (isFimSemana ? 'Fim de Semana' : ''));
           
           days.push(
               <ModernTooltip key={d} content={tituloDia}>
-                  <div style={{border:`1px solid ${cellBorderColor}`, borderRadius:'8px', padding:'5px', display:'flex', flexDirection:'column', justifyContent:'space-between', outline:'none', boxShadow:'none', ...cellStyle}}>
-                      <span style={{fontSize:'0.75rem', color: numeroDiaCor, fontWeight:'bold'}}>{d}</span>
+                  <div style={{
+                      border: `1px solid ${cellBorderColor}`, 
+                      borderRadius: '8px', 
+                      padding: '5px', 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      justifyContent: 'space-between', 
+                      outline: 'none', 
+                      boxShadow: 'none', 
+                      background: cor, // Utiliza a variável 'cor' mapeada na sua condição
+                      minHeight: '80px', 
+                      position: 'relative'
+                  }}>
+                      <span style={{fontSize:'0.75rem', color: textoCor, fontWeight:'bold'}}>{d}</span>
                       <div style={{textAlign:'center', fontSize:'1.2rem', width: '100%'}}>{content}</div>
                   </div>
               </ModernTooltip>
