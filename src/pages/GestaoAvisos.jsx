@@ -77,8 +77,28 @@ const createBlankFase = (index = 0) => ({
 });
 
 const normalizeFases = (value) => {
-  if (!Array.isArray(value) || value.length === 0) return [createBlankFase(0)];
-  return value.map((fase, index) => {
+  if (!value) return [createBlankFase(0)];
+  
+  let parsedValue = value;
+
+  // Tenta "descascar" a string as vezes que forem precisas (previne double-stringify da BD)
+  while (typeof parsedValue === "string") {
+    try {
+      const nextValue = JSON.parse(parsedValue);
+      // Evita loops infinitos se o parse devolver exatamente a mesma string
+      if (typeof nextValue === "string" && nextValue === parsedValue) break;
+      parsedValue = nextValue;
+    } catch (e) {
+      break; // Não é JSON, sai do loop e avança
+    }
+  }
+
+  // Se no fim não for um Array, ou se estiver vazio, devolve branco
+  if (!Array.isArray(parsedValue) || parsedValue.length === 0) {
+    return [createBlankFase(0)];
+  }
+
+  return parsedValue.map((fase, index) => {
     if (typeof fase === "string") {
       return { nome: fase.trim() || `Fase ${index + 1}`, prazo: "" };
     }
@@ -133,6 +153,7 @@ export default function GestaoAvisos() {
   const [confirmAction, setConfirmAction] = useState(null);
 
   const [editingProgramaId, setEditingProgramaId] = useState(null);
+  const [modoAdicaoAviso, setModoAdicaoAviso] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notification, setNotification] = useState(null);
 
@@ -154,12 +175,12 @@ export default function GestaoAvisos() {
     acoes_elegiveis: "",
     condicoes_especificas: "",
     descricao: "",
-    aviso_id: "",
+    avisos_ids: [],
     ativo: true,
   });
 
   const avisosById = useMemo(
-    () => Object.fromEntries(avisos.map((aviso) => [String(aviso.id), aviso])),
+    () => Object.fromEntries(avisos.map((aviso) => [String(avisos.ids), aviso])),
     [avisos]
   );
 
@@ -275,7 +296,7 @@ export default function GestaoAvisos() {
 
     if (programa) {
       setProgramaFormData({
-        codigo: program.codigo || "",
+        codigo: programa.codigo || "",
         nome: programa.nome || "",
         pct: Number(programa.pct || 0),
         tipo_incentivo: programa.tipo_incentivo || "fundo perdido (não reembolsável)",
@@ -288,7 +309,7 @@ export default function GestaoAvisos() {
         acoes_elegiveis: programa.acoes_elegiveis || "",
         condicoes_especificas: programa.condicoes_especificas || "",
         descricao: programa.descricao || "",
-        aviso_id: programa.aviso_id || "",
+        avisos_ids: Array.isArray(programa.avisos_ids) ? programa.avisos_ids: (programa.avisos_ids ? [programa.avisos_ids] : []),
         ativo: programa.ativo !== false,
       });
       setEditingProgramaId(programa.id);
@@ -307,7 +328,7 @@ export default function GestaoAvisos() {
         acoes_elegiveis: "",
         condicoes_especificas: "",
         descricao: "",
-        aviso_id: "",
+        avisos_ids: [],
         ativo: true,
       });
       setEditingProgramaId(null);
@@ -322,15 +343,23 @@ export default function GestaoAvisos() {
   };
 
   const handleOpenAvisoModal = (avisoId) => {
-    const avisoSelecionado = avisosById[String(avisoId)];
-    if (!avisoSelecionado) return;
+    const idStr = String(avisoId);
+    // Busca o aviso garantindo que compara como texto
+    const avisoSelecionado = avisosById[idStr] || avisos.find(a => String(a.id) === idStr);
+    
+    if (!avisoSelecionado) {
+      showNotification("Erro: Aviso não encontrado", "error");
+      return;
+    }
 
     setEditingAvisoId(avisoSelecionado.id);
     setAvisoFormData({
       codigo: avisoSelecionado.codigo || "",
       ativo: avisoSelecionado.ativo !== false
     });
-    setAvisoFormFases(normalizeFases(avisoSelecionado.fases || []));
+    
+    // Usamos a mesma função segura que "descasca" os dados!
+    setAvisoFormFases(normalizeFases(avisoSelecionado.fases));
     setAvisoModalOpen(true);
   };
 
@@ -402,7 +431,7 @@ export default function GestaoAvisos() {
     setIsSubmitting(true);
 
     try {
-      let finalAvisoId = programaFormData.aviso_id || null;
+      let finalAvisosIds = [...(programaFormData.avisos_ids || [])];
 
       if (criarNovoAvisoInline) {
         if (!novoAvisoCodigo.trim()) {
@@ -424,7 +453,8 @@ export default function GestaoAvisos() {
 
         if (avisoError) throw avisoError;
         if (avisoData && avisoData.length > 0) {
-          finalAvisoId = avisoData[0].id;
+          // Adiciona o novo ID à lista existente
+          finalAvisosIds.push(avisoData[0].id); 
         }
       }
 
@@ -442,7 +472,7 @@ export default function GestaoAvisos() {
         acoes_elegiveis: programaFormData.acoes_elegiveis || null,
         condicoes_especificas: programaFormData.condicoes_especificas || null,
         descricao: programaFormData.descricao || null,
-        aviso_id: finalAvisoId,
+        avisos_ids: finalAvisosIds,
         ativo: programaFormData.ativo,
       };
 
@@ -636,7 +666,7 @@ export default function GestaoAvisos() {
         <div style={styles.gridCards}>
           {filteredProgramas.map((programa, index) => {
             const topColor = CARD_TOP_COLORS[index % CARD_TOP_COLORS.length];
-            const fasesDoAviso = getAvisoFasesById(programa.aviso_id);
+            const fasesDoAviso = getAvisoFasesById(programa.avisos_ids);
 
             return (
               <div 
@@ -652,30 +682,64 @@ export default function GestaoAvisos() {
                     <h2 style={styles.cardTitle}>{programa.nome}</h2>
                   </div>
 
-                  {programa.aviso_id && (
-                    <div style={{ marginTop: "4px", marginBottom: "16px", padding: "10px 12px", background: "#f8fafc", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-                        <div style={{ display: "inline-flex", gap: "4px", fontSize: "0.75rem", fontWeight: "700", color: "#64748b", textTransform: "uppercase" }}>
-                          AVISO: <span style={{ color: "var(--color-btnPrimary, #3b82f6)" }}>{avisosById[programa.aviso_id]?.codigo}</span>
+                  {Array.isArray(programa.avisos_ids) && programa.avisos_ids.length > 0 && (
+                    <div style={{ marginTop: "8px", marginBottom: "16px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                      
+                      {/* MOSTRA APENAS OS PRIMEIROS 2 AVISOS (slice(0, 2)) */}
+                      {programa.avisos_ids.slice(0, 2).map(avisoId => {
+                        const idString = String(avisoId);
+                        const avisoObj = avisosById[idString] || avisos.find(a => String(a.id) === idString);
+                        
+                        if (!avisoObj) return null;
+
+                        // Usamos a mesma função à prova de bala que usámos no modal!
+                        const fasesDoAviso = normalizeFases(avisoObj.fases);
+
+                        return (
+                          <div key={idString} style={{ padding: "8px 12px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: fasesDoAviso.length > 0 ? "6px" : "0" }}>
+                              <div style={{ display: "inline-flex", gap: "4px", fontSize: "0.75rem", fontWeight: "700", color: "#64748b", textTransform: "uppercase" }}>
+                                AVISO: <span style={{ color: "var(--color-btnPrimary, #3b82f6)" }}>{avisoObj.codigo}</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={(e) => { 
+                                  e.stopPropagation(); // Previne que o clique dispare outras ações do card
+                                  handleOpenAvisoModal(idString); 
+                                }}
+                                style={{ background: "none", border: "none", color: "var(--color-btnPrimary, #3b82f6)", fontSize: "0.75rem", fontWeight: "700", cursor: "pointer", padding: 0, textDecoration: "underline" }}
+                              >
+                                Gerir
+                              </button>
+                            </div>
+                            
+                            {fasesDoAviso.length > 0 && (
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                                {fasesDoAviso.map((fase, idx) => (
+                                  <span key={idx} style={{ background: "#ffffff", padding: "2px 6px", borderRadius: "4px", fontSize: "0.7rem", border: "1px solid #cbd5e1", color: "#334155" }}>
+                                    {fase.nome}: <strong>{formatDatePt(fase.prazo)}</strong>
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+
+                      {/* INDICADOR DE EXCESSO ("+ X avisos") */}
+                      {programa.avisos_ids.length > 2 && (
+                        <div style={{ 
+                          fontSize: "0.75rem", 
+                          fontWeight: "700", 
+                          color: "#64748b", 
+                          background: "#f1f5f9", 
+                          padding: "6px 12px", 
+                          borderRadius: "6px", 
+                          textAlign: "center",
+                          border: "1px dashed #cbd5e1"
+                        }}>
+                          E mais {programa.avisos_ids.length - 2} aviso{programa.avisos_ids.length - 2 > 1 ? 's' : ''} associado{programa.avisos_ids.length - 2 > 1 ? 's' : ''}
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenAvisoModal(programa.aviso_id)}
-                          style={{ background: "none", border: "none", color: "var(--color-btnPrimary, #3b82f6)", fontSize: "0.75rem", fontWeight: "700", cursor: "pointer", padding: 0, textDecoration: "underline" }}
-                        >
-                          Gerir
-                        </button>
-                      </div>
-                      {fasesDoAviso.length > 0 ? (
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-                          {fasesDoAviso.map((fase, idx) => (
-                            <span key={idx} style={{ background: "#ffffff", padding: "3px 8px", borderRadius: "6px", fontSize: "0.72rem", border: "1px solid #e2e8f0", color: "#334155" }}>
-                              {fase.nome}: <strong>{formatDatePt(fase.prazo)}</strong>
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <span style={{ ...styles.textMuted, fontSize: "0.72rem" }}>Sem fases configuradas</span>
                       )}
                     </div>
                   )}
@@ -740,7 +804,7 @@ export default function GestaoAvisos() {
       {/* MODAL PROGRAMA */}
       {programaModalOpen && (
         <ModalPortal>
-          <div style={styles.modalOverlay} onClick={handleCloseProgramaModal}>
+          <div style={{ ...styles.modalOverlay, zIndex: 1050 }} onClick={handleCloseAvisoModal}>
             <div
               style={{ ...styles.modalContent, width: "1100px", maxWidth: "95vw", maxHeight: "90vh", overflow: "hidden" }}
               onClick={(e) => e.stopPropagation()}
@@ -860,50 +924,154 @@ export default function GestaoAvisos() {
                     </div>
                   </div>
 
-                  <div style={styles.sectionTitle}>Aviso Associado</div>
+                  <div style={styles.sectionTitle}>Avisos Associados</div>
                   <div style={{ background: "#f8fafc", padding: "16px", borderRadius: "12px", border: "1px solid #e2e8f0", marginBottom: "16px" }}>
-                    {!criarNovoAvisoInline ? (
-                      <div style={{ display: "flex", gap: "16px", alignItems: "flex-end" }}>
+                    
+                    {/* LISTA DE AVISOS JÁ SELECIONADOS (MINI-CARDS) */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: Array.isArray(programaFormData.avisos_ids) && programaFormData.avisos_ids.length > 0 ? "16px" : "0" }}>
+                        
+                        {(!Array.isArray(programaFormData.avisos_ids) || programaFormData.avisos_ids.length === 0) && !modoAdicaoAviso && !criarNovoAvisoInline && (
+                          <span style={{ fontSize: "0.85rem", color: "#64748b" }}>Nenhum aviso associado a este programa.</span>
+                        )}
+                        
+                        {(Array.isArray(programaFormData.avisos_ids) ? programaFormData.avisos_ids : []).map(id => {
+                          const idString = String(id);
+                          const aviso = avisosById[idString] || avisos.find(a => String(a.id) === idString);
+                          const fasesDoAviso = normalizeFases(aviso?.fases);
+                          
+                          return (
+                            <div key={idString} style={{ 
+                              background: "#ffffff", 
+                              border: "1px solid #bae6fd", 
+                              borderRadius: "8px", 
+                              padding: "12px 14px", 
+                              display: "flex", 
+                              flexDirection: "column", 
+                              gap: "10px",
+                              boxShadow: "0 1px 2px rgba(0,0,0,0.02)"
+                            }}>
+                              {/* CABEÇALHO DO AVISO */}
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                  <span style={{ background: "#e0f2fe", color: "#0369a1", padding: "4px 8px", borderRadius: "6px", fontSize: "0.8rem", fontWeight: "700" }}>
+                                    {aviso ? aviso.codigo : `Aviso Guardado`}
+                                  </span>
+                                </div>
+                                
+                                {!isViewOnly && (
+                                  <div style={{ display: "flex", gap: "8px" }}>
+                                    <button 
+                                      type="button" 
+                                      title="Editar/Gerir este aviso"
+                                      onClick={() => handleOpenAvisoModal(idString)}
+                                      style={{ background: "#f8fafc", border: "1px solid #cbd5e1", color: "var(--color-btnPrimary, #3b82f6)", cursor: "pointer", width: "26px", height: "26px", borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center" }}
+                                      onMouseOver={(e) => e.currentTarget.style.background = "#e2e8f0"}
+                                      onMouseOut={(e) => e.currentTarget.style.background = "#f8fafc"}
+                                    >
+                                      <Icons.Edit />
+                                    </button>
+                                    
+                                    <button 
+                                      type="button" 
+                                      title="Remover aviso do programa"
+                                      onClick={() => setProgramaFormData(prev => ({ 
+                                        ...prev, 
+                                        avisos_ids: Array.isArray(prev.avisos_ids) ? prev.avisos_ids.filter(aId => String(aId) !== idString) : []
+                                      }))}
+                                      style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#ef4444", cursor: "pointer", width: "26px", height: "26px", borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem", lineHeight: 1 }}
+                                      onMouseOver={(e) => e.currentTarget.style.background = "#fee2e2"}
+                                      onMouseOut={(e) => e.currentTarget.style.background = "#fef2f2"}
+                                    >
+                                      ×
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* FASES DO AVISO */}
+                              {fasesDoAviso.length > 0 ? (
+                                <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                                  {fasesDoAviso.map((fase, idx) => (
+                                    <span key={idx} style={{ background: "#f8fafc", padding: "4px 8px", borderRadius: "6px", fontSize: "0.75rem", border: "1px solid #e2e8f0", color: "#475569" }}>
+                                      {fase.nome}: <strong>{formatDatePt(fase.prazo)}</strong>
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span style={{ fontSize: "0.75rem", color: "#94a3b8", fontStyle: "italic" }}>Sem fases configuradas para este aviso.</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                    {/* BOTÃO PRINCIPAL: ADICIONAR */}
+                    {!isViewOnly && !modoAdicaoAviso && !criarNovoAvisoInline && (
+                      <button 
+                        type="button" 
+                        onClick={() => setModoAdicaoAviso(true)} 
+                        style={{ ...styles.headerActionBtn, background: "#ffffff", color: "var(--color-btnPrimary, #3b82f6)", border: "1px dashed #cbd5e1", boxShadow: "none", width: "100%", justifyContent: "center", padding: "10px" }}
+                      >
+                        <Icons.Plus /> Adicionar Aviso
+                      </button>
+                    )}
+
+                    {/* MODO 1: SELECIONAR EXISTENTE OU ESCOLHER CRIAR NOVO */}
+                    {modoAdicaoAviso && (
+                      <div style={{ display: "flex", gap: "12px", alignItems: "center", padding: "16px", background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "8px", boxShadow: "0 2px 4px rgba(0,0,0,0.02)" }}>
                         <div style={{ flex: 1 }}>
-                          <label style={styles.label}>Selecionar Aviso Existente</label>
-                          <select
-                            name="aviso_id"
-                            disabled={isViewOnly}
-                            value={programaFormData.aviso_id}
-                            onChange={handleProgramaInputChange}
-                            style={styles.input}
+                          <select 
+                            style={styles.input} 
+                            value=""
+                            onChange={(e) => {
+                              const selectedId = e.target.value;
+                              if (selectedId) {
+                                setProgramaFormData(prev => ({ ...prev, avisos_ids: [...(prev.avisos_ids || []), selectedId] }));
+                                setModoAdicaoAviso(false);
+                              }
+                            }}
                           >
-                            <option value="">— Sem aviso associado —</option>
-                            {avisos.map((aviso) => (
-                              <option key={aviso.id} value={aviso.id}>
-                                {aviso.codigo}
-                              </option>
+                            <option value="" disabled>Selecione um aviso existente da lista...</option>
+                            {avisos.filter(a => !(programaFormData.avisos_ids || []).includes(a.id)).map((aviso) => (
+                              <option key={aviso.id} value={aviso.id}>{aviso.codigo}</option>
                             ))}
                           </select>
                         </div>
-                        {!editingProgramaId && !isViewOnly && (
-                          <button
-                            type="button"
-                            onClick={() => setCriarNovoAvisoInline(true)}
-                            style={{ ...styles.headerActionBtn, background: "#f0f2f5", color: "var(--color-btnPrimary, #3b82f6)", boxShadow: "none", height: "42px", padding: "0 16px", borderRadius: "8px" }}
-                          >
-                            <Icons.Plus /> Criar Novo Aviso de Raiz
-                          </button>
-                        )}
+                        <span style={{ fontSize: "0.85rem", color: "#94a3b8", fontWeight: "700" }}>OU</span>
+                        <button 
+                          type="button" 
+                          onClick={() => { setModoAdicaoAviso(false); setCriarNovoAvisoInline(true); }} 
+                          style={{ ...styles.headerActionBtn, background: "#f1f5f9", color: "#334155", boxShadow: "none", padding: "8px 16px" }}
+                        >
+                          Criar Novo de Raiz
+                        </button>
+                        <button 
+                          type="button" 
+                          onClick={() => setModoAdicaoAviso(false)} 
+                          style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: "1.5rem", padding: "0 4px" }}
+                        >
+                          ×
+                        </button>
                       </div>
-                    ) : (
-                      <div>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-                          <h4 style={{ margin: 0, fontSize: "0.9rem", color: "#1e293b" }}>A Configurar Novo Aviso Interno</h4>
+                    )}
+
+                    {/* MODO 2: CRIAR NOVO INLINE (O que já tinha, com pequeno ajuste visual) */}
+                    {criarNovoAvisoInline && (
+                      <div style={{ padding: "16px", background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "8px", boxShadow: "0 2px 4px rgba(0,0,0,0.02)" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                          <h4 style={{ margin: 0, fontSize: "0.95rem", color: "#1e293b", display: "flex", alignItems: "center", gap: "6px" }}>
+                            <span style={{ color: "var(--color-btnPrimary, #3b82f6)" }}>✨</span> A Configurar Novo Aviso Interno
+                          </h4>
                           <button
                             type="button"
-                            onClick={() => setCriarNovoAvisoInline(false)}
+                            onClick={() => { setCriarNovoAvisoInline(false); setModoAdicaoAviso(true); }}
                             style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "0.85rem", fontWeight: 600 }}
                           >
-                            Cancelar e escolher existente
+                            Cancelar
                           </button>
                         </div>
                         
+                        {/* O RESTO DO SEU CÓDIGO INLINE FICA IGUAL AQUI */}
                         <div style={{ marginBottom: "16px" }}>
                           <label style={styles.label}>Código do Novo Aviso</label>
                           <input
@@ -928,28 +1096,10 @@ export default function GestaoAvisos() {
 
                         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                           {novoAvisoFases.map((fase, idx) => (
-                            <div key={idx} style={{ display: "grid", gridTemplateColumns: "1fr 180px auto", gap: "10px", alignItems: "center", background: "#fff", padding: "10px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
-                              <input
-                                type="text"
-                                value={fase.nome}
-                                onChange={(e) => updateAvisoFaseInline(idx, "nome", e.target.value)}
-                                placeholder={`Fase ${idx + 1}`}
-                                style={styles.input}
-                              />
-                              <input
-                                type="date"
-                                value={fase.prazo}
-                                onChange={(e) => updateAvisoFaseInline(idx, "prazo", e.target.value)}
-                                style={styles.input}
-                              />
-                              <button
-                                type="button"
-                                onClick={() => removeAvisoFaseInline(idx)}
-                                disabled={novoAvisoFases.length === 1}
-                                style={{ background: "none", border: "none", cursor: "pointer" }}
-                              >
-                                <Icons.Trash />
-                              </button>
+                            <div key={idx} style={{ display: "grid", gridTemplateColumns: "1fr 180px auto", gap: "10px", alignItems: "center", background: "#f8fafc", padding: "10px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                              <input type="text" value={fase.nome} onChange={(e) => updateAvisoFaseInline(idx, "nome", e.target.value)} placeholder={`Fase ${idx + 1}`} style={styles.input} />
+                              <input type="date" value={fase.prazo} onChange={(e) => updateAvisoFaseInline(idx, "prazo", e.target.value)} style={styles.input} />
+                              <button type="button" onClick={() => removeAvisoFaseInline(idx)} disabled={novoAvisoFases.length === 1} style={{ background: "none", border: "none", cursor: "pointer" }}><Icons.Trash /></button>
                             </div>
                           ))}
                         </div>
@@ -1084,17 +1234,45 @@ export default function GestaoAvisos() {
       {/* MODAL EDITAR AVISOS INDEPENDENTE */}
       {avisoModalOpen && (
         <ModalPortal>
-          <div style={styles.modalOverlay} onClick={handleCloseAvisoModal}>
+          {/* 1. OVERLAY (Fundo escuro): Z-index gigante e função correta de fechar */}
+          <div 
+            style={{ ...styles.modalOverlay, zIndex: 99998 }} 
+            onClick={handleCloseAvisoModal}
+          >
+            {/* 2. CAIXA DO MODAL: position relative e z-index ainda maior */}
             <div
-              style={{ ...styles.modalContent, width: "700px", maxWidth: "90vw", maxHeight: "85vh", overflow: "hidden" }}
+              style={{ 
+                ...styles.modalContent, 
+                width: "700px", 
+                maxWidth: "90vw", 
+                maxHeight: "85vh", 
+                overflow: "hidden", 
+                position: "relative", 
+                zIndex: 99999 
+              }}
               onClick={(e) => e.stopPropagation()}
             >
+              {/* 3. CABEÇALHO */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 24px", borderBottom: "1px solid #f1f5f9" }}>
                 <h3 style={{ margin: 0, color: "#1e293b" }}>Gerir Aviso Interno & Prazos</h3>
+                
+                {/* 4. BOTÃO FECHAR "X" (Agora bonito e sem estilos de ecrã gigante!) */}
                 <button
                   type="button"
                   onClick={handleCloseAvisoModal}
-                  style={{ cursor: "pointer", border: "none", background: "none", fontSize: "1.5rem", color: "#94a3b8" }}
+                  style={{ 
+                    cursor: "pointer", 
+                    border: "none", 
+                    background: "none", 
+                    fontSize: "1.5rem", 
+                    color: "#94a3b8",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "4px"
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.color = "#ef4444"}
+                  onMouseOut={(e) => e.currentTarget.style.color = "#94a3b8"}
                 >
                   ×
                 </button>
@@ -1173,7 +1351,7 @@ export default function GestaoAvisos() {
       {/* MODAL DE CONFIRMAÇÃO GLOBAL */}
       {confirmModalOpen && (
         <ModalPortal>
-          <div style={styles.modalOverlay} onClick={handleCloseNavModal || (() => setConfirmModalOpen(false))}>
+          <div style={styles.modalOverlay} onClick={() => setConfirmModalOpen(false)}>
             <div
               style={{ ...styles.modalContent, width: "400px", maxWidth: "90vw", padding: "30px", textAlign: "center", alignItems: "center" }}
               onClick={(e) => e.stopPropagation()}
