@@ -131,18 +131,12 @@ const createBlankProjetoFase = (index = 0) => ({
 const normalizeProjetoFases = (value) => {
     if (!Array.isArray(value) || value.length === 0) return [];
 
-    return value
-        .map((fase, index) => {
-            if (typeof fase === "string") {
-                return createBlankProjetoFase(index);
-            }
-
-            return {
-                nome: String(fase?.nome || fase?.fase || `Fase ${index + 1}`).trim(),
-                prazo: String(fase?.prazo || fase?.data || "").trim(),
-            };
-        })
-        .filter((fase) => fase.nome || fase.prazo);
+    return value.map((fase, index) => ({
+        // Garante que mantém o que já existe e apenas formata
+        nome: String(fase?.nome || fase?.fase || `Fase ${index + 1}`).trim(),
+        prazo: String(fase?.prazo || fase?.data || "").trim(),
+    }));
+    // REMOVE O .filter AQUI se ele estiver a apagar fases sem nome ou data
 };
 
 const getLastProjetoFaseDate = (fases) => {
@@ -218,7 +212,7 @@ export default function Projetos() {
     responsavel_id: "", colaboradores: [],
     estado: "pendente", data_inicio: "", data_fim: "",
         observacoes: "", programa: "", aviso: "", codigo_projeto: "", numero_projeto: "",
-        programa_id: "", avisos_ids: "", prazos_fases: [],
+        programa_id: "", aviso_id: "", prazos_fases: [],
     investimento: 0, incentivo: 0
   };
 
@@ -301,6 +295,20 @@ export default function Projetos() {
 
       window.dispatchEvent(new CustomEvent("project-notifications-updated"));
   };
+
+  useEffect(() => {
+        // Se o aviso mudar, atualiza as fases de acordo
+        if (form.avisos_ids) {
+            const avisoSelecionado = avisos.find(a => String(a.id) === String(form.avisos_ids));
+            
+            if (avisoSelecionado?.fases) {
+                setForm(prev => ({
+                    ...prev,
+                    prazos_fases: normalizeProjetoFases(avisoSelecionado.fases)
+                }));
+            }
+        }
+    }, [form.avisos_ids, avisos]);
 
   useEffect(() => {
       if (!showModal && quickOrganismoModal.show) {
@@ -963,7 +971,7 @@ export default function Projetos() {
         data_fim: proj.data_fim || getLastProjetoFaseDate(projetoFases) || "", observacoes: proj.observacoes || "",
         programa: proj.programa || matchedPrograma?.nome || "", aviso: proj.aviso || matchedAviso?.codigo || avisoBase?.codigo || "",
         programa_id: matchedPrograma?.id || proj.programa_id || "",
-        avisos_ids: matchedAviso?.id || proj.avisos_ids || avisoBase?.id || "",
+        aviso_id: matchedAviso?.id || proj.aviso_id || avisoBase?.id || "",
         prazos_fases: projetoFases,
         codigo_projeto: proj.codigo_projeto || "", numero_projeto: proj.numero_projeto || "", investimento: proj.investimento || 0, incentivo: proj.incentivo || 0
     });
@@ -1036,7 +1044,7 @@ export default function Projetos() {
         payload.parceiros_ids = normalizeIdsList(payload.parceiros_ids);
         payload.colaboradores = normalizeIdsList(payload.colaboradores);
         payload.programa_id = selectedPrograma?.id || null;
-        payload.avisos_ids = selectedAviso?.id || null;
+        payload.aviso_id = selectedAviso?.id || null;
         payload.prazos_fases = normalizedFases;
         payload.programa = selectedPrograma ? `${selectedPrograma.codigo ? `${selectedPrograma.codigo} - ` : ""}${selectedPrograma.nome || ""}`.trim() : (payload.programa || "").trim();
         payload.aviso = selectedAviso?.codigo || (payload.aviso || "").trim();
@@ -1357,25 +1365,35 @@ export default function Projetos() {
   const fasesEfetivas = fasesProjeto.length > 0 ? fasesProjeto : normalizeProjetoFases(selectedAviso?.fases);
 
   const handleProgramaChange = async (programaId) => {
-      const programa = getProgramaById(programaId);
-      let aviso = getAvisoForPrograma(programa); 
+    if (!programaId) {
+        setForm(prev => ({
+            ...prev,
+            programa_id: "",
+            programa: "",
+            aviso_id: aviso?.id || "",
+            aviso: "",
+            prazos_fases: []
+        }));
+        return;
+    }
 
-      // Se o programa tiver avisos_ids (array ou string) e não encontramos pelo método anterior
-      if (!aviso && programa?.avisos_ids) {
-          aviso = await fetchAvisoFromServer(programa.avisos_ids);
-      }
+    const programa = getProgramaById(programaId);
+    let aviso = getAvisoForPrograma(programa);
 
-      const fases = normalizeProjetoFases(aviso?.fases);
+    // Se o aviso ainda não estiver no estado local, busca do servidor
+    if (!aviso && programa?.avisos_ids) {
+        aviso = await fetchAvisoFromServer(programa.avisos_ids);
+    }
 
-      setForm((prev) => ({
-          ...prev,
-          programa_id: programaId,
-          programa: programa ? `${programa.codigo ? `${programa.codigo} - ` : ""}${programa.nome || ""}`.trim() : "",
-          avisos_ids: aviso?.id || "",
-          aviso: aviso?.codigo || "",
-          prazos_fases: fases,
-      }));
-  };
+    setForm((prev) => ({
+        ...prev,
+        programa_id: programaId,
+        programa: programa ? `${programa.codigo ? `${programa.codigo} - ` : ""}${programa.nome || ""}`.trim() : "",
+        // Atualiza o ID, o useEffect acima encarregar-se-á de atualizar as fases
+        avisos_ids: aviso?.id || "",
+        aviso: aviso?.codigo || ""
+    }));
+};
 
   // DEBUG: log when selected programa/aviso change in form
   useEffect(() => {
@@ -1383,16 +1401,19 @@ export default function Projetos() {
   }, [form.programa_id, form.avisos_ids, programas, avisos]);
 
   const updateProjetoFase = (index, field, value) => {
-      setForm((prev) => {
-          const fases = normalizeProjetoFases(prev.prazos_fases);
-          return {
-              ...prev,
-              prazos_fases: fases.map((fase, currentIndex) => (
-                  currentIndex === index ? { ...fase, [field]: value } : fase
-              )),
-          };
-      });
-  };
+    setForm((prev) => {
+        // Cria um novo array para o React detetar a alteração de referência
+        const novasFases = [...prev.prazos_fases];
+        
+        // Cria um novo objeto para a fase alterada
+        novasFases[index] = { ...novasFases[index], [field]: value };
+        
+        return {
+            ...prev,
+            prazos_fases: novasFases
+        };
+    });
+};
 
   const addProjetoFase = () => {
       setForm((prev) => {
@@ -2593,7 +2614,6 @@ export default function Projetos() {
                                                                         ...form, 
                                                                         avisos_ids: avId, 
                                                                         aviso: av?.codigo || "", 
-                                                                        prazos_fases: normalizeProjetoFases(av?.fases)
                                                                     });
                                                                 }}
                                                                 style={{
@@ -2654,7 +2674,7 @@ export default function Projetos() {
                                             <div style={{display: 'grid', gap: '12px'}}>
                                                 {fasesEfetivas && fasesEfetivas.length > 0 ? (
                                                     fasesEfetivas.map((fase, index) => (
-                                                        <div key={`fase-${index}`} style={{display: 'grid', gridTemplateColumns: '1fr 180px', gap: '12px', alignItems: 'end', padding: '12px', borderRadius: '10px', background: 'white', border: '1px solid #e2e8f0'}}>
+                                                        <div key={`fase-${fase.nome}-${index}`} style={{display: 'grid', gridTemplateColumns: '1fr 180px', gap: '12px', alignItems: 'end', padding: '12px', borderRadius: '10px', background: 'white', border: '1px solid #e2e8f0'}}>
                                                             <div>
                                                                 <label style={labelStyle}>Nome da fase</label>
                                                                 <input
