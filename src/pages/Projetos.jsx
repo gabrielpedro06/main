@@ -218,7 +218,7 @@ export default function Projetos() {
     responsavel_id: "", colaboradores: [],
     estado: "pendente", data_inicio: "", data_fim: "",
         observacoes: "", programa: "", aviso: "", codigo_projeto: "", numero_projeto: "",
-        programa_id: "", aviso_id: "", prazos_fases: [],
+        programa_id: "", avisos_ids: "", prazos_fases: [],
     investimento: 0, incentivo: 0
   };
 
@@ -314,35 +314,35 @@ export default function Projetos() {
   }, [user]);
 
     const getProgramaById = (programaId) => programas.find((programa) => String(programa.id) === String(programaId)) || null;
-    const getAvisoById = (avisoId) => avisos.find((aviso) => String(aviso.id) === String(avisoId)) || null;
+    const getAvisoById = (avisoId) => avisos.find((aviso) => String(avisos.ids) === String(avisoId)) || null;
     const normalizeCode = (v) => String(v || "").trim().toLowerCase();
     const getAvisoForPrograma = (programa) => {
-        if (!programa) return null;
+      if (!programa) return null;
 
-        // Prefer explicit FK
-        if (programa.aviso_id) {
-            const byId = getAvisoById(programa.aviso_id);
-            if (byId) return byId;
-        }
+      // Prefer explicit FK
+      if (programa.avisos_ids) {
+          const byId = getAvisoById(programa.avisos_ids);
+          if (byId) return byId;
+      }
 
-        // Try several textual fields (legacy data may store aviso code in different props)
-        const raw = String(programa.aviso || programa.aviso_codigo || programa.codigo || "").trim();
-        if (!raw) return null;
-        const codigo = raw.toLowerCase();
+      // Try several textual fields (legacy data may store aviso code in different props)
+      const raw = String(programa.aviso || programa.aviso_codigo || programa.codigo || "").trim();
+      if (!raw) return null;
+      const codigo = raw.toLowerCase();
 
-        // Exact normalized match
-        let found = avisos.find((av) => normalizeCode(av.codigo) === codigo);
-        if (found) return found;
+      // Exact normalized match
+      let found = avisos.find((av) => normalizeCode(av.codigo) === codigo);
+      if (found) return found;
 
-        // Partial/contains match (tolerate prefixes/suffixes)
-        found = avisos.find((av) => normalizeCode(av.codigo).includes(codigo) || codigo.includes(normalizeCode(av.codigo)));
-        if (found) return found;
+      // Partial/contains match (tolerate prefixes/suffixes)
+      found = avisos.find((av) => normalizeCode(av.codigo).includes(codigo) || codigo.includes(normalizeCode(av.codigo)));
+      if (found) return found;
 
-        // Try matching by aviso name as a last resort
-        found = avisos.find((av) => normalizeCode(av.nome).includes(codigo) || codigo.includes(normalizeCode(av.nome)));
-        if (found) return found;
+      // Try matching by aviso name as a last resort
+      found = avisos.find((av) => normalizeCode(av.nome).includes(codigo) || codigo.includes(normalizeCode(av.nome)));
+      if (found) return found;
 
-        return null;
+      return null;
     };
 
     // Fetch a single aviso from server by id and add to local cache
@@ -524,6 +524,20 @@ export default function Projetos() {
       }
   }
 
+  // Adiciona esta função ao teu componente se precisares de filtrar múltiplos avisos
+  const getAvisosForPrograma = (programa) => {
+      if (!programa) return [];
+      
+      // Ajusta conforme a estrutura da tua BD (ex: se avisos_ids for um array)
+      if (Array.isArray(programa.avisos_ids)) {
+          return avisos.filter(a => programa.avisos_ids.includes(a.id));
+      }
+      
+      // Fallback para string ou campo único
+      const avisoUnico = getAvisoForPrograma(programa);
+      return avisoUnico ? [avisoUnico] : [];
+  };
+
   const toggleTemplateSelection = (type, id) => {
       setTemplateSelection(prev => ({ ...prev, [`${type}_${id}`]: !prev[`${type}_${id}`] }));
   };
@@ -551,7 +565,10 @@ export default function Projetos() {
     else setProjetos(projData || []);
 
         // Load programas normally
-        const { data: programasData, error: programasError } = await supabase.from("programas_financiamento").select("id, codigo, nome, aviso, aviso_id, ativo").order("codigo", { ascending: true });
+        const { data: programasData, error: programasError } = await supabase
+            .from("programas_financiamento")
+            .select("id, codigo, nome, aviso, avisos_ids, ativo")
+            .order("codigo", { ascending: true });
         if (programasError) console.error('Erro ao buscar programas:', programasError);
         setProgramas(programasData || []);
 
@@ -928,7 +945,7 @@ export default function Projetos() {
         String(programa.nome || "").trim() === String(proj.programa || "").trim()
     ) || null;
     const matchedAviso = avisos.find((aviso) =>
-        String(aviso.id) === String(proj.aviso_id || "") ||
+        String(avisos.ids) === String(proj.avisos_ids || "") ||
         String(aviso.codigo || "").trim() === String(proj.aviso || "").trim()
     ) || null;
     const avisoBase = matchedAviso || getAvisoForPrograma(matchedPrograma);
@@ -946,7 +963,7 @@ export default function Projetos() {
         data_fim: proj.data_fim || getLastProjetoFaseDate(projetoFases) || "", observacoes: proj.observacoes || "",
         programa: proj.programa || matchedPrograma?.nome || "", aviso: proj.aviso || matchedAviso?.codigo || avisoBase?.codigo || "",
         programa_id: matchedPrograma?.id || proj.programa_id || "",
-        aviso_id: matchedAviso?.id || proj.aviso_id || avisoBase?.id || "",
+        avisos_ids: matchedAviso?.id || proj.avisos_ids || avisoBase?.id || "",
         prazos_fases: projetoFases,
         codigo_projeto: proj.codigo_projeto || "", numero_projeto: proj.numero_projeto || "", investimento: proj.investimento || 0, incentivo: proj.incentivo || 0
     });
@@ -1010,7 +1027,7 @@ export default function Projetos() {
     const payload = { ...form };
 
     const selectedPrograma = getProgramaById(payload.programa_id);
-    const selectedAviso = getAvisoById(payload.aviso_id) || getAvisoForPrograma(selectedPrograma);
+    const selectedAviso = getAvisoById(payload.avisos_ids) || getAvisoForPrograma(selectedPrograma);
     const normalizedFases = normalizeProjetoFases(payload.prazos_fases);
 
                 payload.titulo = (payload.titulo || "").trim();
@@ -1019,7 +1036,7 @@ export default function Projetos() {
         payload.parceiros_ids = normalizeIdsList(payload.parceiros_ids);
         payload.colaboradores = normalizeIdsList(payload.colaboradores);
         payload.programa_id = selectedPrograma?.id || null;
-        payload.aviso_id = selectedAviso?.id || null;
+        payload.avisos_ids = selectedAviso?.id || null;
         payload.prazos_fases = normalizedFases;
         payload.programa = selectedPrograma ? `${selectedPrograma.codigo ? `${selectedPrograma.codigo} - ` : ""}${selectedPrograma.nome || ""}`.trim() : (payload.programa || "").trim();
         payload.aviso = selectedAviso?.codigo || (payload.aviso || "").trim();
@@ -1040,7 +1057,7 @@ export default function Projetos() {
         if (!payload.tipo_projeto_id) missingFields.push("Tipo de Projeto");
         if (!payload.responsavel_id) missingFields.push("Responsável Global");
         if (!payload.data_fim) missingFields.push("Data de Fim");
-        if ((payload.programa_id || payload.aviso_id) && normalizedFases.length === 0) missingFields.push("Datas das fases do aviso");
+        if ((payload.programa_id || payload.avisos_ids) && normalizedFases.length === 0) missingFields.push("Datas das fases do aviso");
 
         if (missingFields.length > 0) {
             showToast(`Para criar o projeto preenche: ${missingFields.join(", ")}.`, "warning");
@@ -1335,18 +1352,17 @@ export default function Projetos() {
   };
 
     const selectedPrograma = getProgramaById(form.programa_id);
-    const selectedAviso = getAvisoById(form.aviso_id) || getAvisoForPrograma(selectedPrograma);
+    const selectedAviso = getAvisoById(form.avisos_ids) || getAvisoForPrograma(selectedPrograma);
   const fasesProjeto = normalizeProjetoFases(form.prazos_fases);
   const fasesEfetivas = fasesProjeto.length > 0 ? fasesProjeto : normalizeProjetoFases(selectedAviso?.fases);
 
   const handleProgramaChange = async (programaId) => {
       const programa = getProgramaById(programaId);
-      let aviso = getAvisoForPrograma(programa);
-    // debug log removed
+      let aviso = getAvisoForPrograma(programa); 
 
-      // If aviso not found but programa.aviso_id exists, fetch that aviso on-demand
-      if (!aviso && programa?.aviso_id) {
-          aviso = await fetchAvisoFromServer(programa.aviso_id);
+      // Se o programa tiver avisos_ids (array ou string) e não encontramos pelo método anterior
+      if (!aviso && programa?.avisos_ids) {
+          aviso = await fetchAvisoFromServer(programa.avisos_ids);
       }
 
       const fases = normalizeProjetoFases(aviso?.fases);
@@ -1355,7 +1371,7 @@ export default function Projetos() {
           ...prev,
           programa_id: programaId,
           programa: programa ? `${programa.codigo ? `${programa.codigo} - ` : ""}${programa.nome || ""}`.trim() : "",
-          aviso_id: aviso?.id || "",
+          avisos_ids: aviso?.id || "",
           aviso: aviso?.codigo || "",
           prazos_fases: fases,
       }));
@@ -1364,7 +1380,7 @@ export default function Projetos() {
   // DEBUG: log when selected programa/aviso change in form
   useEffect(() => {
       // debug effect removed
-  }, [form.programa_id, form.aviso_id, programas, avisos]);
+  }, [form.programa_id, form.avisos_ids, programas, avisos]);
 
   const updateProjetoFase = (index, field, value) => {
       setForm((prev) => {
@@ -2546,7 +2562,7 @@ export default function Projetos() {
                                     {!isProjetoFormacao && (
                                         <>
                                             <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '18px'}}>
-                                                <div>
+                                                <div>   
                                                     <label style={labelStyle}>Programa</label>
                                                     <select
                                                         value={form.programa_id || ''}
@@ -2562,16 +2578,40 @@ export default function Projetos() {
                                                         ))}
                                                     </select>
                                                 </div>
-                                                <div>
-                                                    <label style={labelStyle}>Aviso</label>
-                                                    <input
-                                                        type="text"
-                                                        value={selectedAviso ? `${selectedAviso.codigo ? `${selectedAviso.codigo} - ` : ''}${selectedAviso.nome || 'Aviso'}` : 'Sem aviso associado ao programa'}
-                                                        readOnly
-                                                        style={{...inputStyle, background: '#f8fafc', color: '#475569'}}
-                                                        className="input-focus"
-                                                    />
-                                                </div>
+                                                {(() => {
+                                                    const avisosDoPrograma = selectedPrograma ? getAvisosForPrograma(selectedPrograma) : [];
+                                                    
+                                                    return (
+                                                        <div>
+                                                            <label style={labelStyle}>Aviso</label>
+                                                            <select
+                                                                value={form.avisos_ids || ''}
+                                                                onChange={(e) => {
+                                                                    const avId = e.target.value;
+                                                                    const av = getAvisoById(avId);
+                                                                    setForm({
+                                                                        ...form, 
+                                                                        avisos_ids: avId, 
+                                                                        aviso: av?.codigo || "", 
+                                                                        prazos_fases: normalizeProjetoFases(av?.fases)
+                                                                    });
+                                                                }}
+                                                                style={{
+                                                                    ...inputStyle, 
+                                                                    background: avisosDoPrograma.length ? '#fff' : '#f8fafc', 
+                                                                    cursor: avisosDoPrograma.length ? 'pointer' : 'not-allowed'
+                                                                }}
+                                                                className="input-focus"
+                                                                disabled={isViewOnly || avisosDoPrograma.length === 0}
+                                                            >
+                                                                <option value="">{avisosDoPrograma.length > 0 ? "-- Escolhe o Aviso --" : "Sem avisos associados"}</option>
+                                                                {avisosDoPrograma.map(av => (
+                                                                    <option key={av.id} value={av.id}>{av.codigo}</option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+                                                    );
+                                                })()}
                                             </div>
 
                                             <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '20px'}}>
