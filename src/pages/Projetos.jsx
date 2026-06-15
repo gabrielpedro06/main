@@ -184,6 +184,9 @@ export default function Projetos() {
   const [menuPrincipal, setMenuPrincipal] = useState("tipo");
   const [selectedCategoria, setSelectedCategoria] = useState(null); 
   const [selectedEstado, setSelectedEstado] = useState(null); 
+  const [selectedProgramaNav, setSelectedProgramaNav] = useState(null);
+
+
 
   const [clientes, setClientes] = useState([]);
   const [tipos, setTipos] = useState([]);
@@ -1284,6 +1287,8 @@ export default function Projetos() {
 
   const countsPerCategory = {};
   const countsPerEstado = {};
+  const countsPerPrograma = {};
+
   projetos.forEach(p => {
       if (!matchesBaseFilters(p)) return;
 
@@ -1296,6 +1301,9 @@ export default function Projetos() {
           const estadoId = p.estado || 'pendente';
           countsPerEstado[estadoId] = (countsPerEstado[estadoId] || 0) + 1;
       }
+
+      const progId = p.programa_id || 'sem-programa';
+      countsPerPrograma[progId] = (countsPerPrograma[progId] || 0) + 1;
   });
 
   const renderDeadline = (dateString, estado) => {
@@ -1329,11 +1337,13 @@ export default function Projetos() {
   // A lista abre-se se estivermos a pesquisar OR se clicarmos no 1º nível de qualquer aba
   const isProjectListOpen = isSearchActive || 
       (menuPrincipal === 'tipo' && selectedCategoria) || 
-      (menuPrincipal === 'estado' && selectedEstado);
+      (menuPrincipal === 'estado' && selectedEstado) ||
+      (menuPrincipal === 'programa' && selectedProgramaNav);
 
   const resetProjectMenus = () => {
       setSelectedCategoria(null);
       setSelectedEstado(null);
+      setSelectedProgramaNav(null);
   };
 
   const switchMenuPrincipal = (nextMenu) => {
@@ -1353,7 +1363,7 @@ export default function Projetos() {
   const projetosFiltrados = projetos.filter(p => {
       if (!matchesBaseFilters(p)) return false;
       
-      // Se há pesquisa ativa, ignora os cliques nas pastas e mostra tudo o que faz match
+      // Se há pesquisa ativa, ignora os cliques e faz bypass direto
       if (isSearchActive) return true;
 
       // Se entrou por Tipo de Projeto
@@ -1367,6 +1377,12 @@ export default function Projetos() {
           if (p.estado !== selectedEstado) return false;
       }
 
+      // 👈 NOVO: Se entrou por Programa
+      if (menuPrincipal === 'programa' && selectedProgramaNav) {
+          if (selectedProgramaNav === 'sem-programa' && p.programa_id) return false;
+          if (selectedProgramaNav !== 'sem-programa' && String(p.programa_id) !== String(selectedProgramaNav)) return false;
+      }
+
       return true;
   });
 
@@ -1377,16 +1393,16 @@ export default function Projetos() {
       
   const selectedEstadoNome = selectedEstado ? getEstadoInfo(selectedEstado).nome : '';
 
-  
+  const selectedProgramaNome = selectedProgramaNav
+      ? (selectedProgramaNav === 'sem-programa' ? 'Sem Programa' : programas.find(prog => String(prog.id) === String(selectedProgramaNav))?.nome || '')
+      : '';
 
   // --- NOVA LÓGICA DE AGRUPAMENTO ---
   const groupedProjects = {};
   if (isProjectListOpen) {
       if (isSearchActive) {
-          // Na pesquisa, podemos pôr tudo num único grupo ou manter agrupado por estado. Fica mais clean num só grupo.
           groupedProjects['Resultados'] = projetosFiltrados;
       } else if (menuPrincipal === 'tipo') {
-          // Se entramos num Tipo, agrupamos os projetos pelos Estados
           estadosProjeto.forEach(est => groupedProjects[est.nome] = []);
           groupedProjects['Outros'] = [];
           
@@ -1396,21 +1412,31 @@ export default function Projetos() {
               if (!groupedProjects[key]) groupedProjects[key] = [];
               groupedProjects[key].push(p);
           });
-      } else {
-          // Se entramos num Estado, agrupamos os projetos pelos Tipos
+      } else if (menuPrincipal === 'estado') {
           tipos.forEach(t => groupedProjects[t.nome] = []);
           groupedProjects['Projetos Avulsos'] = [];
           
           projetosFiltrados.forEach(p => {
               const tipoNome = p.tipo_projeto_id ? (tipos.find(t => String(t.id) === String(p.tipo_projeto_id))?.nome || 'Outros') : 'Projetos Avulsos';
-              if (!groupedProjects[tipoNome]) groupedProjects[tipoNome] = [];
+              if (!groupedProjects[tipoNome]) groupedProjects[tipoNome].push(p);
               groupedProjects[tipoNome].push(p);
+          });
+      } else if (menuPrincipal === 'programa') {
+          // 👈 QUANDO ENTRAS NUM PROGRAMA: Agrupa os projetos pelos respetivos Estados
+          estadosProjeto.forEach(est => groupedProjects[est.nome] = []);
+          groupedProjects['Outros'] = [];
+          
+          projetosFiltrados.forEach(p => {
+              const estInfo = getEstadoInfo(p.estado);
+              const key = estInfo ? estInfo.nome : 'Outros';
+              if (!groupedProjects[key]) groupedProjects[key] = [];
+              groupedProjects[key].push(p);
           });
       }
 
-      // Remove os grupos que ficaram vazios para não aparecerem divisórias vazias
+      // Remove os grupos que ficaram vazios
       Object.keys(groupedProjects).forEach(k => {
-          if (groupedProjects[k].length === 0) delete groupedProjects[k];
+          if (!groupedProjects[k] || groupedProjects[k].length === 0) delete groupedProjects[k];
       });
   }
 
@@ -1905,6 +1931,26 @@ export default function Projetos() {
       actionLabel: selectedCategoria ? 'Escolher estado' : 'Abrir estados',
       onClick: () => setSelectedEstado(estado.id)
   }));
+
+  const programaMenuItems = [
+      ...programas.map(prog => ({
+          id: prog.id,
+          nome: prog.codigo ? `${prog.codigo} - ${prog.nome}` : prog.nome,
+          count: countsPerPrograma[prog.id] || 0,
+          color: '#6366f1', 
+          actionLabel: 'Abrir programa',
+          onClick: () => setSelectedProgramaNav(prog.id)
+      })),
+      ...(countsPerPrograma['sem-programa'] > 0 ? [{
+          id: 'sem-programa',
+          nome: 'Sem Programa Associado',
+          count: countsPerPrograma['sem-programa'] || 0,
+          color: '#94a3b8',
+          actionLabel: 'Ver projetos avulsos',
+          onClick: () => setSelectedProgramaNav('sem-programa')
+      }] : [])
+  ];
+
   const currentMenuTitle = isSearchActive 
       ? "Resultados da Pesquisa"
       : isProjectListOpen
@@ -1913,7 +1959,7 @@ export default function Projetos() {
               ? `Estados de ${selectedCategoriaNome}`
               : selectedEstado
                   ? `Tipos em ${selectedEstadoNome}`
-                  : (menuPrincipal === 'tipo' ? 'Tipos de Projeto' : 'Estados de Projeto');
+                  : (menuPrincipal === 'tipo' ? 'Tipos de Projeto' : menuPrincipal === 'estado' ? 'Estados de Projeto' : 'Programas de Financiamento');
 
   const currentMenuSubtitle = isSearchActive
       ? `${projetosFiltrados.length} projeto${projetosFiltrados.length === 1 ? '' : 's'} encontrado${projetosFiltrados.length === 1 ? '' : 's'} na pesquisa.`
@@ -1982,6 +2028,15 @@ export default function Projetos() {
             >
                 Estados
             </button>
+
+            <button
+                type="button"
+                onClick={() => switchMenuPrincipal("programa")}
+                style={{padding: '6px 14px', borderRadius: '6px', border: 'none', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', transition: '0.2s', background: menuPrincipal === "programa" ? 'white' : 'transparent', color: menuPrincipal === "programa" ? 'var(--color-btnPrimary)' : '#64748b', boxShadow: menuPrincipal === "programa" ? '0 2px 4px rgba(0,0,0,0.05)' : 'none'}}
+            >
+                Programas
+            </button>
+
         </div>
         <div style={{flex: 1, position: 'relative'}}>
             <span style={{position: 'absolute', left: '12px', top: '9px', color: '#94a3b8', fontSize: '0.85rem'}}><Icons.Search /></span>
@@ -1996,10 +2051,11 @@ export default function Projetos() {
       {/* 1. SE NÃO ESTIVER ABERTO: RENDERIZAR OS MENUS (PASTAS) */}
       {!isProjectListOpen && (
           <div className="fade-in" style={{marginTop: '20px'}}>
-              {menuPrincipal === 'tipo' 
-                  ? renderMenuItems(tipoMenuItems, 'Sem Tipos', 'Não existem tipos de projeto disponíveis.')
-                  : renderMenuItems(estadoMenuItems, 'Sem Estados', 'Não existem estados disponíveis.')
-              }
+              {(() => {
+                  if (menuPrincipal === 'tipo') return renderMenuItems(tipoMenuItems, 'Sem Tipos', 'Não existem tipos de projeto disponíveis.');
+                  if (menuPrincipal === 'estado') return renderMenuItems(estadoMenuItems, 'Sem Estados', 'Não existem estados disponíveis.');
+                  if (menuPrincipal === 'programa') return renderMenuItems(programaMenuItems, 'Sem Programas', 'Não existem programas de financiamento ativos.');
+              })()}
           </div>
       )}
 
