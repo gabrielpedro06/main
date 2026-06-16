@@ -303,6 +303,9 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
   }, []);
 
   useEffect(() => {
+
+    if (actualPropostaId) return;
+
     if (isLoading || !initialEmpresaConsultoraId || empresaConsultora.id || empresasConsultoras.length === 0) return;
     selectEmpresaConsultora(initialEmpresaConsultoraId);
   }, [isLoading, initialEmpresaConsultoraId, empresaConsultora.id, empresasConsultoras]);
@@ -365,7 +368,7 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
       });
 
       const consultora = empresasConsultoras.find((item) => String(item.id) === String(data.empresa_consultora_id));
-      if (consultora) selectEmpresaConsultora(consultora.id);
+      if (consultora) selectEmpresaConsultora(consultora.id, true);
 
       const clienteData = clientes.find((item) => String(item.id) === String(data.cliente_id));
       if (clienteData) selectCliente(clienteData.id);
@@ -419,11 +422,12 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
     }
   }
 
-  async function carregarDadosConsultora(consultoraId, baseConsultora = null) {
+  async function carregarDadosConsultora(consultoraId, baseConsultora = null, skipConfigOverride = false) {
     if (!consultoraId) {
       setContatosConsultora([]);
       return;
     }
+    
 
     try {
       const [moradaResult, contactosResult, configResult] = await Promise.all([
@@ -464,27 +468,29 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
         email: previous.email || config.signatario_email || contactoDefault?.email || "",
       }));
 
-      setCondicoes((previous) => ({
-        ...previous,
-        compromisso: config.texto_compromisso || previous.compromisso || "",
-        esperamos_que_corresponda: config.texto_esperamos_que_corresponda || previous.esperamos_que_corresponda || "",
-        para_aprovacao: config.texto_para_aprovacao || previous.para_aprovacao || "",
-        apresentacao_empresa: config.texto_apresentacao_empresa_formacao || previous.apresentacao_empresa || "",
-        areas_formacao: config.texto_areas_formacao || previous.areas_formacao || "",
-        proposta_formacao: config.texto_proposta_formacao || previous.proposta_formacao || "",
-        descricao_servico: config.texto_descricao_servico || previous.descricao_servico || "",
-        obrigacoes_consultora: config.texto_obrigacoes_consultora || previous.obrigacoes_consultora || "",
-        obrigacoes_cliente: config.texto_obrigacoes_cliente || previous.obrigacoes_cliente || "",
-        condicoes_realizacao: config.texto_condicoes_realizacao || previous.condicoes_realizacao || "",
-        coordenacao_formacao: config.texto_coordenacao_formacao || previous.coordenacao_formacao || "",
-        nota_honorarios: config.texto_nota_honorarios || previous.nota_honorarios || "",
-        plano_pagamento: previous.plano_pagamento || config.texto_plano_pagamento || "",
-        notas: config.texto_exclusoes || previous.notas || "",
-        imagem_certificacoes: config.imagem_certificacoes || previous.imagem_certificacoes || "",
-        termos_gerais: baseConsultora?.termos_gerais || previous.termos_gerais || "",
-      }));
+      if (!skipConfigOverride) {
+        setCondicoes((previous) => ({
+          ...previous,
+          compromisso: config.texto_compromisso || previous.compromisso || "",
+          esperamos_que_corresponda: config.texto_esperamos_que_corresponda || previous.esperamos_que_corresponda || "",
+          para_aprovacao: config.texto_para_aprovacao || previous.para_aprovacao || "",
+          apresentacao_empresa: config.texto_apresentacao_empresa_formacao || previous.apresentacao_empresa || "",
+          areas_formacao: config.texto_areas_formacao || previous.areas_formacao || "",
+          proposta_formacao: config.texto_proposta_formacao || previous.proposta_formacao || "",
+          descricao_servico: config.texto_descricao_servico || previous.descricao_servico || "",
+          obrigacoes_consultora: config.texto_obrigacoes_consultora || previous.obrigacoes_consultora || "",
+          obrigacoes_cliente: config.texto_obrigacoes_cliente || previous.obrigacoes_cliente || "",
+          condicoes_realizacao: config.texto_condicoes_realizacao || previous.condicoes_realizacao || "",
+          coordenacao_formacao: config.texto_coordenacao_formacao || previous.coordenacao_formacao || "",
+          nota_honorarios: config.texto_nota_honorarios || previous.nota_honorarios || "",
+          plano_pagamento: previous.plano_pagamento || config.texto_plano_pagamento || "",
+          notas: config.texto_exclusoes || previous.notas || "",
+          imagem_certificacoes: config.imagem_certificacoes || previous.imagem_certificacoes || "",
+          termos_gerais: baseConsultora?.termos_gerais || previous.termos_gerais || "",
+        }));
+      } 
     } catch (error) {
-      console.error("Erro ao carregar dados da consultora:", error);
+        console.error("Erro ao carregar dados da consultora:", error);
       setContatosConsultora([]);
     }
   }
@@ -534,7 +540,7 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
     }
   }
 
-  function selectEmpresaConsultora(id) {
+  function selectEmpresaConsultora(id, skipConfigOverride = false) {
     const found = empresasConsultoras.find((item) => String(item.id) === String(id));
     if (!found) {
       setEmpresaConsultora(INITIAL_EMPRESA);
@@ -557,12 +563,18 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
     };
 
     setEmpresaConsultora(empresaData);
-    setCondicoes((previous) => ({
-      ...previous,
-      termos_gerais: found.termos_gerais || previous.termos_gerais || "",
-    }));
+
+  
+    if (!skipConfigOverride) {
+      setCondicoes((previous) => ({
+        ...previous,
+        termos_gerais: found.termos_gerais || previous.termos_gerais || "",
+      }));
+    }
+    
     if (onEmpresaConsultoraChange) onEmpresaConsultoraChange(found);
-    void carregarDadosConsultora(found.id, empresaData);
+    
+    void carregarDadosConsultora(found.id, empresaData, skipConfigOverride);
   }
 
   function selectCliente(id) {

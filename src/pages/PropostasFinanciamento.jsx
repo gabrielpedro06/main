@@ -728,7 +728,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
           };
 
           setEmpresaConsultora(baseConsultora);
-          void carregarDadosConsultora(data.empresa_consultora_id, baseConsultora);
+          void carregarDadosConsultora(data.empresa_consultora_id, baseConsultora, true);
         }
 
         let clienteEncontrado = null;
@@ -1144,9 +1144,12 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
   };
 
   useEffect(() => {
+
+    if (actualPropostaId) return;
+
     if (!initialEmpresaConsultoraId || empresaConsultora.id || empresasConsultoras.length === 0) return;
     selectEmpresaConsultora(initialEmpresaConsultoraId);
-  }, [initialEmpresaConsultoraId, empresaConsultora.id, empresasConsultoras]);
+  }, [actualPropostaId, initialEmpresaConsultoraId, empresaConsultora.id, empresasConsultoras]);
 
   const selectContatoConsultora = (contactoId) => {
     const contacto = contatosConsultora.find((c) => String(c.id) === String(contactoId));
@@ -1635,7 +1638,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
     }
   };
 
-  const carregarDadosConsultora = async (consultoraId, baseConsultora = null) => {
+  const carregarDadosConsultora = async (consultoraId, baseConsultora = null, skipConfigOverride = false) => {
     if (!consultoraId) {
       setContatosConsultora([]);
       return;
@@ -1717,12 +1720,13 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
         }));
       }
 
-      setCondicoesGerais((previous) => ({
-        ...previous,
-        termos_gerais: previous.termos_gerais || "",
+      if (!skipConfigOverride) {
+        setCondicoesGerais((previous) => ({
+          ...previous,
+          termos_gerais: previous.termos_gerais || "",
       }));
-
       setEntidadeConfig(mergedConfig);
+      }
     } catch (error) {
       console.error("Erro ao carregar dados da consultora:", error);
       setContatosConsultora([]);

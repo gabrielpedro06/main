@@ -3118,7 +3118,7 @@ export default function Clientes() {
                       </div>
                     </div>
 
-                    <div style={sectionTitleStyle}>Textos Comuns</div>
+                    <div style={sectionTitleStyle}>Textos de Introdução</div>
                     <label style={labelStyle}>Texto de Compromisso</label>
                     <textarea
                       value={entidadeConfig.texto_compromisso || ""}
@@ -3152,7 +3152,7 @@ export default function Clientes() {
                     {/* NEOMARCA - Campos de Financiamento */}
                     {!form.tem_cursos && (
                       <>
-                        <div style={sectionTitleStyle}>Apresentação da Entidade (Financiamento)</div>
+                        <div style={sectionTitleStyle}>Apresentação da Empresa</div>
                         <label style={labelStyle}>Texto de Apresentação Empresa</label>
                         <textarea
                           value={entidadeConfig.texto_apresentacao_empresa || ""}
