@@ -1418,11 +1418,13 @@ export default function Projetos() {
           
           projetosFiltrados.forEach(p => {
               const tipoNome = p.tipo_projeto_id ? (tipos.find(t => String(t.id) === String(p.tipo_projeto_id))?.nome || 'Outros') : 'Projetos Avulsos';
-              if (!groupedProjects[tipoNome]) groupedProjects[tipoNome].push(p);
+              if (!groupedProjects[tipoNome]) {
+            groupedProjects[tipoNome] = [];
+                }
               groupedProjects[tipoNome].push(p);
           });
+
       } else if (menuPrincipal === 'programa') {
-          // 👈 QUANDO ENTRAS NUM PROGRAMA: Agrupa os projetos pelos respetivos Estados
           estadosProjeto.forEach(est => groupedProjects[est.nome] = []);
           groupedProjects['Outros'] = [];
           
@@ -1547,7 +1549,13 @@ export default function Projetos() {
               <div style={{position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: isCompleted ? '#cbd5e1' : catColor}}></div>
               <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
                   <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '5px'}}>
+                      {/* Código do Projeto */}
                       {p.codigo_projeto && <span style={{fontSize: '0.65rem', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '2px 8px', borderRadius: '6px', fontWeight: '800', border: '1px solid var(--color-borderColor)', fontFamily: 'monospace'}}>{p.codigo_projeto}</span>}
+                      
+                      {/* NOVO: Número do Projeto */}
+                      {p.numero_projeto && <span style={{fontSize: '0.65rem', background: '#f8fafc', color: '#475569', padding: '2px 8px', borderRadius: '6px', fontWeight: '800', border: '1px solid #cbd5e1', fontFamily: 'monospace'}}>Nº {p.numero_projeto}</span>}
+                      
+                      {/* Estado */}
                       <span style={{fontSize: '0.65rem', background: isCompleted ? '#f1f5f9' : '#f8fafc', color: isCompleted ? '#64748b' : '#475569', padding: '2px 8px', borderRadius: '6px', fontWeight: '800', border: '1px solid #e2e8f0', textTransform: 'uppercase'}}>{(p.estado || '').replace('_', ' ')}</span>
                   </div>
                   {!isCompleted && (
@@ -1591,7 +1599,12 @@ export default function Projetos() {
                   <div style={{display: 'flex', flexDirection: 'column', gap: '4px'}}>
                       <span style={{fontWeight: '800', color: '#0f172a'}}>{p.titulo || 'Sem título'}</span>
                       <div style={{display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap'}}>
+                          {/* Código do Projeto */}
                           {p.codigo_projeto && <span style={{fontSize: '0.7rem', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', border: '1px solid var(--color-borderColor)', borderRadius: '6px', padding: '2px 8px', fontFamily: 'monospace', fontWeight: '700'}}>{p.codigo_projeto}</span>}
+                          
+                          {/* NOVO: Número do Projeto na Lista */}
+                          {p.numero_projeto && <span style={{fontSize: '0.7rem', background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '2px 8px', fontFamily: 'monospace', fontWeight: '700'}}>Nº {p.numero_projeto}</span>}
+
                           {isTimerActive && <span style={{fontSize: '0.68rem', background: '#fee2e2', color: '#b91c1c', borderRadius: '999px', padding: '2px 8px', fontWeight: '800'}}>TIMER ATIVO</span>}
                       </div>
                   </div>
@@ -2122,122 +2135,6 @@ export default function Projetos() {
                       <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px', color: '#cbd5e1'}}><Icons.Inbox /></div>
                       <h3 style={{color: '#1e293b', margin: '0 0 5px 0'}}>Vazio por aqui.</h3>
                       <p style={{color: '#64748b', margin: 0}}>Não há projetos ativos a corresponder aos critérios.</p>
-                  </div>
-              )}
-          </div>
-      )}
-
-      {isProjectListOpen && (
-          <div className="fade-in">
-              {viewMode === "cards" ? (
-                  <div className="project-grid">
-                      {projetosFiltrados.length > 0 ? projetosFiltrados.map(p => {
-                          const isCompleted = p.estado === 'concluido';
-                          const isTimerActive = activeLog?.projeto_id === p.id;
-                          const catColor = getColorForCategory(p.tipo_projeto_id);
-                          const clientInfo = getProjetoClientDisplay(p);
-                          const clientIcon = p.cliente_texto ? <Icons.FileText size={14} /> : (clientInfo.isParceria ? <Icons.Handshake size={14} /> : <Icons.Building size={14} />);
-                          
-                      }) : (
-                          <div style={{gridColumn: '1 / -1', textAlign: 'center', padding: '60px', background: 'white', borderRadius: '16px', border: '1px dashed #cbd5e1'}}>
-                              <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px', color: '#cbd5e1'}}><Icons.Inbox /></div>
-                              <h3 style={{color: '#1e293b', margin: '0 0 5px 0'}}>Vazio por aqui.</h3>
-                              <p style={{color: '#64748b', margin: 0}}>Não há projetos ativos nesta área.</p>
-                          </div>
-                      )}
-                  </div>
-              ) : (
-                  <div className="project-list-wrapper">
-                      {projetosFiltrados.length > 0 ? (
-                          <div className="table-responsive" style={{borderRadius: '14px'}}>
-                              <table className="data-table project-list-table" style={{minWidth: '1050px'}}>
-                                  <thead>
-                                      <tr>
-                                          <th>Projeto</th>
-                                          <th>Cliente / Entidade</th>
-                                          <th>Responsável</th>
-                                          <th>Prazo</th>
-                                          <th>Estado</th>
-                                          <th style={{textAlign: 'right'}}>Ações</th>
-                                      </tr>
-                                  </thead>
-                                  <tbody>
-                                      {projetosFiltrados.map((p) => {
-                                          const isCompleted = p.estado === 'concluido';
-                                          const isTimerActive = activeLog?.projeto_id === p.id;
-                                          const catColor = getColorForCategory(p.tipo_projeto_id);
-                                          const clientInfo = getProjetoClientDisplay(p);
-                                          const estadoLabel = (p.estado || '').replace('_', ' ');
-
-                                          return (
-                                              <tr
-                                                  key={p.id}
-                                                  className={isCompleted ? 'project-list-row row-inactive' : 'project-list-row'}
-                                                  onClick={() => navigate(`/dashboard/projetos/${p.id}`)}
-                                                  style={{boxShadow: `inset 4px 0 0 ${isCompleted ? '#94a3b8' : catColor}`, cursor: 'pointer', background: isTimerActive ? 'var(--color-bgSecondary)' : 'white'}}
-                                              >
-                                                  <td>
-                                                      <div style={{display: 'flex', flexDirection: 'column', gap: '4px'}}>
-                                                          <span style={{fontWeight: '800', color: '#0f172a'}}>{p.titulo || 'Sem título'}</span>
-                                                          <div style={{display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap'}}>
-                                                              {p.codigo_projeto && <span style={{fontSize: '0.7rem', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', border: '1px solid var(--color-borderColor)', borderRadius: '6px', padding: '2px 8px', fontFamily: 'monospace', fontWeight: '700'}}>{p.codigo_projeto}</span>}
-                                                              {isTimerActive && <span style={{fontSize: '0.68rem', background: '#fee2e2', color: '#b91c1c', borderRadius: '999px', padding: '2px 8px', fontWeight: '800'}}>TIMER ATIVO</span>}
-                                                          </div>
-                                                      </div>
-                                                  </td>
-                                                  <td style={{maxWidth: '220px'}}>
-                                                      <span style={{display: 'inline-block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%', color: clientInfo.isParceria ? '#7c3aed' : '#475569', fontWeight: '600'}}>
-                                                          {clientInfo.text}
-                                                      </span>
-                                                  </td>
-                                                  <td>{p.profiles?.nome || '-'}</td>
-                                                  <td style={{whiteSpace: 'nowrap'}}>{renderDeadline(p.data_fim, p.estado)}</td>
-                                                  <td>
-                                                      <span style={{fontSize: '0.7rem', padding: '3px 8px', borderRadius: '999px', fontWeight: '800', textTransform: 'uppercase', background: isCompleted ? '#f1f5f9' : '#eef2ff', color: isCompleted ? '#64748b' : '#3730a3', whiteSpace: 'nowrap'}}>
-                                                          {estadoLabel}
-                                                      </span>
-                                                  </td>
-                                                  <td>
-                                                      <div style={{display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '6px'}}>
-                                                          {!isCompleted && (
-                                                              <button
-                                                                  type="button"
-                                                                  onClick={(e) => {
-                                                                      e.stopPropagation();
-                                                                      if (isTimerActive) handleStopLog(e);
-                                                                      else handleStartProjeto(e, p);
-                                                                  }}
-                                                                  style={{ background: isTimerActive ? '#fee2e2' : 'var(--color-bgSecondary)', color: isTimerActive ? '#ef4444' : 'var(--color-btnPrimary)', border: 'none', width: '30px', height: '30px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s' }}
-                                                                  className="hover-shadow"
-                                                                  title={isTimerActive ? "Parar Timer" : "Iniciar Timer"}
-                                                              >
-                                                                  {isTimerActive ? <Icons.Stop /> : <Icons.Play />}
-                                                              </button>
-                                                          )}
-                                                          <button
-                                                              type="button"
-                                                              onClick={(e) => handleEdit(e, p)}
-                                                              style={actionBtnStyle}
-                                                              className="hover-orange-text"
-                                                              title="Editar Projeto"
-                                                          >
-                                                              <Icons.Edit />
-                                                          </button>
-                                                      </div>
-                                                  </td>
-                                              </tr>
-                                          );
-                                      })}
-                                  </tbody>
-                              </table>
-                          </div>
-                      ) : (
-                          <div style={{textAlign: 'center', padding: '60px', background: 'white', borderRadius: '16px', border: '1px dashed #cbd5e1'}}>
-                              <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px', color: '#cbd5e1'}}><Icons.Inbox /></div>
-                              <h3 style={{color: '#1e293b', margin: '0 0 5px 0'}}>Vazio por aqui.</h3>
-                              <p style={{color: '#64748b', margin: 0}}>Não há projetos ativos nesta área.</p>
-                          </div>
-                      )}
                   </div>
               )}
           </div>

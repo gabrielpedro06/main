@@ -249,6 +249,8 @@ export default function ProjetoDetalhe() {
   const [atividades, setAtividades] = useState([]);
   const [logs, setLogs] = useState([]); 
   const [loading, setLoading] = useState(true);
+  const [programas, setProgramas] = useState([]);
+  const [avisos, setAvisos] = useState([]);
   const [activeTab, setActiveTab] = useState("atividades");
     const [ganttWindow, setGanttWindow] = useState("total");
   const [notification, setNotification] = useState(null);
@@ -372,6 +374,41 @@ export default function ProjetoDetalhe() {
     if (projLike.organismo_id) ids.push(projLike.organismo_id);
     return [...new Set(ids.map((v) => String(v)).filter(Boolean))];
 };
+
+// --- HELPERS DE PROGRAMAS E AVISOS ---
+  const getProgramaById = (programaId) => programas.find((p) => String(p.id) === String(programaId)) || null;
+  const getAvisoById = (avisoId) => avisos.find((a) => String(a.id) === String(avisoId)) || null;
+
+  const getAvisosForPrograma = (programa) => {
+      if (!programa) return [];
+      if (Array.isArray(programa.avisos_ids)) {
+          return avisos.filter(a => programa.avisos_ids.includes(a.id));
+      }
+      return []; // Fallback 
+  };
+
+  const handleProgramaChange = (programaId) => {
+      if (!programaId) {
+          setFormGeral(prev => ({
+              ...prev,
+              programa_id: "",
+              programa: "",
+              aviso_id: "",
+              aviso: "",
+              prazos_fases: []
+          }));
+          return;
+      }
+
+      const programa = getProgramaById(programaId);
+      setFormGeral(prev => ({
+          ...prev,
+          programa_id: programaId,
+          programa: programa ? `${programa.codigo ? `${programa.codigo} - ` : ""}${programa.nome || ""}`.trim() : "",
+          aviso_id: "", // Limpa o aviso selecionado quando se muda de programa
+          aviso: ""
+      }));
+  };
 
   useEffect(() => {
       const entidadeIds = getProjetoClientIds(formGeral);
@@ -610,14 +647,25 @@ export default function ProjetoDetalhe() {
         setFormGeral({ ...projData, has_organismo: !!projData.organismo_id, prazos_fases: normalizeProjetoFases(projData.prazos_fases) }); 
     }
 
-    const [{ data: cliData }, { data: staffData }, { data: tiposData }] = await Promise.all([
-        supabase.from("clientes").select("id, marca, sigla, eh_organismo").order("marca"), // Adicionado eh_organismo para preencher dropdowns
+    const [
+        { data: cliData }, 
+        { data: staffData }, 
+        { data: tiposData },
+        { data: progData },
+        { data: avisoData }
+    ] = await Promise.all([
+        supabase.from("clientes").select("id, marca, sigla, eh_organismo").order("marca"),
         supabase.from("profiles").select("id, nome, email, ativo").order("nome"),
-        supabase.from("tipos_projeto").select("id, nome, eh_formacao").order("nome")
+        supabase.from("tipos_projeto").select("id, nome, eh_formacao").order("nome"),
+        supabase.from("programas_financiamento").select("id, codigo, nome, aviso, avisos_ids, ativo").order("codigo", { ascending: true }),
+        supabase.from("avisos").select("*").order("codigo", { ascending: true })
     ]);
+
     setClientes(cliData || []);
     setStaff(staffData || []);
     setTiposProjeto(tiposData || []);
+    setProgramas(progData || []);
+    setAvisos(avisoData || []);
 
     const entidadeIds = getProjetoClientIds(projData);
     if (entidadeIds.length > 0) {
@@ -1951,10 +1999,36 @@ export default function ProjetoDetalhe() {
   };
 
   // LÓGICA DO NOME DO CLIENTE / PARCERIA NO CABEÇALHO
-  let clientDisplay = projeto.cliente_texto || getClientDisplayName(projeto.clientes) || 'Não Definido';
-  if (projeto.is_parceria && projeto.parceiros_ids?.length > 0) {
-      const parceirosNomes = projeto.parceiros_ids.map(id => getClientDisplayName(clientes.find(c => c.id === id))).filter(Boolean).join(', ');
-      clientDisplay = `🤝 Parceria: ${parceirosNomes}`;
+  const clientEntities = [];
+  
+  // 1. Cliente Principal
+  if (projeto?.cliente_id) {
+      const mainClient = clientes.find(c => String(c.id) === String(projeto.cliente_id)) || projeto.clientes;
+      clientEntities.push({
+          id: projeto.cliente_id,
+          sigla: mainClient?.sigla?.trim() || mainClient?.marca?.trim() || 'Cliente',
+          nome: mainClient?.marca?.trim() || 'Cliente Principal',
+          isParceiro: false
+      });
+  } else if (projeto?.cliente_texto) {
+      clientEntities.push({ id: null, sigla: projeto.cliente_texto, nome: projeto.cliente_texto, isParceiro: false });
+  } else {
+      clientEntities.push({ id: null, sigla: 'Não Definido', nome: 'Não Definido', isParceiro: false });
+  }
+
+  // 2. Parceiros
+  if (projeto?.is_parceria && projeto?.parceiros_ids?.length > 0) {
+      projeto.parceiros_ids.forEach(pid => {
+          const parceiro = clientes.find(c => String(c.id) === String(pid));
+          if (parceiro) {
+              clientEntities.push({
+                  id: parceiro.id,
+                  sigla: parceiro.sigla?.trim() || parceiro.marca?.trim() || 'Parceiro',
+                  nome: parceiro.marca?.trim() || 'Entidade Parceira',
+                  isParceiro: true
+              });
+          }
+      });
   }
 
   // 👇 NOVA LÓGICA: Procurar o nome do Organismo para mostrar no cabeçalho
@@ -2127,33 +2201,34 @@ export default function ProjetoDetalhe() {
                       </div>
                       <div>
                           <div style={{fontSize: '0.65rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', marginBottom: '2px', letterSpacing: '0.05em'}}>Cliente / Local</div>
-                          <div>
-                              {String(clientDisplay)
-                                  .split(/, ?/)
-                                  .map((item, idx) => (
-                                      <button
-                                          key={idx}
-                                          type="button"
-                                          onClick={handleClientHeaderClick}
-                                          style={{
-                                              fontSize: '0.95rem',
-                                              color: canNavigateToClient ? 'var(--color-btnPrimaryDark)' : '#1e293b',
-                                              fontWeight: '700',
-                                              border: 'none',
-                                              background: 'transparent',
-                                              padding: 0,
-                                              cursor: canNavigateToClient ? 'pointer' : 'default',
-                                              textDecoration: canNavigateToClient ? 'underline' : 'none',
-                                              textUnderlineOffset: '3px',
-                                              display: 'block',
-                                              textAlign: 'left',
-                                              marginBottom: 2
-                                          }}
-                                          title={canNavigateToClient ? 'Abrir cliente' : ''}
-                                      >
-                                          {item}
-                                      </button>
-                                  ))}
+                        <div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                                {clientEntities.map((ent, idx) => (
+                                    <React.Fragment key={idx}>
+                                        {ent.isParceiro && idx === 1 && <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>🤝</span>}
+                                        <button
+                                            type="button"
+                                            onClick={() => ent.id ? navigate('/dashboard/clientes', { state: { openClienteId: ent.id } }) : null}
+                                            style={{
+                                                fontSize: '0.95rem',
+                                                color: ent.id ? 'var(--color-btnPrimaryDark)' : '#1e293b',
+                                                fontWeight: '700',
+                                                border: 'none',
+                                                background: 'transparent',
+                                                padding: 0,
+                                                cursor: ent.id ? 'pointer' : 'default',
+                                                textDecoration: ent.id ? 'underline' : 'none',
+                                                textUnderlineOffset: '3px'
+                                            }}
+                                            title={ent.nome}
+                                        >
+                                            {ent.sigla}
+                                        </button>
+                                        {idx < clientEntities.length - 1 && <span style={{ color: '#94a3b8' }}>{ent.isParceiro ? ',' : ' |'}</span>}
+                                    </React.Fragment>
+                                ))}
+                            </div>
+                        
                               {/* 👇 NOVA ETIQUETA COM O NOME DO ORGANISMO */}
                               {organismoDisplay && (
                                   <div style={{marginTop: '4px'}}>
@@ -2174,6 +2249,21 @@ export default function ProjetoDetalhe() {
                   </div>
 
                   <div style={{width: '1px', height: '35px', background: '#e2e8f0'}}></div>
+
+                  {projeto?.numero_projeto && (
+                      <>
+                          <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
+                              <div style={{width: '40px', height: '40px', borderRadius: '10px', background: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)'}}>
+                                  <Icons.ClipboardList size={16} />
+                              </div>
+                              <div>
+                                  <div style={{fontSize: '0.65rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', marginBottom: '2px', letterSpacing: '0.05em'}}>Número Interno</div>
+                                  <div style={{fontSize: '0.95rem', color: '#1e293b', fontWeight: '800', fontFamily: 'monospace'}}>Nº {projeto.numero_projeto}</div>
+                              </div>
+                          </div>
+                          <div style={{width: '1px', height: '35px', background: '#e2e8f0'}}></div>
+                      </>
+                  )}
 
                   <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
                       <div style={{width: '40px', height: '40px', borderRadius: '10px', background: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)'}}>
@@ -3111,30 +3201,81 @@ export default function ProjetoDetalhe() {
                                 const tipoSelecionadoLocal = tiposProjeto.find(t => String(t.id) === String(formGeral.tipo_projeto_id));
                                 const isFormacaoLocal = tipoSelecionadoLocal?.eh_formacao === true;
                                 if (isFormacaoLocal) return null;
+
+                                // Vai buscar as listas para os dropdowns
+                                const selectedPrograma = getProgramaById(formGeral.programa_id);
+                                const avisosDoPrograma = selectedPrograma ? getAvisosForPrograma(selectedPrograma) : [];
+
                                 return (
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
-                                        <div><label style={labelStyle}>Código</label><input type="text" value={formGeral.codigo_projeto || ''} onChange={e => setFormGeral({...formGeral, codigo_projeto: e.target.value})} style={inputStyle} className="input-focus" /></div>
-                                        <div><label style={labelStyle}>Número</label><input type="text" value={formGeral.numero_projeto || ''} onChange={e => setFormGeral({...formGeral, numero_projeto: e.target.value})} style={inputStyle} className="input-focus" /></div>
-                                        <div><label style={labelStyle}>Programa</label><input type="text" value={formGeral.programa || ''} onChange={e => setFormGeral({...formGeral, programa: e.target.value})} style={inputStyle} className="input-focus" /></div>
-                                        <div><label style={labelStyle}>Aviso</label><input type="text" value={formGeral.aviso || ''} onChange={e => setFormGeral({...formGeral, aviso: e.target.value})} style={inputStyle} className="input-focus" /></div>
-                                    </div>
+                                    <>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
+                                            <div>
+                                                <label style={labelStyle}>Código do Projeto</label>
+                                                <input type="text" value={formGeral.codigo_projeto || ''} onChange={e => setFormGeral({...formGeral, codigo_projeto: e.target.value})} style={inputStyle} className="input-focus" />
+                                            </div>
+                                            <div>
+                                                <label style={labelStyle}>Número do Projeto</label>
+                                                <input type="text" value={formGeral.numero_projeto || ''} onChange={e => setFormGeral({...formGeral, numero_projeto: e.target.value})} style={inputStyle} className="input-focus" />
+                                            </div>
+                                        </div>
+
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
+                                            <div>
+                                                <label style={labelStyle}>Programa</label>
+                                                <select
+                                                    value={formGeral.programa_id || ''}
+                                                    onChange={(e) => handleProgramaChange(e.target.value)}
+                                                    style={{...inputStyle, cursor: isEditingGeral ? 'pointer' : 'default'}}
+                                                    className="input-focus"
+                                                >
+                                                    <option value="">-- Sem programa associado --</option>
+                                                    {programas.filter((programa) => programa.ativo !== false || String(programa.id) === String(formGeral.programa_id)).map((programa) => (
+                                                        <option key={programa.id} value={programa.id}>
+                                                            {`${programa.codigo ? `${programa.codigo} - ` : ''}${programa.nome || 'Programa'}`}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+
+                                            <div>
+                                                <label style={labelStyle}>Aviso</label>
+                                                <select
+                                                    value={formGeral.aviso_id || ''}
+                                                    onChange={(e) => {
+                                                        const avId = e.target.value;
+                                                        const av = getAvisoById(avId);
+                                                        setFormGeral({
+                                                            ...formGeral, 
+                                                            aviso_id: avId, 
+                                                            aviso: av?.codigo || "", 
+                                                            prazos_fases: av?.fases ? normalizeProjetoFases(av.fases) : prev.prazos_fases
+                                                        });
+                                                    }}
+                                                    style={{
+                                                        ...inputStyle, 
+                                                        background: isEditingGeral && avisosDoPrograma.length ? '#fff' : '#f8fafc',
+                                                        cursor: isEditingGeral && avisosDoPrograma.length ? 'pointer' : 'not-allowed'
+                                                    }}
+                                                    className="input-focus"
+                                                    disabled={!isEditingGeral || avisosDoPrograma.length === 0}
+                                                >
+                                                    <option value="">{avisosDoPrograma.length > 0 ? "-- Escolhe o Aviso --" : "Sem avisos associados"}</option>
+                                                    {avisosDoPrograma.map(av => (
+                                                        <option key={av.id} value={av.id}>{av.codigo}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </>
                                 );
                             })()}
-
-                            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px'}}>
-                                <div><label style={labelStyle}>Data Início</label><input type="date" value={formGeral.data_inicio || ''} onChange={e => setFormGeral({...formGeral, data_inicio: e.target.value})} style={inputStyle} className="input-focus" /></div>
-                                <div><label style={labelStyle}>Deadline</label><input type="date" value={deadlineFinal || ''} onChange={e => setFormGeral({...formGeral, data_fim: e.target.value})} style={inputStyle} className="input-focus" /></div>
-                                <div>
-                                    <label style={labelStyle}>Estado</label>
-                                    <select value={formGeral.estado || 'pendente'} onChange={e => setFormGeral({...formGeral, estado: e.target.value})} style={{...inputStyle, fontWeight: 'bold'}} className="input-focus">
-                                        <option value="pendente">Pendente</option><option value="em_analise">Em Análise</option><option value="em_curso">Em Curso</option><option value="concluido">Concluído</option><option value="cancelado">Cancelado</option>
-                                    </select>
-                                </div>
-                            </div>
 
                             {(() => {
                                 const tipoSelecionadoLocal = tiposProjeto.find(t => String(t.id) === String(formGeral.tipo_projeto_id));
                                 const isFormacaoLocal = tipoSelecionadoLocal?.eh_formacao === true;
+                                const selectedPrograma = getProgramaById(formGeral.programa_id);
+                                const avisosDoPrograma = selectedPrograma ? getAvisosForPrograma(selectedPrograma) : [];
+
                                 if (isFormacaoLocal) return null;
                                 return (
                                     <div style={{marginTop: '18px', padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0', background: '#f8fafc'}}>
