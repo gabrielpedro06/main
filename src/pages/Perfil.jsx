@@ -26,7 +26,7 @@ export default function Perfil() {
   const [formData, setFormData] = useState({
     nome: "",
     email: "", 
-        email_pessoal: "",
+    email_pessoal: "",
     data_nascimento: "",
     avatar_url: "",
     
@@ -46,12 +46,11 @@ export default function Perfil() {
     empresa_interna: "",
     funcao: "",
     tipo_contrato: "",
-    veiculos: [] // 💡 NOVO: Array para guardar os veículos
+    veiculos: []
   });
   
   const [newPassword, setNewPassword] = useState("");
   
-  // 💡 NOVO: Estado temporário para adicionar veículo
   const [novoVeiculo, setNovoVeiculo] = useState({ matricula: "", marca: "" });
 
   const cropImgRef = useRef(null);
@@ -68,7 +67,7 @@ export default function Perfil() {
       setFormData({
         nome: userProfile.nome || "",
         email: user.email || "",
-                email_pessoal: userProfile.email_pessoal || "",
+        email_pessoal: userProfile.email_pessoal || "",
         data_nascimento: userProfile.data_nascimento || "",
         avatar_url: userProfile.avatar_url || "",
         
@@ -88,12 +87,11 @@ export default function Perfil() {
         empresa_interna: userProfile.empresa_interna || "",
         funcao: userProfile.funcao || "",
         tipo_contrato: userProfile.tipo_contrato || "",
-        veiculos: Array.isArray(userProfile.veiculos) ? userProfile.veiculos : [] // Carrega os veículos
+        veiculos: Array.isArray(userProfile.veiculos) ? userProfile.veiculos : []
       });
     }
   }, [user, userProfile]);
 
-  // --- LÓGICA DE VEÍCULOS ---
   const formatarMatricula = (valor) => {
       let v = valor.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
       if (v.length > 6) v = v.substring(0, 6);
@@ -247,7 +245,7 @@ export default function Perfil() {
                 nacionalidade: formData.nacionalidade,
                 sexo: formData.sexo,
                 concelho: formData.concelho,
-                veiculos: formData.veiculos, // 💡 Guarda a lista de carros!
+                veiculos: formData.veiculos,
                 updated_at: new Date()
             })
             .eq('id', user.id);
@@ -315,7 +313,7 @@ export default function Perfil() {
                           </div>
                           <div>
                               <label style={labelStyle}>Email Pessoal</label>
-                              <input type="email" value={formData.email_pessoal} onChange={e => setFormData({...formData, email_pessoal: e.target.value})} style={inputStyle} className="input-focus" placeholder="teuemail@exemplo.pt" />
+                              <input type="email" value={formData.email_pessoal} onChange={e => setFormData({...formData, email_pessoal: e.target.value})} style={inputStyle} className="input-focus" />
                           </div>
                       </div>
                       <label style={labelStyle}>Nome Completo (Oficial)</label>
@@ -383,7 +381,6 @@ export default function Perfil() {
                                   type="text" 
                                   value={formData.ncc} 
                                   onChange={handleCCChange} 
-                                  placeholder="00000000 - 0 - XX - 0"
                                   style={{...inputStyle, letterSpacing: '1px', fontFamily: 'monospace', fontWeight: 'bold', color: 'var(--color-btnPrimaryHover)', background: '#f8fafc'}} 
                                   className="input-focus"
                               />
@@ -394,7 +391,6 @@ export default function Perfil() {
                           </div>
                       </div>
 
-                      {/* 💡 NOVA SECÇÃO: VEÍCULOS */}
                       <div style={{...sectionTitleStyle, color: 'var(--color-btnPrimary)', borderColor: '#bae6fd'}}><Icons.Car /> Veículos e Deslocações</div>
                       <div style={{background: '#f0f9ff', padding: '20px', borderRadius: '12px', border: '1px solid #bae6fd', marginBottom: '25px'}}>
                           <p style={{margin: '0 0 15px 0', fontSize: '0.85rem', color: 'var(--color-btnPrimary)'}}>Adiciona os teus veículos para serem usados rapidamente nos pedidos de Km's.</p>
@@ -456,8 +452,17 @@ export default function Perfil() {
 
                       <div style={{marginTop: '30px', paddingTop:'20px', borderTop:'1px solid #f1f5f9'}}>
                           <h4 style={{margin:'0 0 15px 0', color:'#1e293b'}}>Alterar Password</h4>
-                          <label style={labelStyle}>Nova Password <small>(Deixa em branco para não alterar)</small></label>
-                          <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Mínimo 6 caracteres" style={inputStyle} className="input-focus" />
+                          <label style={labelStyle}>Nova Password <small>(Mín. 6 caracteres · Deixa em branco para manter)</small></label>
+                          <input 
+                                type="password" 
+                                id="pwd_nova_user"
+                                name="pwd_nova_user"
+                                autoComplete="new-password" 
+                                value={newPassword} 
+                                onChange={e => setNewPassword(e.target.value)} 
+                                style={inputStyle} 
+                                className="input-focus" 
+                            />
                       </div>
 
                       <button type="submit" className="btn-primary hover-shadow" style={{width:'100%', marginTop:'20px', padding: '15px', fontSize: '1.05rem', fontWeight: '800'}} disabled={loading}>
@@ -478,7 +483,6 @@ export default function Perfil() {
           </div>
       </div>
 
-      {/* --- MODAIS MANTIDOS INTACTOS --- */}
       {cropModal.show && (
         <ModalPortal>
           <div style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(15, 23, 42, 0.92)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',zIndex:99999,padding:'16px',boxSizing:'border-box'}} onMouseMove={handleCropMouseMove} onMouseUp={handleCropMouseUp} onMouseLeave={handleCropMouseUp}>
