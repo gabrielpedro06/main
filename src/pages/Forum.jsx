@@ -114,6 +114,7 @@ export default function Forum() {
     const [stopNoteModal, setStopNoteModal] = useState({ show: false });
 
   const [showNewPostModal, setShowNewPostModal] = useState(false);
+  const [editingPost, setEditingPost] = useState(null); 
   const [selectedPost, setSelectedPost] = useState(null); 
   const [selectedUserFilter, setSelectedUserFilter] = useState(null); 
 
@@ -764,7 +765,7 @@ export default function Forum() {
     if (showLoader) setLoading(false);
   }
 
-  // --- CRIAR POST ---
+  // --- CRIAR / EDITAR POST ---
   async function handleCreatePost(e) {
     e.preventDefault();
     setIsUploading(true);
@@ -782,7 +783,7 @@ export default function Forum() {
 
             const { error: uploadError } = await supabase.storage.from("forum_media").upload(fileName, block.file);
             if (uploadError) {
-                throw new Error("Nao foi possivel carregar uma das imagens. Verifica se o bucket 'forum_media' existe.");
+                throw new Error("Não foi possível carregar uma das imagens. Verifica se o bucket 'forum_media' existe.");
             }
 
             const { data } = supabase.storage.from("forum_media").getPublicUrl(fileName);
@@ -791,9 +792,9 @@ export default function Forum() {
 
         const normalizedBlocks = blocksForUpload
             .map((block) => {
-                if (block.type === "text") return { type: "text", text: String(block.text || "") };
+                if (block.type === "text") return { type: "text", text: String(block.text || ""), align: String(block.align || "left") };
                 const url = block.uploadedUrl || block.previewUrl || "";
-                return { type: "image", url: String(url) };
+                return { type: "image", url: String(url), size: String(block.size || "lg") };
             })
             .filter((block) => (block.type === "text" ? block.text.trim().length > 0 : Boolean(block.url)));
 
@@ -807,23 +808,45 @@ export default function Forum() {
             titulo: newPost.titulo,
             conteudo: serializeBlocksToContent(blocksForUpload),
             categoria: newPost.categoria,
-            user_id: user.id
         };
 
         if (firstImageUrl) {
             payload.image_url = firstImageUrl;
         }
 
-        const { error } = await supabase.from("forum_posts").insert([payload]);
+        let error;
+
+        if (editingPost) {
+            const res = await supabase
+                .from("forum_posts")
+                .update(payload)
+                .eq("id", editingPost.id);
+            error = res.error;
+        } else {
+            payload.user_id = user.id;
+            const res = await supabase
+                .from("forum_posts")
+                .insert([payload]);
+            error = res.error;
+        }
 
         if (error) {
             console.error(error);
-            throw new Error(error.message.includes('image_url') ? 'A coluna image_url ainda não foi criada na base de dados.' : error.message);
+            throw new Error(error.message);
+        }
+
+        // Se o post editado estiver aberto no modal de detalhes, atualiza-o também
+        if (selectedPost && editingPost && selectedPost.id === editingPost.id) {
+            setSelectedPost((prev) => ({ ...prev, ...payload }));
         }
 
         closeNewPostModal();
+        
+        // Pequena pausa estratégica para o banco de dados processar o commit antes do refresh
+        await new Promise(resolve => setTimeout(resolve, 150));
         fetchPosts(true);
-        showToast("Publicado com sucesso!", "success");
+        
+        showToast(editingPost ? "Publicação editada com sucesso!" : "Publicado com sucesso!", "success");
 
     } catch (err) {
         showToast("Erro ao publicar: " + err.message, "error");
@@ -1001,17 +1024,32 @@ export default function Forum() {
       return user.id === authorId || ['admin', 'gestor'].includes(myRole);
   };
 
+  const canEdit = (authorId) => {
+    const myRole = userProfile?.role || '';
+    // Regra padrão: o próprio autor ou os administradores/gestores
+    return user.id === authorId || ['admin', 'gestor'].includes(myRole);
+    };
+
   const openNewPostModal = () => {
+      setEditingPost(null);
       setNewPost({ titulo: "", categoria: "geral" });
       setPostBlocks([createTextBlock("")]);
       setShowNewPostModal(true);
   };
 
+  const handleStartEdit = (post) => {
+    setEditingPost(post);
+    setNewPost({ titulo: post.titulo, categoria: post.categoria });
+    setPostBlocks(parsePostBlocks(post));
+    setShowNewPostModal(true);
+    };
+
   const closeNewPostModal = () => {
-      setShowNewPostModal(false);
-      setNewPost({ titulo: "", categoria: "geral" });
-      setPostBlocks([createTextBlock("")]);
-  };
+    setShowNewPostModal(false);
+    setEditingPost(null);
+    setNewPost({ titulo: "", categoria: "geral" });
+    setPostBlocks([createTextBlock("")]);
+    };
 
   const closeInternalChatModal = () => {
       setChatModal({ show: false, target: null });
@@ -1979,11 +2017,29 @@ export default function Forum() {
                         </div>
                     </div>
                     
-                    {canDelete(post.user_id) && (
-                        <button onClick={(e) => { e.stopPropagation(); requestDelete(post.id, 'post'); }} style={actionBtnStyle} className="hover-red-btn" title="Apagar Publicação">
-                            <Icons.Trash />
-                        </button>
-                    )}
+                    <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                        {canEdit(post.user_id) && (
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); handleStartEdit(post); }} 
+                                style={actionBtnStyle} 
+                                className="hover-bg-light" 
+                                title="Editar Publicação"
+                            >
+                                <Icons.Edit size={16} />
+                            </button>
+                        )}
+
+                        {canDelete(post.user_id) && (
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); requestDelete(post.id, 'post'); }} 
+                                style={actionBtnStyle} 
+                                className="hover-red-btn" 
+                                title="Apagar Publicação"
+                            >
+                                <Icons.Trash />
+                            </button>
+                        )}
+                    </div>
                 </div>
                 
                 {/* CORPO DO POST */}
@@ -2331,9 +2387,18 @@ export default function Forum() {
                 <div style={{background:'white', width:'min(1220px, 98vw)', height:'88vh', borderRadius:'18px', boxShadow: '0 30px 60px -20px rgba(15, 23, 42, 0.45)', overflow: 'hidden', animation: 'fadeIn 0.2s ease-out', display:'flex', flexDirection:'column', border:'1px solid var(--color-borderColorLight)'}}>
                     <div style={{padding:'18px 24px', background:'#f8fafc', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
                         <div>
-                            <p style={{margin:'0 0 4px 0', fontSize:'0.72rem', fontWeight:'800', letterSpacing:'0.07em', color:'var(--color-btnPrimary)', textTransform:'uppercase'}}>Novo Conteudo</p>
+                            <p style={{
+                                margin:'0 0 4px 0', fontSize:'0.72rem', fontWeight:'800', letterSpacing:'0.07em', 
+                                color: editingPost ? '#d97706' : 'var(--color-btnPrimary)', textTransform:'uppercase'
+                            }}>
+                                {editingPost ? "Modo de Edição" : "Novo Conteúdo"}
+                            </p>
+
                             <h3 style={{margin:0, color:'#1e293b', fontSize:'1.35rem', fontWeight:'900', display: 'flex', alignItems: 'center', gap: '10px'}}>
-                                <span style={{color: 'var(--color-btnPrimary)'}}><Icons.Edit size={22} /></span> Compositor de Publicação
+                                <span style={{color: editingPost ? '#d97706' : 'var(--color-btnPrimary)'}}>
+                                    <Icons.Edit size={22} />
+                                </span> 
+                                {editingPost ? `A editar publicação...` : "Compositor de Publicação"}
                             </h3>
                         </div>
                         <button onClick={closeNewPostModal} style={{background:'#fff', border:'1px solid #cbd5e1', cursor:'pointer', color:'#64748b', width:'36px', height:'36px', borderRadius:'10px', display:'flex', alignItems:'center', justifyContent:'center'}} className="hover-red-text"><Icons.Close size={20} /></button>
@@ -2487,7 +2552,12 @@ export default function Forum() {
                             <div style={{display: 'flex', gap: '10px', justifyContent: 'flex-end', padding:'14px 22px', borderTop: '1px solid #e2e8f0', background:'#f8fafc'}}>
                                 <button type="button" onClick={closeNewPostModal} style={{padding: '11px 18px', borderRadius: '10px', border: '1px solid #cbd5e1', background: 'white', color: '#64748b', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">Cancelar</button>
                                 <button type="submit" disabled={isUploading} className="btn-primary hover-shadow" style={{padding: '11px 24px', borderRadius: '10px', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px'}}>
-                                    {isUploading ? "A carregar..." : <><Icons.Send size={16}/> Publicar</>}
+                                    {isUploading ? (editingPost ? "A guardar..." : "A publicar...") : (
+                                        <>
+                                            <Icons.Send size={16}/> 
+                                            {editingPost ? "Guardar Alterações" : "Publicar"}
+                                        </>
+                                    )}
                                 </button>
                             </div>
                         </div>
