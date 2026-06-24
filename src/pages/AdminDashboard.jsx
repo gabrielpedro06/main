@@ -67,6 +67,56 @@ function formatHours(minutes) {
   return `${h}h ${String(m).padStart(2, "0")}m`;
 }
 
+// 1. O "Testador de ADN" que sobe a árvore toda: Subtarefa -> Tarefa -> Atividade -> Projeto
+function getLogTree(log, projectById, activityById, taskById, subtaskById, focusedAssignments) {
+  if (!log) return { p: null, a: null, t: null, s: null, estado: "" };
+
+  const limpa = (id) => String(id || "").trim().toLowerCase();
+
+  const buscar = (idRaw) => {
+    const id = limpa(idRaw);
+    if (!id) return null;
+
+    if (taskById?.has(id)) return taskById.get(id);
+    if (subtaskById?.has(id)) return subtaskById.get(id);
+    if (activityById?.has(id)) return activityById.get(id);
+    if (projectById?.has(id)) return projectById.get(id);
+
+    if (focusedAssignments) {
+      const extra = [
+        ...(focusedAssignments.tarefas || []),
+        ...(focusedAssignments.atividades || []),
+        ...(focusedAssignments.subtarefas || []),
+      ].find((item) => limpa(item?.id) === id);
+      if (extra) return extra;
+    }
+    return null;
+  };
+
+  const s = buscar(log.subtarefa_id || log.subtask_id);
+  const t = buscar(log.task_id || log.tarefa_id || s?.tarefa_id || s?.task_id);
+  const a = buscar(log.atividade_id || log.activity_id || t?.atividade_id || t?.activity_id || s?.atividade_id);
+  const p = buscar(log.projeto_id || log.project_id || a?.projeto_id || a?.project_id || t?.projeto_id || s?.projeto_id);
+
+  // NOVO: A peça alvo da gravação de tempo é a mais profunda que existir na árvore:
+  const alvo = s || t || a || p;
+  const estado = alvo?.estado || alvo?.status || "";
+
+  return { p, a, t, s, estado };
+}
+
+// 2. A Tabela passa a usar a árvore completa:
+function getTabelaTaskLabel(log, projectById, activityById, taskById, subtaskById, focusedAssignments) {
+  const tree = getLogTree(log, projectById, activityById, taskById, subtaskById, focusedAssignments);
+
+  const parts = [tree.p?.titulo, tree.a?.titulo, tree.t?.titulo, tree.s?.titulo].filter(Boolean);
+  const caminho = parts.join(" > ");
+  const nota = log?.descricao || log?.description || log?.notas || "";
+
+  if (caminho) return nota ? `${caminho} — (${nota})` : caminho;
+  return nota ? `[Nota] ${nota}` : "Sessão de trabalho";
+}
+
 function isAssignedToUser(item, userId) {
   if (!item || !userId) return false;
   const normalizedUserId = String(userId);
@@ -216,6 +266,12 @@ export default function AdminDashboard() {
   const [mode, setMode] = useState("month");
   const [selectedDate, setSelectedDate] = useState(getTodayDateInput());
   const [selectedMonth, setSelectedMonth] = useState(getMonthInput());
+  const [startDate, setStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
+    return d.toISOString().slice(0, 10);
+  });
+  const [endDate, setEndDate] = useState(getTodayDateInput());
   const [selectedProjectId, setSelectedProjectId] = useState("all");
   const [selectedUserId, setSelectedUserId] = useState("all");
   const [focusedAssignmentsLoading, setFocusedAssignmentsLoading] = useState(false);
@@ -287,27 +343,30 @@ export default function AdminDashboard() {
 
   const projectById = useMemo(() => {
     const map = new Map();
-    projects.forEach((p) => map.set(String(p.id), p));
+    projects.forEach((p) => map.set(String(p.id).trim().toLowerCase(), p));
     return map;
   }, [projects]);
 
   const activityById = useMemo(() => {
     const map = new Map();
-    activities.forEach((a) => map.set(String(a.id), a));
+    activities.forEach((a) => map.set(String(a.id).trim().toLowerCase(), a));
+    (focusedAssignments?.atividades || []).forEach((a) => map.set(String(a.id).trim().toLowerCase(), a));
     return map;
-  }, [activities]);
+  }, [activities, focusedAssignments]);
 
   const taskById = useMemo(() => {
     const map = new Map();
-    tasks.forEach((t) => map.set(String(t.id), t));
+    tasks.forEach((t) => map.set(String(t.id).trim().toLowerCase(), t));
+    (focusedAssignments?.tarefas || []).forEach((t) => map.set(String(t.id).trim().toLowerCase(), t));
     return map;
-  }, [tasks]);
+  }, [tasks, focusedAssignments]);
 
   const subtaskById = useMemo(() => {
     const map = new Map();
-    subtasks.forEach((s) => map.set(String(s.id), s));
+    subtasks.forEach((s) => map.set(String(s.id).trim().toLowerCase(), s));
+    (focusedAssignments?.subtarefas || []).forEach((s) => map.set(String(s.id).trim().toLowerCase(), s));
     return map;
-  }, [subtasks]);
+  }, [subtasks, focusedAssignments]);
 
   const resolveProjectIdForLog = (log) => {
     if (log?.projeto_id) return String(log.projeto_id);
@@ -382,6 +441,7 @@ export default function AdminDashboard() {
 
       if (mode === "day" && key !== dayKey) return false;
       if (mode === "month" && key.slice(0, 7) !== monthKey) return false;
+      if (mode === "interval" && (key < startDate || key > endDate)) return false;
 
       if (selectedProjectId !== "all") {
         const resolvedProjectId = resolveProjectIdForLog(log);
@@ -418,46 +478,22 @@ export default function AdminDashboard() {
     });
 
     const byProject = aggregateBy(logsFiltered, (log) => {
-      const projectId = resolveProjectIdForLog(log);
-      if (!projectId) return "Sem projeto";
-      const p = projectById.get(String(projectId));
-      return p?.titulo || `Projeto ${String(projectId).slice(0, 8)}`;
+      const tree = getLogTree(log, projectById, activityById, taskById, subtaskById, focusedAssignments);
+      return tree.p?.titulo || "Sem projeto";
     });
 
     const byActivity = aggregateBy(logsFiltered, (log) => {
-      if (log?.atividade_id) {
-        const a = activityById.get(String(log.atividade_id));
-        return a?.titulo || `Atividade ${String(log.atividade_id).slice(0, 8)}`;
-      }
-      if (log?.task_id) {
-        const t = taskById.get(String(log.task_id));
-        const a = t?.atividade_id ? activityById.get(String(t.atividade_id)) : null;
-        if (a) return a.titulo || `Atividade ${String(a.id).slice(0, 8)}`;
-      }
-      if (log?.subtarefa_id) {
-        const s = subtaskById.get(String(log.subtarefa_id));
-        const t = s?.tarefa_id ? taskById.get(String(s.tarefa_id)) : null;
-        const a = t?.atividade_id ? activityById.get(String(t.atividade_id)) : null;
-        if (a) return a.titulo || `Atividade ${String(a.id).slice(0, 8)}`;
-      }
-      return "Sem atividade";
+      const tree = getLogTree(log, projectById, activityById, taskById, subtaskById, focusedAssignments);
+      return tree.a?.titulo || "Sem atividade";
     });
 
     const byTask = aggregateBy(logsFiltered, (log) => {
-      if (log?.task_id) {
-        const t = taskById.get(String(log.task_id));
-        return t?.titulo || `Tarefa ${String(log.task_id).slice(0, 8)}`;
-      }
-      if (log?.subtarefa_id) {
-        const s = subtaskById.get(String(log.subtarefa_id));
-        const t = s?.tarefa_id ? taskById.get(String(s.tarefa_id)) : null;
-        if (t) return t.titulo || `Tarefa ${String(t.id).slice(0, 8)}`;
-      }
-      return "Sem tarefa";
+      const tree = getLogTree(log, projectById, activityById, taskById, subtaskById, focusedAssignments);
+      return tree.t?.titulo || tree.s?.titulo || "Sem tarefa";
     });
 
     return { byUser, byProject, byActivity, byTask };
-  }, [logsFiltered, profiles, activityById, taskById, subtaskById, projectById]);
+  }, [logsFiltered, profiles, projectById, activityById, taskById, subtaskById, focusedAssignments]);
 
   const activeLogsByUser = useMemo(() => {
     const map = new Map();
@@ -777,10 +813,22 @@ export default function AdminDashboard() {
           >
             Modo Diário
           </button>
+          <button
+            type="button"
+            onClick={() => setMode("interval")}
+            style={{
+              border: "1px solid var(--color-borderColor)",
+              background: mode === "interval" ? "linear-gradient(135deg, var(--color-btnPrimary) 0%, var(--color-btnPrimaryDark) 100%)" : "var(--color-bgTertiary)",
+              color: mode === "interval" ? "var(--color-textWhite)" : "var(--color-textSecondary)",
+              borderRadius: "10px", padding: "8px 12px", fontWeight: 700, cursor: "pointer",
+            }}
+          >
+            Intervalo / Última Semana
+          </button>
         </div>
 
         <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-          {mode === "month" ? (
+          {mode === "month" && (
             <label style={{ display: "grid", gap: "4px", color: "#334155", fontSize: "0.85rem" }}>
               Mês
               <input
@@ -790,7 +838,9 @@ export default function AdminDashboard() {
                 style={{ border: "1px solid var(--color-borderColor)", borderRadius: "10px", padding: "8px 10px", color: "var(--color-textSecondary)", background: "var(--color-textWhite)" }}
               />
             </label>
-          ) : (
+          )}
+
+          {mode === "day" && (
             <label style={{ display: "grid", gap: "4px", color: "#334155", fontSize: "0.85rem" }}>
               Dia
               <input
@@ -800,6 +850,20 @@ export default function AdminDashboard() {
                 style={{ border: "1px solid var(--color-borderColor)", borderRadius: "10px", padding: "8px 10px", color: "var(--color-textSecondary)", background: "var(--color-textWhite)" }}
               />
             </label>
+          )}
+
+          {mode === "interval" && (
+            <div style={{ display: "flex", gap: "6px", alignItems: "flex-end" }}>
+              <label style={{ display: "grid", gap: "4px", color: "#334155", fontSize: "0.85rem" }}>
+                Início
+                <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ border: "1px solid var(--color-borderColor)", borderRadius: "10px", padding: "8px 10px", color: "var(--color-textSecondary)", background: "var(--color-textWhite)" }} />
+              </label>
+              <span style={{ color: "#64748b", fontSize: "0.85rem", fontWeight: 600, paddingBottom: "9px" }}>até</span>
+              <label style={{ display: "grid", gap: "4px", color: "#334155", fontSize: "0.85rem" }}>
+                Fim
+                <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ border: "1px solid var(--color-borderColor)", borderRadius: "10px", padding: "8px 10px", color: "var(--color-textSecondary)", background: "var(--color-textWhite)" }} />
+              </label>
+            </div>
           )}
 
           <label style={{ display: "grid", gap: "4px", color: "#334155", fontSize: "0.85rem" }}>
@@ -1010,6 +1074,86 @@ export default function AdminDashboard() {
                     ))}
                   </div>
                 </div>
+              </div>
+              {/* TABELA DE TAREFAS FEITAS PELO UTILIZADOR */}
+              <div style={{ borderTop: "1px solid #e2e8f0", margin: "16px -14px -14px -14px", padding: "16px 14px", background: "#f8fafc", borderRadius: "0 0 14px 14px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                  <h4 style={{ margin: 0, color: "#0f172a", fontSize: "0.95rem", fontWeight: 800 }}>
+                    Trabalho Executado neste período ({logsFiltered.length} registos)
+                  </h4>
+                  <span style={{ fontSize: "0.85rem", color: "#059669", fontWeight: 800 }}>
+                    Total investido: {formatHours(totalMinutesFiltered)}
+                  </span>
+                </div>
+
+                {logsFiltered.length === 0 ? (
+                  <p style={{ margin: 0, color: "#94a3b8", fontSize: "0.85rem" }}>Nenhum registo de tempo encontrado para este filtro.</p>
+                ) : (
+                  <div style={{ maxHeight: "280px", overflowY: "auto", background: "#fff", border: "1px solid #e2e8f0", borderRadius: "10px" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.82rem" }}>
+                      <thead style={{ background: "#f1f5f9", position: "sticky", top: 0 }}>
+                        <tr>
+                          <th style={{ padding: "8px 12px", color: "#475569", fontWeight: 700 }}>Data</th>
+                          <th style={{ padding: "8px 12px", color: "#475569", fontWeight: 700 }}>Tarefa / Subtarefa executada</th>
+                          <th style={{ padding: "8px 12px", color: "#475569", fontWeight: 700 }}>Estado</th> {/* <-- COLUNA NOVA */}
+                          <th style={{ padding: "8px 12px", color: "#475569", fontWeight: 700 }}>Duração</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {logsFiltered.map((log) => {
+                          const start = log.start_time ? new Date(log.start_time) : null;
+                          const dateFormatted = start 
+                            ? start.toLocaleDateString("pt-PT", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) 
+                            : "-";
+
+                          const tree = getLogTree(log, projectById, activityById, taskById, subtaskById, focusedAssignments);
+                          const taskLabel = getTabelaTaskLabel(log, projectById, activityById, taskById, subtaskById, focusedAssignments);
+                          const mins = getMinutesFromLog(log);
+
+                          // Lógica visual de cores para o Estado:
+                          const rawEstado = String(tree.estado || "").trim().toLowerCase();
+                          let labelEstado = tree.estado || "Desconhecido";
+                          let bgEstado = "#f1f5f9";
+                          let corEstado = "#475569";
+
+                          if (rawEstado === "concluido" || rawEstado === "concluído") {
+                            labelEstado = "Concluído";
+                            bgEstado = "#dcfce7"; // Verde clarinho
+                            corEstado = "#166534";
+                          } else if (rawEstado === "em curso" || rawEstado === "fazendo") {
+                            labelEstado = "Em curso";
+                            bgEstado = "#e0f2fe"; // Azul clarinho
+                            corEstado = "#0369a1";
+                          } else if (rawEstado === "pendente" || rawEstado === "a fazer") {
+                            labelEstado = "Pendente";
+                            bgEstado = "#fef3c7"; // Amarelo clarinho
+                            corEstado = "#b45309";
+                          }
+
+                          return (
+                            <tr key={log.id} style={{ borderTop: "1px solid #f1f5f9" }}>
+                              <td style={{ padding: "8px 12px", color: "#64748b", whiteSpace: "nowrap" }}>{dateFormatted}</td>
+                              <td style={{ padding: "8px 12px", color: "#0f172a", fontWeight: 600 }}>{taskLabel}</td>
+                              
+                              {/* CÉLULA DO ESTADO */}
+                              <td style={{ padding: "8px 12px", whiteSpace: "nowrap" }}>
+                                {tree.estado ? (
+                                  <span style={{ background: bgEstado, color: corEstado, padding: "2px 8px", borderRadius: "6px", fontSize: "0.75rem", fontWeight: 700, textTransform: "capitalize" }}>
+                                    {labelEstado}
+                                  </span>
+                                ) : (
+                                  <span style={{ color: "#94a3b8", fontSize: "0.75rem" }}>-</span>
+                                )}
+                              </td>
+
+                              <td style={{ padding: "8px 12px", color: "#059669", fontWeight: 700 }}>{formatHours(mins)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </div>
           )}
