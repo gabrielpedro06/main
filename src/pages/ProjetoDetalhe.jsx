@@ -3200,7 +3200,32 @@ export default function ProjetoDetalhe() {
                             {(() => {
                                 const tipoSelecionadoLocal = tiposProjeto.find(t => String(t.id) === String(formGeral.tipo_projeto_id));
                                 const isFormacaoLocal = tipoSelecionadoLocal?.eh_formacao === true;
-                                if (isFormacaoLocal) return null;
+                                if (isFormacaoLocal) {
+                                    return (
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginTop: '15px', marginBottom: '15px' }}>
+                                            <div>
+                                                <label style={labelStyle}>Data Início</label>
+                                                <input 
+                                                    type="date" 
+                                                    value={formGeral.data_inicio || ''} 
+                                                    onChange={e => setFormGeral({...formGeral, data_inicio: e.target.value})} 
+                                                    style={{...inputStyle, marginBottom: 0}} 
+                                                    className="input-focus" 
+                                                />
+                                            </div>
+                                            <div>
+                                                <label style={labelStyle}>Data Fim (Prazo)</label>
+                                                <input 
+                                                    type="date" 
+                                                    value={formGeral.data_fim || ''} 
+                                                    onChange={e => setFormGeral({...formGeral, data_fim: e.target.value})} 
+                                                    style={{...inputStyle, marginBottom: 0}} 
+                                                    className="input-focus" 
+                                                />
+                                            </div>
+                                        </div>
+                                    );
+                                }
 
                                 // Vai buscar as listas para os dropdowns
                                 const selectedPrograma = getProgramaById(formGeral.programa_id);
