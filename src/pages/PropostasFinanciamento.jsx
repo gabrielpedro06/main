@@ -89,6 +89,7 @@ const INITIAL_CLIENTE = {
   id: "",
   nome: "",
   nipc: "",
+  codigo_postal: "",
   tipo_empresa: "PME",
   morada: "",
   distrito_cidade: "",
@@ -644,6 +645,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
               cargo: contacto.cargo || "",
               email: contacto.email || "",
               telefone: contacto.telefone || "",
+            
             }))
           );
 
@@ -677,6 +679,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
           setCliente((prev) => ({
             ...prev,
             morada: prev.morada || morada,
+            codigo_postal: prev.codigo_postal || moradaResult.data?.codigo_postal || "",
             distrito_cidade: prev.distrito_cidade || distritoCidade,
           }));
         }
@@ -738,6 +741,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
             id: data.cliente_id,
             nome: clienteEncontrado?.nome || payload?.cliente?.nome || "",
             nipc: clienteEncontrado?.nipc || payload?.cliente?.nipc || "",
+            codigo_postal: payload?.cliente?.codigo_postal || clienteEncontrado?.codigo_postal || "",
             tipo_empresa: payload?.cliente?.tipo_empresa || clienteEncontrado?.tipo_empresa || "PME",
             morada: payload?.cliente?.morada || "",
             distrito_cidade: payload?.cliente?.distrito_cidade || "",
@@ -1178,6 +1182,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
       id: found.id,
       nome: found.nome || "",
       nipc: found.nipc || "",
+      codigo_postal: found.codigo_postal || "", // 1º ponto onde guarda
       tipo_empresa: found.tipo_empresa || "PME",
       morada: "",
       distrito_cidade: found.distrito_cidade || "",
@@ -1194,7 +1199,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
         const [moradaResult, contactosResult] = await Promise.all([
           supabase
             .from("moradas_cliente")
-            .select("morada, localidade, codigo_postal")
+            .select("morada, localidade, codigo_postal") // <--- VAI LER O CP À BD
             .eq("cliente_id", found.id)
             .limit(1)
             .maybeSingle(),
@@ -1230,6 +1235,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
         setCliente((prev) => ({
           ...prev,
           morada: prev.morada || morada,
+          codigo_postal: prev.codigo_postal || moradaResult.data?.codigo_postal || "", // 2º ponto onde guarda
           contacto_id: prev.contacto_id || contactoDefault?.id || "",
           contacto_nome: prev.contacto_nome || contactoDefault?.nome || "",
           contacto_cargo: prev.contacto_cargo || contactoDefault?.cargo || "",
@@ -2252,6 +2258,16 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                   <div className="field">
                     <label>Morada</label>
                     <input type="text" value={cliente.morada || ""} onChange={setField(setCliente, "morada")} readOnly={clienteDadosReadOnly} placeholder="ex. Rua da Liberdade, 10 – 8000-000 Faro" />
+                  </div>
+                  <div className="field">
+                    <label>Código Postal</label>
+                    <input 
+                      type="text" 
+                      value={cliente.codigo_postal || ""} 
+                      onChange={setField(setCliente, "codigo_postal")} 
+                      readOnly={clienteDadosReadOnly} 
+                      placeholder="ex. 8400-385" 
+                    />
                   </div>
                   <div className="field">
                     <label>Distrito / Cidade</label>

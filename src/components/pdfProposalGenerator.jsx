@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { supabase } from '../services/supabase';
 
 // ============================================================================
 // CONFIGURAÇÕES E PALETA DE CORES
@@ -452,9 +453,31 @@ export const generateProposalPDF = async (params) => {
   
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...COLORS.secondary);
+
   const clienteCidade = sourceCliente?.distrito_cidade?.split('/')[0]?.trim() || '';
-  if (clienteCidade) {
-    doc.text(clienteCidade, marginX, currentY);
+  let clienteCP = sourceCliente?.codigo_postal || sourceCliente?.cp || '';
+
+  // Se o CP não veio na memória (propostas antigas), o PDF vai buscá-lo à BD neste milissegundo:
+  if (!clienteCP && sourceCliente?.id) {
+    try {
+      const { data: moradaDB } = await supabase
+        .from('moradas_cliente')
+        .select('codigo_postal')
+        .eq('cliente_id', sourceCliente.id)
+        .maybeSingle();
+
+      if (moradaDB?.codigo_postal) {
+        clienteCP = moradaDB.codigo_postal;
+      }
+    } catch (err) {
+      console.error("Erro ao procurar CP no Supabase:", err);
+    }
+  }
+
+  const textoLocalizacao = [clienteCP, clienteCidade].filter(Boolean).join(' ');
+
+  if (textoLocalizacao) {
+    doc.text(textoLocalizacao, marginX, currentY);
     currentY += 10;
   } else currentY += 5;
 
