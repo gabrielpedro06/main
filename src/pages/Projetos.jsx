@@ -272,7 +272,6 @@ export default function Projetos() {
                       projectUrl,
                       responsibleName,
                       clientName,
-                      senderType: "PROJECT"
                   }),
                   });
               }

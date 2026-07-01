@@ -10,8 +10,7 @@ export default async function handler(req, res) {
     return;
   }
 
-  // 1. Lemos o senderType que configurámos no Frontend (embora neste ficheiro seja sempre projeto)
-  const { email, projectTitle, projectUrl, responsibleName, clientName, senderType } = req.body || {};
+  const { email, projectTitle, projectUrl, responsibleName, clientName } = req.body || {};
 
   if (!email || typeof email !== "string") {
     res.status(400).json({ ok: false, error: "email is required." });
@@ -42,15 +41,7 @@ export default async function handler(req, res) {
 
   try {
     const summary = await sendTransactionalCampaign({
-      senderProfile: "marketing", // Usa a mesma configuração base de chaves e email
-      
-      // 2. FORÇAMOS O NOME DO REMETENTE AQUI 
-      senderName: "Bizin Manager", // Passamos como prop avulsa
-      sender: { 
-        name: "Bizin Manager", 
-        email: process.env.BREVO_SENDER_EMAIL || "marketing@geoflicks.pt" 
-      }, // Passamos também como objeto padrão da API do Brevo
-      
+      senderProfile: "marketing",
       emails: [email],
       subject,
       htmlContent,

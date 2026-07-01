@@ -14,29 +14,6 @@ export async function checkMarketingApiHealth() {
   return response.json().catch(() => ({ ok: true }));
 }
 
-// Nova função para notificações de projetos (com identificador de remetente)
-export async function sendProjectNotification(payload) {
-  const endpoint = `${DEFAULT_MARKETING_API_BASE}/api/project-notifications/send-created`;
-
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-    },
-    // Adicionamos o senderType: "PROJECT" automaticamente aqui
-    body: JSON.stringify({ ...payload, senderType: "PROJECT" }),
-  });
-
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok || !data?.ok) {
-    throw new Error(data?.error || "Falha ao enviar notificação de projeto.");
-  }
-
-  return data;
-}
-
-// Mantemos a função original de campanhas de marketing
 export async function sendMarketingCampaign(payload) {
   const endpoint = `${DEFAULT_MARKETING_API_BASE}/api/marketing/send`;
 
