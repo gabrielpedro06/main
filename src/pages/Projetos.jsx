@@ -223,9 +223,10 @@ export default function Projetos() {
   };
 
   const getProjectUrl = (projectId) => {
-      const baseUrl = window.location.origin.replace(/\/$/, "");
-      return `${baseUrl}/dashboard/projetos/${projectId}`;
-  };
+    // Força o URL exato do Bizin Manager
+    const baseUrl = "https://bizinmanager.vercel.app";
+    return `${baseUrl}/dashboard/projetos/${projectId}`;
+    };
 
   const notifyProjectCreated = async (project, responsibleId) => {
       if (!project?.id || !responsibleId) return;
@@ -271,6 +272,7 @@ export default function Projetos() {
                       projectUrl,
                       responsibleName,
                       clientName,
+                      senderType: "PROJECT"
                   }),
                   });
               }
