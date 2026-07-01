@@ -1,22 +1,5 @@
-// --- FUNÇÃO PARA RENDERIZAÇÃO CONDICIONAL NOS MODAIS DE EDIÇÃO ---
-  const deveMostrarCampoItem = (itemInfoAdicional, nomeCampo) => {
-      if (!itemInfoAdicional) return false; 
-      try {
-          const info = typeof itemInfoAdicional === 'string' 
-              ? JSON.parse(itemInfoAdicional) 
-              : itemInfoAdicional;
-          
-          // Verifica se o template exige campos e se este campo específico está na lista
-          if (info && info.exige === true && Array.isArray(info.campos)) {
-              return info.campos.includes(nomeCampo);
-          }
-      } catch (e) {
-          console.error(`Erro ao validar o campo ${nomeCampo}:`, e);
-      }
-      return false; 
-  };
-
 import { useState, useEffect, useRef } from "react";
+
 import { createPortal } from "react-dom";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "../services/supabase";
@@ -2611,7 +2594,7 @@ export default function Projetos() {
                                                                     {s.nome || s.email}{s.ativo === false ? ' (Inativo)' : ''}
                                                                 </div>
                                                             )
-                                                    })}
+                                                        })}
                                                     {staff.filter(s => String(s.id) !== String(form.responsavel_id || '')).length === 0 && (
                                                         <span style={{color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic'}}>Sem pessoas internas disponíveis.</span>
                                                     )}
@@ -2637,7 +2620,7 @@ export default function Projetos() {
                                                                     {`${base}${cargo}${marca}`}
                                                                 </div>
                                                             )
-                                                    })}
+                                                        })}
                                                     {entidadePessoas.filter(s => String(s.id) !== String(form.responsavel_id || '')).length === 0 && (
                                                         <span style={{color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic'}}>Sem contactos das entidades selecionadas.</span>
                                                     )}
@@ -2739,36 +2722,67 @@ export default function Projetos() {
 
                                     {!isProjetoFormacao && (
                                         <div style={{marginBottom: '10px', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', background: '#f8fafc'}}>
-                                            <div style={{marginBottom: '16px'}}>
+                                            <div style={{marginBottom: '10px'}}>
                                                 <div style={{fontSize: '0.8rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Fases do Projeto</div>
-                                                <div style={{fontSize: '0.85rem', color: '#64748b'}}>As fases são importadas automaticamente a partir do Aviso selecionado.</div>
+                                                <div style={{fontSize: '0.85rem', color: '#64748b'}}>
+                                                    As fases são importadas automaticamente a partir do Aviso selecionado. Seleciona qual delas define a <strong>Data Limite</strong> do projeto.
+                                                </div>
                                             </div>
 
+                                            {/* Lista unificada com seleto de Data Limite */}
                                             <div style={{display: 'grid', gap: '12px'}}>
                                                 {fasesEfetivas && fasesEfetivas.length > 0 ? (
-                                                    fasesEfetivas.map((fase, index) => (
-                                                        <div key={`fase-${fase.nome}-${index}`} style={{display: 'grid', gridTemplateColumns: '1fr 180px', gap: '12px', alignItems: 'end', padding: '12px', borderRadius: '10px', background: 'white', border: '1px solid #e2e8f0'}}>
-                                                            <div>
-                                                                <label style={labelStyle}>Nome da fase</label>
-                                                                <input
-                                                                    type="text"
-                                                                    value={fase.nome || ''}
-                                                                    readOnly
-                                                                    style={{...inputStyle, background: '#f1f5f9', color: '#64748b', cursor: 'not-allowed'}}
-                                                                />
+                                                    fasesEfetivas.map((fase, index) => {
+                                                        const isSelected = String(fase?.prazo || '') === String(form.data_fim || '');
+                                                        
+                                                        return (
+                                                            <div key={`fase-${fase.nome}-${index}`} style={{display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', borderRadius: '10px', background: isSelected ? 'var(--color-bgSecondary)' : 'white', border: `1px solid ${isSelected ? 'var(--color-btnPrimary)' : '#e2e8f0'}`, transition: 'all 0.2s'}}>
+                                                                
+                                                                {/* Controlo de Seleção (Radio) */}
+                                                                <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px', minWidth: '60px'}}>
+                                                                    <input
+                                                                        type="radio"
+                                                                        name="fase_limite_projeto"
+                                                                        checked={isSelected}
+                                                                        disabled={isViewOnly}
+                                                                        onChange={() => {
+                                                                            if (!isViewOnly) {
+                                                                                setForm((prev) => ({
+                                                                                    ...prev,
+                                                                                    data_fim: fase.prazo || ''
+                                                                                }));
+                                                                            }
+                                                                        }}
+                                                                        style={{accentColor: 'var(--color-btnPrimary)', width: '20px', height: '20px', cursor: isViewOnly ? 'default' : 'pointer'}}
+                                                                        title="Definir como Data Limite do Projeto"
+                                                                    />
+                                                                    <span style={{fontSize: '0.65rem', fontWeight: '800', textTransform: 'uppercase', color: isSelected ? 'var(--color-btnPrimary)' : '#94a3b8'}}> </span>
+                                                                </div>
+
+                                                                {/* Inputs de Descrição da Fase */}
+                                                                <div style={{display: 'grid', gridTemplateColumns: '1fr 180px', gap: '12px', flex: 1, alignItems: 'end'}}>
+                                                                    <div>
+                                                                        <label style={labelStyle}>Nome da fase</label>
+                                                                        <input
+                                                                            type="text"
+                                                                            value={fase.nome || ''}
+                                                                            readOnly
+                                                                            style={{...inputStyle, background: '#f1f5f9', color: '#64748b', cursor: 'not-allowed', borderColor: isSelected ? '#bfdbfe' : '#cbd5e1'}}
+                                                                        />
+                                                                    </div>
+                                                                    <div>
+                                                                        <label style={labelStyle}>Data de término</label>
+                                                                        <input
+                                                                            type="date"
+                                                                            value={fase.prazo || ''}
+                                                                            readOnly
+                                                                            style={{...inputStyle, cursor: 'not-allowed', background: '#f1f5f9', borderColor: isSelected ? '#bfdbfe' : '#cbd5e1'}}
+                                                                        />
+                                                                    </div>
+                                                                </div>
                                                             </div>
-                                                            <div>
-                                                                <label style={labelStyle}>Data de término</label>
-                                                                <input
-                                                                    type="date"
-                                                                    value={fase.prazo || ''}
-                                                                    onChange={(e) => updateProjetoFase(index, 'prazo', e.target.value)}
-                                                                    style={inputStyle}
-                                                                    className="input-focus"
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                    ))
+                                                        );
+                                                    })
                                                 ) : (
                                                     <div style={{padding: '20px', textAlign: 'center', color: '#94a3b8', background: 'white', borderRadius: '8px', border: '1px dashed #cbd5e1', fontSize: '0.9rem', fontStyle: 'italic'}}>
                                                         Sem fases definidas. Seleciona um programa/aviso para carregar as fases.
