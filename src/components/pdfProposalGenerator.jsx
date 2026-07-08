@@ -769,22 +769,6 @@ export const generateProposalPDF = async (params) => {
     currentY = doc.lastAutoTable.finalY + 12;
   }
 
-  if (sourceTotais) {
-    autoTable(doc, {
-      startY: currentY,
-      margin: { left: marginX + contentWidth / 2, right: marginX },
-      body: [
-        ['Total s/ IVA', fmtCurrency ? fmtCurrency(sourceTotais.totalSemIva) : formatCurrency(sourceTotais.totalSemIva)],
-        [`IVA (${Number(proposta?.iva || 23)}%)`, fmtCurrency ? fmtCurrency(sourceTotais.totalIva) : formatCurrency(sourceTotais.totalIva)],
-        ['Total c/ IVA', fmtCurrency ? fmtCurrency(sourceTotais.totalComIva) : formatCurrency(sourceTotais.totalComIva)],
-      ],
-      styles: { font: 'helvetica', fontSize: 9.5, cellPadding: 4, textColor: COLORS.primary },
-      columnStyles: { 0: { fontStyle: 'bold' }, 1: { halign: 'right', fontStyle: 'bold', textColor: COLORS.accent } },
-      alternateRowStyles: { fillColor: COLORS.light },
-    });
-    currentY = doc.lastAutoTable.finalY + 15;
-  }
-
   if (config.texto_plano_pagamento) {
       drawTitle('Condições de Pagamento');
       drawParagraph(config.texto_plano_pagamento, { size: 9, lineHeight: 4.5, color: COLORS.secondary });
