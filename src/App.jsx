@@ -36,6 +36,7 @@ import PropostasComerciais from "./pages/PropostasComerciais";
 import ListaPropostas from "./pages/ListaPropostas";
 import GestaoAvisos from "./pages/GestaoAvisos";
 import Cursos from "./pages/Cursos";
+import AtivosTIDashboard from "./pages/AtivosTIDashboard";
 
 export default function App() {
   return (
@@ -72,6 +73,7 @@ export default function App() {
             <Route path="perfil" element={<Perfil />} />
             <Route path="leads" element={<GestaoLeads />} />
             <Route path="transfergest" element={<TransferGest />} />
+            <Route path="ativos-ti" element={<AtivosTIDashboard />} />
             
             {/* ROTAS DE PROPOSTAS COMERCIAIS */}
             <Route path="propostas" element={<ListaPropostas />} />

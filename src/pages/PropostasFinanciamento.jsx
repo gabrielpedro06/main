@@ -318,16 +318,6 @@ const normalizeOrcamentoTipoProjetoItem = (item = {}, index = 0, fallbackHoras =
   });
 };
 
-const stepTitles = [
-  "Empresa Consultora",
-  "Cliente",
-  "Tipo de Projeto",
-  "Serviços",
-  "Orçamento",
-  "Condições Gerais",
-  "Revisão",
-];
-
 const TIPO_EMPRESA_OPTIONS = ["PME", "Grande Empresa", "Startup", "Microempresa", "Outro"];
 const PROPOSTA_ESTADOS = [
   { value: "em_preparacao", label: "Em preparação" },
@@ -959,7 +949,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
   };
 
   const goStep = (nextStep) => {
-    if (nextStep < 1 || nextStep > stepTitles.length) return;
+    if (nextStep < 1) return; 
     setCurrentStep(nextStep);
   };
 
@@ -2067,9 +2057,26 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
   };
 
   // ========================================================================
-  // RENDER
+  // 1. WIZARD DINÂMICO E LÓGICA DE PASSOS
   // ========================================================================
+  
+  const stepTitlesArray = useMemo(() => {
+    const base = ["Identificação e Textos", "Cliente", "Tipo de Projeto", "Programa"];
+    const servicosSteps = (tiposProjetoOrdenadosPorServico || []).map(tipo => `Serviço: ${tipo.nome}`);
+    const fecho = ["Revisão de Descrições", "Orçamento e Fecho", "Revisão Final"];
+    return [...base, ...servicosSteps, ...fecho];
+  }, [tiposProjetoOrdenadosPorServico]);
 
+  useEffect(() => {
+    if (currentStep > stepTitlesArray.length && stepTitlesArray.length > 0) {
+      setCurrentStep(stepTitlesArray.length);
+    }
+  }, [stepTitlesArray.length, currentStep]);
+
+  // ========================================================================
+  // 2. EARLY RETURNS
+  // ========================================================================
+  
   if (isLoadingData) {
     return <div className="page-container">A carregar dados...</div>;
   }
@@ -2080,6 +2087,32 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
 
   const consultoraDadosReadOnly = Boolean(empresaConsultora.id);
   const clienteDadosReadOnly = Boolean(cliente.id);
+
+  // ========================================================================
+  // 3. CONTROLOS DE VISIBILIDADE DO RENDER
+  // ========================================================================
+  
+  const isIdentificacaoStep = currentStep === 1;
+  const isClienteStep = currentStep === 2;
+  const isTipoProjetoStep = currentStep === 3;
+  const isProgramaStep = currentStep === 4;
+
+  const numServicos = tiposProjetoOrdenadosPorServico.length;
+  const isServicoStep = currentStep > 4 && currentStep <= 4 + numServicos;
+  const currentServicoIndex = isServicoStep ? currentStep - 5 : -1;
+  const servicoAtual = isServicoStep ? servicosPorTipoProjeto[currentServicoIndex] : null;
+
+  const isRevisaoDescricoesStep = currentStep === 5 + numServicos;
+  const isOrcamentoFechoStep = currentStep === 6 + numServicos;
+  const isRevisaoFinalStep = currentStep === 7 + numServicos;
+
+  const temHonorarioVariavel = orcamentoTiposProjeto.some(
+    (item) => item.modo_honorario === "variavel" || item.modo_honorario === "ambos"
+  );
+
+  // ========================================================================
+  // RENDER (JSX)
+  // ========================================================================
 
   return (
     <div className="page-container propostas-page">
@@ -2098,14 +2131,14 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
       </div>
 
       <div className="propostas-progress" aria-hidden="true">
-        <div className="propostas-progress-fill" style={{ width: `${(currentStep / stepTitles.length) * 100}%` }} />
+        <div className="propostas-progress-fill" style={{ width: `${(currentStep / stepTitlesArray.length) * 100}%` }} />
       </div>
 
       <div className="propostas-layout">
         <aside className="card propostas-stepper">
           <div className="section-heading">Passos</div>
           <div className="propostas-stepper-list">
-            {stepTitles.map((title, index) => (
+            {stepTitlesArray.map((title, index) => (
               <button
                 key={index}
                 type="button"
@@ -2121,15 +2154,18 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
           <div className="propostas-stepper-footer">
             <div className="section-heading">Progresso</div>
             <div className="propostas-step-count">
-              Passo {currentStep} de {stepTitles.length}
+              Passo {currentStep} de {stepTitlesArray.length}
             </div>
           </div>
         </aside>
 
         <main className="propostas-main">
-          {currentStep === 1 && (
+          
+          {/* PASSO 1: IDENTIFICAÇÃO E TEXTOS */}
+          {isIdentificacaoStep && (
             <section className="card propostas-section">
-              <div className="section-heading">1 · Identificação</div>
+              <div className="section-heading">1 · Identificação e Textos</div>
+              
               <div className="card-inner">
                 <div className="section-heading">Dados da Empresa Consultora</div>
                 <div className="field-grid">
@@ -2168,9 +2204,6 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                         </option>
                       ))}
                     </select>
-                    {empresaConsultora.id && contatosConsultora.length === 0 && (
-                      <div className="field-hint">Adiciona pessoas em Clientes - aba Pessoas da empresa consultora.</div>
-                    )}
                   </div>
 
                   <div className="field">
@@ -2207,7 +2240,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                     <label>ID da Proposta</label>
                     <input
                       type="text"
-                      placeholder="Auto: SIGLA-2026-{id}"
+                      placeholder="Auto: SIGLA-ANO-{id}"
                       readOnly
                       value={proposta.numero || previewNumero || (empresaConsultora.sigla ? `${empresaConsultora.sigla}-${new Date().getFullYear()}-...` : "")}
                     />
@@ -2230,10 +2263,47 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                   </div>
                 </div>
               </div>
+
+              <div className="card-inner">
+                <div className="section-heading">Textos de Abertura e Apresentação</div>
+                <div className="field-hint" style={{ marginBottom: 16 }}>
+                  Estes textos aparecem no início da proposta. Simplificámos as caixas: escreve aqui a apresentação e a mensagem de compromisso.
+                </div>
+                <div className="field-grid field-grid-1">
+                  <div className="field">
+                    <label>Apresentação da Empresa</label>
+                    <textarea
+                      rows={5}
+                      value={entidadeConfig.texto_apresentacao_empresa || ""}
+                      onChange={(e) => setEntidadeConfig(p => ({ ...p, texto_apresentacao_empresa: e.target.value }))}
+                      placeholder="Breve apresentação da consultora..."
+                    />
+                  </div>
+                  <div className="field">
+                    <label>Mensagem de Abertura / Compromisso</label>
+                    <textarea
+                      rows={5}
+                      value={entidadeConfig.texto_compromisso || ""}
+                      onChange={(e) => setEntidadeConfig(p => ({ ...p, texto_compromisso: e.target.value }))}
+                      placeholder="Escreve o compromisso, o que esperam atingir e a nota para aprovação num só texto fluido."
+                    />
+                  </div>
+                  <div className="field">
+                    <label>Metodologia e Documentos Necessários</label>
+                    <textarea
+                      rows={5}
+                      value={entidadeConfig.texto_processo_trabalho || ""}
+                      onChange={(e) => setEntidadeConfig(p => ({ ...p, texto_processo_trabalho: e.target.value }))}
+                      placeholder="Descreve como trabalham e que documentos o cliente precisa de fornecer."
+                    />
+                  </div>
+                </div>
+              </div>
             </section>
           )}
 
-          {currentStep === 2 && (
+          {/* PASSO 2: CLIENTE */}
+          {isClienteStep && (
             <section className="card propostas-section">
               <div className="section-heading">2 · Cliente</div>
 
@@ -2321,10 +2391,10 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
             </section>
           )}
 
-          {currentStep === 3 && (
+          {/* PASSO 3: TIPO DE PROJETO */}
+          {isTipoProjetoStep && (
             <section className="card propostas-section">
-              <div className="section-heading">3 · Tipo de Projeto e Programa</div>
-
+              <div className="section-heading">3 · Tipo de Projeto</div>
               <div className="card-inner">
                 <div className="field-grid">
                   <div className="field span-2">
@@ -2345,363 +2415,315 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                         );
                       })}
                     </div>
-                    <div className="field-hint">
-                      O campo de programa desbloqueia quando pelo menos um tipo selecionado tiver programas.
-                    </div>
                   </div>
                 </div>
               </div>
-
-              {tiposProjetoSelecionados.length > 0 ? (
-                hasTipoComPrograma ? (
-                  <>
-                    <div className="card-inner">
-                      <div className="section-heading">Programas disponíveis</div>
-                      <div className="propostas-programas-grid">
-                        {programasDisponiveis.map((programa) => (
-                          <button
-                            key={programa.id}
-                            type="button"
-                            className={`propostas-programa-card ${programa.id === programaId ? "selected" : ""}`}
-                            onClick={() => selectPrograma(programa.id)}
-                            style={{
-                              padding: "16px",
-                              border: programa.id === programaId ? "2px solid #6366f1" : "1px solid #e5e7eb",
-                              borderRadius: "12px",
-                              background: programa.id === programaId ? "#f0f4ff" : "#f8f9fa",
-                              textAlign: "left",
-                              cursor: "pointer",
-                              transition: "all 0.2s ease",
-                            }}
-                          >
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px" }}>
-                              <div style={{ flex: 1 }}>
-                                <h4 style={{ margin: "0 0 8px 0", fontSize: "1rem", color: "#0f2240" }}>
-                                  {programa.nome}
-                                </h4>
-                                <div className="muted" style={{ fontSize: "0.85rem", marginBottom: "8px" }}>
-                                  {programa.codigo}
-                                </div>
-
-                                <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "10px" }}>
-                                  {programa.pct > 0 && (
-                                    <span className="badge badge-success" style={{ fontSize: "0.8rem" }}>
-                                      {programa.pct}%
-                                    </span>
-                                  )}
-                                  {programa.regiao && (
-                                    <span className="badge badge-warning" style={{ fontSize: "0.8rem" }}>
-                                      {programa.regiao.split("/").map((r) => r.trim()).join(" / ")}
-                                    </span>
-                                  )}
-                                  {(programa.tipo || programa.tipo_incentivo) && (
-                                    <span className="badge badge-info" style={{ fontSize: "0.8rem" }}>
-                                      {programa.tipo || programa.tipo_incentivo}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                              <div
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  width: "32px",
-                                  height: "32px",
-                                  borderRadius: "6px",
-                                  background: programa.id === programaId ? "#6366f1" : "#e5e7eb",
-                                  color: programa.id === programaId ? "white" : "#64748b",
-                                  fontWeight: 600,
-                                }}
-                              >
-                                {programa.id === programaId ? "✓" : ""}
-                              </div>
-                            </div>
-                          </button>
-                        ))}
-
-                      </div>
-                    </div>
-
-                    {selectedPrograma && (
-                      <div className="propostas-custom-details">
-                        <div className="card-inner" style={{ borderLeft: '4px solid #6366f1', background: '#f8fafc' }}>
-                          <div className="section-heading">Configuração Detalhada: {selectedPrograma.nome}</div>
-                          
-                          {/* GRELHA PRINCIPAL: AVISO E TOTAIS */}
-                          <div className="field-grid">
-                            <div className="field">
-                              <label>Referência do Aviso</label>
-                              <div className="summary-value" style={{ color: '#1e40af', fontWeight: 'bold' }}>
-                                {selectedAviso?.codigo || selectedPrograma.aviso || "Aviso não vinculado"}
-                              </div>
-                            </div>
-                            <div className="field">
-                              <label>Incentivo Máximo</label>
-                              <div className="badge badge-success" style={{ fontSize: '1rem' }}>
-                                {selectedPrograma.pct}% ({selectedPrograma.tipo_incentivo})
-                              </div>
-                            </div>
-                            <div className="field">
-                              <label>Investimento Mínimo</label>
-                              <div className="summary-value">{formatCurrency(selectedPrograma.investimento_minimo)}</div>
-                            </div>
-                            <div className="field">
-                              <label>Região / Área Geográfica</label>
-                              <div className="summary-value">{selectedPrograma.regiao || selectedPrograma.area_geografica}</div>
-                            </div>
-                          </div>
-
-                          <hr style={{ margin: '20px 0', borderColor: '#e2e8f0' }} />
-
-                          {/* TIMELINE DE FASES DO AVISO */}
-                          {selectedAviso?.fases && (
-                            <div className="fases-timeline" style={{ marginBottom: '25px' }}>
-                              <label style={{ display: 'block', marginBottom: '10px', fontWeight: '600', color: '#475569' }}>
-                                Prazos de Candidatura (Fases do Aviso)
-                              </label>
-                              <div style={{ display: 'flex', gap: '15px' }}>
-                                {/* O campo fases vem como string JSON, garantimos o parse no loadData */}
-                                {selectedAviso.fases.map((fase, idx) => (
-                                  <div key={idx} className="fase-item" style={{
-                                    flex: 1, padding: '10px', borderRadius: '8px', background: '#fff', border: '1px solid #cbd5e1'
-                                  }}>
-                                    <strong style={{ fontSize: '0.8rem', color: '#6366f1' }}>{fase.nome}</strong>
-                                    <div style={{ fontSize: '1.1rem', fontWeight: 'bold' }}>{formatDatePt(fase.prazo)}</div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* BLOCOS DE TEXTO (CONDIÇÕES E AÇÕES) */}
-                          <div className="info-blocks-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                            
-                            <div className="info-block">
-                              <label style={{ fontWeight: 'bold', color: '#0f172a' }}> Objetivos do Programa</label>
-                              <div className="text-content-box">
-                                {selectedPrograma.objetivos || selectedPrograma.descricao}
-                              </div>
-                            </div>
-
-                            <div className="info-block">
-                              <label style={{ fontWeight: 'bold', color: '#0f172a' }}> Ações Elegíveis</label>
-                              <div className="text-content-box">
-                                {selectedPrograma.acoes_elegiveis || "Consultar regulamento do aviso."}
-                              </div>
-                            </div>
-
-                            <div className="info-block span-2" style={{ gridColumn: 'span 2' }}>
-                              <label style={{ fontWeight: 'bold', color: '#b45309' }}> Condições Específicas / Critérios de Elegibilidade</label>
-                              <div className="text-content-box" style={{ background: '#fffcf5', border: '1px solid #fef3c7' }}>
-                                {selectedPrograma.condicoes_especificas}
-                              </div>
-                            </div>
-
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="card-inner">
-                    <div className="section-heading">Programa</div>
-                    <div className="field-hint">
-                      Nenhum dos tipos de projeto selecionados requer programa/aviso.
-                    </div>
-                  </div>
-                )
-              ) : (
-                <div className="card-inner">
-                  <div className="section-heading">Programa</div>
-                  <div className="field-hint">
-                    Seleciona pelo menos um tipo de projeto para desbloquear este passo.
-                  </div>
-                </div>
-              )}
             </section>
           )}
 
-          {currentStep === 4 && (
+          {/* PASSO 4: PROGRAMA */}
+          {isProgramaStep && (
             <section className="card propostas-section">
-              <div className="section-heading">4 · Serviços</div>
-
-              <div className="propostas-service-list">
-                {modeloEstrutura.length === 0 ? (
-                  <div className="card-inner">
-                    <div className="field-hint">Seleciona um tipo de projeto com modelo para carregar as atividades e tarefas.</div>
-                  </div>
-                ) : (
-                  servicosPorTipoProjeto.map((grupo, grupoIndex) => (
-                    <div key={`grupo-${grupo.tipo.id}`} style={{ marginBottom: "18px" }}>
-                      <div
-                        className="card-inner"
+              <div className="section-heading">4 · Escolha do Programa</div>
+              {tiposProjetoSelecionados.length > 0 && hasTipoComPrograma ? (
+                 <div className="card-inner">
+                  <div className="section-heading">Programas disponíveis</div>
+                  <div className="propostas-programas-grid">
+                    {programasDisponiveis.map((programa) => (
+                      <button
+                        key={programa.id}
+                        type="button"
+                        className={`propostas-programa-card ${programa.id === programaId ? "selected" : ""}`}
+                        onClick={() => selectPrograma(programa.id)}
                         style={{
-                          marginBottom: "10px",
-                          border: dragTipoProjetoId === String(grupo.tipo.id) ? "1px solid #93c5fd" : undefined,
-                          background: dragTipoProjetoId === String(grupo.tipo.id) ? "#eff6ff" : undefined,
-                          boxShadow: dragTipoProjetoId === String(grupo.tipo.id) ? "0 8px 24px rgba(59, 130, 246, 0.12)" : undefined,
+                          padding: "16px",
+                          border: programa.id === programaId ? "2px solid #6366f1" : "1px solid #e5e7eb",
+                          borderRadius: "12px",
+                          background: programa.id === programaId ? "#f0f4ff" : "#f8f9fa",
+                          textAlign: "left",
+                          cursor: "pointer",
+                          transition: "all 0.2s ease",
                         }}
-                        onDragEnter={() => handleDragEnterTipoServico(grupo.tipo.id)}
-                        onDragOver={handleDragOverTipoServico}
-                        onDrop={() => handleDropTipoServico(grupo.tipo.id)}
                       >
-                        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                          <button
-                            type="button"
-                            onClick={() => toggleCollapseTipoServico(grupo.tipo.id)}
-                            aria-label={tiposServicoColapsados[String(grupo.tipo.id)] ? "Expandir" : "Colapsar"}
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px" }}>
+                          <div style={{ flex: 1 }}>
+                            <h4 style={{ margin: "0 0 8px 0", fontSize: "1rem", color: "#0f2240" }}>
+                              {programa.nome}
+                            </h4>
+                            <div className="muted" style={{ fontSize: "0.85rem", marginBottom: "8px" }}>
+                              {programa.codigo}
+                            </div>
+
+                            <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "10px" }}>
+                              {programa.pct > 0 && (
+                                <span className="badge badge-success" style={{ fontSize: "0.8rem" }}>
+                                  {programa.pct}%
+                                </span>
+                              )}
+                              {programa.regiao && (
+                                <span className="badge badge-warning" style={{ fontSize: "0.8rem" }}>
+                                  {programa.regiao.split("/").map((r) => r.trim()).join(" / ")}
+                                </span>
+                              )}
+                              {(programa.tipo || programa.tipo_incentivo) && (
+                                <span className="badge badge-info" style={{ fontSize: "0.8rem" }}>
+                                  {programa.tipo || programa.tipo_incentivo}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div
                             style={{
                               display: "flex",
                               alignItems: "center",
                               justifyContent: "center",
                               width: "32px",
                               height: "32px",
-                              borderRadius: "50%",
-                              border: "1px solid #cbd5e1",
-                              background: "#ffffff",
-                              color: "#475569",
-                              cursor: "pointer",
-                              transition: "all 0.2s ease",
-                              padding: 0,
-                              flexShrink: 0,
-                              boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
-                            }}
-                            onMouseOver={(e) => {
-                              e.currentTarget.style.background = "#f8fafc";
-                              e.currentTarget.style.borderColor = "#94a3b8";
-                            }}
-                            onMouseOut={(e) => {
-                              e.currentTarget.style.background = "#ffffff";
-                              e.currentTarget.style.borderColor = "#cbd5e1";
+                              borderRadius: "6px",
+                              background: programa.id === programaId ? "#6366f1" : "#e5e7eb",
+                              color: programa.id === programaId ? "white" : "#64748b",
+                              fontWeight: 600,
                             }}
                           >
-                            {tiposServicoColapsados[String(grupo.tipo.id)] ? (
-                              // Ícone de Seta para a Direita (Recolhido)
-                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <polyline points="9 18 15 12 9 6"></polyline>
-                              </svg>
-                            ) : (
-                              // Ícone de Seta para Baixo (Expandido)
-                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <polyline points="6 9 12 15 18 9"></polyline>
-                              </svg>
-                            )}
-                          </button>
+                            {programa.id === programaId ? "✓" : ""}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
 
-                          <div className="section-heading" style={{ marginBottom: "0", flex: 1 }}>
-                            {grupo.tipo.nome}
+                  {selectedPrograma && (
+                    <div className="propostas-custom-details" style={{ marginTop: '16px' }}>
+                      <div className="card-inner" style={{ borderLeft: '4px solid #6366f1', background: '#f8fafc' }}>
+                        <div className="section-heading">Configuração Detalhada: {selectedPrograma.nome}</div>
+                        
+                        {/* GRELHA PRINCIPAL: AVISO E TOTAIS */}
+                        <div className="field-grid">
+                          <div className="field">
+                            <label>Referência do Aviso</label>
+                            <div className="summary-value" style={{ color: '#1e40af', fontWeight: 'bold' }}>
+                              {selectedAviso?.codigo || selectedPrograma.aviso || "Aviso não vinculado"}
+                            </div>
+                          </div>
+                          <div className="field">
+                            <label>Incentivo Máximo</label>
+                            <div className="badge badge-success" style={{ fontSize: '1rem', marginTop: '4px' }}>
+                              {selectedPrograma.pct}% ({selectedPrograma.tipo_incentivo})
+                            </div>
+                          </div>
+                          <div className="field">
+                            <label>Investimento Mínimo</label>
+                            <div className="summary-value">{formatCurrency(selectedPrograma.investimento_minimo)}</div>
+                          </div>
+                          <div className="field">
+                            <label>Região / Área Geográfica</label>
+                            <div className="summary-value">{selectedPrograma.regiao || selectedPrograma.area_geografica}</div>
+                          </div>
+                        </div>
+
+                        <hr style={{ margin: '20px 0', borderColor: '#e2e8f0' }} />
+
+                        {/* TIMELINE DE FASES DO AVISO */}
+                        {selectedAviso?.fases && (
+                          <div className="fases-timeline" style={{ marginBottom: '25px' }}>
+                            <label style={{ display: 'block', marginBottom: '10px', fontWeight: '600', color: '#475569' }}>
+                              Prazos de Candidatura (Fases do Aviso)
+                            </label>
+                            <div style={{ display: 'flex', gap: '15px' }}>
+                              {selectedAviso.fases.map((fase, idx) => (
+                                <div key={idx} className="fase-item" style={{
+                                  flex: 1, padding: '10px', borderRadius: '8px', background: '#fff', border: '1px solid #cbd5e1'
+                                }}>
+                                  <strong style={{ fontSize: '0.8rem', color: '#6366f1' }}>{fase.nome}</strong>
+                                  <div style={{ fontSize: '1.1rem', fontWeight: 'bold' }}>{formatDatePt(fase.prazo)}</div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* BLOCOS DE TEXTO (CONDIÇÕES E AÇÕES) */}
+                        <div className="info-blocks-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                          
+                          <div className="info-block">
+                            <label style={{ fontWeight: 'bold', color: '#0f172a' }}> Objetivos do Programa</label>
+                            <div className="text-content-box" style={{ background: '#fff', padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0', marginTop: '4px', minHeight: '60px' }}>
+                              {selectedPrograma.objetivos || selectedPrograma.descricao}
+                            </div>
                           </div>
 
-                          <div
-                            title="Arrastar"
-                            draggable
-                            onDragStart={() => handleDragStartTipoServico(grupo.tipo.id)}
-                            onDragEnd={() => finalizeDragTipoServico()}
-                            style={{
-                              cursor: "grab",
-                              padding: "8px 10px",
-                              border: "1px solid #cbd5e1",
-                              borderRadius: "8px",
-                              background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "4px",
-                              boxShadow: "0 1px 2px rgba(15, 23, 42, 0.08)",
-                            }}
-                          >
-                            <span style={{ display: "inline-flex", flexDirection: "column", gap: "2px" }}>
-                              <span style={{ width: "12px", height: "2px", background: "#6b7280", display: "block" }} />
-                              <span style={{ width: "12px", height: "2px", background: "#6b7280", display: "block" }} />
-                              <span style={{ width: "12px", height: "2px", background: "#6b7280", display: "block" }} />
-                            </span>
+                          <div className="info-block">
+                            <label style={{ fontWeight: 'bold', color: '#0f172a' }}> Ações Elegíveis</label>
+                            <div className="text-content-box" style={{ background: '#fff', padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0', marginTop: '4px', minHeight: '60px' }}>
+                              {selectedPrograma.acoes_elegiveis || "Consultar regulamento do aviso."}
+                            </div>
+                          </div>
+
+                          <div className="info-block span-2" style={{ gridColumn: 'span 2' }}>
+                            <label style={{ fontWeight: 'bold', color: '#b45309' }}> Condições Específicas / Critérios de Elegibilidade</label>
+                            <div className="text-content-box" style={{ background: '#fffcf5', border: '1px solid #fef3c7', padding: '10px', borderRadius: '6px', marginTop: '4px' }}>
+                              {selectedPrograma.condicoes_especificas}
+                            </div>
                           </div>
                         </div>
                       </div>
-
-                      {!tiposServicoColapsados[String(grupo.tipo.id)] && grupo.atividades.map((atividade, atividadeIndex) => (
-                        <article
-                          key={atividade.id}
-                          className={`propostas-service-card ${atividade.selecionado ? "selected" : ""}`}
-                        >
-                          <div style={{ display: "flex", alignItems: "stretch" }}>
-                            <button
-                              className="propostas-service-header"
-                              type="button"
-                              onClick={() => toggleAtividadeModelo(atividade.id)}
-                              style={{ flex: 1 }}
-                            >
-                              <span className="propostas-service-check">{atividade.selecionado ? "✓" : ""}</span>
-                              <span className="propostas-service-code">{atividadeIndex + 1}</span>
-                              <span className="propostas-service-main">
-                                <span className="propostas-service-name">{atividade.nome}</span>
-                                <span className="muted">{atividade.descricao || "Atividade principal do modelo"}</span>
-                              </span>
-                              <span className="propostas-service-price">
-                                {atividade.dias_estimados ? `${Number(atividade.dias_estimados)}d` : ""}
-                              </span>
-                            </button>
-                            <button
-                              type="button"
-                              className="btn-small"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                removeAtividadeModelo(atividade.id);
-                              }}
-                              style={{
-                                marginRight: "10px",
-                                padding: "10px 10px",
-                                fontSize: "12px",
-                                lineHeight: 1,
-                                borderRadius: "900px",
-                                whiteSpace: "nowrap",
-                                alignSelf: "center"
-                              }}
-                            >
-                              Remover atividade
-                            </button>
-                          </div>
-
-                          {atividade.selecionado && (
-                            <div className="propostas-service-body">
-                              {(atividade.tarefas || []).length > 0 && (
-                                <>
-                                  <div className="section-subtitle" style={{ textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "10px" }}>
-                                    Tarefas incluídas
-                                  </div>
-                                  <div className="propostas-activities">
-                                    {(atividade.tarefas || []).map((tarefa) => (
-                                      <div key={tarefa.id} className="propostas-activity-row">
-                                        <input
-                                          type="text"
-                                          value={tarefa.nome || ""}
-                                          onChange={(event) => updateTarefaModelo(atividade.id, tarefa.id, "nome", event.target.value)}
-                                        />
-                                        <button type="button" className="btn-small" onClick={() => removeTarefaModelo(atividade.id, tarefa.id)}>
-                                          Remover
-                                        </button>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </>
-                              )}
-                            </div>
-                          )}
-                        </article>
-                      ))}
                     </div>
-                  ))
+                  )}
+                 </div>
+              ) : (
+                <div className="card-inner">
+                  <div className="field-hint">
+                    Nenhum dos tipos de projeto selecionados requer programa/aviso ou ainda não escolheste projetos no passo anterior.
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* PASSOS DINÂMICOS: CONFIGURAÇÃO DE CADA SERVIÇO */}
+          {isServicoStep && servicoAtual && (
+            <section className="card propostas-section">
+              <div className="section-heading">{currentStep} · Configurar: {servicoAtual.tipo.nome}</div>
+              <div className="propostas-service-list">
+                <div className="card-inner" style={{ padding: '0' }}>
+                  {servicoAtual.atividades.length === 0 && (
+                    <div className="field-hint" style={{ padding: '20px' }}>Sem modelo/atividades configuradas para este serviço.</div>
+                  )}
+                  {servicoAtual.atividades.map((atividade, atividadeIndex) => (
+                    <article
+                      key={atividade.id}
+                      className={`propostas-service-card ${atividade.selecionado ? "selected" : ""}`}
+                      style={{ borderBottom: '1px solid #e2e8f0', borderTop: atividadeIndex === 0 ? 'none' : '1px solid #e2e8f0' }}
+                    >
+                      <div style={{ display: "flex", alignItems: "stretch" }}>
+                        <button
+                          className="propostas-service-header"
+                          type="button"
+                          onClick={() => toggleAtividadeModelo(atividade.id)}
+                          style={{ flex: 1 }}
+                        >
+                          <span className="propostas-service-check">{atividade.selecionado ? "✓" : ""}</span>
+                          <span className="propostas-service-code">{atividadeIndex + 1}</span>
+                          <span className="propostas-service-main">
+                            <span className="propostas-service-name">{atividade.nome}</span>
+                            <span className="muted">{atividade.descricao || "Atividade principal do modelo"}</span>
+                          </span>
+                          <span className="propostas-service-price">
+                            {atividade.dias_estimados ? `${Number(atividade.dias_estimados)}d` : ""}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-small"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            removeAtividadeModelo(atividade.id);
+                          }}
+                          style={{
+                            marginRight: "10px",
+                            padding: "10px 10px",
+                            fontSize: "12px",
+                            lineHeight: 1,
+                            borderRadius: "900px",
+                            whiteSpace: "nowrap",
+                            alignSelf: "center"
+                          }}
+                        >
+                          Remover atividade
+                        </button>
+                      </div>
+
+                      {atividade.selecionado && (
+                        <div className="propostas-service-body">
+                          {(atividade.tarefas || []).length > 0 && (
+                            <>
+                              <div className="section-subtitle" style={{ textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "10px" }}>
+                                Tarefas incluídas
+                              </div>
+                              <div className="propostas-activities">
+                                {(atividade.tarefas || []).map((tarefa) => (
+                                  <div key={tarefa.id} className="propostas-activity-row">
+                                    <input
+                                      type="text"
+                                      value={tarefa.nome || ""}
+                                      onChange={(event) => updateTarefaModelo(atividade.id, tarefa.id, "nome", event.target.value)}
+                                    />
+                                    <button type="button" className="btn-small" onClick={() => removeTarefaModelo(atividade.id, tarefa.id)}>
+                                      Remover
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </article>
+                  ))}
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* PASSO X: REVISÃO DE DESCRIÇÕES */}
+          {isRevisaoDescricoesStep && (
+            <section className="card propostas-section">
+              <div className="section-heading">{currentStep} · Revisão de Descrições dos Serviços</div>
+              <div className="card-inner">
+                <div className="field-hint" style={{ marginBottom: 20 }}>
+                  Confirma os serviços incluídos e ajusta a descrição pública que aparecerá na proposta.
+                </div>
+                
+                {servicosPorTipoProjeto.length > 0 ? (
+                  servicosPorTipoProjeto.map((grupo) => {
+                    const atividadesAtivas = grupo.atividades.filter(a => a.selecionado);
+                    
+                    if (atividadesAtivas.length === 0) return null;
+
+                    return (
+                      <div key={`revisao-grupo-${grupo.tipo.id}`} style={{ marginBottom: 32 }}>
+                        <div 
+                          className="section-subtitle" 
+                          style={{ color: '#1e40af', borderBottom: '2px solid #e2e8f0', paddingBottom: 8, marginBottom: 16, fontSize: '1.1rem' }}
+                        >
+                          {grupo.tipo.nome}
+                        </div>
+                        
+                        {atividadesAtivas.map((atividade, idx) => (
+                           <div key={atividade.id} className="field" style={{ marginBottom: 16, background: '#f8fafc', padding: 16, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                             <label style={{ marginBottom: 8 }}>
+                               Atividade {idx + 1}: <strong style={{ color: '#0f172a' }}>{atividade.nome}</strong>
+                             </label>
+                             <textarea
+                               rows={3}
+                               value={atividade.descricao || ""}
+                               onChange={(e) => updateAtividadeModelo(atividade.id, "descricao", e.target.value)}
+                               placeholder="Descrição desta atividade na proposta..."
+                               style={{ background: '#fff' }}
+                             />
+                           </div>
+                        ))}
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="muted">Não há serviços selecionados para rever.</div>
+                )}
+                
+                {activeServicos.length === 0 && servicosPorTipoProjeto.length > 0 && (
+                  <div className="muted">Não há serviços selecionados para rever.</div>
                 )}
               </div>
             </section>
           )}
 
-          {currentStep === 5 && (
+          {/* PASSO X: ORÇAMENTO E FECHO */}
+          {isOrcamentoFechoStep && (
             <section className="card propostas-section">
-              <div className="section-heading">5 · Orçamento</div>
+              <div className="section-heading">{currentStep} · Orçamento e Fecho</div>
 
               <div className="card-inner">
-                <div className="section-heading">Tipos de Projeto Selecionados</div>
+                <div className="section-heading">Orçamento por Projeto</div>
                 {orcamentoTiposProjeto.length > 0 ? (
                   orcamentoTiposProjeto.map((item) => {
                     const totalPercentagemPagamentos = getPlanoPagamentosTotalPercentagem(item.plano_pagamentos);
@@ -2711,9 +2733,9 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                     const mostrarVariavel = modoHonorario !== "fixo";
 
                     return (
-                    <div key={item.tipo_projeto_id} style={{ marginBottom: "16px", padding: "12px", background: "#f8f9fa", borderRadius: "8px" }}>
+                    <div key={item.tipo_projeto_id} style={{ marginBottom: "16px", padding: "12px", background: "#f8f9fa", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
                       <div style={{ marginBottom: "10px" }}>
-                        <strong>Tipo {item.ordem} — {item.nome || "Sem nome"}</strong>
+                        <strong style={{ fontSize: '1.1rem', color: '#1e293b' }}>Tipo {item.ordem} — {item.nome || "Sem nome"}</strong>
                       </div>
 
                       <div className="field" style={{ marginBottom: "12px", maxWidth: 260 }}>
@@ -2731,47 +2753,45 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                       {mostrarFixo && (
                         <>
                           <div className="section-subtitle" style={{ marginTop: "10px" }}>Honorário fixo</div>
-                        <div className="field-grid" style={{ marginBottom: "8px", display: "grid", gridTemplateColumns: "1fr 1fr 1fr 180px", gap: "12px" }}>
-                          <div className="field">
-                            <label>Num horas</label>
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.25"
-                              value={Number(item.num_horas || 0)}
-                              onChange={(event) => updateOrcamentoTipoField(item.tipo_projeto_id, "num_horas", event.target.value)}
-                            />
+                          <div className="field-grid" style={{ marginBottom: "8px", display: "grid", gridTemplateColumns: "1fr 1fr 1fr 180px", gap: "12px" }}>
+                            <div className="field">
+                              <label>Num horas</label>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.25"
+                                value={Number(item.num_horas || 0)}
+                                onChange={(event) => updateOrcamentoTipoField(item.tipo_projeto_id, "num_horas", event.target.value)}
+                              />
+                            </div>
+                            <div className="field">
+                              <label>Base (EUR/h)</label>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={Number(item.base_eur_hora || 0)}
+                                onChange={(event) => updateOrcamentoTipoField(item.tipo_projeto_id, "base_eur_hora", event.target.value)}
+                              />
+                            </div>
+                            <div className="field">
+                              <label>Valor Fixo</label>
+                              <input
+                                type="text"
+                                value={formatCurrency(Number(item.valor_fixo || 0))}
+                                readOnly
+                              />
+                              <div className="field-hint">Fixo = Horas x Base</div>
+                            </div>
+                            
+                            <div className="field">
+                              <label>Taxa de IVA (%)</label>
+                              <input 
+                                type="number" 
+                                value={proposta.iva || 23} onChange={setField(setProposta, "iva")} min="0" max="100" 
+                              />
+                            </div>
                           </div>
-                          <div className="field">
-                            <label>Base (EUR/h)</label>
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              value={Number(item.base_eur_hora || 0)}
-                              onChange={(event) => updateOrcamentoTipoField(item.tipo_projeto_id, "base_eur_hora", event.target.value)}
-                            />
-                          </div>
-                          <div className="field">
-                            <label>Valor Fixo</label>
-                            <input
-                              type="text"
-                              value={formatCurrency(Number(item.valor_fixo || 0))}
-                              readOnly
-                            />
-                            <div className="field-hint">Fixo = Horas x Base</div>
-                          </div>
-                          
-                          <div className="field">
-                            <label>Taxa de IVA (%)</label>
-                            <input 
-                              type="number" 
-                              value={proposta.iva || 23} onChange={setField(setProposta, "iva")} min="0" max="100" 
-                            />
-                          </div>
-
-
-                        </div>
                         </>
                       )}
 
@@ -2797,74 +2817,74 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                               </thead>
                               <tbody>
                                 {(item.plano_pagamentos || []).map((pag, index) => {
-                              const somaOutras = (item.plano_pagamentos || []).reduce(
-                                (accumulator, pagamento, pagamentoIndex) =>
-                                  pagamentoIndex === index
-                                    ? accumulator
-                                    : accumulator + Number(pagamento?.percentagem || 0),
-                                0
-                              );
-                              const maxAtual = Math.max(0, 100 - somaOutras);
-                              const percentagemAtual = Number(pag.percentagem || 0);
-                              const valorParcela = Number(item.valor || 0) * (percentagemAtual / 100);
-                              const valorIvaParcela = valorParcela * (Number(proposta.iva || 23) / 100);
-                              const totalParcela = valorParcela + valorIvaParcela;
+                                  const somaOutras = (item.plano_pagamentos || []).reduce(
+                                    (accumulator, pagamento, pagamentoIndex) =>
+                                      pagamentoIndex === index
+                                        ? accumulator
+                                        : accumulator + Number(pagamento?.percentagem || 0),
+                                    0
+                                  );
+                                  const maxAtual = Math.max(0, 100 - somaOutras);
+                                  const percentagemAtual = Number(pag.percentagem || 0);
+                                  const valorParcela = Number(item.valor || 0) * (percentagemAtual / 100);
+                                  const valorIvaParcela = valorParcela * (Number(proposta.iva || 23) / 100);
+                                  const totalParcela = valorParcela + valorIvaParcela;
 
-                              // Data Emissão
-                              let dataBase = proposta.data_aceite ? new Date(proposta.data_aceite) : new Date();
-                              if (isNaN(dataBase.getTime())) dataBase = new Date();
-                              const dataEmissao = new Date(dataBase.getTime() + Number(pag.dias_apos_aceite || 0) * 24 * 60 * 60 * 1000);
-                              const dataEmissaoStr = dataEmissao.toLocaleDateString("pt-PT", { month: "short", year: "numeric" });
+                                  // Data Emissão
+                                  let dataBase = proposta.data_aceite ? new Date(proposta.data_aceite) : new Date();
+                                  if (isNaN(dataBase.getTime())) dataBase = new Date();
+                                  const dataEmissao = new Date(dataBase.getTime() + Number(pag.dias_apos_aceite || 0) * 24 * 60 * 60 * 1000);
+                                  const dataEmissaoStr = dataEmissao.toLocaleDateString("pt-PT", { month: "short", year: "numeric" });
 
-                              // Trimestre
-                              const mes = dataEmissao.getMonth();
-                              const trimestre = `Q${Math.floor(mes / 3) + 1}-${dataEmissao.getFullYear()}`;
+                                  // Trimestre
+                                  const mes = dataEmissao.getMonth();
+                                  const trimestre = `Q${Math.floor(mes / 3) + 1}-${dataEmissao.getFullYear()}`;
 
-                              return (
-                                <tr key={`${item.tipo_projeto_id}-pag-${index}`} style={{ borderBottom: "1px solid #e2e8f0" }}>
-                                  <td style={{ textAlign: "center", padding: "6px 8px" }}>{index + 1}/{item.plano_pagamentos.length}</td>
-                                  <td style={{ textAlign: "center", padding: "6px 8px", minWidth: 70 }}>
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      max={maxAtual}
-                                      value={Number(pag.percentagem || 0)}
-                                      onChange={(e) => updatePagamentoTipoProjeto(item.tipo_projeto_id, index, "percentagem", e.target.value)}
-                                      placeholder="0"
-                                      style={{ width: 60, minWidth: 60, textAlign: "center", padding: "6px 8px", borderRadius: 6, border: "1px solid #e2e8f0" }}
-                                    />
-                                  </td>
-                                  <td style={{ padding: "6px 8px", minWidth: 120 }}>
-                                    <input
-                                      type="text"
-                                      value={pag.descricao || ""}
-                                      onChange={(e) => updatePagamentoTipoProjeto(item.tipo_projeto_id, index, "descricao", e.target.value)}
-                                      placeholder="ex. Adjudicação"
-                                      style={{ width: "100%" }}
-                                    />
-                                  </td>
-                                  <td style={{ textAlign: "center", padding: "6px 8px", minWidth: 80 }}>
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      value={Number(pag.dias_apos_aceite || 0)}
-                                      onChange={(e) => updatePagamentoTipoProjeto(item.tipo_projeto_id, index, "dias_apos_aceite", e.target.value)}
-                                      placeholder="0"
-                                      style={{ width: 60, textAlign: "center" }}
-                                    />
-                                  </td>
-                                  <td style={{ textAlign: "center", padding: "6px 8px" }}>{dataEmissaoStr}</td>
-                                  <td style={{ textAlign: "center", padding: "6px 8px" }}>{trimestre}</td>
-                                  <td style={{ textAlign: "right", padding: "6px 8px" }}>{formatCurrency(valorParcela)}</td>
-                                  <td style={{ textAlign: "right", padding: "6px 8px" }}>{formatCurrency(valorIvaParcela)}</td>
-                                  <td style={{ textAlign: "right", padding: "6px 8px" }}>{formatCurrency(totalParcela)}</td>
-                                  <td style={{ textAlign: "center", padding: "6px 8px" }}>
-                                    <button type="button" className="btn-small" onClick={() => removePagamentoTipoProjeto(item.tipo_projeto_id, index)}>
-                                      ×
-                                    </button>
-                                  </td>
-                                </tr>
-                              );
+                                  return (
+                                    <tr key={`${item.tipo_projeto_id}-pag-${index}`} style={{ borderBottom: "1px solid #e2e8f0" }}>
+                                      <td style={{ textAlign: "center", padding: "6px 8px" }}>{index + 1}/{item.plano_pagamentos.length}</td>
+                                      <td style={{ textAlign: "center", padding: "6px 8px", minWidth: 70 }}>
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          max={maxAtual}
+                                          value={Number(pag.percentagem || 0)}
+                                          onChange={(e) => updatePagamentoTipoProjeto(item.tipo_projeto_id, index, "percentagem", e.target.value)}
+                                          placeholder="0"
+                                          style={{ width: 60, minWidth: 60, textAlign: "center", padding: "6px 8px", borderRadius: 6, border: "1px solid #e2e8f0" }}
+                                        />
+                                      </td>
+                                      <td style={{ padding: "6px 8px", minWidth: 120 }}>
+                                        <input
+                                          type="text"
+                                          value={pag.descricao || ""}
+                                          onChange={(e) => updatePagamentoTipoProjeto(item.tipo_projeto_id, index, "descricao", e.target.value)}
+                                          placeholder="ex. Adjudicação"
+                                          style={{ width: "100%" }}
+                                        />
+                                      </td>
+                                      <td style={{ textAlign: "center", padding: "6px 8px", minWidth: 80 }}>
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          value={Number(pag.dias_apos_aceite || 0)}
+                                          onChange={(e) => updatePagamentoTipoProjeto(item.tipo_projeto_id, index, "dias_apos_aceite", e.target.value)}
+                                          placeholder="0"
+                                          style={{ width: 60, textAlign: "center" }}
+                                        />
+                                      </td>
+                                      <td style={{ textAlign: "center", padding: "6px 8px" }}>{dataEmissaoStr}</td>
+                                      <td style={{ textAlign: "center", padding: "6px 8px" }}>{trimestre}</td>
+                                      <td style={{ textAlign: "right", padding: "6px 8px" }}>{formatCurrency(valorParcela)}</td>
+                                      <td style={{ textAlign: "right", padding: "6px 8px" }}>{formatCurrency(valorIvaParcela)}</td>
+                                      <td style={{ textAlign: "right", padding: "6px 8px" }}>{formatCurrency(totalParcela)}</td>
+                                      <td style={{ textAlign: "center", padding: "6px 8px" }}>
+                                        <button type="button" className="btn-small" onClick={() => removePagamentoTipoProjeto(item.tipo_projeto_id, index)}>
+                                          ×
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  );
                                 })}
                                 {/* Totais */}
                                 <tr style={{ background: "#f3f4f6", fontWeight: 600 }}>
@@ -2904,7 +2924,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                       )}
 
                       {(item.modo_honorario || "fixo") === "ambos" && (
-                        <div className="field-hint" style={{ marginBottom: 8 }}>
+                        <div className="field-hint" style={{ marginBottom: 8, marginTop: 12 }}>
                           Este tipo de projeto soma o valor fixo e os valores variáveis.
                         </div>
                       )}
@@ -2960,6 +2980,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                               </table>
                             </div>
                           )}
+                          <button type="button" className="btn-soft-cta" onClick={() => addVariavelTipoProjeto(item.tipo_projeto_id)}>Adicionar variável</button>
                         </div>
                       )}
                     </div>
@@ -2970,23 +2991,44 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                 )}
               </div>
 
-              <div className="propostas-totals">
-                <div className="total-card" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
-                  <span style={{ alignSelf: "flex-start" }}>Total s/ IVA</span>
-                  <strong>{formatCurrency(totais.totalSemIva)}</strong>
+              {/* Oculta o bloco de Totais Globais se houver honorários variáveis */}
+              {!temHonorarioVariavel && (
+                <div className="propostas-totals">
+                  <div className="total-card" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                    <span style={{ alignSelf: "flex-start" }}>Total s/ IVA</span>
+                    <strong>{formatCurrency(totais.totalSemIva)}</strong>
+                  </div>
+                  <div className="total-card" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                    <span style={{ alignSelf: "flex-start" }}>IVA</span>
+                    <strong>{formatCurrency(totais.totalIva)}</strong>
+                  </div>
+                  <div className="total-card total-card-accent" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                    <span style={{ alignSelf: "flex-start" }}>Total c/ IVA</span>
+                    <strong>{formatCurrency(totais.totalComIva)}</strong>
+                  </div>
                 </div>
-                <div className="total-card" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
-                  <span style={{ alignSelf: "flex-start" }}>IVA</span>
-                  <strong>{formatCurrency(totais.totalIva)}</strong>
-                </div>
-                <div className="total-card total-card-accent" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
-                  <span style={{ alignSelf: "flex-start" }}>Total c/ IVA</span>
-                  <strong>{formatCurrency(totais.totalComIva)}</strong>
+              )}
+
+              <div className="card-inner">
+                <div className="section-heading">Condições de Fecho</div>
+                <div className="field-grid field-grid-1">
+                  <div className="field">
+                    <label>Plano de Pagamento Geral (Texto Curto)</label>
+                    <textarea rows={3} value={entidadeConfig.texto_plano_pagamento || ""} onChange={(e) => setEntidadeConfig(p => ({ ...p, texto_plano_pagamento: e.target.value }))} placeholder="Ex: Faturado e cobrado a 30 dias..." />
+                  </div>
+                  <div className="field">
+                    <label>Condições Gerais / Termos</label>
+                    <textarea rows={4} value={condicoesGerais.termos_gerais || ""} onChange={(e) => setCondicoesGerais({ termos_gerais: e.target.value })} placeholder="Termos padrão da consultora..." />
+                  </div>
+                  <div className="field">
+                    <label>Exclusões / Notas Legais (Opcional)</label>
+                    <textarea rows={3} value={entidadeConfig.texto_exclusoes || ""} onChange={(e) => setEntidadeConfig(p => ({ ...p, texto_exclusoes: e.target.value }))} placeholder="O que não está incluído..." />
+                  </div>
                 </div>
               </div>
 
               <div className="card-inner">
-                <div className="section-heading">Notas / Exclusões</div>
+                <div className="section-heading">Tópicos de Exclusão (Bullets)</div>
                 <div className="propostas-notas-list">
                   {notasExclusoes.map((nota, index) => (
                     <div key={`${nota}-${index}`} className="propostas-nota-row">
@@ -3004,118 +3046,10 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
             </section>
           )}
 
-          {currentStep === 6 && (
+          {/* PASSO X: REVISÃO FINAL */}
+          {isRevisaoFinalStep && (
             <section className="card propostas-section">
-              <div className="section-heading">6 · Condições Gerais</div>
-              <div className="card-inner">
-                <div className="section-heading">Apresentação e Abertura</div>
-                <div className="field-grid field-grid-1">
-                  <div className="field">
-                    <label>Apresentação da empresa</label>
-                    <textarea
-                      rows={6}
-                      value={entidadeConfig.texto_apresentacao_empresa || ""}
-                      onChange={(event) => setEntidadeConfig((previous) => ({ ...previous, texto_apresentacao_empresa: event.target.value }))}
-                      placeholder="Texto de apresentação da empresa."
-                    />
-                  </div>
-                  <div className="field">
-                    <label>Compromisso</label>
-                    <textarea
-                      rows={4}
-                      value={entidadeConfig.texto_compromisso || ""}
-                      onChange={(event) => setEntidadeConfig((previous) => ({ ...previous, texto_compromisso: event.target.value }))}
-                      placeholder="Texto de compromisso."
-                    />
-                  </div>
-                  <div className="field">
-                    <label>Esperamos que corresponda</label>
-                    <textarea
-                      rows={4}
-                      value={entidadeConfig.texto_esperamos_que_corresponda || ""}
-                      onChange={(event) => setEntidadeConfig((previous) => ({ ...previous, texto_esperamos_que_corresponda: event.target.value }))}
-                      placeholder="Texto intermédio que fecha a abertura."
-                    />
-                  </div>
-                  <div className="field">
-                    <label>Para aprovação</label>
-                    <textarea
-                      rows={4}
-                      value={entidadeConfig.texto_para_aprovacao || ""}
-                      onChange={(event) => setEntidadeConfig((previous) => ({ ...previous, texto_para_aprovacao: event.target.value }))}
-                      placeholder="Texto de pedido de aprovação."
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="card-inner">
-                <div className="section-heading">Documentos e Processo</div>
-                <div className="field-grid field-grid-1">
-                  <div className="field">
-                    <label>Documentos da empresa</label>
-                    <textarea rows={5} value={entidadeConfig.texto_documentos_empresa || ""} onChange={(event) => setEntidadeConfig((previous) => ({ ...previous, texto_documentos_empresa: event.target.value }))} placeholder="Lista ou explicação dos documentos da empresa." />
-                  </div>
-                  <div className="field">
-                    <label>Documentos do incentivo</label>
-                    <textarea rows={5} value={entidadeConfig.texto_documentos_incentivo || ""} onChange={(event) => setEntidadeConfig((previous) => ({ ...previous, texto_documentos_incentivo: event.target.value }))} placeholder="Documentos necessários ao incentivo." />
-                  </div>
-                  <div className="field">
-                    <label>Demonstração do financiamento</label>
-                    <textarea rows={5} value={entidadeConfig.texto_demonstracao_financiamento || ""} onChange={(event) => setEntidadeConfig((previous) => ({ ...previous, texto_demonstracao_financiamento: event.target.value }))} placeholder="Texto da demonstração de financiamento." />
-                  </div>
-                  <div className="field">
-                    <label>Como ajudamos</label>
-                    <textarea rows={5} value={entidadeConfig.texto_como_ajudamos || ""} onChange={(event) => setEntidadeConfig((previous) => ({ ...previous, texto_como_ajudamos: event.target.value }))} placeholder="Texto sobre como a consultora ajuda." />
-                  </div>
-                  <div className="field">
-                    <label>Processo de trabalho</label>
-                    <textarea rows={5} value={entidadeConfig.texto_processo_trabalho || ""} onChange={(event) => setEntidadeConfig((previous) => ({ ...previous, texto_processo_trabalho: event.target.value }))} placeholder="Texto sobre o processo de trabalho." />
-                  </div>
-                </div>
-              </div>
-
-              <div className="card-inner">
-                <div className="section-heading">Plano e Fecho</div>
-                <div className="field-grid field-grid-1">
-                  <div className="field">
-                    <label>Plano de pagamento</label>
-                    <textarea rows={5} value={entidadeConfig.texto_plano_pagamento || ""} onChange={(event) => setEntidadeConfig((previous) => ({ ...previous, texto_plano_pagamento: event.target.value }))} placeholder="Texto do plano de pagamento." />
-                  </div>
-                  <div className="field">
-                    <label>Exclusões</label>
-                    <textarea rows={5} value={entidadeConfig.texto_exclusoes || ""} onChange={(event) => setEntidadeConfig((previous) => ({ ...previous, texto_exclusoes: event.target.value }))} placeholder="Texto de exclusões e notas legais." />
-                  </div>
-                </div>
-              </div>
-
-              <div className="card-inner">
-                <div className="section-heading">Assinatura</div>
-                <div className="field-grid">
-                  <div className="field">
-                    <label>Nome do signatário</label>
-                    <input type="text" value={entidadeConfig.signatario_nome || ""} onChange={(event) => setEntidadeConfig((previous) => ({ ...previous, signatario_nome: event.target.value }))} />
-                  </div>
-                  <div className="field">
-                    <label>Cargo do signatário</label>
-                    <input type="text" value={entidadeConfig.signatario_cargo || ""} onChange={(event) => setEntidadeConfig((previous) => ({ ...previous, signatario_cargo: event.target.value }))} />
-                  </div>
-                  <div className="field">
-                    <label>Telefone do signatário</label>
-                    <input type="text" value={entidadeConfig.signatario_telefone || ""} onChange={(event) => setEntidadeConfig((previous) => ({ ...previous, signatario_telefone: event.target.value }))} />
-                  </div>
-                  <div className="field">
-                    <label>Email do signatário</label>
-                    <input type="email" value={entidadeConfig.signatario_email || ""} onChange={(event) => setEntidadeConfig((previous) => ({ ...previous, signatario_email: event.target.value }))} />
-                  </div>
-                </div>
-              </div>
-            </section>
-          )}
-
-          {currentStep === 7 && (
-            <section className="card propostas-section">
-              <div className="section-heading">7 · Revisão</div>
+              <div className="section-heading">{currentStep} · Revisão Final</div>
               <div className="propostas-review-banner">
                 <div>
                   <h2>{cliente.nome || "—"}</h2>
@@ -3150,8 +3084,8 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                   <div className="summary-value">{programa?.codigo || programa?.nome || "—"}</div>
                 </div>
                 <div className="summary-card">
-                  <div className="summary-label">Serviços</div>
-                  <div className="summary-value">{activeServicos.length} de {modeloEstrutura.length}</div>
+                  <div className="summary-label">Serviços Ativos</div>
+                  <div className="summary-value">{activeServicos.length}</div>
                 </div>
                 <div className="summary-card">
                   <div className="summary-label">Validade</div>
@@ -3163,32 +3097,34 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                 <div className="section-heading">Resumo Financeiro</div>
                 <div style={{ marginBottom: "16px" }}>
                   {orcamentoLinhas.map((l) => (
-                    <div key={l.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                    <div key={l.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4, paddingBottom: 8, borderBottom: '1px solid #f1f5f9' }}>
                       <div>
                         <strong>Módulo {l.codigo}</strong><br />
                         <span className="muted">{l.nome}</span>
                       </div>
                       <div style={{ minWidth: 100, textAlign: "right", fontWeight: 500, fontSize: 18, color: "#222" }}>
-                        {formatCurrency(l.valor)}
+                        {l.modo_honorario === 'variavel' || l.modo_honorario === 'ambos' ? 'Variável' : formatCurrency(l.valor)}
                       </div>
                     </div>
                   ))}
                 </div>
 
-                <div className="propostas-totals">
-                <div className="total-card" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
-                  <span style={{ alignSelf: "flex-start" }}>Total s/ IVA</span>
-                  <strong>{formatCurrency(totais.totalSemIva)}</strong>
-                </div>
-                <div className="total-card" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
-                  <span style={{ alignSelf: "flex-start" }}>IVA</span>
-                  <strong>{formatCurrency(totais.totalIva)}</strong>
-                </div>
-                <div className="total-card total-card-accent" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
-                  <span style={{ alignSelf: "flex-start" }}>Total c/ IVA</span>
-                  <strong>{formatCurrency(totais.totalComIva)}</strong>
-                </div>
-              </div>
+                {!temHonorarioVariavel && (
+                  <div className="propostas-totals">
+                    <div className="total-card" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                      <span style={{ alignSelf: "flex-start" }}>Total s/ IVA</span>
+                      <strong>{formatCurrency(totais.totalSemIva)}</strong>
+                    </div>
+                    <div className="total-card" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                      <span style={{ alignSelf: "flex-start" }}>IVA</span>
+                      <strong>{formatCurrency(totais.totalIva)}</strong>
+                    </div>
+                    <div className="total-card total-card-accent" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                      <span style={{ alignSelf: "flex-start" }}>Total c/ IVA</span>
+                      <strong>{formatCurrency(totais.totalComIva)}</strong>
+                    </div>
+                  </div>
+                )}
               </div>
             </section>
           )}
@@ -3197,8 +3133,8 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
             <button className="btn-small" type="button" onClick={() => goStep(currentStep - 1)} disabled={currentStep === 1}>
               ← Anterior
             </button>
-            <div className="muted">Passo {currentStep} de {stepTitles.length}</div>
-            {currentStep < stepTitles.length ? (
+            <div className="muted">Passo {currentStep} de {stepTitlesArray.length}</div>
+            {currentStep < stepTitlesArray.length ? (
               <button
                 className="btn-primary"
                 type="button"

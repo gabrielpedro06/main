@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 import { useAuth } from "../context/AuthContext";
 import TimerSwitchModal from "../components/TimerSwitchModal";
 import StopTimerNoteModal from "../components/StopTimerNoteModal";
@@ -254,6 +256,41 @@ export default function ProjetoDetalhe() {
   const [activeTab, setActiveTab] = useState("atividades");
     const [ganttWindow, setGanttWindow] = useState("total");
   const [notification, setNotification] = useState(null);
+
+  const [isExportingGantt, setIsExportingGantt] = useState(false);
+  const ganttRef = useRef(null);
+
+  const exportarGanttParaPDF = async () => {
+      const elemento = ganttRef.current;
+      if (!elemento) return;
+
+      setIsExportingGantt(true); // Bloqueia o botão
+
+      try {
+          const canvas = await html2canvas(elemento, {
+              scale: 2, 
+              useCORS: true, 
+              backgroundColor: "#ffffff",
+          });
+
+          const imgData = canvas.toDataURL("image/png");
+          const pdf = new jsPDF("p", "mm", "a4");
+          
+          const pdfWidth = pdf.internal.pageSize.getWidth();
+          const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+          pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+          pdf.save(`Gantt_${projeto?.titulo || 'Projeto'}.pdf`);
+          
+          showToast("Gantt exportado com sucesso!", "success");
+      } catch (error) {
+          console.error("Erro ao exportar PDF:", error);
+          showToast("Erro ao exportar o Gantt.", "error");
+      } finally {
+          setIsExportingGantt(false); // Desbloqueia o botão
+      }
+  };
+
     const [transitionPromptOpen, setTransitionPromptOpen] = useState(false);
   const [projectActionLoading, setProjectActionLoading] = useState(false);
   const [confirmModal, setConfirmModal] = useState({
@@ -2809,13 +2846,39 @@ export default function ProjetoDetalhe() {
             ABA 3: GANTT
         ========================================= */}
         {activeTab === 'gantt' && (
-            <div style={{background: 'white', padding: '20px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0'}}>
+            <div ref={ganttRef} style={{background: 'white', padding: '20px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0'}}>
                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '12px', flexWrap: 'wrap'}}>
                     <div>
                         <h2 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.2rem'}}><Icons.Calendar size={18} color="var(--color-btnPrimary)" /> Gantt do Projeto</h2>
                         <p style={{margin: '4px 0 0 0', color: '#64748b', fontSize: '0.8rem'}}>
                             Janela atual: {ganttWindowStart.toLocaleDateString('pt-PT')} ate {ganttWindowEnd.toLocaleDateString('pt-PT')}
                         </p>
+                    </div>
+                    <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center'}}>
+                        {/* 💡 4. ADICIONA O BOTÃO DE EXPORTAÇÃO AQUI */}
+                        <button
+                            type="button"
+                            onClick={exportarGanttParaPDF}
+                            disabled={isExportingGantt}
+                            className="btn-small hover-shadow"
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                background: 'var(--color-btnPrimary)',
+                                color: 'white',
+                                border: 'none',
+                                padding: '6px 12px',
+                                borderRadius: '8px',
+                                cursor: isExportingGantt ? 'not-allowed' : 'pointer',
+                                fontWeight: '700',
+                                fontSize: '0.76rem',
+                                opacity: isExportingGantt ? 0.7 : 1
+                            }}
+                        >
+                            <Icons.Download size={14} />
+                            {isExportingGantt ? "A Exportar..." : "Exportar Gantt PDF"}
+                        </button>
                     </div>
                     <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap'}}>
                         {GANTT_WINDOW_OPTIONS.map((option) => (
