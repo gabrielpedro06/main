@@ -1,168 +1,447 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 
-// --- ÍCONES SVG PROFISSIONAIS ---
+/* ------------------------------------------------------------------ */
+/* Ícones SVG                                                         */
+/* ------------------------------------------------------------------ */
 const Icons = {
-  Search: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>,
-  Plus: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>,
-  Folder: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>,
-  Laptop: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="2" y1="20" x2="22" y2="20"></line></svg>,
-  Lock: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>,
-  Activity: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>,
-  Eye: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>,
-  EyeOff: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>,
-  Copy: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>,
-  Close: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>,
-  Save: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>,
-  AlertTriangle: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>,
+  Search: (p) => <IconBase {...p}><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></IconBase>,
+  Plus: (p) => <IconBase {...p}><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></IconBase>,
+  Folder: (p) => <IconBase {...p}><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></IconBase>,
+  Laptop: (p) => <IconBase {...p}><rect x="2" y="3" width="20" height="14" rx="2" ry="2" /><line x1="2" y1="20" x2="22" y2="20" /></IconBase>,
+  Lock: (p) => <IconBase {...p}><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></IconBase>,
+  Activity: (p) => <IconBase {...p}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></IconBase>,
+  Eye: (p) => <IconBase {...p}><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></IconBase>,
+  EyeOff: (p) => <IconBase {...p}><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><line x1="1" y1="1" x2="23" y2="23" /></IconBase>,
+  Copy: (p) => <IconBase {...p}><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></IconBase>,
+  Close: (p) => <IconBase {...p}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></IconBase>,
+  Save: (p) => <IconBase {...p}><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></IconBase>,
+  Edit: (p) => <IconBase {...p}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z" /></IconBase>,
+  Power: (p) => <IconBase {...p}><path d="M18.36 6.64a9 9 0 1 1-12.73 0" /><line x1="12" y1="2" x2="12" y2="12" /></IconBase>,
+  ChevronDown: (p) => <IconBase {...p}><polyline points="6 9 12 15 18 9" /></IconBase>,
+  AlertTriangle: (p) => <IconBase {...p}><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></IconBase>,
+  Check: (p) => <IconBase {...p}><polyline points="20 6 9 17 4 12" /></IconBase>,
+  Inbox: (p) => <IconBase {...p}><polyline points="22 12 16 12 14 15 10 15 8 12 2 12" /><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" /></IconBase>,
+  Monitor: (p) => <IconBase {...p}><rect x="2" y="3" width="20" height="14" rx="2" ry="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" /></IconBase>,
+  Box: (p) => <IconBase {...p}><path d="M21 8v13H3V8" /><path d="M1 3h22v5H1z" /><line x1="10" y1="12" x2="14" y2="12" /></IconBase>,
+  Router: (p) => <IconBase {...p}><path d="M5 12.55a11 11 0 0 1 14.08 0" /><path d="M1.42 9a16 16 0 0 1 21.16 0" /><path d="M8.53 16.11a6 6 0 0 1 6.95 0" /><line x1="12" y1="20" x2="12.01" y2="20" /></IconBase>,
+  Cable: (p) => <IconBase {...p}><path d="M9 3v5a3 3 0 0 0 3 3v0a3 3 0 0 0 3-3V3" /><path d="M12 11v6" /><circle cx="12" cy="20" r="2" /></IconBase>,
+  ChartBar: (p) => <IconBase {...p}><line x1="12" y1="20" x2="12" y2="10" /><line x1="18" y1="20" x2="18" y2="4" /><line x1="6" y1="20" x2="6" y2="16" /></IconBase>,
 };
 
 /* ------------------------------------------------------------------ */
-/* Subcomponentes Visuais                                             */
+/* Avatares de colaborador                                            */
 /* ------------------------------------------------------------------ */
+const AVATAR_CORES = ["#d97706", "#2563eb", "#059669", "#7c3aed", "#db2777", "#0d9488", "#ea580c", "#4f46e5"];
 
-const ModalPortal = ({ children }) => createPortal(children, document.body);
-
-const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', marginBottom: '10px', color: '#1e293b' };
-const labelStyle = { display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' };
-
-function StatCard({ label, valor, borderColor, badgeColor, badgeBg, onClick }) {
-  return (
-    <div onClick={onClick} className="hover-shadow" style={{background: 'white', borderRadius: '16px', padding: '20px', border: '1px solid #e2e8f0', borderTop: `5px solid ${borderColor}`, position: 'relative', cursor: 'pointer', display: 'flex', flexDirection: 'column', minHeight: '120px', transition: 'all 0.2s'}}>
-      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: '4px'}}>
-        <div style={{fontSize: '1.05rem', fontWeight: '800', color: '#1e293b'}}>{label}</div>
-        <div style={{width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem', fontWeight: '800', backgroundColor: badgeBg, color: badgeColor}}>{valor}</div>
-      </div>
-      <div className="hover-blue-text" style={{marginTop: 'auto', paddingTop: '15px', fontSize: '0.85rem', color: '#64748b', fontWeight: '700'}}>
-        Ver detalhes &rarr;
-      </div>
-    </div>
-  );
+function getIniciais(nome) {
+  const partes = nome.trim().split(/\s+/).filter(Boolean);
+  if (partes.length === 0) return "?";
+  if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
+  return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
 }
 
-function StatusBadge({ estado }) {
-  const map = {
-    em_uso: { txt: "Em uso", bg: "#dcfce7", color: "#166534" },
-    em_stock: { txt: "Em stock", bg: "#f1f5f9", color: "#475569" },
-    em_reparacao: { txt: "Em reparação", bg: "#fef3c7", color: "#d97706" },
-    reservado: { txt: "Reservado", bg: "#e0e7ff", color: "#6d28d9" },
-    abatido: { txt: "Abatido", bg: "#fee2e2", color: "#ef4444" }
-  };
-  const { txt, bg, color } = map[estado] || { txt: "—", bg: "#f1f5f9", color: "#475569" };
-  return (
-    <span style={{fontSize: '0.7rem', background: bg, color: color, padding: '4px 10px', borderRadius: '12px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.04em'}}>{txt}</span>
-  );
+function corAvatar(nome) {
+  let hash = 0;
+  for (let i = 0; i < nome.length; i++) hash = nome.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_CORES[Math.abs(hash) % AVATAR_CORES.length];
 }
 
-// NOVO: Card Simplificado para Acessos
-function AcessoCard({ acesso }) {
-  const [visible, setVisible] = useState(false);
-  const expirado = acesso.estado === 'expirado';
-
-  return (
-    <div className="hover-shadow" style={{background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px'}}>
-      
-      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
-        <div>
-          <h3 style={{margin: '0 0 5px 0', color: '#0f172a', fontSize: '1.1rem'}}>{acesso.nome_plataforma}</h3>
-          <a href={acesso.url} target="_blank" rel="noopener noreferrer" style={{color: '#3b82f6', fontSize: '0.85rem', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px'}}>
-            Aceder ao URL &rarr;
-          </a>
-        </div>
-        <span style={{fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase', padding: '4px 10px', borderRadius: '8px', background: expirado ? '#fee2e2' : '#dcfce7', color: expirado ? '#ef4444' : '#16a34a'}}>
-          {acesso.estado || 'ativo'}
-        </span>
-      </div>
-
-      <div style={{background: '#f8fafc', borderRadius: '8px', padding: '12px', border: '1px solid #f1f5f9'}}>
-        <div style={{marginBottom: '8px', fontSize: '0.85rem', color: '#475569'}}>
-          <strong>User:</strong> {acesso.username}
-        </div>
-        <div style={{display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.85rem', color: '#475569'}}>
-          <strong>Pass:</strong> 
-          <span style={{fontFamily: 'monospace', background: 'white', padding: '4px 8px', borderRadius: '4px', border: '1px solid #e2e8f0', flex: 1}}>
-            {visible ? acesso.password : '••••••••••••'}
-          </span>
-          <button onClick={() => setVisible(!visible)} className="action-btn" title="Mostrar/Ocultar">
-            {visible ? <Icons.EyeOff size={14} /> : <Icons.Eye size={14} />}
-          </button>
-          <button className="action-btn" title="Copiar" onClick={() => navigator.clipboard.writeText(acesso.password)}>
-            <Icons.Copy size={14} />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+function IconBase({ size = 16, color = "currentColor", children }) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{children}</svg>;
 }
 
+const ModalPortal = ({ children }) => createPortal(<div className="page-container">{children}</div>, document.body);
+
+/* ------------------------------------------------------------------ */
+/* Helpers                                                            */
+/* ------------------------------------------------------------------ */
 async function gerarProximoInventario() {
   const { data, error } = await supabase.from("equipamentos").select("num_inventario").order("num_inventario", { ascending: false }).limit(1);
   if (error || !data || data.length === 0 || !data[0].num_inventario) return "0001";
   const proximo = parseInt(data[0].num_inventario, 10) + 1;
-  return proximo.toString().padStart(4, '0');
+  return proximo.toString().padStart(4, "0");
+}
+
+const ESTADOS_EQUIP = [
+  { value: "em_stock", label: "Em stock" },
+  { value: "em_uso", label: "Em uso" },
+  { value: "em_reparacao", label: "Em reparação" },
+  { value: "reservado", label: "Reservado" },
+  { value: "abatido", label: "Abatido" },
+];
+const ESTADOS_ACESSO = [
+  { value: "ativo", label: "Ativo" },
+  { value: "expirado", label: "Expirado / Bloqueado" },
+  { value: "inativo", label: "Inativo" },
+];
+
+const CATEGORIAS_EQUIP = [
+  { id: "computadores", label: "Computadores", icon: "Laptop", tipos: ["Computador", "Portátil", "Monitor", "Tablet"] },
+  { id: "rede", label: "Rede", icon: "Router", tipos: ["Router", "Switch", "Access Point", "Cabo Ethernet"] },
+  { id: "perifericos", label: "Periféricos e cabos", icon: "Cable", tipos: ["Teclado", "Rato", "Webcam", "Impressora", "Cabo HDMI", "Cabo de alimentação", "Carregador"] },
+  { id: "outro", label: "Outro", icon: "Box", tipos: ["Outro"] },
+];
+
+function getCategoriaEquip(tipo) {
+  return CATEGORIAS_EQUIP.find((c) => c.tipos.includes(tipo)) || CATEGORIAS_EQUIP[CATEGORIAS_EQUIP.length - 1];
+}
+
+function getIconeTipo(tipo) {
+  const cat = getCategoriaEquip(tipo);
+  if (cat.id === "computadores") return tipo === "Monitor" ? Icons.Monitor : Icons.Laptop;
+  return Icons[cat.icon];
+}
+
+const ESTADO_MAP_EQUIP = {
+  em_uso: { txt: "Em uso", cls: "badge-green" },
+  em_stock: { txt: "Em stock", cls: "badge-grey" },
+  em_reparacao: { txt: "Em reparação", cls: "badge-amber" },
+  reservado: { txt: "Reservado", cls: "badge-purple" },
+  abatido: { txt: "Abatido", cls: "badge-red" },
+};
+const ESTADO_MAP_ACESSO = {
+  ativo: { txt: "Ativo", cls: "badge-green" },
+  expirado: { txt: "Expirado", cls: "badge-red" },
+  inativo: { txt: "Inativo", cls: "badge-grey" },
+};
+
+/* ------------------------------------------------------------------ */
+/* Subcomponentes                                                     */
+/* ------------------------------------------------------------------ */
+function StatCard({ label, valor, icon, accent, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="stat-card"
+      style={{ "--stat-accent": accent }}
+    >
+      <div className="stat-card-top">
+        <span className="stat-card-label">{label}</span>
+        <span className="stat-card-icon">{icon}</span>
+      </div>
+      <div className="stat-card-valor">{valor}</div>
+    </button>
+  );
+}
+
+function StatusDot({ estado, map }) {
+  const info = map[estado] || { txt: "—", cls: "badge-grey" };
+  return (
+    <span className={`status-pill ${info.cls}`}>
+      <span className="status-dot" />
+      {info.txt}
+    </span>
+  );
+}
+
+function RowActions({ onEdit, onToggle, isAtivo, labelAtivar, labelInativar }) {
+  return (
+    <div className="row-actions">
+      <button className="action-btn" title="Editar" onClick={onEdit}><Icons.Edit size={14} /></button>
+      <button
+        className={`action-btn ${isAtivo ? "action-btn-danger" : "action-btn-success"}`}
+        title={isAtivo ? labelInativar : labelAtivar}
+        onClick={onToggle}
+      >
+        <Icons.Power size={14} />
+      </button>
+    </div>
+  );
+}
+
+function Avatar({ nome, url, size = 24 }) {
+  const [erro, setErro] = useState(false);
+
+  if (url && !erro) {
+    return (
+      <img
+        src={url}
+        alt={nome || "Colaborador"}
+        className="avatar avatar-img"
+        style={{ width: size, height: size }}
+        onError={() => setErro(true)}
+      />
+    );
+  }
+  if (!nome) {
+    return <span className="avatar avatar-empty" style={{ width: size, height: size }}><Icons.Box size={size * 0.5} /></span>;
+  }
+  return (
+    <span className="avatar" style={{ background: corAvatar(nome), width: size, height: size }}>
+      {getIniciais(nome)}
+    </span>
+  );
+}
+
+function DonutChart({ data, size = 132, thickness = 16 }) {
+  const total = data.reduce((s, d) => s + d.value, 0);
+  const radius = (size - thickness) / 2;
+  const circumference = 2 * Math.PI * radius;
+  let cumulative = 0;
+
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="donut-svg">
+      <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#f1f5f9" strokeWidth={thickness} />
+      <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>
+        {total > 0 && data.map((d) => {
+          const frac = d.value / total;
+          const dash = frac * circumference;
+          const offset = -cumulative * circumference;
+          cumulative += frac;
+          return (
+            <circle
+              key={d.label}
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              fill="none"
+              style={{ stroke: d.color }}
+              strokeWidth={thickness}
+              strokeDasharray={`${dash} ${circumference - dash}`}
+              strokeDashoffset={offset}
+              strokeLinecap={data.length > 1 ? "butt" : "round"}
+            />
+          );
+        })}
+      </g>
+      <text x="50%" y="48%" textAnchor="middle" className="donut-total">{total}</text>
+      <text x="50%" y="64%" textAnchor="middle" className="donut-total-label">total</text>
+    </svg>
+  );
+}
+
+function AtribuidosOverview({ data }) {
+  const [expandido, setExpandido] = useState(false);
+  const visiveis = expandido ? data : data.slice(0, 10);
+  const max = Math.max(...data.map((d) => d.itens.length), 1);
+
+  return (
+    <div className="atribuidos-chart-wrap">
+      <div className="atribuidos-chart">
+        {visiveis.map((pessoa) => (
+          <div key={pessoa.nome} className="atribuidos-col" tabIndex={0}>
+            <div className="atribuidos-tooltip">
+              <strong>{pessoa.nome} · {pessoa.itens.length} {pessoa.itens.length === 1 ? "equipamento" : "equipamentos"}</strong>
+              <ul>
+                {pessoa.itens.map((e) => (
+                  <li key={e.id}>
+                    <span className="asset-tag asset-tag-sm">{e.num_inventario}</span>
+                    <span>{e.modelo}</span>
+                    <span className="atribuidos-tipo">{e.tipo}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <span className="atribuidos-valor">{pessoa.itens.length}</span>
+            <div className="atribuidos-bar-track">
+              <div className="atribuidos-bar" style={{ height: `${(pessoa.itens.length / max) * 100}%` }} />
+            </div>
+            <Avatar nome={pessoa.nome} url={pessoa.avatar_url} size={26} />
+            <span className="atribuidos-nome" title={pessoa.nome}>{pessoa.nome.split(" ")[0]}</span>
+          </div>
+        ))}
+      </div>
+      {data.length > 10 && (
+        <button type="button" className="link-btn atribuidos-vermais" onClick={() => setExpandido((v) => !v)}>
+          {expandido ? "Ver menos" : `Ver mais (${data.length - 10})`}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function EquipCard({ equipamento, colaboradorNome, colaboradorAvatarUrl, onEdit, onToggle }) {
+  const ativo = equipamento.estado !== "abatido";
+  const TipoIcon = getIconeTipo(equipamento.tipo);
+
+  return (
+    <div className={`equip-card ${!ativo ? "equip-card-inativo" : ""}`}>
+      <div className="equip-card-head">
+        <div className="equip-card-icon"><TipoIcon size={17} /></div>
+        <StatusDot estado={equipamento.estado} map={ESTADO_MAP_EQUIP} />
+      </div>
+
+      <div className="equip-card-tag-row">
+        <span className="asset-tag">{equipamento.num_inventario}</span>
+        <span className="equip-card-tipo">{equipamento.tipo}</span>
+      </div>
+
+      <h3 className="equip-card-modelo">{equipamento.modelo}</h3>
+      {equipamento.nome_pc && <p className="equip-card-pc">{equipamento.nome_pc}</p>}
+
+      <div className="equip-card-footer">
+        <div className="equip-card-colaborador">
+          <Avatar nome={colaboradorNome} url={colaboradorAvatarUrl} />
+          <span>{colaboradorNome || "Em stock"}</span>
+        </div>
+        <RowActions
+          onEdit={onEdit}
+          onToggle={onToggle}
+          isAtivo={ativo}
+          labelAtivar="Reativar equipamento"
+          labelInativar="Abater equipamento"
+        />
+      </div>
+    </div>
+  );
+}
+
+function AcessoCard({ acesso, onEdit, onToggle, onCopy }) {
+  const [visible, setVisible] = useState(false);
+  const inativo = acesso.estado === "expirado" || acesso.estado === "inativo";
+
+  return (
+    <div className={`acesso-card ${inativo ? "acesso-card-inativo" : ""}`}>
+      <div className="acesso-card-head">
+        <div className="acesso-card-heading">
+          <h3 className="acesso-card-title">{acesso.nome_plataforma}</h3>
+          {acesso.url && (
+            <a href={acesso.url} target="_blank" rel="noopener noreferrer" className="acesso-card-link">
+              {acesso.url.replace(/^https?:\/\//, "")}
+            </a>
+          )}
+        </div>
+        <StatusDot estado={acesso.estado || "ativo"} map={ESTADO_MAP_ACESSO} />
+      </div>
+
+      <div className="acesso-card-body">
+        <div className="acesso-card-field">
+          <span className="acesso-card-field-label">Utilizador</span>
+          <span className="acesso-card-field-value">{acesso.username}</span>
+        </div>
+        <div className="acesso-card-field">
+          <span className="acesso-card-field-label">Palavra-passe</span>
+          <span className="acesso-card-field-value acesso-card-pass">{visible ? acesso.password : "••••••••••••"}</span>
+          <div className="acesso-card-field-actions">
+            <button onClick={() => setVisible((v) => !v)} className="action-btn" title={visible ? "Ocultar" : "Mostrar"}>
+              {visible ? <Icons.EyeOff size={14} /> : <Icons.Eye size={14} />}
+            </button>
+            <button className="action-btn" title="Copiar palavra-passe" onClick={() => onCopy(acesso.password)}>
+              <Icons.Copy size={14} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="acesso-card-footer">
+        <RowActions
+          onEdit={onEdit}
+          onToggle={onToggle}
+          isAtivo={!inativo}
+          labelAtivar="Reativar acesso"
+          labelInativar="Marcar como inativo"
+        />
+      </div>
+    </div>
+  );
 }
 
 /* ------------------------------------------------------------------ */
-/* Página principal - AtivosTIDashboard                               */
+/* Página principal                                                   */
 /* ------------------------------------------------------------------ */
 export default function AtivosTIDashboard() {
   const [tab, setTab] = useState("painel");
   const [query, setQuery] = useState("");
-  
-  // Dados Reais
+  const [filtroEstadoEquip, setFiltroEstadoEquip] = useState("todos");
+  const [filtroEstadoAcesso, setFiltroEstadoAcesso] = useState("todos");
+
   const [equipamentos, setEquipamentos] = useState([]);
   const [acessos, setAcessos] = useState([]);
   const [utilizadores, setUtilizadores] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Estados do Modal
+  const [notification, setNotification] = useState(null);
+  const [confirmModal, setConfirmModal] = useState(null);
+  const [isConfirming, setIsConfirming] = useState(false);
+
+  const notify = (message, type = "success") => {
+    setNotification({ message, type, key: Date.now() });
+    setTimeout(() => setNotification((n) => (n && n.message === message ? null : n)), 3000);
+  };
+
+  const handleCopyPassword = async (password) => {
+    try {
+      await navigator.clipboard.writeText(password);
+      notify("Palavra-passe copiada.");
+    } catch {
+      notify("Não foi possível copiar a palavra-passe.", "error");
+    }
+  };
+
   const [showModal, setShowModal] = useState(false);
   const [isClosingPanel, setIsClosingPanel] = useState(false);
-  const [modalType, setModalType] = useState('equipamento'); // equipamento | acesso
-  
-  // Estados dos Formulários
-  const initEquip = { num_inventario: "", tipo: "Computador", modelo: "", colaborador_id: "", estado: "em_stock", nome_pc: "" };
+  const [modalType, setModalType] = useState("equipamento");
+  const [editingId, setEditingId] = useState(null);
+
+  const initEquip = { num_inventario: "", tipo: "Computador", modelo: "", colaborador: "", estado: "em_stock", nome_pc: "" };
   const initAcesso = { nome_plataforma: "", url: "", username: "", password: "", estado: "ativo" };
-  
+
   const [formEquip, setFormEquip] = useState(initEquip);
   const [formAcesso, setFormAcesso] = useState(initAcesso);
 
-  // Carregar Dados
   const carregarDados = useCallback(async () => {
     setIsLoading(true);
     try {
       const [equipResult, acessosResult, perfisResult] = await Promise.all([
         supabase.from("equipamentos").select("*").order("created_at", { ascending: false }),
         supabase.from("acessos").select("*").order("nome_plataforma", { ascending: true }),
-        supabase.from("profiles").select("id, nome").eq("ativo", true)
+        supabase.from("profiles").select("id, nome, avatar_url").eq("ativo", true),
       ]);
-
       if (equipResult.data) setEquipamentos(equipResult.data);
       if (acessosResult.data) setAcessos(acessosResult.data);
       if (perfisResult.data) setUtilizadores(perfisResult.data);
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
+      notify("Não foi possível carregar os dados.", "error");
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    carregarDados();
-  }, [carregarDados]);
+  useEffect(() => { carregarDados(); }, [carregarDados]);
 
-  // Handlers
   async function handleNovo() {
-    setModalType(tab === 'acessos' ? 'acesso' : 'equipamento');
+    const tipo = tab === "acessos" ? "acesso" : "equipamento";
+    if (tab === "equip_inativos") setTab("equip_ativos");
+    setModalType(tipo);
+    setEditingId(null);
     setFormEquip({ ...initEquip });
     setFormAcesso({ ...initAcesso });
 
-    if (tab === 'equip' || tab === 'painel') {
+    if (tipo === "equipamento") {
       const proximo = await gerarProximoInventario();
-      setFormEquip(prev => ({ ...prev, num_inventario: proximo }));
+      setFormEquip((prev) => ({ ...prev, num_inventario: proximo }));
     }
+    setIsClosingPanel(false);
+    setShowModal(true);
+  }
 
+  function handleEditar(tipo, registo) {
+    setModalType(tipo);
+    setEditingId(registo.id);
+    if (tipo === "equipamento") {
+      setFormEquip({
+        num_inventario: registo.num_inventario || "",
+        tipo: registo.tipo || "Computador",
+        modelo: registo.modelo || "",
+        colaborador: registo.colaborador || "",
+        estado: registo.estado || "em_stock",
+        nome_pc: registo.nome_pc || "",
+      });
+    } else {
+      setFormAcesso({
+        nome_plataforma: registo.nome_plataforma || "",
+        url: registo.url || "",
+        username: registo.username || "",
+        password: registo.password || "",
+        estado: registo.estado || "ativo",
+      });
+    }
     setIsClosingPanel(false);
     setShowModal(true);
   }
@@ -173,259 +452,783 @@ export default function AtivosTIDashboard() {
     setTimeout(() => {
       setShowModal(false);
       setIsClosingPanel(false);
+      setEditingId(null);
     }, 360);
   }
 
-  // Submissão
-  async function handleSubmitAtivo(e) {
-    e.preventDefault();
+  function handleToggleEstado(tipo, registo) {
+    const isEquip = tipo === "equipamento";
+    const inativoAgora = isEquip ? registo.estado === "abatido" : (registo.estado === "expirado" || registo.estado === "inativo");
+    const novoEstado = isEquip ? (inativoAgora ? "em_stock" : "abatido") : (inativoAgora ? "ativo" : "inativo");
+    const acao = inativoAgora ? "reativar" : "inativar";
+    const nome = isEquip ? (registo.modelo || registo.num_inventario) : registo.nome_plataforma;
 
+    setConfirmModal({ tipo, registo, isEquip, novoEstado, acao, nome, perigoso: !inativoAgora });
+  }
+
+  async function confirmarToggleEstado() {
+    if (!confirmModal) return;
+    const { isEquip, registo, novoEstado, acao, nome } = confirmModal;
+    setIsConfirming(true);
     try {
-      if (modalType === 'equipamento') {
-        const { error } = await supabase.from('equipamentos').insert([{ ...formEquip, colaborador_id: formEquip.colaborador_id || null }]);
-        if (error) throw error;
-        alert("Equipamento gravado com sucesso!");
-      } 
-      else if (modalType === 'acesso') {
-        const { error } = await supabase.from('acessos').insert([formAcesso]);
-        if (error) throw error;
-        alert("Acesso gravado com sucesso!");
-      }
-      
-      carregarDados();
-      closePanel();
+      const { error } = await supabase.from(isEquip ? "equipamentos" : "acessos")
+        .update({ estado: novoEstado }).eq("id", registo.id);
+      if (error) throw error;
+      notify(acao === "inativar" ? `"${nome}" foi inativado.` : `"${nome}" foi reativado.`);
+      await carregarDados();
+      setConfirmModal(null);
     } catch (err) {
-      console.error(err);
-      alert("Erro ao gravar dados: " + err.message);
+      notify(err.message, "error");
+    } finally {
+      setIsConfirming(false);
     }
   }
 
-  // Cálculos KPIs e Filtros
-  const equipFiltrados = equipamentos.filter((e) =>
-    (e.num_inventario + e.modelo + (e.colaborador || '')).toLowerCase().includes(query.toLowerCase())
+  async function handleSubmitAtivo(e) {
+    e.preventDefault();
+    setIsSaving(true);
+    try {
+      if (modalType === "equipamento") {
+        const payload = { ...formEquip, colaborador: formEquip.colaborador || null };
+        const { error } = editingId
+          ? await supabase.from("equipamentos").update(payload).eq("id", editingId)
+          : await supabase.from("equipamentos").insert([payload]);
+        if (error) throw error;
+      } else {
+        const { error } = editingId
+          ? await supabase.from("acessos").update(formAcesso).eq("id", editingId)
+          : await supabase.from("acessos").insert([formAcesso]);
+        if (error) throw error;
+      }
+      notify(editingId ? "Registo atualizado." : "Registo criado.");
+      await carregarDados();
+      closePanel();
+    } catch (err) {
+      console.error(err);
+      notify("Erro ao gravar dados: " + err.message, "error");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  const colaboradoresMap = useMemo(
+    () => Object.fromEntries(utilizadores.map((u) => [u.id, { nome: u.nome, avatar_url: u.avatar_url }])),
+    [utilizadores]
   );
-  
-  const acessosFiltrados = acessos.filter((a) =>
-    (a.nome_plataforma + a.url + a.username).toLowerCase().includes(query.toLowerCase())
-  );
+
+  const equipFiltrados = useMemo(() => equipamentos
+    .filter((e) => {
+      if (tab === "equip_ativos") return e.estado !== "abatido";
+      if (tab === "equip_inativos") return e.estado === "abatido";
+      return true;
+    })
+    .filter((e) => filtroEstadoEquip === "todos" || e.estado === filtroEstadoEquip)
+    .filter((e) => (e.num_inventario + e.modelo + (colaboradoresMap[e.colaborador]?.nome || "")).toLowerCase().includes(query.toLowerCase())),
+  [equipamentos, filtroEstadoEquip, query, tab, colaboradoresMap]);
+
+  const acessosFiltrados = useMemo(() => acessos
+    .filter((a) => {
+      if (filtroEstadoAcesso === "todos") return true;
+      if (filtroEstadoAcesso === "revisao") return a.estado === "expirado" || a.estado === "inativo";
+      return (a.estado || "ativo") === filtroEstadoAcesso;
+    })
+    .filter((a) => (a.nome_plataforma + a.url + a.username).toLowerCase().includes(query.toLowerCase())),
+  [acessos, filtroEstadoAcesso, query]);
+
+  const equipPorCategoria = useMemo(() => {
+    const grupos = {};
+    equipFiltrados.forEach((e) => {
+      const cat = getCategoriaEquip(e.tipo);
+      if (!grupos[cat.id]) grupos[cat.id] = { label: cat.label, itens: [] };
+      grupos[cat.id].itens.push(e);
+    });
+    return CATEGORIAS_EQUIP.map((c) => grupos[c.id]).filter(Boolean);
+  }, [equipFiltrados]);
+
+  const acessosPorEstado = useMemo(() => {
+    const grupos = {};
+    acessosFiltrados.forEach((a) => {
+      const key = a.estado === "expirado" || a.estado === "inativo" ? "revisao" : "ativo";
+      if (!grupos[key]) grupos[key] = { label: key === "ativo" ? "Ativos" : "A rever (expirado / inativo)", itens: [] };
+      grupos[key].itens.push(a);
+    });
+    return ["ativo", "revisao"].map((k) => grupos[k]).filter(Boolean);
+  }, [acessosFiltrados]);
+
+  const totalAtivos = equipamentos.filter((e) => e.estado !== "abatido").length;
+  const totalAcessosProblema = acessos.filter((a) => a.estado === "expirado" || a.estado === "inativo").length;
+
+  const COR = {
+    brand: "var(--color-btnPrimary, #3b82f6)",
+    brandDark: "var(--color-btnPrimaryDark, var(--color-btnPrimary, #1d4ed8))",
+    neutral: "#b8e2a0",
+    amber: "#d97706",
+    purple: "#7c3aed",
+    red: "#dc2626",
+    black: "#000000",
+  };
+  const pastel = (cor, pct = 45) => `color-mix(in srgb, ${cor} ${pct}%, white)`;
 
   const kpisDinamic = [
-    { label: "Total Equipamentos", valor: equipamentos.length, borderColor: "#3b82f6", badgeColor: "#1d4ed8", badgeBg: "#dbeafe", onClick: () => setTab("equip") },
-    { label: "Total de Acessos", valor: acessos.length, borderColor: "#8b5cf6", badgeColor: "#6d28d9", badgeBg: "#ede9fe", onClick: () => setTab("acessos") },
-    { label: "Acessos Expirados", valor: acessos.filter(a => a.estado === 'expirado').length, borderColor: "#ef4444", badgeColor: "#b91c1c", badgeBg: "#fee2e2", onClick: () => setTab("acessos") },
+    { label: "Equipamentos ativos", valor: totalAtivos, icon: <Icons.Laptop size={18} />, accent: COR.brand, onClick: () => setTab("equip_ativos") },
+    { label: "Equipamentos abatidos", valor: equipamentos.length - totalAtivos, icon: <Icons.Power size={18} />, accent: COR.brandDark, onClick: () => setTab("equip_inativos") },
+    { label: "Acessos registados", valor: acessos.length, icon: <Icons.Lock size={18} />, accent: COR.brand, onClick: () => { setTab("acessos"); setFiltroEstadoAcesso("todos"); } },
+    { label: "Acessos a rever", valor: totalAcessosProblema, icon: <Icons.AlertTriangle size={18} />, accent: totalAcessosProblema > 0 ? COR.amber : COR.brandDark, onClick: () => { setTab("acessos"); setFiltroEstadoAcesso("revisao"); } },
   ];
 
+  const CORES_ESTADO_EQUIP = { em_uso: COR.brand, em_stock: COR.neutral, em_reparacao: COR.amber, reservado: COR.purple, abatido: COR.black };
+  const estadoEquipData = useMemo(
+    () => ESTADOS_EQUIP
+      .map((s) => ({ label: s.label, value: equipamentos.filter((e) => e.estado === s.value).length, color: pastel(CORES_ESTADO_EQUIP[s.value]) }))
+      .filter((d) => d.value > 0),
+    [equipamentos]
+  );
+
+  const CORES_ESTADO_ACESSO = { ativo: COR.brand, expirado: COR.red, inativo: COR.neutral };
+  const estadoAcessoData = useMemo(
+    () => ESTADOS_ACESSO
+      .map((s) => ({ label: s.label, value: acessos.filter((a) => (a.estado || "ativo") === s.value).length, color: pastel(CORES_ESTADO_ACESSO[s.value]) }))
+      .filter((d) => d.value > 0),
+    [acessos]
+  );
+
+  const atribuidosPorPessoa = useMemo(() => {
+    const grupos = {};
+    equipamentos
+      .filter((e) => e.estado === "em_uso" && e.colaborador)
+      .forEach((e) => {
+        const info = colaboradoresMap[e.colaborador];
+        if (!info) return;
+        if (!grupos[e.colaborador]) grupos[e.colaborador] = { nome: info.nome, avatar_url: info.avatar_url, itens: [] };
+        grupos[e.colaborador].itens.push(e);
+      });
+    return Object.values(grupos).sort((a, b) => b.itens.length - a.itens.length);
+  }, [equipamentos, colaboradoresMap]);
+
+  const recentes = useMemo(() => [...equipamentos].slice(0, 5), [equipamentos]);
+
+  useEffect(() => { setQuery(""); }, [tab]);
+
   return (
-    <div className="page-container" style={{maxWidth: '1500px', margin: '0 auto'}}>
-      
-      {/* CABEÇALHO */}
-      <div className="page-header" style={{background: 'white', padding: '20px 25px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '15px', flexWrap: 'wrap'}}>
-        <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
-            <div style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '12px', borderRadius: '12px', display: 'flex'}}>
-              <Icons.Folder size={24} />
-            </div>
-            <div>
-                <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>Ativos TI</h1>
-                <p style={{color: '#64748b', margin: 0, fontWeight: '500', fontSize: '0.9rem'}}>Gestão simples de equipamentos e acessos web.</p>
-            </div>
+    <div className="page-container">
+      {notification && (
+        <div className={`ativosti-toast ${notification.type}`} key={notification.key}>
+          <span className="toast-icon">{notification.type === "success" ? <Icons.Check size={14} /> : <Icons.AlertTriangle size={14} />}</span>
+          {notification.message}
         </div>
-        <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
-          <button onClick={handleNovo} className="btn-primary hover-shadow" style={{padding: '12px 20px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold'}}>
-            <Icons.Plus /> Novo Registo
+      )}
+
+      {/* CABEÇALHO */}
+      <div className="page-header">
+        <div className="page-header-left">
+          <div className="page-header-icon"><Icons.Folder size={24} /></div>
+          <div>
+            <h1 className="page-title">Ativos TI</h1>
+            <p className="page-subtitle">Gestão simples de equipamentos e acessos web.</p>
+          </div>
+        </div>
+        <button onClick={handleNovo} className="btn-primary btn-with-icon">
+          <Icons.Plus /> Novo Registo
+        </button>
+      </div>
+
+      {/* NAVEGAÇÃO */}
+      <div className="nav-row">
+        <div className="tabs-segmented">
+          <button onClick={() => setTab("painel")} className={`tab-btn ${tab === "painel" ? "tab-btn-active" : ""}`}>
+            <Icons.Activity size={15} /> Painel
+          </button>
+          <button onClick={() => setTab("equip_ativos")} className={`tab-btn ${tab === "equip_ativos" ? "tab-btn-active" : ""}`}>
+            <Icons.Laptop size={15} /> Equipamentos
+          </button>
+          <button onClick={() => setTab("equip_inativos")} className={`tab-btn ${tab === "equip_inativos" ? "tab-btn-active" : ""}`}>
+            <Icons.Power size={15} /> Abatidos
+          </button>
+          <button onClick={() => setTab("acessos")} className={`tab-btn ${tab === "acessos" ? "tab-btn-active" : ""}`}>
+            <Icons.Lock size={15} /> Acessos
           </button>
         </div>
-      </div>
 
-      {/* TABS DE NAVEGAÇÃO */}
-      <div style={{display:'flex', gap:'5px', paddingLeft: '10px'}}>
-        <button onClick={() => setTab("painel")} style={{padding: '12px 25px', background: tab === 'painel' ? 'white' : '#e2e8f0', color: tab === 'painel' ? 'var(--color-btnPrimary)' : '#64748b', border: 'none', borderRadius: '12px 12px 0 0', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display:'flex', alignItems:'center', gap:'8px'}}>
-          <Icons.Activity /> Painel Geral
-        </button>
-        <button onClick={() => setTab("equip")} style={{padding: '12px 25px', background: tab === 'equip' ? 'white' : '#e2e8f0', color: tab === 'equip' ? 'var(--color-btnPrimary)' : '#64748b', border: 'none', borderRadius: '12px 12px 0 0', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display:'flex', alignItems:'center', gap:'8px'}}>
-          <Icons.Laptop /> Equipamentos
-        </button>
-        <button onClick={() => setTab("acessos")} style={{padding: '12px 25px', background: tab === 'acessos' ? 'white' : '#e2e8f0', color: tab === 'acessos' ? 'var(--color-btnPrimary)' : '#64748b', border: 'none', borderRadius: '12px 12px 0 0', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display:'flex', alignItems:'center', gap:'8px'}}>
-          <Icons.Lock /> Acessos
-        </button>
-      </div>
+        {(tab.startsWith("equip") || tab === "acessos") && (
+          <div className="toolbar-inline">
+            <div className="search-box">
+              <span className="search-icon"><Icons.Search size={15} /></span>
+              <input
+                type="text"
+                placeholder={tab.startsWith("equip") ? "Procurar por inventário, modelo ou colaborador…" : "Procurar por plataforma, URL ou utilizador…"}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="search-input"
+              />
+              {query && (
+                <button className="search-clear" onClick={() => setQuery("")} title="Limpar pesquisa">
+                  <Icons.Close size={12} />
+                </button>
+              )}
+            </div>
 
-      {/* BARRA DE PESQUISA */}
-      <div style={{background: 'white', padding: '12px 20px', borderRadius: '0 10px 10px 10px', border: '1px solid #e2e8f0', marginBottom: '25px', display: 'flex', gap: '15px', alignItems: 'center'}}>
-        {(tab === "equip" || tab === "acessos") ? (
-          <div style={{flex: 1, position: 'relative'}}>
-            <span style={{position: 'absolute', left: '12px', top: '10px', color: '#94a3b8'}}><Icons.Search /></span>
-            <input type="text" placeholder="Procurar..." value={query} onChange={(e) => setQuery(e.target.value)} style={{width: '100%', padding: '8px 12px 8px 38px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none'}} className="input-focus" />
+            {tab === "equip_ativos" && (
+              <select className="filter-select" value={filtroEstadoEquip} onChange={(e) => setFiltroEstadoEquip(e.target.value)}>
+                <option value="todos">Todos os estados</option>
+                {ESTADOS_EQUIP.filter((s) => s.value !== "abatido").map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+              </select>
+            )}
+            {tab === "equip_inativos" && (
+              <span className="filter-static">Filtrado por: Abatido</span>
+            )}
+            {tab === "acessos" && (
+              <select className="filter-select" value={filtroEstadoAcesso} onChange={(e) => setFiltroEstadoAcesso(e.target.value)}>
+                <option value="todos">Todos os estados</option>
+                {ESTADOS_ACESSO.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+                <option value="revisao">A rever (expirado / inativo)</option>
+              </select>
+            )}
           </div>
-        ) : (
-          <div style={{color: '#64748b', fontSize: '0.9rem', fontWeight: '600'}}>Resumo global da sua organização.</div>
         )}
       </div>
 
-      {/* ÁREA DE CONTEÚDO */}
+      {/* CONTEÚDO */}
       {isLoading ? (
-        <div style={{display:'flex', justifyContent:'center', alignItems:'center', height:'40vh'}}><div className="pulse-dot-white" style={{background:'#3b82f6'}}></div></div>
+        <div className="loading-wrap">
+          <div className="pulse-dot" />
+          <span>A carregar dados…</span>
+        </div>
       ) : (
         <>
-          {/* TAB: PAINEL */}
           {tab === "painel" && (
-            <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '20px'}}>
-              {kpisDinamic.map((k) => <StatCard key={k.label} {...k} />)}
-            </div>
-          )}
+            <div className="painel-layout">
+              <div className="kpi-grid">
+                {kpisDinamic.map((k) => <StatCard key={k.label} {...k} />)}
+              </div>
 
-          {/* TAB: EQUIPAMENTOS */}
-          {tab === "equip" && (
-            <div className="table-responsive" style={{borderRadius: '14px', background: 'white', border: '1px solid #e2e8f0'}}>
-              <table style={{minWidth: '980px', width: '100%', borderCollapse: 'collapse'}}>
-                <thead>
-                  <tr>
-                    <th style={{padding: '16px', textAlign: 'left', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase', borderBottom: '1px solid #e2e8f0'}}>Nº inventário</th>
-                    <th style={{padding: '16px', textAlign: 'left', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase', borderBottom: '1px solid #e2e8f0'}}>Tipo</th>
-                    <th style={{padding: '16px', textAlign: 'left', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase', borderBottom: '1px solid #e2e8f0'}}>Modelo</th>
-                    <th style={{padding: '16px', textAlign: 'left', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase', borderBottom: '1px solid #e2e8f0'}}>Nome PC</th>
-                    <th style={{padding: '16px', textAlign: 'left', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase', borderBottom: '1px solid #e2e8f0'}}>Colaborador</th>
-                    <th style={{padding: '16px', textAlign: 'left', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase', borderBottom: '1px solid #e2e8f0'}}>Estado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {equipFiltrados.map((e) => (
-                    <tr key={e.id} className="hover-row" style={{borderBottom: '1px solid #f1f5f9'}}>
-                      <td style={{padding: '16px', fontFamily: 'monospace', fontWeight: '700'}}>{e.num_inventario}</td>
-                      <td style={{padding: '16px', color: '#64748b'}}>{e.tipo}</td>
-                      <td style={{padding: '16px', fontWeight: '800'}}>{e.modelo}</td>
-                      <td style={{padding: '16px', color: '#334155'}}>{e.nome_pc || "—"}</td>
-                      <td style={{padding: '16px', color: '#475569'}}>{e.colaborador || "—"}</td>
-                      <td style={{padding: '16px'}}><StatusBadge estado={e.estado} /></td>
-                    </tr>
-                  ))}
-                  {equipFiltrados.length === 0 && (
-                    <tr><td colSpan={6} style={{padding: '40px', textAlign: 'center', color: '#94a3b8'}}>Nenhum resultado.</td></tr>
+              <div className="charts-row">
+                <div className="panel-card chart-card">
+                  <div className="panel-card-head">
+                    <h2>Equipamentos por estado</h2>
+                  </div>
+                  {estadoEquipData.length === 0 ? (
+                    <p className="panel-card-empty">Ainda não há equipamentos registados.</p>
+                  ) : (
+                    <div className="donut-layout">
+                      <DonutChart data={estadoEquipData} />
+                      <ul className="chart-legend">
+                        {estadoEquipData.map((d) => (
+                          <li key={d.label}>
+                            <span className="legend-dot" style={{ background: d.color }} />
+                            <span className="legend-label">{d.label}</span>
+                            <span className="legend-value">{d.value}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   )}
-                </tbody>
-              </table>
+                </div>
+
+                <div className="panel-card chart-card">
+                  <div className="panel-card-head">
+                    <h2>Acessos por estado</h2>
+                  </div>
+                  {estadoAcessoData.length === 0 ? (
+                    <p className="panel-card-empty">Ainda não há acessos registados.</p>
+                  ) : (
+                    <div className="donut-layout">
+                      <DonutChart data={estadoAcessoData} />
+                      <ul className="chart-legend">
+                        {estadoAcessoData.map((d) => (
+                          <li key={d.label}>
+                            <span className="legend-dot" style={{ background: d.color }} />
+                            <span className="legend-label">{d.label}</span>
+                            <span className="legend-value">{d.value}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="charts-row">
+                <div className="panel-card">
+                  <div className="panel-card-head">
+                    <h2>Equipamento atribuído por colaborador</h2>
+                    <span className="panel-card-hint">Apenas equipamento em uso</span>
+                  </div>
+                  {atribuidosPorPessoa.length === 0 ? (
+                    <p className="panel-card-empty">Ainda não há equipamento atribuído a colaboradores.</p>
+                  ) : (
+                    <AtribuidosOverview data={atribuidosPorPessoa} />
+                  )}
+                </div>
+
+                <div className="panel-card">
+                  <div className="panel-card-head">
+                    <h2>Equipamentos recentes</h2>
+                    <button className="link-btn" onClick={() => setTab("equip_ativos")}>Ver todos</button>
+                  </div>
+                  {recentes.length === 0 ? (
+                    <p className="panel-card-empty">Ainda não há equipamentos registados.</p>
+                  ) : (
+                    <ul className="recentes-list">
+                      {recentes.map((e) => (
+                        <li key={e.id} className="recentes-item">
+                          <div className="recentes-item-main">
+                            <span className="asset-tag asset-tag-sm">{e.num_inventario}</span>
+                            <span className="cell-strong">{e.modelo}</span>
+                            <span className="cell-muted">· {colaboradoresMap[e.colaborador]?.nome || "em stock"}</span>
+                          </div>
+                          <StatusDot estado={e.estado} map={ESTADO_MAP_EQUIP} />
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
-          {/* TAB: ACESSOS (SIMPLIFICADO) */}
+          {(tab === "equip_ativos" || tab === "equip_inativos") && (
+            equipFiltrados.length > 0 ? (
+              <div className="equip-sections">
+                {equipPorCategoria.map((grupo) => (
+                  <div key={grupo.label} className="equip-section">
+                    <div className="equip-section-head">
+                      <h3>{grupo.label}</h3>
+                      <span className="equip-section-count">{grupo.itens.length}</span>
+                    </div>
+                    <div className="equip-grid">
+                      {grupo.itens.map((e) => (
+                        <EquipCard
+                          key={e.id}
+                          equipamento={e}
+                          colaboradorNome={colaboradoresMap[e.colaborador]?.nome}
+                          colaboradorAvatarUrl={colaboradoresMap[e.colaborador]?.avatar_url}
+                          onEdit={() => handleEditar("equipamento", e)}
+                          onToggle={() => handleToggleEstado("equipamento", e)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="empty-state">
+                <Icons.Inbox size={40} color="#cbd5e1" />
+                <h3>{query ? "Nenhum equipamento corresponde à pesquisa." : tab === "equip_inativos" ? "Não há equipamentos abatidos." : "Ainda não há equipamentos registados."}</h3>
+                {!query && tab === "equip_ativos" && (
+                  <>
+                    <p>Comece por adicionar o primeiro computador, monitor ou outro equipamento.</p>
+                    <button className="btn-primary btn-with-icon" onClick={handleNovo}>
+                      <Icons.Plus /> Adicionar equipamento
+                    </button>
+                  </>
+                )}
+              </div>
+            )
+          )}
+
           {tab === "acessos" && (
-            <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: '20px'}}>
-              {acessosFiltrados.length > 0 ? (
-                acessosFiltrados.map((a) => <AcessoCard key={a.id} acesso={a} />)
-              ) : (
-                <div style={{gridColumn: '1 / -1', textAlign: 'center', padding: '60px', background: 'white', borderRadius: '16px', border: '1px dashed #cbd5e1'}}>
-                  <Icons.Lock size={48} color="#cbd5e1" />
-                  <h3 style={{color: '#1e293b', margin: '15px 0 5px 0'}}>Nenhum acesso registado.</h3>
-                </div>
-              )}
-            </div>
+            acessosFiltrados.length > 0 ? (
+              <div className="equip-sections">
+                {acessosPorEstado.map((grupo) => (
+                  <div key={grupo.label} className="equip-section">
+                    <div className="equip-section-head">
+                      <h3>{grupo.label}</h3>
+                      <span className="equip-section-count">{grupo.itens.length}</span>
+                    </div>
+                    <div className="acessos-grid">
+                      {grupo.itens.map((a) => (
+                        <AcessoCard
+                          key={a.id}
+                          acesso={a}
+                          onEdit={() => handleEditar("acesso", a)}
+                          onToggle={() => handleToggleEstado("acesso", a)}
+                          onCopy={handleCopyPassword}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="empty-state">
+                <Icons.Lock size={40} color="#cbd5e1" />
+                <h3>{query ? "Nenhum acesso corresponde à pesquisa." : "Ainda não há acessos registados."}</h3>
+                {!query && <p>Guarde aqui os acessos a plataformas e sistemas web da organização.</p>}
+                {!query && (
+                  <button className="btn-primary btn-with-icon" onClick={handleNovo}>
+                    <Icons.Plus /> Adicionar acesso
+                  </button>
+                )}
+              </div>
+            )
           )}
         </>
       )}
 
-      {/* --- MODAL DE CRIAÇÃO --- */}
+      {/* MODAL CRIAR / EDITAR */}
       {showModal && (
         <ModalPortal>
-          <div onClick={closePanel} style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(15, 23, 42, 0.58)', backdropFilter:'blur(3px)', display:'flex', alignItems:'stretch', justifyContent:'flex-end', zIndex:99999}}>
-            <div style={{background:'#fff', width:'min(98vw, 600px)', height:'100vh', margin:'0', borderRadius:'18px 0 0 18px', boxShadow:'0 25px 50px -12px rgba(0, 0, 0, 0.35)', display:'flex', flexDirection:'column', animation: isClosingPanel ? 'sidePanelPullOut 0.3s forwards' : 'sidePanelPullIn 0.4s'}} onClick={e => e.stopPropagation()}>
-              
-              <div style={{padding:'20px 30px', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center', background:'#f8fafc'}}>
-                <h3 style={{margin:0, color:'#1e293b', fontSize:'1.4rem', fontWeight:'800'}}>Adicionar Registo</h3>
-                <button onClick={closePanel} style={{background:'#e2e8f0', border:'none', width:'36px', height:'36px', borderRadius:'50%', cursor:'pointer'}}><Icons.Close/></button>
+          <div onClick={closePanel} className="modal-overlay">
+            <div
+              className="modal-panel"
+              style={{ animation: isClosingPanel ? "sidePanelPullOut 0.3s forwards" : "sidePanelPullIn 0.4s" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="modal-header">
+                <h3>{editingId ? "Editar registo" : "Adicionar registo"}</h3>
+                <button onClick={closePanel} className="modal-close-btn"><Icons.Close /></button>
               </div>
 
-              <div style={{padding:'30px', overflowY:'auto', flex:1}} className="custom-scrollbar">
-                
-                {/* TOGGLE TIPO */}
-                <div style={{display: 'flex', background: '#f1f5f9', padding: '4px', borderRadius: '10px', marginBottom: '30px'}}>
-                  <button type="button" onClick={() => setModalType('equipamento')} style={{flex: 1, padding: '10px', border: 'none', background: modalType === 'equipamento' ? 'white' : 'transparent', color: modalType === 'equipamento' ? '#3b82f6' : '#64748b', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'}}>
-                    <Icons.Laptop /> Equipamento
-                  </button>
-                  <button type="button" onClick={() => setModalType('acesso')} style={{flex: 1, padding: '10px', border: 'none', background: modalType === 'acesso' ? 'white' : 'transparent', color: modalType === 'acesso' ? '#3b82f6' : '#64748b', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'}}>
-                    <Icons.Lock /> Acessos
-                  </button>
-                </div>
+              <div className="modal-body custom-scrollbar">
+                {!editingId && (
+                  <div className="type-toggle">
+                    <button type="button" onClick={() => setModalType("equipamento")} className={`type-toggle-btn ${modalType === "equipamento" ? "type-toggle-btn-active" : ""}`}>
+                      <Icons.Laptop size={15} /> Equipamento
+                    </button>
+                    <button type="button" onClick={() => setModalType("acesso")} className={`type-toggle-btn ${modalType === "acesso" ? "type-toggle-btn-active" : ""}`}>
+                      <Icons.Lock size={15} /> Acesso
+                    </button>
+                  </div>
+                )}
 
                 <form onSubmit={handleSubmitAtivo}>
-                  
-                  {/* FORM EQUIPAMENTO */}
-                  {modalType === 'equipamento' && (
-                    <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
-                      <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px'}}>
-                        <div><label style={labelStyle}>Nº Inventário</label><input type="text" required value={formEquip.num_inventario} onChange={e => setFormEquip({...formEquip, num_inventario: e.target.value})} style={inputStyle} className="input-focus" /></div>
-                        <div><label style={labelStyle}>Tipo</label>
-                          <select value={formEquip.tipo} onChange={e => setFormEquip({...formEquip, tipo: e.target.value})} style={inputStyle} className="input-focus">
-                            <option value="Computador">Computador</option><option value="Monitor">Monitor</option><option value="Outro">Outro</option>
+                  {modalType === "equipamento" && (
+                    <div className="form-stack">
+                      <div className="form-grid-2">
+                        <div>
+                          <label className="label">Nº Inventário</label>
+                          <input type="text" required value={formEquip.num_inventario} onChange={(e) => setFormEquip({ ...formEquip, num_inventario: e.target.value })} className="input" />
+                        </div>
+                        <div>
+                          <label className="label">Tipo</label>
+                          <select value={formEquip.tipo} onChange={(e) => setFormEquip({ ...formEquip, tipo: e.target.value })} className="input">
+                            {CATEGORIAS_EQUIP.map((cat) => (
+                              <optgroup key={cat.id} label={cat.label}>
+                                {cat.tipos.map((t) => <option key={t} value={t}>{t}</option>)}
+                              </optgroup>
+                            ))}
                           </select>
                         </div>
                       </div>
-                      <div><label style={labelStyle}>Modelo</label><input type="text" required value={formEquip.modelo} onChange={e => setFormEquip({...formEquip, modelo: e.target.value})} style={inputStyle} className="input-focus" /></div>
-                      <div><label style={labelStyle}>Nome do PC (Opcional)</label><input type="text" value={formEquip.nome_pc} onChange={e => setFormEquip({...formEquip, nome_pc: e.target.value})} style={inputStyle} className="input-focus" /></div>
-                      <div><label style={labelStyle}>Estado</label>
-                        <select value={formEquip.estado} onChange={e => setFormEquip({...formEquip, estado: e.target.value})} style={inputStyle} className="input-focus">
-                          <option value="em_stock">Em stock</option><option value="em_uso">Em uso</option><option value="em_reparacao">Em reparação</option>
+                      <div>
+                        <label className="label">Modelo</label>
+                        <input type="text" required value={formEquip.modelo} onChange={(e) => setFormEquip({ ...formEquip, modelo: e.target.value })} className="input" />
+                      </div>
+                      <div>
+                        <label className="label">Nome do PC <span className="label-optional">(opcional)</span></label>
+                        <input type="text" value={formEquip.nome_pc} onChange={(e) => setFormEquip({ ...formEquip, nome_pc: e.target.value })} className="input" />
+                      </div>
+                      <div>
+                        <label className="label">Colaborador</label>
+                        <select value={formEquip.colaborador} onChange={(e) => setFormEquip({ ...formEquip, colaborador: e.target.value })} className="input">
+                          <option value="">— Nenhum —</option>
+                          {utilizadores.map((u) => <option key={u.id} value={u.id}>{u.nome}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="label">Estado</label>
+                        <select value={formEquip.estado} onChange={(e) => setFormEquip({ ...formEquip, estado: e.target.value })} className="input">
+                          {ESTADOS_EQUIP.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
                         </select>
                       </div>
                     </div>
                   )}
 
-                  {/* FORM ACESSO SIMPLIFICADO */}
-                  {modalType === 'acesso' && (
-                    <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
-                      <div><label style={labelStyle}>Nome da Plataforma / Sistema *</label>
-                        <input type="text" required value={formAcesso.nome_plataforma} onChange={e => setFormAcesso({...formAcesso, nome_plataforma: e.target.value})} placeholder="Ex: WordPress Empresa" style={inputStyle} className="input-focus" />
+                  {modalType === "acesso" && (
+                    <div className="form-stack">
+                      <div>
+                        <label className="label">Nome da plataforma / sistema</label>
+                        <input type="text" required value={formAcesso.nome_plataforma} onChange={(e) => setFormAcesso({ ...formAcesso, nome_plataforma: e.target.value })} placeholder="Ex: WordPress Empresa" className="input" />
                       </div>
-                      
-                      <div><label style={labelStyle}>URL de Acesso *</label>
-                        <input type="url" required value={formAcesso.url} onChange={e => setFormAcesso({...formAcesso, url: e.target.value})} placeholder="Ex: https://site.pt/admin" style={inputStyle} className="input-focus" />
+                      <div>
+                        <label className="label">URL de acesso</label>
+                        <input type="url" required value={formAcesso.url} onChange={(e) => setFormAcesso({ ...formAcesso, url: e.target.value })} placeholder="Ex: https://site.pt/admin" className="input" />
                       </div>
-                      <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px'}}>
-                        <div><label style={labelStyle}>Utilizador / Email *</label>
-                          <input type="text" required value={formAcesso.username} onChange={e => setFormAcesso({...formAcesso, username: e.target.value})} placeholder="admin@..." style={inputStyle} className="input-focus" />
+                      <div className="form-grid-2">
+                        <div>
+                          <label className="label">Utilizador / Email</label>
+                          <input type="text" required value={formAcesso.username} onChange={(e) => setFormAcesso({ ...formAcesso, username: e.target.value })} placeholder="admin@…" className="input" />
                         </div>
-                        <div><label style={labelStyle}>Password *</label>
-                          <input type="password" required value={formAcesso.password} onChange={e => setFormAcesso({...formAcesso, password: e.target.value})} placeholder="••••••••" style={inputStyle} className="input-focus" />
+                        <div>
+                          <label className="label">Palavra-passe</label>
+                          <input type="text" required value={formAcesso.password} onChange={(e) => setFormAcesso({ ...formAcesso, password: e.target.value })} placeholder="Introduza a palavra-passe" className="input" />
                         </div>
                       </div>
-                      <div><label style={labelStyle}>Estado</label>
-                        <select value={formAcesso.estado} onChange={e => setFormAcesso({...formAcesso, estado: e.target.value})} style={inputStyle} className="input-focus">
-                          <option value="ativo">Ativo</option>
-                          <option value="expirado">Expirado / Bloqueado</option>
+                      <div>
+                        <label className="label">Estado</label>
+                        <select value={formAcesso.estado} onChange={(e) => setFormAcesso({ ...formAcesso, estado: e.target.value })} className="input">
+                          {ESTADOS_ACESSO.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
                         </select>
                       </div>
                     </div>
                   )}
 
-                  <div style={{marginTop: '30px', paddingTop: '20px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '15px'}}>
-                    <button type="button" onClick={closePanel} style={{padding: '12px 24px', background: 'white', border: '1px solid #cbd5e1', borderRadius: '10px', cursor: 'pointer'}}>Cancelar</button>
-                    <button type="submit" className="btn-primary" style={{padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold'}}><Icons.Save /> Guardar</button>
+                  <div className="modal-footer">
+                    <button type="button" onClick={closePanel} className="btn-secondary">Cancelar</button>
+                    <button type="submit" className="btn-primary btn-with-icon" disabled={isSaving}>
+                      <Icons.Save /> {isSaving ? "A gravar…" : "Guardar"}
+                    </button>
                   </div>
                 </form>
-
               </div>
             </div>
           </div>
         </ModalPortal>
       )}
 
-      {/* --- ESTILOS NATIVOS --- */}
+      {/* MODAL CONFIRMAÇÃO */}
+      {confirmModal && (
+        <ModalPortal>
+          <div className="confirm-overlay" onClick={() => !isConfirming && setConfirmModal(null)}>
+            <div className="confirm-card" onClick={(e) => e.stopPropagation()}>
+              <div className={`confirm-icon ${confirmModal.perigoso ? "confirm-icon-danger" : "confirm-icon-brand"}`}>
+                <Icons.AlertTriangle size={20} />
+              </div>
+              <h3 className="confirm-title">
+                {confirmModal.acao === "inativar" ? "Inativar registo?" : "Reativar registo?"}
+              </h3>
+              <p className="confirm-desc">
+                {confirmModal.acao === "inativar"
+                  ? <>Tem a certeza que pretende inativar <strong>{confirmModal.nome}</strong>? Pode reverter esta ação mais tarde.</>
+                  : <>Tem a certeza que pretende reativar <strong>{confirmModal.nome}</strong>?</>}
+              </p>
+              <div className="confirm-footer">
+                <button className="btn-secondary" onClick={() => setConfirmModal(null)} disabled={isConfirming}>Cancelar</button>
+                <button
+                  className={confirmModal.perigoso ? "btn-danger" : "btn-primary"}
+                  onClick={confirmarToggleEstado}
+                  disabled={isConfirming}
+                >
+                  {isConfirming ? "A processar…" : confirmModal.acao === "inativar" ? "Inativar" : "Reativar"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
+
       <style>{`
-        .btn-primary {
-          background: linear-gradient(135deg, var(--color-btnPrimary, #3b82f6), var(--color-btnPrimaryDark, #1d4ed8));
-          color: white; border: none; border-radius: 10px; cursor: pointer; transition: 0.2s;
-        }
-        .hover-shadow:hover { box-shadow: 0 4px 10px rgba(0,0,0,0.08); transform: translateY(-2px); }
-        .input-focus:focus { border-color: #3b82f6 !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
-        .action-btn { background: transparent; border: none; cursor: pointer; opacity: 0.5; transition: 0.2s; display: flex; align-items: center; justify-content: center; padding: 6px; border-radius: 6px; }
-        .action-btn:hover { opacity: 1; transform: scale(1.1); background: #f1f5f9; }
-        .hover-blue-text:hover { color: #3b82f6 !important; }
-        .hover-row:hover { background: #f8fafc !important; }
-        .pulse-dot-white { width: 12px; height: 12px; border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; }
-        .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
-        @keyframes pulse { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); } }
+        .page-container { max-width: 1500px; margin: 0 auto; }
+
+        /* ---------- HEADER (inalterado) ---------- */
+        .page-container .page-header { background: white; padding: 20px 25px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; gap: 15px; flex-wrap: wrap; }
+        .page-container .page-header-left { display: flex; align-items: center; gap: 15px; }
+        .page-container .page-header-icon { background: var(--color-bgSecondary); color: var(--color-btnPrimary); padding: 12px; border-radius: 12px; display: flex; }
+        .page-container .page-title { margin: 0; color: #0f172a; font-size: 1.8rem; font-weight: 900; letter-spacing: -0.02em; }
+        .page-container .page-subtitle { color: #64748b; margin: 0; font-weight: 500; font-size: 0.9rem; }
+
+        .page-container .btn-primary { background: linear-gradient(135deg, var(--color-btnPrimary, #3b82f6), var(--color-btnPrimaryDark, #1d4ed8)); color: white; border: none; border-radius: 10px; cursor: pointer; transition: 0.2s; padding: 12px 20px; font-weight: bold; font-size: 0.9rem; }
+        .page-container .btn-primary:hover { box-shadow: 0 4px 10px rgba(0,0,0,0.08); transform: translateY(-2px); }
+        .page-container .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .page-container .btn-with-icon { display: flex; align-items: center; gap: 8px; }
+        .page-container .btn-secondary { padding: 12px 24px; background: white; border: 1px solid #cbd5e1; border-radius: 10px; cursor: pointer; font-weight: 600; color: #475569; font-size: 0.9rem; }
+        .page-container .btn-secondary:hover { background: #f8fafc; }
+        .page-container .btn-secondary:disabled { opacity: 0.6; cursor: not-allowed; }
+        .page-container .btn-danger { padding: 12px 24px; background: #ef4444; border: none; border-radius: 10px; cursor: pointer; font-weight: 700; color: white; font-size: 0.9rem; }
+        .page-container .btn-danger:hover { background: #dc2626; }
+        .page-container .btn-danger:disabled { opacity: 0.6; cursor: not-allowed; }
+        .page-container .link-btn { background: none; border: none; color: var(--color-btnPrimary); font-weight: 700; font-size: 0.85rem; cursor: pointer; padding: 4px; }
+        .page-container .link-btn:hover { text-decoration: underline; }
+
+        /* ---------- NAVEGAÇÃO ---------- */
+        .page-container .nav-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
+        .page-container .tabs-segmented { display: inline-flex; gap: 2px; background: #eef1f5; padding: 4px; border-radius: 12px; }
+        .page-container .tab-btn { padding: 9px 16px; background: transparent; color: #64748b; border: none; border-radius: 9px; font-weight: 700; font-size: 0.85rem; cursor: pointer; transition: 0.15s; display: flex; align-items: center; gap: 7px; }
+        .page-container .tab-btn:hover { color: #334155; }
+        .page-container .tab-btn-active { background: white; color: var(--color-btnPrimaryDark, var(--color-btnPrimary)); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+
+        .page-container .toolbar-inline { display: flex; gap: 10px; align-items: center; flex: 1; min-width: 260px; justify-content: flex-end; }
+        .page-container .search-box { position: relative; flex: 1 1 auto; min-width: 200px; }
+        .page-container .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; display: flex; }
+        .page-container .search-input { width: 100%; padding: 9px 32px 9px 36px; border-radius: 10px; border: 1px solid #dfe4ea; outline: none; box-sizing: border-box; font-size: 0.85rem; background: white; transition: 0.15s; }
+        .page-container .search-input:focus { border-color: var(--color-btnPrimary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-btnPrimary) 15%, transparent); }
+        .page-container .search-clear { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: #eef1f5; border: none; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #64748b; }
+        .page-container .search-clear:hover { background: #e2e8f0; }
+        .page-container .filter-select { appearance: none; -webkit-appearance: none; -moz-appearance: none; flex: 0 0 auto; width: 190px; border: 1px solid #dfe4ea; background-color: white; background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; background-size: 14px; border-radius: 10px; padding: 9px 32px 9px 14px; outline: none; font-size: 0.85rem; color: #334155; font-weight: 600; cursor: pointer; line-height: normal; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
+        .page-container .filter-select:focus { border-color: var(--color-btnPrimary); }
+        .page-container .filter-static { font-size: 0.83rem; color: #94a3b8; font-weight: 600; padding: 9px 4px; white-space: nowrap; }
+
+        /* ---------- ASSET TAG (elemento assinatura) ---------- */
+        .page-container .asset-tag { position: relative; display: inline-flex; align-items: center; font-family: 'SF Mono', Menlo, monospace; font-weight: 800; font-size: 0.72rem; letter-spacing: 0.03em; color: var(--color-btnPrimaryDark, var(--color-btnPrimary)); background: var(--color-bgSecondary); padding: 5px 10px 5px 21px; border-radius: 5px; }
+        .page-container .asset-tag::before { content: ''; position: absolute; left: 8px; top: 50%; transform: translateY(-50%); width: 5px; height: 5px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 1.4px currentColor; }
+        .page-container .asset-tag-sm { font-size: 0.68rem; padding: 3px 8px 3px 17px; }
+        .page-container .asset-tag-sm::before { left: 6px; width: 4px; height: 4px; }
+
+        /* ---------- CARDS DE EQUIPAMENTO ---------- */
+        .page-container .equip-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; }
+        .page-container .equip-card { background: white; border: 1px solid #e9edf2; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 12px; transition: 0.15s; }
+        .page-container .equip-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.06); transform: translateY(-1px); }
+        .page-container .equip-card-inativo { opacity: 0.6; }
+        .page-container .equip-card-head { display: flex; justify-content: space-between; align-items: center; }
+        .page-container .equip-card-icon { width: 34px; height: 34px; border-radius: 9px; background: var(--color-bgSecondary); color: var(--color-btnPrimary); display: flex; align-items: center; justify-content: center; }
+        .page-container .equip-card-tag-row { display: flex; align-items: center; gap: 8px; }
+        .page-container .equip-card-tipo { font-size: 0.75rem; color: #94a3b8; font-weight: 600; }
+        .page-container .equip-card-modelo { margin: 0; font-size: 1rem; font-weight: 800; color: #0f172a; line-height: 1.25; }
+        .page-container .equip-card-pc { margin: -6px 0 0 0; font-size: 0.8rem; color: #94a3b8; }
+        .page-container .equip-card-footer { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 12px; margin-top: 2px; }
+        .page-container .equip-card-colaborador { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #475569; font-weight: 600; min-width: 0; }
+        .page-container .equip-card-colaborador span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        .page-container .avatar { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.62rem; font-weight: 800; color: white; flex-shrink: 0; }
+        .page-container .avatar-empty { background: #eef1f5 !important; color: #94a3b8; }
+        .page-container .avatar-img { object-fit: cover; flex-shrink: 0; }
+
+        /* ---------- PAINEL ---------- */
+        .page-container .painel-layout { display: flex; flex-direction: column; gap: 22px; }
+        .page-container .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+        .page-container .stat-card { background: white; border-radius: 14px; padding: 16px 18px; border: 1px solid #e9edf2; border-left: 4px solid var(--stat-accent, #cbd5e1); cursor: pointer; display: flex; flex-direction: column; gap: 10px; transition: all 0.15s; text-align: left; }
+        .page-container .stat-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.07); transform: translateY(-1px); }
+        .page-container .stat-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+        .page-container .stat-card-label { font-size: 0.82rem; color: #475569; font-weight: 700; }
+        .page-container .stat-card-icon { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: color-mix(in srgb, var(--stat-accent, #94a3b8) 16%, white); color: var(--stat-accent, #64748b); }
+        .page-container .stat-card-valor { font-size: 1.6rem; font-weight: 900; color: #0f172a; line-height: 1.1; }
+
+        .page-container .panel-card { background: white; border-radius: 14px; border: 1px solid #e9edf2; padding: 20px 22px; }
+        .page-container .panel-card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+        .page-container .panel-card-head h2 { margin: 0; font-size: 1rem; color: #1e293b; font-weight: 800; }
+        .page-container .panel-card-hint { font-size: 0.75rem; color: #94a3b8; font-weight: 600; }
+        .page-container .panel-card-empty { color: #94a3b8; font-size: 0.88rem; margin: 0; }
+        .page-container .recentes-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+        .page-container .recentes-item { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f1f5f9; }
+        .page-container .recentes-item:last-child { border-bottom: none; }
+        .page-container .recentes-item-main { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; flex-wrap: wrap; row-gap: 2px; }
+
+        /* ---------- GRÁFICOS ---------- */
+        .page-container .charts-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+        .page-container .chart-card { display: flex; flex-direction: column; }
+        .page-container .donut-layout { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
+        .page-container .donut-svg { flex-shrink: 0; }
+        .page-container .donut-total { font-size: 1.5rem; font-weight: 900; fill: #0f172a; }
+        .page-container .donut-total-label { font-size: 0.62rem; fill: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+        .page-container .chart-legend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; flex: 1; min-width: 140px; }
+        .page-container .chart-legend li { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: #475569; font-weight: 600; }
+        .page-container .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .page-container .legend-label { flex: 1; }
+        .page-container .legend-value { font-weight: 800; color: #0f172a; }
+
+        .page-container .atribuidos-chart-wrap { display: flex; flex-direction: column; }
+        .page-container .atribuidos-chart { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 22px 20px; padding: 30px 4px 0; }
+        .page-container .atribuidos-col { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; width: 52px; cursor: default; }
+        .page-container .atribuidos-valor { font-size: 0.78rem; font-weight: 800; color: #0f172a; }
+        .page-container .atribuidos-bar-track { height: 130px; width: 26px; display: flex; align-items: flex-end; background: #f1f5f9; border-radius: 7px; overflow: hidden; }
+        .page-container .atribuidos-bar { width: 100%; min-height: 4px; border-radius: 7px 7px 0 0; background: linear-gradient(180deg, var(--color-btnPrimary, #3b82f6), var(--color-btnPrimaryDark, #1d4ed8)); transition: height 0.3s ease; }
+        .page-container .atribuidos-col:hover .atribuidos-bar-track, .page-container .atribuidos-col:focus-visible .atribuidos-bar-track { background: #e9edf2; }
+        .page-container .atribuidos-nome { font-size: 0.72rem; font-weight: 700; color: #475569; max-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .page-container .atribuidos-tooltip { display: none; position: absolute; z-index: 30; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%); min-width: 220px; max-width: 300px; background: #0f172a; color: white; border-radius: 12px; padding: 12px 14px; box-shadow: 0 14px 30px rgba(0,0,0,0.28); }
+        .page-container .atribuidos-tooltip::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 6px solid transparent; border-top-color: #0f172a; }
+        .page-container .atribuidos-col:hover .atribuidos-tooltip, .page-container .atribuidos-col:focus-visible .atribuidos-tooltip { display: block; }
+        .page-container .atribuidos-tooltip strong { display: block; font-size: 0.78rem; font-weight: 700; margin-bottom: 8px; color: #e2e8f0; white-space: normal; }
+        .page-container .atribuidos-tooltip ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; max-height: 200px; overflow-y: auto; }
+        .page-container .atribuidos-tooltip li { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #e2e8f0; }
+        .page-container .atribuidos-tooltip .asset-tag { background: rgba(255,255,255,0.14); color: #fff; }
+        .page-container .atribuidos-tooltip .asset-tag::before { background: #0f172a; }
+        .page-container .atribuidos-tipo { color: #94a3b8; font-size: 0.76rem; margin-left: auto; }
+        .page-container .atribuidos-vermais { margin-top: 10px; align-self: center; }
+
+        /* ---------- SECÇÕES (divisórias por categoria / estado) ---------- */
+        .page-container .equip-sections { display: flex; flex-direction: column; gap: 26px; }
+        .page-container .equip-section-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+        .page-container .equip-section-head h3 { margin: 0; font-size: 0.78rem; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; }
+        .page-container .equip-section-head::after { content: ''; flex: 1; height: 1px; background: #e9edf2; }
+        .page-container .equip-section-count { background: #f1f5f9; color: #64748b; font-size: 0.7rem; font-weight: 800; padding: 2px 8px; border-radius: 10px; }
+
+        /* ---------- BADGES / STATUS ---------- */
+        .page-container .status-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 0.72rem; padding: 5px 11px; border-radius: 20px; font-weight: 700; }
+        .page-container .status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+        .page-container .badge-green { background: #ecfdf3; color: #15803d; }
+        .page-container .badge-grey { background: #f1f5f9; color: #475569; }
+        .page-container .badge-amber { background: #fffbeb; color: #b45309; }
+        .page-container .badge-purple { background: #f3e8ff; color: #7e22ce; }
+        .page-container .badge-red { background: #fef2f2; color: #dc2626; }
+
+        .page-container .row-actions { display: flex; gap: 4px; }
+        .page-container .action-btn { background: transparent; border: none; cursor: pointer; opacity: 0.6; transition: 0.15s; display: flex; align-items: center; justify-content: center; padding: 6px; border-radius: 7px; color: #334155; }
+        .page-container .action-btn:hover { opacity: 1; background: #f1f5f9; }
+        .page-container .action-btn-danger:hover { background: #fef2f2; color: #ef4444; }
+        .page-container .action-btn-success:hover { background: #ecfdf3; color: #16a34a; }
+
+        .page-container .cell-muted { color: #94a3b8; }
+        .page-container .cell-strong { font-weight: 700; color: #1e293b; }
+
+        /* ---------- ACESSOS ---------- */
+        .page-container .acessos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+        .page-container .acesso-card { background: white; border: 1px solid #e9edf2; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 14px; transition: 0.15s; }
+        .page-container .acesso-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.06); }
+        .page-container .acesso-card-inativo { opacity: 0.65; }
+        .page-container .acesso-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+        .page-container .acesso-card-heading { min-width: 0; }
+        .page-container .acesso-card-title { margin: 0 0 3px 0; color: #0f172a; font-size: 1rem; font-weight: 800; }
+        .page-container .acesso-card-link { color: var(--color-btnPrimary); font-size: 0.78rem; text-decoration: none; word-break: break-all; }
+        .page-container .acesso-card-link:hover { text-decoration: underline; }
+        .page-container .acesso-card-body { background: #fafbfc; border-radius: 10px; padding: 12px 14px; border: 1px solid #f1f5f9; display: flex; flex-direction: column; gap: 10px; }
+        .page-container .acesso-card-field { display: flex; align-items: center; gap: 8px; font-size: 0.83rem; }
+        .page-container .acesso-card-field-label { color: #94a3b8; font-weight: 600; width: 92px; flex-shrink: 0; }
+        .page-container .acesso-card-field-value { color: #334155; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .page-container .acesso-card-pass { font-family: 'SF Mono', Menlo, monospace; flex: 1; }
+        .page-container .acesso-card-field-actions { display: flex; gap: 2px; margin-left: auto; }
+        .page-container .acesso-card-footer { display: flex; justify-content: flex-end; border-top: 1px solid #f1f5f9; padding-top: 10px; }
+
+        .page-container .empty-state { grid-column: 1 / -1; text-align: center; padding: 56px 30px; background: white; border-radius: 16px; border: 1px dashed #d8dee6; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+        .page-container .empty-state h3 { color: #1e293b; margin: 10px 0 2px 0; font-size: 1rem; }
+        .page-container .empty-state p { color: #94a3b8; margin: 0 0 12px 0; font-size: 0.87rem; max-width: 320px; }
+
+        /* ---------- LOADING ---------- */
+        .page-container .loading-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 40vh; gap: 12px; color: #94a3b8; font-size: 0.85rem; font-weight: 600; }
+        .page-container .pulse-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--color-btnPrimary, #3b82f6); animation: pulse 1.5s infinite; }
+
+        /* ---------- TOAST ---------- */
+        .page-container .ativosti-toast { position: fixed; top: 20px; right: 20px; z-index: 100000; width: max-content; max-width: min(90vw, 380px); height: auto; box-sizing: border-box; background: #0f172a; color: white; padding: 12px 18px; border-radius: 10px; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); animation: toastIn 0.25s ease-out; }
+        .page-container .ativosti-toast.error { background: #dc2626; }
+        .page-container .toast-icon { display: flex; }
+
+        /* ---------- MODAL (drawer) ---------- */
+        .page-container .modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.5); backdrop-filter: blur(2px); display: flex; align-items: stretch; justify-content: flex-end; z-index: 99999; }
+        .page-container .modal-panel { background: #fff; width: min(98vw, 560px); height: 100vh; border-radius: 18px 0 0 18px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35); display: flex; flex-direction: column; }
+        .page-container .modal-header { padding: 20px 28px; border-bottom: 1px solid #eef1f5; display: flex; justify-content: space-between; align-items: center; }
+        .page-container .modal-header h3 { margin: 0; color: #0f172a; font-size: 1.2rem; font-weight: 800; }
+        .page-container .modal-close-btn { background: #f1f5f9; border: none; width: 34px; height: 34px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #475569; }
+        .page-container .modal-close-btn:hover { background: #e2e8f0; }
+        .page-container .modal-body { padding: 26px 28px 30px; overflow-y: auto; flex: 1; }
+        .page-container .modal-footer { margin-top: 28px; padding-top: 18px; border-top: 1px solid #eef1f5; display: flex; justify-content: flex-end; gap: 12px; }
+
+        .page-container .type-toggle { display: flex; background: #f1f5f9; padding: 4px; border-radius: 11px; margin-bottom: 26px; }
+        .page-container .type-toggle-btn { flex: 1; padding: 10px; border: none; background: transparent; color: #64748b; border-radius: 8px; font-weight: 700; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; }
+        .page-container .type-toggle-btn-active { background: white; color: var(--color-btnPrimaryDark, var(--color-btnPrimary)); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+
+        .page-container .form-stack { display: flex; flex-direction: column; gap: 18px; }
+        .page-container .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+        .page-container .label { display: block; margin-bottom: 6px; font-size: 0.82rem; font-weight: 700; color: #334155; }
+        .page-container .label-optional { font-weight: 500; color: #94a3b8; }
+        .page-container .input { width: 100%; padding: 10px 12px; border-radius: 9px; border: 1px solid #dfe4ea; background: #fff; font-size: 0.9rem; outline: none; box-sizing: border-box; color: #1e293b; transition: 0.15s; }
+        .page-container .input:focus { border-color: var(--color-btnPrimary) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-btnPrimary) 15%, transparent); }
+
+        .page-container .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+        .page-container .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .page-container .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
+
+        /* ---------- MODAL CONFIRMAÇÃO ---------- */
+        .page-container .confirm-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.55); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; z-index: 100001; padding: 20px; }
+        .page-container .confirm-card { background: white; border-radius: 16px; padding: 26px; width: min(92vw, 380px); box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35); animation: confirmIn 0.2s ease-out; }
+        .page-container .confirm-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 14px; }
+        .page-container .confirm-icon-danger { background: #fef2f2; color: #dc2626; }
+        .page-container .confirm-icon-brand { background: var(--color-bgSecondary); color: var(--color-btnPrimary); }
+        .page-container .confirm-title { margin: 0 0 8px 0; font-size: 1.05rem; font-weight: 800; color: #0f172a; }
+        .page-container .confirm-desc { margin: 0 0 22px 0; font-size: 0.87rem; color: #64748b; line-height: 1.5; }
+        .page-container .confirm-footer { display: flex; justify-content: flex-end; gap: 10px; }
+
+        @keyframes pulse { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-btnPrimary) 60%, transparent); } 70% { transform: scale(1); box-shadow: 0 0 0 10px transparent; } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 transparent; } }
+        @keyframes toastIn { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes confirmIn { from { transform: scale(0.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
         @keyframes sidePanelPullIn { 0% { transform: translateX(100%); opacity: 0.72; } 72% { transform: translateX(-10px); opacity: 1; } 100% { transform: translateX(0); opacity: 1; } }
         @keyframes sidePanelPullOut { 0% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(100%); opacity: 0.78; } }
+
+        @media (max-width: 640px) {
+          .page-container .nav-row { flex-direction: column; align-items: stretch; }
+          .page-container .toolbar-inline { justify-content: stretch; flex-wrap: wrap; }
+          .page-container .search-box { min-width: 0; }
+          .page-container .filter-select { width: 100%; }
+          .page-container .form-grid-2 { grid-template-columns: 1fr; }
+        }
       `}</style>
     </div>
   );
