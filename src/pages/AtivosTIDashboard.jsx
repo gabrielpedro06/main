@@ -80,7 +80,7 @@ const ESTADOS_ACESSO = [
 const CATEGORIAS_EQUIP = [
   { id: "computadores", label: "Computadores", icon: "Laptop", tipos: ["Computador", "Portátil", "Monitor", "Tablet"] },
   { id: "rede", label: "Rede", icon: "Router", tipos: ["Router", "Switch", "Access Point", "Cabo Ethernet"] },
-  { id: "perifericos", label: "Periféricos e cabos", icon: "Cable", tipos: ["Teclado", "Rato", "Webcam", "Impressora", "Cabo HDMI", "Cabo de alimentação", "Carregador"] },
+  { id: "perifericos", label: "Periféricos e cabos", icon: "Cable", tipos: ["Teclado", "Rato", "Webcam", "Fones","Impressora", "Cabo HDMI", "Cabo de alimentação", "Carregador"] },
   { id: "outro", label: "Outro", icon: "Box", tipos: ["Outro"] },
 ];
 
