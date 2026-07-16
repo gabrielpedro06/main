@@ -215,7 +215,7 @@ function DonutChart({ data, size = 132, thickness = 16 }) {
 
 function AtribuidosOverview({ data }) {
   const [expandido, setExpandido] = useState(false);
-  const visiveis = expandido ? data : data.slice(0, 10);
+  const visiveis = expandido ? data : data.slice(0, 9);
   const max = Math.max(...data.map((d) => d.itens.length), 1);
 
   return (
@@ -915,7 +915,7 @@ export default function AtivosTIDashboard() {
                         <input type="text" required value={formEquip.modelo} onChange={(e) => setFormEquip({ ...formEquip, modelo: e.target.value })} className="input" />
                       </div>
                       <div>
-                        <label className="label">Nome do PC <span className="label-optional">(opcional)</span></label>
+                        <label className="label">Nome<span className="label-optional">(opcional)</span></label>
                         <input type="text" value={formEquip.nome_pc} onChange={(e) => setFormEquip({ ...formEquip, nome_pc: e.target.value })} className="input" />
                       </div>
                       <div>
