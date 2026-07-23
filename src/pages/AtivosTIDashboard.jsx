@@ -77,6 +77,21 @@ const ESTADOS_ACESSO = [
   { value: "inativo", label: "Inativo" },
 ];
 
+const ESTADOS_SOFTWARE = [
+  { value: "ativo", label: "Ativo" },
+  { value: "licenca_expirada", label: "Licença expirada" },
+  { value: "arquivado", label: "Arquivado" },
+];
+
+const ENTIDADES_EMPRESA = ["Geoflicks", "Neomarca", "2 Siglas", "Factor Triplo"];
+
+const SOFTWARE_TIPOS = [
+  { id: "sistema_operativo", label: "Sistema operativo", nomes: ["Windows", "macOS", "Linux"] },
+  { id: "suite_produtividade", label: "Suite de produtividade", nomes: ["Microsoft 365", "Office", "Google Workspace"] },
+  { id: "seguranca", label: "Segurança", nomes: ["Antivírus", "EDR", "Firewall"] },
+  { id: "outro", label: "Outro", nomes: ["Outro"] },
+];
+
 const CATEGORIAS_EQUIP = [
   { id: "computadores", label: "Computadores", icon: "Laptop", tipos: ["Computador", "Portátil", "Monitor", "Tablet"] },
   { id: "rede", label: "Rede", icon: "Router", tipos: ["Router", "Switch", "Access Point", "Cabo Ethernet"] },
@@ -106,6 +121,23 @@ const ESTADO_MAP_ACESSO = {
   expirado: { txt: "Expirado", cls: "badge-red" },
   inativo: { txt: "Inativo", cls: "badge-grey" },
 };
+const ESTADO_MAP_SOFTWARE = {
+  ativo: { txt: "Ativo", cls: "badge-green" },
+  licenca_expirada: { txt: "Licença expirada", cls: "badge-amber" },
+  arquivado: { txt: "Arquivado", cls: "badge-grey" },
+};
+
+function getCategoriaSoftware(tipo) {
+  return SOFTWARE_TIPOS.find((c) => c.nomes.includes(tipo)) || SOFTWARE_TIPOS[SOFTWARE_TIPOS.length - 1];
+}
+
+function getIconeSoftware(tipo) {
+  const categoria = getCategoriaSoftware(tipo);
+  if (categoria.id === "sistema_operativo") return Icons.Monitor;
+  if (categoria.id === "suite_produtividade") return Icons.Box;
+  if (categoria.id === "seguranca") return Icons.Lock;
+  return Icons.Box;
+}
 
 /* ------------------------------------------------------------------ */
 /* Subcomponentes                                                     */
@@ -273,6 +305,18 @@ function EquipCard({ equipamento, colaboradorNome, colaboradorAvatarUrl, onEdit,
       <h3 className="equip-card-modelo">{equipamento.modelo}</h3>
       {equipamento.nome_pc && <p className="equip-card-pc">{equipamento.nome_pc}</p>}
 
+      <div className="equip-card-meta">
+        {equipamento.entidade && <span title="Entidade">{equipamento.entidade}</span>}
+        {equipamento.fornecedor && <span title="Fornecedor">{equipamento.fornecedor}</span>}
+        {equipamento.fatura && <span title="Fatura">Fatura {equipamento.fatura}</span>}
+        {equipamento.data_aquisicao && <span title="Data de aquisição">Aquisição {new Date(equipamento.data_aquisicao).toLocaleDateString("pt-PT")}</span>}
+        {(equipamento.prazo_garantia || equipamento.data_garantia) && (
+          <span title="Prazo de garantia">
+            Garantia {new Date(equipamento.prazo_garantia || equipamento.data_garantia).toLocaleDateString("pt-PT")}
+          </span>
+        )}
+      </div>
+
       <div className="equip-card-footer">
         <div className="equip-card-colaborador">
           <Avatar nome={colaboradorNome} url={colaboradorAvatarUrl} />
@@ -284,6 +328,49 @@ function EquipCard({ equipamento, colaboradorNome, colaboradorAvatarUrl, onEdit,
           isAtivo={ativo}
           labelAtivar="Reativar equipamento"
           labelInativar="Abater equipamento"
+        />
+      </div>
+    </div>
+  );
+}
+
+function SoftwareCard({ software, onEdit, onToggle }) {
+  const ativo = (software.estado || "ativo") === "ativo";
+  const TipoIcon = getIconeSoftware(software.tipo);
+
+  return (
+    <div className={`equip-card ${!ativo ? "equip-card-inativo" : ""}`}>
+      <div className="equip-card-head">
+        <div className="equip-card-icon"><TipoIcon size={17} /></div>
+        <StatusDot estado={software.estado || "ativo"} map={ESTADO_MAP_SOFTWARE} />
+      </div>
+
+      <div className="equip-card-tag-row">
+        <span className="asset-tag">{software.codigo || software.nome}</span>
+        <span className="equip-card-tipo">{software.tipo}</span>
+      </div>
+
+      <h3 className="equip-card-modelo">{software.nome}</h3>
+      {software.versao && <p className="equip-card-pc">Versão {software.versao}</p>}
+
+      <div className="equip-card-meta">
+        {software.entidade && <span title="Entidade">{software.entidade}</span>}
+        {software.fornecedor && <span title="Fornecedor">{software.fornecedor}</span>}
+        {software.fatura && <span title="Fatura">Fatura {software.fatura}</span>}
+        {software.data_aquisicao && <span title="Data de aquisição">Aquisição {new Date(software.data_aquisicao).toLocaleDateString("pt-PT")}</span>}
+        {software.data_expiracao && <span title="Licença / validade">Vence {new Date(software.data_expiracao).toLocaleDateString("pt-PT")}</span>}
+      </div>
+
+      <div className="equip-card-footer">
+        <div className="equip-card-colaborador">
+          <span>{software.fornecedor || "Sem fornecedor"}</span>
+        </div>
+        <RowActions
+          onEdit={onEdit}
+          onToggle={onToggle}
+          isAtivo={ativo}
+          labelAtivar="Reativar software"
+          labelInativar="Arquivar software"
         />
       </div>
     </div>
@@ -348,8 +435,10 @@ export default function AtivosTIDashboard() {
   const [query, setQuery] = useState("");
   const [filtroEstadoEquip, setFiltroEstadoEquip] = useState("todos");
   const [filtroEstadoAcesso, setFiltroEstadoAcesso] = useState("todos");
+  const [filtroEstadoSoftware, setFiltroEstadoSoftware] = useState("todos");
 
   const [equipamentos, setEquipamentos] = useState([]);
+  const [software, setSoftware] = useState([]);
   const [acessos, setAcessos] = useState([]);
   const [utilizadores, setUtilizadores] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -378,23 +467,55 @@ export default function AtivosTIDashboard() {
   const [modalType, setModalType] = useState("equipamento");
   const [editingId, setEditingId] = useState(null);
 
-  const initEquip = { num_inventario: "", tipo: "Computador", modelo: "", colaborador: "", estado: "em_stock", nome_pc: "" };
+  const initEquip = {
+    num_inventario: "",
+    tipo: "Computador",
+    modelo: "",
+    colaborador: "",
+    estado: "em_stock",
+    nome_pc: "",
+    entidade: "",
+    fornecedor: "",
+    fatura: "",
+    data_aquisicao: "",
+    prazo_garantia: "",
+  };
+  const initSoftware = {
+    codigo: "",
+    nome: "",
+    tipo: "Windows",
+    versao: "",
+    entidade: "",
+    fornecedor: "",
+    fatura: "",
+    data_aquisicao: "",
+    data_expiracao: "",
+    estado: "ativo",
+    licenca_chave: "",
+  };
   const initAcesso = { nome_plataforma: "", url: "", username: "", password: "", estado: "ativo" };
 
   const [formEquip, setFormEquip] = useState(initEquip);
+  const [formSoftware, setFormSoftware] = useState(initSoftware);
   const [formAcesso, setFormAcesso] = useState(initAcesso);
 
   const carregarDados = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [equipResult, acessosResult, perfisResult] = await Promise.all([
+      const [equipResult, softwareResult, acessosResult, perfisResult] = await Promise.all([
         supabase.from("equipamentos").select("*").order("created_at", { ascending: false }),
+        supabase.from("software").select("*").order("created_at", { ascending: false }),
         supabase.from("acessos").select("*").order("nome_plataforma", { ascending: true }),
         supabase.from("profiles").select("id, nome, avatar_url").eq("ativo", true),
       ]);
       if (equipResult.data) setEquipamentos(equipResult.data);
+      if (softwareResult.data) setSoftware(softwareResult.data);
       if (acessosResult.data) setAcessos(acessosResult.data);
       if (perfisResult.data) setUtilizadores(perfisResult.data);
+      if (equipResult.error) throw equipResult.error;
+      if (softwareResult.error) throw softwareResult.error;
+      if (acessosResult.error) throw acessosResult.error;
+      if (perfisResult.error) throw perfisResult.error;
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
       notify("Não foi possível carregar os dados.", "error");
@@ -406,16 +527,19 @@ export default function AtivosTIDashboard() {
   useEffect(() => { carregarDados(); }, [carregarDados]);
 
   async function handleNovo() {
-    const tipo = tab === "acessos" ? "acesso" : "equipamento";
+    const tipo = tab === "acessos" ? "acesso" : tab === "software" ? "software" : "equipamento";
     if (tab === "equip_inativos") setTab("equip_ativos");
     setModalType(tipo);
     setEditingId(null);
     setFormEquip({ ...initEquip });
+    setFormSoftware({ ...initSoftware });
     setFormAcesso({ ...initAcesso });
 
     if (tipo === "equipamento") {
       const proximo = await gerarProximoInventario();
       setFormEquip((prev) => ({ ...prev, num_inventario: proximo }));
+    } else if (tipo === "software") {
+      setFormSoftware((prev) => ({ ...prev, codigo: `SW-${String(Date.now()).slice(-6)}` }));
     }
     setIsClosingPanel(false);
     setShowModal(true);
@@ -432,6 +556,25 @@ export default function AtivosTIDashboard() {
         colaborador: registo.colaborador || "",
         estado: registo.estado || "em_stock",
         nome_pc: registo.nome_pc || "",
+        entidade: registo.entidade || "",
+        fornecedor: registo.fornecedor || "",
+        fatura: registo.fatura || "",
+        data_aquisicao: registo.data_aquisicao || "",
+        prazo_garantia: registo.prazo_garantia || registo.data_garantia || "",
+      });
+    } else if (tipo === "software") {
+      setFormSoftware({
+        codigo: registo.codigo || "",
+        nome: registo.nome || "",
+        tipo: registo.tipo || "Windows",
+        versao: registo.versao || "",
+        entidade: registo.entidade || "",
+        fornecedor: registo.fornecedor || "",
+        fatura: registo.fatura || "",
+        data_aquisicao: registo.data_aquisicao || "",
+        data_expiracao: registo.data_expiracao || "",
+        estado: registo.estado || "ativo",
+        licenca_chave: registo.licenca_chave || "",
       });
     } else {
       setFormAcesso({
@@ -458,20 +601,29 @@ export default function AtivosTIDashboard() {
 
   function handleToggleEstado(tipo, registo) {
     const isEquip = tipo === "equipamento";
-    const inativoAgora = isEquip ? registo.estado === "abatido" : (registo.estado === "expirado" || registo.estado === "inativo");
-    const novoEstado = isEquip ? (inativoAgora ? "em_stock" : "abatido") : (inativoAgora ? "ativo" : "inativo");
+    const isSoftware = tipo === "software";
+    const inativoAgora = isEquip
+      ? registo.estado === "abatido"
+      : isSoftware
+        ? (registo.estado === "arquivado" || registo.estado === "licenca_expirada")
+        : (registo.estado === "expirado" || registo.estado === "inativo");
+    const novoEstado = isEquip
+      ? (inativoAgora ? "em_stock" : "abatido")
+      : isSoftware
+        ? (inativoAgora ? "ativo" : "arquivado")
+        : (inativoAgora ? "ativo" : "inativo");
     const acao = inativoAgora ? "reativar" : "inativar";
-    const nome = isEquip ? (registo.modelo || registo.num_inventario) : registo.nome_plataforma;
+    const nome = isEquip ? (registo.modelo || registo.num_inventario) : isSoftware ? registo.nome : registo.nome_plataforma;
 
-    setConfirmModal({ tipo, registo, isEquip, novoEstado, acao, nome, perigoso: !inativoAgora });
+    setConfirmModal({ tipo, registo, isEquip, isSoftware, novoEstado, acao, nome, perigoso: !inativoAgora });
   }
 
   async function confirmarToggleEstado() {
     if (!confirmModal) return;
-    const { isEquip, registo, novoEstado, acao, nome } = confirmModal;
+    const { isEquip, isSoftware, registo, novoEstado, acao, nome } = confirmModal;
     setIsConfirming(true);
     try {
-      const { error } = await supabase.from(isEquip ? "equipamentos" : "acessos")
+      const { error } = await supabase.from(isEquip ? "equipamentos" : isSoftware ? "software" : "acessos")
         .update({ estado: novoEstado }).eq("id", registo.id);
       if (error) throw error;
       notify(acao === "inativar" ? `"${nome}" foi inativado.` : `"${nome}" foi reativado.`);
@@ -489,10 +641,33 @@ export default function AtivosTIDashboard() {
     setIsSaving(true);
     try {
       if (modalType === "equipamento") {
-        const payload = { ...formEquip, colaborador: formEquip.colaborador || null };
+        const payload = {
+          ...formEquip,
+          colaborador: formEquip.colaborador || null,
+          entidade: formEquip.entidade || null,
+          fornecedor: formEquip.fornecedor || null,
+          fatura: formEquip.fatura || null,
+          data_aquisicao: formEquip.data_aquisicao || null,
+          prazo_garantia: formEquip.prazo_garantia || null,
+          data_garantia: formEquip.prazo_garantia || null,
+        };
         const { error } = editingId
           ? await supabase.from("equipamentos").update(payload).eq("id", editingId)
           : await supabase.from("equipamentos").insert([payload]);
+        if (error) throw error;
+      } else if (modalType === "software") {
+        const payload = {
+          ...formSoftware,
+          entidade: formSoftware.entidade || null,
+          fornecedor: formSoftware.fornecedor || null,
+          fatura: formSoftware.fatura || null,
+          data_aquisicao: formSoftware.data_aquisicao || null,
+          data_expiracao: formSoftware.data_expiracao || null,
+          licenca_chave: formSoftware.licenca_chave || null,
+        };
+        const { error } = editingId
+          ? await supabase.from("software").update(payload).eq("id", editingId)
+          : await supabase.from("software").insert([payload]);
         if (error) throw error;
       } else {
         const { error } = editingId
@@ -515,6 +690,17 @@ export default function AtivosTIDashboard() {
     () => Object.fromEntries(utilizadores.map((u) => [u.id, { nome: u.nome, avatar_url: u.avatar_url }])),
     [utilizadores]
   );
+
+  const softwareFiltrado = useMemo(() => software
+    .filter((item) => {
+      if (filtroEstadoSoftware === "todos") return true;
+      return (item.estado || "ativo") === filtroEstadoSoftware;
+    })
+    .filter((item) => (
+      `${item.codigo || ""}${item.nome || ""}${item.versao || ""}${item.entidade || ""}${item.fornecedor || ""}`
+        .toLowerCase()
+        .includes(query.toLowerCase())
+    )), [software, filtroEstadoSoftware, query]);
 
   const equipFiltrados = useMemo(() => equipamentos
     .filter((e) => {
@@ -545,6 +731,16 @@ export default function AtivosTIDashboard() {
     return CATEGORIAS_EQUIP.map((c) => grupos[c.id]).filter(Boolean);
   }, [equipFiltrados]);
 
+  const softwarePorCategoria = useMemo(() => {
+    const grupos = {};
+    softwareFiltrado.forEach((item) => {
+      const cat = getCategoriaSoftware(item.tipo);
+      if (!grupos[cat.id]) grupos[cat.id] = { label: cat.label, itens: [] };
+      grupos[cat.id].itens.push(item);
+    });
+    return SOFTWARE_TIPOS.map((c) => grupos[c.id]).filter(Boolean);
+  }, [softwareFiltrado]);
+
   const acessosPorEstado = useMemo(() => {
     const grupos = {};
     acessosFiltrados.forEach((a) => {
@@ -556,6 +752,8 @@ export default function AtivosTIDashboard() {
   }, [acessosFiltrados]);
 
   const totalAtivos = equipamentos.filter((e) => e.estado !== "abatido").length;
+  const totalSoftwareAtivos = software.filter((item) => (item.estado || "ativo") === "ativo").length;
+  const totalSoftwareExpirados = software.filter((item) => item.estado === "licenca_expirada").length;
   const totalAcessosProblema = acessos.filter((a) => a.estado === "expirado" || a.estado === "inativo").length;
 
   const COR = {
@@ -572,6 +770,8 @@ export default function AtivosTIDashboard() {
   const kpisDinamic = [
     { label: "Equipamentos ativos", valor: totalAtivos, icon: <Icons.Laptop size={18} />, accent: COR.brand, onClick: () => setTab("equip_ativos") },
     { label: "Equipamentos abatidos", valor: equipamentos.length - totalAtivos, icon: <Icons.Power size={18} />, accent: COR.brandDark, onClick: () => setTab("equip_inativos") },
+    { label: "Software ativos", valor: totalSoftwareAtivos, icon: <Icons.Box size={18} />, accent: COR.brand, onClick: () => setTab("software") },
+    { label: "Software com licença expirada", valor: totalSoftwareExpirados, icon: <Icons.AlertTriangle size={18} />, accent: totalSoftwareExpirados > 0 ? COR.amber : COR.brandDark, onClick: () => setTab("software") },
     { label: "Acessos registados", valor: acessos.length, icon: <Icons.Lock size={18} />, accent: COR.brand, onClick: () => { setTab("acessos"); setFiltroEstadoAcesso("todos"); } },
     { label: "Acessos a rever", valor: totalAcessosProblema, icon: <Icons.AlertTriangle size={18} />, accent: totalAcessosProblema > 0 ? COR.amber : COR.brandDark, onClick: () => { setTab("acessos"); setFiltroEstadoAcesso("revisao"); } },
   ];
@@ -590,6 +790,13 @@ export default function AtivosTIDashboard() {
       .map((s) => ({ label: s.label, value: acessos.filter((a) => (a.estado || "ativo") === s.value).length, color: pastel(CORES_ESTADO_ACESSO[s.value]) }))
       .filter((d) => d.value > 0),
     [acessos]
+  );
+
+  const estadoSoftwareData = useMemo(
+    () => ESTADOS_SOFTWARE
+      .map((s) => ({ label: s.label, value: software.filter((item) => (item.estado || "ativo") === s.value).length, color: pastel(s.value === "ativo" ? COR.brand : s.value === "licenca_expirada" ? COR.amber : COR.neutral) }))
+      .filter((d) => d.value > 0),
+    [software]
   );
 
   const atribuidosPorPessoa = useMemo(() => {
@@ -644,18 +851,21 @@ export default function AtivosTIDashboard() {
           <button onClick={() => setTab("equip_inativos")} className={`tab-btn ${tab === "equip_inativos" ? "tab-btn-active" : ""}`}>
             <Icons.Power size={15} /> Abatidos
           </button>
+          <button onClick={() => setTab("software")} className={`tab-btn ${tab === "software" ? "tab-btn-active" : ""}`}>
+            <Icons.Box size={15} /> Software
+          </button>
           <button onClick={() => setTab("acessos")} className={`tab-btn ${tab === "acessos" ? "tab-btn-active" : ""}`}>
             <Icons.Lock size={15} /> Acessos
           </button>
         </div>
 
-        {(tab.startsWith("equip") || tab === "acessos") && (
+        {(tab.startsWith("equip") || tab === "software" || tab === "acessos") && (
           <div className="toolbar-inline">
             <div className="search-box">
               <span className="search-icon"><Icons.Search size={15} /></span>
               <input
                 type="text"
-                placeholder={tab.startsWith("equip") ? "Procurar por inventário, modelo ou colaborador…" : "Procurar por plataforma, URL ou utilizador…"}
+                placeholder={tab.startsWith("equip") ? "Procurar por inventário, modelo ou colaborador…" : tab === "software" ? "Procurar por software, entidade ou fornecedor…" : "Procurar por plataforma, URL ou utilizador…"}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 className="search-input"
@@ -675,6 +885,12 @@ export default function AtivosTIDashboard() {
             )}
             {tab === "equip_inativos" && (
               <span className="filter-static">Filtrado por: Abatido</span>
+            )}
+            {tab === "software" && (
+              <select className="filter-select" value={filtroEstadoSoftware} onChange={(e) => setFiltroEstadoSoftware(e.target.value)}>
+                <option value="todos">Todos os estados</option>
+                {ESTADOS_SOFTWARE.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+              </select>
             )}
             {tab === "acessos" && (
               <select className="filter-select" value={filtroEstadoAcesso} onChange={(e) => setFiltroEstadoAcesso(e.target.value)}>
@@ -699,6 +915,53 @@ export default function AtivosTIDashboard() {
             <div className="painel-layout">
               <div className="kpi-grid">
                 {kpisDinamic.map((k) => <StatCard key={k.label} {...k} />)}
+              </div>
+
+              <div className="charts-row">
+                <div className="panel-card chart-card">
+                  <div className="panel-card-head">
+                    <h2>Software por estado</h2>
+                  </div>
+                  {estadoSoftwareData.length === 0 ? (
+                    <p className="panel-card-empty">Ainda não há software registado.</p>
+                  ) : (
+                    <div className="donut-layout">
+                      <DonutChart data={estadoSoftwareData} />
+                      <ul className="chart-legend">
+                        {estadoSoftwareData.map((d) => (
+                          <li key={d.label}>
+                            <span className="legend-dot" style={{ background: d.color }} />
+                            <span className="legend-label">{d.label}</span>
+                            <span className="legend-value">{d.value}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+
+                <div className="panel-card">
+                  <div className="panel-card-head">
+                    <h2>Software recentes</h2>
+                    <button className="link-btn" onClick={() => setTab("software")}>Ver todos</button>
+                  </div>
+                  {software.length === 0 ? (
+                    <p className="panel-card-empty">Ainda não há software registado.</p>
+                  ) : (
+                    <ul className="recentes-list">
+                      {software.slice(0, 5).map((item) => (
+                        <li key={item.id} className="recentes-item">
+                          <div className="recentes-item-main">
+                            <span className="asset-tag asset-tag-sm">{item.codigo || item.nome}</span>
+                            <span className="cell-strong">{item.nome}</span>
+                            <span className="cell-muted">· {item.entidade || "sem entidade"}</span>
+                          </div>
+                          <StatusDot estado={item.estado || "ativo"} map={ESTADO_MAP_SOFTWARE} />
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               </div>
 
               <div className="charts-row">
@@ -826,6 +1089,44 @@ export default function AtivosTIDashboard() {
             )
           )}
 
+          {tab === "software" && (
+            softwareFiltrado.length > 0 ? (
+              <div className="equip-sections">
+                {softwarePorCategoria.map((grupo) => (
+                  <div key={grupo.label} className="equip-section">
+                    <div className="equip-section-head">
+                      <h3>{grupo.label}</h3>
+                      <span className="equip-section-count">{grupo.itens.length}</span>
+                    </div>
+                    <div className="equip-grid">
+                      {grupo.itens.map((item) => (
+                        <SoftwareCard
+                          key={item.id}
+                          software={item}
+                          onEdit={() => handleEditar("software", item)}
+                          onToggle={() => handleToggleEstado("software", item)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="empty-state">
+                <Icons.Box size={40} color="#cbd5e1" />
+                <h3>{query ? "Nenhum software corresponde à pesquisa." : "Ainda não há software registado."}</h3>
+                {!query && (
+                  <>
+                    <p>Registe Windows, Microsoft 365 e outras licenças ou aplicações importantes.</p>
+                    <button className="btn-primary btn-with-icon" onClick={handleNovo}>
+                      <Icons.Plus /> Adicionar software
+                    </button>
+                  </>
+                )}
+              </div>
+            )
+          )}
+
           {tab === "acessos" && (
             acessosFiltrados.length > 0 ? (
               <div className="equip-sections">
@@ -885,6 +1186,9 @@ export default function AtivosTIDashboard() {
                     <button type="button" onClick={() => setModalType("equipamento")} className={`type-toggle-btn ${modalType === "equipamento" ? "type-toggle-btn-active" : ""}`}>
                       <Icons.Laptop size={15} /> Equipamento
                     </button>
+                    <button type="button" onClick={() => setModalType("software")} className={`type-toggle-btn ${modalType === "software" ? "type-toggle-btn-active" : ""}`}>
+                      <Icons.Box size={15} /> Software
+                    </button>
                     <button type="button" onClick={() => setModalType("acesso")} className={`type-toggle-btn ${modalType === "acesso" ? "type-toggle-btn-active" : ""}`}>
                       <Icons.Lock size={15} /> Acesso
                     </button>
@@ -930,6 +1234,97 @@ export default function AtivosTIDashboard() {
                         <select value={formEquip.estado} onChange={(e) => setFormEquip({ ...formEquip, estado: e.target.value })} className="input">
                           {ESTADOS_EQUIP.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
                         </select>
+                      </div>
+                      <div>
+                        <label className="label">Entidade</label>
+                        <select value={formEquip.entidade} onChange={(e) => setFormEquip({ ...formEquip, entidade: e.target.value })} className="input">
+                          <option value="">— Selecionar —</option>
+                          {ENTIDADES_EMPRESA.map((entidade) => <option key={entidade} value={entidade}>{entidade}</option>)}
+                        </select>
+                      </div>
+                      <div className="form-grid-2">
+                        <div>
+                          <label className="label">Fornecedor</label>
+                          <input type="text" value={formEquip.fornecedor} onChange={(e) => setFormEquip({ ...formEquip, fornecedor: e.target.value })} className="input" />
+                        </div>
+                        <div>
+                          <label className="label">Fatura</label>
+                          <input type="text" value={formEquip.fatura} onChange={(e) => setFormEquip({ ...formEquip, fatura: e.target.value })} className="input" />
+                        </div>
+                      </div>
+                      <div className="form-grid-2">
+                        <div>
+                          <label className="label">Data de aquisição</label>
+                          <input type="date" value={formEquip.data_aquisicao} onChange={(e) => setFormEquip({ ...formEquip, data_aquisicao: e.target.value })} className="input" />
+                        </div>
+                        <div>
+                          <label className="label">Prazo de garantia</label>
+                          <input type="date" value={formEquip.prazo_garantia} onChange={(e) => setFormEquip({ ...formEquip, prazo_garantia: e.target.value })} className="input" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {modalType === "software" && (
+                    <div className="form-stack">
+                      <div className="form-grid-2">
+                        <div>
+                          <label className="label">Código</label>
+                          <input type="text" required value={formSoftware.codigo} onChange={(e) => setFormSoftware({ ...formSoftware, codigo: e.target.value })} className="input" />
+                        </div>
+                        <div>
+                          <label className="label">Tipo</label>
+                          <select value={formSoftware.tipo} onChange={(e) => setFormSoftware({ ...formSoftware, tipo: e.target.value })} className="input">
+                            {SOFTWARE_TIPOS.flatMap((cat) => cat.nomes.map((nome) => <option key={nome} value={nome}>{nome}</option>))}
+                          </select>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="label">Nome</label>
+                        <input type="text" required value={formSoftware.nome} onChange={(e) => setFormSoftware({ ...formSoftware, nome: e.target.value })} placeholder="Ex: Windows 11 Pro" className="input" />
+                      </div>
+                      <div>
+                        <label className="label">Versão<span className="label-optional">(opcional)</span></label>
+                        <input type="text" value={formSoftware.versao} onChange={(e) => setFormSoftware({ ...formSoftware, versao: e.target.value })} className="input" />
+                      </div>
+                      <div>
+                        <label className="label">Entidade</label>
+                        <select value={formSoftware.entidade} onChange={(e) => setFormSoftware({ ...formSoftware, entidade: e.target.value })} className="input">
+                          <option value="">— Selecionar —</option>
+                          {ENTIDADES_EMPRESA.map((entidade) => <option key={entidade} value={entidade}>{entidade}</option>)}
+                        </select>
+                      </div>
+                      <div className="form-grid-2">
+                        <div>
+                          <label className="label">Fornecedor</label>
+                          <input type="text" value={formSoftware.fornecedor} onChange={(e) => setFormSoftware({ ...formSoftware, fornecedor: e.target.value })} className="input" />
+                        </div>
+                        <div>
+                          <label className="label">Fatura</label>
+                          <input type="text" value={formSoftware.fatura} onChange={(e) => setFormSoftware({ ...formSoftware, fatura: e.target.value })} className="input" />
+                        </div>
+                      </div>
+                      <div className="form-grid-2">
+                        <div>
+                          <label className="label">Data de aquisição</label>
+                          <input type="date" value={formSoftware.data_aquisicao} onChange={(e) => setFormSoftware({ ...formSoftware, data_aquisicao: e.target.value })} className="input" />
+                        </div>
+                        <div>
+                          <label className="label">Data de expiração</label>
+                          <input type="date" value={formSoftware.data_expiracao} onChange={(e) => setFormSoftware({ ...formSoftware, data_expiracao: e.target.value })} className="input" />
+                        </div>
+                      </div>
+                      <div className="form-grid-2">
+                        <div>
+                          <label className="label">Chave de licença<span className="label-optional">(opcional)</span></label>
+                          <input type="text" value={formSoftware.licenca_chave} onChange={(e) => setFormSoftware({ ...formSoftware, licenca_chave: e.target.value })} className="input" />
+                        </div>
+                        <div>
+                          <label className="label">Estado</label>
+                          <select value={formSoftware.estado} onChange={(e) => setFormSoftware({ ...formSoftware, estado: e.target.value })} className="input">
+                            {ESTADOS_SOFTWARE.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+                          </select>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -1065,6 +1460,8 @@ export default function AtivosTIDashboard() {
         .page-container .equip-card-tipo { font-size: 0.75rem; color: #94a3b8; font-weight: 600; }
         .page-container .equip-card-modelo { margin: 0; font-size: 1rem; font-weight: 800; color: #0f172a; line-height: 1.25; }
         .page-container .equip-card-pc { margin: -6px 0 0 0; font-size: 0.8rem; color: #94a3b8; }
+        .page-container .equip-card-meta { display: flex; flex-wrap: wrap; gap: 6px 8px; margin-top: -2px; }
+        .page-container .equip-card-meta span { background: #f8fafc; border: 1px solid #eef2f7; color: #64748b; border-radius: 999px; padding: 3px 8px; font-size: 0.7rem; font-weight: 600; }
         .page-container .equip-card-footer { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 12px; margin-top: 2px; }
         .page-container .equip-card-colaborador { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #475569; font-weight: 600; min-width: 0; }
         .page-container .equip-card-colaborador span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
