@@ -9,6 +9,7 @@ import {
   getAnnualVacationLimitFromProfile,
   getAttendanceCalculationStartDate,
   getFeriados,
+  isCollaboratorStatusType,
   isVacationType,
   normalizeAbsenceType,
   parseLocalDate,
@@ -19,6 +20,7 @@ export default function CalendarioColaborador({
   userId,
   userName = "Colaborador",
   dataAdmissao = null,
+  estadoTemporario = null,
   onVacationBalanceUpdated = null,
   onMonthChange = null,
 }) {
@@ -84,6 +86,50 @@ export default function CalendarioColaborador({
   };
 
   const isToleranceType = (tipo = "") => normalizeAbsenceType(tipo).includes("tolerancia");
+
+  const getEstadoTemporarioAtivoNoDia = (dataStr) => {
+    const tipo = String(estadoTemporario?.tipo || "").trim();
+    if (!tipo || !isCollaboratorStatusType(tipo) || !estadoTemporario?.data_inicio) return null;
+
+    const dataDia = parseLocalDate(dataStr);
+    const dataInicio = parseLocalDate(estadoTemporario.data_inicio);
+    const dataFim = parseLocalDate(estadoTemporario.data_fim || estadoTemporario.data_inicio);
+
+    if (!dataDia || !dataInicio || !dataFim) return null;
+    if (dataDia < dataInicio || dataDia > dataFim) return null;
+
+    return {
+      id: `estado-temporario-${dataStr}`,
+      user_id: userId,
+      tipo,
+      motivo: estadoTemporario.motivo || "",
+      data_inicio: estadoTemporario.data_inicio,
+      data_fim: estadoTemporario.data_fim || estadoTemporario.data_inicio,
+      is_parcial: false,
+      estado: "aprovado",
+    };
+  };
+
+  const getTemporaryStatusStyle = (tipo = "") => {
+    const normalized = normalizeAbsenceType(tipo);
+    if (isVacationType(normalized)) {
+      return { cor: "#fefce8", textoCor: "#854d0e", badge: "Férias" };
+    }
+
+    if (normalized.includes("licenca")) {
+      return { cor: "#eff6ff", textoCor: "#1d4ed8", badge: "Licença" };
+    }
+
+    if (normalized.includes("doenca") || normalized.includes("acidente") || normalized.includes("obrigacao legal")) {
+      return { cor: "#faf5ff", textoCor: "#6b21a8", badge: "Baixa" };
+    }
+
+    if (normalized.includes("casamento") || normalized.includes("falecimento")) {
+      return { cor: "#fff7ed", textoCor: "#c2410c", badge: formatAbsenceTypeLabel(tipo) };
+    }
+
+    return { cor: "#f0f9ff", textoCor: "#0c4a6e", badge: formatAbsenceTypeLabel(tipo) };
+  };
 
   const isMissingColumnError = (error) => {
     if (!error) return false;
@@ -246,6 +292,10 @@ export default function CalendarioColaborador({
       const isFimSemana = diaSemana === 0 || diaSemana === 6;
 
       const assidDia = assidData.find((a) => a.data_registo === dataStr);
+      const estadoTemporarioDia = getEstadoTemporarioAtivoNoDia(dataStr);
+      const estadoTemporarioBarra = estadoTemporarioDia && !isFimSemana
+        ? getTemporaryStatusStyle(estadoTemporarioDia.tipo)
+        : null;
 
       const ausenciasDia = ausenciaData.filter((a) => {
         const dataInicio = parseLocalDate(a.data_inicio);
@@ -343,6 +393,12 @@ export default function CalendarioColaborador({
         cor = "var(--color-bgSecondary)";
         textoCor = "var(--color-btnPrimaryHover)";
         badge = `Ausência Parcial ${formatarHora(parcial.hora_inicio)}-${formatarHora(parcial.hora_fim)}`;
+      } else if (estadoTemporarioBarra) {
+        tipo = "estadoTemporario";
+        const statusStyle = estadoTemporarioBarra;
+        cor = statusStyle.cor;
+        textoCor = statusStyle.textoCor;
+        badge = statusStyle.badge;
       } else {
         const isPassadoOuHoje = dataStr <= hojeStr;
         const isAfterAttendanceStart = dataStr >= dataInicioCalculo;
@@ -354,7 +410,7 @@ export default function CalendarioColaborador({
         }
       }
 
-      return { dia, dataStr, tipo, cor, textoCor, badge, assidDia, ausenciasDia, ausenciasDiaInteiras, ausenciasDiaParciais, toleranciaDia, isFimSemana, isFeriado, feriadoNome: feriadoObj?.nome };
+      return { dia, dataStr, tipo, cor, textoCor, badge, assidDia, ausenciasDia, ausenciasDiaInteiras, ausenciasDiaParciais, toleranciaDia, estadoTemporarioDia, estadoTemporarioBarra, isFimSemana, isFeriado, feriadoNome: feriadoObj?.nome };
     });
 
     setDiasDoMes(dias);
@@ -633,6 +689,37 @@ export default function CalendarioColaborador({
       }
     });
 
+    if (estadoTemporario?.tipo && estadoTemporario?.data_inicio) {
+      const tipoEstado = normalizeAbsenceType(estadoTemporario.tipo);
+      const skipDatesEstado = isVacationType(tipoEstado)
+        ? buildToleranciasSkipSet(
+            (ausencias || [])
+              .filter((a) => !a.is_parcial && isToleranceType(a.tipo))
+              .map((a) => ({
+                user_id: a.user_id,
+                data: a.data_inicio,
+                data_inicio: a.data_inicio,
+                data_fim: a.data_fim || a.data_inicio,
+              })),
+            userId,
+          )
+        : null;
+      const diasEstado = calcularDiasUteisNoMes(
+        estadoTemporario.data_inicio,
+        estadoTemporario.data_fim || estadoTemporario.data_inicio,
+        anoAtual,
+        mesAtual,
+        skipDatesEstado,
+      );
+
+      if (diasEstado > 0) {
+        if (isVacationType(tipoEstado)) diasAusencia["Férias"] += diasEstado;
+        else if (tipoEstado.includes("doenca") || tipoEstado.includes("acidente") || tipoEstado.includes("baixa") || tipoEstado.includes("obrigacao legal")) diasAusencia["Doença"] += diasEstado;
+        else if (tipoEstado.includes("falta")) diasAusencia["Falta"] += diasEstado;
+        else diasAusencia["Outro"] += diasEstado;
+      }
+    }
+
     ausencias.forEach((a) => {
       if (a.is_parcial) return;
 
@@ -791,7 +878,9 @@ export default function CalendarioColaborador({
               }}
             >
               <div style={{ fontWeight: "bold", fontSize: "0.95rem", color: dia.textoCor }}>{dia.dia}</div>
-              <div style={{ fontSize: "0.7rem", color: dia.textoCor, fontWeight: "500" }}>{dia.badge}</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "4px", minHeight: "18px" }}>
+                <div style={{ fontSize: "0.7rem", color: dia.textoCor, fontWeight: "500" }}>{dia.badge}</div>
+              </div>
             </div>
           );
         })}
@@ -807,6 +896,29 @@ export default function CalendarioColaborador({
           {(() => {
             const diaObj = diasDoMes.find((d) => d && d.dia === diaSelected);
             if (!diaObj) return null;
+
+              if (diaObj.estadoTemporarioDia) {
+                const statusStyle = getTemporaryStatusStyle(diaObj.estadoTemporarioDia.tipo);
+                return (
+                  <div>
+                    <p style={{ margin: "0 0 8px 0", fontWeight: "bold", color: "#475569" }}>
+                      Estado temporário: {formatAbsenceTypeLabel(diaObj.estadoTemporarioDia.tipo)}
+                    </p>
+                    <div style={{ background: statusStyle.cor, color: statusStyle.textoCor, padding: "10px", borderRadius: "6px", border: `1px solid ${statusStyle.textoCor}22` }}>
+                      <div style={{ fontWeight: "700" }}>{statusStyle.badge}</div>
+                      <div style={{ marginTop: "4px", fontSize: "0.9rem" }}>
+                        {new Date(`${diaObj.estadoTemporarioDia.data_inicio}T00:00:00`).toLocaleDateString("pt-PT")}
+                        {diaObj.estadoTemporarioDia.data_fim && diaObj.estadoTemporarioDia.data_fim !== diaObj.estadoTemporarioDia.data_inicio
+                          ? ` a ${new Date(`${diaObj.estadoTemporarioDia.data_fim}T00:00:00`).toLocaleDateString("pt-PT")}`
+                          : ""}
+                      </div>
+                      {diaObj.estadoTemporarioDia.motivo && (
+                        <div style={{ marginTop: "6px", fontSize: "0.85rem" }}>{diaObj.estadoTemporarioDia.motivo}</div>
+                      )}
+                    </div>
+                  </div>
+                );
+              }
 
             if (diaObj.ausenciasDiaInteiras.length > 0) {
               const ausencia = diaObj.ausenciasDiaInteiras[0];

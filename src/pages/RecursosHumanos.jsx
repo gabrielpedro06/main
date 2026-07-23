@@ -10,10 +10,12 @@ import {
     calcularDiasUteis as calcularDiasUteisFerias,
     buildToleranciasSkipSet,
     calcularDiasUteisNoMes,
+    COLLABORATOR_STATUS_TYPES,
     formatAbsenceTypeLabel,
     getAnnualVacationLimitFromProfile,
     getAttendanceCalculationStartDate,
     getFeriados,
+    isCollaboratorStatusType,
     isVacationType,
     normalizeAbsenceType,
     parseLocalDate,
@@ -33,7 +35,7 @@ const Icons = {
   Sun: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>,
   HeartPulse: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path><path d="M12 5 9.04 9.2a1.2 1.2 0 0 0-1.2.9"></path><path d="M13 10h-2"></path><path d="M12 11v2"></path></svg>,
   Clock: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>,
-    Calendar: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>,
+  Calendar: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>,
   Flag: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>,
   Cake: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8"></path><path d="M4 16s.5-1 2-1 2.5 2 4 2 2.5-2 4-2 2.5 2 4 2 2-1 2-1"></path><path d="M2 21h20"></path><path d="M7 8v3"></path><path d="M12 8v3"></path><path d="M17 8v3"></path><path d="M7 4h.01"></path><path d="M12 4h.01"></path><path d="M17 4h.01"></path></svg>,
   Currency: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path><line x1="12" y1="18" x2="12" y2="6"></line></svg>,
@@ -395,6 +397,63 @@ export default function RecursosHumanos() {
       return `${year}-${month}-${day}`;
   };
 
+  const getTemporaryStatusFromProfile = (profile) => {
+      const tipo = String(profile?.estado_temporario_tipo || '').trim();
+      if (!tipo || !isCollaboratorStatusType(tipo)) return null;
+
+      return {
+          tipo,
+          data_inicio: profile?.estado_temporario_inicio || '',
+          data_fim: profile?.estado_temporario_fim || '',
+          motivo: profile?.estado_temporario_motivo || '',
+      };
+  };
+
+  const getTemporaryStatusStyle = (tipo = '') => {
+      const normalized = normalizeAbsenceType(tipo);
+
+      if (normalized.includes('ferias')) {
+          return { cor: '#fefce8', textoCor: '#854d0e', badge: 'Férias' };
+      }
+
+      if (normalized.includes('licenca')) {
+          return { cor: '#eff6ff', textoCor: '#1d4ed8', badge: 'Licença' };
+      }
+
+      if (normalized.includes('doenca') || normalized.includes('acidente') || normalized.includes('obrigacao legal')) {
+          return { cor: '#faf5ff', textoCor: '#6b21a8', badge: 'Baixa' };
+      }
+
+      if (normalized.includes('casamento') || normalized.includes('falecimento')) {
+          return { cor: '#fff7ed', textoCor: '#c2410c', badge: formatAbsenceTypeLabel(tipo) };
+      }
+
+      return { cor: '#f0f9ff', textoCor: '#0c4a6e', badge: formatAbsenceTypeLabel(tipo) };
+  };
+
+  const isTemporaryStatusActiveOnDate = (estado, dateValue) => {
+      if (!estado?.tipo || !estado?.data_inicio || !dateValue) return false;
+
+      const data = parseLocalDate(dateValue);
+      const inicio = parseLocalDate(estado.data_inicio);
+      const fim = parseLocalDate(estado.data_fim || estado.data_inicio);
+      if (!data || !inicio || !fim) return false;
+
+      return data >= inicio && data <= fim;
+  };
+
+  const formatTemporaryStatusRange = (estado) => {
+      if (!estado?.data_inicio) return '';
+
+      const inicio = new Date(`${estado.data_inicio}T00:00:00`);
+      const fim = estado.data_fim ? new Date(`${estado.data_fim}T00:00:00`) : null;
+      if (fim && estado.data_fim !== estado.data_inicio) {
+          return `${inicio.toLocaleDateString('pt-PT')} a ${fim.toLocaleDateString('pt-PT')}`;
+      }
+
+      return inicio.toLocaleDateString('pt-PT');
+  };
+
   const parseKmRate = (rawValue) => {
       const normalized = String(rawValue ?? "").replace(",", ".");
       const parsed = Number(normalized);
@@ -532,6 +591,10 @@ export default function RecursosHumanos() {
                             dias_ferias_total:
                                 u.dias_ferias_total ?? u.dias_ferias ?? 22,
                                         empresas_internas: getProfileCompanies(u),
+                        estado_temporario_tipo: u.estado_temporario_tipo || '',
+                        estado_temporario_inicio: u.estado_temporario_inicio || '',
+                        estado_temporario_fim: u.estado_temporario_fim || '',
+                        estado_temporario_motivo: u.estado_temporario_motivo || '',
                                 }
                             : {},
             );
@@ -1160,10 +1223,28 @@ export default function RecursosHumanos() {
               dias_ferias_total:
                   u.dias_ferias_total ?? u.dias_ferias ?? 22,
               empresas_internas: getProfileCompanies(u),
+              estado_temporario_tipo: u.estado_temporario_tipo || '',
+              estado_temporario_inicio: u.estado_temporario_inicio || '',
+              estado_temporario_fim: u.estado_temporario_fim || '',
+              estado_temporario_motivo: u.estado_temporario_motivo || '',
           });
       }
 
       setIsEditingUser(true);
+  };
+
+  const openUserTemporaryStatusEditor = () => {
+      setUserTab('dados');
+      openUserEditor();
+  };
+
+  const closeUserEditor = () => {
+      setIsEditingUser(false);
+  };
+
+  const getUserAvatarFallback = (profile) => {
+      const name = String(profile?.nome || profile?.nome_completo || 'C').trim();
+      return name ? name.slice(0, 1).toUpperCase() : 'C';
   };
 
   async function handleUpdateUserProfile() {
@@ -1172,9 +1253,25 @@ export default function RecursosHumanos() {
           const empresasSelecionadas = toUniqueCompanies(tempUserProfile.empresas_internas || []);
           const empresaPrincipal = empresasSelecionadas[0] || null;
           const diasFeriasTotalParsed = Number(tempUserProfile.dias_ferias_total);
+          const estadoTemporarioTipo = String(tempUserProfile.estado_temporario_tipo || '').trim();
+          const estadoTemporarioInicio = tempUserProfile.estado_temporario_inicio || null;
+          const estadoTemporarioFim = tempUserProfile.estado_temporario_fim || null;
+          const estadoTemporarioMotivo = String(tempUserProfile.estado_temporario_motivo || '').trim();
 
           if (hasDiasFeriasTotalColumn && (!Number.isFinite(diasFeriasTotalParsed) || diasFeriasTotalParsed <= 0)) {
               throw new Error("Defina um limite anual de férias válido.");
+          }
+
+          if (estadoTemporarioTipo && !isCollaboratorStatusType(estadoTemporarioTipo)) {
+              throw new Error("Selecione um estado temporário válido.");
+          }
+
+          if (estadoTemporarioTipo && !estadoTemporarioInicio) {
+              throw new Error("Indique a data de início do estado temporário.");
+          }
+
+          if (estadoTemporarioTipo && estadoTemporarioFim && estadoTemporarioFim < estadoTemporarioInicio) {
+              throw new Error("A data de fim do estado temporário não pode ser anterior à data de início.");
           }
 
           const profilePayload = {
@@ -1199,6 +1296,10 @@ export default function RecursosHumanos() {
               nacionalidade: tempUserProfile.nacionalidade,
               sexo: tempUserProfile.sexo,
               concelho: tempUserProfile.concelho,
+              estado_temporario_tipo: estadoTemporarioTipo || null,
+              estado_temporario_inicio: estadoTemporarioTipo ? estadoTemporarioInicio : null,
+              estado_temporario_fim: estadoTemporarioTipo ? (estadoTemporarioFim || null) : null,
+              estado_temporario_motivo: estadoTemporarioTipo ? (estadoTemporarioMotivo || null) : null,
           };
 
           let { error } = await supabase
@@ -1209,6 +1310,10 @@ export default function RecursosHumanos() {
           if (error && isMissingColumnError(error)) {
               const legacyPayload = { ...profilePayload };
               delete legacyPayload.dias_ferias_total;
+              delete legacyPayload.estado_temporario_tipo;
+              delete legacyPayload.estado_temporario_inicio;
+              delete legacyPayload.estado_temporario_fim;
+              delete legacyPayload.estado_temporario_motivo;
               const legacyResult = await supabase
                   .from("profiles")
                   .update(legacyPayload)
@@ -1832,14 +1937,46 @@ export default function RecursosHumanos() {
   const getAusentesHoje = () => {
       const today = new Date().toISOString().split('T')[0];
       const lista = ausenciasMes.filter(a => a.tipo !== KM_REQUEST_TYPE && a.data_inicio <= today && a.data_fim >= today);
-      return lista.map(a => {
+      const estadosHoje = colaboradores
+          .map((colaborador) => {
+              const estado = getTemporaryStatusFromProfile(colaborador);
+              if (!estado || !isTemporaryStatusActiveOnDate(estado, today)) return null;
+
+              return {
+                  id: `estado-${colaborador.id}-${today}`,
+                  user_id: colaborador.id,
+                  tipo: estado.tipo,
+                  data_inicio: estado.data_inicio,
+                  data_fim: estado.data_fim || estado.data_inicio,
+                  motivo: estado.motivo,
+              };
+          })
+          .filter(Boolean);
+
+      return [...lista, ...estadosHoje].map(a => {
           const user = colaboradores.find(c => c.id === a.user_id);
-          const infoHora = a.is_parcial ? `( ${a.hora_inicio?.slice(0,5)})` : '';
+          const infoHora = a.data_inicio && a.data_fim && a.data_inicio !== a.data_fim
+              ? `(${new Date(`${a.data_inicio}T00:00:00`).toLocaleDateString('pt-PT')} - ${new Date(`${a.data_fim}T00:00:00`).toLocaleDateString('pt-PT')})`
+              : (a.is_parcial ? `( ${a.hora_inicio?.slice(0,5)})` : '');
           const nomeUser = a.user_id ? (user?.nome || 'Desconhecido') : 'Global';
           return { ...a, nomeUser, infoHora };
       });
   };
   const ausentesHoje = getAusentesHoje();
+
+  const estadosTemporariosHoje = colaboradores
+      .map((colaborador) => {
+          const estado = getTemporaryStatusFromProfile(colaborador);
+          if (!estado || !isTemporaryStatusActiveOnDate(estado, new Date().toISOString().split('T')[0])) return null;
+
+          return {
+              id: `estado-temporario-${colaborador.id}`,
+              nomeUser: colaborador?.nome || 'Desconhecido',
+              estado,
+              tipo: estado.tipo,
+          };
+      })
+      .filter(Boolean);
 
   const totalKmSelecionados = pedidosKmPendentes
       .filter(p => selectedPedidosKm.includes(p.id))
@@ -1912,6 +2049,21 @@ export default function RecursosHumanos() {
                         a.data_fim >= dateStr,
                 )
               : null;
+          const estadosTemporariosGlobalNoDia = !selectedUser
+              ? colaboradores
+                    .map((colaborador) => {
+                        const estado = getTemporaryStatusFromProfile(colaborador);
+                        if (!estado || !isTemporaryStatusActiveOnDate(estado, dateStr)) return null;
+
+                        return {
+                            id: `estado-${colaborador.id}-${dateStr}`,
+                            nome: colaborador.nome || 'Desconhecido',
+                            tipo: estado.tipo,
+                            estado,
+                        };
+                    })
+                    .filter(Boolean)
+              : [];
 
           // Aplicação da sua configuração para Fim de Semana (caso não haja assiduidade registada)
           if (isFimSemana && !assidDia) {
@@ -1975,6 +2127,7 @@ export default function RecursosHumanos() {
           // Se não houver utilizador selecionado (Visão Global)
           else {
               let bars = [];
+              let estadosBars = [];
 
               // BLOQUEIO CRÍTICO: Só renderiza barras de férias/ausências em dias úteis de trabalho
               if (!isFimSemana && !feriado) {
@@ -2000,6 +2153,17 @@ export default function RecursosHumanos() {
                           );
                       });
                   }
+
+                  if (estadosTemporariosGlobalNoDia.length > 0) {
+                      estadosBars = estadosTemporariosGlobalNoDia.map((estado, i) => {
+                          const estadoStyle = getTemporaryStatusStyle(estado.tipo);
+                          return (
+                              <ModernTooltip key={`estado-${i}`} content={`${estado.nome}: ${formatAbsenceTypeLabel(estado.tipo)}`}>
+                                  <div style={{height: '6px', background: estadoStyle.textoCor, borderRadius: '3px', width: '100%'}} />
+                              </ModernTooltip>
+                          );
+                      });
+                  }
               }
 
               content = (
@@ -2021,35 +2185,28 @@ export default function RecursosHumanos() {
                           <span style={{fontSize: '0.7rem', color: textoCor, fontStyle: 'italic'}}>{badge}</span>
                       )}
                       {bars}
+                      {estadosBars}
                   </div>
               );
           }
 
-          const tituloDia = feriado
-              ? `Feriado: ${feriado.nome}`
-              : (toleranciaGlobalNoDia
-                    ? `Global: ${toleranciaGlobalNoDia.motivo || formatAbsenceTypeLabel(toleranciaGlobalNoDia.tipo)}`
-                    : (isFimSemana ? 'Fim de Semana' : ''));
-          
           days.push(
-              <ModernTooltip key={d} content={tituloDia}>
-                  <div style={{
-                      border: `1px solid ${cellBorderColor}`, 
-                      borderRadius: '8px', 
-                      padding: '5px', 
-                      display: 'flex', 
-                      flexDirection: 'column', 
-                      justifyContent: 'space-between', 
-                      outline: 'none', 
-                      boxShadow: 'none', 
-                      background: cor, // Utiliza a variável 'cor' mapeada na sua condição
-                      minHeight: '80px', 
-                      position: 'relative'
-                  }}>
-                      <span style={{fontSize:'0.75rem', color: textoCor, fontWeight:'bold'}}>{d}</span>
-                      <div style={{textAlign:'center', fontSize:'1.2rem', width: '100%'}}>{content}</div>
-                  </div>
-              </ModernTooltip>
+              <div key={d} style={{
+                  border: `1px solid ${cellBorderColor}`, 
+                  borderRadius: '8px', 
+                  padding: '5px', 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  justifyContent: 'space-between', 
+                  outline: 'none', 
+                  boxShadow: 'none', 
+                  background: cor,
+                  minHeight: '80px', 
+                  position: 'relative'
+              }}>
+                  <span style={{fontSize:'0.75rem', color: textoCor, fontWeight:'bold'}}>{d}</span>
+                  <div style={{textAlign:'center', fontSize:'1.2rem', width: '100%'}}>{content}</div>
+              </div>
           );
       }
       return days;
@@ -2571,6 +2728,16 @@ export default function RecursosHumanos() {
                                                     {formatCompaniesLabel(currentUserProfile)}
                                                 </span>
                                             </div>
+                                            {getTemporaryStatusFromProfile(currentUserProfile) && (
+                                                <div style={{marginTop:'8px', display:'flex', flexWrap:'wrap', gap:'6px', alignItems:'center'}}>
+                                                    <span style={{fontSize:'0.72rem', background:'#ecfeff', color:'#0f766e', padding:'3px 10px', borderRadius:'999px', fontWeight:'700'}}>
+                                                        Estado temporário ativo
+                                                    </span>
+                                                    <span style={{fontSize:'0.72rem', color:'#475569'}}>
+                                                        {formatAbsenceTypeLabel(getTemporaryStatusFromProfile(currentUserProfile).tipo)} · {formatTemporaryStatusRange(getTemporaryStatusFromProfile(currentUserProfile))}
+                                                    </span>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                     <div style={{display:'flex', flexDirection:'column', gap:'8px', alignItems:'stretch'}}>
@@ -2623,36 +2790,7 @@ export default function RecursosHumanos() {
                                                 <Icons.Edit size={16} /> Editar Dados Financeiros
                                             </button>
                                         </div>
-                                    ) : (
-                                        <div style={{background:'#f8fafc', padding:'15px', borderRadius:'8px', border:'1px solid #e2e8f0'}}>
-                                            <label style={{fontSize:'0.8rem', fontWeight:'600', color:'#475569'}}>Valor S.A. Diário (€):</label>
-                                            <input type="number" step="0.01" value={tempUserProfile.valor_sa || 0} onChange={e => setTempUserProfile({...tempUserProfile, valor_sa: e.target.value})} style={{...inputStyle, marginTop:'5px', marginBottom:'15px'}} />
-                                            
-                                            {hasDiasFeriasTotalColumn && (
-                                                <>
-                                                    <label style={{fontSize:'0.8rem', fontWeight:'600', color:'#475569'}}>Limite Anual de Férias:</label>
-                                                    <input type="number" value={tempUserProfile.dias_ferias_total || 0} onChange={e => setTempUserProfile({...tempUserProfile, dias_ferias_total: e.target.value})} style={{...inputStyle, marginTop:'5px', marginBottom:'15px'}} />
-                                                    <label style={{fontSize:'0.8rem', fontWeight:'600', color:'#475569'}}>Saldo Atual de Férias:</label>
-                                                    <input type="number" value={tempUserProfile.dias_ferias || 0} readOnly disabled style={{...inputStyle, marginTop:'5px', marginBottom:'6px', background:'#f1f5f9', color:'#64748b', cursor:'not-allowed'}} />
-                                                    <p style={{margin:'0 0 15px 0', fontSize:'0.75rem', color:'#64748b'}}>
-                                                        O saldo atual e recalculado automaticamente a partir do limite anual e dos pedidos aprovados.
-                                                    </p>
-                                                </>
-                                            )}
-
-                                            {!hasDiasFeriasTotalColumn && (
-                                                <>
-                                                    <label style={{fontSize:'0.8rem', fontWeight:'600', color:'#475569'}}>Saldo Atual de Férias:</label>
-                                                    <input type="number" value={tempUserProfile.dias_ferias || 0} onChange={e => setTempUserProfile({...tempUserProfile, dias_ferias: e.target.value})} style={{...inputStyle, marginTop:'5px', marginBottom:'15px'}} />
-                                                </>
-                                            )}
-                                            
-                                            <div style={{display:'flex', gap:'10px'}}>
-                                                <button type="button" onClick={() => setIsEditingUser(false)} style={{flex:1, padding:'10px', border:'1px solid #cbd5e1', borderRadius:'6px', background:'white', color:'#475569', fontWeight:'600'}}>Cancelar</button>
-                                                <button type="button" onClick={handleUpdateUserProfile} style={{flex:1, padding:'10px', background:'var(--color-btnPrimary)', borderRadius:'6px', color:'white', border:'none', fontWeight:'bold'}}>Guardar</button>
-                                            </div>
-                                        </div>
-                                    )
+                                    ) : null
                                 )}
 
                                 {userTab === 'dados' && (
@@ -2683,9 +2821,24 @@ export default function RecursosHumanos() {
                                             <div style={{display:'flex', justifyContent:'space-between', marginTop:'8px', paddingBottom:'8px', borderBottom:'1px dashed #e2e8f0', fontSize:'0.9rem'}}><span style={labelStyle}>Email Institucional:</span> <b style={{color:'#1e293b'}}>{currentUserProfile?.email || '-'}</b></div>
                                             <div style={{display:'flex', justifyContent:'space-between', marginTop:'8px', paddingBottom:'8px', borderBottom:'1px dashed #e2e8f0', fontSize:'0.9rem'}}><span style={labelStyle}>Email Pessoal:</span> <b style={{color:'#1e293b'}}>{currentUserProfile?.email_pessoal || '-'}</b></div>
                                             <div style={{display:'flex', justifyContent:'space-between', marginTop:'8px', fontSize:'0.9rem'}}><span style={labelStyle}>Contrato:</span> <b style={{color:'#1e293b'}}>{currentUserProfile?.tipo_contrato || '-'}</b></div>
-                                            <button type="button" onClick={openUserEditor} style={{width:'100%', marginTop:'20px', padding:'10px', borderRadius:'8px', border:'1px solid #cbd5e1', background:'white', cursor:'pointer', color:'#475569', fontWeight:'600', display:'flex', justifyContent:'center', alignItems:'center', gap:'8px', transition:'0.2s'}}>
-                                                <Icons.Edit size={16} /> Editar Informações
-                                            </button>
+                                            {getTemporaryStatusFromProfile(currentUserProfile) && (
+                                                <div style={{marginTop:'12px', padding:'12px', border:'1px solid #bae6fd', borderRadius:'8px', background:'#f0f9ff'}}>
+                                                    <div style={{fontSize:'0.75rem', fontWeight:'700', color:'#0369a1', textTransform:'uppercase'}}>Estado temporário</div>
+                                                    <div style={{marginTop:'4px', fontWeight:'700', color:'#0f172a'}}>{formatAbsenceTypeLabel(getTemporaryStatusFromProfile(currentUserProfile).tipo)}</div>
+                                                    <div style={{marginTop:'2px', fontSize:'0.84rem', color:'#475569'}}>{formatTemporaryStatusRange(getTemporaryStatusFromProfile(currentUserProfile))}</div>
+                                                    {getTemporaryStatusFromProfile(currentUserProfile).motivo && (
+                                                        <div style={{marginTop:'4px', fontSize:'0.8rem', color:'#64748b'}}>{getTemporaryStatusFromProfile(currentUserProfile).motivo}</div>
+                                                    )}
+                                                </div>
+                                            )}
+                                            <div style={{display:'flex', gap:'10px', marginTop:'20px'}}>
+                                                <button type="button" onClick={openUserEditor} style={{flex:1, padding:'10px', borderRadius:'8px', border:'1px solid #cbd5e1', background:'white', cursor:'pointer', color:'#475569', fontWeight:'600', display:'flex', justifyContent:'center', alignItems:'center', gap:'8px', transition:'0.2s'}}>
+                                                    <Icons.Edit size={16} /> Editar Informações
+                                                </button>
+                                                <button type="button" onClick={openUserTemporaryStatusEditor} style={{flex:1, padding:'10px', borderRadius:'8px', border:'1px solid #bae6fd', background:'#f0f9ff', cursor:'pointer', color:'#0369a1', fontWeight:'600', display:'flex', justifyContent:'center', alignItems:'center', gap:'8px', transition:'0.2s'}}>
+                                                    <Icons.Clock size={16} /> Estado temporário
+                                                </button>
+                                            </div>
                                         </>
                                     ) : (
                                         <div style={{background:'#f8fafc', padding:'15px', borderRadius:'8px', maxHeight:'450px', overflowY:'auto', border:'1px solid #e2e8f0'}}>
@@ -2761,16 +2914,60 @@ export default function RecursosHumanos() {
                                             <select value={tempUserProfile.tipo_contrato || ''} onChange={e => setTempUserProfile({...tempUserProfile, tipo_contrato: e.target.value})} style={{width:'100%', marginBottom:'20px', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px', background:'white'}}>
                                                 <option value="">Selecione...</option><option value="Termo Certo">Termo Certo</option><option value="Sem Termo">Sem Termo</option><option value="Termo Incerto">Termo Incerto</option><option value="Estágio Profissional">Estágio Profissional</option><option value="Estágio Curricular">Estágio Curricular</option><option value="Prestação de Serviços">Prestação de Serviços</option><option value="N/a">N/a</option>
                                             </select>
+
+                                            <div style={{marginBottom:'16px', padding:'12px', border:'1px solid #e2e8f0', borderRadius:'8px', background:'#f8fafc'}}>
+                                                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:'10px', marginBottom:'10px'}}>
+                                                    <div>
+                                                        <div style={{fontSize:'0.8rem', fontWeight:'700', color:'#475569'}}>Estado temporário</div>
+                                                        <div style={{fontSize:'0.75rem', color:'#64748b'}}>Marca automaticamente os dias dentro do período indicado.</div>
+                                                    </div>
+                                                    <span style={{fontSize:'0.72rem', color:'#64748b'}}>Opcional</span>
+                                                </div>
+                                                <select
+                                                    value={tempUserProfile.estado_temporario_tipo || ''}
+                                                    onChange={(e) => setTempUserProfile((prev) => ({
+                                                        ...prev,
+                                                        estado_temporario_tipo: e.target.value,
+                                                        estado_temporario_inicio: e.target.value ? (prev.estado_temporario_inicio || toLocalDateString(new Date())) : '',
+                                                        estado_temporario_fim: e.target.value ? prev.estado_temporario_fim : '',
+                                                        estado_temporario_motivo: e.target.value ? prev.estado_temporario_motivo : '',
+                                                    }))}
+                                                    style={{width:'100%', marginBottom:'10px', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px', background:'white'}}
+                                                >
+                                                    <option value="">Nenhum estado</option>
+                                                    {COLLABORATOR_STATUS_TYPES.map((estado) => (
+                                                        <option key={estado} value={estado}>{estado}</option>
+                                                    ))}
+                                                </select>
+                                                {tempUserProfile.estado_temporario_tipo && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setTempUserProfile((prev) => ({
+                                                            ...prev,
+                                                            estado_temporario_tipo: '',
+                                                            estado_temporario_inicio: '',
+                                                            estado_temporario_fim: '',
+                                                            estado_temporario_motivo: '',
+                                                        }))}
+                                                        style={{width:'100%', marginBottom:'10px', padding:'8px 10px', border:'1px solid #fecaca', background:'#fef2f2', color:'#b91c1c', borderRadius:'6px', cursor:'pointer', fontWeight:'600'}}
+                                                    >
+                                                        Limpar estado temporário
+                                                    </button>
+                                                )}
+                                                <div className="rh-user-form-grid" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'10px'}}>
+                                                    <div>
+                                                        <label style={{fontSize:'0.72rem', fontWeight:'600', color:'#475569'}}>Início</label>
+                                                        <input type="date" value={tempUserProfile.estado_temporario_inicio || ''} onChange={e => setTempUserProfile({...tempUserProfile, estado_temporario_inicio: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} />
+                                                    </div>
+                                                    <div>
+                                                        <label style={{fontSize:'0.72rem', fontWeight:'600', color:'#475569'}}>Fim</label>
+                                                        <input type="date" value={tempUserProfile.estado_temporario_fim || ''} onChange={e => setTempUserProfile({...tempUserProfile, estado_temporario_fim: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} />
+                                                    </div>
+                                                </div>
+                                                <label style={{fontSize:'0.72rem', fontWeight:'600', color:'#475569'}}>Motivo / observações</label>
+                                                <input type="text" value={tempUserProfile.estado_temporario_motivo || ''} onChange={e => setTempUserProfile({...tempUserProfile, estado_temporario_motivo: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} placeholder="Ex: Licença parental" />
+                                            </div>
                                             
-                                            <div style={{display:'flex', gap:'10px'}}>
-                                                <button type="button" onClick={() => setIsEditingUser(false)} style={{flex:1, padding:'10px', border:'1px solid #cbd5e1', borderRadius:'6px', background:'white', color:'#475569', fontWeight:'600'}}>Cancelar</button>
-                                                <button type="button" onClick={handleUpdateUserProfile} style={{flex:1, padding:'10px', background:'var(--color-btnPrimary)', color:'white', border:'none', borderRadius:'6px', fontWeight:'bold'}}>Gravar</button>
-                                            </div>
-                                            <div style={{marginTop: '25px', paddingTop: '15px', borderTop: '1px solid #e2e8f0', textAlign: 'center'}}>
-                                                <button type="button" onClick={() => openUserStatusModal(currentUserProfile)} style={{background: '#fee2e2', color: '#ef4444', border: 'none', padding: '10px 15px', borderRadius: '6px', fontSize: '0.85rem', fontWeight:'bold', cursor: 'pointer', width: '100%', display:'flex', alignItems:'center', justifyContent:'center', gap:'8px'}}>
-                                                    <Icons.Trash size={16} /> Desativar Colaborador
-                                                </button>
-                                            </div>
                                         </div>
                                     )
                                 )}
@@ -2821,6 +3018,32 @@ export default function RecursosHumanos() {
                                     ausentesHoje.map(a => <div key={a.id} style={{padding:'10px', border:'1px solid #e2e8f0', borderRadius:'8px', marginBottom:'8px', fontSize:'0.9rem', color:'#334155'}}><b style={{color:'#1e293b'}}>{a.nomeUser}</b> {a.infoHora} - {formatAbsenceTypeLabel(a.tipo)}</div>)
                                 }
                             </div>
+
+                            <div style={{marginTop:'24px', paddingTop:'20px', borderTop:'2px solid #f8fafc'}}>
+                                <h5 style={{margin:'0 0 15px 0', color:'#64748b', textTransform:'uppercase', fontSize:'0.75rem', fontWeight:'700', letterSpacing:'0.05em', display:'flex', alignItems:'center', gap:'6px'}}>
+                                    <Icons.Clock size={14}/> Estados Temporários Ativos Hoje
+                                </h5>
+                                {estadosTemporariosHoje.length === 0 ? (
+                                    <div style={{padding:'12px', borderRadius:'8px', color:'#94a3b8', fontSize:'0.9rem', fontStyle:'italic', background:'#f8fafc'}}>Sem estados temporários ativos hoje.</div>
+                                ) : (
+                                    <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
+                                        {estadosTemporariosHoje.map((item) => {
+                                            const estadoStyle = getTemporaryStatusStyle(item.tipo);
+                                            return (
+                                                <div key={item.id} style={{padding:'10px 12px', border:'1px solid #e2e8f0', borderRadius:'8px', background: estadoStyle.cor, color: estadoStyle.textoCor, display:'flex', justifyContent:'space-between', gap:'10px', alignItems:'center'}}>
+                                                    <div style={{minWidth: 0}}>
+                                                        <div style={{fontWeight:'700'}}>{item.nomeUser}</div>
+                                                        <div style={{fontSize:'0.84rem', opacity:0.85}}>{formatAbsenceTypeLabel(item.tipo)} · {formatTemporaryStatusRange(item.estado)}</div>
+                                                    </div>
+                                                    <span style={{fontSize:'0.72rem', fontWeight:'700', padding:'3px 8px', borderRadius:'999px', background:'rgba(255,255,255,0.6)'}}>
+                                                        Ativo
+                                                    </span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
                             
                             <div style={{marginTop: '30px', paddingTop: '20px', borderTop: '2px solid #f8fafc'}}>
                                 <h5 style={{margin:'0 0 15px 0', color:'#64748b', textTransform:'uppercase', fontSize:'0.75rem', fontWeight:'700', letterSpacing:'0.05em', display:'flex', alignItems:'center', gap:'6px'}}>
@@ -2849,6 +3072,7 @@ export default function RecursosHumanos() {
                             userId={selectedUser}
                             userName={currentUserProfile?.nome || 'Colaborador'}
                             dataAdmissao={currentUserProfile?.data_admissao}
+                            estadoTemporario={getTemporaryStatusFromProfile(currentUserProfile)}
                             onVacationBalanceUpdated={async () => {
                                 await fetchColaboradores();
                                 if (selectedUser) await fetchHistoricoUser(selectedUser);
@@ -2943,6 +3167,218 @@ export default function RecursosHumanos() {
                 </div>
             </div>
           </>
+      )}
+
+      {isEditingUser && (
+          <ModalPortal>
+              <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.6)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999, padding:'14px'}}>
+                  <div style={{background:'white', width:'min(1240px, 98vw)', height:'94vh', overflow:'hidden', borderRadius:'18px', boxShadow:'0 25px 50px -12px rgba(0, 0, 0, 0.25)', display:'flex', flexDirection:'column'}}>
+                      <div style={{padding:'16px 22px', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center', gap:'16px'}}>
+                          <div style={{display:'flex', alignItems:'center', gap:'14px', minWidth:0}}>
+                              <div style={{width:'56px', height:'56px', borderRadius:'50%', background:'var(--color-bgSecondary)', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', flex:'0 0 auto', border:'1px solid #dbeafe'}}>
+                                  {currentUserProfile?.avatar_url ? (
+                                      <img src={currentUserProfile.avatar_url} alt={currentUserProfile?.nome || 'Colaborador'} style={{width:'100%', height:'100%', objectFit:'cover'}} />
+                                  ) : (
+                                      <span style={{fontSize:'1.25rem', fontWeight:'800', color:'var(--color-btnPrimary)'}}>{getUserAvatarFallback(currentUserProfile)}</span>
+                                  )}
+                              </div>
+                              <div style={{minWidth:0}}>
+                                  <h3 style={{margin:0, color:'#1e293b', fontSize:'1.15rem', lineHeight:1.2}}>Editar colaborador</h3>
+                                  <div style={{marginTop:'4px', color:'#64748b', fontSize:'0.85rem', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{currentUserProfile?.nome || currentUserProfile?.nome_completo || 'Colaborador'}</div>
+                              </div>
+                          </div>
+                          <button type="button" onClick={closeUserEditor} style={{background:'none', border:'none', cursor:'pointer', color:'#94a3b8', padding:'6px'}}>
+                              <Icons.X size={22} />
+                          </button>
+                      </div>
+
+                      <div style={{padding:'18px 20px 20px', overflowY:'auto', flex:1}}>
+                          <div style={{display:'grid', gridTemplateColumns:'300px minmax(0, 1fr)', gap:'18px', alignItems:'start'}}>
+                              <div style={{background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:'14px', padding:'16px', height:'fit-content', position:'sticky', top:0}}>
+                                  <div style={{display:'flex', alignItems:'center', gap:'12px', marginBottom:'16px'}}>
+                                      <div style={{width:'50px', height:'50px', borderRadius:'50%', background:'var(--color-bgSecondary)', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', border:'1px solid #dbeafe'}}>
+                                          {currentUserProfile?.avatar_url ? (
+                                              <img src={currentUserProfile.avatar_url} alt={currentUserProfile?.nome || 'Colaborador'} style={{width:'100%', height:'100%', objectFit:'cover'}} />
+                                          ) : (
+                                              <span style={{fontSize:'1.15rem', fontWeight:'800', color:'var(--color-btnPrimary)'}}>{getUserAvatarFallback(currentUserProfile)}</span>
+                                          )}
+                                      </div>
+                                      <div style={{minWidth:0}}>
+                                          <div style={{fontWeight:'700', color:'#1e293b'}}>{currentUserProfile?.nome || currentUserProfile?.nome_completo || '-'}</div>
+                                          <div style={{fontSize:'0.82rem', color:'#64748b', overflow:'hidden', textOverflow:'ellipsis'}}>{formatCompaniesLabel(currentUserProfile)}</div>
+                                      </div>
+                                  </div>
+
+                                  <div style={{display:'grid', gap:'8px'}}>
+                                      <div style={{padding:'10px 12px', borderRadius:'10px', background:'white', border:'1px solid #e2e8f0'}}>
+                                          <div style={{fontSize:'0.75rem', color:'#64748b', fontWeight:'700', textTransform:'uppercase'}}>Valor S.A. Diário</div>
+                                          <div style={{fontSize:'1rem', fontWeight:'800', color:'#1e293b'}}>{Number(tempUserProfile.valor_sa || 0).toFixed(2)} €</div>
+                                      </div>
+                                      <div style={{padding:'10px 12px', borderRadius:'10px', background:'white', border:'1px solid #e2e8f0'}}>
+                                          <div style={{fontSize:'0.75rem', color:'#64748b', fontWeight:'700', textTransform:'uppercase'}}>Férias Disponíveis</div>
+                                          <div style={{fontSize:'1rem', fontWeight:'800', color:'#1e293b'}}>{tempUserProfile.dias_ferias ?? 0} dias</div>
+                                      </div>
+                                      <div style={{padding:'10px 12px', borderRadius:'10px', background:'white', border:'1px solid #e2e8f0'}}>
+                                          <div style={{fontSize:'0.75rem', color:'#64748b', fontWeight:'700', textTransform:'uppercase'}}>Limite Anual</div>
+                                          <div style={{fontSize:'1rem', fontWeight:'800', color:'#1e293b'}}>{tempUserProfile.dias_ferias_total ?? '--'} dias</div>
+                                      </div>
+                                  </div>
+
+                                  <div style={{marginTop:'14px', padding:'8px 10px', background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:'999px', color:'#1d4ed8', fontSize:'0.8rem', lineHeight:1.35, textAlign:'center', fontWeight:'600'}}>
+                                      Edição em modal com scroll interno reduzido.
+                                  </div>
+                              </div>
+
+                              <div style={{background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:'14px', padding:'16px', minWidth:0}}>
+                                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'14px', gap:'12px', flexWrap:'wrap'}}>
+                                      <div>
+                                          <h4 style={{margin:'0 0 4px 0', color:'#1e293b'}}>Dados do colaborador</h4>
+                                          <p style={{margin:0, color:'#64748b', fontSize:'0.85rem'}}>Atualiza os campos pessoais, financeiros e o estado temporário.</p>
+                                      </div>
+                                      <button type="button" onClick={() => openUserStatusModal(currentUserProfile)} style={{background:'#fee2e2', color:'#ef4444', border:'none', padding:'9px 12px', borderRadius:'8px', fontSize:'0.85rem', fontWeight:'700', cursor:'pointer', display:'flex', alignItems:'center', gap:'8px'}}>
+                                          <Icons.Trash size={16} /> Desativar
+                                      </button>
+                                  </div>
+
+                                  <div style={{maxHeight:'calc(94vh - 140px)', overflowY:'auto', paddingRight:'6px'}}>
+                                      <label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Nome Completo</label>
+                                      <input type="text" value={tempUserProfile.nome_completo || ''} onChange={e => setTempUserProfile({...tempUserProfile, nome_completo: e.target.value})} style={{width:'100%', marginBottom:'10px', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} />
+
+                                      <div className="rh-user-form-grid" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'10px'}}>
+                                          <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>NIF</label><input type="text" value={tempUserProfile.nif || ''} onChange={e => setTempUserProfile({...tempUserProfile, nif: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
+                                          <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>NISS</label><input type="text" value={tempUserProfile.niss || ''} onChange={e => setTempUserProfile({...tempUserProfile, niss: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
+
+                                          <div style={{gridColumn:'1 / -1'}}>
+                                              <label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>CC (Formato auto)</label>
+                                              <input type="text" value={tempUserProfile.ncc || ''} onChange={handleCCChange} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px', fontFamily: 'monospace'}} />
+                                          </div>
+                                          <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Validade CC</label><input type="date" value={tempUserProfile.validade_cc || ''} onChange={e => setTempUserProfile({...tempUserProfile, validade_cc: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
+                                          <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Dependentes</label><input type="number" value={tempUserProfile.nr_dependentes || 0} onChange={e => setTempUserProfile({...tempUserProfile, nr_dependentes: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
+                                          <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Estado Civil</label><select value={tempUserProfile.estado_civil || ''} onChange={e => setTempUserProfile({...tempUserProfile, estado_civil: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px', background:'white'}}><option value="">-</option><option value="Solteiro">Solteiro</option><option value="Casado">Casado</option><option value="Divorciado">Divorciado</option><option value="União Facto">União Facto</option></select></div>
+                                          <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Data Nasc.</label><input type="date" value={tempUserProfile.data_nascimento || ''} onChange={e => setTempUserProfile({...tempUserProfile, data_nascimento: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
+                                          <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Data Admissão</label><input type="date" value={tempUserProfile.data_admissao || ''} onChange={e => setTempUserProfile({...tempUserProfile, data_admissao: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
+                                          <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Nacionalidade</label><input type="text" value={tempUserProfile.nacionalidade || ''} onChange={e => setTempUserProfile({...tempUserProfile, nacionalidade: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
+                                          <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Sexo</label><select value={tempUserProfile.sexo || ''} onChange={e => setTempUserProfile({...tempUserProfile, sexo: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px', background:'white'}}><option value="">-</option><option value="Masculino">Masculino</option><option value="Feminino">Feminino</option><option value="Outro">Outro</option></select></div>
+                                      </div>
+
+                                      <label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Morada</label>
+                                      <input type="text" value={tempUserProfile.morada || ''} onChange={e => setTempUserProfile({...tempUserProfile, morada: e.target.value})} style={{width:'100%', marginBottom:'10px', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} />
+
+                                      <div className="rh-user-form-grid" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'10px'}}>
+                                          <div>
+                                              <label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Email Institucional</label>
+                                              <input type="email" value={tempUserProfile.email || ''} disabled readOnly style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px', background:'#f8fafc', color:'#64748b', cursor:'not-allowed'}} />
+                                          </div>
+                                          <div>
+                                              <label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Email Pessoal</label>
+                                              <input type="email" value={tempUserProfile.email_pessoal || ''} onChange={e => setTempUserProfile({...tempUserProfile, email_pessoal: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} />
+                                          </div>
+                                      </div>
+
+                                      <div className="rh-user-form-grid" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'10px'}}>
+                                          <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Telemóvel</label><input type="text" value={tempUserProfile.telemovel || ''} onChange={e => setTempUserProfile({...tempUserProfile, telemovel: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
+                                          <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Concelho</label><input type="text" value={tempUserProfile.concelho || ''} onChange={e => setTempUserProfile({...tempUserProfile, concelho: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
+                                      </div>
+
+                                      <label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Empresas Internas</label>
+                                      <div style={{display:'flex', flexWrap:'wrap', gap:'8px', marginBottom:'14px', padding:'10px', background:'#ffffff', border:'1px solid #cbd5e1', borderRadius:'8px'}}>
+                                          {EMPRESAS_INTERNAS.map((empresa) => {
+                                              const isSelected = (tempUserProfile.empresas_internas || []).includes(empresa);
+                                              return (
+                                                  <div
+                                                      key={empresa}
+                                                      onClick={() => handleToggleEmpresaInterna(empresa)}
+                                                      style={{
+                                                          padding:'7px 14px',
+                                                          borderRadius:'20px',
+                                                          fontSize:'0.8rem',
+                                                          fontWeight:'600',
+                                                          cursor:'pointer',
+                                                          transition:'all 0.2s ease',
+                                                          border: isSelected ? '1px solid var(--color-btnPrimary)' : '1px solid #e2e8f0',
+                                                          background: isSelected ? 'var(--color-bgSecondary)' : '#f8fafc',
+                                                          color: isSelected ? 'var(--color-btnPrimary)' : '#64748b',
+                                                          userSelect:'none'
+                                                      }}
+                                                  >
+                                                      {empresa}
+                                                  </div>
+                                              );
+                                          })}
+                                          {(tempUserProfile.empresas_internas || []).length === 0 && (
+                                              <span style={{color:'#94a3b8', fontSize:'0.82rem', fontStyle:'italic'}}>Selecione pelo menos uma empresa.</span>
+                                          )}
+                                      </div>
+
+                                      <label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Contrato</label>
+                                      <select value={tempUserProfile.tipo_contrato || ''} onChange={e => setTempUserProfile({...tempUserProfile, tipo_contrato: e.target.value})} style={{width:'100%', marginBottom:'20px', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px', background:'white'}}>
+                                          <option value="">Selecione...</option><option value="Termo Certo">Termo Certo</option><option value="Sem Termo">Sem Termo</option><option value="Termo Incerto">Termo Incerto</option><option value="Estágio Profissional">Estágio Profissional</option><option value="Estágio Curricular">Estágio Curricular</option><option value="Prestação de Serviços">Prestação de Serviços</option><option value="N/a">N/a</option>
+                                      </select>
+
+                                      <div style={{marginBottom:'12px', padding:'12px', border:'1px solid #e2e8f0', borderRadius:'8px', background:'#f8fafc'}}>
+                                          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:'10px', marginBottom:'10px'}}>
+                                              <div>
+                                                  <div style={{fontSize:'0.8rem', fontWeight:'700', color:'#475569'}}>Estado temporário</div>
+                                                  <div style={{fontSize:'0.75rem', color:'#64748b'}}>Marca automaticamente os dias dentro do período indicado.</div>
+                                              </div>
+                                              <span style={{fontSize:'0.72rem', color:'#64748b'}}>Opcional</span>
+                                          </div>
+                                          <select
+                                              value={tempUserProfile.estado_temporario_tipo || ''}
+                                              onChange={(e) => setTempUserProfile((prev) => ({
+                                                  ...prev,
+                                                  estado_temporario_tipo: e.target.value,
+                                                  estado_temporario_inicio: e.target.value ? (prev.estado_temporario_inicio || toLocalDateString(new Date())) : '',
+                                                  estado_temporario_fim: e.target.value ? prev.estado_temporario_fim : '',
+                                                  estado_temporario_motivo: e.target.value ? prev.estado_temporario_motivo : '',
+                                              }))}
+                                              style={{width:'100%', marginBottom:'10px', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px', background:'white'}}
+                                          >
+                                              <option value="">Nenhum estado</option>
+                                              {COLLABORATOR_STATUS_TYPES.map((estado) => (
+                                                  <option key={estado} value={estado}>{estado}</option>
+                                              ))}
+                                          </select>
+                                          {tempUserProfile.estado_temporario_tipo && (
+                                              <button
+                                                  type="button"
+                                                  onClick={() => setTempUserProfile((prev) => ({
+                                                      ...prev,
+                                                      estado_temporario_tipo: '',
+                                                      estado_temporario_inicio: '',
+                                                      estado_temporario_fim: '',
+                                                      estado_temporario_motivo: '',
+                                                  }))}
+                                                  style={{width:'100%', marginBottom:'10px', padding:'8px 10px', border:'1px solid #fecaca', background:'#fef2f2', color:'#b91c1c', borderRadius:'6px', cursor:'pointer', fontWeight:'600'}}
+                                              >
+                                                  Limpar estado temporário
+                                              </button>
+                                          )}
+                                          <div className="rh-user-form-grid" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'10px'}}>
+                                              <div>
+                                                  <label style={{fontSize:'0.72rem', fontWeight:'600', color:'#475569'}}>Início</label>
+                                                  <input type="date" value={tempUserProfile.estado_temporario_inicio || ''} onChange={e => setTempUserProfile({...tempUserProfile, estado_temporario_inicio: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} />
+                                              </div>
+                                              <div>
+                                                  <label style={{fontSize:'0.72rem', fontWeight:'600', color:'#475569'}}>Fim</label>
+                                                  <input type="date" value={tempUserProfile.estado_temporario_fim || ''} onChange={e => setTempUserProfile({...tempUserProfile, estado_temporario_fim: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} />
+                                              </div>
+                                          </div>
+                                          <label style={{fontSize:'0.72rem', fontWeight:'600', color:'#475569'}}>Motivo / observações</label>
+                                          <input type="text" value={tempUserProfile.estado_temporario_motivo || ''} onChange={e => setTempUserProfile({...tempUserProfile, estado_temporario_motivo: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} placeholder="Ex: Licença parental" />
+                                      </div>
+
+                                      <div style={{display:'flex', gap:'10px', marginTop:'6px', paddingTop:'12px'}}>
+                                          <button type="button" onClick={closeUserEditor} style={{flex:1, padding:'12px', border:'1px solid #cbd5e1', borderRadius:'8px', background:'white', color:'#475569', fontWeight:'700'}}>Cancelar</button>
+                                          <button type="button" onClick={handleUpdateUserProfile} style={{flex:1, padding:'12px', background:'var(--color-btnPrimary)', color:'white', border:'none', borderRadius:'8px', fontWeight:'800'}}>Guardar alterações</button>
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </ModalPortal>
       )}
 
       {/* --- MODAIS EXISTENTES E NOVO MODAL DE DETALHES ABAIXO --- */}

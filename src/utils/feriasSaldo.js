@@ -24,6 +24,26 @@ const removeAccents = (value = "") =>
 export const normalizeAbsenceType = (tipo = "") =>
   removeAccents(tipo).trim().toLowerCase();
 
+export const COLLABORATOR_STATUS_TYPES = [
+  "Férias",
+  "Assistência à família",
+  "Outros - Assuntos pessoais",
+  "Ausência sem motivo - injustificada",
+  "Doença, acidente e obrigação legal",
+  "Casamento",
+  "Deslocação a estabelecimento de ensino",
+  "Licença maternal/paternal",
+  "Licença sem vencimento",
+  "Falecimento de familiar",
+  "Prestação de provas de avaliação",
+  "Candidato a cargo público",
+];
+
+export const isCollaboratorStatusType = (tipo = "") => {
+  const normalized = normalizeAbsenceType(tipo);
+  return COLLABORATOR_STATUS_TYPES.some((statusType) => normalizeAbsenceType(statusType) === normalized);
+};
+
 export const isVacationType = (tipo = "") =>
   normalizeAbsenceType(tipo).includes("ferias");
 
