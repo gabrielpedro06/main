@@ -167,14 +167,16 @@ export default function MinhasTarefas() {
               { data: tarefasExtra, error: tarefasExtraError },
           ] = await Promise.all([
               supabase
-                  .from("tarefas")
-                  .select(baseSelect)
-                  .eq("responsavel_id", user.id)
-                  .order("created_at", { ascending: true }),
+                .from("tarefas")
+                .select(baseSelect)
+                .eq("responsavel_id", user.id)
+                .neq("estado", "concluido") // ✨ FILTRA LOGO AQUI
+                .order("created_at", { ascending: false }),
               supabase
                   .from("tarefas")
                   .select(baseSelect)
                   .contains("colaboradores_extra", [user.id])
+                  .neq("estado", "concluido") // ✨ FILTRA LOGO AQUI
                   .order("created_at", { ascending: true }),
           ]);
 
