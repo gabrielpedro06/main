@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
 
 /* ------------------------------------------------------------------ */
 /* Ícones SVG                                                         */
@@ -26,8 +29,10 @@ const Icons = {
   Monitor: (p) => <IconBase {...p}><rect x="2" y="3" width="20" height="14" rx="2" ry="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" /></IconBase>,
   Box: (p) => <IconBase {...p}><path d="M21 8v13H3V8" /><path d="M1 3h22v5H1z" /><line x1="10" y1="12" x2="14" y2="12" /></IconBase>,
   Router: (p) => <IconBase {...p}><path d="M5 12.55a11 11 0 0 1 14.08 0" /><path d="M1.42 9a16 16 0 0 1 21.16 0" /><path d="M8.53 16.11a6 6 0 0 1 6.95 0" /><line x1="12" y1="20" x2="12.01" y2="20" /></IconBase>,
+  Download: (p) => <IconBase {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></IconBase>,
   Cable: (p) => <IconBase {...p}><path d="M9 3v5a3 3 0 0 0 3 3v0a3 3 0 0 0 3-3V3" /><path d="M12 11v6" /><circle cx="12" cy="20" r="2" /></IconBase>,
   ChartBar: (p) => <IconBase {...p}><line x1="12" y1="20" x2="12" y2="10" /><line x1="18" y1="20" x2="18" y2="4" /><line x1="6" y1="20" x2="6" y2="16" /></IconBase>,
+  Table: (p) => <IconBase {...p}><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="9" y1="21" x2="9" y2="9" /></IconBase>,
 };
 
 /* ------------------------------------------------------------------ */
@@ -93,9 +98,9 @@ const SOFTWARE_TIPOS = [
 ];
 
 const CATEGORIAS_EQUIP = [
-  { id: "computadores", label: "Computadores", icon: "Laptop", tipos: ["Computador", "Portátil", "Monitor", "Tablet"] },
-  { id: "rede", label: "Rede", icon: "Router", tipos: ["Router", "Switch", "Access Point", "Cabo Ethernet"] },
-  { id: "perifericos", label: "Periféricos e cabos", icon: "Cable", tipos: ["Teclado", "Rato", "Webcam", "Fones","Impressora", "Cabo HDMI", "Cabo de alimentação", "Carregador"] },
+  { id: "computadores", label: "Computadores", icon: "Laptop", tipos: ["Computador", "Portátil", "Monitor", "Telemóvel"] },
+  { id: "rede", label: "Rede", icon: "Router", tipos: ["Router", "Switch", "Access Point", "Cabo Ethernet", "Adaptadores"] },
+  { id: "perifericos", label: "Periféricos e cabos", icon: "Cable", tipos: ["Teclado", "Rato", "Webcam", "Fones","Impressora", "Cabo HDMI", "Cabo de alimentação", "Carregador", "Base PC", "Base Monitor", "Cabos USB" ] },
   { id: "outro", label: "Outro", icon: "Box", tipos: ["Outro"] },
 ];
 
@@ -812,6 +817,149 @@ export default function AtivosTIDashboard() {
     return Object.values(grupos).sort((a, b) => b.itens.length - a.itens.length);
   }, [equipamentos, colaboradoresMap]);
 
+  const handleExportPDF = () => {
+    try {
+      // Filtrar os equipamentos que estão em stock
+      const equipamentosEmStock = equipamentos.filter((e) => e.estado === "em_stock");
+
+      // Verificar se há de facto alguma coisa para exportar (atribuídos OU em stock)
+      if (atribuidosPorPessoa.length === 0 && equipamentosEmStock.length === 0) {
+        notify("Não existem equipamentos no sistema para exportar.", "error");
+        return;
+      }
+
+      const doc = new jsPDF();
+      const dataHora = new Date().toLocaleString("pt-PT");
+      let adicionouPagina = false;
+
+      // 1. GERAR PÁGINAS POR COLABORADOR
+      atribuidosPorPessoa.forEach((pessoa, index) => {
+        if (index > 0) doc.addPage();
+        adicionouPagina = true;
+
+        doc.setFontSize(16);
+        doc.setTextColor(15, 23, 42);
+        doc.text(`Ativos TI Atribuídos: ${pessoa.nome}`, 14, 22);
+
+        doc.setFontSize(10);
+        doc.setTextColor(100, 116, 139);
+        doc.text(`Gerado a: ${dataHora} | Total de equipamentos: ${pessoa.itens.length}`, 14, 28);
+
+        const tableData = pessoa.itens.map((item) => [
+          item.num_inventario || "-",
+          item.tipo || "-",
+          item.modelo || "-",
+          item.nome_pc || "-",
+          ESTADO_MAP_EQUIP[item.estado]?.txt || item.estado
+        ]);
+
+        autoTable(doc, {
+          startY: 35,
+          head: [["Nº Inv.", "Tipo", "Modelo", "Descrição", "Estado"]],
+          body: tableData,
+          headStyles: { fillColor: [59, 130, 246] }, // Azul
+          styles: { fontSize: 10, cellPadding: 4 },
+          alternateRowStyles: { fillColor: [248, 250, 252] }
+        });
+      });
+
+      // 2. GERAR PÁGINA DE STOCK (se existirem equipamentos em stock)
+      if (equipamentosEmStock.length > 0) {
+        // Só adicionamos uma nova página se já tivermos impresso páginas de colaboradores
+        if (adicionouPagina) {
+          doc.addPage();
+        }
+
+        doc.setFontSize(16);
+        doc.setTextColor(15, 23, 42);
+        doc.text("Ativos TI: Em Stock (Disponíveis)", 14, 22);
+
+        doc.setFontSize(10);
+        doc.setTextColor(100, 116, 139);
+        doc.text(`Gerado a: ${dataHora} | Total em stock: ${equipamentosEmStock.length}`, 14, 28);
+
+        const tableDataStock = equipamentosEmStock.map((item) => [
+          item.num_inventario || "-",
+          item.tipo || "-",
+          item.modelo || "-",
+          item.nome_pc || "-",
+          ESTADO_MAP_EQUIP[item.estado]?.txt || item.estado
+        ]);
+
+        autoTable(doc, {
+          startY: 35,
+          head: [["Nº Inv.", "Tipo", "Modelo", "Descrição", "Estado"]],
+          body: tableDataStock,
+          headStyles: { fillColor: [100, 116, 139] }, // Cinzento-azulado para distinguir do Azul dos colaboradores
+          styles: { fontSize: 10, cellPadding: 4 },
+          alternateRowStyles: { fillColor: [248, 250, 252] }
+        });
+      }
+
+      // Mudei o nome do ficheiro para ser mais genérico, já que agora inclui o stock
+      doc.save("inventario_ativos_ti.pdf");
+      notify("PDF gerado e transferido com sucesso!");
+      
+    } catch (error) {
+      console.error("Erro ao gerar o PDF:", error);
+      notify("Erro ao gerar PDF. Verifica a consola.", "error");
+    }
+  };
+
+  const handleExportExcel = () => {
+    try {
+      // 1. Preparar dados dos Equipamentos Atribuídos
+      const equipamentosEmUso = equipamentos.filter((e) => e.estado === "em_uso" && e.colaborador);
+      const dadosAtribuidos = equipamentosEmUso.map(item => ({
+        "Nº Inventário": item.num_inventario || "-",
+        "Tipo": item.tipo || "-",
+        "Modelo": item.modelo || "-",
+        "Descrição": item.nome_pc || "-",
+        "Colaborador": colaboradoresMap[item.colaborador]?.nome || "Desconhecido",
+        "Estado": ESTADO_MAP_EQUIP[item.estado]?.txt || item.estado
+      }));
+
+      // 2. Preparar dados dos Equipamentos Em Stock
+      const equipamentosEmStock = equipamentos.filter((e) => e.estado === "em_stock");
+      const dadosStock = equipamentosEmStock.map(item => ({
+        "Nº Inventário": item.num_inventario || "-",
+        "Tipo": item.tipo || "-",
+        "Modelo": item.modelo || "-",
+        "Descrição": item.nome_pc || "-",
+        "Estado": ESTADO_MAP_EQUIP[item.estado]?.txt || item.estado
+      }));
+
+      // Validação
+      if (dadosAtribuidos.length === 0 && dadosStock.length === 0) {
+        notify("Não existem equipamentos para exportar.", "error");
+        return;
+      }
+
+      // 3. Criar um novo livro de Excel (Workbook)
+      const wb = XLSX.utils.book_new();
+
+      // 4. Adicionar a aba (Worksheet) de Atribuídos se houver dados
+      if (dadosAtribuidos.length > 0) {
+        const wsAtribuidos = XLSX.utils.json_to_sheet(dadosAtribuidos);
+        XLSX.utils.book_append_sheet(wb, wsAtribuidos, "Atribuídos");
+      }
+
+      // 5. Adicionar a aba (Worksheet) de Stock se houver dados
+      if (dadosStock.length > 0) {
+        const wsStock = XLSX.utils.json_to_sheet(dadosStock);
+        XLSX.utils.book_append_sheet(wb, wsStock, "Em Stock");
+      }
+
+      // 6. Guardar o ficheiro
+      XLSX.writeFile(wb, "inventario_ativos_ti.xlsx");
+      notify("Excel gerado e transferido com sucesso!");
+
+    } catch (error) {
+      console.error("Erro ao gerar o Excel:", error);
+      notify("Erro ao gerar Excel. Verifica a consola.", "error");
+    }
+  };
+
   const recentes = useMemo(() => [...equipamentos].slice(0, 5), [equipamentos]);
 
   useEffect(() => { setQuery(""); }, [tab]);
@@ -834,9 +982,21 @@ export default function AtivosTIDashboard() {
             <p className="page-subtitle">Gestão simples de equipamentos e acessos web.</p>
           </div>
         </div>
-        <button onClick={handleNovo} className="btn-primary btn-with-icon">
-          <Icons.Plus /> Novo Registo
-        </button>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          {/* Exportar Excel */}
+          <button onClick={handleExportExcel} className="btn-secondary btn-with-icon" title="Exportar para Excel">
+            <Icons.Table size={16} /> Exportar Excel
+          </button>
+
+          {/* Exportar PDF */}
+          <button onClick={handleExportPDF} className="btn-secondary btn-with-icon" title="Exportar ativos por pessoa">
+            <Icons.Download size={16} /> Exportar PDF
+          </button>
+          
+          <button onClick={handleNovo} className="btn-primary btn-with-icon">
+            <Icons.Plus /> Novo Registo
+          </button>
+        </div>
       </div>
 
       {/* NAVEGAÇÃO */}
@@ -1219,7 +1379,7 @@ export default function AtivosTIDashboard() {
                         <input type="text" required value={formEquip.modelo} onChange={(e) => setFormEquip({ ...formEquip, modelo: e.target.value })} className="input" />
                       </div>
                       <div>
-                        <label className="label">Nome<span className="label-optional">(opcional)</span></label>
+                        <label className="label">Descrição<span className="label-optional">(opcional)</span></label>
                         <input type="text" value={formEquip.nome_pc} onChange={(e) => setFormEquip({ ...formEquip, nome_pc: e.target.value })} className="input" />
                       </div>
                       <div>
