@@ -3210,22 +3210,44 @@ export default function RecursosHumanos() {
                                   </div>
 
                                   <div style={{display:'grid', gap:'8px'}}>
-                                      <div style={{padding:'10px 12px', borderRadius:'10px', background:'white', border:'1px solid #e2e8f0'}}>
-                                          <div style={{fontSize:'0.75rem', color:'#64748b', fontWeight:'700', textTransform:'uppercase'}}>Valor S.A. Diário</div>
-                                          <div style={{fontSize:'1rem', fontWeight:'800', color:'#1e293b'}}>{Number(tempUserProfile.valor_sa || 0).toFixed(2)} €</div>
-                                      </div>
-                                      <div style={{padding:'10px 12px', borderRadius:'10px', background:'white', border:'1px solid #e2e8f0'}}>
-                                          <div style={{fontSize:'0.75rem', color:'#64748b', fontWeight:'700', textTransform:'uppercase'}}>Férias Disponíveis</div>
-                                          <div style={{fontSize:'1rem', fontWeight:'800', color:'#1e293b'}}>{tempUserProfile.dias_ferias ?? 0} dias</div>
-                                      </div>
-                                      <div style={{padding:'10px 12px', borderRadius:'10px', background:'white', border:'1px solid #e2e8f0'}}>
-                                          <div style={{fontSize:'0.75rem', color:'#64748b', fontWeight:'700', textTransform:'uppercase'}}>Limite Anual</div>
-                                          <div style={{fontSize:'1rem', fontWeight:'800', color:'#1e293b'}}>{tempUserProfile.dias_ferias_total ?? '--'} dias</div>
-                                      </div>
-                                  </div>
+                                        <div style={{padding:'10px 12px', borderRadius:'10px', background:'white', border:'1px solid #e2e8f0'}}>
+                                            <label style={{display:'block', fontSize:'0.75rem', color:'#64748b', fontWeight:'700', textTransform:'uppercase', marginBottom:'6px'}}>Valor S.A. Diário (€)</label>
+                                            <input 
+                                                type="number" 
+                                                step="0.01" 
+                                                min="0"
+                                                value={tempUserProfile.valor_sa || ''} 
+                                                onChange={e => setTempUserProfile({...tempUserProfile, valor_sa: e.target.value})}
+                                                style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px', fontSize:'1rem', fontWeight:'600'}}
+                                            />
+                                        </div>
+                                        <div style={{padding:'10px 12px', borderRadius:'10px', background:'white', border:'1px solid #e2e8f0'}}>
+                                            <label style={{display:'block', fontSize:'0.75rem', color:'#64748b', fontWeight:'700', textTransform:'uppercase', marginBottom:'6px'}}>Férias Disponíveis</label>
+                                            <input 
+                                                type="number" 
+                                                step="0.5" 
+                                                value={tempUserProfile.dias_ferias ?? ''} 
+                                                onChange={e => setTempUserProfile({...tempUserProfile, dias_ferias: e.target.value})}
+                                                style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px', fontSize:'1rem', fontWeight:'600'}}
+                                            />
+                                        </div>
+                                        {hasDiasFeriasTotalColumn && (
+                                            <div style={{padding:'10px 12px', borderRadius:'10px', background:'white', border:'1px solid #e2e8f0'}}>
+                                                <label style={{display:'block', fontSize:'0.75rem', color:'#64748b', fontWeight:'700', textTransform:'uppercase', marginBottom:'6px'}}>Limite Anual</label>
+                                                <input 
+                                                    type="number" 
+                                                    step="1" 
+                                                    min="0"
+                                                    value={tempUserProfile.dias_ferias_total ?? ''} 
+                                                    onChange={e => setTempUserProfile({...tempUserProfile, dias_ferias_total: e.target.value})}
+                                                    style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px', fontSize:'1rem', fontWeight:'600'}}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
 
                                   <div style={{marginTop:'14px', padding:'8px 10px', background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:'999px', color:'#1d4ed8', fontSize:'0.8rem', lineHeight:1.35, textAlign:'center', fontWeight:'600'}}>
-                                      Edição em modal com scroll interno reduzido.
+                                      Edição Ativa.
                                   </div>
                               </div>
 
@@ -3369,9 +3391,23 @@ export default function RecursosHumanos() {
                                       </div>
 
                                       <div style={{display:'flex', gap:'10px', marginTop:'6px', paddingTop:'12px'}}>
-                                          <button type="button" onClick={closeUserEditor} style={{flex:1, padding:'12px', border:'1px solid #cbd5e1', borderRadius:'8px', background:'white', color:'#475569', fontWeight:'700'}}>Cancelar</button>
-                                          <button type="button" onClick={handleUpdateUserProfile} style={{flex:1, padding:'12px', background:'var(--color-btnPrimary)', color:'white', border:'none', borderRadius:'8px', fontWeight:'800'}}>Guardar alterações</button>
-                                      </div>
+                                            <button 
+                                                type="button" 
+                                                className="hover-bg-gray"
+                                                onClick={closeUserEditor} 
+                                                style={{flex:1, padding:'12px', border:'1px solid #cbd5e1', borderRadius:'8px', background:'white', color:'#475569', fontWeight:'700', cursor:'pointer', transition:'all 0.2s ease'}}
+                                            >
+                                                Cancelar
+                                            </button>
+                                            <button 
+                                                type="button" 
+                                                className="btn-small"
+                                                onClick={handleUpdateUserProfile} 
+                                                style={{flex:1, padding:'12px', background:'var(--color-btnPrimary)', color:'white', border:'none', borderRadius:'8px', fontWeight:'800', cursor:'pointer', transition:'all 0.2s ease', boxShadow:'0 2px 4px rgba(0,0,0,0.1)'}}
+                                            >
+                                                Guardar alterações
+                                            </button>
+                                        </div>
                                   </div>
                               </div>
                           </div>
@@ -3625,10 +3661,10 @@ export default function RecursosHumanos() {
                         {isEditingAbsence && editingAbsenceData?.anexo_url && <div style={{fontSize:'0.8rem', color:'#64748b', marginBottom:'8px', display:'flex', alignItems:'center', gap:'6px'}}><Icons.Paperclip size={14}/> Ficheiro atual: <a href={editingAbsenceData.anexo_url} target="_blank" rel="noreferrer" style={{color:'var(--color-btnPrimary)'}}>Ver documento</a></div>}
                         <input type="file" accept=".pdf, image/*" onChange={e => setAbsenceFile(e.target.files[0])} style={{...inputStyle, background: '#f8fafc'}} />
                         
-                        <div style={{display:'flex', gap:'10px', marginTop:'15px', paddingTop:'15px', borderTop:'1px solid #e2e8f0'}}>
-                            <button type="button" onClick={closeAbsenceModal} style={{flex:1, padding:'12px', background:'white', border:'1px solid #cbd5e1', borderRadius:'8px', cursor:'pointer', color: '#475569', fontWeight:'bold'}}>Cancelar</button>
-                            <button type="submit" style={{flex:2, padding:'12px', background:'var(--color-btnPrimary)', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'bold', opacity: isSubmitting || (newAbsence.tipo !== KM_REQUEST_TYPE && !newAbsence.is_parcial && diasUteisModal === 0) ? 0.7 : 1}} disabled={isSubmitting || (newAbsence.tipo !== KM_REQUEST_TYPE && !newAbsence.is_parcial && diasUteisModal === 0)}>
-                                {isSubmitting ? "A Gravar..." : (isEditingAbsence ? "Atualizar Registo" : "Gravar e Aprovar Automaticamente")}
+                        <div style={{display:'flex', gap:'10px', marginTop:'10px', paddingTop:'15px', borderTop:'1px solid #e2e8f0'}}>
+                            <button type="button" className="hover-bg-gray" onClick={() => setShowToleranciaModal(false)} style={{flex:1, padding:'12px', background:'white', border:'1px solid #cbd5e1', borderRadius:'8px', cursor:'pointer', color: '#475569', fontWeight:'bold', transition:'all 0.2s ease'}}>Cancelar</button>
+                            <button type="submit" className="btn-small" disabled={isSubmittingTolerancia} style={{flex:2, padding:'12px', background:'var(--color-btnPrimary)', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'bold', transition:'all 0.2s ease', boxShadow:'0 2px 4px rgba(0,0,0,0.1)', opacity: isSubmittingTolerancia ? 0.7 : 1}}>
+                                {isSubmittingTolerancia ? 'A guardar...' : 'Guardar Tolerância'}
                             </button>
                         </div>
                     </form>

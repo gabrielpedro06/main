@@ -170,13 +170,13 @@ export default function MinhasTarefas() {
                 .from("tarefas")
                 .select(baseSelect)
                 .eq("responsavel_id", user.id)
-                .neq("estado", "concluido") // ✨ FILTRA LOGO AQUI
+                .neq("estado", "concluido")
                 .order("created_at", { ascending: false }),
               supabase
                   .from("tarefas")
                   .select(baseSelect)
                   .contains("colaboradores_extra", [user.id])
-                  .neq("estado", "concluido") // ✨ FILTRA LOGO AQUI
+                  .neq("estado", "concluido")
                   .order("created_at", { ascending: true }),
           ]);
 
