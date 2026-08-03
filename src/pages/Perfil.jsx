@@ -15,6 +15,27 @@ const Icons = {
   Plus: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
 };
 
+// Função auxiliar para verificar se está em localhost
+const isLocalHost = (hostname) => !!(
+  hostname === 'localhost' ||
+  hostname === '[::1]' ||
+  hostname.match(/^127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$/)
+);
+
+// A função que foste buscar aos projetos!
+const getProjectNotificationsApiBase = () => {
+    const rawBase = import.meta.env.VITE_PROJECT_NOTIFICATIONS_API_BASE || import.meta.env.VITE_MARKETING_API_BASE || "";
+    const trimmed = String(rawBase || "").trim().replace(/\/+$/, "");
+
+    if (trimmed) return trimmed;
+
+    if (typeof window !== "undefined" && isLocalHost(window.location.hostname)) {
+        return null;
+    }
+
+    return "";
+};
+
 export default function Perfil() {
   const { user, userProfile, setUserProfile } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -221,7 +242,7 @@ export default function Perfil() {
     }
   }
 
-  async function handleSave(e) {
+async function handleSave(e) {
     e.preventDefault();
     setLoading(true);
 
@@ -252,12 +273,55 @@ export default function Perfil() {
 
         if (error) throw error;
 
+        // Se o user quiser mudar a password
         if (newPassword) {
             if (newPassword.length < 6) throw new Error("A password deve ter pelo menos 6 caracteres.");
             const { error: passError } = await supabase.auth.updateUser({ password: newPassword });
             if (passError) throw passError;
         }
 
+        // ==========================================
+        // LÓGICA DE NOTIFICAÇÃO AOS RH (USANDO A SUA API BREVO)
+        // ==========================================
+        // 1. Verificar se o número do CC ou a validade foram efetivamente alterados
+        const ccMudou = formData.ncc !== (userProfile.ncc || "") || 
+                        formData.validade_cc !== (userProfile.validade_cc || "");
+
+        // 2. Se mudou, enviamos o email através do nosso backend
+        if (ccMudou) {
+            try {
+                const apiBase = getProjectNotificationsApiBase(); 
+                
+                if (apiBase === null) {
+                    console.info("Envio de email de CC desativado neste ambiente.");
+                } else {
+                    const colaboradorNome = formData.nome || formData.nome_completo || "Colaborador";
+                    const endpoint = `${apiBase}/api/cc-alerts/send`; 
+                    
+                    const response = await fetch(endpoint, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            emailDestino: "financeiro@neomarca.pt", // Ajuste para o email correto dos RH
+                            colaboradorNome: colaboradorNome,
+                            dataValidade: formData.validade_cc || "N/A",
+                            ncc: formData.ncc || "N/A"
+                        }),
+                    });
+
+                    if (!response.ok) {
+                        console.error("Falha na API ao enviar email de aviso aos RH.");
+                    } else {
+                        console.log("Email de aviso de atualização de CC enviado aos RH com sucesso!");
+                    }
+                }
+            } catch (emailErr) {
+                console.error("Falha de rede ao tentar enviar email aos RH:", emailErr);
+            }
+        }
+        // ==========================================
+
+        // Atualizar estado global
         setUserProfile(prev => ({ ...prev, ...formData }));
         setNotification({ show: true, message: "Perfil atualizado com sucesso! 🎉", type: "success" });
         setNewPassword("");

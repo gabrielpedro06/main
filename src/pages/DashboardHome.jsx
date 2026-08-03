@@ -41,12 +41,13 @@ const Icons = {
   CheckCircle: ({ size = 48, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>,
   XCircle: ({ size = 48, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>,
   Stop: ({ size = 12, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none"><rect x="6" y="6" width="12" height="12" rx="2" ry="2"></rect></svg>,
-    Play: ({ size = 12, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>,
+  Play: ({ size = 12, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>,
   ArrowRight: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>,
   Phone: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.74a16 16 0 0 0 6 6l1.27-.93a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>,
   Mail: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"></rect><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path></svg>,
   Cake: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8"></path><path d="M4 16s.5-1 2-1 2.5 2 4 2 2.5-2 4-2 2 1 2 1"></path><path d="M2 21h20"></path><path d="M7 8v3"></path><path d="M12 8v3"></path><path d="M17 8v3"></path><path d="M7 4h.01"></path><path d="M12 4h.01"></path><path d="M17 4h.01"></path></svg>,
-  CircleDot: ({ size = 10, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none"><circle cx="12" cy="12" r="12"></circle></svg>
+  CircleDot: ({ size = 10, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none"><circle cx="12" cy="12" r="12"></circle></svg>,
+  IdCard: ({ size = 20, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="2" ry="2"></rect><line x1="7" y1="15" x2="17" y2="15"></line><line x1="7" y1="11" x2="11" y2="11"></line><line x1="7" y1="7" x2="11" y2="7"></line></svg>
 };
 
 const ModalPortal = ({ children }) => {
@@ -54,45 +55,47 @@ const ModalPortal = ({ children }) => {
 };
 
 export default function DashboardHome() {
-        const { user, signOut } = useAuth(); 
+    const { user, signOut } = useAuth(); 
     const { currentTheme, changeTheme } = useTheme();
-  const navigate = useNavigate();
+    const navigate = useNavigate();
   
-  const [tarefasHoje, setTarefasHoje] = useState([]);
-  const [tarefasGerais, setTarefasGerais] = useState([]);
+    const [tarefasHoje, setTarefasHoje] = useState([]);
+    const [tarefasGerais, setTarefasGerais] = useState([]);
     const [tarefasEmAnalise, setTarefasEmAnalise] = useState([]);
-  const [stats, setStats] = useState({ projetos: 0, clientes: 0, forum: 0 });
-  const [userProfile, setUserProfile] = useState(null);
-  const [usersOnline, setUsersOnline] = useState([]);
-  const [selectedOnlineUser, setSelectedOnlineUser] = useState(null);
-  const [registosMes, setRegistosMes] = useState([]); // kept for history modal compat
-  const [aniversarios, setAniversarios] = useState([]);
+    const [stats, setStats] = useState({ projetos: 0, clientes: 0, forum: 0 });
+    const [userProfile, setUserProfile] = useState(null);
+    const [usersOnline, setUsersOnline] = useState([]);
+    const [selectedOnlineUser, setSelectedOnlineUser] = useState(null);
+    const [registosMes, setRegistosMes] = useState([]); 
+    const [aniversarios, setAniversarios] = useState([]);
     const proximosAniversarios = aniversarios.slice(0, 3);
 
-  const [activeLog, setActiveLog] = useState(null);
+    const [activeLog, setActiveLog] = useState(null);
 
-  const [showMenu, setShowMenu] = useState(false);
+    const [showMenu, setShowMenu] = useState(false);
     const [showThemeModal, setShowThemeModal] = useState(false);
-  const [frase, setFrase] = useState("");
-  const [horaAtual, setHoraAtual] = useState("");
-  const [showBirthdayPopup, setShowBirthdayPopup] = useState(false); 
+    const [frase, setFrase] = useState("");
+    const [horaAtual, setHoraAtual] = useState("");
+    const [showBirthdayPopup, setShowBirthdayPopup] = useState(false); 
+    const [ccWarning, setCcWarning] = useState({ show: false, type: '', users: [] }); // Estado para o modal do CC
 
-  const [showHistoryModal, setShowHistoryModal] = useState(false);
-  const [historyDate, setHistoryDate] = useState(new Date()); 
-  const [fullHistory, setFullHistory] = useState([]);
-  const [totalHorasMes, setTotalHorasMes] = useState({ h: 0, m: 0 });
+    const [showHistoryModal, setShowHistoryModal] = useState(false);
+    const [historyDate, setHistoryDate] = useState(new Date()); 
+    const [fullHistory, setFullHistory] = useState([]);
+    const [totalHorasMes, setTotalHorasMes] = useState({ h: 0, m: 0 });
   
-  const [editingRecord, setEditingRecord] = useState(null); 
-  const [editForm, setEditForm] = useState({}); 
-  const [isAdding, setIsAdding] = useState(false);
-  const [addForm, setAddForm] = useState({ data: "", hora_entrada: "", hora_saida: "", tempo_pausa: 0, observacoes: "", motivo_alteracao: "" });
+    const [editingRecord, setEditingRecord] = useState(null); 
+    const [editForm, setEditForm] = useState({}); 
+    const [isAdding, setIsAdding] = useState(false);
+    const [addForm, setAddForm] = useState({ data: "", hora_entrada: "", hora_saida: "", tempo_pausa: 0, observacoes: "", motivo_alteracao: "" });
 
-  const [recentWorkLogs, setRecentWorkLogs] = useState([]);
+    const [recentWorkLogs, setRecentWorkLogs] = useState([]);
     const [recentTasksVisibleCount, setRecentTasksVisibleCount] = useState(2);
-  const [alertModal, setAlertModal] = useState({ show: false, message: "" });
+    const [alertModal, setAlertModal] = useState({ show: false, message: "" });
     const [notification, setNotification] = useState(null);
-        const [projectNotifications, setProjectNotifications] = useState([]);
-        const [notificationsLoading, setNotificationsLoading] = useState(false);
+    const [projectNotifications, setProjectNotifications] = useState([]);
+    const [notificationsLoading, setNotificationsLoading] = useState(false);
+    
     const [timerSwitchModal, setTimerSwitchModal] = useState({
             show: false,
             message: "",
@@ -102,26 +105,13 @@ export default function DashboardHome() {
         show: false,
         message: ""
     });
-        const [stopNoteModal, setStopNoteModal] = useState({ show: false });
+    const [stopNoteModal, setStopNoteModal] = useState({ show: false });
     const onlineCardRef = useRef(null);
     const attendancePendingActionRef = useRef(null);
 
     function showToast(message, type = "success") {
         setNotification({ message, type });
         setTimeout(() => setNotification(null), 3000);
-    }
-
-    function formatBirthdayDate(proximoAniversario) {
-        if (!(proximoAniversario instanceof Date) || isNaN(proximoAniversario.getTime())) return "";
-
-        const currentYear = new Date().getFullYear();
-        const formatOptions = {
-            day: "2-digit",
-            month: "long",
-            ...(proximoAniversario.getFullYear() > currentYear ? { year: "numeric" } : {}),
-        };
-
-        return proximoAniversario.toLocaleDateString("pt-PT", formatOptions);
     }
 
     async function loadProjectNotifications() {
@@ -165,14 +155,11 @@ export default function DashboardHome() {
 
     async function openProjectNotification(notificationItem) {
         if (!notificationItem) return;
-
         await markProjectNotificationAsRead(notificationItem.id);
-
         if (notificationItem.project_id) {
             navigate(`/dashboard/projetos/${notificationItem.project_id}`);
             return;
         }
-
         if (notificationItem.link) {
             navigate(notificationItem.link.replace(window.location.origin, ""));
         }
@@ -217,37 +204,35 @@ export default function DashboardHome() {
       }, 1000);
 
       const onlineInterval = setInterval(loadUsersOnline, 60000);
-            const workRefreshInterval = setInterval(refreshDashboardWorkItems, 90000);
+      const workRefreshInterval = setInterval(refreshDashboardWorkItems, 90000);
 
-            window.addEventListener('focus', handleWindowFocus);
-            document.addEventListener('visibilitychange', handleVisibilityRefresh);
-                        window.addEventListener('task-logs-updated', handleTaskLogsUpdated);
-                        window.addEventListener('project-notifications-updated', handleProjectNotificationsUpdated);
+      window.addEventListener('focus', handleWindowFocus);
+      document.addEventListener('visibilitychange', handleVisibilityRefresh);
+      window.addEventListener('task-logs-updated', handleTaskLogsUpdated);
+      window.addEventListener('project-notifications-updated', handleProjectNotificationsUpdated);
 
       return () => {
           clearInterval(relogioInterval);
           clearInterval(onlineInterval);
-                    clearInterval(workRefreshInterval);
-                    window.removeEventListener('focus', handleWindowFocus);
-                    document.removeEventListener('visibilitychange', handleVisibilityRefresh);
-                                        window.removeEventListener('task-logs-updated', handleTaskLogsUpdated);
-                                        window.removeEventListener('project-notifications-updated', handleProjectNotificationsUpdated);
+          clearInterval(workRefreshInterval);
+          window.removeEventListener('focus', handleWindowFocus);
+          document.removeEventListener('visibilitychange', handleVisibilityRefresh);
+          window.removeEventListener('task-logs-updated', handleTaskLogsUpdated);
+          window.removeEventListener('project-notifications-updated', handleProjectNotificationsUpdated);
       };
     }
   }, [user]);
 
     async function refreshDashboardWorkItems() {
-            if (!user?.id) return;
-            await Promise.all([
-                    fetchTarefasPessoais(),
-                fetchTarefasEmAnalise(),
-                fetchRecentWorkLogs(),
-                checkActiveLog(),
-                loadProjectNotifications()
-            ]);
+        if (!user?.id) return;
+        await Promise.all([
+            fetchTarefasPessoais(),
+            fetchTarefasEmAnalise(),
+            fetchRecentWorkLogs(),
+            checkActiveLog(),
+            loadProjectNotifications()
+        ]);
     }
-
-
 
   useEffect(() => {
       if (showHistoryModal && user) loadFullHistory();
@@ -330,10 +315,59 @@ export default function DashboardHome() {
     try {
         const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
         setUserProfile(data);
+        if (data) checkCCExpirations(data);
     } catch (error) { console.error("Erro perfil:", error); }
   }
 
-  // 💡 O CÉREBRO DO CRONÓMETRO: Descobre as hierarquias e Clientes para formatar "Empresa - Projeto (Tarefa)"
+  // Lógica para verificar a validade do CC
+
+  async function checkCCExpirations(profile) {
+      // Cria uma string com a data de hoje (ex: "2026-08-03")
+      const hojeStr = new Date().toISOString().split('T')[0]; 
+      const ultimoAvisoVisto = localStorage.getItem('ccWarningLastSeen');
+
+      // Se já viu o aviso no dia de hoje, não mostra de novo
+      if (ultimoAvisoVisto === hojeStr) return;
+
+      // Verifica se o user tem a "Tag" ou "Role" de Gestor
+      const isGestor = profile?.tag?.toLowerCase() === 'gestor' || 
+                       profile?.tags?.includes('gestor') || 
+                       profile?.role === 'gestor' || 
+                       profile?.funcao?.toLowerCase().includes('rh');
+
+      if (isGestor) {
+          const trintaDias = new Date();
+          trintaDias.setDate(trintaDias.getDate() + 30);
+          const dataLimite = trintaDias.toISOString().split('T')[0];
+
+          const { data } = await supabase
+              .from('profiles')
+              .select('id, nome, validade_cc')
+              .not('validade_cc', 'is', null)
+              .lte('validade_cc', dataLimite)
+              .neq('ativo', false);
+          
+          if (data && data.length > 0) {
+              setCcWarning({ show: true, type: 'gestor', users: data });
+              // Regista que o gestor já viu o aviso hoje
+              localStorage.setItem('ccWarningLastSeen', hojeStr);
+          }
+      } else {
+          if (profile?.validade_cc) {
+              const validade = new Date(profile.validade_cc);
+              const hoje = new Date();
+              const diffTime = validade.getTime() - hoje.getTime();
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+              if (diffDays <= 30) {
+                  setCcWarning({ show: true, type: 'user', users: [profile] });
+                  // Regista que o colaborador já viu o aviso hoje
+                  localStorage.setItem('ccWarningLastSeen', hojeStr);
+              }
+          }
+      }
+  }
+
   async function checkActiveLog() {
       try {
           const { data, error } = await supabase
@@ -398,7 +432,6 @@ export default function DashboardHome() {
                   }
               }
               
-              // Constrói o texto do botão do Timer
               let finalDisplay = title;
               if (projName) {
                   finalDisplay = brandName ? `${brandName} - ${projName} (${title})` : `${projName} (${title})`;
@@ -413,13 +446,11 @@ export default function DashboardHome() {
       } catch (err) { console.error("Erro a procurar timer ativo:", err); }
   }
 
-  // 💡 NAVEGAÇÃO DO CRONÓMETRO (Encaminha as avulsas para Minhas Tarefas)
   function navigateToActiveTask() {
       if (!activeLog) return;
       if (activeLog.resolvedProjectId) {
           navigate(`/dashboard/projetos/${activeLog.resolvedProjectId}`);
       } else {
-          // Se não tem projeto, é avulsa!
           navigate("/dashboard/minhas-tarefas");
       }
   }
@@ -744,12 +775,8 @@ export default function DashboardHome() {
               .neq("estado", "cancelado"),
       ]);
 
-      if (tarefasExtraError) {
-          console.warn("Filtro por colaboradores_extra (tarefas) indisponível:", tarefasExtraError.message);
-      }
-      if (atividadesExtraError) {
-          console.warn("Filtro por colaboradores_extra (atividades) indisponível:", atividadesExtraError.message);
-      }
+      if (tarefasExtraError) console.warn("Filtro por colaboradores_extra (tarefas) indisponível:", tarefasExtraError.message);
+      if (atividadesExtraError) console.warn("Filtro por colaboradores_extra (atividades) indisponível:", atividadesExtraError.message);
 
       const tarefas = [
           ...(tarefasResp || []),
@@ -914,12 +941,8 @@ export default function DashboardHome() {
                   .neq("estado", "cancelado"),
           ]);
 
-          if (tarefasExtraError) {
-              console.warn("Filtro por colaboradores_extra (tarefas em análise) indisponível:", tarefasExtraError.message);
-          }
-          if (atividadesExtraError) {
-              console.warn("Filtro por colaboradores_extra (atividades em análise) indisponível:", atividadesExtraError.message);
-          }
+          if (tarefasExtraError) console.warn("Filtro por colaboradores_extra (tarefas em análise) indisponível:", tarefasExtraError.message);
+          if (atividadesExtraError) console.warn("Filtro por colaboradores_extra (atividades em análise) indisponível:", atividadesExtraError.message);
 
           const tarefas = [
               ...(tarefasResp || []),
@@ -1213,12 +1236,12 @@ export default function DashboardHome() {
   }, [tarefasRecentesCards.length]);
 
   const userFirstName = getSafeFirstName(userProfile?.nome, userProfile?.email);
-    const greetingByHour = (() => {
-            const currentHour = new Date().getHours();
-            if (currentHour >= 7 && currentHour < 13) return "Bom dia";
-            if (currentHour >= 13 && currentHour < 20) return "Boa tarde";
-            return "Boa noite";
-    })();
+  const greetingByHour = (() => {
+          const currentHour = new Date().getHours();
+          if (currentHour >= 7 && currentHour < 13) return "Bom dia";
+          if (currentHour >= 13 && currentHour < 20) return "Boa tarde";
+          return "Boa noite";
+  })();
 
   return (
     <div className="dashboard-home modern-boom factorial-like">
@@ -1375,9 +1398,9 @@ export default function DashboardHome() {
             </div>
 
             {/* PONTO / ASSIDUIDADE */}
-                        <div className="boom-reveal" style={{ '--d': '230ms' }}>
-                            <WidgetAssiduidade onViewHistory={() => setShowHistoryModal(true)} />
-                        </div>
+            <div className="boom-reveal" style={{ '--d': '230ms' }}>
+                <WidgetAssiduidade onViewHistory={() => setShowHistoryModal(true)} />
+            </div>
 
             {/* 💡 EQUIPA E ANIVERSÁRIOS EM STACK VERTICAL */}
             <div className="bottom-split-grid" style={{display: 'flex', flexDirection: 'column', gap: '18px'}}>
@@ -1852,7 +1875,53 @@ export default function DashboardHome() {
         </ModalPortal>
       )}
 
-            {notification && <div className={`toast-container ${notification.type}`}>{notification.type === 'success' ? '✅' : '⚠️'} {notification.message}</div>}
+      {/* --- POP-UP AVISO CC EXPIRAR --- */}
+      {ccWarning.show && (
+          <ModalPortal>
+              <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999}}>
+                  <div style={{background: '#fff', borderRadius: '16px', width: '90%', maxWidth: '450px', padding: '24px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', animation: 'fadeIn 0.3s ease-out'}}>
+                      
+                      <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px'}}>
+                          <div style={{background: '#fef2f2', padding: '15px', borderRadius: '50%', color: '#ef4444'}}>
+                              <Icons.IdCard size={36} />
+                          </div>
+                      </div>
+                      
+                      <h3 style={{margin: '0 0 10px 0', color: '#1e293b', fontSize: '1.3rem'}}>Aviso: Cartão de Cidadão</h3>
+                      
+                      <div style={{color: '#475569', marginBottom: '25px', fontSize: '0.95rem', lineHeight: '1.5', textAlign: 'left', background: '#f8fafc', padding: '15px', borderRadius: '10px', border: '1px solid #e2e8f0'}}>
+                          {ccWarning.type === 'gestor' ? (
+                              <>
+                                  <p style={{margin: '0 0 10px 0'}}>Os seguintes colaboradores estão com a validade do CC quase a expirar ou já expirada. Peça que atualizem os dados:</p>
+                                  <ul style={{margin: 0, paddingLeft: '20px', color: '#1e293b', fontWeight: '500'}}>
+                                      {ccWarning.users.map(u => (
+                                          <li key={u.id}>{u.nome} <span style={{fontSize: '0.8rem', color: '#ef4444', marginLeft: '5px'}}>({new Date(u.validade_cc).toLocaleDateString('pt-PT')})</span></li>
+                                      ))}
+                                  </ul>
+                              </>
+                          ) : (
+                              <p style={{margin: 0, textAlign: 'center'}}>
+                                  A sua validade do CC está quase a expirar (ou expirada). Atualize os seus dados e informe os Recursos Humanos dessa alteração.
+                              </p>
+                          )}
+                      </div>
+
+                      <div style={{display: 'flex', gap: '10px'}}>
+                          <button onClick={() => setCcWarning({ show: false, type: '', users: [] })} className="btn-small hover-shadow" style={{flex: 1, padding: '12px', background: 'white', border: '1px solid #cbd5e1', color: '#475569', fontWeight: 'bold'}}>
+                              Fechar
+                          </button>
+                          {ccWarning.type === 'user' && (
+                              <button onClick={() => { setCcWarning({ show: false, type: '', users: [] }); navigate("/dashboard/perfil"); }} className="btn-primary hover-shadow" style={{flex: 1, padding: '12px', border: 'none'}}>
+                                  Atualizar Agora
+                              </button>
+                          )}
+                      </div>
+                  </div>
+              </div>
+          </ModalPortal>
+      )}
+
+      {notification && <div className={`toast-container ${notification.type}`}>{notification.type === 'success' ? '✅' : '⚠️'} {notification.message}</div>}
 
       {/* --- POP-UP DE PARABÉNS 🎉 --- */}
       {showBirthdayPopup && (
@@ -2157,4 +2226,3 @@ export default function DashboardHome() {
     </div>
   );
 }
-
