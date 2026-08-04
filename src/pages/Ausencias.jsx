@@ -120,8 +120,40 @@ export default function Ferias({ forcedType = null }) {
       if (!form.is_parcial && form.data_inicio && form.data_fim) {
           const skipDates = buildToleranciasSkipSet(tolerancias, user?.id || null);
           setDiasUteis(calcularDiasUteis(form.data_inicio, form.data_fim, skipDates));
-      } else { setDiasUteis(0); }
-  }, [form.data_inicio, form.data_fim, form.is_parcial, tolerancias]);
+      } 
+      else if (form.is_parcial && form.data_inicio && form.hora_inicio && form.hora_fim) {
+          // Lógica do pedido Parcial (Horas)
+          const [hInicio, mInicio] = form.hora_inicio.split(':').map(Number);
+          const [hFim, mFim] = form.hora_fim.split(':').map(Number);
+          
+          // Calcula a diferença em horas decimais (ex: 4h30 = 4.5)
+          const diferencaHoras = (hFim - hInicio) + ((mFim - mInicio) / 60);
+
+          if (diferencaHoras >= 8) {
+              // Se for >= 8 horas, avisa e muda para dia completo
+              setNotification({ 
+                  show: true, 
+                  message: "O intervalo inserido é de 8 horas ou mais. O pedido foi automaticamente alterado para um dia completo (Total).", 
+                  type: "success" // Opcional: podes usar "success" ou "error" consoante o estilo visual desejado
+              });
+              
+              setForm(prev => ({
+                  ...prev,
+                  is_parcial: false,
+                  hora_inicio: "",
+                  hora_fim: "",
+                  data_fim: prev.data_inicio // Força a data de fim a ser igual à de início
+              }));
+          } else if (diferencaHoras > 0) {
+              // Desconta as horas no formato de fração de dia (ex: 4h / 8 = 0.5 dias)
+              setDiasUteis(diferencaHoras / 8);
+          } else {
+              setDiasUteis(0);
+          }
+      } else { 
+          setDiasUteis(0); 
+      }
+  }, [form.data_inicio, form.data_fim, form.is_parcial, form.hora_inicio, form.hora_fim, tolerancias]);
 
   async function fetchDiasReais() {
       let data = null;
@@ -255,7 +287,39 @@ export default function Ferias({ forcedType = null }) {
         return;
     }
 
-    const isVacationRequest = !isKmRequest && !form.is_parcial && isVacationType(normalizedTipo);
+    // 💡 NOVA VALIDAÇÃO: Bloquear sobreposição de datas
+    if (!isKmRequest) {
+        const startNovo = form.data_inicio;
+        const endNovo = form.is_parcial ? form.data_inicio : (form.data_fim || form.data_inicio);
+
+        const hasOverlap = pedidos.some(p => {
+            // 1. Ignorar o próprio pedido se estivermos a editar
+            if (isEditing && p.id === editingId) return false;
+            
+            // 2. Ignorar pedidos que já foram rejeitados ou cancelados
+            if (['rejeitado', 'cancelado'].includes(p.estado?.toLowerCase())) return false;
+            
+            // 3. Ignorar pedidos de Km's (pode registar kms num dia em que faltou/teve ausência parcial)
+            if (p.tipo === KM_REQUEST_TYPE) return false;
+
+            const startExistente = p.data_inicio;
+            const endExistente = p.is_parcial ? p.data_inicio : (p.data_fim || p.data_inicio);
+
+            // 4. Lógica matemática de sobreposição de intervalos
+            return startNovo <= endExistente && endNovo >= startExistente;
+        });
+
+        if (hasOverlap) {
+            setNotification({ 
+                show: true, 
+                message: "Já tem um pedido registado e ativo para estas datas. Por favor, verifique o seu histórico.", 
+                type: "error" 
+            });
+            return;
+        }
+    }
+
+    const isVacationRequest = !isKmRequest && isVacationType(normalizedTipo);
     if (isVacationRequest) {
         if (!hasDiasFeriasTotalColumn) {
             const saldoAtual = Number(diasFerias) || 0;
@@ -272,7 +336,11 @@ export default function Ferias({ forcedType = null }) {
                 supabaseClient: supabase,
                 userId: user.id,
                 dataInicio: form.data_inicio,
-                dataFim: form.data_fim,
+                dataFim: form.data_fim || form.data_inicio, // Proteção caso falhe
+                is_parcial: form.is_parcial, // 💡 CORREÇÃO 0.5 DIAS
+                hora_inicio: form.hora_inicio, // 💡 CORREÇÃO 0.5 DIAS
+                hora_fim: form.hora_fim, // 💡 CORREÇÃO 0.5 DIAS
+                excluirPedidoId: isEditing ? editingId : null, // 💡 IGNORAR SE FOR EDIÇÃO
                 diasLimiteAnual: diasFeriasTotal ?? diasFerias,
                 tolerancias,
             });
@@ -343,7 +411,6 @@ export default function Ferias({ forcedType = null }) {
       setIsSubmitting(false);
     }
   }
-
   // --- ANEXAR DOCUMENTO A POSTERIORI ---
   async function handleUploadOnly(e) {
       e.preventDefault();
@@ -665,22 +732,31 @@ export default function Ferias({ forcedType = null }) {
                                         </div>
                                         <div style={{flex: 1}}>
                                             <label style={labelStyle}>Regresso</label>
-                                            <input type="time" value={form.hora_fim} onChange={e => setForm({...form, hora_fim: e.target.value})} style={inputStyle} className="input-focus" />
+                                            <input type="time" value={form.hora_fim} onChange={e => setForm({...form, hora_fim: e.target.value})} style={inputStyle} className="input-focus" required />
                                         </div>
                                     </div>
                                 )}
                             </div>
-
-                            {!isKmRequest && form.data_inicio && form.data_fim && !form.is_parcial && (
-                                <div style={{background: diasUteis > 0 ? 'var(--color-bgSecondary)' : '#fef2f2', color: diasUteis > 0 ? 'var(--color-btnPrimaryHover)' : '#b91c1c', border: `1px solid ${diasUteis > 0 ? 'var(--color-borderColor)' : '#fecaca'}`, padding: '12px 15px', borderRadius: '8px', marginBottom: '20px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '10px', fontWeight: '500'}}>
+                            {!isKmRequest && form.data_inicio && (
+                                <div style={{
+                                    background: diasUteis > 0 ? 'var(--color-bgSecondary)' : '#fef2f2', 
+                                    color: diasUteis > 0 ? 'var(--color-btnPrimaryHover)' : '#b91c1c', 
+                                    border: `1px solid ${diasUteis > 0 ? 'var(--color-borderColor)' : '#fecaca'}`, 
+                                    padding: '12px 15px', borderRadius: '8px', marginBottom: '20px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '10px', fontWeight: '500'
+                                }}>
                                     {diasUteis > 0 ? <Icons.Info size={18} /> : <Icons.AlertTriangle size={18} />}
-                                    <span>{diasUteis > 0 ? (isVacationType(form.tipo) ? `Este pedido consumirá ${diasUteis} dia(s) útil(eis) do seu saldo de férias.` : `Este pedido corresponde a ${diasUteis} dia(s) útil(eis). Tratando-se de justificação legal, não desconta férias.`) : `Atenção: O período selecionado calha num fim de semana ou feriado. Não é necessário marcar.`}</span>
-                                </div>
-                            )}
-                            
-                            {!isKmRequest && form.data_inicio && form.is_parcial && (
-                                <div style={{background: 'var(--color-bgSecondary)', border: '1px solid var(--color-borderColor)', color: 'var(--color-btnPrimaryHover)', padding: '12px 15px', borderRadius: '8px', marginBottom: '20px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '10px', fontWeight: '500'}}>
-                                    <Icons.Info size={18} /> <span>Ausência parcial de algumas horas. <b>Este registo não consome saldo de férias.</b></span>
+                                    
+                                    <span>
+                                        {diasUteis > 0 
+                                            ? (isVacationType(form.tipo) 
+                                                ? `Este pedido consumirá ${diasUteis} dia(s) útil(eis) do seu saldo de férias.` 
+                                                : `Este pedido corresponde a ${diasUteis} dia(s) útil(eis). Tratando-se de justificação legal, não desconta férias.`)
+                                            : (form.is_parcial && (!form.hora_inicio || !form.hora_fim))
+                                                ? `Introduza a hora de saída e regresso para calcular o desconto.`
+                                                : form.is_parcial 
+                                                    ? `As horas inseridas não são válidas (a hora de regresso tem de ser superior à saída).`
+                                                    : `Atenção: O período selecionado calha num fim de semana ou feriado. Não é necessário marcar.`}
+                                    </span>
                                 </div>
                             )}
 

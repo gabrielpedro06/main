@@ -288,9 +288,10 @@ export async function obterSaldoFeriasAno({
   const inicioAno = `${ano}-01-01`;
   const fimAno = `${ano}-12-31`;
 
+  // 1. ADICIONADO: hora_inicio e hora_fim ao select
   const { data, error } = await supabaseClient
     .from("ferias")
-    .select("id, tipo, data_inicio, data_fim, is_parcial")
+    .select("id, tipo, data_inicio, data_fim, is_parcial, hora_inicio, hora_fim") 
     .eq("user_id", userId)
     .eq("estado", "aprovado")
     .lte("data_inicio", fimAno)
@@ -304,7 +305,21 @@ export async function obterSaldoFeriasAno({
   let diasConsumidos = 0;
   for (const pedido of data || []) {
     if (excluirPedidoId && pedido.id === excluirPedidoId) continue;
-    if (pedido.is_parcial || !isVacationType(pedido.tipo)) continue;
+    if (!isVacationType(pedido.tipo)) continue;
+
+    // 2. NOVA LÓGICA: Se for parcial, converte as horas em dias (Ex: 4h = 0.5 dias)
+    if (pedido.is_parcial) {
+      const anoPedido = new Date(pedido.data_inicio).getFullYear();
+      if (anoPedido === ano && pedido.hora_inicio && pedido.hora_fim) {
+        const [hI, mI] = pedido.hora_inicio.split(':').map(Number);
+        const [hF, mF] = pedido.hora_fim.split(':').map(Number);
+        const diferenca = (hF - hI) + ((mF - mI) / 60);
+        if (diferenca > 0) {
+          diasConsumidos += (diferenca / 8);
+        }
+      }
+      continue; // Passa para o próximo pedido sem contar o dia inteiro
+    }
 
     diasConsumidos += calcularDiasFeriasNoAno(
       pedido.data_inicio,
@@ -327,6 +342,9 @@ export async function validarSaldoFeriasParaIntervalo({
   userId,
   dataInicio,
   dataFim,
+  is_parcial = false, // ADICIONADO
+  hora_inicio = null, // ADICIONADO
+  hora_fim = null,    // ADICIONADO
   excluirPedidoId = null,
   diasLimiteAnual = ANNUAL_VACATION_DAYS,
   tolerancias = [],
@@ -336,7 +354,20 @@ export async function validarSaldoFeriasParaIntervalo({
   const detalhes = [];
 
   for (const ano of anos) {
-    const diasPedidoNoAno = calcularDiasFeriasNoAno(dataInicio, dataFim || dataInicio, ano, skipDates);
+    // NOVA LÓGICA: Calcular o valor exato do pedido atual
+    let diasPedidoNoAno = 0;
+    if (is_parcial) {
+      const anoPedido = new Date(dataInicio).getFullYear();
+      if (anoPedido === ano && hora_inicio && hora_fim) {
+        const [hI, mI] = hora_inicio.split(':').map(Number);
+        const [hF, mF] = hora_fim.split(':').map(Number);
+        const diferenca = (hF - hI) + ((mF - mI) / 60);
+        if (diferenca > 0) diasPedidoNoAno = diferenca / 8;
+      }
+    } else {
+      diasPedidoNoAno = calcularDiasFeriasNoAno(dataInicio, dataFim || dataInicio, ano, skipDates);
+    }
+
     if (diasPedidoNoAno <= 0) continue;
 
     const saldoAno = await obterSaldoFeriasAno({

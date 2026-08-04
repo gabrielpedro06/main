@@ -397,6 +397,29 @@ export default function RecursosHumanos() {
       return `${year}-${month}-${day}`;
   };
 
+  // --- NOVA FUNÇÃO HELPER PARA CALCULAR DIAS TENDO EM CONTA HORAS DECIMAIS ---
+  const getDiasDoPedido = (pedido, userId) => {
+      if (!isVacationType(pedido.tipo)) return 0;
+      if (pedido.is_parcial && pedido.hora_inicio && pedido.hora_fim) {
+          const [hI, mI] = pedido.hora_inicio.split(':').map(Number);
+          const [hF, mF] = pedido.hora_fim.split(':').map(Number);
+          const diferenca = (hF - hI) + ((mF - mI) / 60);
+          return diferenca > 0 ? (diferenca / 8) : 0;
+      }
+      
+      return calcularDiasFeriasComTolerancias(userId, pedido.data_inicio, pedido.data_fim || pedido.data_inicio);
+  };
+
+  const getDuracaoAusenciaUI = (pedido) => {
+      if (pedido.is_parcial && pedido.hora_inicio && pedido.hora_fim) {
+          const [hI, mI] = pedido.hora_inicio.split(':').map(Number);
+          const [hF, mF] = pedido.hora_fim.split(':').map(Number);
+          const diferenca = (hF - hI) + ((mF - mI) / 60);
+          return diferenca > 0 ? (diferenca / 8) : 0;
+      }
+      return calcularDiasUteis(pedido.data_inicio, pedido.data_fim || pedido.data_inicio);
+  };
+
   const getTemporaryStatusFromProfile = (profile) => {
       const tipo = String(profile?.estado_temporario_tipo || '').trim();
       if (!tipo || !isCollaboratorStatusType(tipo)) return null;
@@ -611,10 +634,29 @@ export default function RecursosHumanos() {
           } else {
               setDiasUteisModal(0);
           }
+      } else if (newAbsence.is_parcial && newAbsence.data_inicio && newAbsence.hora_inicio && newAbsence.hora_fim) {
+          const [hInicio, mInicio] = newAbsence.hora_inicio.split(':').map(Number);
+          const [hFim, mFim] = newAbsence.hora_fim.split(':').map(Number);
+          const diferencaHoras = (hFim - hInicio) + ((mFim - mInicio) / 60);
+
+          if (diferencaHoras >= 8) {
+              showNotification("O intervalo inserido é de 8 horas ou mais. O pedido foi automaticamente alterado para um dia completo.", "success");
+              setNewAbsence(prev => ({
+                  ...prev,
+                  is_parcial: false,
+                  hora_inicio: "",
+                  hora_fim: "",
+                  data_fim: prev.data_inicio
+              }));
+          } else if (diferencaHoras > 0) {
+              setDiasUteisModal(diferencaHoras / 8);
+          } else {
+              setDiasUteisModal(0);
+          }
       } else {
           setDiasUteisModal(0);
       }
-  }, [newAbsence.data_inicio, newAbsence.data_fim, newAbsence.is_parcial, newAbsence.user_id, tolerancias]);
+  }, [newAbsence.data_inicio, newAbsence.data_fim, newAbsence.is_parcial, newAbsence.hora_inicio, newAbsence.hora_fim, newAbsence.user_id, tolerancias]);
 
   const showNotification = (msg, type = 'success') => {
       setNotification({ show: true, message: msg, type });
@@ -1007,14 +1049,8 @@ export default function RecursosHumanos() {
           const eFerias = isVacationType(pedido.tipo);
           const profile = colaboradores.find((c) => c.id === pedido.user_id);
           const diasLimiteAnual = getAnnualVacationLimitFromProfile(profile);
-          const diasPedidoFerias =
-              eFerias && !pedido.is_parcial
-                  ? calcularDiasFeriasComTolerancias(
-                        pedido.user_id,
-                        pedido.data_inicio,
-                        pedido.data_fim || pedido.data_inicio,
-                    )
-                  : 0;
+          const diasPedidoFerias = eFerias ? getDiasDoPedido(pedido, pedido.user_id) : 0;
+
           let novoEstadoDB = '';
 
           if (acao === 'aprovar') {
@@ -1026,13 +1062,16 @@ export default function RecursosHumanos() {
                       }
                   } else {
                       const saldoCheck = await validarSaldoFeriasParaIntervalo({
-                          supabaseClient: supabase,
-                          userId: pedido.user_id,
-                          dataInicio: pedido.data_inicio,
-                          dataFim: pedido.data_fim || pedido.data_inicio,
-                          excluirPedidoId: pedido.id,
-                          diasLimiteAnual,
-                          tolerancias,
+                        supabaseClient: supabase,
+                        userId: pedido.user_id,
+                        dataInicio: pedido.data_inicio,
+                        dataFim: pedido.data_fim || pedido.data_inicio,
+                        is_parcial: pedido.is_parcial, // ADICIONADO
+                        hora_inicio: pedido.hora_inicio, // ADICIONADO
+                        hora_fim: pedido.hora_fim, // ADICIONADO
+                        excluirPedidoId: pedido.id,
+                        diasLimiteAnual,
+                        tolerancias,
                       });
 
                       if (!saldoCheck.ok) {
@@ -1124,9 +1163,7 @@ export default function RecursosHumanos() {
               const isKmRequest = pedido.tipo === KM_REQUEST_TYPE;
               const profile = colaboradores.find((c) => c.id === pedido.user_id);
               const diasLimiteAnual = getAnnualVacationLimitFromProfile(profile);
-              const diasPedidoFerias = eFerias && !pedido.is_parcial
-                  ? calcularDiasFeriasComTolerancias(pedido.user_id, pedido.data_inicio, pedido.data_fim || pedido.data_inicio)
-                  : 0;
+              const diasPedidoFerias = eFerias ? getDiasDoPedido(pedido, pedido.user_id) : 0;
 
               // Validações de saldo para férias
               if (diasPedidoFerias > 0 && !isKmRequest) {
@@ -1137,14 +1174,17 @@ export default function RecursosHumanos() {
                       }
                   } else {
                       const saldoCheck = await validarSaldoFeriasParaIntervalo({
-                          supabaseClient: supabase,
-                          userId: pedido.user_id,
-                          dataInicio: pedido.data_inicio,
-                          dataFim: pedido.data_fim || pedido.data_inicio,
-                          excluirPedidoId: pedido.id,
-                          diasLimiteAnual,
-                          tolerancias,
-                      });
+                        supabaseClient: supabase,
+                        userId: pedido.user_id,
+                        dataInicio: pedido.data_inicio,
+                        dataFim: pedido.data_fim || pedido.data_inicio,
+                        is_parcial: pedido.is_parcial, // ADICIONADO
+                        hora_inicio: pedido.hora_inicio, // ADICIONADO
+                        hora_fim: pedido.hora_fim, // ADICIONADO
+                        excluirPedidoId: pedido.id,
+                        diasLimiteAnual,
+                        tolerancias,
+                    });
                       if (!saldoCheck.ok) throw new Error(`Saldo insuficiente para ${profile.nome}. Abortado.`);
                   }
               }
@@ -1486,7 +1526,7 @@ export default function RecursosHumanos() {
       
       if (!newAbsence.user_id) return showNotification("Selecione um colaborador!", "error");
       if (!newAbsence.data_inicio || (!isKmRequest && !newAbsence.is_parcial && !newAbsence.data_fim)) return showNotification("Selecione as datas!", "error");
-      if (!isKmRequest && !newAbsence.is_parcial && diasUteisModal === 0) return showNotification("O período não contém dias úteis.", "error");
+      if (!isKmRequest && diasUteisModal <= 0) return showNotification("O período não contém dias úteis válidos.", "error");
       if (!isKmRequest && !newAbsence.is_parcial && parseLocalDate(newAbsence.data_inicio) > parseLocalDate(newAbsence.data_fim)) return showNotification("A data de fim é inválida.", "error");
       if (isKmRequest) {
           const kmTotal = Number(newAbsence.km_total);
@@ -1497,7 +1537,7 @@ export default function RecursosHumanos() {
       setIsSubmitting(true);
       try {
           const normalizedTipo = newAbsence.tipo === KM_REQUEST_TYPE ? KM_REQUEST_TYPE : formatAbsenceTypeLabel(newAbsence.tipo);
-          const isNewFerias = !newAbsence.is_parcial && isVacationType(normalizedTipo);
+          const isNewFerias = isVacationType(normalizedTipo);
           const dataFimFinal = isKmRequest
               ? newAbsence.data_inicio
               : (newAbsence.is_parcial ? newAbsence.data_inicio : newAbsence.data_fim);
@@ -1508,18 +1548,19 @@ export default function RecursosHumanos() {
           const diasFeriasAntigos =
               isEditingAbsence &&
               editingAbsenceData?.estado === 'aprovado' &&
-              !editingAbsenceData?.is_parcial &&
               isVacationType(editingAbsenceData?.tipo)
-                  ? calcularDiasFeriasComTolerancias(
-                        editingAbsenceData.user_id,
-                        editingAbsenceData.data_inicio,
-                        editingAbsenceData.data_fim || editingAbsenceData.data_inicio,
-                    )
+                  ? getDiasDoPedido(editingAbsenceData, editingAbsenceData.user_id)
                   : 0;
 
-          const diasFeriasNovos = isNewFerias
-              ? calcularDiasFeriasComTolerancias(newAbsence.user_id, newAbsence.data_inicio, dataFimFinal)
-              : 0;
+          const fakeNewPedido = {
+               tipo: normalizedTipo,
+               is_parcial: isKmRequest ? false : newAbsence.is_parcial,
+               hora_inicio: isKmRequest ? null : (newAbsence.is_parcial ? newAbsence.hora_inicio : null),
+               hora_fim: isKmRequest ? null : (newAbsence.is_parcial ? newAbsence.hora_fim : null),
+               data_inicio: newAbsence.data_inicio,
+               data_fim: dataFimFinal
+          };
+          const diasFeriasNovos = isNewFerias ? getDiasDoPedido(fakeNewPedido, newAbsence.user_id) : 0;
 
           let anexo_url = isEditingAbsence ? editingAbsenceData.anexo_url : null;
           if (absenceFile) {
@@ -1556,14 +1597,17 @@ export default function RecursosHumanos() {
                   }
               } else {
                   const saldoCheck = await validarSaldoFeriasParaIntervalo({
-                      supabaseClient: supabase,
-                      userId: newAbsence.user_id,
-                      dataInicio: newAbsence.data_inicio,
-                      dataFim: dataFimFinal,
-                      excluirPedidoId: isEditingAbsence ? editingAbsenceData.id : null,
-                      diasLimiteAnual,
-                      tolerancias,
-                  });
+                    supabaseClient: supabase,
+                    userId: newAbsence.user_id,
+                    dataInicio: newAbsence.data_inicio,
+                    dataFim: dataFimFinal,
+                    is_parcial: isKmRequest ? false : newAbsence.is_parcial, // ADICIONADO
+                    hora_inicio: isKmRequest ? null : (newAbsence.is_parcial ? newAbsence.hora_inicio : null), // ADICIONADO
+                    hora_fim: isKmRequest ? null : (newAbsence.is_parcial ? newAbsence.hora_fim || null : null), // ADICIONADO
+                    excluirPedidoId: isEditingAbsence ? editingAbsenceData.id : null,
+                    diasLimiteAnual,
+                    tolerancias,
+                });
 
                   if (!saldoCheck.ok) {
                       throw new Error(`Saldo insuficiente para ${saldoCheck.ano}: pedido de ${saldoCheck.diasPedidoNoAno} dia(s), disponível ${saldoCheck.diasDisponiveis}.`);
@@ -2320,7 +2364,11 @@ export default function RecursosHumanos() {
                                               `${new Date(p.data_inicio).toLocaleDateString('pt-PT')} a ${new Date(p.data_fim).toLocaleDateString('pt-PT')}`
                                           )}
                                         </td>
-                                        <td style={{padding: '12px'}}>{p.is_parcial ? <span style={{color: '#94a3b8', fontSize:'0.85rem'}}>Horas</span> : <span style={{fontSize:'0.9rem', fontWeight:'500'}}>{calcularDiasUteis(p.data_inicio, p.data_fim)} dias</span>}</td>
+                                        <td style={{padding: '12px'}}>
+                                            <span style={{fontSize:'0.9rem', fontWeight:'500'}}>
+                                                {getDuracaoAusenciaUI(p)} dia(s)
+                                            </span>
+                                        </td>
                                         <td style={{padding: '12px'}}>
                                             {p.estado === 'pendente' ? 
                                                 <span style={{background: 'var(--color-borderColorLight)', color: 'var(--color-btnPrimary)', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold'}}>Novo Pedido</span> : 
@@ -3472,8 +3520,11 @@ export default function RecursosHumanos() {
                               <div style={{borderLeft:'1px solid var(--color-borderColorLight)', paddingLeft:'15px', display:'flex', flexDirection:'column', justifyContent:'center'}}>
                                   <div style={{fontSize:'0.8rem', color:'var(--color-btnPrimaryHover)', fontWeight:'600'}}>Duração</div>
                                   <div style={{fontWeight:'bold', color:'var(--color-btnPrimaryDark)', fontSize:'1.1rem'}}>
-                                      {detailsModal.pedido.tipo === KM_REQUEST_TYPE ? `${detailsModal.pedido.km_total ?? 0} km` : (detailsModal.pedido.is_parcial ? 'Horas' : `${calcularDiasUteis(detailsModal.pedido.data_inicio, detailsModal.pedido.data_fim)} dias úteis`)}
-                                  </div>
+                                    {detailsModal.pedido.tipo === KM_REQUEST_TYPE 
+                                        ? `${detailsModal.pedido.km_total ?? 0} km` 
+                                        : `${getDuracaoAusenciaUI(detailsModal.pedido)} dia(s) úteis`
+                                    }
+                                </div>
                               </div>
                           </div>
 
@@ -3629,15 +3680,24 @@ export default function RecursosHumanos() {
                             </div>
                         )}
 
-                        {newAbsence.tipo !== KM_REQUEST_TYPE && !newAbsence.is_parcial && newAbsence.data_inicio && newAbsence.data_fim && (
-                            <div style={{background: diasUteisModal > 0 ? 'var(--color-bgSecondary)' : '#fee2e2', color: diasUteisModal > 0 ? 'var(--color-btnPrimaryHover)' : '#991b1b', padding: '12px 15px', borderRadius: '8px', marginBottom: '15px', fontSize: '0.85rem', display: 'flex', gap: '10px', border: diasUteisModal > 0 ? '1px solid var(--color-borderColor)' : '1px solid #fecaca'}}>
+                        {newAbsence.tipo !== KM_REQUEST_TYPE && newAbsence.data_inicio && (
+                            <div style={{
+                                background: diasUteisModal > 0 ? 'var(--color-bgSecondary)' : '#fef2f2', 
+                                color: diasUteisModal > 0 ? 'var(--color-btnPrimaryHover)' : '#b91c1c', 
+                                border: `1px solid ${diasUteisModal > 0 ? 'var(--color-borderColor)' : '#fecaca'}`, 
+                                padding: '12px 15px', borderRadius: '8px', marginBottom: '15px', fontSize: '0.85rem', display: 'flex', gap: '10px'
+                            }}>
                                 <span style={{marginTop:'2px'}}>{diasUteisModal > 0 ? <Icons.Info size={16}/> : <Icons.Alert size={16}/>}</span>
                                 <span>
                                     {diasUteisModal > 0 
                                         ? (isVacationType(newAbsence.tipo) 
-                                            ? <span>Este registo consumirá <b>{diasUteisModal} dia(s) útil(eis)</b> de férias do colaborador.</span> 
-                                            : <span>Registará <b>{diasUteisModal} dia(s) útil(eis)</b> de ausência. Tratando-se de justificação, não desconta férias.</span>)
-                                        : <span>Atenção: O período selecionado calha num fim de semana ou feriado. Não há dias úteis a contabilizar.</span>}
+                                            ? <>Este registo consumirá <b>{diasUteisModal} dia(s) útil(eis)</b> de férias do colaborador.</> 
+                                            : <>Registará <b>{diasUteisModal} dia(s) útil(eis)</b> de ausência. Tratando-se de justificação, não desconta férias.</>)
+                                        : (newAbsence.is_parcial && (!newAbsence.hora_inicio || !newAbsence.hora_fim))
+                                            ? `Introduza a hora de saída e regresso para calcular o desconto.`
+                                            : newAbsence.is_parcial 
+                                                ? `As horas inseridas não são válidas (Regresso < Saída).`
+                                                : `Atenção: O período selecionado calha num fim de semana ou feriado.`}
                                 </span>
                             </div>
                         )}
