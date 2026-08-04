@@ -694,7 +694,7 @@ export default function DashboardHome() {
   }
 
   async function fetchAniversarios() {
-      const { data, error } = await supabase.from('profiles').select('id, nome, avatar_url, data_nascimento').not('data_nascimento', 'is', null);
+      const { data, error } = await supabase.from('profiles').select('id, nome, avatar_url, data_nascimento').not('data_nascimento', 'is', null).neq('ativo', false);
       if (data && !error) {
           const hoje = new Date();
           hoje.setHours(0, 0, 0, 0); 

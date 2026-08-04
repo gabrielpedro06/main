@@ -2004,6 +2004,7 @@ export default function RecursosHumanos() {
       const mesAtual = currentDate.getMonth();
       return colaboradores
           .filter(c => {
+              if (c.ativo === false) return false;
               if(!c.data_nascimento) return false;
               const d = new Date(c.data_nascimento);
               return d.getMonth() === mesAtual;

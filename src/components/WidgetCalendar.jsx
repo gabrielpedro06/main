@@ -68,13 +68,17 @@ export default function WidgetCalendar() {
       ];
   };
 
-  useEffect(() => {
-      if(user) {
-          supabase.from("profiles").select("nome, data_nascimento").then(({data}) => {
-              if(data) setAniversariosAno(data.filter(p => p.data_nascimento));
-          });
-      }
-  }, [user]);
+    useEffect(() => {
+        if(user) {
+            supabase
+                .from("profiles")
+                .select("nome, data_nascimento")
+                .neq("ativo", false)
+                .then(({data}) => {
+                    if(data) setAniversariosAno(data.filter(p => p.data_nascimento));
+                });
+        }
+    }, [user]);
 
   useEffect(() => {
     if(user) fetchEventos();
