@@ -364,23 +364,28 @@ export default function CalendarioColaborador({
         const horaEntrada = assidDia.hora_entrada ? parseInt(assidDia.hora_entrada.split(":")[0], 10) : null;
         const horaSaida = assidDia.hora_saida ? parseInt(assidDia.hora_saida.split(":")[0], 10) : null;
 
+        // 💡 NOVO: Detetar se a ausência parcial é do tipo "Férias"
+        const isFeriasParcial = ausenciasDiaParciais.length > 0 && isVacationType(normalizeAbsenceType(ausenciasDiaParciais[0].tipo));
+        const sufixoParcial = ausenciasDiaParciais.length > 0 ? (isFeriasParcial ? " + Férias Parciais" : " + Parcial") : "";
+        const labelParcialCompleto = isFeriasParcial ? "Férias Parciais" : "Ausência Parcial";
+
         if (horaEntrada === 9 && horaSaida === 18 && !assidDia.tempo_pausa_acumulado) {
           tipo = "completoSemPausa";
           cor = "#d1fae5";
           textoCor = "#065f46";
           badge = isFimSemana
-            ? `${formatDurationFromSeconds(totalLiquidoSeg)}${ausenciasDiaParciais.length > 0 ? " + Parcial" : ""}`
-            : ausenciasDiaParciais.length > 0 ? "Dia Completo + Ausência Parcial" : "Dia Completo";
+            ? `${formatDurationFromSeconds(totalLiquidoSeg)}${sufixoParcial}`
+            : ausenciasDiaParciais.length > 0 ? `Dia Completo + ${labelParcialCompleto}` : "Dia Completo";
         } else if (totalLiquidoSeg >= 8 * 3600) {
           tipo = "completoComPausa";
           cor = "#dcfce7";
           textoCor = "#166534";
-          badge = `${formatDurationFromSeconds(totalLiquidoSeg)}${pausaSeg > 0 ? ` (Pausa: ${formatMinutesFromSeconds(pausaSeg)}min)` : ""}${ausenciasDiaParciais.length > 0 ? " + Parcial" : ""}`;
+          badge = `${formatDurationFromSeconds(totalLiquidoSeg)}${pausaSeg > 0 ? ` (Pausa: ${formatMinutesFromSeconds(pausaSeg)}min)` : ""}${sufixoParcial}`;
         } else if (totalLiquidoSeg > 0) {
           tipo = "parcial";
           cor = "#fee2e2";
           textoCor = "#991b1b";
-          badge = `${formatDurationFromSeconds(totalLiquidoSeg)}${ausenciasDiaParciais.length > 0 ? " + Parcial" : ""}`;
+          badge = `${formatDurationFromSeconds(totalLiquidoSeg)}${sufixoParcial}`;
         } else {
           tipo = "vazio";
           cor = "#f8fafc";
@@ -389,10 +394,13 @@ export default function CalendarioColaborador({
         }
       } else if (ausenciasDiaParciais.length > 0) {
         const parcial = ausenciasDiaParciais[0];
+        const isFeriasParcial = isVacationType(normalizeAbsenceType(parcial.tipo));
+        
         tipo = "ausenciaParcial";
-        cor = "var(--color-bgSecondary)";
-        textoCor = "var(--color-btnPrimaryHover)";
-        badge = `Ausência Parcial ${formatarHora(parcial.hora_inicio)}-${formatarHora(parcial.hora_fim)}`;
+        // 💡 Dá a cor amarela/laranja igual à das Férias normais se for Férias!
+        cor = isFeriasParcial ? "#fefce8" : "var(--color-bgSecondary)";
+        textoCor = isFeriasParcial ? "#854d0e" : "var(--color-btnPrimaryHover)";
+        badge = `${isFeriasParcial ? "Férias Parciais" : "Ausência Parcial"} ${formatarHora(parcial.hora_inicio)}-${formatarHora(parcial.hora_fim)}`;
       } else if (estadoTemporarioBarra) {
         tipo = "estadoTemporario";
         const statusStyle = estadoTemporarioBarra;
