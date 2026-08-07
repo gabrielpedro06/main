@@ -153,6 +153,7 @@ export default function Forum() {
     const [chatUploadingFile, setChatUploadingFile] = useState(false);
     const [chatError, setChatError] = useState("");
     const [chatRlsNeedsFix, setChatRlsNeedsFix] = useState(false);
+    const [isDraggingChatFile, setIsDraggingChatFile] = useState(false);
     const [chatCollaborators, setChatCollaborators] = useState([]);
     const [typingUsersById, setTypingUsersById] = useState({});
     const [readReceiptsByRoom, setReadReceiptsByRoom] = useState({});
@@ -1399,6 +1400,45 @@ export default function Forum() {
           setChatUploadingFile(false);
       }
   }
+
+  const handleChatDragEnter = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (activeChatRoom?.id && !chatSending && !chatUploadingFile) {
+          setIsDraggingChatFile(true);
+      }
+  };
+
+  const handleChatDragOver = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (activeChatRoom?.id && !chatSending && !chatUploadingFile) {
+          e.dataTransfer.dropEffect = "copy";
+          setIsDraggingChatFile(true);
+      }
+  };
+
+  const handleChatDragLeave = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      // Previne que o estado mude a piscar quando passa por cima de elementos filhos
+      if (!e.currentTarget.contains(e.relatedTarget)) {
+          setIsDraggingChatFile(false);
+      }
+  };
+
+  const handleChatDrop = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDraggingChatFile(false);
+
+      if (!activeChatRoom?.id || chatSending || chatUploadingFile) return;
+
+      const files = Array.from(e.dataTransfer?.files || []);
+      if (files.length > 0) {
+          uploadChatFile(files[0]); // Envia o primeiro ficheiro arrastado
+      }
+  };
 
   async function loadChatCollaborators() {
       try {
@@ -2749,7 +2789,30 @@ export default function Forum() {
                         </div>
                     </div>
 
-                    <div style={{display:'flex', flexDirection:'column', minHeight:0}}>
+                    <div 
+                        style={{display:'flex', flexDirection:'column', minHeight:0, position: 'relative'}}
+                        onDragEnter={handleChatDragEnter}
+                        onDragOver={handleChatDragOver}
+                        onDragLeave={handleChatDragLeave}
+                        onDrop={handleChatDrop}
+                    >
+                        {/* OVERLAY DE DRAG N DROP */}
+                        {isDraggingChatFile && (
+                            <div style={{
+                                position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                                backgroundColor: 'rgba(239, 246, 255, 0.95)',
+                                backdropFilter: 'blur(2px)',
+                                border: '3px dashed var(--color-btnPrimary)',
+                                zIndex: 50, display: 'flex', flexDirection: 'column',
+                                alignItems: 'center', justifyContent: 'center', color: 'var(--color-btnPrimary)',
+                                transition: 'all 0.2s ease',
+                                pointerEvents: 'none' /* <--- ADICIONA ESTA LINHA AQUI */
+                            }}>
+                                <Icons.Paperclip size={48} />
+                                <h3 style={{marginTop: '16px', fontWeight: '800'}}>Larga o ficheiro para enviar</h3>
+                            </div>
+                        )}
+
                         <div style={{padding:'16px 18px', borderBottom:'1px solid #e2e8f0', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'12px'}}>
                             <div>
                                 <h3 style={{margin:'0 0 3px 0', color:'#0f172a', fontSize:'1.15rem', fontWeight:'900'}}>{chatModal.target?.title || 'Seleciona um chat'}</h3>
