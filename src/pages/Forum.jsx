@@ -7,6 +7,7 @@ import StopTimerNoteModal from "../components/StopTimerNoteModal";
 import { resolveActiveTimerMeta } from "../utils/activeTimerResolver";
 import { applyStopStatusUpdateForLogTarget } from "../utils/taskTimerLifecycle";
 import "./../styles/dashboard.css";
+import EmojiPicker from 'emoji-picker-react';
 
 // --- ÍCONES SVG PROFISSIONAIS ---
 const Icons = {
@@ -21,7 +22,8 @@ const Icons = {
   AlertTriangle: ({ size = 48, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>,
   Image: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>,
   User: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>,
-    Heart: ({ size = 16, color = "currentColor", fill = "none" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>,
+  Smile: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>,  
+  Heart: ({ size = 16, color = "currentColor", fill = "none" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>,
     Stop: ({ size = 12, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none"><rect x="6" y="6" width="12" height="12" rx="2" ry="2"></rect></svg>,
     GripVertical: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="19" r="1"></circle></svg>,
   Edit: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
@@ -147,6 +149,7 @@ export default function Forum() {
     const typingTimersRef = useRef({});
     const typingLastSentAtRef = useRef(0);
     const chatMessagesContainerRef = useRef(null);
+    const chatInputRef = useRef(null);
     const [chatDraft, setChatDraft] = useState("");
     const [chatLoading, setChatLoading] = useState(false);
     const [chatSending, setChatSending] = useState(false);
@@ -169,6 +172,10 @@ export default function Forum() {
     const [existingGroupMemberIds, setExistingGroupMemberIds] = useState([]);
     const [selectedUsersToAddInGroup, setSelectedUsersToAddInGroup] = useState([]);
     const [addingGroupMembers, setAddingGroupMembers] = useState(false);
+    const [chatStagedFile, setChatStagedFile] = useState(null); // <-- NOVO ESTADO
+    const [hoveredMessageId, setHoveredMessageId] = useState(null);
+    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const [reactionMenuMessageId, setReactionMenuMessageId] = useState(null);
 
   function scrollChatToBottom(delayMs = 0) {
       const run = () => {
@@ -1058,6 +1065,7 @@ export default function Forum() {
       setChatMessages([]);
       setChatDraft("");
       setChatError("");
+      setChatStagedFile(null); // <--- SÓ FALTAVA ISTO AQUI!
       setShowAddGroupMembersModal(false);
       setExistingGroupMemberIds([]);
       setSelectedUsersToAddInGroup([]);
@@ -1067,6 +1075,38 @@ export default function Forum() {
       typingTimersRef.current = {};
       typingLastSentAtRef.current = 0;
   };
+
+  async function handleChatReaction(messageId, emoji) {
+      // 1. Atualização otimista da UI (Instantâneo para o utilizador)
+      setChatMessages(prev => prev.map(msg => {
+          if (msg.id !== messageId) return msg;
+          
+          const existingReactions = msg.chat_reactions || [];
+          const myReactionIndex = existingReactions.findIndex(r => r.user_id === user.id);
+          
+          let newReactions = [...existingReactions];
+          
+          if (myReactionIndex >= 0) {
+              if (newReactions[myReactionIndex].emoji === emoji) {
+                  newReactions.splice(myReactionIndex, 1); // Remove se clicar no mesmo
+              } else {
+                  newReactions[myReactionIndex].emoji = emoji; // Substitui
+              }
+          } else {
+              newReactions.push({ id: Date.now(), user_id: user.id, emoji }); // Adiciona
+          }
+          
+          return { ...msg, chat_reactions: newReactions };
+      }));
+
+      setReactionMenuMessageId(null); // Esconde o menu
+      
+      // 2. Guarda na base de dados
+      await supabase.from('chat_reactions').upsert(
+          { message_id: messageId, user_id: user.id, emoji }, 
+          { onConflict: 'message_id,user_id' }
+      );
+  }
 
   function removeTypingUser(userId) {
       setTypingUsersById((prev) => {
@@ -1324,28 +1364,58 @@ export default function Forum() {
       }
   }
 
-  async function handleSendChatText(e) {
+async function handleSendChat(e) {
       e.preventDefault();
       const content = String(chatDraft || "").trim();
-      if (!content || !activeChatRoom?.id) return;
+      
+      // Se não houver nem texto nem ficheiro, não faz nada
+      if (!content && !chatStagedFile) return;
+      if (!activeChatRoom?.id) return;
 
       setChatSending(true);
       try {
+          let fileUrl = null;
+          let fileName = null;
+
+          // 1. Faz o upload do ficheiro se existir algum em "espera"
+          if (chatStagedFile) {
+              setChatUploadingFile(true);
+              const fileExt = chatStagedFile.name.split(".").pop();
+              const fName = `${user.id}_${Date.now()}_${Math.random().toString(36).slice(2)}.${fileExt}`;
+              const filePath = `chat-files/${fName}`;
+
+              const { error: uploadError } = await supabase.storage
+                  .from("documents") // O teu bucket atual
+                  .upload(filePath, chatStagedFile);
+
+              if (uploadError) throw uploadError;
+
+              const { data: { publicUrl } } = supabase.storage.from("documents").getPublicUrl(filePath);
+              fileUrl = publicUrl;
+              fileName = chatStagedFile.name;
+              setChatUploadingFile(false);
+          }
+
+          // 2. Insere a mensagem (agora pode ter texto, ficheiro, ou ambos)
           const { data, error } = await supabase
               .from("chat_messages")
-              .insert([
-                  {
-                      room_id: activeChatRoom.id,
-                      sender_id: user.id,
-                      content,
-                  },
-              ])
+              .insert([{
+                  room_id: activeChatRoom.id,
+                  sender_id: user.id,
+                  content: content || null,
+                  file_url: fileUrl,
+                  file_name: fileName,
+              }])
               .select("*")
               .single();
 
           if (error) throw error;
+          
+          // 3. Limpa os inputs
           setChatDraft("");
-
+          setChatStagedFile(null);
+          setShowEmojiPicker(false);
+          
           if (data) {
               setChatMessages((prev) => (prev.some((m) => m.id === data.id) ? prev : [...prev, data]));
           }
@@ -1353,51 +1423,12 @@ export default function Forum() {
           emitTypingStatus(false);
       } catch (err) {
           setChatError(err?.message || "Erro ao enviar mensagem.");
+          setChatUploadingFile(false);
       } finally {
           setChatSending(false);
-      }
-  }
-
-    async function uploadChatFile(file) {
-      if (!file || !activeChatRoom?.id) return;
-
-      setChatUploadingFile(true);
-      try {
-          const fileExt = file.name.split(".").pop();
-          const fileName = `${user.id}_${Date.now()}_${Math.random().toString(36).slice(2)}.${fileExt}`;
-          const filePath = `chat-files/${fileName}`;
-
-          const { error: uploadError } = await supabase.storage
-              .from("documents")
-              .upload(filePath, file);
-
-          if (uploadError) throw uploadError;
-
-          const {
-              data: { publicUrl },
-          } = supabase.storage.from("documents").getPublicUrl(filePath);
-
-          const { data, error } = await supabase
-              .from("chat_messages")
-              .insert([
-                  {
-                      room_id: activeChatRoom.id,
-                      sender_id: user.id,
-                      file_url: publicUrl,
-                      file_name: file.name,
-                  },
-              ])
-              .select("*")
-              .single();
-
-          if (error) throw error;
-          if (data) {
-              setChatMessages((prev) => (prev.some((m) => m.id === data.id) ? prev : [...prev, data]));
-          }
-      } catch (err) {
-          setChatError(err?.message || "Erro no envio de ficheiro.");
-      } finally {
-          setChatUploadingFile(false);
+          setTimeout(() => {
+            chatInputRef.current?.focus();
+        }, 50);
       }
   }
 
@@ -1436,7 +1467,7 @@ export default function Forum() {
 
       const files = Array.from(e.dataTransfer?.files || []);
       if (files.length > 0) {
-          uploadChatFile(files[0]); // Envia o primeiro ficheiro arrastado
+          setChatStagedFile(files[0]); // <-- Substitui uploadChatFile(files[0]) por isto
       }
   };
 
@@ -2723,217 +2754,346 @@ export default function Forum() {
       )}
 
       {chatModal.show && (
-        <ModalPortal>
-            <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.72)', backdropFilter: 'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:999999, padding:'14px'}} onClick={closeInternalChatModal}>
-                <div style={{background:'white', width:'min(1420px, 98vw)', height:'92vh', borderRadius:'18px', border:'1px solid #e2e8f0', boxShadow:'0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow:'hidden', display:'grid', gridTemplateColumns:'320px 1fr'}} onClick={(e) => e.stopPropagation()}>
-                    <div style={{borderRight:'1px solid #e2e8f0', background:'#f8fafc', display:'flex', flexDirection:'column', minHeight:0}}>
-                        <div style={{padding:'16px', borderBottom:'1px solid #e2e8f0', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'8px'}}>
-                            <h3 style={{margin:0, color:'#0f172a', fontSize:'1rem', fontWeight:'900'}}>Chats Internos</h3>
-                            <button onClick={closeInternalChatModal} style={{background:'#fff', border:'1px solid #cbd5e1', width: '30px', height: '30px', borderRadius: '999px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor:'pointer', color:'#64748b'}} className="hover-red-btn"><Icons.Close size={15} /></button>
-                        </div>
+    <ModalPortal>
+        <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.72)', backdropFilter: 'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:999999, padding:'14px'}} onClick={closeInternalChatModal}>
+            <div style={{background:'white', width:'min(1600px, 98vw)', height:'96vh', borderRadius:'18px', border:'1px solid #e2e8f0', boxShadow:'0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow:'hidden', display:'grid', gridTemplateColumns:'320px 1fr'}} onClick={(e) => e.stopPropagation()}>
+                <div style={{borderRight:'1px solid #e2e8f0', background:'#f8fafc', display:'flex', flexDirection:'column', minHeight:0}}>
+                    <div style={{padding:'16px', borderBottom:'1px solid #e2e8f0', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'8px'}}>
+                        <h3 style={{margin:0, color:'#0f172a', fontSize:'1rem', fontWeight:'900'}}>Chats Internos</h3>
+                        <button onClick={closeInternalChatModal} style={{background:'#fff', border:'1px solid #cbd5e1', width: '30px', height: '30px', borderRadius: '999px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor:'pointer', color:'#64748b'}} className="hover-red-btn"><Icons.Close size={15} /></button>
+                    </div>
 
-                        <div style={{padding:'12px', overflowY:'auto', minHeight:0}} className="custom-scrollbar">
+                    <div style={{padding:'12px', overflowY:'auto', minHeight:0}} className="custom-scrollbar">
+                        <button
+                            onClick={() => setShowNewChatModal(true)}
+                            style={{width:'100%', display:'flex', alignItems:'center', gap:'10px', justifyContent:'center', marginBottom:'12px', border:'1px solid #d1d5db', borderRadius:'10px', background:'var(--color-btnPrimary)', color:'#fff', padding:'10px', cursor:'pointer', fontWeight:'700', fontSize:'0.9rem', transition:'0.2s'}}
+                            className="hover-shadow"
+                        >
+                            <Icons.Plus size={16} /> Novo Chat
+                        </button>
+
+                        {chatRooms.length > 0 ? (
+                            chatRooms.map((room) => {
+                                const unreadCount = unreadByRoom[room.id] || 0;
+                                return (
+                                    <button
+                                        key={room.id}
+                                        onClick={() => openExistingRoom(room)}
+                                        className="hover-shadow"
+                                        style={{
+                                            width:'100%', display:'flex', alignItems:'center', gap:'10px', textAlign:'left',
+                                            border: unreadCount ? '1px solid #fca5a5' : '1px solid #e2e8f0',
+                                            borderRadius:'10px', background: activeChatRoom?.id === room.id ? '#eff6ff' : '#fff',
+                                            marginBottom:'8px', padding:'10px', cursor:'pointer',
+                                            boxShadow: unreadCount ? '0 6px 16px rgba(239,68,68,0.12)' : 'none',
+                                        }}
+                                    >
+                                        <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', overflow:'hidden' }}>
+                                            {renderAvatar(room.display_title || room.nome || 'Conversa privada', room.display_avatar_url || null, 34, '0.78rem')}
+                                        </div>
+                                        <div style={{minWidth:0, flex:1}}>
+                                            <div style={{color:'#0f172a', fontWeight:'800', fontSize:'0.95rem', display:'flex', alignItems:'center', gap:'8px'}}>
+                                                <span style={{minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{room.display_title || room.nome || 'Conversa privada'}</span>
+                                                {unreadCount > 0 && <span style={{width:'8px', height:'8px', borderRadius:'999px', background:'#ef4444', boxShadow:'0 0 0 4px rgba(239,68,68,0.2)', flexShrink:0}}></span>}
+                                            </div>
+                                            <div style={{color:'#94a3b8', fontSize:'0.8rem', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'8px'}}>
+                                                <span>{room.display_subtitle || (room.is_group ? 'Group Chat' : 'Chat')}</span>
+                                                {unreadCount > 0 && <span style={{padding:'2px 7px', borderRadius:'999px', fontSize:'0.7rem', fontWeight:'900', color:'#fff', background:'#ef4444'}}>{unreadCount}</span>}
+                                            </div>
+                                        </div>
+                                    </button>
+                                );
+                            })
+                        ) : (
+                            <div style={{padding:'12px', color:'#94a3b8', fontSize:'0.85rem', textAlign:'center'}}>Ainda não criaste chats.</div>
+                        )}
+                    </div>
+                </div>
+
+                <div 
+                    style={{display:'flex', flexDirection:'column', minHeight:0, position: 'relative'}}
+                    onDragEnter={handleChatDragEnter}
+                    onDragOver={handleChatDragOver}
+                    onDragLeave={handleChatDragLeave}
+                    onDrop={handleChatDrop}
+                >
+                    {isDraggingChatFile && (
+                        <div style={{
+                            position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(239, 246, 255, 0.95)',
+                            backdropFilter: 'blur(2px)', border: '3px dashed var(--color-btnPrimary)', zIndex: 50, display: 'flex', flexDirection: 'column',
+                            alignItems: 'center', justifyContent: 'center', color: 'var(--color-btnPrimary)', transition: 'all 0.2s ease', pointerEvents: 'none'
+                        }}>
+                            <Icons.Paperclip size={48} />
+                            <h3 style={{marginTop: '16px', fontWeight: '800'}}>Larga o ficheiro para enviar</h3>
+                        </div>
+                    )}
+
+                    <div style={{padding:'16px 18px', borderBottom:'1px solid #e2e8f0', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'12px'}}>
+                        <div>
+                            <h3 style={{margin:'0 0 3px 0', color:'#0f172a', fontSize:'1.15rem', fontWeight:'900'}}>{chatModal.target?.title || 'Seleciona um chat'}</h3>
+                            <p style={{margin:0, color:'#94a3b8', fontSize:'0.82rem'}}>{activeChatRoom?.id ? `Sala: ${activeChatRoom.id.slice(0, 8)}...` : 'Sem sala ativa'}</p>
+                        </div>
+                        {activeChatRoom?.is_group && (
                             <button
-                                onClick={() => {
-                                    setShowNewChatModal(true);
-                                }}
-                                style={{width:'100%', display:'flex', alignItems:'center', gap:'10px', justifyContent:'center', marginBottom:'12px', border:'1px solid #d1d5db', borderRadius:'10px', background:'var(--color-btnPrimary)', color:'#fff', padding:'10px', cursor:'pointer', fontWeight:'700', fontSize:'0.9rem', transition:'0.2s'}}
-                                className="hover-shadow"
+                                type="button" onClick={openAddGroupMembersModal}
+                                style={{border:'1px solid #cbd5e1', background:'#fff', color:'#1e293b', borderRadius:'10px', padding:'8px 12px', cursor:'pointer', fontWeight:'700', fontSize:'0.82rem'}} className="hover-shadow"
                             >
-                                <Icons.Plus size={16} /> Novo Chat
+                                + Adicionar pessoas
                             </button>
+                        )}
+                    </div>
 
-                            {chatRooms.length > 0 ? (
-                                chatRooms.map((room) => {
-                                    const unreadCount = unreadByRoom[room.id] || 0;
-                                    return (
-                                        <button
-                                            key={room.id}
-                                            onClick={() => openExistingRoom(room)}
-                                            className="hover-shadow"
-                                            style={{
-                                                width:'100%',
-                                                display:'flex',
-                                                alignItems:'center',
-                                                gap:'10px',
-                                                textAlign:'left',
-                                                border: unreadCount ? '1px solid #fca5a5' : '1px solid #e2e8f0',
-                                                borderRadius:'10px',
-                                                background: activeChatRoom?.id === room.id ? '#eff6ff' : '#fff',
-                                                marginBottom:'8px',
-                                                padding:'10px',
-                                                cursor:'pointer',
-                                                boxShadow: unreadCount ? '0 6px 16px rgba(239,68,68,0.12)' : 'none',
-                                            }}
-                                        >
-                                            <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', overflow:'hidden' }}>
-                                                {renderAvatar(room.display_title || room.nome || 'Conversa privada', room.display_avatar_url || null, 34, '0.78rem')}
-                                            </div>
-                                            <div style={{minWidth:0, flex:1}}>
-                                                <div style={{color:'#0f172a', fontWeight:'800', fontSize:'0.95rem', display:'flex', alignItems:'center', gap:'8px'}}>
-                                                    <span style={{minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{room.display_title || room.nome || 'Conversa privada'}</span>
-                                                    {unreadCount > 0 && <span style={{width:'8px', height:'8px', borderRadius:'999px', background:'#ef4444', boxShadow:'0 0 0 4px rgba(239,68,68,0.2)', flexShrink:0}}></span>}
-                                                </div>
-                                                <div style={{color:'#94a3b8', fontSize:'0.8rem', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'8px'}}>
-                                                    <span>{room.display_subtitle || (room.is_group ? 'Group Chat' : 'Chat')}</span>
-                                                    {unreadCount > 0 && <span style={{padding:'2px 7px', borderRadius:'999px', fontSize:'0.7rem', fontWeight:'900', color:'#fff', background:'#ef4444'}}>{unreadCount}</span>}
-                                                </div>
-                                            </div>
-                                        </button>
-                                    );
-                                })
-                            ) : (
-                                <div style={{padding:'12px', color:'#94a3b8', fontSize:'0.85rem', textAlign:'center'}}>Ainda não criaste chats.</div>
-                            )}
+                    {chatError && (
+                        <div style={{margin:'10px 16px 0 16px', padding:'10px 12px', border:'1px solid #fecaca', background:'#fef2f2', color:'#991b1b', borderRadius:'10px', fontSize:'0.85rem'}}>{chatError}</div>
+                    )}
 
-                        </div>
+                    <div style={{margin:'10px 16px 0 16px', minHeight:'20px', color:'#64748b', fontSize:'0.82rem', fontStyle:'italic'}}>
+                        {(() => {
+                            const typingNames = Object.keys(typingUsersById).map((typingUserId) => getChatSenderDisplayName(typingUserId)).filter(Boolean);
+                            if (!typingNames.length) return null;
+                            return `${typingNames.join(', ') || 'Alguém'} a escrever...`;
+                        })()}
                     </div>
 
                     <div 
-                        style={{display:'flex', flexDirection:'column', minHeight:0, position: 'relative'}}
-                        onDragEnter={handleChatDragEnter}
-                        onDragOver={handleChatDragOver}
-                        onDragLeave={handleChatDragLeave}
-                        onDrop={handleChatDrop}
+                        ref={chatMessagesContainerRef} 
+                        className="custom-scrollbar"
+                        style={{ flex: 1, overflowY: 'auto', padding: '20px 5%', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc' }} 
                     >
-                        {/* OVERLAY DE DRAG N DROP */}
-                        {isDraggingChatFile && (
-                            <div style={{
-                                position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-                                backgroundColor: 'rgba(239, 246, 255, 0.95)',
-                                backdropFilter: 'blur(2px)',
-                                border: '3px dashed var(--color-btnPrimary)',
-                                zIndex: 50, display: 'flex', flexDirection: 'column',
-                                alignItems: 'center', justifyContent: 'center', color: 'var(--color-btnPrimary)',
-                                transition: 'all 0.2s ease',
-                                pointerEvents: 'none' /* <--- ADICIONA ESTA LINHA AQUI */
-                            }}>
-                                <Icons.Paperclip size={48} />
-                                <h3 style={{marginTop: '16px', fontWeight: '800'}}>Larga o ficheiro para enviar</h3>
+                        {chatLoading && <div style={{color:'#64748b', fontSize:'0.9rem', textAlign:'center', marginTop: '20px'}}>A carregar mensagens...</div>}
+
+                        {!chatLoading && chatMessages.length === 0 && (
+                            <div style={{margin:'auto', textAlign:'center', color:'#94a3b8'}}>
+                                <Icons.Message size={42} />
+                                <div style={{marginTop:'8px', fontWeight: '500'}}>Sem mensagens nesta conversa.</div>
                             </div>
                         )}
 
-                        <div style={{padding:'16px 18px', borderBottom:'1px solid #e2e8f0', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'12px'}}>
-                            <div>
-                                <h3 style={{margin:'0 0 3px 0', color:'#0f172a', fontSize:'1.15rem', fontWeight:'900'}}>{chatModal.target?.title || 'Seleciona um chat'}</h3>
-                                <p style={{margin:0, color:'#94a3b8', fontSize:'0.82rem'}}>{activeChatRoom?.id ? `Sala: ${activeChatRoom.id.slice(0, 8)}...` : 'Sem sala ativa'}</p>
-                            </div>
-                            {activeChatRoom?.is_group && (
-                                <button
-                                    type="button"
-                                    onClick={openAddGroupMembersModal}
-                                    style={{border:'1px solid #cbd5e1', background:'#fff', color:'#1e293b', borderRadius:'10px', padding:'8px 12px', cursor:'pointer', fontWeight:'700', fontSize:'0.82rem'}}
-                                    className="hover-shadow"
+                        {!chatLoading && chatMessages.map((msg, index) => {
+                            const mine = msg.sender_id === user.id;
+                            const showSenderName = Boolean(activeChatRoom?.is_group);
+                            const tick = getMessageReadTick(msg);
+                            
+                            const prevMsg = chatMessages[index - 1];
+                            const nextMsg = chatMessages[index + 1];
+                            const isFirstInGroup = !prevMsg || prevMsg.sender_id !== msg.sender_id;
+                            const isLastInGroup = !nextMsg || nextMsg.sender_id !== msg.sender_id;
+
+                            const bubbleRadius = mine 
+                                ? (isFirstInGroup ? '12px 0px 12px 12px' : '12px 12px 12px 12px')
+                                : (isFirstInGroup ? '0px 12px 12px 12px' : '12px 12px 12px 12px');
+                            
+                            const marginBottom = isLastInGroup ? '16px' : '2px';
+
+                            return (
+                                <div 
+                                    key={msg.id} 
+                                    style={{display:'flex', justifyContent: mine ? 'flex-end' : 'flex-start', marginBottom}}
+                                    onMouseEnter={() => setHoveredMessageId(msg.id)}
+                                    onMouseLeave={() => setHoveredMessageId(null)}
                                 >
-                                    + Adicionar pessoas
-                                </button>
-                            )}
-                        </div>
+                                    <div style={{
+                                        maxWidth:'85%', 
+                                        background: mine ? '#eff6ff' : '#ffffff',
+                                        border: mine ? '1px solid #bfdbfe' : '1px solid #e2e8f0',
+                                        boxShadow: '0 1px 2px rgba(0,0,0,0.02)', 
+                                        borderRadius: bubbleRadius, 
+                                        padding:'6px 8px 6px 12px',
+                                        position: 'relative'
+                                    }}>
+                                        
+                                        {/* 1. BOTÃO FLUTUANTE DE HOVER */}
+                                        {hoveredMessageId === msg.id && reactionMenuMessageId !== msg.id && (
+                                            <div 
+                                                title="Reagir"
+                                                style={{
+                                                    position: 'absolute', top: '50%', transform: 'translateY(-50%)',
+                                                    [mine ? 'left' : 'right']: '-38px', background: 'white', border: '1px solid #e2e8f0',
+                                                    borderRadius: '50%', padding: '6px', boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
+                                                    cursor: 'pointer', display: 'flex', zIndex: 10, transition: 'all 0.2s'
+                                                }} 
+                                                className="hover-shadow"
+                                                onClick={() => setReactionMenuMessageId(msg.id)}
+                                            >
+                                                <Icons.Smile size={18} color="#94a3b8" />
+                                            </div>
+                                        )}
 
-                        {chatError && (
-                            <div style={{margin:'10px 16px 0 16px', padding:'10px 12px', border:'1px solid #fecaca', background:'#fef2f2', color:'#991b1b', borderRadius:'10px', fontSize:'0.85rem'}}>{chatError}</div>
-                        )}
+                                        {/* 2. MENU RÁPIDO DE REAÇÕES */}
+                                        {reactionMenuMessageId === msg.id && (
+                                            <div style={{
+                                                position: 'absolute', top: '-45px', [mine ? 'right' : 'left']: '0',
+                                                background: 'white', border: '1px solid #e2e8f0', borderRadius: '30px',
+                                                padding: '6px 12px', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.2)',
+                                                display: 'flex', gap: '8px', zIndex: 20, animation: 'fadeIn 0.15s ease-out'
+                                            }}>
+                                                {['👍', '❤️', '😂', '😮', '😢', '🙏'].map(emoji => (
+                                                    <button
+                                                        key={emoji}
+                                                        onClick={() => handleChatReaction(msg.id, emoji)}
+                                                        style={{ background: 'transparent', border: 'none', fontSize: '1.3rem', cursor: 'pointer', padding: '0', transition: 'transform 0.1s' }}
+                                                        onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.3)'}
+                                                        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                                                    >
+                                                        {emoji}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                        
+                                        {/* REMETENTE, FICHEIROS E TEXTO */}
+                                        {showSenderName && isFirstInGroup && !mine && (
+                                            <div style={{marginBottom:'2px', fontSize:'0.76rem', fontWeight:'800', color: 'var(--color-btnPrimary)'}}>
+                                                {getChatSenderDisplayName(msg.sender_id)}
+                                            </div>
+                                        )}
+                                        
+                                        {msg.file_url && (
+                                            (() => {
+                                                const isImage = msg.file_name && /\.(jpeg|jpg|gif|png|webp|svg)$/i.test(msg.file_name);
+                                                return isImage ? (
+                                                    <div style={{ marginBottom: msg.content ? '6px' : '0', marginTop: '2px' }}>
+                                                        <a href={msg.file_url} target="_blank" rel="noreferrer">
+                                                            <img src={msg.file_url} alt={msg.file_name} style={{ maxWidth: '100%', maxHeight: '450px', borderRadius: '8px', display: 'block', cursor: 'pointer', border: '1px solid #e2e8f0' }} />
+                                                        </a>
+                                                    </div>
+                                                ) : (
+                                                    <div style={{display:'grid', gap:'6px', marginBottom: msg.content ? '6px' : '0', marginTop: '2px', padding: '10px', background: 'rgba(0,0,0,0.03)', borderRadius: '8px', border: '1px solid #e2e8f0'}}>
+                                                        <a href={msg.file_url} target="_blank" rel="noreferrer" style={{color:'var(--color-btnPrimary)', fontWeight:'700', textDecoration:'none', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem'}}>
+                                                            <Icons.Paperclip size={18} /> {msg.file_name || 'Documento'}
+                                                        </a>
+                                                        {msg.requires_sig && !msg.is_signed && <span style={{fontSize:'0.75rem', color:'#b45309'}}>Aguarda assinatura</span>}
+                                                        {msg.is_signed && <span style={{fontSize:'0.75rem', color:'#16a34a'}}>Assinado</span>}
+                                                    </div>
+                                                );
+                                            })()
+                                        )}
 
-                        <div style={{margin:'10px 16px 0 16px', minHeight:'20px', color:'#64748b', fontSize:'0.82rem', fontStyle:'italic'}}>
-                            {(() => {
-                                const typingNames = Object.keys(typingUsersById)
-                                    .map((typingUserId) => getChatSenderDisplayName(typingUserId))
-                                    .filter(Boolean);
-
-                                if (!typingNames.length) return null;
-                                return `${typingNames.join(', ') || 'Alguém'} a escrever...`;
-                            })()}
-                        </div>
-
-                        <div ref={chatMessagesContainerRef} style={{flex:1, overflowY:'auto', padding:'14px 16px', display:'flex', flexDirection:'column', gap:'10px'}} className="custom-scrollbar">
-                            {chatLoading && <div style={{color:'#94a3b8', fontSize:'0.9rem'}}>A carregar mensagens...</div>}
-
-                            {!chatLoading && chatMessages.length === 0 && (
-                                <div style={{margin:'auto', textAlign:'center', color:'#94a3b8'}}>
-                                    <Icons.Message size={42} />
-                                    <div style={{marginTop:'8px'}}>Sem mensagens nesta conversa.</div>
-                                </div>
-                            )}
-
-                            {!chatLoading && chatMessages.map((msg) => {
-                                const mine = msg.sender_id === user.id;
-                                const showSenderName = Boolean(activeChatRoom?.is_group);
-                                const tick = getMessageReadTick(msg);
-                                return (
-                                    <div key={msg.id} style={{display:'flex', justifyContent: mine ? 'flex-end' : 'flex-start'}}>
-                                        <div style={{maxWidth:'72%', background: mine ? '#eff6ff' : '#f1f5f9', border:'1px solid #e2e8f0', borderRadius:'12px', padding:'9px 12px'}}>
-                                            {showSenderName && (
-                                                <div style={{marginBottom:'6px', fontSize:'0.76rem', fontWeight:'800', color: mine ? '#1d4ed8' : '#475569'}}>
-                                                    {mine ? (userProfile?.nome || 'Tu') : getChatSenderDisplayName(msg.sender_id)}
+                                        <div style={{display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: '12px'}}>
+                                            {msg.content && (
+                                                <div style={{color:'#1e293b', whiteSpace:'pre-wrap', overflowWrap:'break-word', fontSize: '0.92rem', lineHeight: '1.4', marginTop: '2px'}}>
+                                                    {msg.content}
                                                 </div>
                                             )}
-                                            {msg.file_url ? (
-                                                <div style={{display:'grid', gap:'6px'}}>
-                                                    <a href={msg.file_url} target="_blank" rel="noreferrer" style={{color:'var(--color-btnPrimary)', fontWeight:'700', textDecoration:'none'}}>📄 {msg.file_name || 'Ficheiro'}</a>
-                                                    {msg.requires_sig && !msg.is_signed && <span style={{fontSize:'0.78rem', color:'#b45309'}}>Aguarda assinatura</span>}
-                                                    {msg.is_signed && <span style={{fontSize:'0.78rem', color:'#16a34a'}}>Assinado</span>}
-                                                </div>
-                                            ) : (
-                                                <div style={{color:'#334155', whiteSpace:'pre-wrap', overflowWrap:'break-word'}}>{msg.content}</div>
-                                            )}
-                                            <div style={{marginTop:'5px', fontSize:'0.72rem', color:'#94a3b8', display:'flex', justifyContent:'space-between', alignItems:'center', gap:'10px'}}>
-                                                <span>{formatDate(msg.created_at || new Date().toISOString())}</span>
-                                                {mine && <span style={{fontWeight:'800', color: tick === '✓✓' ? '#0ea5e9' : '#94a3b8'}}>{tick}</span>}
+                                            
+                                            <div style={{ fontSize:'0.65rem', color:'#64748b', display:'flex', alignItems:'center', gap:'4px', marginLeft: msg.content ? 'auto' : '0', marginBottom: '-2px' }}>
+                                                <span>
+                                                    {formatDate(msg.created_at || new Date().toISOString()).includes(' às ') 
+                                                        ? formatDate(msg.created_at || new Date().toISOString()).split(' às ')[1] 
+                                                        : formatDate(msg.created_at || new Date().toISOString())}
+                                                </span>
+                                                {mine && (
+                                                    <span style={{fontWeight:'800', color: tick === '✓✓' ? 'var(--color-btnPrimary)' : '#94a3b8', fontSize: '0.75rem'}}>
+                                                        {tick}
+                                                    </span>
+                                                )}
                                             </div>
                                         </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
 
-                        <form onSubmit={handleSendChatText} style={{padding:'12px 16px', borderTop:'1px solid #e2e8f0', display:'flex', gap:'8px', alignItems:'center'}}>
-                            <input
-                                type="text"
-                                value={chatDraft}
-                                onChange={(e) => handleChatDraftChange(e.target.value)}
-                                placeholder="Escreve uma mensagem..."
-                                className="input-focus"
-                                style={{flex:1, padding:'12px 14px', borderRadius:'10px', border:'1px solid #cbd5e1', outline:'none'}}
-                                disabled={!activeChatRoom?.id || chatSending || chatUploadingFile}
-                            />
-                            <label
-                                className="hover-shadow"
-                                title="Anexar ficheiro"
-                                style={{
-                                    border:'1px solid #cbd5e1',
-                                    borderRadius:'999px',
-                                    width:'38px',
-                                    height:'38px',
-                                    cursor: !activeChatRoom?.id || chatSending || chatUploadingFile ? 'not-allowed' : 'pointer',
-                                    color:'#334155',
-                                    background:'#fff',
-                                    display:'inline-flex',
-                                    alignItems:'center',
-                                    justifyContent:'center',
-                                    opacity: !activeChatRoom?.id || chatSending || chatUploadingFile ? 0.6 : 1
-                                }}
-                            >
-                                <Icons.Paperclip size={17} />
-                                <input
-                                    type="file"
-                                    style={{display:'none'}}
-                                    disabled={!activeChatRoom?.id || chatSending || chatUploadingFile}
-                                    onChange={(e) => {
-                                        const file = e.target.files?.[0];
-                                        if (file) uploadChatFile(file);
-                                        e.target.value = '';
-                                    }}
-                                />
-                            </label>
-                            <button type="submit" className="btn-primary" style={{borderRadius:'10px', padding:'10px 14px', opacity: chatDraft.trim() && activeChatRoom?.id ? 1 : 0.6}} disabled={!chatDraft.trim() || !activeChatRoom?.id || chatSending || chatUploadingFile}>
-                                {chatSending ? '...' : 'Enviar'}
-                            </button>
-                        </form>
+                                        {/* 3. MOSTRAR AS REAÇÕES PRESAS À BOLHA */}
+                                        {msg.chat_reactions && msg.chat_reactions.length > 0 && (
+                                            <div style={{
+                                                position: 'absolute', bottom: '-12px', [mine ? 'right' : 'left']: '10px',
+                                                background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px',
+                                                padding: '2px 6px', display: 'flex', alignItems: 'center', gap: '2px',
+                                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)', fontSize: '0.8rem', zIndex: 5
+                                            }}>
+                                                {Array.from(new Set(msg.chat_reactions.map(r => r.emoji))).map((emoji, i) => (
+                                                    <span key={i}>{emoji}</span>
+                                                ))}
+                                                {msg.chat_reactions.length > 1 && (
+                                                    <span style={{ color: '#64748b', fontWeight: 'bold', marginLeft: '2px', fontSize: '0.75rem' }}>
+                                                        {msg.chat_reactions.length}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        )}
+
+                                    </div>
+                                </div>
+                            );
+                        })}
                     </div>
+
+                    {/* ZONA DE PREVIEW DOS FICHEIROS STAGED */}
+                    {chatStagedFile && (
+                        <div style={{ padding: '12px 16px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <div style={{ position: 'relative', display: 'inline-block' }}>
+                                {chatStagedFile.type.startsWith('image/') ? (
+                                    <img src={URL.createObjectURL(chatStagedFile)} alt="Preview" style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                                ) : (
+                                    <div style={{ width: '60px', height: '60px', borderRadius: '8px', background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
+                                        <Icons.Paperclip size={24} />
+                                    </div>
+                                )}
+                                <button type="button" onClick={() => setChatStagedFile(null)} style={{ position: 'absolute', top: '-8px', right: '-8px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '50%', width: '22px', height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }}>
+                                    <Icons.Close size={12} />
+                                </button>
+                            </div>
+                            <div style={{ fontSize: '0.85rem', color: '#334155', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '250px' }}>
+                                {chatStagedFile.name}
+                                <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 'normal' }}>Pronto a enviar</div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* FORMULÁRIO UNIFICADO COM O EMOJI PICKER */}
+                    <form onSubmit={handleSendChat} style={{padding:'12px 16px', borderTop:'1px solid #e2e8f0', display:'flex', gap:'8px', alignItems:'center', position: 'relative'}}>
+                        
+                        {showEmojiPicker && (
+                            <div style={{ position: 'absolute', bottom: '65px', left: '16px', zIndex: 100, boxShadow: '0 10px 25px -5px rgba(0,0,0,0.2)', borderRadius: '8px', overflow: 'hidden' }}>
+                                <EmojiPicker 
+                                    onEmojiClick={(emojiObject) => {
+                                        setChatDraft(prev => prev + emojiObject.emoji);
+                                        chatInputRef.current?.focus();
+                                    }}
+                                    autoFocusSearch={false}
+                                    theme="light"
+                                    searchPlaceHolder="Procurar emojis..."
+                                    width={320}
+                                    height={400}
+                                />
+                            </div>
+                        )}
+
+                        <button 
+                            type="button" 
+                            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                            className="hover-shadow"
+                            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: showEmojiPicker ? 'var(--color-btnPrimary)' : '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: '50%', transition: '0.2s' }}
+                        >
+                            <Icons.Smile size={24} />
+                        </button>
+
+                        <input
+                            ref={chatInputRef}
+                            type="text"
+                            value={chatDraft}
+                            onChange={(e) => handleChatDraftChange(e.target.value)}
+                            onClick={() => setShowEmojiPicker(false)}
+                            placeholder={chatStagedFile ? "Adicionar uma legenda..." : "Escreve uma mensagem..."}
+                            className="input-focus"
+                            style={{flex:1, padding:'12px 14px', borderRadius:'10px', border:'1px solid #cbd5e1', outline:'none', fontSize: '0.95rem'}}
+                            disabled={!activeChatRoom?.id || chatSending || chatUploadingFile}
+                        />
+                        <label className="hover-shadow" title="Anexar ficheiro" style={{ border:'1px solid #cbd5e1', borderRadius:'999px', width:'38px', height:'38px', cursor: !activeChatRoom?.id || chatSending || chatUploadingFile ? 'not-allowed' : 'pointer', color:'#334155', background:'#fff', display:'inline-flex', alignItems:'center', justifyContent:'center', opacity: !activeChatRoom?.id || chatSending || chatUploadingFile ? 0.6 : 1 }}>
+                            <Icons.Paperclip size={17} />
+                            <input type="file" style={{display:'none'}} disabled={!activeChatRoom?.id || chatSending || chatUploadingFile} onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) { setChatStagedFile(file); setShowEmojiPicker(false); }
+                                e.target.value = '';
+                            }} />
+                        </label>
+                        <button type="submit" className="btn-primary hover-shadow" style={{borderRadius:'10px', padding:'10px 14px', opacity: (chatDraft.trim() || chatStagedFile) && activeChatRoom?.id ? 1 : 0.6}} disabled={(!chatDraft.trim() && !chatStagedFile) || !activeChatRoom?.id || chatSending || chatUploadingFile}>
+                            {chatSending || chatUploadingFile ? '...' : 'Enviar'}
+                        </button>
+                    </form>
+
                 </div>
             </div>
-        </ModalPortal>
-      )}
+        </div>
+    </ModalPortal>
+)}
 
       {showAddGroupMembersModal && (
           <ModalPortal>
