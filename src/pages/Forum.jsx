@@ -1076,8 +1076,10 @@ export default function Forum() {
       typingLastSentAtRef.current = 0;
   };
 
-  async function handleChatReaction(messageId, emoji) {
-      // 1. Atualização otimista da UI (Instantâneo para o utilizador)
+async function handleChatReaction(messageId, emoji) {
+      let isRemoving = false;
+
+      // 1. Atualização otimista da UI
       setChatMessages(prev => prev.map(msg => {
           if (msg.id !== messageId) return msg;
           
@@ -1087,25 +1089,38 @@ export default function Forum() {
           let newReactions = [...existingReactions];
           
           if (myReactionIndex >= 0) {
-              if (newReactions[myReactionIndex].emoji === emoji) {
-                  newReactions.splice(myReactionIndex, 1); // Remove se clicar no mesmo
+              if (existingReactions[myReactionIndex].emoji === emoji) {
+                  // Clicou no mesmo emoji: REMOVE
+                  newReactions = newReactions.filter((_, i) => i !== myReactionIndex);
+                  isRemoving = true;
               } else {
-                  newReactions[myReactionIndex].emoji = emoji; // Substitui
+                  // Clicou num emoji diferente: SUBSTITUI (sem baralhar o estado do React)
+                  newReactions[myReactionIndex] = { ...newReactions[myReactionIndex], emoji };
               }
           } else {
-              newReactions.push({ id: Date.now(), user_id: user.id, emoji }); // Adiciona
+              // Não tinha reação: ADICIONA NOVA
+              newReactions.push({ id: Date.now(), user_id: user.id, emoji });
           }
           
           return { ...msg, chat_reactions: newReactions };
       }));
 
-      setReactionMenuMessageId(null); // Esconde o menu
+      // Esconde o menu flutuante
+      setReactionMenuMessageId(null); 
       
-      // 2. Guarda na base de dados
-      await supabase.from('chat_reactions').upsert(
-          { message_id: messageId, user_id: user.id, emoji }, 
-          { onConflict: 'message_id,user_id' }
-      );
+      // 2. Guarda ou Apaga na base de dados
+      try {
+          if (isRemoving) {
+              await supabase.from('chat_reactions')
+                  .delete()
+                  .match({ message_id: messageId, user_id: user.id });
+          } else {
+              await supabase.from('chat_reactions')
+                  .upsert({ message_id: messageId, user_id: user.id, emoji }, { onConflict: 'message_id,user_id' });
+          }
+      } catch (err) {
+          console.error("Erro a processar reação:", err);
+      }
   }
 
   function removeTypingUser(userId) {
@@ -1181,7 +1196,7 @@ export default function Forum() {
 
       const { data, error } = await supabase
           .from("chat_messages")
-          .select("*")
+          .select("*, chat_reactions(*)")
           .eq("room_id", roomId)
           .order("created_at", { ascending: true });
 
@@ -1197,7 +1212,7 @@ export default function Forum() {
 
       let query = supabase
           .from("chat_messages")
-          .select("*")
+          .select("*, chat_reactions(*)") // <-- Puxa sempre as reações
           .eq("room_id", roomId)
           .order("created_at", { ascending: true })
           .limit(50);
@@ -1210,10 +1225,18 @@ export default function Forum() {
       if (error || !data?.length) return;
 
       setChatMessages((prev) => {
-          const existingIds = new Set(prev.map((m) => m.id));
-          const incoming = data.filter((m) => !existingIds.has(m.id));
-          if (!incoming.length) return prev;
-          return [...prev, ...incoming];
+          const next = [...prev];
+          data.forEach(incomingMsg => {
+              const index = next.findIndex(m => m.id === incomingMsg.id);
+              if (index >= 0) {
+                  // Se a mensagem já existe na UI, atualiza as reações (Para veres os likes dos outros!)
+                  next[index] = { ...next[index], chat_reactions: incomingMsg.chat_reactions };
+              } else {
+                  // Se é uma mensagem nova, adiciona-a ao fim
+                  next.push(incomingMsg);
+              }
+          });
+          return next;
       });
   }
 
@@ -2874,6 +2897,7 @@ async function handleSendChat(e) {
                             const showSenderName = Boolean(activeChatRoom?.is_group);
                             const tick = getMessageReadTick(msg);
                             
+                            // LÓGICA DE AGRUPAMENTO
                             const prevMsg = chatMessages[index - 1];
                             const nextMsg = chatMessages[index + 1];
                             const isFirstInGroup = !prevMsg || prevMsg.sender_id !== msg.sender_id;
@@ -2883,7 +2907,13 @@ async function handleSendChat(e) {
                                 ? (isFirstInGroup ? '12px 0px 12px 12px' : '12px 12px 12px 12px')
                                 : (isFirstInGroup ? '0px 12px 12px 12px' : '12px 12px 12px 12px');
                             
-                            const marginBottom = isLastInGroup ? '16px' : '2px';
+                            // 1. AJUSTE DE ESPAÇO: Adiciona 16px extra se a mensagem tiver reações para não chocar com a próxima
+                            const hasReactions = msg.chat_reactions && msg.chat_reactions.length > 0;
+                            const baseMarginBottom = isLastInGroup ? 16 : 2;
+                            const marginBottom = `${hasReactions ? baseMarginBottom + 16 : baseMarginBottom}px`;
+
+                            // VERIFICA QUAL É A TUA REAÇÃO ATUAL
+                            const myCurrentReaction = msg.chat_reactions?.find(r => r.user_id === user.id)?.emoji;
 
                             return (
                                 <div 
@@ -2902,7 +2932,7 @@ async function handleSendChat(e) {
                                         position: 'relative'
                                     }}>
                                         
-                                        {/* 1. BOTÃO FLUTUANTE DE HOVER */}
+                                        {/* BOTÃO FLUTUANTE DE HOVER */}
                                         {hoveredMessageId === msg.id && reactionMenuMessageId !== msg.id && (
                                             <div 
                                                 title="Reagir"
@@ -2913,32 +2943,48 @@ async function handleSendChat(e) {
                                                     cursor: 'pointer', display: 'flex', zIndex: 10, transition: 'all 0.2s'
                                                 }} 
                                                 className="hover-shadow"
-                                                onClick={() => setReactionMenuMessageId(msg.id)}
+                                                onClick={(e) => { e.stopPropagation(); setReactionMenuMessageId(msg.id); }}
                                             >
                                                 <Icons.Smile size={18} color="#94a3b8" />
                                             </div>
                                         )}
 
-                                        {/* 2. MENU RÁPIDO DE REAÇÕES */}
+                                        {/* MENU RÁPIDO DE REAÇÕES */}
                                         {reactionMenuMessageId === msg.id && (
-                                            <div style={{
-                                                position: 'absolute', top: '-45px', [mine ? 'right' : 'left']: '0',
-                                                background: 'white', border: '1px solid #e2e8f0', borderRadius: '30px',
-                                                padding: '6px 12px', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.2)',
-                                                display: 'flex', gap: '8px', zIndex: 20, animation: 'fadeIn 0.15s ease-out'
-                                            }}>
-                                                {['👍', '❤️', '😂', '😮', '😢', '🙏'].map(emoji => (
-                                                    <button
-                                                        key={emoji}
-                                                        onClick={() => handleChatReaction(msg.id, emoji)}
-                                                        style={{ background: 'transparent', border: 'none', fontSize: '1.3rem', cursor: 'pointer', padding: '0', transition: 'transform 0.1s' }}
-                                                        onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.3)'}
-                                                        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                                                    >
-                                                        {emoji}
-                                                    </button>
-                                                ))}
-                                            </div>
+                                            <>
+                                                {/* 3. OVERLAY INVISÍVEL PARA FECHAR AO CLICAR FORA */}
+                                                <div 
+                                                    style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 15 }} 
+                                                    onClick={(e) => { e.stopPropagation(); setReactionMenuMessageId(null); }} 
+                                                />
+                                                
+                                                <div style={{
+                                                    position: 'absolute', top: '-45px', [mine ? 'right' : 'left']: '0',
+                                                    background: 'white', border: '1px solid #e2e8f0', borderRadius: '30px',
+                                                    padding: '4px 8px', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.2)',
+                                                    display: 'flex', gap: '4px', zIndex: 20, animation: 'fadeIn 0.15s ease-out'
+                                                }}>
+                                                    {['👍', '❤️', '😂', '😮', '😢', '🙏'].map(emoji => {
+                                                        const isSelected = myCurrentReaction === emoji;
+                                                        return (
+                                                            <button
+                                                                key={emoji}
+                                                                onClick={(e) => { e.stopPropagation(); handleChatReaction(msg.id, emoji); }}
+                                                                title={isSelected ? "Remover reação" : "Reagir"}
+                                                                style={{ 
+                                                                    background: isSelected ? '#e2e8f0' : 'transparent', // 2. FUNDO ACINZENTADO SE SELECIONADO
+                                                                    border: 'none', fontSize: '1.3rem', cursor: 'pointer', 
+                                                                    padding: '4px 6px', borderRadius: '8px', transition: 'transform 0.1s' 
+                                                                }}
+                                                                onMouseEnter={(e) => !isSelected && (e.currentTarget.style.transform = 'scale(1.2)')}
+                                                                onMouseLeave={(e) => !isSelected && (e.currentTarget.style.transform = 'scale(1)')}
+                                                            >
+                                                                {emoji}
+                                                            </button>
+                                                        )
+                                                    })}
+                                                </div>
+                                            </>
                                         )}
                                         
                                         {/* REMETENTE, FICHEIROS E TEXTO */}
@@ -2990,10 +3036,10 @@ async function handleSendChat(e) {
                                             </div>
                                         </div>
 
-                                        {/* 3. MOSTRAR AS REAÇÕES PRESAS À BOLHA */}
+                                        {/* MOSTRAR AS REAÇÕES PRESAS À BOLHA */}
                                         {msg.chat_reactions && msg.chat_reactions.length > 0 && (
                                             <div style={{
-                                                position: 'absolute', bottom: '-12px', [mine ? 'right' : 'left']: '10px',
+                                                position: 'absolute', bottom: '-14px', [mine ? 'right' : 'left']: '10px', // O bottom passou para -14 para não tapar o texto
                                                 background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px',
                                                 padding: '2px 6px', display: 'flex', alignItems: 'center', gap: '2px',
                                                 boxShadow: '0 1px 2px rgba(0,0,0,0.05)', fontSize: '0.8rem', zIndex: 5
