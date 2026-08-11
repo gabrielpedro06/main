@@ -1077,51 +1077,56 @@ export default function Forum() {
   };
 
 async function handleChatReaction(messageId, emoji) {
-      let isRemoving = false;
+    // 1. Analisa o estado atual antes de fazer o set
+    const targetMsg = chatMessages.find(m => m.id === messageId);
+    if (!targetMsg) return;
 
-      // 1. Atualização otimista da UI
-      setChatMessages(prev => prev.map(msg => {
-          if (msg.id !== messageId) return msg;
-          
-          const existingReactions = msg.chat_reactions || [];
-          const myReactionIndex = existingReactions.findIndex(r => r.user_id === user.id);
-          
-          let newReactions = [...existingReactions];
-          
-          if (myReactionIndex >= 0) {
-              if (existingReactions[myReactionIndex].emoji === emoji) {
-                  // Clicou no mesmo emoji: REMOVE
-                  newReactions = newReactions.filter((_, i) => i !== myReactionIndex);
-                  isRemoving = true;
-              } else {
-                  // Clicou num emoji diferente: SUBSTITUI (sem baralhar o estado do React)
-                  newReactions[myReactionIndex] = { ...newReactions[myReactionIndex], emoji };
-              }
-          } else {
-              // Não tinha reação: ADICIONA NOVA
-              newReactions.push({ id: Date.now(), user_id: user.id, emoji });
-          }
-          
-          return { ...msg, chat_reactions: newReactions };
-      }));
+    const existingReactions = targetMsg.chat_reactions || [];
+    const myReactionIndex = existingReactions.findIndex(r => r.user_id === user.id);
+    
+    // Determina antecipadamente se é uma remoção
+    const isRemoving = myReactionIndex >= 0 && existingReactions[myReactionIndex].emoji === emoji;
 
-      // Esconde o menu flutuante
-      setReactionMenuMessageId(null); 
-      
-      // 2. Guarda ou Apaga na base de dados
-      try {
-          if (isRemoving) {
-              await supabase.from('chat_reactions')
-                  .delete()
-                  .match({ message_id: messageId, user_id: user.id });
-          } else {
-              await supabase.from('chat_reactions')
-                  .upsert({ message_id: messageId, user_id: user.id, emoji }, { onConflict: 'message_id,user_id' });
-          }
-      } catch (err) {
-          console.error("Erro a processar reação:", err);
-      }
-  }
+    // 2. Atualização otimista da UI
+    setChatMessages(prev => prev.map(msg => {
+        if (msg.id !== messageId) return msg;
+        
+        let newReactions = [...(msg.chat_reactions || [])];
+        
+        if (isRemoving) {
+            // Clicou no mesmo emoji: REMOVE
+            newReactions = newReactions.filter(r => r.user_id !== user.id);
+        } else if (myReactionIndex >= 0) {
+            // Clicou num emoji diferente: SUBSTITUI
+            const localIdx = newReactions.findIndex(r => r.user_id === user.id);
+            if (localIdx >= 0) {
+                newReactions[localIdx] = { ...newReactions[localIdx], emoji };
+            }
+        } else {
+            // Não tinha reação: ADICIONA NOVA
+            newReactions.push({ id: Date.now(), user_id: user.id, emoji });
+        }
+        
+        return { ...msg, chat_reactions: newReactions };
+    }));
+
+    // Esconde o menu flutuante
+    setReactionMenuMessageId(null); 
+    
+    // 3. Guarda ou Apaga na base de dados (agora isRemoving tem o valor correto!)
+    try {
+        if (isRemoving) {
+            await supabase.from('chat_reactions')
+                .delete()
+                .match({ message_id: messageId, user_id: user.id });
+        } else {
+            await supabase.from('chat_reactions')
+                .upsert({ message_id: messageId, user_id: user.id, emoji }, { onConflict: 'message_id,user_id' });
+        }
+    } catch (err) {
+        console.error("Erro a processar reação:", err);
+    }
+}
 
   function removeTypingUser(userId) {
       setTypingUsersById((prev) => {
