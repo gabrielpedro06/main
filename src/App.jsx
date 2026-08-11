@@ -37,6 +37,7 @@ import ListaPropostas from "./pages/ListaPropostas";
 import GestaoAvisos from "./pages/GestaoAvisos";
 import Cursos from "./pages/Cursos";
 import AtivosTIDashboard from "./pages/AtivosTIDashboard";
+import AcoesFormacao from "./pages/AcoesFormacao";
 
 export default function App() {
   return (
@@ -88,6 +89,7 @@ export default function App() {
             
             {/* GESTÃO DE CURSOS */}
             <Route path="cursos" element={<Cursos />} />
+            <Route path="acoes-formacao" element={<AcoesFormacao />} />
             
           </Route>
 

@@ -346,6 +346,12 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
                     <span className="link-text">Cursos</span>
                   </Link>
                 </li>
+                <li className={isActive('/dashboard/acoes-formacao')}>
+                  <Link to="/dashboard/acoes-formacao" title={getSidebarTooltip("Ações de Formação") }>
+                    <span className="icon"><Icons.Clipboard /></span>
+                    <span className="link-text">Ações de Formação</span>
+                  </Link>
+                </li>
               </div>
             )}
 

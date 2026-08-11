@@ -353,11 +353,12 @@ body, html {
   width: 100%;
   border-collapse: collapse;
   min-width: 700px;
+  background: #fff;
 }
 
 .data-table th {
-  background-color: var(--color-bgSecondary);
-  color: var(--color-textSecondary);
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+  color: #334155;
   font-weight: 700;
   text-transform: uppercase;
   font-size: 0.75rem;
@@ -365,17 +366,35 @@ body, html {
   padding: 16px;
   text-align: left;
   border-bottom: 1px solid var(--color-borderColorLight);
+  vertical-align: middle;
 }
 
 .data-table td {
-  padding: 16px;
-  border-bottom: 1px solid var(--color-bgPrimary);
-  color: var(--color-textSecondary);
+  padding: 14px 16px;
+  border-bottom: 1px solid #e2e8f0;
+  color: #334155;
   font-size: 0.95rem;
+  vertical-align: middle;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .data-table tr:hover {
-  background-color: #f0fdf4; /* Verde muito claro ao passar o rato */
+  background-color: #f8fafc;
+}
+
+.data-table tr:nth-child(even) {
+  background-color: #fcfcfd;
+}
+
+.data-table td input,
+.data-table td select,
+.data-table td textarea {
+  font: inherit;
+}
+
+.data-table td:focus-within {
+  background-color: #eff6ff;
+  box-shadow: inset 0 0 0 1px #93c5fd;
 }
 
 /* =========================================
