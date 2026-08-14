@@ -5,7 +5,15 @@ import { useAuth } from "../context/AuthContext";
 import "./../styles/dashboard.css";
 
 const MODEL_NAME = "Formação Profissional";
-const STORAGE_KEY = "acoes-formacao-unlocked-years";
+
+// Novas constantes para os Anos
+const CURRENT_YEAR = new Date().getFullYear();
+const START_YEAR = 2000;
+const END_YEAR = 2100;
+const YEARS_OPTIONS = Array.from(
+  { length: END_YEAR - START_YEAR + 1 },
+  (_, i) => END_YEAR - i
+);
 
 const COURSE_STATUS_OPTIONS = ["Adiado", "Em Andamento", "Concluído", "Cancelado"];
 const REGIME_OPTIONS = ["Online", "Hibrido", "Presencial"];
@@ -39,7 +47,7 @@ function buildCodigo(year, sequencia) {
   return `C${yearSuffix}${String(Number(sequencia) || 1).padStart(2, "0")}`;
 }
 
-function createInitialForm(year = new Date().getFullYear(), sequencia = 1) {
+function createInitialForm(year = CURRENT_YEAR, sequencia = 1) {
   return {
     ano: year,
     sequencia,
@@ -117,24 +125,6 @@ function toDateTimeOrNull(value) {
 function getNextChecklistState(current) {
   const index = CHECKLIST_ORDER.indexOf(current);
   return CHECKLIST_ORDER[(index + 1) % CHECKLIST_ORDER.length];
-}
-
-function loadUnlockedYears(currentYear) {
-  if (typeof window === "undefined") return [currentYear];
-
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    const years = Array.isArray(parsed) ? parsed.map((year) => Number(year)).filter(Boolean) : [];
-    return Array.from(new Set([currentYear, ...years])).sort((a, b) => a - b);
-  } catch {
-    return [currentYear];
-  }
-}
-
-function saveUnlockedYears(years) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(years));
 }
 
 function mapChecklistRows(rows = []) {
@@ -221,7 +211,7 @@ function Field({ label, children, hint }) {
     <div>
       <label style={{ display: "block", marginBottom: 6, fontSize: "0.85rem", fontWeight: 600, color: "#475569" }}>{label}</label>
       {children}
-      {hint ? <div style={{ marginTop: 6, fontSize: "0.75rem", color: "#94a3b8" }}>{hint}</div> : null}
+      {hint ? <div style={{ marginTop: 6, fontSize: "0.6rem", color: "#94a3b8" }}>{hint}</div> : null}
     </div>
   );
 }
@@ -320,14 +310,16 @@ function InlineTableCell({
   };
 
   const baseStyle = {
-    padding: 12,
+    padding: 4, 
+    fontSize: "0.64rem", 
     textAlign: align,
     verticalAlign: "middle",
     cursor: disabled ? "default" : "text",
     background: isEditing ? "#f8fafc" : "transparent",
+    borderRight: "1px solid #e2e8f0",
     ...style,
   };
-
+  
   if (!isEditing) {
     return (
       <td
@@ -388,9 +380,7 @@ function InlineTableCell({
 
 export default function AcoesFormacao() {
   const { user } = useAuth();
-  const currentYear = new Date().getFullYear();
-  const [anosAtivos, setAnosAtivos] = useState(() => loadUnlockedYears(currentYear));
-  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [selectedYear, setSelectedYear] = useState(CURRENT_YEAR);
   const [activeTab, setActiveTab] = useState("formacoes");
   const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState(null);
@@ -403,7 +393,7 @@ export default function AcoesFormacao() {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [editId, setEditId] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [form, setForm] = useState(createInitialForm(currentYear, 1));
+  const [form, setForm] = useState(createInitialForm(CURRENT_YEAR, 1));
   const [editingCell, setEditingCell] = useState(null);
   const [settingsAreas, setSettingsAreas] = useState([]);
   const [settingsHomologacoes, setSettingsHomologacoes] = useState([]);
@@ -487,10 +477,7 @@ const checklistActivityGroups = useMemo(() => {
   let cursor = 0;
 
   return checklistGrid.map((atividade) => {
-    // Verificamos se existem tarefas de facto
     const hasTasks = atividade.tarefas && atividade.tarefas.length > 0;
-    
-    // Se não tiver tarefas, a própria atividade conta como 1 coluna para não desaparecer
     const leafCount = hasTasks 
       ? atividade.tarefas.reduce((total, tarefa) => total + (tarefa.subtarefas?.length || 1), 0) 
       : 1;
@@ -513,11 +500,10 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
   const hasTasks = atividade.tarefas && atividade.tarefas.length > 0;
   
   if (!hasTasks) {
-    // Transformamos a atividade vazia numa "falsa tarefa" clicável
     return [{
       atividadeId: atividade.id,
       atividadeNome: atividade.nome,
-      tarefaId: atividade.id, // Usamos o ID da atividade como fallback
+      tarefaId: atividade.id, 
       tarefaNome: atividade.nome,
       passoId: atividade.id,
       passoNome: atividade.nome,
@@ -666,16 +652,6 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
       dgadr_pedido_cartoes: formatDateInput(acao.dgadr_pedido_cartoes),
     });
     setShowModal(true);
-  };
-
-  const handleUnlockNextYear = () => {
-    const maxYear = Math.max(...anosAtivos, currentYear);
-    const nextYear = maxYear + 1;
-    const updatedYears = Array.from(new Set([...anosAtivos, nextYear, currentYear])).sort((a, b) => a - b);
-    setAnosAtivos(updatedYears);
-    saveUnlockedYears(updatedYears);
-    setSelectedYear(nextYear);
-    showToast(`Ano ${nextYear} desbloqueado para planeamento.`);
   };
 
   const handleChecklistCellClick = async (acaoId, tarefaId, subtarefaId, currentState) => {
@@ -896,8 +872,9 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
 
   const selectedTotalVolume = Number(form.n_certificados || 0) * Number(form.carga_horaria || 0);
   const isCreating = !editId;
+  const formHomologacaoCodigo = homologacoesById.get(form.homologacao_id)?.codigo;
 
-return (
+  return (
     <div className="page-container" style={{ maxWidth: 1600, margin: "0 auto", padding: 15 }}>
       <div style={{ background: "white", padding: "20px 25px", borderRadius: 12, border: "1px solid #e2e8f0", marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)", flexWrap: "wrap", gap: 15 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
@@ -906,15 +883,16 @@ return (
           </div>
           <div>
             <h1 style={{ margin: 0, color: "#0f172a", fontSize: "1.8rem", fontWeight: 900, letterSpacing: "-0.02em" }}>Ações de Formação</h1>
-            <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
-              {anosAtivos.map((ano) => (
-                <button key={ano} onClick={() => setSelectedYear(ano)} style={{ padding: "4px 12px", borderRadius: 20, border: "none", fontWeight: 800, fontSize: "0.85rem", cursor: "pointer", background: selectedYear === ano ? "var(--color-btnPrimary)" : "#f1f5f9", color: selectedYear === ano ? "white" : "#64748b" }}>
-                  {ano}
-                </button>
-              ))}
-              <button onClick={handleUnlockNextYear} style={{ padding: "4px 12px", borderRadius: 20, border: "1px dashed #cbd5e1", background: "transparent", color: "#64748b", fontWeight: 800, fontSize: "0.85rem", cursor: "pointer" }}>
-                + Próximo Ano
-              </button>
+            <div style={{ marginTop: 8 }}>
+              <select 
+                value={selectedYear} 
+                onChange={(event) => setSelectedYear(Number(event.target.value))}
+                style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #cbd5e1", background: "#f8fafc", color: "#0f172a", fontWeight: 800, fontSize: "0.95rem", cursor: "pointer", outline: "none", width: "130px" }}
+              >
+                {YEARS_OPTIONS.map((ano) => (
+                  <option key={ano} value={ano}>Ano {ano}</option>
+                ))}
+              </select>
             </div>
           </div>
         </div>
@@ -947,42 +925,49 @@ return (
           <div style={{ padding: 50, textAlign: "center", color: "#64748b" }}>A carregar dados...</div>
         ) : (
           <div className="table-responsive custom-scrollbar" style={{ overflowX: "auto" }}>
-            <table className="data-table project-list-table" style={{ minWidth: activeTab === "checklist" ? 1000 : 1950, width: "100%", borderCollapse: "collapse" }}>
+            <table 
+              className="data-table project-list-table" 
+              style={{ 
+                minWidth: activeTab === "formacoes" ? 1950 : activeTab === "checklist" ? 1000 : "100%", 
+                width: "100%", 
+                borderCollapse: "collapse" 
+              }}
+            >
               {activeTab === "formacoes" && (
                 <>
                   <thead style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
                     <tr>
-                      <th style={{ padding: "10px 12px", textAlign: "left", color: "#475569", fontSize: "0.75rem", fontWeight: 700, position: "sticky", left: 0, background: "#f8fafc", zIndex: 2, borderRight: "1px solid #e2e8f0", whiteSpace: "nowrap" }}>Código</th>
-                      <th style={{ padding: "10px 12px", textAlign: "left", color: "#475569", fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap" }}>Nome do Curso</th>
-                      <th style={{ padding: "10px 12px", textAlign: "left", color: "#475569", fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap" }}>Formador</th>
-                      <th style={{ padding: "10px 12px", textAlign: "left", color: "#475569", fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap" }}>Área</th>
-                      <th style={{ padding: "10px 12px", textAlign: "center", color: "#475569", fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap" }}>Carga (h)</th>
-                      <th style={{ padding: "10px 12px", textAlign: "center", color: "#475569", fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap" }}>Data Início</th>
-                      <th style={{ padding: "10px 12px", textAlign: "center", color: "#475569", fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap" }}>Data Fim</th>
-                      <th style={{ padding: "10px 12px", textAlign: "center", color: "#475569", fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap" }}>Regime</th>
-                      <th style={{ padding: "10px 12px", textAlign: "center", color: "#475569", fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap" }}>Homolog.</th>
-                      <th style={{ padding: "10px 12px", textAlign: "center", color: "#475569", fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap" }}>Status</th>
-                      <th style={{ padding: "10px 12px", textAlign: "center", color: "#475569", fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap" }}>Inscritos</th>
-                      <th style={{ padding: "10px 12px", textAlign: "center", color: "#475569", fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap" }}>Empresas</th>
-                      <th style={{ padding: "10px 12px", textAlign: "center", color: "#475569", fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap" }}>Particulares</th>
-                      <th style={{ padding: "10px 12px", textAlign: "center", color: "#475569", fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap" }}>Desistências</th>
-                      <th style={{ padding: "10px 12px", textAlign: "center", color: "#475569", fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap" }}>Certificados</th>
-                      <th style={{ padding: "10px 12px", textAlign: "center", color: "#475569", fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap" }}>Volume</th>
-                      <th style={{ padding: "10px 12px", textAlign: "center", color: "#475569", fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap" }}>Emitidos</th>
-                      <th style={{ padding: "10px 12px", textAlign: "center", color: "#475569", fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap" }}>Enviados</th>
-                      <th style={{ padding: "10px 12px", textAlign: "center", color: "#475569", fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap" }}>A Aguardar</th>
-                      <th style={{ padding: "10px 12px", textAlign: "center", color: "#475569", fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap" }}>Docs Formador</th>
-                      <th style={{ padding: "10px 12px", textAlign: "center", color: "#475569", fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap" }}>Pag. Formador</th>
-                      <th style={{ padding: "10px 12px", textAlign: "center", color: "#475569", fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap" }}>Data Pagamento</th>
-                      <th style={{ padding: "10px 12px", textAlign: "center", color: "#475569", fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap" }}>Status DTP</th>
-                      <th style={{ padding: "10px 12px", textAlign: "right", color: "#475569", fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap" }}>Ações</th>
+                      <th style={{ padding: 4, textAlign: "left", color: "#475569", fontSize: "0.6rem", fontWeight: 700, position: "sticky", left: 0, background: "#f8fafc", zIndex: 2, borderRight: "1px solid #e2e8f0", whiteSpace: "nowrap" }}>Código</th>
+                      <th style={{ padding: 4, textAlign: "left", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Nome do Curso</th>
+                      <th style={{ padding: 4, textAlign: "left", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Formador</th>
+                      <th style={{ padding: 4, textAlign: "left", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Área</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Carga (h)</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Data Início</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Data Fim</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Regime</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Homolog.</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Status</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Inscritos</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Empresas</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Particulares</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Desistências</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Certificados</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Volume</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Emitidos</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Enviados</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>A Aguardar</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Docs Formador</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Pag. Formador</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Data Pagamento</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Status DTP</th>
+                      <th style={{ padding: 4, textAlign: "right", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Ações</th>
                     </tr>
                   </thead>
                   <tbody>
                     {visibleFormacoes.length === 0 && <tr><td colSpan="24" style={{ textAlign: "center", padding: 30, color: "#94a3b8" }}>Nenhuma formação registada neste ano.</td></tr>}
                     {visibleFormacoes.map((acao) => (
                       <tr key={acao.id} style={{ borderBottom: "1px solid #f1f5f9" }} className="project-list-row">
-                        <td style={{ padding: "10px 12px", fontWeight: 800, color: "#1e293b", position: "sticky", left: 0, background: "white", zIndex: 1, borderRight: "1px solid #e2e8f0" }}>{acao.codigo}</td>
+                        <td style={{ padding: 4, fontSize: "0.64rem", fontWeight: 800, color: "#1e293b", position: "sticky", left: 0, background: "white", zIndex: 1, borderRight: "1px solid #e2e8f0" }}>{acao.codigo}</td>
                         <InlineTableCell
                           key={`${acao.id}-nome_curso-${editingCell?.rowId === acao.id && editingCell?.field === "nome_curso" ? "edit" : "view"}`}
                           rowId={acao.id}
@@ -1056,7 +1041,7 @@ return (
                           rowId={acao.id}
                           field="regime"
                           value={acao.regime || ""}
-                          display={<span style={{ background: "#f1f5f9", padding: "4px 8px", borderRadius: 6, fontSize: "0.8rem", fontWeight: 800 }}>{acao.regime}</span>}
+                          display={<span style={{ background: "#f1f5f9", padding: "2px 6px", borderRadius: 4, fontSize: "0.6rem", fontWeight: 800 }}>{acao.regime}</span>}
                           type="select"
                           options={REGIME_OPTIONS.map((option) => ({ value: option, label: option }))}
                           align="center"
@@ -1082,7 +1067,7 @@ return (
                           rowId={acao.id}
                           field="status_curso"
                           value={acao.status_curso || ""}
-                          display={<span style={{ fontSize: "0.75rem", padding: "4px 8px", borderRadius: 12, background: "#dcfce7", color: "#166534", fontWeight: 800 }}>{acao.status_curso}</span>}
+                          display={<span style={{ fontSize: "0.6rem", padding: "2px 6px", borderRadius: 8, background: "#dcfce7", color: "#166534", fontWeight: 800 }}>{acao.status_curso}</span>}
                           type="select"
                           options={COURSE_STATUS_OPTIONS.map((option) => ({ value: option, label: option }))}
                           align="center"
@@ -1095,7 +1080,7 @@ return (
                         <InlineTableCell key={`${acao.id}-n_particulares-${editingCell?.rowId === acao.id && editingCell?.field === "n_particulares" ? "edit" : "view"}`} rowId={acao.id} field="n_particulares" value={acao.n_particulares ?? 0} display={acao.n_particulares ?? 0} type="number" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "n_particulares", nextValue)} />
                         <InlineTableCell key={`${acao.id}-n_desistencias-${editingCell?.rowId === acao.id && editingCell?.field === "n_desistencias" ? "edit" : "view"}`} rowId={acao.id} field="n_desistencias" value={acao.n_desistencias ?? 0} display={acao.n_desistencias ?? 0} type="number" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "n_desistencias", nextValue)} />
                         <InlineTableCell key={`${acao.id}-n_certificados-${editingCell?.rowId === acao.id && editingCell?.field === "n_certificados" ? "edit" : "view"}`} rowId={acao.id} field="n_certificados" value={acao.n_certificados ?? 0} display={acao.n_certificados ?? 0} type="number" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "n_certificados", nextValue)} />
-                        <td style={{ padding: "10px 12px", textAlign: "center", fontWeight: 700 }}>{Number(acao.n_certificados || 0) * Number(acao.carga_horaria || 0)}</td>
+                        <td style={{ padding: 4, textAlign: "center", fontSize: "0.64rem", fontWeight: 700 }}>{Number(acao.n_certificados || 0) * Number(acao.carga_horaria || 0)}</td>
                         <InlineTableCell key={`${acao.id}-certificados_emitidos-${editingCell?.rowId === acao.id && editingCell?.field === "certificados_emitidos" ? "edit" : "view"}`} rowId={acao.id} field="certificados_emitidos" value={acao.certificados_emitidos ?? 0} display={acao.certificados_emitidos ?? 0} type="number" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "certificados_emitidos", nextValue)} />
                         <InlineTableCell key={`${acao.id}-certificados_enviados-${editingCell?.rowId === acao.id && editingCell?.field === "certificados_enviados" ? "edit" : "view"}`} rowId={acao.id} field="certificados_enviados" value={acao.certificados_enviados ?? 0} display={acao.certificados_enviados ?? 0} type="number" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "certificados_enviados", nextValue)} />
                         <InlineTableCell key={`${acao.id}-certificados_aguardar-${editingCell?.rowId === acao.id && editingCell?.field === "certificados_aguardar" ? "edit" : "view"}`} rowId={acao.id} field="certificados_aguardar" value={acao.certificados_aguardar ?? 0} display={acao.certificados_aguardar ?? 0} type="number" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "certificados_aguardar", nextValue)} />
@@ -1103,7 +1088,7 @@ return (
                         <InlineTableCell key={`${acao.id}-pag_formador-${editingCell?.rowId === acao.id && editingCell?.field === "pag_formador" ? "edit" : "view"}`} rowId={acao.id} field="pag_formador" value={acao.pag_formador ? "Sim" : "Não"} display={displayBoolean(acao.pag_formador)} type="select" options={SIM_NAO_OPTIONS.map((option) => ({ value: option, label: option }))} align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "pag_formador", nextValue)} />
                         <InlineTableCell key={`${acao.id}-data_pagamento-${editingCell?.rowId === acao.id && editingCell?.field === "data_pagamento" ? "edit" : "view"}`} rowId={acao.id} field="data_pagamento" value={acao.data_pagamento || ""} display={displayDateTime(acao.data_pagamento)} type="datetime-local" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "data_pagamento", nextValue)} />
                         <InlineTableCell key={`${acao.id}-status_dtp-${editingCell?.rowId === acao.id && editingCell?.field === "status_dtp" ? "edit" : "view"}`} rowId={acao.id} field="status_dtp" value={acao.status_dtp || ""} display={acao.status_dtp} type="select" options={DTP_OPTIONS.map((option) => ({ value: option, label: option }))} align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "status_dtp", nextValue)} />
-                        <td style={{ padding: "10px 12px", textAlign: "right" }}>
+                        <td style={{ padding: 4, textAlign: "right", fontSize: "0.64rem" }}>
                           <button onClick={() => handleOpenEdit(acao)} title="Abrir edição completa" style={{ background: "transparent", border: "none", cursor: "pointer", color: "#94a3b8" }}>
                             <Icons.Edit size={16} />
                           </button>
@@ -1172,8 +1157,8 @@ return (
                     {visibleFormacoes.length === 0 && <tr><td colSpan={checklistVisibleCount + 1} style={{ textAlign: "center", padding: 30, color: "#94a3b8" }}>Nenhuma formação para avaliar.</td></tr>}
                     {visibleFormacoes.map((acao) => (
                         <tr key={acao.id} style={{ borderBottom: "1px solid #f1f5f9" }} className="project-list-row">
-                        <td style={{ padding: 4, fontWeight: 800, color: "#1e293b", position: "sticky", left: 0, background: "white", zIndex: 1, fontSize: "0.64rem", lineHeight: 1.1, borderRight: "1px solid #e2e8f0" }}>
-                            {acao.codigo} - <span style={{ fontSize: "0.58rem", color: "#64748b" }}>{acao.nome_curso}</span>
+                        <td style={{ padding: 4, fontSize: "0.64rem", fontWeight: 800, color: "#1e293b", position: "sticky", left: 0, background: "white", zIndex: 1, borderRight: "1px solid #e2e8f0", lineHeight: 1.2 }}>
+                          {acao.codigo}
                         </td>
                         
                         {checklistBodyColumns.map((leaf, index) => {
@@ -1201,27 +1186,38 @@ return (
                 <>
                   <thead style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
                     <tr>
-                      <th style={{ padding: "10px 12px", textAlign: "left", color: "#475569", fontSize: "0.75rem", fontWeight: 700, position: "sticky", left: 0, background: "#f8fafc", zIndex: 2, borderRight: "1px solid #e2e8f0", whiteSpace: "nowrap" }}>Curso</th>
-                      <th style={{ padding: "10px 12px", textAlign: "left", color: "#475569", fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap" }}>Data realização</th>
-                      <th style={{ padding: "10px 12px", textAlign: "left", color: "#475569", fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap" }}>Homologação da ação</th>
-                      <th style={{ padding: "10px 12px", textAlign: "center", color: "#475569", fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap" }}>Com. Prévia</th>
-                      <th style={{ padding: "10px 12px", textAlign: "center", color: "#475569", fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap" }}>Pag. Exame</th>
-                      <th style={{ padding: "10px 12px", textAlign: "center", color: "#475569", fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap" }}>Certificados</th>
+                      <th style={{ padding: 4, textAlign: "left", color: "#475569", fontSize: "0.6rem", fontWeight: 700, position: "sticky", left: 0, background: "#f8fafc", zIndex: 2, borderRight: "1px solid #e2e8f0", whiteSpace: "nowrap" }}>Curso</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Data realização</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Homol. Paga</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Data Envio Homol.</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Nº Homologação</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Comunicação Prévia</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Pagamento Exame</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Data Envio Cert.</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Faturação Cert.</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Receção Cert.</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Envio Formandos</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Modalidade</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {visibleFormacoes.length === 0 && <tr><td colSpan="6" style={{ textAlign: "center", padding: 30, color: "#94a3b8" }}>Nenhuma formação CCDR.</td></tr>}
+                    {visibleFormacoes.length === 0 && <tr><td colSpan="12" style={{ textAlign: "center", padding: 30, color: "#94a3b8" }}>Nenhuma formação CCDR.</td></tr>}
                     {visibleFormacoes.map((acao) => (
                       <tr key={acao.id} style={{ borderBottom: "1px solid #f1f5f9" }} className="project-list-row">
-                        <td style={{ padding: "10px 12px", fontWeight: 800, color: "#1e293b", position: "sticky", left: 0, background: "white", zIndex: 1, borderRight: "1px solid #e2e8f0", lineHeight: 1.2 }}>
-                          {acao.codigo} <br/> <span style={{ fontSize: "0.7rem", color: "#64748b", fontWeight: 500 }}>{acao.nome_curso}</span>
+                        <td style={{ padding: 4, fontSize: "0.64rem", fontWeight: 800, color: "#1e293b", position: "sticky", left: 0, background: "white", zIndex: 1, borderRight: "1px solid #e2e8f0", lineHeight: 1.2 }}>
+                          {acao.codigo}
                         </td>
-                        <InlineTableCell key={`${acao.id}-ccdr_data_inicio-${editingCell?.rowId === acao.id && editingCell?.field === "data_inicio" ? "edit" : "view"}`} rowId={acao.id} field="data_inicio" value={acao.data_inicio || ""} display={displayDate(acao.data_inicio)} type="date" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "data_inicio", nextValue)} />
-                        <InlineTableCell key={`${acao.id}-ccdr_n_homologacao-${editingCell?.rowId === acao.id && editingCell?.field === "ccdr_n_homologacao" ? "edit" : "view"}`} rowId={acao.id} field="ccdr_n_homologacao" value={acao.ccdr_n_homologacao || ""} display={acao.ccdr_n_homologacao || "-"} editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_n_homologacao", nextValue)} />
-                        <InlineTableCell key={`${acao.id}-ccdr_data_comunicacao-${editingCell?.rowId === acao.id && editingCell?.field === "ccdr_data_comunicacao" ? "edit" : "view"}`} rowId={acao.id} field="ccdr_data_comunicacao" value={acao.ccdr_data_comunicacao || ""} display={displayDate(acao.ccdr_data_comunicacao)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_data_comunicacao", nextValue)} />
-                        <InlineTableCell key={`${acao.id}-ccdr_pag_exame-${editingCell?.rowId === acao.id && editingCell?.field === "ccdr_pag_exame" ? "edit" : "view"}`} rowId={acao.id} field="ccdr_pag_exame" value={acao.ccdr_pag_exame || ""} display={acao.ccdr_pag_exame} type="select" align="center" options={SIM_NAO_NA_OPTIONS.map((option) => ({ value: option, label: option }))} editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_pag_exame", nextValue)} />
-                        <InlineTableCell key={`${acao.id}-ccdr_cert_data_envio-${editingCell?.rowId === acao.id && editingCell?.field === "ccdr_cert_data_envio" ? "edit" : "view"}`} rowId={acao.id} field="ccdr_cert_data_envio" value={acao.ccdr_cert_data_envio || ""} display={displayDate(acao.ccdr_cert_data_envio)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_cert_data_envio", nextValue)} />
-                        <InlineTableCell key={`${acao.id}-ccdr_cert_faturacao-${editingCell?.rowId === acao.id && editingCell?.field === "ccdr_cert_faturacao" ? "edit" : "view"}`} rowId={acao.id} field="ccdr_cert_faturacao" value={acao.ccdr_cert_faturacao || ""} display={acao.ccdr_cert_faturacao} type="select" align="center" options={SIM_NAO_NA_OPTIONS.map((option) => ({ value: option, label: option }))} editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_cert_faturacao", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-data_inicio`} rowId={acao.id} field="data_inicio" value={acao.data_inicio || ""} display={displayDate(acao.data_inicio)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "data_inicio", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-ccdr_paga`} rowId={acao.id} field="ccdr_paga" value={acao.ccdr_paga ? "Sim" : "Não"} display={displayBoolean(acao.ccdr_paga)} type="select" options={SIM_NAO_OPTIONS.map(o => ({ value: o, label: o }))} align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_paga", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-ccdr_data_envio`} rowId={acao.id} field="ccdr_data_envio" value={acao.ccdr_data_envio || ""} display={displayDateTime(acao.ccdr_data_envio)} type="datetime-local" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_data_envio", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-ccdr_n_homologacao`} rowId={acao.id} field="ccdr_n_homologacao" value={acao.ccdr_n_homologacao || ""} display={acao.ccdr_n_homologacao || "-"} align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_n_homologacao", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-ccdr_data_comunicacao`} rowId={acao.id} field="ccdr_data_comunicacao" value={acao.ccdr_data_comunicacao || ""} display={displayDate(acao.ccdr_data_comunicacao)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_data_comunicacao", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-ccdr_pag_exame`} rowId={acao.id} field="ccdr_pag_exame" value={acao.ccdr_pag_exame || ""} display={acao.ccdr_pag_exame} type="select" options={SIM_NAO_NA_OPTIONS.map(o => ({ value: o, label: o }))} align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_pag_exame", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-ccdr_cert_data_envio`} rowId={acao.id} field="ccdr_cert_data_envio" value={acao.ccdr_cert_data_envio || ""} display={displayDate(acao.ccdr_cert_data_envio)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_cert_data_envio", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-ccdr_cert_faturacao`} rowId={acao.id} field="ccdr_cert_faturacao" value={acao.ccdr_cert_faturacao || ""} display={acao.ccdr_cert_faturacao} type="select" options={SIM_NAO_NA_OPTIONS.map(o => ({ value: o, label: o }))} align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_cert_faturacao", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-ccdr_data_rececao`} rowId={acao.id} field="ccdr_data_rececao" value={acao.ccdr_data_rececao || ""} display={displayDate(acao.ccdr_data_rececao)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_data_rececao", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-ccdr_envio_cert_data`} rowId={acao.id} field="ccdr_envio_cert_data" value={acao.ccdr_envio_cert_data || ""} display={displayDate(acao.ccdr_envio_cert_data)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_envio_cert_data", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-ccdr_modalidade`} rowId={acao.id} field="ccdr_modalidade" value={acao.ccdr_modalidade || ""} display={acao.ccdr_modalidade || "-"} align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_modalidade", nextValue)} />
                       </tr>
                     ))}
                   </tbody>
@@ -1232,27 +1228,42 @@ return (
                 <>
                   <thead style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
                     <tr>
-                      <th style={{ padding: "10px 12px", textAlign: "left", color: "#475569", fontSize: "0.75rem", fontWeight: 700, position: "sticky", left: 0, background: "#f8fafc", zIndex: 2, borderRight: "1px solid #e2e8f0", whiteSpace: "nowrap" }}>Curso</th>
-                      <th style={{ padding: "10px 12px", textAlign: "center", color: "#475569", fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap" }}>Caracterização</th>
-                      <th style={{ padding: "10px 12px", textAlign: "left", color: "#475569", fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap" }}>Data realização</th>
-                      <th style={{ padding: "10px 12px", textAlign: "left", color: "#475569", fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap" }}>Homologação da ação</th>
-                      <th style={{ padding: "10px 12px", textAlign: "center", color: "#475569", fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap" }}>Com. Prévia</th>
-                      <th style={{ padding: "10px 12px", textAlign: "center", color: "#475569", fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap" }}>Pedido Cartões</th>
+                      <th style={{ padding: 4, textAlign: "left", color: "#475569", fontSize: "0.6rem", fontWeight: 700, position: "sticky", left: 0, background: "#f8fafc", zIndex: 2, borderRight: "1px solid #e2e8f0", whiteSpace: "nowrap" }}>Curso</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Caract. Formandos</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Data realização</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Homol. Paga</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Data Envio Homol.</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Nº Homologação</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Comunicação Prévia</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Pagamento Exame</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Data Envio Cert.</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Faturação Cert.</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Receção Cert.</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Envio Formandos</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Modalidade</th>
+                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Pedido Cartões</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {visibleFormacoes.length === 0 && <tr><td colSpan="6" style={{ textAlign: "center", padding: 30, color: "#94a3b8" }}>Nenhuma formação DGADR.</td></tr>}
+                    {visibleFormacoes.length === 0 && <tr><td colSpan="14" style={{ textAlign: "center", padding: 30, color: "#94a3b8" }}>Nenhuma formação DGADR.</td></tr>}
                     {visibleFormacoes.map((acao) => (
                       <tr key={acao.id} style={{ borderBottom: "1px solid #f1f5f9" }} className="project-list-row">
-                        <td style={{ padding: "10px 12px", fontWeight: 800, color: "#1e293b", position: "sticky", left: 0, background: "white", zIndex: 1, borderRight: "1px solid #e2e8f0", lineHeight: 1.2 }}>
-                          {acao.codigo} <br/> <span style={{ fontSize: "0.7rem", color: "#64748b", fontWeight: 500 }}>{acao.nome_curso}</span>
+                        <td style={{ padding: 4, fontSize: "0.64rem", fontWeight: 800, color: "#1e293b", position: "sticky", left: 0, background: "white", zIndex: 1, borderRight: "1px solid #e2e8f0", lineHeight: 1.2 }}>
+                          {acao.codigo}
                         </td>
-                        <InlineTableCell key={`${acao.id}-dgadr_data_caracterizacao-${editingCell?.rowId === acao.id && editingCell?.field === "dgadr_data_caracterizacao" ? "edit" : "view"}`} rowId={acao.id} field="dgadr_data_caracterizacao" value={acao.dgadr_data_caracterizacao || ""} display={displayDate(acao.dgadr_data_caracterizacao)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_data_caracterizacao", nextValue)} />
-                        <InlineTableCell key={`${acao.id}-data_inicio-${editingCell?.rowId === acao.id && editingCell?.field === "data_inicio" ? "edit" : "view"}`} rowId={acao.id} field="data_inicio" value={acao.data_inicio || ""} display={displayDate(acao.data_inicio)} type="date" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "data_inicio", nextValue)} />
-                        <InlineTableCell key={`${acao.id}-dgadr_n_homologacao-${editingCell?.rowId === acao.id && editingCell?.field === "dgadr_n_homologacao" ? "edit" : "view"}`} rowId={acao.id} field="dgadr_n_homologacao" value={acao.dgadr_n_homologacao || ""} display={acao.dgadr_n_homologacao || "-"} editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_n_homologacao", nextValue)} />
-                        <InlineTableCell key={`${acao.id}-dgadr_data_comunicacao-${editingCell?.rowId === acao.id && editingCell?.field === "dgadr_data_comunicacao" ? "edit" : "view"}`} rowId={acao.id} field="dgadr_data_comunicacao" value={acao.dgadr_data_comunicacao || ""} display={displayDate(acao.dgadr_data_comunicacao)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_data_comunicacao", nextValue)} />
-                        <InlineTableCell key={`${acao.id}-dgadr_pag_exame-${editingCell?.rowId === acao.id && editingCell?.field === "dgadr_pag_exame" ? "edit" : "view"}`} rowId={acao.id} field="dgadr_pag_exame" value={acao.dgadr_pag_exame || ""} display={acao.dgadr_pag_exame} type="select" align="center" options={SIM_NAO_NA_OPTIONS.map((option) => ({ value: option, label: option }))} editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_pag_exame", nextValue)} />
-                        <InlineTableCell key={`${acao.id}-dgadr_pedido_cartoes-${editingCell?.rowId === acao.id && editingCell?.field === "dgadr_pedido_cartoes" ? "edit" : "view"}`} rowId={acao.id} field="dgadr_pedido_cartoes" value={acao.dgadr_pedido_cartoes || ""} display={displayDate(acao.dgadr_pedido_cartoes)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_pedido_cartoes", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-dgadr_data_caracterizacao`} rowId={acao.id} field="dgadr_data_caracterizacao" value={acao.dgadr_data_caracterizacao || ""} display={displayDate(acao.dgadr_data_caracterizacao)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_data_caracterizacao", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-data_inicio`} rowId={acao.id} field="data_inicio" value={acao.data_inicio || ""} display={displayDate(acao.data_inicio)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "data_inicio", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-dgadr_paga`} rowId={acao.id} field="dgadr_paga" value={acao.dgadr_paga ? "Sim" : "Não"} display={displayBoolean(acao.dgadr_paga)} type="select" options={SIM_NAO_OPTIONS.map(o => ({ value: o, label: o }))} align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_paga", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-dgadr_data_envio`} rowId={acao.id} field="dgadr_data_envio" value={acao.dgadr_data_envio || ""} display={displayDateTime(acao.dgadr_data_envio)} type="datetime-local" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_data_envio", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-dgadr_n_homologacao`} rowId={acao.id} field="dgadr_n_homologacao" value={acao.dgadr_n_homologacao || ""} display={acao.dgadr_n_homologacao || "-"} align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_n_homologacao", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-dgadr_data_comunicacao`} rowId={acao.id} field="dgadr_data_comunicacao" value={acao.dgadr_data_comunicacao || ""} display={displayDate(acao.dgadr_data_comunicacao)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_data_comunicacao", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-dgadr_pag_exame`} rowId={acao.id} field="dgadr_pag_exame" value={acao.dgadr_pag_exame || ""} display={acao.dgadr_pag_exame} type="select" options={SIM_NAO_NA_OPTIONS.map(o => ({ value: o, label: o }))} align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_pag_exame", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-dgadr_cert_data_envio`} rowId={acao.id} field="dgadr_cert_data_envio" value={acao.dgadr_cert_data_envio || ""} display={displayDate(acao.dgadr_cert_data_envio)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_cert_data_envio", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-dgadr_cert_faturacao`} rowId={acao.id} field="dgadr_cert_faturacao" value={acao.dgadr_cert_faturacao || ""} display={acao.dgadr_cert_faturacao} type="select" options={SIM_NAO_NA_OPTIONS.map(o => ({ value: o, label: o }))} align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_cert_faturacao", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-dgadr_data_rececao`} rowId={acao.id} field="dgadr_data_rececao" value={acao.dgadr_data_rececao || ""} display={displayDate(acao.dgadr_data_rececao)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_data_rececao", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-dgadr_envio_cert_data`} rowId={acao.id} field="dgadr_envio_cert_data" value={acao.dgadr_envio_cert_data || ""} display={displayDate(acao.dgadr_envio_cert_data)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_envio_cert_data", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-dgadr_modalidade`} rowId={acao.id} field="dgadr_modalidade" value={acao.dgadr_modalidade || ""} display={acao.dgadr_modalidade || "-"} align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_modalidade", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-dgadr_pedido_cartoes`} rowId={acao.id} field="dgadr_pedido_cartoes" value={acao.dgadr_pedido_cartoes || ""} display={displayDate(acao.dgadr_pedido_cartoes)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_pedido_cartoes", nextValue)} />
                       </tr>
                     ))}
                   </tbody>
@@ -1416,100 +1427,108 @@ return (
                         </Field>
                       </div>
 
-                      <SectionTitle>CCDR</SectionTitle>
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16, marginBottom: 18 }}>
-                        <Field label="Ação paga">
-                          <select value={form.ccdr_paga ? "Sim" : "Não"} onChange={(event) => setForm({ ...form, ccdr_paga: event.target.value === "Sim" })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", background: "white" }}>
-                            {SIM_NAO_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
-                          </select>
-                        </Field>
-                        <Field label="Data de envio para CCDR">
-                          <input type="datetime-local" value={form.ccdr_data_envio} onChange={(event) => setForm({ ...form, ccdr_data_envio: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
-                        </Field>
-                        <Field label="Nº homologação">
-                          <input value={form.ccdr_n_homologacao} onChange={(event) => setForm({ ...form, ccdr_n_homologacao: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
-                        </Field>
-                        <Field label="Data da comunicação prévia">
-                          <input type="date" value={form.ccdr_data_comunicacao} onChange={(event) => setForm({ ...form, ccdr_data_comunicacao: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
-                        </Field>
-                      </div>
+                      {formHomologacaoCodigo === "CCDR" && (
+                        <>
+                          <SectionTitle>CCDR</SectionTitle>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16, marginBottom: 18 }}>
+                            <Field label="Ação paga">
+                              <select value={form.ccdr_paga ? "Sim" : "Não"} onChange={(event) => setForm({ ...form, ccdr_paga: event.target.value === "Sim" })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", background: "white" }}>
+                                {SIM_NAO_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                              </select>
+                            </Field>
+                            <Field label="Data de envio para CCDR">
+                              <input type="datetime-local" value={form.ccdr_data_envio} onChange={(event) => setForm({ ...form, ccdr_data_envio: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
+                            </Field>
+                            <Field label="Nº homologação">
+                              <input value={form.ccdr_n_homologacao} onChange={(event) => setForm({ ...form, ccdr_n_homologacao: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
+                            </Field>
+                            <Field label="Data da comunicação prévia">
+                              <input type="date" value={form.ccdr_data_comunicacao} onChange={(event) => setForm({ ...form, ccdr_data_comunicacao: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
+                            </Field>
+                          </div>
 
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16, marginBottom: 18 }}>
-                        <Field label="Pagamento Exame">
-                          <select value={form.ccdr_pag_exame} onChange={(event) => setForm({ ...form, ccdr_pag_exame: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", background: "white" }}>
-                            {SIM_NAO_NA_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
-                          </select>
-                        </Field>
-                        <Field label="Homologação certificados - Data envio">
-                          <input type="date" value={form.ccdr_cert_data_envio} onChange={(event) => setForm({ ...form, ccdr_cert_data_envio: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
-                        </Field>
-                        <Field label="Dados para faturação">
-                          <select value={form.ccdr_cert_faturacao} onChange={(event) => setForm({ ...form, ccdr_cert_faturacao: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", background: "white" }}>
-                            {SIM_NAO_NA_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
-                          </select>
-                        </Field>
-                        <Field label="Data de receção dos certificados">
-                          <input type="date" value={form.ccdr_data_rececao} onChange={(event) => setForm({ ...form, ccdr_data_rececao: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
-                        </Field>
-                      </div>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16, marginBottom: 18 }}>
+                            <Field label="Pagamento Exame">
+                              <select value={form.ccdr_pag_exame} onChange={(event) => setForm({ ...form, ccdr_pag_exame: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", background: "white" }}>
+                                {SIM_NAO_NA_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                              </select>
+                            </Field>
+                            <Field label="Homologação certificados - Data envio">
+                              <input type="date" value={form.ccdr_cert_data_envio} onChange={(event) => setForm({ ...form, ccdr_cert_data_envio: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
+                            </Field>
+                            <Field label="Dados para faturação">
+                              <select value={form.ccdr_cert_faturacao} onChange={(event) => setForm({ ...form, ccdr_cert_faturacao: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", background: "white" }}>
+                                {SIM_NAO_NA_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                              </select>
+                            </Field>
+                            <Field label="Data de receção dos certificados">
+                              <input type="date" value={form.ccdr_data_rececao} onChange={(event) => setForm({ ...form, ccdr_data_rececao: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
+                            </Field>
+                          </div>
 
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 16, marginBottom: 18 }}>
-                        <Field label="Envio Certificados/Cartões - Data de envio">
-                          <input type="date" value={form.ccdr_envio_cert_data} onChange={(event) => setForm({ ...form, ccdr_envio_cert_data: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
-                        </Field>
-                        <Field label="Modalidade">
-                          <input value={form.ccdr_modalidade} onChange={(event) => setForm({ ...form, ccdr_modalidade: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
-                        </Field>
-                      </div>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 16, marginBottom: 18 }}>
+                            <Field label="Envio Certificados/Cartões - Data de envio">
+                              <input type="date" value={form.ccdr_envio_cert_data} onChange={(event) => setForm({ ...form, ccdr_envio_cert_data: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
+                            </Field>
+                            <Field label="Modalidade">
+                              <input value={form.ccdr_modalidade} onChange={(event) => setForm({ ...form, ccdr_modalidade: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
+                            </Field>
+                          </div>
+                        </>
+                      )}
 
-                      <SectionTitle>DGADR</SectionTitle>
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16, marginBottom: 18 }}>
-                        <Field label="Data envio caracterização formandos">
-                          <input type="date" value={form.dgadr_data_caracterizacao} onChange={(event) => setForm({ ...form, dgadr_data_caracterizacao: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
-                        </Field>
-                        <Field label="Ação paga">
-                          <select value={form.dgadr_paga ? "Sim" : "Não"} onChange={(event) => setForm({ ...form, dgadr_paga: event.target.value === "Sim" })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", background: "white" }}>
-                            {SIM_NAO_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
-                          </select>
-                        </Field>
-                        <Field label="Data de envio para DGADR">
-                          <input type="datetime-local" value={form.dgadr_data_envio} onChange={(event) => setForm({ ...form, dgadr_data_envio: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
-                        </Field>
-                        <Field label="Nº homologação">
-                          <input value={form.dgadr_n_homologacao} onChange={(event) => setForm({ ...form, dgadr_n_homologacao: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
-                        </Field>
-                      </div>
+                      {formHomologacaoCodigo === "DGADR" && (
+                        <>
+                          <SectionTitle>DGADR</SectionTitle>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16, marginBottom: 18 }}>
+                            <Field label="Data envio caracterização formandos">
+                              <input type="date" value={form.dgadr_data_caracterizacao} onChange={(event) => setForm({ ...form, dgadr_data_caracterizacao: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
+                            </Field>
+                            <Field label="Ação paga">
+                              <select value={form.dgadr_paga ? "Sim" : "Não"} onChange={(event) => setForm({ ...form, dgadr_paga: event.target.value === "Sim" })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", background: "white" }}>
+                                {SIM_NAO_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                              </select>
+                            </Field>
+                            <Field label="Data de envio para DGADR">
+                              <input type="datetime-local" value={form.dgadr_data_envio} onChange={(event) => setForm({ ...form, dgadr_data_envio: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
+                            </Field>
+                            <Field label="Nº homologação">
+                              <input value={form.dgadr_n_homologacao} onChange={(event) => setForm({ ...form, dgadr_n_homologacao: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
+                            </Field>
+                          </div>
 
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16, marginBottom: 18 }}>
-                        <Field label="Data da comunicação prévia">
-                          <input type="date" value={form.dgadr_data_comunicacao} onChange={(event) => setForm({ ...form, dgadr_data_comunicacao: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
-                        </Field>
-                        <Field label="Pagamento Exame">
-                          <select value={form.dgadr_pag_exame} onChange={(event) => setForm({ ...form, dgadr_pag_exame: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", background: "white" }}>
-                            {SIM_NAO_NA_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
-                          </select>
-                        </Field>
-                        <Field label="Homologação certificados - Data envio">
-                          <input type="date" value={form.dgadr_cert_data_envio} onChange={(event) => setForm({ ...form, dgadr_cert_data_envio: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
-                        </Field>
-                        <Field label="Dados para faturação">
-                          <select value={form.dgadr_cert_faturacao} onChange={(event) => setForm({ ...form, dgadr_cert_faturacao: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", background: "white" }}>
-                            {SIM_NAO_NA_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
-                          </select>
-                        </Field>
-                      </div>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16, marginBottom: 18 }}>
+                            <Field label="Data da comunicação prévia">
+                              <input type="date" value={form.dgadr_data_comunicacao} onChange={(event) => setForm({ ...form, dgadr_data_comunicacao: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
+                            </Field>
+                            <Field label="Pagamento Exame">
+                              <select value={form.dgadr_pag_exame} onChange={(event) => setForm({ ...form, dgadr_pag_exame: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", background: "white" }}>
+                                {SIM_NAO_NA_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                              </select>
+                            </Field>
+                            <Field label="Homologação certificados - Data envio">
+                              <input type="date" value={form.dgadr_cert_data_envio} onChange={(event) => setForm({ ...form, dgadr_cert_data_envio: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
+                            </Field>
+                            <Field label="Dados para faturação">
+                              <select value={form.dgadr_cert_faturacao} onChange={(event) => setForm({ ...form, dgadr_cert_faturacao: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", background: "white" }}>
+                                {SIM_NAO_NA_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                              </select>
+                            </Field>
+                          </div>
 
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 16, marginBottom: 18 }}>
-                        <Field label="Data de receção dos certificados">
-                          <input type="date" value={form.dgadr_data_rececao} onChange={(event) => setForm({ ...form, dgadr_data_rececao: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
-                        </Field>
-                        <Field label="Envio Certificados/Cartões - Data de envio">
-                          <input type="date" value={form.dgadr_envio_cert_data} onChange={(event) => setForm({ ...form, dgadr_envio_cert_data: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
-                        </Field>
-                        <Field label="Modalidade / Pedido de Cartões">
-                          <input value={form.dgadr_modalidade || form.dgadr_pedido_cartoes} onChange={(event) => setForm({ ...form, dgadr_modalidade: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
-                        </Field>
-                      </div>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 16, marginBottom: 18 }}>
+                            <Field label="Data de receção dos certificados">
+                              <input type="date" value={form.dgadr_data_rececao} onChange={(event) => setForm({ ...form, dgadr_data_rececao: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
+                            </Field>
+                            <Field label="Envio Certificados/Cartões - Data de envio">
+                              <input type="date" value={form.dgadr_envio_cert_data} onChange={(event) => setForm({ ...form, dgadr_envio_cert_data: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
+                            </Field>
+                            <Field label="Modalidade / Pedido de Cartões">
+                              <input value={form.dgadr_modalidade || form.dgadr_pedido_cartoes} onChange={(event) => setForm({ ...form, dgadr_modalidade: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
+                            </Field>
+                          </div>
+                        </>
+                      )}
                     </>
                   )}
 
