@@ -790,7 +790,6 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
         if (seqError) throw seqError;
 
         payload.sequencia = maxSeqData ? Number(maxSeqData.sequencia) + 1 : 1;
-        payload.codigo = buildCodigo(payload.ano, payload.sequencia);
 
         // Insere a ação de formação
         const { data, error } = await supabase.from("acoes_formacao").insert([payload]).select("id").single();
