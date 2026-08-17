@@ -1604,7 +1604,9 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
         <ModalPortal>
           <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(15, 23, 42, 0.7)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 99999, padding: 16 }} onClick={() => setShowSettingsModal(false)}>
             <div style={{ background: "#fff", width: "95%", maxWidth: 980, borderRadius: 16, boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)", overflow: "hidden", display: "flex", flexDirection: "column", maxHeight: "92vh" }} onClick={(event) => event.stopPropagation()}>
-              <div style={{ padding: "20px 25px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#f8fafc" }}>
+              
+              {/* CABEÇALHO COM FLEX-SHRINK: 0 PARA NÃO SER ESMAGADO */}
+              <div style={{ padding: "20px 25px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#f8fafc", flexShrink: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                   <Icons.Settings color="#475569" />
                   <div>
@@ -1615,34 +1617,38 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
                 <button onClick={() => setShowSettingsModal(false)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "#94a3b8" }}><Icons.Close size={20} /></button>
               </div>
 
-              <div style={{ padding: 24, overflowY: "auto", display: "grid", gap: 18 }}>
-                <SettingsList
-                  title="Áreas de Formação"
-                  items={settingsAreas}
-                  createFields={[{ key: "newAreaNome", value: newAreaNome, onChange: setNewAreaNome, placeholder: "Nova área" }]}
-                  itemFields={[{ key: "nome" }]}
-                  emptyLabel="Ainda não existem áreas de formação."
-                  onCreate={createArea}
-                  onSaveItem={saveArea}
-                  onUpdate={updateAreaDraft}
-                  onToggle={toggleArea}
-                />
+              {/* CORPO DO MODAL DIVIDIDO: UMA DIV PARA SCROLL E OUTRA PARA ESPAÇAMENTO */}
+              <div style={{ padding: 24, overflowY: "auto", flex: 1 }} className="custom-scrollbar">
+                <div style={{ display: "grid", gap: 24 }}>
+                  <SettingsList
+                    title="Áreas de Formação"
+                    items={settingsAreas}
+                    createFields={[{ key: "newAreaNome", value: newAreaNome, onChange: setNewAreaNome, placeholder: "Nova área" }]}
+                    itemFields={[{ key: "nome" }]}
+                    emptyLabel="Ainda não existem áreas de formação."
+                    onCreate={createArea}
+                    onSaveItem={saveArea}
+                    onUpdate={updateAreaDraft}
+                    onToggle={toggleArea}
+                  />
 
-                <SettingsList
-                  title="Homologações"
-                  items={settingsHomologacoes}
-                  createFields={[
-                    { key: "newHomologacaoCodigo", value: newHomologacaoCodigo, onChange: setNewHomologacaoCodigo, placeholder: "Código" },
-                    { key: "newHomologacaoNome", value: newHomologacaoNome, onChange: setNewHomologacaoNome, placeholder: "Nome da homologação" },
-                  ]}
-                  itemFields={[{ key: "nome" }]}
-                  emptyLabel="Ainda não existem homologações."
-                  onCreate={createHomologacao}
-                  onSaveItem={saveHomologacao}
-                  onUpdate={updateHomologacaoDraft}
-                  onToggle={toggleHomologacao}
-                />
+                  <SettingsList
+                    title="Homologações"
+                    items={settingsHomologacoes}
+                    createFields={[
+                      { key: "newHomologacaoCodigo", value: newHomologacaoCodigo, onChange: setNewHomologacaoCodigo, placeholder: "Código" },
+                      { key: "newHomologacaoNome", value: newHomologacaoNome, onChange: setNewHomologacaoNome, placeholder: "Nome da homologação" },
+                    ]}
+                    itemFields={[{ key: "nome" }]}
+                    emptyLabel="Ainda não existem homologações."
+                    onCreate={createHomologacao}
+                    onSaveItem={saveHomologacao}
+                    onUpdate={updateHomologacaoDraft}
+                    onToggle={toggleHomologacao}
+                  />
+                </div>
               </div>
+              
             </div>
           </div>
         </ModalPortal>
