@@ -573,8 +573,8 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
     ]);
 
     const booleanFields = new Set(["doc_formador", "pag_formador", "ccdr_paga", "dgadr_paga"]);
-    const dateFields = new Set(["data_inicio", "data_fim", "ccdr_data_comunicacao", "ccdr_cert_data_envio", "ccdr_data_rececao", "ccdr_envio_cert_data", "dgadr_data_caracterizacao", "dgadr_data_comunicacao", "dgadr_cert_data_envio", "dgadr_data_rececao", "dgadr_envio_cert_data", "dgadr_pedido_cartoes"]);
-    const dateTimeFields = new Set(["data_pagamento", "ccdr_data_envio", "dgadr_data_envio"]);
+    const dateFields = new Set(["data_inicio", "data_fim", "ccdr_data_comunicacao", "ccdr_cert_data_envio", "ccdr_data_rececao", "ccdr_envio_cert_data", "dgadr_data_caracterizacao", "dgadr_data_comunicacao", "dgadr_cert_data_envio", "dgadr_data_rececao", "dgadr_envio_cert_data", "dgadr_pedido_cartoes", "data_pagamento", "ccdr_data_envio", "dgadr_data_envio"]);
+    const dateTimeFields = new Set([]);
     const selectTextFields = new Set(["regime", "status_curso", "status_dtp", "ccdr_pag_exame", "ccdr_cert_faturacao", "dgadr_pag_exame", "dgadr_cert_faturacao"]);
 
     if (numericFields.has(field)) return Number(value || 0);
@@ -639,9 +639,9 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
       codigo: acao.codigo || buildCodigo(acao.ano, acao.sequencia),
       data_inicio: formatDateInput(acao.data_inicio),
       data_fim: formatDateInput(acao.data_fim),
-      data_pagamento: formatDateTimeInput(acao.data_pagamento),
-      ccdr_data_envio: formatDateTimeInput(acao.ccdr_data_envio),
-      ccdr_data_comunicacao: formatDateInput(acao.ccdr_data_comunicacao),
+      data_pagamento: formatDateInput(acao.data_pagamento),
+      ccdr_data_envio: formatDateInput(acao.ccdr_data_envio),
+      dgadr_data_envio: formatDateInput(acao.dgadr_data_envio),
       ccdr_cert_data_envio: formatDateInput(acao.ccdr_cert_data_envio),
       ccdr_data_rececao: formatDateInput(acao.ccdr_data_rececao),
       ccdr_envio_cert_data: formatDateInput(acao.ccdr_envio_cert_data),
@@ -739,10 +739,10 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
         certificados_aguardar: Number(form.certificados_aguardar || 0),
         doc_formador: Boolean(form.doc_formador),
         pag_formador: Boolean(form.pag_formador),
-        data_pagamento: toDateTimeOrNull(form.data_pagamento),
+        data_pagamento: toDateOrNull(form.data_pagamento),
         status_dtp: form.status_dtp,
         ccdr_paga: Boolean(form.ccdr_paga),
-        ccdr_data_envio: toDateTimeOrNull(form.ccdr_data_envio),
+        ccdr_data_envio: toDateOrNull(form.ccdr_data_envio),
         ccdr_n_homologacao: form.ccdr_n_homologacao.trim(),
         ccdr_data_comunicacao: toDateOrNull(form.ccdr_data_comunicacao),
         ccdr_pag_exame: form.ccdr_pag_exame,
@@ -753,7 +753,7 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
         ccdr_modalidade: form.ccdr_modalidade.trim(),
         dgadr_data_caracterizacao: toDateOrNull(form.dgadr_data_caracterizacao),
         dgadr_paga: Boolean(form.dgadr_paga),
-        dgadr_data_envio: toDateTimeOrNull(form.dgadr_data_envio),
+        dgadr_data_envio: toDateOrNull(form.dgadr_data_envio),
         dgadr_n_homologacao: form.dgadr_n_homologacao.trim(),
         dgadr_data_comunicacao: toDateOrNull(form.dgadr_data_comunicacao),
         dgadr_pag_exame: form.dgadr_pag_exame,
@@ -1141,7 +1141,7 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
                         <InlineTableCell key={`${acao.id}-certificados_aguardar-${editingCell?.rowId === acao.id && editingCell?.field === "certificados_aguardar" ? "edit" : "view"}`} rowId={acao.id} field="certificados_aguardar" value={acao.certificados_aguardar ?? 0} display={acao.certificados_aguardar ?? 0} type="number" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "certificados_aguardar", nextValue)} />
                         <InlineTableCell key={`${acao.id}-doc_formador-${editingCell?.rowId === acao.id && editingCell?.field === "doc_formador" ? "edit" : "view"}`} rowId={acao.id} field="doc_formador" value={acao.doc_formador ? "Sim" : "Não"} display={displayBoolean(acao.doc_formador)} type="select" options={SIM_NAO_OPTIONS.map((option) => ({ value: option, label: option }))} align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "doc_formador", nextValue)} />
                         <InlineTableCell key={`${acao.id}-pag_formador-${editingCell?.rowId === acao.id && editingCell?.field === "pag_formador" ? "edit" : "view"}`} rowId={acao.id} field="pag_formador" value={acao.pag_formador ? "Sim" : "Não"} display={displayBoolean(acao.pag_formador)} type="select" options={SIM_NAO_OPTIONS.map((option) => ({ value: option, label: option }))} align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "pag_formador", nextValue)} />
-                        <InlineTableCell key={`${acao.id}-data_pagamento-${editingCell?.rowId === acao.id && editingCell?.field === "data_pagamento" ? "edit" : "view"}`} rowId={acao.id} field="data_pagamento" value={acao.data_pagamento || ""} display={displayDateTime(acao.data_pagamento)} type="datetime-local" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "data_pagamento", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-data_pagamento-${editingCell?.rowId === acao.id && editingCell?.field === "data_pagamento" ? "edit" : "view"}`} rowId={acao.id} field="data_pagamento" value={acao.data_pagamento || ""} display={displayDate(acao.data_pagamento)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "data_pagamento", nextValue)} />
                         <InlineTableCell key={`${acao.id}-status_dtp-${editingCell?.rowId === acao.id && editingCell?.field === "status_dtp" ? "edit" : "view"}`} rowId={acao.id} field="status_dtp" value={acao.status_dtp || ""} display={acao.status_dtp} type="select" options={DTP_OPTIONS.map((option) => ({ value: option, label: option }))} align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "status_dtp", nextValue)} />
                         <td style={{ padding: 4, textAlign: "right", fontSize: "0.64rem" }}>
                           <button onClick={() => handleOpenEdit(acao)} title="Abrir edição completa" style={{ background: "transparent", border: "none", cursor: "pointer", color: "#94a3b8" }}>
@@ -1264,7 +1264,7 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
                         </td>
                         <InlineTableCell key={`${acao.id}-data_inicio`} rowId={acao.id} field="data_inicio" value={acao.data_inicio || ""} display={displayDate(acao.data_inicio)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "data_inicio", nextValue)} />
                         <InlineTableCell key={`${acao.id}-ccdr_paga`} rowId={acao.id} field="ccdr_paga" value={acao.ccdr_paga ? "Sim" : "Não"} display={displayBoolean(acao.ccdr_paga)} type="select" options={SIM_NAO_OPTIONS.map(o => ({ value: o, label: o }))} align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_paga", nextValue)} />
-                        <InlineTableCell key={`${acao.id}-ccdr_data_envio`} rowId={acao.id} field="ccdr_data_envio" value={acao.ccdr_data_envio || ""} display={displayDateTime(acao.ccdr_data_envio)} type="datetime-local" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_data_envio", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-ccdr_data_envio`} rowId={acao.id} field="ccdr_data_envio" value={acao.ccdr_data_envio || ""} display={displayDate(acao.ccdr_data_envio)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_data_envio", nextValue)} />
                         <InlineTableCell key={`${acao.id}-ccdr_n_homologacao`} rowId={acao.id} field="ccdr_n_homologacao" value={acao.ccdr_n_homologacao || ""} display={acao.ccdr_n_homologacao || "-"} align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_n_homologacao", nextValue)} />
                         <InlineTableCell key={`${acao.id}-ccdr_data_comunicacao`} rowId={acao.id} field="ccdr_data_comunicacao" value={acao.ccdr_data_comunicacao || ""} display={displayDate(acao.ccdr_data_comunicacao)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_data_comunicacao", nextValue)} />
                         <InlineTableCell key={`${acao.id}-ccdr_pag_exame`} rowId={acao.id} field="ccdr_pag_exame" value={acao.ccdr_pag_exame || ""} display={acao.ccdr_pag_exame} type="select" options={SIM_NAO_NA_OPTIONS.map(o => ({ value: o, label: o }))} align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_pag_exame", nextValue)} />
@@ -1309,7 +1309,7 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
                         <InlineTableCell key={`${acao.id}-dgadr_data_caracterizacao`} rowId={acao.id} field="dgadr_data_caracterizacao" value={acao.dgadr_data_caracterizacao || ""} display={displayDate(acao.dgadr_data_caracterizacao)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_data_caracterizacao", nextValue)} />
                         <InlineTableCell key={`${acao.id}-data_inicio`} rowId={acao.id} field="data_inicio" value={acao.data_inicio || ""} display={displayDate(acao.data_inicio)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "data_inicio", nextValue)} />
                         <InlineTableCell key={`${acao.id}-dgadr_paga`} rowId={acao.id} field="dgadr_paga" value={acao.dgadr_paga ? "Sim" : "Não"} display={displayBoolean(acao.dgadr_paga)} type="select" options={SIM_NAO_OPTIONS.map(o => ({ value: o, label: o }))} align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_paga", nextValue)} />
-                        <InlineTableCell key={`${acao.id}-dgadr_data_envio`} rowId={acao.id} field="dgadr_data_envio" value={acao.dgadr_data_envio || ""} display={displayDateTime(acao.dgadr_data_envio)} type="datetime-local" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_data_envio", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-dgadr_data_envio`} rowId={acao.id} field="dgadr_data_envio" value={acao.dgadr_data_envio || ""} display={displayDate(acao.dgadr_data_envio)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_data_envio", nextValue)} />
                         <InlineTableCell key={`${acao.id}-dgadr_n_homologacao`} rowId={acao.id} field="dgadr_n_homologacao" value={acao.dgadr_n_homologacao || ""} display={acao.dgadr_n_homologacao || "-"} align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_n_homologacao", nextValue)} />
                         <InlineTableCell key={`${acao.id}-dgadr_data_comunicacao`} rowId={acao.id} field="dgadr_data_comunicacao" value={acao.dgadr_data_comunicacao || ""} display={displayDate(acao.dgadr_data_comunicacao)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_data_comunicacao", nextValue)} />
                         <InlineTableCell key={`${acao.id}-dgadr_pag_exame`} rowId={acao.id} field="dgadr_pag_exame" value={acao.dgadr_pag_exame || ""} display={acao.dgadr_pag_exame} type="select" options={SIM_NAO_NA_OPTIONS.map(o => ({ value: o, label: o }))} align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_pag_exame", nextValue)} />
@@ -1475,7 +1475,7 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
                           </select>
                         </Field>
                         <Field label="Data de Pagamento">
-                          <input type="datetime-local" value={form.data_pagamento} onChange={(event) => setForm({ ...form, data_pagamento: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
+                          <input type="date" value={form.data_pagamento} onChange={(event) => setForm({ ...form, data_pagamento: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
                         </Field>
                         <Field label="Status DTP">
                           <div style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", background: "#f8fafc", fontWeight: 800, color: "#475569" }}>{form.status_dtp}</div>
@@ -1492,7 +1492,7 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
                               </select>
                             </Field>
                             <Field label="Data de envio para CCDR">
-                              <input type="datetime-local" value={form.ccdr_data_envio} onChange={(event) => setForm({ ...form, ccdr_data_envio: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
+                              <input type="date" value={form.ccdr_data_envio} onChange={(event) => setForm({ ...form, ccdr_data_envio: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
                             </Field>
                             <Field label="Nº homologação">
                               <input value={form.ccdr_n_homologacao} onChange={(event) => setForm({ ...form, ccdr_n_homologacao: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
@@ -1545,7 +1545,7 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
                               </select>
                             </Field>
                             <Field label="Data de envio para DGADR">
-                              <input type="datetime-local" value={form.dgadr_data_envio} onChange={(event) => setForm({ ...form, dgadr_data_envio: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
+                              <input type="date" value={form.dgadr_data_envio} onChange={(event) => setForm({ ...form, dgadr_data_envio: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
                             </Field>
                             <Field label="Nº homologação">
                               <input value={form.dgadr_n_homologacao} onChange={(event) => setForm({ ...form, dgadr_n_homologacao: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
