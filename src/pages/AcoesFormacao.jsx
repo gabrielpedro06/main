@@ -132,7 +132,8 @@ function mapChecklistRows(rows = []) {
     if (!accumulator[row.acao_formacao_id]) {
       accumulator[row.acao_formacao_id] = {};
     }
-    const key = row.template_subtarefa_id || row.template_tarefa_id;
+    // Agora verifica pela ordem de especificidade: Subtarefa > Tarefa > Atividade
+    const key = row.template_subtarefa_id || row.template_tarefa_id || row.template_atividade_id;
     accumulator[row.acao_formacao_id][key] = row.estado;
     return accumulator;
   }, {});
@@ -401,6 +402,7 @@ export default function AcoesFormacao() {
   const [newHomologacaoCodigo, setNewHomologacaoCodigo] = useState("CCDR");
   const [newHomologacaoNome, setNewHomologacaoNome] = useState("");
   const toastTimerRef = useRef(null);
+  const isSubmittingRef = useRef(false);
 
   const showToast = useCallback((message, type = "success") => {
     setNotification({ message, type });
@@ -503,12 +505,12 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
     return [{
       atividadeId: atividade.id,
       atividadeNome: atividade.nome,
-      tarefaId: atividade.id, 
+      tarefaId: null,         // Alterado para null
       tarefaNome: atividade.nome,
-      passoId: atividade.id,
+      passoId: null,          // Alterado para null
       passoNome: atividade.nome,
       storageKey: atividade.id,
-      isTaskLeaf: true,
+      isActivityLeaf: true,   // Nova flag
     }];
   }
 
@@ -654,17 +656,44 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
     setShowModal(true);
   };
 
-  const handleChecklistCellClick = async (acaoId, tarefaId, subtarefaId, currentState) => {
+  const handleChecklistCellClick = async (acaoId, leaf, currentState) => {
     const nextState = getNextChecklistState(currentState || "na");
     try {
-      const checklistKey = subtarefaId || tarefaId;
-      const { error } = await supabase.from("acoes_formacao_checklist").upsert(
-        [{ acao_formacao_id: acaoId, template_tarefa_id: tarefaId, template_subtarefa_id: subtarefaId || null, estado: nextState }],
-        { onConflict: "acao_formacao_id,template_tarefa_id,template_subtarefa_id" }
-      );
+      const checklistKey = leaf.storageKey;
+      
+      const atividadeId = leaf.atividadeId; // Agora é sempre obrigatório
+      const tarefaId = leaf.tarefaId || null;
+      const subtarefaId = (leaf.isActivityLeaf || leaf.isTaskLeaf) ? null : leaf.passoId;
 
-      if (error) throw error;
+      // 1. Atualizar primeiro
+      let query = supabase
+        .from("acoes_formacao_checklist")
+        .update({ estado: nextState, updated_at: new Date().toISOString() })
+        .eq("acao_formacao_id", acaoId)
+        .eq("template_atividade_id", atividadeId);
+        
+      if (tarefaId) query = query.eq("template_tarefa_id", tarefaId);
+      else query = query.is("template_tarefa_id", null);
 
+      if (subtarefaId) query = query.eq("template_subtarefa_id", subtarefaId);
+      else query = query.is("template_subtarefa_id", null);
+
+      const { data: updatedRows, error: updateError } = await query.select();
+      if (updateError) throw updateError;
+
+      // 2. Se não atualizou nada, inserimos um novo
+      if (!updatedRows || updatedRows.length === 0) {
+        const { error: insertError } = await supabase.from("acoes_formacao_checklist").insert([{
+          acao_formacao_id: acaoId,
+          template_atividade_id: atividadeId,
+          template_tarefa_id: tarefaId,
+          template_subtarefa_id: subtarefaId,
+          estado: nextState
+        }]);
+        if (insertError) throw insertError;
+      }
+
+      // 3. Atualizar UI
       setChecklistMap((previous) => ({
         ...previous,
         [acaoId]: {
@@ -680,6 +709,10 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
 
   const handleFormSubmit = async (event) => {
     event.preventDefault();
+
+    // Bloqueia os duplos cliques instantaneamente
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
     setIsSubmitting(true);
 
     try {
@@ -735,6 +768,7 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
 
       if (!payload.nome_curso || !payload.nome_formador || !payload.area_formacao_id || !payload.local || !payload.homologacao_id) {
         showToast("Preenche os campos obrigatórios antes de guardar.", "error");
+        isSubmittingRef.current = false;
         setIsSubmitting(false);
         return;
       }
@@ -744,22 +778,43 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
         if (error) throw error;
         showToast("Formação atualizada.");
       } else {
+        // Garantir que a sequência é a correta verificando a BD na hora h
+        const { data: maxSeqData, error: seqError } = await supabase
+          .from("acoes_formacao")
+          .select("sequencia")
+          .eq("ano", payload.ano)
+          .order("sequencia", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (seqError) throw seqError;
+
+        payload.sequencia = maxSeqData ? Number(maxSeqData.sequencia) + 1 : 1;
+        payload.codigo = buildCodigo(payload.ano, payload.sequencia);
+
+        // Insere a ação de formação
         const { data, error } = await supabase.from("acoes_formacao").insert([payload]).select("id").single();
         if (error) throw error;
 
+        // Insere a checklist se houver
         if (data?.id && checklistBodyColumns.length > 0) {
-          const checklistPayload = checklistBodyColumns.map((column) => ({
-            acao_formacao_id: data.id,
-            template_tarefa_id: column.tarefaId,
-            template_subtarefa_id: column.storageKey === column.tarefaId ? null : column.passoId,
-            estado: "na",
-          }));
+          try {
+            const checklistPayload = checklistBodyColumns.map((column) => ({
+              acao_formacao_id: data.id,
+              template_atividade_id: column.atividadeId, // <- OBRIGATÓRIO!
+              template_tarefa_id: column.tarefaId || null,
+              template_subtarefa_id: column.isActivityLeaf || column.storageKey === column.tarefaId ? null : column.passoId,
+              estado: "na",
+            }));
 
-          const { error: checklistError } = await supabase.from("acoes_formacao_checklist").insert(checklistPayload);
-          if (checklistError) throw checklistError;
+            const { error: checklistError } = await supabase.from("acoes_formacao_checklist").insert(checklistPayload);
+            if (checklistError) throw checklistError;
+          } catch (chkError) {
+             console.error("Erro no checklist:", chkError);
+             showToast("Formação criada, mas o checklist inicial não foi totalmente gerado.", "error");
+          }
         }
-
-        showToast("Formação criada.");
+        showToast("Formação criada com sucesso.");
       }
 
       setShowModal(false);
@@ -770,6 +825,7 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
       console.error(error);
       showToast("Erro ao guardar a formação.", "error");
     } finally {
+      isSubmittingRef.current = false;
       setIsSubmitting(false);
     }
   };
@@ -1172,7 +1228,7 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
                             
                             return (
                             <td key={`${acao.id}-${leaf.tarefaId}-${leaf.passoId}`} style={{ padding: 3, textAlign: "center", borderRight: borderStyle, background: bgStyle }}>
-                                <button type="button" onClick={() => handleChecklistCellClick(acao.id, leaf.tarefaId, leaf.isTaskLeaf ? null : leaf.passoId, state)} title={`${leaf.atividadeNome} · ${leaf.tarefaNome} · ${leaf.passoNome}: ${meta.label}`} style={{ width: 18, height: 18, borderRadius: "50%", border: "none", background: meta.color, cursor: "pointer", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }} />
+                                <button type="button" onClick={() => handleChecklistCellClick(acao.id, leaf, state)} title={`${leaf.atividadeNome} · ${leaf.tarefaNome} · ${leaf.passoNome}: ${meta.label}`} style={{ width: 18, height: 18, borderRadius: "50%", border: "none", background: meta.color, cursor: "pointer", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }} />
                             </td>
                             );
                         })}
