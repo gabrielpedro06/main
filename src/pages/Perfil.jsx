@@ -302,7 +302,7 @@ async function handleSave(e) {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
-                            emailDestino: "financeiro@neomarca.pt", // Ajuste para o email correto dos RH
+                            emailDestino: "rh@neomarca.eu", // Ajuste para o email correto dos RH
                             colaboradorNome: colaboradorNome,
                             dataValidade: formData.validade_cc || "N/A",
                             ncc: formData.ncc || "N/A"
