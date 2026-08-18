@@ -434,14 +434,34 @@ export default function AcoesFormacao() {
 
       const formacaoIds = (formacoesResult.data || []).map((item) => item.id);
       if (formacaoIds.length > 0) {
-        const { data: checklistRows, error: checklistError } = await supabase
-          .from("acoes_formacao_checklist")
-          .select("*")
-          .in("acao_formacao_id", formacaoIds)
-          .order("created_at", { ascending: true });
+        let allChecklistRows = [];
+        let start = 0;
+        const PAGE_SIZE = 1000;
+        let hasMore = true;
 
-        if (checklistError) throw checklistError;
-        setChecklistMap(mapChecklistRows(checklistRows || []));
+        // Vai buscar os dados de 1000 em 1000 para contornar o limite do Supabase
+        while (hasMore) {
+          const { data: chunk, error: checklistError } = await supabase
+            .from("acoes_formacao_checklist")
+            .select("*")
+            .in("acao_formacao_id", formacaoIds)
+            .order("created_at", { ascending: true })
+            .range(start, start + PAGE_SIZE - 1);
+
+          if (checklistError) throw checklistError;
+
+          if (chunk && chunk.length > 0) {
+            allChecklistRows = [...allChecklistRows, ...chunk];
+          }
+
+          if (!chunk || chunk.length < PAGE_SIZE) {
+            hasMore = false;
+          } else {
+            start += PAGE_SIZE;
+          }
+        }
+
+        setChecklistMap(mapChecklistRows(allChecklistRows));
       } else {
         setChecklistMap({});
       }
