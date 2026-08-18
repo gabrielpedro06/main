@@ -3022,7 +3022,7 @@ async function handleSendChat(e) {
 
                                         <div style={{display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: '12px'}}>
                                             {msg.content && (
-                                                <div style={{color:'#1e293b', whiteSpace:'pre-wrap', overflowWrap:'break-word', fontSize: '0.92rem', lineHeight: '1.4', marginTop: '2px'}}>
+                                                <div style={{color:'#1e293b', whiteSpace:'pre-wrap', overflowWrap:'anywhere', wordBreak:'break-word', fontSize: '0.92rem', lineHeight: '1.4', marginTop: '2px'}}>
                                                     {msg.content}
                                                 </div>
                                             )}
