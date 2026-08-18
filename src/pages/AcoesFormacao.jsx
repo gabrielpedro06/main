@@ -96,6 +96,7 @@ function createInitialForm(year = CURRENT_YEAR, sequencia = 1) {
     dgadr_envio_cert_data: "",
     dgadr_modalidade: "",
     dgadr_pedido_cartoes: "",
+    notas: "",
   };
 }
 
@@ -763,6 +764,7 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
         dgadr_envio_cert_data: toDateOrNull(form.dgadr_envio_cert_data),
         dgadr_modalidade: form.dgadr_modalidade.trim(),
         dgadr_pedido_cartoes: toDateOrNull(form.dgadr_pedido_cartoes),
+        notas: form.notas ? form.notas.trim() : "",
         updated_at: new Date().toISOString(),
       };
 
@@ -1159,16 +1161,21 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
                     <thead style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
                     {/* LINHA 1: ATIVIDADES */}
                     <tr>
-                        <th rowSpan="3" style={{ padding: 4, textAlign: "left", color: "#475569", position: "sticky", left: 0, background: "#f8fafc", zIndex: 2, minWidth: 130, fontSize: "0.56rem", letterSpacing: "0.04em" }}>Curso</th>
-                        
-                        {checklistActivityGroups.map((atividade) => {
+                      <th rowSpan="3" style={{ padding: 4, textAlign: "left", color: "#475569", position: "sticky", left: 0, background: "#f8fafc", zIndex: 2, minWidth: 130, fontSize: "0.56rem", letterSpacing: "0.04em" }}>Curso</th>
+                      
+                      {checklistActivityGroups.map((atividade) => {
                         const rowSpan = atividade.hasTasks ? 1 : 3;
                         return (
-                            <th key={atividade.id} colSpan={atividade.leafCount} rowSpan={rowSpan} style={{ padding: 4, textAlign: "center", color: "#1e293b", minWidth: Math.max(atividade.leafCount, 1) * 56, fontSize: "0.52rem", fontWeight: 800, background: "#fff7ed", lineHeight: 1.02, borderRight: "2px solid #94a3b8", boxShadow: "inset -1px 0 0 rgba(148, 163, 184, 0.35)", verticalAlign: "middle" }}>
+                          <th key={atividade.id} colSpan={atividade.leafCount} rowSpan={rowSpan} style={{ /* ... teus estilos ... */ }}>
                             {atividade.nome}
-                            </th>
+                          </th>
                         );
-                        })}
+                      })}
+
+                      {/* NOVO CABEÇALHO PARA NOTAS */}
+                      <th rowSpan="3" style={{ padding: "4px 8px", textAlign: "left", color: "#475569", minWidth: 200, fontSize: "0.56rem", fontWeight: 800, background: "#f8fafc", borderLeft: "2px solid #e2e8f0", verticalAlign: "middle" }}>
+                        Notas
+                      </th>
                     </tr>
                     
                     {/* LINHA 2: TAREFAS */}
@@ -1231,6 +1238,19 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
                             </td>
                             );
                         })}
+                          <InlineTableCell
+                            key={`${acao.id}-notas-${editingCell?.rowId === acao.id && editingCell?.field === "notas" ? "edit" : "view"}`}
+                            rowId={acao.id}
+                            field="notas"
+                            value={acao.notas || ""}
+                            display={acao.notas || <span style={{ color: "#cbd5e1", fontStyle: "italic", fontSize: "0.55rem" }}>Duplo clique para adicionar nota...</span>}
+                            type="text"
+                            align="left"
+                            style={{ borderLeft: "2px solid #e2e8f0", minWidth: 200, whiteSpace: "normal", padding: "4px 8px" }}
+                            editingCell={editingCell}
+                            setEditingCell={setEditingCell}
+                            onSave={(nextValue) => handleInlineCellSave(acao, "notas", nextValue)}
+                          />
                         </tr>
                     ))}
                     </tbody>
