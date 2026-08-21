@@ -3,6 +3,12 @@ import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
 import "./../styles/dashboard.css";
+import {
+  PieChart, Pie,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer,
+  Rectangle
+} from "recharts";
+import * as XLSX from "xlsx";
 
 const MODEL_NAME = "Formação Profissional";
 
@@ -38,6 +44,7 @@ const Icons = {
   Save: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>,
   Settings: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>,
   Alert: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>,
+  Download: ({ size = 16, color = "currentColor" }) => ( <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"> <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path> <polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>),
 };
 
 const ModalPortal = ({ children }) => createPortal(children, document.body);
@@ -377,6 +384,333 @@ function InlineTableCell({
         style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid #cbd5e1", background: "white", fontSize: "0.9rem" }}
       />
     </td>
+  );
+}
+
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#f43f5e', '#10b981', '#f59e0b'];
+const STATUS_COLORS = { "Concluído": "#10b981", "Em Andamento": "#3b82f6", "Adiado": "#f59e0b", "Cancelado": "#ef4444" };
+const REGIME_COLORS = { "Presencial": "#8b5cf6", "Online": "#ec4899", "Hibrido": "#06b6d4" };
+const B2B_COLORS = ['#6366f1', '#14b8a6'];
+
+// Recebemos agora o selectedYear nas props
+export function EstatisticasTab({ areasFormacao, selectedYear }) {
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchStats() {
+      const { data: cursos, error } = await supabase
+        .from("acoes_formacao")
+        .select(`
+          ano, area_formacao_id, carga_horaria, n_certificados, total_inscritos, status_curso,
+          n_desistencias, n_empresas, n_particulares, regime, 
+          certificados_emitidos, certificados_enviados, certificados_aguardar,
+          doc_formador, pag_formador
+        `);
+      
+      if (!error && cursos) setData(cursos);
+      setLoading(false);
+    }
+    fetchStats();
+  }, []);
+
+  // ----------------------------------------------------------------------
+  // 1. FILTRAGEM E CÁLCULOS
+  // ----------------------------------------------------------------------
+
+  // Filtramos os dados especificamente para o ano selecionado no topo da página
+  const dataAnoSelecionado = useMemo(() => {
+    return data.filter(curso => Number(curso.ano) === Number(selectedYear));
+  }, [data, selectedYear]);
+
+  // ESTE MANTÉM OS DADOS TODOS (data) -> Para podermos ver a evolução ao longo dos anos
+  const statsPorAno = useMemo(() => {
+    const mapa = data.reduce((acc, curr) => {
+      const ano = curr.ano;
+      if (!acc[ano]) acc[ano] = { ano: String(ano), volume: 0, formandos: 0 };
+      
+      const volume = (Number(curr.carga_horaria) || 0) * (Number(curr.n_certificados) || 0);
+      acc[ano].volume += volume;
+      acc[ano].formandos += (Number(curr.total_inscritos) || 0);
+      
+      return acc;
+    }, {});
+    return Object.values(mapa).sort((a, b) => Number(a.ano) - Number(b.ano));
+  }, [data]);
+
+  // OS RESTANTES USAM APENAS dataAnoSelecionado
+  const statsPorArea = useMemo(() => {
+    const mapa = dataAnoSelecionado.reduce((acc, curr) => {
+      const areaId = curr.area_formacao_id;
+      if (!areaId) return acc;
+      if (!acc[areaId]) acc[areaId] = 0;
+      acc[areaId] += 1;
+      return acc;
+    }, {});
+
+    const arrayOrdenado = Object.entries(mapa).map(([id, count]) => {
+      const area = areasFormacao.find(a => a.id === id);
+      return { name: area ? area.nome : "Desconhecida", value: count };
+    }).sort((a, b) => b.value - a.value);
+
+    return arrayOrdenado.map((item, index) => ({
+      ...item,
+      fill: COLORS[index % COLORS.length]
+    }));
+  }, [dataAnoSelecionado, areasFormacao]);
+
+  const statsStatus = useMemo(() => {
+    const mapa = dataAnoSelecionado.reduce((acc, curr) => {
+      const status = curr.status_curso || "Desconhecido";
+      acc[status] = (acc[status] || 0) + 1;
+      return acc;
+    }, {});
+    
+    return Object.entries(mapa).map(([name, value], index) => ({ 
+      name, 
+      value,
+      fill: STATUS_COLORS[name] || COLORS[index % COLORS.length]
+    }));
+  }, [dataAnoSelecionado]);
+
+  const statsRegime = useMemo(() => {
+    const mapa = dataAnoSelecionado.reduce((acc, curr) => {
+      const regime = curr.regime || "Desconhecido";
+      acc[regime] = (acc[regime] || 0) + 1;
+      return acc;
+    }, {});
+
+    return Object.entries(mapa).map(([name, value], index) => ({ 
+      name, 
+      value,
+      fill: REGIME_COLORS[name] || COLORS[index % COLORS.length]
+    }));
+  }, [dataAnoSelecionado]);
+
+  const statsPublico = useMemo(() => {
+    let empresas = 0;
+    let particulares = 0;
+    dataAnoSelecionado.forEach(curr => {
+      empresas += Number(curr.n_empresas) || 0;
+      particulares += Number(curr.n_particulares) || 0;
+    });
+    return [
+      { name: "Empresas (B2B)", value: empresas, fill: B2B_COLORS[0] },
+      { name: "Particulares (B2C)", value: particulares, fill: B2B_COLORS[1] }
+    ];
+  }, [dataAnoSelecionado]);
+
+  const statsCertificados = useMemo(() => {
+    let aguardar = 0, emitidos = 0, enviados = 0;
+    dataAnoSelecionado.forEach(curr => {
+      aguardar += Number(curr.certificados_aguardar) || 0;
+      emitidos += Number(curr.certificados_emitidos) || 0;
+      enviados += Number(curr.certificados_enviados) || 0;
+    });
+    return [
+      { name: "A Aguardar", quantidade: aguardar, fill: "#f59e0b" },
+      { name: "Emitidos", quantidade: emitidos, fill: "#3b82f6" },
+      { name: "Enviados", quantidade: enviados, fill: "#10b981" }
+    ];
+  }, [dataAnoSelecionado]);
+
+  const totais = useMemo(() => {
+    let volume = 0, formandos = 0, desistencias = 0, docsFalta = 0, pagFalta = 0;
+    
+    dataAnoSelecionado.forEach(curr => {
+      volume += (Number(curr.carga_horaria) || 0) * (Number(curr.n_certificados) || 0);
+      formandos += Number(curr.total_inscritos) || 0;
+      desistencias += Number(curr.n_desistencias) || 0;
+      if (!curr.doc_formador) docsFalta += 1;
+      if (!curr.pag_formador && curr.status_curso !== "Cancelado") pagFalta += 1;
+    });
+
+    const taxaDesistencia = formandos > 0 ? ((desistencias / formandos) * 100).toFixed(1) : 0;
+
+    return { volume, formandos, desistencias, taxaDesistencia, docsFalta, pagFalta };
+  }, [dataAnoSelecionado]);
+
+  // ----------------------------------------------------------------------
+  // 2. RENDERIZAÇÃO
+  // ----------------------------------------------------------------------
+
+  if (loading) return <div style={{ padding: 50, textAlign: "center", color: "#64748b" }}>A carregar estatísticas e KPIs...</div>;
+
+  return (
+    <div style={{ padding: 24, background: "#f8fafc" }}>
+      
+      {/* ----------------- CARDS DE TOPO (KPIs e Alertas) ----------------- */}
+      <h2 style={{ margin: "0 0 16px 0", color: "#0f172a", fontSize: "1.2rem" }}>Resumo de {selectedYear}</h2>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 24 }}>
+        <div style={{ background: "white", border: "1px solid #e2e8f0", padding: 20, borderRadius: 12, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+          <h4 style={{ margin: "0 0 8px 0", color: "#64748b", fontSize: "0.85rem", textTransform: "uppercase" }}>Total Formações</h4>
+          <div style={{ fontSize: "2rem", fontWeight: 900, color: "#0f172a" }}>{dataAnoSelecionado.length}</div>
+        </div>
+        <div style={{ background: "white", border: "1px solid #e2e8f0", padding: 20, borderRadius: 12, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+          <h4 style={{ margin: "0 0 8px 0", color: "#64748b", fontSize: "0.85rem", textTransform: "uppercase" }}>Volume (h)</h4>
+          <div style={{ fontSize: "2rem", fontWeight: 900, color: "#1d4ed8" }}>{totais.volume}</div>
+        </div>
+        <div style={{ background: "white", border: "1px solid #e2e8f0", padding: 20, borderRadius: 12, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+          <h4 style={{ margin: "0 0 8px 0", color: "#64748b", fontSize: "0.85rem", textTransform: "uppercase" }}>Formandos Totais</h4>
+          <div style={{ fontSize: "2rem", fontWeight: 900, color: "#047857" }}>{totais.formandos}</div>
+        </div>
+        <div style={{ background: "#fff1f2", border: "1px solid #fecdd3", padding: 20, borderRadius: 12, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+          <h4 style={{ margin: "0 0 8px 0", color: "#e11d48", fontSize: "0.85rem", textTransform: "uppercase" }}>Taxa de Desistência</h4>
+          <div style={{ fontSize: "2rem", fontWeight: 900, color: "#be123c" }}>{totais.taxaDesistencia}%</div>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 32 }}>
+        <div style={{ background: "#fffbeb", border: "1px solid #fde68a", padding: 16, borderRadius: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <h4 style={{ margin: 0, color: "#b45309", fontSize: "1rem" }}>Documentos de Formador em Falta</h4>
+            <p style={{ margin: 0, color: "#d97706", fontSize: "0.85rem" }}>Ações com documentação pendente em {selectedYear}</p>
+          </div>
+          <div style={{ fontSize: "1.8rem", fontWeight: 900, color: "#b45309", background: "#fef3c7", padding: "4px 16px", borderRadius: 8 }}>{totais.docsFalta}</div>
+        </div>
+        <div style={{ background: "#fffbeb", border: "1px solid #fde68a", padding: 16, borderRadius: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <h4 style={{ margin: 0, color: "#b45309", fontSize: "1rem" }}>Pagamentos a Formadores</h4>
+            <p style={{ margin: 0, color: "#d97706", fontSize: "0.85rem" }}>Ações com pagamento pendente em {selectedYear}</p>
+          </div>
+          <div style={{ fontSize: "1.8rem", fontWeight: 900, color: "#b45309", background: "#fef3c7", padding: "4px 16px", borderRadius: 8 }}>{totais.pagFalta}</div>
+        </div>
+      </div>
+
+      {/* ----------------- LINHA 1: EVOLUÇÃO TEMPORAL (GLOBAL) ----------------- */}
+      <h2 style={{ margin: "0 0 16px 0", color: "#0f172a", fontSize: "1.2rem", borderTop: "1px solid #e2e8f0", paddingTop: 24 }}>Comparativo Histórico</h2>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 24 }}>
+        <div style={{ background: "white", padding: 24, borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+          <h3 style={{ margin: "0 0 20px 0", color: "#0f172a", fontSize: "1.1rem" }}>Evolução do Volume de Formação (h)</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={statsPorAno}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+              <XAxis dataKey="ano" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
+              <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
+              <RechartsTooltip cursor={{fill: '#f8fafc'}} contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }} />
+              <Legend />
+              {/* Optei por destacar o ano atual com uma cor diferente no gráfico de evolução! */}
+              <Bar dataKey="volume" name="Volume Total" radius={[4, 4, 0, 0]} shape={(props) => {
+                const fill = Number(props.payload.ano) === Number(selectedYear) ? "var(--color-btnPrimary)" : "#cbd5e1";
+                return <Rectangle {...props} fill={fill} />;
+              }} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div style={{ background: "white", padding: 24, borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+          <h3 style={{ margin: "0 0 20px 0", color: "#0f172a", fontSize: "1.1rem" }}>Evolução de Inscritos</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={statsPorAno}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+              <XAxis dataKey="ano" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
+              <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
+              <RechartsTooltip cursor={{fill: '#f8fafc'}} contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }} />
+              <Legend />
+              <Bar dataKey="formandos" name="Inscritos" radius={[4, 4, 0, 0]} shape={(props) => {
+                const fill = Number(props.payload.ano) === Number(selectedYear) ? "#10b981" : "#cbd5e1";
+                return <Rectangle {...props} fill={fill} />;
+              }} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* ----------------- LINHA 2: DISTRIBUIÇÃO COMERCIAL E OPERACIONAL (ANO SELECIONADO) ----------------- */}
+      <h2 style={{ margin: "0 0 16px 0", color: "#0f172a", fontSize: "1.2rem", borderTop: "1px solid #e2e8f0", paddingTop: 24 }}>Distribuição Analítica de {selectedYear}</h2>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24, marginBottom: 24 }}>
+        
+        <div style={{ background: "white", padding: 24, borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+          <h3 style={{ margin: "0 0 20px 0", color: "#0f172a", fontSize: "1.1rem", textAlign: "center" }}>Perfil B2B vs B2C</h3>
+          {statsPublico.every(s => s.value === 0) ? (
+             <div style={{height: 250, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8'}}>Sem dados</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={250}>
+              <PieChart>
+                <Pie data={statsPublico} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value" />
+                <RechartsTooltip contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }} />
+                <Legend verticalAlign="bottom" height={36}/>
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        <div style={{ background: "white", padding: 24, borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+          <h3 style={{ margin: "0 0 20px 0", color: "#0f172a", fontSize: "1.1rem", textAlign: "center" }}>Distribuição por Regime</h3>
+          {statsRegime.length === 0 ? (
+             <div style={{height: 250, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8'}}>Sem dados</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={250}>
+              <PieChart>
+                <Pie data={statsRegime} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value" />
+                <RechartsTooltip contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }} />
+                <Legend verticalAlign="bottom" height={36}/>
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        <div style={{ background: "white", padding: 24, borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+          <h3 style={{ margin: "0 0 20px 0", color: "#0f172a", fontSize: "1.1rem", textAlign: "center" }}>Estado dos Cursos</h3>
+          {statsStatus.length === 0 ? (
+             <div style={{height: 250, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8'}}>Sem dados</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={250}>
+              <PieChart>
+                <Pie data={statsStatus} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value" />
+                <RechartsTooltip contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }} />
+                <Legend verticalAlign="bottom" height={36}/>
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+      </div>
+
+      {/* ----------------- LINHA 3: ÁREAS E FUNIL CERTIFICADOS (ANO SELECIONADO) ----------------- */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+        
+        <div style={{ background: "white", padding: 24, borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+          <h3 style={{ margin: "0 0 20px 0", color: "#0f172a", fontSize: "1.1rem", textAlign: "center" }}>Volume por Área de Formação</h3>
+          {statsPorArea.length === 0 ? (
+             <div style={{height: 350, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8'}}>Sem dados para {selectedYear}</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={350}>
+              <PieChart>
+                <Pie
+                  data={statsPorArea}
+                  cx="50%" cy="50%"
+                  labelLine={true}
+                  label={({ name, percent }) => percent > 0.05 ? `${name} (${(percent * 100).toFixed(0)}%)` : ''} 
+                  outerRadius={110}
+                  dataKey="value"
+                />
+                <RechartsTooltip contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }} />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        <div style={{ background: "white", padding: 24, borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+          <h3 style={{ margin: "0 0 20px 0", color: "#0f172a", fontSize: "1.1rem" }}>Status de Emissão de Certificados</h3>
+          <p style={{ margin: "0 0 20px 0", color: "#64748b", fontSize: "0.85rem" }}>Acompanhamento do processamento de certificados em {selectedYear}</p>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={statsCertificados} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
+              <XAxis type="number" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
+              <YAxis dataKey="name" type="category" stroke="#0f172a" fontSize={12} fontWeight={700} width={120} tickLine={false} axisLine={false} />
+              <RechartsTooltip cursor={{fill: '#f8fafc'}} contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }} />
+              <Bar 
+                dataKey="quantidade" 
+                barSize={40}
+                shape={(props) => <Rectangle {...props} fill={props.payload.fill} radius={[0, 4, 4, 0]} />}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+      </div>
+
+    </div>
   );
 }
 
@@ -951,9 +1285,60 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
   const isCreating = !editId;
   const formHomologacaoCodigo = homologacoesById.get(form.homologacao_id)?.codigo;
 
+  const exportarParaExcel = () => {
+    if (visibleFormacoes.length === 0) {
+      showToast("Não há dados para exportar neste ano.", "error");
+      return;
+    }
+
+    // Preparar os dados com os nomes das colunas como queremos no Excel
+    // Preparar os dados com os nomes das colunas como queremos no Excel
+    const dadosExcel = visibleFormacoes.map((acao) => ({
+      "Código": acao.codigo,
+      "Nome do Curso": acao.nome_curso,
+      "Formador": acao.nome_formador,
+      "Área": acao.area_nome,
+      "Carga Horária (h)": acao.carga_horaria,
+      "Data Início": formatDateInput(acao.data_inicio),
+      "Data Fim": formatDateInput(acao.data_fim),
+      "Regime": acao.regime,
+      "Homologação": acao.homologacao_codigo || acao.homologacao_nome,
+      "Status": acao.status_curso,
+      "Total Inscritos": acao.total_inscritos,
+      "Nº Empresas": acao.n_empresas,
+      "Nº Particulares": acao.n_particulares,
+      "Desistências": acao.n_desistencias,
+      "Nº Certificados": acao.n_certificados,
+      "Volume Formação": Number(acao.n_certificados || 0) * Number(acao.carga_horaria || 0),
+      "Emitidos": acao.certificados_emitidos,
+      "Enviados": acao.certificados_enviados,
+      "A Aguardar": acao.certificados_aguardar,
+      "Docs Formador": acao.doc_formador ? "Sim" : "Não",
+      "Pag. Formador": acao.pag_formador ? "Sim" : "Não",
+      "Data Pagamento": formatDateInput(acao.data_pagamento),
+      "Status DTP": acao.status_dtp,
+      "Notas": acao.notas
+    }));
+
+    // Criar a folha e o livro de Excel
+    const worksheet = XLSX.utils.json_to_sheet(dadosExcel);
+    const workbook = XLSX.utils.book_new();
+    
+    // Adicionar a folha ao livro
+    XLSX.utils.book_append_sheet(workbook, worksheet, `Formações_${selectedYear}`);
+
+    // Fazer o download do ficheiro
+    XLSX.writeFile(workbook, `Formacoes_${selectedYear}.xlsx`);
+    
+    showToast(`Excel de ${selectedYear} exportado com sucesso!`);
+  };
+
   return (
     <div className="page-container" style={{ maxWidth: 1600, margin: "0 auto", padding: 15 }}>
+      {/* CABEÇALHO BRANCO */}
       <div style={{ background: "white", padding: "20px 25px", borderRadius: 12, border: "1px solid #e2e8f0", marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)", flexWrap: "wrap", gap: 15 }}>
+        
+        {/* LADO ESQUERDO: Título e Seletor de Ano */}
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
           <div style={{ background: "var(--color-bgSecondary)", color: "var(--color-btnPrimary)", padding: 12, borderRadius: 12, display: "flex" }}>
             <Icons.Folder size={24} />
@@ -974,10 +1359,21 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
           </div>
         </div>
 
+        {/* LADO DIREITO: Botões */}
         <div style={{ display: "flex", gap: 15, alignItems: "center" }}>
+          {/* Botão de Exportar Excel */}
+          <button 
+            onClick={exportarParaExcel} 
+            style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "10px 15px", borderRadius: 8, color: "#16a34a", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, fontWeight: 800 }} 
+            title="Exportar ano selecionado para Excel"
+          >
+            <Icons.Download size={16} /> Download
+          </button>
+          
           <button onClick={() => setShowSettingsModal(true)} style={{ background: "#f8fafc", border: "1px solid #e2e8f0", padding: 10, borderRadius: 8, color: "#475569", cursor: "pointer" }} title="Definições">
             <Icons.Settings />
           </button>
+          
           <button onClick={handleOpenCreate} style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 800, padding: "10px 20px", borderRadius: 8, border: "none", background: "var(--color-btnPrimary)", color: "white", cursor: "pointer" }} disabled={!user?.id}>
             <Icons.Plus /> Nova Formação
           </button>
@@ -990,6 +1386,7 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
           { id: "checklist", label: "Checklist" },
           { id: "ccdr", label: "CCDR" },
           { id: "dgadr", label: "DGADR" },
+          { id: "estatisticas", label: "Estatísticas" },
         ].map((tab) => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{ padding: "8px 20px", borderRadius: 8, border: "none", fontWeight: 800, fontSize: "0.9rem", cursor: "pointer", background: activeTab === tab.id ? "white" : "transparent", color: activeTab === tab.id ? "var(--color-btnPrimary)" : "#64748b", boxShadow: activeTab === tab.id ? "0 2px 4px rgba(0,0,0,0.05)" : "none" }}>
             {tab.label}
@@ -1000,6 +1397,9 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
       <div style={{ background: "white", borderRadius: 14, border: "1px solid #e2e8f0", overflow: "hidden", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)" }}>
         {loading ? (
           <div style={{ padding: 50, textAlign: "center", color: "#64748b" }}>A carregar dados...</div>
+        ) : activeTab === "estatisticas" ? (
+          // Renderiza a nova Tab aqui
+          <EstatisticasTab areasFormacao={areasFormacao} selectedYear={selectedYear} />
         ) : (
           <div className="table-responsive custom-scrollbar" style={{ overflowX: "auto" }}>
             <table 
