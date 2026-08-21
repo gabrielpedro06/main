@@ -672,19 +672,26 @@ export function EstatisticasTab({ areasFormacao, selectedYear }) {
         <div style={{ background: "white", padding: 24, borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
           <h3 style={{ margin: "0 0 20px 0", color: "#0f172a", fontSize: "1.1rem", textAlign: "center" }}>Volume por Área de Formação</h3>
           {statsPorArea.length === 0 ? (
-             <div style={{height: 350, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8'}}>Sem dados para {selectedYear}</div>
+            <div style={{height: 350, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8'}}>Sem dados para {selectedYear}</div>
           ) : (
             <ResponsiveContainer width="100%" height={350}>
-              <PieChart>
+              <PieChart margin={{ top: 10, right: 10, bottom: 20, left: 10 }}>
                 <Pie
                   data={statsPorArea}
-                  cx="50%" cy="50%"
-                  labelLine={true}
-                  label={({ name, percent }) => percent > 0.05 ? `${name} (${(percent * 100).toFixed(0)}%)` : ''} 
-                  outerRadius={110}
+                  cx="50%" cy="45%"
+                  labelLine={false} /* Remove as linhas */
+                  label={false}     /* Remove o texto das percentagens */
+                  outerRadius={90}
                   dataKey="value"
                 />
                 <RechartsTooltip contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }} />
+                
+                <Legend 
+                  layout="horizontal" 
+                  verticalAlign="bottom" 
+                  align="center" 
+                  wrapperStyle={{ fontSize: "0.75rem", paddingTop: "10px", lineHeight: "1.4" }} 
+                />
               </PieChart>
             </ResponsiveContainer>
           )}
