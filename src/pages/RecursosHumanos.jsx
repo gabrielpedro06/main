@@ -357,6 +357,15 @@ export default function RecursosHumanos() {
   const [newTolerancia, setNewTolerancia] = useState({ nome: '', data: '', tipo: 'global', user_id: '' });
   const [isSubmittingTolerancia, setIsSubmittingTolerancia] = useState(false);
   
+  // --- FORMAÇÕES ---
+  const [formacoes, setFormacoes] = useState([]);
+  const [showFormacaoModal, setShowFormacaoModal] = useState(false);
+  const [newFormacao, setNewFormacao] = useState({
+      nome: '', data_inicio: '', data_fim: '', total_horas: '', user_ids: []
+  });
+  const [isSubmittingFormacao, setIsSubmittingFormacao] = useState(false);
+  const [deleteFormacaoModal, setDeleteFormacaoModal] = useState({ show: false, grupo: null });
+
   // UI Abas do Colaborador
   const [userTab, setUserTab] = useState("financeiro"); 
   const [isEditingUser, setIsEditingUser] = useState(false);
@@ -538,6 +547,7 @@ export default function RecursosHumanos() {
                         fetchPedidosPendentes();
                         fetchPedidosKmPendentes();
                         fetchTolerancias();
+                        fetchFormacoes();
                 } catch (error) {
                         console.error("Erro ao inicializar RH:", error);
                         showNotification("Erro ao iniciar dados de RH.", "error");
@@ -2269,6 +2279,103 @@ export default function RecursosHumanos() {
   const labelStyle = { color: '#64748b', fontSize: '0.75rem', marginBottom: '2px' };
   const inputStyle = { padding: '10px', borderRadius: '5px', border: '1px solid #ccc', width: '100%', marginBottom: '10px' };
 
+  // Função para ir buscar as formações
+  async function fetchFormacoes() {
+      try {
+          const { data, error } = await supabase
+              .from("formacoes")
+              .select("*, profiles(nome)")
+              .order("data_inicio", { ascending: false });
+          if (error) throw error;
+          setFormacoes(data || []);
+      } catch (error) {
+          console.error("Erro ao carregar formações:", error);
+      }
+  }
+
+  // Função para guardar nova formação para múltiplos colaboradores
+  async function handleSaveFormacao(e) {
+      e.preventDefault();
+      if (newFormacao.user_ids.length === 0) return showNotification("Selecione pelo menos um colaborador.", "error");
+      
+      // --- NOVA VALIDAÇÃO ---
+      if (new Date(newFormacao.data_inicio) > new Date(newFormacao.data_fim)) {
+          return showNotification("A data de fim não pode ser anterior à data de início.", "error");
+      }
+      // ----------------------
+
+      setIsSubmittingFormacao(true);
+      try {
+          const anoFormacao = new Date(newFormacao.data_inicio).getFullYear();
+          
+          const payload = newFormacao.user_ids.map(userId => ({
+              user_id: userId,
+              nome: newFormacao.nome,
+              data_inicio: newFormacao.data_inicio,
+              data_fim: newFormacao.data_fim,
+              total_horas: Number(newFormacao.total_horas),
+              ano: anoFormacao
+          }));
+
+          const { error } = await supabase.from("formacoes").insert(payload);
+          if (error) throw error;
+
+          showNotification("Formação registada com sucesso!", "success");
+          setShowFormacaoModal(false);
+          setNewFormacao({ nome: '', data_inicio: '', data_fim: '', total_horas: '', user_ids: [] });
+          fetchFormacoes();
+      } catch (err) {
+          showNotification("Erro ao guardar formação: " + err.message, "error");
+      } finally {
+          setIsSubmittingFormacao(false);
+      }
+  }
+
+  // Função para apagar registo
+  async function handleDeleteFormacao(id) {
+      if (!window.confirm("Eliminar este registo de formação?")) return;
+      try {
+          const { error } = await supabase.from("formacoes").delete().eq("id", id);
+          if (error) throw error;
+          showNotification("Registo eliminado.", "success");
+          fetchFormacoes();
+      } catch (err) {
+          showNotification("Erro ao eliminar.", "error");
+      }
+  }
+
+  async function confirmarDeleteFormacao() {
+      if (!deleteFormacaoModal.grupo) return;
+      setIsSubmittingFormacao(true);
+      try {
+          // Apaga todas as linhas (IDs) que pertencem a este grupo de formação
+          const { error } = await supabase
+              .from("formacoes")
+              .delete()
+              .in("id", deleteFormacaoModal.grupo.ids);
+              
+          if (error) throw error;
+          
+          showNotification("Ação de formação eliminada com sucesso.", "success");
+          setDeleteFormacaoModal({ show: false, grupo: null });
+          fetchFormacoes();
+      } catch (err) {
+          showNotification("Erro ao eliminar a formação.", "error");
+      } finally {
+          setIsSubmittingFormacao(false);
+      }
+  }
+
+  // Lidar com checkboxes de seleção múltipla no Modal
+  const handleToggleUserFormacao = (userId) => {
+      setNewFormacao(prev => {
+          const ids = prev.user_ids.includes(userId) 
+              ? prev.user_ids.filter(id => id !== userId) 
+              : [...prev.user_ids, userId];
+          return { ...prev, user_ids: ids };
+      });
+  };
+
   return (
     <div className="page-container" style={{padding: '20px'}}>
       
@@ -2294,8 +2401,11 @@ export default function RecursosHumanos() {
                 <button className={activeView === 'tolerancias' ? 'btn-primary' : 'btn-small'} onClick={() => setActiveView('tolerancias')} style={{padding: '10px 20px', display:'flex', alignItems:'center', gap:'8px'}}>
                     <Icons.Clock size={18} /> Tolerâncias
                 </button>
+                <button className={activeView === 'formacoes' ? 'btn-primary' : 'btn-small'} onClick={() => setActiveView('formacoes')} style={{padding: '10px 20px', display:'flex', alignItems:'center', gap:'8px'}}>
+                    <Icons.FileText size={18} /> Formação
+                </button>
                 <button className={activeView === 'inativos' ? 'btn-primary' : 'btn-small'} onClick={() => setActiveView('inativos')} style={{padding: '10px 20px', display:'flex', alignItems:'center', gap:'8px'}}>
-                    <Icons.User size={18} /> Colaboradores Inativos
+                    <Icons.User size={18} /> Colab. Inativos
                 </button>
             </div>
         </div>
@@ -2686,6 +2796,148 @@ export default function RecursosHumanos() {
                     </div>
                 </div>
             </div>
+        )}
+
+      {activeView === 'formacoes' && (
+        <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
+            <div className="card" style={{padding: '25px', borderRadius: '12px', background: 'white', boxShadow: '0 2px 10px rgba(0,0,0,0.02)'}}>
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'14px', marginBottom: '20px'}}>
+                    <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+                        <Icons.FileText size={24} color="#1e293b" />
+                        <div>
+                            <h3 style={{margin: 0, color: '#1e293b'}}>Horas de Formação - Ano {currentDate.getFullYear()}</h3>
+                            <p style={{margin:'4px 0 0 0', color:'#64748b', fontSize:'0.85rem'}}>Acompanhamento do mínimo legal de 30h anuais por colaborador.</p>
+                        </div>
+                    </div>
+                    <button className="btn-primary" onClick={() => setShowFormacaoModal(true)} style={{padding: '10px 20px', display:'flex', alignItems:'center', gap:'8px'}}>
+                        <Icons.Check size={16} /> Registar Nova Formação
+                    </button>
+                </div>
+
+                <div className="table-responsive">
+                    <table className="data-table" style={{width: '100%', borderCollapse: 'collapse', textAlign: 'left'}}>
+                        <thead>
+                            <tr style={{borderBottom: '2px solid #f1f5f9', color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase'}}>
+                                <th style={{padding: '12px'}}>Colaborador</th>
+                                <th style={{padding: '12px'}}>Progresso (Mín. 30h)</th>
+                                <th style={{padding: '12px', textAlign: 'center'}}>Total Horas</th>
+                                <th style={{padding: '12px', textAlign: 'center'}}>Faltam</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {colaboradoresAtivos.map(colab => {
+                                // Filtrar as formações do utilizador para o ano atual
+                                const horasAno = formacoes
+                                    .filter(f => f.user_id === colab.id && f.ano === currentDate.getFullYear())
+                                    .reduce((sum, f) => sum + Number(f.total_horas), 0);
+                                
+                                const faltam = Math.max(0, 30 - horasAno);
+                                const percent = Math.min((horasAno / 30) * 100, 100);
+                                const barColor = horasAno >= 30 ? '#16a34a' : (horasAno > 15 ? '#eab308' : '#ef4444');
+                                
+                                return (
+                                    <tr key={colab.id} style={{borderBottom: '1px solid #f1f5f9'}}>
+                                        <td style={{padding: '12px', fontWeight: '600', color: '#1e293b'}}>{colab.nome}</td>
+                                        <td style={{padding: '12px', width: '40%'}}>
+                                            <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+                                                <div style={{flex: 1, background: '#e2e8f0', height: '10px', borderRadius: '5px', overflow: 'hidden'}}>
+                                                    <div style={{width: `${percent}%`, background: barColor, height: '100%', borderRadius: '5px', transition: 'width 0.5s ease'}}></div>
+                                                </div>
+                                                <span style={{fontSize:'0.75rem', fontWeight:'bold', color: barColor, width:'40px'}}>{percent.toFixed(0)}%</span>
+                                            </div>
+                                        </td>
+                                        <td style={{padding: '12px', textAlign: 'center', fontWeight: 'bold'}}>{horasAno}h</td>
+                                        <td style={{padding: '12px', textAlign: 'center'}}>
+                                            {faltam === 0 
+                                                ? <span style={{color: '#16a34a', background: '#dcfce7', padding: '4px 8px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: '700'}}>Concluído</span> 
+                                                : <span style={{color: '#ef4444'}}>{faltam}h</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+                
+                {/* HISTÓRICO DE AÇÕES DE FORMAÇÃO EM CARDS */}
+                <h4 style={{marginTop: '40px', marginBottom: '15px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                    <Icons.FileText size={20} color="#64748b"/> Histórico de Formações Dadas
+                </h4>
+                
+                {formacoes.length === 0 ? (
+                    <div style={{padding:'20px', textAlign:'center', color:'#94a3b8', background:'#f8fafc', borderRadius:'10px', border:'1px dashed #e2e8f0'}}>
+                        Nenhuma ação de formação registada.
+                    </div>
+                ) : (
+                    <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px'}}>
+                        {Object.values(formacoes.reduce((acc, f) => {
+                            // Agrupar formações pelo Nome + Datas
+                            const key = `${f.nome}_${f.data_inicio}_${f.data_fim}`;
+                            if (!acc[key]) {
+                                acc[key] = {
+                                    ids: [],
+                                    nome: f.nome,
+                                    data_inicio: f.data_inicio,
+                                    data_fim: f.data_fim,
+                                    total_horas: f.total_horas,
+                                    participantes: []
+                                };
+                            }
+                            acc[key].ids.push(f.id);
+                            if (f.profiles?.nome) acc[key].participantes.push(f.profiles.nome);
+                            return acc;
+                        }, {})).sort((a, b) => new Date(b.data_inicio) - new Date(a.data_inicio)).map((grupo, i) => (
+                            <div key={i} style={{background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px', position: 'relative', display: 'flex', flexDirection: 'column'}}>
+                                
+                                {/* Botão Apagar */}
+                                <button 
+                                    onClick={() => setDeleteFormacaoModal({show: true, grupo: grupo})} 
+                                    style={{position: 'absolute', top: '15px', right: '15px', background: '#fee2e2', color: '#ef4444', border: 'none', padding: '8px', borderRadius: '8px', cursor: 'pointer', transition: '0.2s'}}
+                                    className="hover-bg-gray"
+                                    title="Eliminar Formação"
+                                >
+                                    <Icons.Trash size={16} />
+                                </button>
+
+                                <div style={{paddingRight: '40px'}}>
+                                    <h4 style={{margin: '0 0 5px 0', color: '#1e293b', fontSize: '1.05rem', lineHeight: '1.3'}}>{grupo.nome}</h4>
+                                    <div style={{fontSize: '0.8rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '15px'}}>
+                                        <Icons.Calendar size={14}/> 
+                                        {grupo.data_inicio === grupo.data_fim 
+                                            ? new Date(grupo.data_inicio).toLocaleDateString('pt-PT') 
+                                            : `${new Date(grupo.data_inicio).toLocaleDateString('pt-PT')} a ${new Date(grupo.data_fim).toLocaleDateString('pt-PT')}`
+                                        }
+                                    </div>
+                                </div>
+
+                                <div style={{display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px'}}>
+                                    <span style={{background: '#eff6ff', color: '#1d4ed8', padding: '4px 10px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', border: '1px solid #bfdbfe'}}>
+                                        {grupo.total_horas} horas
+                                    </span>
+                                    <span style={{background: '#f0fdf4', color: '#166534', padding: '4px 10px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', border: '1px solid #bbf7d0'}}>
+                                        {grupo.participantes.length} Participante(s)
+                                    </span>
+                                </div>
+
+                                {/* Intervenientes */}
+                                <div style={{marginTop: 'auto', paddingTop: '15px', borderTop: '1px dashed #cbd5e1'}}>
+                                    <div style={{fontSize: '0.75rem', fontWeight: 'bold', color: '#475569', textTransform: 'uppercase', marginBottom: '8px'}}>Intervenientes:</div>
+                                    <div style={{display: 'flex', flexWrap: 'wrap', gap: '6px'}}>
+                                        {grupo.participantes.map((participante, pIndex) => (
+                                            <span key={pIndex} style={{background: 'white', border: '1px solid #e2e8f0', color: '#334155', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem'}}>
+                                                {participante}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
         )}
 
       {activeView === 'gestao' && (
@@ -3931,6 +4183,126 @@ export default function RecursosHumanos() {
                               </button>
                           </div>
                       </form>
+                  </div>
+              </div>
+          </ModalPortal>
+      )}
+
+      {showFormacaoModal && (
+        <ModalPortal>
+            <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999}}>
+                <div style={{background:'white', padding:'30px', borderRadius:'16px', width:'500px', maxWidth:'90%', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', maxHeight:'90vh', overflowY:'auto'}}>
+                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px'}}>
+                        <h3 style={{margin: 0, display:'flex', alignItems:'center', gap:'8px', color:'#1e293b'}}>
+                            <Icons.Check size={20} color="var(--color-btnPrimary)"/> Nova Ação de Formação
+                        </h3>
+                        <button type="button" onClick={() => setShowFormacaoModal(false)} style={{background:'none', border:'none', cursor:'pointer', color: '#94a3b8'}}><Icons.X size={20}/></button>
+                    </div>
+                    <form onSubmit={handleSaveFormacao}>
+                        <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Nome da Ação de Formação</label>
+                        <input type="text" required placeholder="Ex: Curso Primeiros Socorros" value={newFormacao.nome} onChange={e => setNewFormacao({...newFormacao, nome: e.target.value})} style={{...inputStyle, marginTop:'4px'}}/>
+
+                        <div style={{display:'flex', gap:'15px'}}>
+                            <div style={{display:'flex', gap:'15px'}}>
+                                <div style={{flex:1}}>
+                                    <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Data Início</label>
+                                    <input 
+                                        type="date" 
+                                        required 
+                                        value={newFormacao.data_inicio} 
+                                        onChange={e => {
+                                            const newStart = e.target.value;
+                                            // Se a data de fim for anterior à nova data de início (ou estiver vazia), ajusta a de fim para ser igual à de início
+                                            const newEnd = (!newFormacao.data_fim || newFormacao.data_fim < newStart) ? newStart : newFormacao.data_fim;
+                                            setNewFormacao({...newFormacao, data_inicio: newStart, data_fim: newEnd});
+                                        }} 
+                                        style={{...inputStyle, marginTop:'4px'}}
+                                    />
+                                </div>
+                                <div style={{flex:1}}>
+                                    <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Data Fim</label>
+                                    <input 
+                                        type="date" 
+                                        required 
+                                        min={newFormacao.data_inicio} // Bloqueia dias anteriores no calendário do browser
+                                        value={newFormacao.data_fim} 
+                                        onChange={e => setNewFormacao({...newFormacao, data_fim: e.target.value})} 
+                                        style={{...inputStyle, marginTop:'4px'}}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Total de Horas</label>
+                        <input type="number" min="0.5" step="0.5" required placeholder="Ex: 8" value={newFormacao.total_horas} onChange={e => setNewFormacao({...newFormacao, total_horas: e.target.value})} style={{...inputStyle, marginTop:'4px'}}/>
+
+                        <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569', display:'block', marginBottom:'8px'}}>Selecionar Colaboradores Envolvidos</label>
+                        <div style={{maxHeight:'150px', overflowY:'auto', border:'1px solid #e2e8f0', borderRadius:'8px', padding:'10px', background:'#f8fafc', marginBottom:'15px'}}>
+                            <label style={{display:'flex', alignItems:'center', gap:'8px', padding:'6px', cursor:'pointer', borderBottom:'1px dashed #cbd5e1', marginBottom:'5px'}}>
+                                <input 
+                                    type="checkbox" 
+                                    onChange={(e) => {
+                                        if(e.target.checked) {
+                                            setNewFormacao({...newFormacao, user_ids: colaboradoresAtivos.map(c => c.id)});
+                                        } else {
+                                            setNewFormacao({...newFormacao, user_ids: []});
+                                        }
+                                    }}
+                                    checked={newFormacao.user_ids.length === colaboradoresAtivos.length && colaboradoresAtivos.length > 0}
+                                    style={{width:'16px', height:'16px', accentColor:'var(--color-btnPrimary)'}}
+                                />
+                                <span style={{fontWeight:'bold', color:'var(--color-btnPrimary)'}}>Selecionar Todos</span>
+                            </label>
+                            {colaboradoresAtivos.map(c => (
+                                <label key={c.id} style={{display:'flex', alignItems:'center', gap:'8px', padding:'4px 6px', cursor:'pointer', color:'#334155'}}>
+                                    <input 
+                                        type="checkbox" 
+                                        checked={newFormacao.user_ids.includes(c.id)}
+                                        onChange={() => handleToggleUserFormacao(c.id)}
+                                        style={{width:'15px', height:'15px'}}
+                                    />
+                                    {c.nome}
+                                </label>
+                            ))}
+                        </div>
+
+                        <div style={{display:'flex', gap:'10px', marginTop:'10px', paddingTop:'15px', borderTop:'1px solid #e2e8f0'}}>
+                            <button type="button" onClick={() => setShowFormacaoModal(false)} style={{flex:1, padding:'12px', background:'white', border:'1px solid #cbd5e1', borderRadius:'8px', cursor:'pointer', color: '#475569', fontWeight:'bold'}}>Cancelar</button>
+                            <button type="submit" disabled={isSubmittingFormacao} style={{flex:2, padding:'12px', background:'var(--color-btnPrimary)', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'bold', opacity: isSubmittingFormacao ? 0.7 : 1}}>
+                                {isSubmittingFormacao ? 'A guardar...' : 'Guardar Formação'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </ModalPortal>
+    )}
+
+    {/* Modal Apagar Formação */}
+      {deleteFormacaoModal.show && deleteFormacaoModal.grupo && (
+          <ModalPortal>
+              <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999}}>
+                  <div style={{background:'white', padding:'30px', borderRadius:'16px', width:'420px', maxWidth:'92%', textAlign:'center', boxShadow:'0 25px 50px -12px rgba(0, 0, 0, 0.25)'}}>
+                      <div style={{display:'flex', justifyContent:'center', marginBottom:'15px'}}>
+                          <div style={{background:'#fee2e2', padding:'15px', borderRadius:'50%', color:'#ef4444'}}>
+                              <Icons.Trash size={32}/>
+                          </div>
+                      </div>
+                      <h3 style={{marginTop:0, color:'#1e293b'}}>Eliminar Formação</h3>
+                      <p style={{color:'#64748b', marginBottom:'20px', lineHeight:'1.5', fontSize:'0.95rem'}}>
+                          Tem a certeza que deseja eliminar a formação <b>"{deleteFormacaoModal.grupo.nome}"</b>?
+                      </p>
+                      <div style={{background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '25px', textAlign: 'left', fontSize: '0.85rem', color: '#ef4444'}}>
+                          Esta ação irá remover as <b>{deleteFormacaoModal.grupo.total_horas}h</b> atribuídas a <b>{deleteFormacaoModal.grupo.participantes.length}</b> colaborador(es).
+                      </div>
+                      <div style={{display:'flex', gap:'10px', justifyContent:'center'}}>
+                          <button onClick={() => setDeleteFormacaoModal({show: false, grupo: null})} disabled={isSubmittingFormacao} style={{padding:'12px', borderRadius:'8px', border:'1px solid #cbd5e1', background:'white', color:'#475569', fontWeight:'bold', flex:1, cursor:'pointer'}}>
+                              Cancelar
+                          </button>
+                          <button onClick={confirmarDeleteFormacao} disabled={isSubmittingFormacao} style={{padding:'12px', borderRadius:'8px', border:'none', flex:1, color:'white', background:'#ef4444', fontWeight:'bold', cursor:'pointer', opacity: isSubmittingFormacao ? 0.7 : 1}}>
+                              {isSubmittingFormacao ? 'A eliminar...' : 'Sim, Eliminar'}
+                          </button>
+                      </div>
                   </div>
               </div>
           </ModalPortal>
