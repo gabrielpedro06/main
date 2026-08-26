@@ -2806,7 +2806,7 @@ export default function RecursosHumanos() {
                         <Icons.FileText size={24} color="#1e293b" />
                         <div>
                             <h3 style={{margin: 0, color: '#1e293b'}}>Horas de Formação - Ano {currentDate.getFullYear()}</h3>
-                            <p style={{margin:'4px 0 0 0', color:'#64748b', fontSize:'0.85rem'}}>Acompanhamento do mínimo legal de 30h anuais por colaborador.</p>
+                            <p style={{margin:'4px 0 0 0', color:'#64748b', fontSize:'0.85rem'}}>Acompanhamento do mínimo legal de 40h anuais por colaborador.</p>
                         </div>
                     </div>
                     <button className="btn-primary" onClick={() => setShowFormacaoModal(true)} style={{padding: '10px 20px', display:'flex', alignItems:'center', gap:'8px'}}>
@@ -2819,7 +2819,7 @@ export default function RecursosHumanos() {
                         <thead>
                             <tr style={{borderBottom: '2px solid #f1f5f9', color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase'}}>
                                 <th style={{padding: '12px'}}>Colaborador</th>
-                                <th style={{padding: '12px'}}>Progresso (Mín. 30h)</th>
+                                <th style={{padding: '12px'}}>Progresso (Mín. 40h)</th>
                                 <th style={{padding: '12px', textAlign: 'center'}}>Total Horas</th>
                                 <th style={{padding: '12px', textAlign: 'center'}}>Faltam</th>
                             </tr>
@@ -2831,9 +2831,9 @@ export default function RecursosHumanos() {
                                     .filter(f => f.user_id === colab.id && f.ano === currentDate.getFullYear())
                                     .reduce((sum, f) => sum + Number(f.total_horas), 0);
                                 
-                                const faltam = Math.max(0, 30 - horasAno);
-                                const percent = Math.min((horasAno / 30) * 100, 100);
-                                const barColor = horasAno >= 30 ? '#16a34a' : (horasAno > 15 ? '#eab308' : '#ef4444');
+                                const faltam = Math.max(0, 40 - horasAno);
+                                const percent = Math.min((horasAno / 40) * 100, 100);
+                                const barColor = horasAno >= 40 ? '#16a34a' : (horasAno > 20 ? '#eab308' : '#ef4444');
                                 
                                 return (
                                     <tr key={colab.id} style={{borderBottom: '1px solid #f1f5f9'}}>
