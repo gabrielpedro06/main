@@ -1706,6 +1706,18 @@ export default function ProjetoDetalhe() {
       </>
   );
 
+  const renderResponsavelOptions = () => (
+    <>
+        {internalAssigneeOptions.length > 0 && (
+            <optgroup label="Equipa Interna">
+                {internalAssigneeOptions.map((opt) => (
+                    <option key={`int-${opt.id}`} value={opt.id}>{opt.label}</option>
+                ))}
+            </optgroup>
+        )}
+    </>
+  );
+
   async function handleAddAtividade(e) {
       e.preventDefault();
       if(!novaAtividadeNome.trim()) return;
@@ -2021,11 +2033,13 @@ export default function ProjetoDetalhe() {
           { val: 'cancelado', label: 'CANCELADO', color: '#64748b' }
       ];
       return (
-          <div style={{display: 'flex', gap: '10px', marginBottom: '20px'}}>
+          // 👇 Adicionado flexWrap: 'wrap' e ajustado o gap
+          <div style={{display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap'}}>
               {states.map(s => (
                   <div key={s.val} onClick={() => onChange(s.val)} style={{
-                      flex: 1, textAlign: 'center', padding: '10px', borderRadius: '8px', cursor: 'pointer',
-                      fontSize: '0.75rem', fontWeight: 'bold', border: `1px solid ${currentState === s.val ? s.color : '#cbd5e1'}`,
+                      // 👇 Ajustado o flex para se adaptarem bem em várias linhas
+                      flex: '1 1 calc(33% - 8px)', minWidth: '95px', textAlign: 'center', padding: '10px 4px', borderRadius: '8px', cursor: 'pointer',
+                      fontSize: '0.70rem', fontWeight: 'bold', border: `1px solid ${currentState === s.val ? s.color : '#cbd5e1'}`,
                       background: currentState === s.val ? s.color : '#f8fafc', color: currentState === s.val ? '#fff' : '#64748b', transition: 'all 0.2s'
                   }}>
                       {s.label}
@@ -2425,7 +2439,7 @@ export default function ProjetoDetalhe() {
                                     <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginTop: '5px', flexWrap: 'wrap'}}>
                                         <span style={{fontSize: '0.7rem', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimaryDark)', padding: '2px 8px', borderRadius: '999px', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '5px'}}>
                                             <Icons.User size={11} />
-                                            Resp: {atividadeResponsavelNome || 'Sem responsável'}
+                                            Resp: {atividadeResponsavelNome || 'Sem responsável / Equipa Externa'}
                                         </span>
                                         {atividadeDependencyReason && (
                                             <span style={{fontSize: '0.7rem', background: '#fff7ed', color: '#c2410c', padding: '2px 8px', borderRadius: '999px', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '5px'}} title={atividadeDependencyReason}>
@@ -2626,37 +2640,38 @@ export default function ProjetoDetalhe() {
 
                                 <form onSubmit={(e) => handleAddTarefa(e, ativ.id)} style={{marginTop: '10px', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 230px', gap: '8px'}}>
                                     <input type="text" placeholder="+ Adicionar Tarefa Principal (Enter)..." value={novaTarefaNome.ativId === ativ.id ? novaTarefaNome.nome : ""} onChange={e => setNovaTarefaNome({ ativId: ativ.id, nome: e.target.value, responsavel_id: novaTarefaNome.ativId === ativ.id ? novaTarefaNome.responsavel_id : "" })} style={{width: '100%', padding: '12px 15px', borderRadius: '8px', border: '1px dashed #cbd5e1', background: 'white', outline: 'none', fontSize: '0.9rem', color: '#64748b'}} className="input-focus" />
+                                        <select
+                                            value={novaTarefaNome.ativId === ativ.id ? (novaTarefaNome.responsavel_id || "") : ""}
+                                            onChange={e => setNovaTarefaNome({ ativId: ativ.id, nome: novaTarefaNome.ativId === ativ.id ? novaTarefaNome.nome : "", responsavel_id: e.target.value })}
+                                            style={{...inputStyle, marginBottom: 0, cursor: 'pointer'}}
+                                            className="input-focus"
+                                            title="Responsável da nova tarefa"
+                                        >
+                                            <option value="">Responsável (opcional)</option>
+                                            {/* 👇 ALTERADO AQUI */}
+                                            {renderResponsavelOptions()}
+                                        </select>
+                                    </form>
+                                </div>
+                            )}
+                        </div>
+                    )})}
+
+                        <form onSubmit={handleAddAtividade} style={{marginTop: '25px', background: 'transparent', padding: '0'}}>
+                            <div style={{display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 250px auto', gap: '10px'}}>
+                                <input type="text" placeholder="+ Nome de uma nova Atividade (Agrupador)..." value={novaAtividadeNome} onChange={e => setNovaAtividadeNome(e.target.value)} style={{flex: 1, padding: '14px 15px', borderRadius: '8px', border: '1px dashed #cbd5e1', background: 'white', outline: 'none', fontSize: '0.95rem', color: '#1e293b'}} className="input-focus" />
                                     <select
-                                        value={novaTarefaNome.ativId === ativ.id ? (novaTarefaNome.responsavel_id || "") : ""}
-                                        onChange={e => setNovaTarefaNome({ ativId: ativ.id, nome: novaTarefaNome.ativId === ativ.id ? novaTarefaNome.nome : "", responsavel_id: e.target.value })}
+                                        value={novaAtividadeResponsavel}
+                                        onChange={e => setNovaAtividadeResponsavel(e.target.value)}
                                         style={{...inputStyle, marginBottom: 0, cursor: 'pointer'}}
                                         className="input-focus"
-                                        title="Responsável da nova tarefa"
+                                        title="Responsável da nova atividade"
                                     >
-                                        <option value="">Responsável (opcional)</option>
-                                        {renderAssigneeOptionGroups(novaTarefaNome.responsavel_id)}
-                                    </select>
-                                </form>
-                            </div>
-                        )}
-                    </div>
-                )})}
-
-                <form onSubmit={handleAddAtividade} style={{marginTop: '25px', background: 'transparent', padding: '0'}}>
-                    <div style={{display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 250px auto', gap: '10px'}}>
-                        <input type="text" placeholder="+ Nome de uma nova Atividade (Agrupador)..." value={novaAtividadeNome} onChange={e => setNovaAtividadeNome(e.target.value)} style={{flex: 1, padding: '14px 15px', borderRadius: '8px', border: '1px dashed #cbd5e1', background: 'white', outline: 'none', fontSize: '0.95rem', color: '#1e293b'}} className="input-focus" />
-                        <select
-                            value={novaAtividadeResponsavel}
-                            onChange={e => setNovaAtividadeResponsavel(e.target.value)}
-                            style={{...inputStyle, marginBottom: 0, cursor: 'pointer'}}
-                            className="input-focus"
-                            title="Responsável da nova atividade"
-                        >
-                            <option value="">Responsável (opcional)</option>
-                            {renderAssigneeOptionGroups(novaAtividadeResponsavel)}
-                        </select>
-                        <button type="submit" className="btn-primary hover-shadow" style={{borderRadius: '8px', padding: '0 25px', fontSize: '0.95rem', background: '#64748b', display: 'flex', alignItems: 'center', gap: '8px'}}>
-                            <Icons.Plus /> Criar Bloco
+                                    <option value="">Responsável (opcional)</option>
+                                    {renderResponsavelOptions()}
+                                </select>
+                            <button type="submit" className="btn-primary hover-shadow" style={{borderRadius: '8px', padding: '0 25px', fontSize: '0.95rem', background: '#64748b', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                <Icons.Plus /> Criar Bloco
                         </button>
                     </div>
                 </form>
@@ -3039,17 +3054,15 @@ export default function ProjetoDetalhe() {
                         <div>
                             <label style={labelStyle}>Responsável Global</label>
                             <select value={formGeral.responsavel_id || ''} onChange={e => {
-                                const newResp = e.target.value;
+                                const newResp = e.target.value || null;
                                 setFormGeral(prev => ({
                                     ...prev, 
                                     responsavel_id: newResp,
                                     colaboradores: (prev.colaboradores || []).filter(id => id !== newResp) 
                                 }));
                             }} style={{...inputStyle, cursor: 'pointer'}} className="input-focus">
-                                <option value="">- Ninguém -</option>
-                                {staff
-                                    .filter(s => s.ativo !== false || String(s.id) === String(formGeral.responsavel_id))
-                                    .map(s => <option key={s.id} value={s.id}>{s.nome}{s.ativo === false ? ' (Inativo)' : ''}</option>)}
+                                <option value=""> Sem responsável interno (ou Externo) </option>
+                                {renderResponsavelOptions()}
                             </select>
                         </div>
                         <div>
@@ -3698,13 +3711,13 @@ export default function ProjetoDetalhe() {
                               <div>
                                   <label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight: 'bold'}}>Responsável</label>
                                   <select value={atividadeModal.data.responsavel_id || ''} onChange={e => {
-                                      const newResp = e.target.value;
-                                      const extras = Array.isArray(atividadeModal.data.colaboradores_extra) ? atividadeModal.data.colaboradores_extra : [];
-                                      setAtividadeModal({show: true, data: {...atividadeModal.data, responsavel_id: newResp, colaboradores_extra: extras.filter(id => id !== newResp)}})
-                                  }} style={{...inputStyle, marginBottom: 0}} className="input-focus">
-                                      <option value="">- Ninguém -</option>
-                                      {renderAssigneeOptionGroups(atividadeModal.data?.responsavel_id)}
-                                  </select>
+                                    const newResp = e.target.value || null; 
+                                    const extras = Array.isArray(atividadeModal.data.colaboradores_extra) ? atividadeModal.data.colaboradores_extra : [];
+                                    setAtividadeModal({show: true, data: {...atividadeModal.data, responsavel_id: newResp, colaboradores_extra: extras.filter(id => id !== newResp)}})
+                                }} style={{...inputStyle, marginBottom: 0}} className="input-focus">
+                                    <option value=""> Sem responsável interno (ou Externo) </option>
+                                    {renderResponsavelOptions()}
+                                </select>
                               </div>
                           </div>
 
@@ -3868,7 +3881,7 @@ export default function ProjetoDetalhe() {
                                       const extras = Array.isArray(tarefaModal.data.colaboradores_extra) ? tarefaModal.data.colaboradores_extra : [];
                                       setTarefaModal({...tarefaModal, data: {...tarefaModal.data, responsavel_id: newResp, colaboradores_extra: extras.filter(id => id !== newResp)}})
                                   }} style={{...inputStyle, marginBottom: 0}} className="input-focus">
-                                      <option value="">- Ninguém -</option>
+                                      <option value=""> Sem responsável interno (ou Externo) </option>
                                       {renderAssigneeOptionGroups(tarefaModal.data?.responsavel_id)}
                                   </select>
                               </div>
