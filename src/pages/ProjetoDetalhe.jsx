@@ -4139,7 +4139,7 @@ export default function ProjetoDetalhe() {
       {subtarefaModal.show && subtarefaModal.data && (
           <ModalPortal>
               <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999}}>
-                  <div style={{background: 'white', padding: '30px', borderRadius: '16px', width: '400px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'}}>
+                  <div style={{background: 'white', padding: '30px', borderRadius: '16px', width: 'min(500px, 92vw)', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'}}>
                       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
                           <h3 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Check size={20} color="var(--color-btnPrimary)" /> Detalhes do Passo</h3>
                           <button onClick={() => setSubtarefaModal({show:false, data:null, tarefaNome:''})} style={{background:'none', border:'none', cursor:'pointer'}} className="hover-red-text"><Icons.Close size={20} /></button>
