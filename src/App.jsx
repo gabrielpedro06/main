@@ -38,6 +38,7 @@ import GestaoAvisos from "./pages/GestaoAvisos";
 import Cursos from "./pages/Cursos";
 import AtivosTIDashboard from "./pages/AtivosTIDashboard";
 import AcoesFormacao from "./pages/AcoesFormacao";
+import OrganizadorPdf from "./pages/OrganizadorPdf";
 
 export default function App() {
   return (
@@ -90,6 +91,7 @@ export default function App() {
             {/* GESTÃO DE CURSOS */}
             <Route path="cursos" element={<Cursos />} />
             <Route path="acoes-formacao" element={<AcoesFormacao />} />
+            <Route path="organizador-pdf" element={<OrganizadorPdf />} />
             
           </Route>
 
