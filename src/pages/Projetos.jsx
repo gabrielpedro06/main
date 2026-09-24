@@ -1046,6 +1046,9 @@ export default function Projetos() {
     }
 
     if (!editId) {
+        const tipoSelecionado = tipos.find(t => String(t.id) === String(payload.tipo_projeto_id));
+        const isProjetoFormacao = tipoSelecionado?.eh_formacao === true;
+
         const missingFields = [];
         if (!payload.titulo) missingFields.push("Nome do Projeto");
         if (!payload.cliente_id) missingFields.push("Cliente");
@@ -1054,8 +1057,41 @@ export default function Projetos() {
         if (!payload.data_fim) missingFields.push("Data de Fim");
         if ((payload.programa_id || payload.avisos_ids) && normalizedFases.length === 0) missingFields.push("Datas das fases do aviso");
 
+        const numInvestimento = Number(payload.investimento) || 0;
+        const numIncentivo = Number(payload.incentivo) || 0;
+        const semInvestimento = !isProjetoFormacao && numInvestimento <= 0;
+        const semIncentivo = !isProjetoFormacao && numIncentivo <= 0;
+
+        if (semInvestimento) missingFields.push("Investimento Elegível");
+        if (semIncentivo) missingFields.push("Incentivo Atribuído");
+
         if (missingFields.length > 0) {
+            let msgAlerta = "";
+            if (semInvestimento && semIncentivo && missingFields.length === 2) {
+                msgAlerta = "Para concluir a criação do projeto é obrigatório definir os valores de Investimento Elegível e Incentivo Atribuído.\n\nPor favor preencha os valores antes de avançar.";
+            } else if (semInvestimento && missingFields.length === 1) {
+                msgAlerta = "Para concluir a criação do projeto é obrigatório definir o valor de Investimento Elegível.\n\nPor favor preencha o valor antes de avançar.";
+            } else if (semIncentivo && missingFields.length === 1) {
+                msgAlerta = "Para concluir a criação do projeto é obrigatório definir o valor de Incentivo Atribuído.\n\nPor favor preencha o valor antes de avançar.";
+            } else {
+                msgAlerta = `Para concluir a criação do projeto é obrigatório preencher os seguintes campos:\n\n• ${missingFields.join("\n• ")}`;
+            }
+
+            setAlertDialog({
+                show: true,
+                title: "Campos Obrigatórios em Falta",
+                message: msgAlerta
+            });
             showToast(`Para criar o projeto preenche: ${missingFields.join(", ")}.`, "warning");
+
+            if (semInvestimento || semIncentivo) {
+                setCurrentStep(5);
+            } else if (!payload.titulo || !payload.cliente_id || !payload.tipo_projeto_id || !payload.responsavel_id) {
+                setCurrentStep(1);
+            } else if (!payload.data_fim) {
+                setCurrentStep(3);
+            }
+
             setIsSubmitting(false);
             return;
         }
@@ -2875,33 +2911,114 @@ export default function Projetos() {
                                         <>
                                             <div style={{...sectionTitleStyle, marginTop: 0}}><Icons.Dollar /> Valores de Investimento</div>
                                             
-                                            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px', background:'#f8fafc', padding:'20px', borderRadius:'12px', border:'1px solid #e2e8f0', marginBottom: '30px'}}>
+                                            {!editId && (Number(form.investimento || 0) <= 0 || Number(form.incentivo || 0) <= 0) && (
+                                                <div style={{
+                                                    background: '#fffbeb',
+                                                    border: '1px solid #fde68a',
+                                                    borderRadius: '12px',
+                                                    padding: '14px 18px',
+                                                    marginBottom: '20px',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '14px',
+                                                    color: '#92400e',
+                                                    boxShadow: '0 2px 4px rgba(217, 119, 6, 0.05)'
+                                                }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                                        <Icons.Alert size={22} color="#d97706" />
+                                                    </div>
+                                                    <div style={{ fontSize: '0.88rem', lineHeight: '1.4' }}>
+                                                        <strong style={{ display: 'block', marginBottom: '2px', color: '#78350f' }}>
+                                                            Valores Obrigatórios na Criação do Projeto
+                                                        </strong>
+                                                        {Number(form.investimento || 0) <= 0 && Number(form.incentivo || 0) <= 0
+                                                            ? "É obrigatório definir os valores de Investimento Elegível e Incentivo Atribuído antes de concluir a criação do projeto."
+                                                            : Number(form.investimento || 0) <= 0
+                                                            ? "É obrigatório definir o valor de Investimento Elegível antes de concluir a criação do projeto."
+                                                            : "É obrigatório definir o valor de Incentivo Atribuído antes de concluir a criação do projeto."}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            <div style={{
+                                                display: 'grid',
+                                                gridTemplateColumns: '1fr 1fr',
+                                                gap: '30px',
+                                                background: '#f8fafc',
+                                                padding: '20px',
+                                                borderRadius: '12px',
+                                                border: (!editId && (Number(form.investimento || 0) <= 0 || Number(form.incentivo || 0) <= 0)) ? '1px solid #fed7aa' : '1px solid #e2e8f0',
+                                                marginBottom: '30px'
+                                            }}>
                                                 <div>
-                                                    <label style={labelStyle}>Investimento Elegível (€)</label>
-                                                    <input 
-                                                        type="text" 
-                                                        value={form.investimento || form.investimento === 0 ? new Intl.NumberFormat('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(form.investimento) : ''} 
+                                                    <label style={labelStyle}>
+                                                        Investimento Elegível (€) {!editId && <span style={{ color: '#ef4444', fontWeight: 'bold' }}>*</span>}
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={form.investimento || form.investimento === 0 ? new Intl.NumberFormat('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(form.investimento) : ''}
                                                         onChange={e => {
                                                             const apenasNumeros = e.target.value.replace(/\D/g, "");
                                                             const valorReal = apenasNumeros ? Number(apenasNumeros) / 100 : 0;
                                                             setForm({...form, investimento: valorReal});
-                                                        }} 
-                                                        style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize:'1.2rem', background: 'white', textAlign: 'right' }} 
+                                                        }}
+                                                        style={{
+                                                            width: '100%',
+                                                            padding: '10px 12px',
+                                                            borderRadius: '8px',
+                                                            border: `1px solid ${!editId && Number(form.investimento || 0) <= 0 ? '#f87171' : '#cbd5e1'}`,
+                                                            fontSize:'1.2rem',
+                                                            background: !editId && Number(form.investimento || 0) <= 0 ? '#fff5f5' : 'white',
+                                                            textAlign: 'right'
+                                                        }}
+                                                        className="input-focus"
                                                     />
+                                                    {!editId && Number(form.investimento || 0) <= 0 && (
+                                                        <span style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '500' }}>
+                                                            ⚠️ Insira o valor do investimento elegível (superior a 0,00 €)
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 <div>
-                                                    <label style={labelStyle}>Incentivo Atribuído (€)</label>
-                                                    <input 
-                                                        type="text" 
-                                                        value={form.incentivo || form.incentivo === 0 ? new Intl.NumberFormat('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(form.incentivo) : ''} 
+                                                    <label style={labelStyle}>
+                                                        Incentivo Atribuído (€) {!editId && <span style={{ color: '#ef4444', fontWeight: 'bold' }}>*</span>}
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={form.incentivo || form.incentivo === 0 ? new Intl.NumberFormat('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(form.incentivo) : ''}
                                                         onChange={e => {
                                                             const apenasNumeros = e.target.value.replace(/\D/g, "");
                                                             const valorReal = apenasNumeros ? Number(apenasNumeros) / 100 : 0;
                                                             setForm({...form, incentivo: valorReal});
-                                                        }} 
-                                                        style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize:'1.2rem', background: 'white', textAlign: 'right' }} 
+                                                        }}
+                                                        style={{
+                                                            width: '100%',
+                                                            padding: '10px 12px',
+                                                            borderRadius: '8px',
+                                                            border: `1px solid ${!editId && Number(form.incentivo || 0) <= 0 ? '#f87171' : '#cbd5e1'}`,
+                                                            fontSize:'1.2rem',
+                                                            background: !editId && Number(form.incentivo || 0) <= 0 ? '#fff5f5' : 'white',
+                                                            textAlign: 'right'
+                                                        }}
+                                                        className="input-focus"
                                                     />
+                                                    {!editId && Number(form.incentivo || 0) <= 0 && (
+                                                        <span style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '500' }}>
+                                                            ⚠️ Insira o valor do incentivo atribuído (superior a 0,00 €)
+                                                        </span>
+                                                    )}
                                                 </div>
+
+                                                {Number(form.investimento || 0) > 0 && Number(form.incentivo || 0) > 0 && (
+                                                    <div style={{ gridColumn: 'span 2', display: 'flex', gap: '15px', paddingTop: '10px', borderTop: '1px dashed #cbd5e1', fontSize: '0.85rem' }}>
+                                                        <div style={{ background: '#f1f5f9', padding: '6px 12px', borderRadius: '6px', color: '#475569' }}>
+                                                            Taxa de Financiamento: <strong style={{ color: 'var(--color-btnPrimary)' }}>{((Number(form.incentivo) / Number(form.investimento)) * 100).toFixed(2)}%</strong>
+                                                        </div>
+                                                        <div style={{ background: '#f1f5f9', padding: '6px 12px', borderRadius: '6px', color: '#475569' }}>
+                                                            Autofinanciamento: <strong style={{ color: '#1e293b' }}>{new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(Math.max(0, Number(form.investimento) - Number(form.incentivo)))}</strong>
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                         </>
                                     )}
@@ -3000,7 +3117,34 @@ export default function Projetos() {
                     ) : (
                       <button 
                         type="button" 
-                        onClick={() => document.getElementById('project-form').dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))}
+                        onClick={() => {
+                          const tipoSelecionado = tipos.find(t => String(t.id) === String(form.tipo_projeto_id));
+                          const isProjetoFormacao = tipoSelecionado?.eh_formacao === true;
+                          if (!editId && !isProjetoFormacao) {
+                            const numInvestimento = Number(form.investimento) || 0;
+                            const numIncentivo = Number(form.incentivo) || 0;
+                            const semInvest = numInvestimento <= 0;
+                            const semIncent = numIncentivo <= 0;
+                            if (semInvest || semIncent) {
+                              let msgAlerta = "";
+                              if (semInvest && semIncent) {
+                                msgAlerta = "Para concluir a criação do projeto é obrigatório definir os valores de Investimento Elegível e Incentivo Atribuído.\n\nPor favor preencha os valores antes de avançar.";
+                              } else if (semInvest) {
+                                msgAlerta = "Para concluir a criação do projeto é obrigatório definir o valor de Investimento Elegível.\n\nPor favor preencha o valor antes de avançar.";
+                              } else {
+                                msgAlerta = "Para concluir a criação do projeto é obrigatório definir o valor de Incentivo Atribuído.\n\nPor favor preencha o valor antes de avançar.";
+                              }
+                              setAlertDialog({
+                                show: true,
+                                title: "Valores Financeiros Obrigatórios",
+                                message: msgAlerta
+                              });
+                              showToast("Preencha os valores de investimento e incentivo antes de concluir.", "warning");
+                              return;
+                            }
+                          }
+                          document.getElementById('project-form').dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+                        }}
                         disabled={isSubmitting} 
                         className="btn-primary hover-shadow" 
                         style={{padding:'12px 30px', borderRadius:'10px', border:'none', background:'var(--color-btnPrimary)', color:'white', fontWeight:'700', cursor:'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: '0.2s'}}

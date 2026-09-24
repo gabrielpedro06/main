@@ -22,6 +22,7 @@ import {
     sincronizarSaldoFeriasPerfil,
     validarSaldoFeriasParaIntervalo,
 } from "../utils/feriasSaldo";
+import { createDashboardNotifications } from "../utils/dashboardNotifications";
 import "./../styles/dashboard.css"; 
 
 // --- ÍCONES SVG ESTILO SAAS ---
@@ -1053,6 +1054,34 @@ export default function RecursosHumanos() {
       setDetailsModal({ show: true, pedido });
   }
 
+  async function notificarAlteracaoPedido(pedido, novoEstado, acao) {
+      if (!pedido?.user_id) return;
+
+      const tipoPedido = formatAbsenceTypeLabel(pedido.tipo);
+      const dataPedido = pedido.data_inicio ? new Date(pedido.data_inicio).toLocaleDateString("pt-PT") : "";
+      const isCancelamentoRecusado = acao === "recusar_cancelamento";
+      const estadoLabel = novoEstado === "aprovado" ? "aprovado" : novoEstado === "rejeitado" ? "recusado" : "cancelado";
+      const title = isCancelamentoRecusado
+          ? "Pedido de cancelamento recusado"
+          : `Pedido de ausência ${estadoLabel}`;
+      const message = isCancelamentoRecusado
+          ? `O pedido de cancelamento do seu pedido de ${tipoPedido} de ${dataPedido} foi recusado. O pedido original mantém-se aprovado.`
+          : `O seu pedido de ${tipoPedido} de ${dataPedido} foi ${estadoLabel}.`;
+
+      try {
+          await createDashboardNotifications({
+              supabaseClient: supabase,
+              recipientIds: [pedido.user_id],
+              createdBy: user?.id,
+              type: "absence_status_changed",
+              title,
+              message,
+          });
+      } catch (notificationError) {
+          console.error("Erro ao notificar colaborador sobre pedido de ausência:", notificationError);
+      }
+  }
+
   async function executarAcaoRH() {
       const { pedido, acao } = confirmModal;
       try {
@@ -1099,6 +1128,7 @@ export default function RecursosHumanos() {
 
           const { error } = await supabase.from("ferias").update({ estado: novoEstadoDB }).eq("id", pedido.id);
           if(error) throw error;
+          await notificarAlteracaoPedido(pedido, novoEstadoDB, acao);
           
           const isKmRequest = pedido.tipo === KM_REQUEST_TYPE;
           if (!isKmRequest && pedido.user_id) {
@@ -1202,6 +1232,7 @@ export default function RecursosHumanos() {
               // Update na Base de Dados
               const { error } = await supabase.from("ferias").update({ estado: 'aprovado' }).eq("id", pedido.id);
               if (error) throw error;
+              await notificarAlteracaoPedido(pedido, "aprovado", "aprovar");
 
               // Gestão de saldos locais
               if (!isKmRequest && pedido.user_id) {

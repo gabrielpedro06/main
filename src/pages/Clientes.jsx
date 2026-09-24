@@ -1600,7 +1600,7 @@ export default function Clientes() {
   }
 
   async function fetchSubDados(clienteId) {
-    const projectFields = "id, titulo, estado, data_inicio, data_fim, investimento, incentivo, codigo_projeto, cliente_id, parceiros_ids, is_parceria, created_at";
+    const projectFields = "id, titulo, estado, data_inicio, data_fim, investimento, incentivo, codigo_projeto, cliente_id, parceiros_ids, is_parceria, tipo_projeto_id, tipos_projeto ( nome ), created_at";
 
     const [cData, mData, aData, tData, caeData, pData, configData] = await Promise.all([
         supabase.from("contactos_cliente").select("*").eq("cliente_id", clienteId),
@@ -2639,6 +2639,7 @@ export default function Clientes() {
                             <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: '15px'}}>
                                 {projetosCliente.map(p => {
                                   const isDone = p.estado === 'concluido';
+                                  const tipoProjetoNome = p.tipos_projeto?.nome || 'Sem tipo';
                                   
                                   // Configuração visual das tags com base no campo is_parceria real
                                   let relacaoInfo = { label: 'Entidade Única', bg: 'var(--color-borderColorLight)', color: 'var(--color-btnPrimaryDark)' };
@@ -2668,6 +2669,7 @@ export default function Clientes() {
                                           <div style={{display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap'}}>
                                               <span style={{fontSize: '0.7rem', background: isDone ? '#f1f5f9' : 'var(--color-bgSecondary)', color: isDone ? '#64748b' : 'var(--color-btnPrimary)', padding: '4px 10px', borderRadius: '12px', fontWeight: 'bold', textTransform: 'uppercase'}}>{p.estado.replace('_', ' ')}</span>
                                               <span style={{fontSize: '0.68rem', background: relacaoInfo.bg, color: relacaoInfo.color, padding: '4px 10px', borderRadius: '12px', fontWeight: 'bold'}}>{relacaoInfo.label}</span>
+                                              <span style={{fontSize: '0.68rem', background: '#eff6ff', color: '#2563eb', padding: '4px 10px', borderRadius: '12px', fontWeight: 'bold'}}>Tipo: {tipoProjetoNome}</span>
                                               {p.codigo_projeto && <span style={{fontSize: '0.75rem', color: '#94a3b8', fontWeight: 'bold', marginLeft: 'auto'}}>{p.codigo_projeto}</span>}
                                           </div>
 

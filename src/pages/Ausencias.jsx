@@ -11,6 +11,7 @@ import {
     parseLocalDate,
     validarSaldoFeriasParaIntervalo,
 } from "../utils/feriasSaldo";
+import { createDashboardNotifications } from "../utils/dashboardNotifications";
 import CalculadoraKm from "../components/CalculadoraKm";
 import "./../styles/dashboard.css";
 
@@ -400,6 +401,35 @@ export default function Ferias({ forcedType = null }) {
       }
 
       if (dbError) throw dbError;
+
+      try {
+          const { data: adminProfiles, error: adminError } = await supabase
+              .from("profiles")
+              .select("id, role, tipo, ativo");
+          if (adminError) throw adminError;
+
+          const adminIds = (adminProfiles || [])
+              .filter((profile) => {
+                  const roles = [profile.role, profile.tipo].map((value) => String(value || "").toLowerCase());
+                  return profile.ativo !== false && roles.some((role) => ["admin", "administrador"].includes(role));
+              })
+              .map((profile) => profile.id)
+              .filter((profileId) => String(profileId) !== String(user.id));
+
+          const actionLabel = isEditing ? "foi atualizado" : "foi criado";
+          const dateLabel = form.data_inicio ? new Date(form.data_inicio).toLocaleDateString("pt-PT") : "";
+          await createDashboardNotifications({
+              supabaseClient: supabase,
+              recipientIds: adminIds,
+              createdBy: user.id,
+              type: "absence_request_created",
+              title: "Novo pedido de ausência",
+              message: `O pedido de ${normalizedTipo} de ${dateLabel} ${actionLabel} e aguarda análise.`,
+              link: "/dashboard/rh",
+          });
+      } catch (notificationError) {
+          console.error("Erro ao notificar administradores sobre pedido de ausência:", notificationError);
+      }
 
       handleCloseModal();
       fetchPedidos();
