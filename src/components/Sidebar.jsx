@@ -372,12 +372,14 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
                     <span className="link-text">Programas/Avisos</span>
                   </Link>
                 </li>
+                {['admin'].includes(userProfile?.role) && (
                 <li className={isActive('/dashboard/propostas')}>
                   <Link to="/dashboard/propostas" title={getSidebarTooltip("Propostas Comerciais") }>
                     <span className="icon"><Icons.Edit /></span>
                     <span className="link-text">Propostas</span>
                   </Link>
                 </li>
+                )}
                 {['admin', 'gestor', 'marketing'].includes(userProfile?.role) && (
                   <li className={isActive('/dashboard/leads')}>
                     <Link to="/dashboard/leads" title={getSidebarTooltip("Marketing")}>
@@ -386,7 +388,7 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
                     </Link>
                   </li>
                 )}
-                {['admin', 'gestor', 'marketing'].includes(userProfile?.role) && (
+                {['admin', 'gestor'].includes(userProfile?.role) && (
                   <li className={isActive('/dashboard/transfergest')}>
                     <Link to="/dashboard/transfergest" title={getSidebarTooltip("TransferGest")}>
                       <span className="icon"><Icons.Users /></span>
@@ -411,7 +413,7 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
                     </Link>
                   </li>
                 )}
-                {['admin', 'gestor', 'colaborador', 'marketing'].includes(userProfile?.role) && (
+                {['admin', 'gestor', 'marketing plus'].includes(userProfile?.role) && (
                   <li className={isActive('/dashboard/ativos-ti')}>
                     <Link to="/dashboard/ativos-ti" title={getSidebarTooltip("Ativos TI")}>
                       <span className="icon"><Icons.Monitor /></span> 
@@ -425,7 +427,7 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
                     <span className="link-text">Organizador de PDFs</span>
                   </Link>
                 </li>
-                {['admin', 'administrador'].includes(String(userProfile?.role || userProfile?.tipo || '').toLowerCase()) && (
+                {['admin'].includes(String(userProfile?.role || userProfile?.tipo || '').toLowerCase()) && (
                   <li className={isActive('/dashboard/admin')}>
                     <Link to="/dashboard/admin" title={getSidebarTooltip("Admin") }>
                       <span className="icon"><Icons.Shield /></span>
