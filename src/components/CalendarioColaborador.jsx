@@ -928,7 +928,7 @@ export default function CalendarioColaborador({
                 );
               }
 
-            if (diaObj.ausenciasDiaInteiras.length > 0) {
+            if (diaObj.ausenciasDiaInteiras.length > 0 && !diaObj.assidDia) {
               const ausencia = diaObj.ausenciasDiaInteiras[0];
               return (
                 <div>
@@ -1071,6 +1071,13 @@ export default function CalendarioColaborador({
                     </div>
                   )}
 
+                  {ass.motivo_alteracao && (
+                    <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: "6px", padding: "10px", marginBottom: "12px" }}>
+                      <span style={{ fontSize: "0.75rem", fontWeight: "bold", color: "#9a3412", display: "block", marginBottom: "4px" }}>Alteração à Assiduidade</span>
+                      <span style={{ fontSize: "0.9rem", color: "#7c2d12" }}>{ass.motivo_alteracao}</span>
+                    </div>
+                  )}
+
                   {ass.observacoes && (
                     <div>
                       <span style={{ fontSize: "0.75rem", fontWeight: "bold", color: "#64748b" }}>Observações</span>
@@ -1084,8 +1091,9 @@ export default function CalendarioColaborador({
                     <div style={{ marginTop: "12px", padding: "10px", borderRadius: "6px", background: "var(--color-bgSecondary)", border: "1px solid var(--color-borderColor)" }}>
                       <span style={{ fontSize: "0.75rem", fontWeight: "bold", color: "var(--color-btnPrimaryHover)", display: "block", marginBottom: "6px" }}>Ausência Parcial</span>
                       {diaObj.ausenciasDiaParciais.map((a) => (
-                        <div key={a.id} style={{ fontSize: "0.9rem", color: "#334155", marginBottom: "4px" }}>
-                          {a.tipo} - {formatarHora(a.hora_inicio)} às {formatarHora(a.hora_fim)}
+                        <div key={a.id} style={{ fontSize: "0.9rem", color: "#334155", marginBottom: "8px" }}>
+                          <div>{a.tipo} - {formatarHora(a.hora_inicio)} às {formatarHora(a.hora_fim)}</div>
+                          {a.motivo && <div style={{ marginTop: "3px", color: "#64748b", fontSize: "0.85rem" }}>Motivo: {a.motivo}</div>}
                         </div>
                       ))}
                     </div>
