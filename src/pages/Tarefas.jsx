@@ -118,6 +118,10 @@ export default function Tarefas() {
   const [filtroCliente, setFiltroCliente] = useState("");
   const [filtroProjeto, setFiltroProjeto] = useState("");
   const [mostrarConcluidos, setMostrarConcluidos] = useState(false);
+    const [viewMode, setViewMode] = useState(() => {
+            if (typeof window === "undefined") return "projetos";
+            return window.localStorage.getItem("tarefas-view-mode") || "projetos";
+    });
 
   const [expandedTasks, setExpandedTasks] = useState({});
   const [novaTarefaNome, setNovaTarefaNome] = useState({ ativId: null, nome: "" });
@@ -1285,7 +1289,7 @@ export default function Tarefas() {
       if (!mostrarConcluidos && isAtivInactive && tarefasFiltered.length === 0) return null;
       if (termoBusca && tarefasFiltered.length === 0 && !matchAtividade) return null;
 
-      return { ...a, tarefas: tarefasFiltered };
+    return { ...a, tarefas: tarefasFiltered, tarefasCount: a.tarefas.length };
   }).filter(Boolean); 
 
   // Agrupar atividades por Projeto
@@ -1310,6 +1314,130 @@ export default function Tarefas() {
       const nome2 = `${p2.cliente || ''} ${p2.titulo}`.trim().toLowerCase();
       return nome1.localeCompare(nome2);
   });
+
+  const kanbanDeadlineColumns = [
+      { id: "overdue", title: "Atrasadas", color: "#dc2626" },
+      { id: "today", title: "Hoje", color: "#d97706" },
+      { id: "tomorrow", title: "Amanhã", color: "#2563eb" },
+      { id: "upcoming", title: "Próximas", color: "#059669" },
+      { id: "no-date", title: "Sem prazo", color: "#64748b" },
+      { id: "completed", title: "Concluídas", color: "#94a3b8" }
+  ];
+
+  const kanbanStateColumns = [
+      { id: "pendente", title: "Pendente", color: "#64748b" },
+      { id: "em_curso", title: "Em curso", color: "#2563eb" },
+      { id: "em_analise", title: "Em análise", color: "#9333ea" },
+      { id: "concluido", title: "Concluídas", color: "#059669" },
+      { id: "cancelado", title: "Canceladas", color: "#dc2626" }
+  ];
+
+  const getKanbanItems = () => atividadesFiltradas.flatMap((atividade) => {
+      const tasks = atividade.tarefas || [];
+      if (tasks.length === 0) return atividade.tarefasCount > 0 ? [] : [{ kind: "atividade", atividade }];
+      return tasks.map((tarefa) => ({ kind: "tarefa", atividade, tarefa }));
+  });
+
+  const getKanbanItemValue = (item, field) => item.kind === "tarefa" ? item.tarefa[field] : item.atividade[field];
+
+  const getDeadlineColumnId = (item) => {
+      const estado = getKanbanItemValue(item, "estado");
+      if (estado === "concluido" || estado === "cancelado") return estado === "concluido" ? "completed" : "no-date";
+      const dateValue = getKanbanItemValue(item, "data_fim") || getKanbanItemValue(item, "data_limite");
+      if (!dateValue) return "no-date";
+      const deadline = new Date(dateValue);
+      deadline.setHours(0, 0, 0, 0);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const diffDays = Math.round((deadline.getTime() - today.getTime()) / (1000 * 3600 * 24));
+      if (diffDays < 0) return "overdue";
+      if (diffDays === 0) return "today";
+      if (diffDays === 1) return "tomorrow";
+      return "upcoming";
+  };
+
+  const getKanbanColumns = () => {
+      const columns = viewMode === "estados" ? kanbanStateColumns : kanbanDeadlineColumns;
+      const items = getKanbanItems();
+      return columns.map((column) => ({
+          ...column,
+          items: items.filter((item) => {
+              if (viewMode === "estados") return getKanbanItemValue(item, "estado") === column.id;
+              return getDeadlineColumnId(item) === column.id;
+          })
+      }));
+  };
+
+  const saveViewMode = (nextMode) => {
+      setViewMode(nextMode);
+      window.localStorage.setItem("tarefas-view-mode", nextMode);
+  };
+
+  const renderKanbanActivity = (card, column) => {
+      const { atividade, tarefa } = card;
+      const isTaskCard = card.kind === "tarefa";
+      const item = tarefa || atividade;
+      const isCompleted = item.estado === "concluido";
+      const isTimerActive = isTaskCard
+          ? activeTask && String(activeTask.task_id) === String(tarefa.id)
+          : activeTask && String(activeTask.atividade_id) === String(atividade.id) && !activeTask.task_id;
+      const tasks = isTaskCard ? [tarefa] : [];
+      const subtasks = tarefa?.subtarefas || [];
+      return (
+          <article id={isTaskCard ? `tarefa-card-${tarefa.id}` : `atividade-card-${atividade.id}`} key={`${card.kind}-${item.id}`} className="kanban-activity-card" style={{ borderTopColor: column.color, opacity: isCompleted ? 0.72 : 1 }}>
+              <div className="kanban-card-heading">
+                  <div style={{ minWidth: 0 }}>
+                      <div className="kanban-activity-title-row">
+                          <button type="button" onClick={() => handleToggleStatus(isTaskCard ? "tarefas" : "atividades", item.id, item.estado, isTaskCard ? item.id : null)} className={`kanban-check kanban-activity-check ${isCompleted ? "is-done" : ""}`} title={isCompleted ? `Reabrir ${isTaskCard ? "tarefa" : "atividade"}` : `Concluir ${isTaskCard ? "tarefa" : "atividade"}`}>{isCompleted ? "✓" : ""}</button>
+                          <button type="button" onClick={() => handleEdit(isTaskCard ? tarefa : atividade, isTaskCard ? "tarefa" : "atividade")} className={`kanban-title ${isCompleted ? "is-done" : ""}`} title={isTaskCard ? "Editar tarefa" : "Editar atividade"}>
+                              {isTaskCard ? tarefa.titulo : atividade.titulo}
+                          </button>
+                      </div>
+                      <button type="button" onClick={() => isTaskCard ? handleEdit(atividade, "atividade") : openProjectDetail(atividade.projetoId)} className="kanban-project-link" title={isTaskCard ? "Editar atividade" : "Abrir projeto"}>
+                          {isTaskCard ? `Atividade: ${atividade.titulo} · ${atividade.projetoNome || "Projeto"}` : `${atividade.clienteNome ? `${atividade.clienteNome} · ` : ""}${atividade.projetoNome || "Projeto"}`}
+                      </button>
+                  </div>
+                  {!isCompleted && (
+                      <button type="button" onClick={(e) => isTimerActive ? openStopNoteModal(e) : (isTaskCard ? handleStartTask(tarefa, e) : handleStartAtividade(atividade, e))} className={`kanban-timer ${isTimerActive ? "is-active" : ""}`} title={isTimerActive ? "Parar cronómetro" : "Iniciar cronómetro"}>
+                          {isTimerActive ? "⏹" : "▶"}
+                      </button>
+                  )}
+              </div>
+              <div className="kanban-meta">
+                  {renderStatusTag(item.estado)}
+                  {renderDeadline(item.data_fim || item.data_limite, isCompleted)}
+                  <span>{isTaskCard ? "Tarefa" : "Sem tarefas"}</span>
+                  {isTaskCard && subtasks.length > 0 && <button type="button" onClick={() => toggleExpand(tarefa.id)} className="kanban-subtask-count" title="Mostrar subtarefas">Subtarefas {subtasks.filter((subtask) => subtask.estado === "concluido").length}/{subtasks.length}</button>}
+              </div>
+              <div className="kanban-task-list">
+                  {tasks.length === 0 ? <span className="kanban-empty-task">Sem tarefas nesta atividade.</span> : isTaskCard ? (expandedTasks[tarefa.id] && subtasks.length > 0 && <div className="kanban-subtask-list">
+                      {subtasks.map((subtask) => <button key={subtask.id} type="button" onClick={() => handleEdit(subtask, "subtarefa")} className={`kanban-subtask ${subtask.estado === "concluido" ? "is-done" : ""}`}>↳ {subtask.titulo}</button>)}
+                  </div>) : tasks.map((tarefa) => {
+                      const taskCompleted = tarefa.estado === "concluido";
+                      const taskTimerActive = activeTask && String(activeTask.task_id) === String(tarefa.id);
+                      const taskSubtasks = tarefa.subtarefas || [];
+                      const isExpanded = expandedTasks[tarefa.id];
+                      return (
+                          <div id={`tarefa-card-${tarefa.id}`} key={tarefa.id}>
+                              <div className="kanban-task-row">
+                                  <button type="button" onClick={() => handleToggleStatus("tarefas", tarefa.id, tarefa.estado, tarefa.id)} className={`kanban-check ${taskCompleted ? "is-done" : ""}`} title={taskCompleted ? "Reabrir tarefa" : "Concluir tarefa"}>{taskCompleted ? "✓" : ""}</button>
+                                  <button type="button" onClick={() => handleEdit(tarefa, "tarefa")} className={`kanban-task-title ${taskCompleted ? "is-done" : ""}`}>{tarefa.titulo}</button>
+                                  {taskSubtasks.length > 0 && <button type="button" onClick={() => toggleExpand(tarefa.id)} className="kanban-subtask-count" title="Mostrar subtarefas">{taskSubtasks.filter((subtask) => subtask.estado === "concluido").length}/{taskSubtasks.length}</button>}
+                                  {!tarefa.is_readonly_parent && <button type="button" onClick={(e) => taskTimerActive ? openStopNoteModal(e) : handleStartTask(tarefa, e)} className={`kanban-task-timer ${taskTimerActive ? "is-active" : ""}`} title={taskTimerActive ? "Parar cronómetro" : "Iniciar cronómetro"}>{taskTimerActive ? "⏹" : "▶"}</button>}
+                              </div>
+                              {isExpanded && taskSubtasks.length > 0 && <div className="kanban-subtask-list">
+                                  {taskSubtasks.map((subtask) => <button key={subtask.id} type="button" onClick={() => handleEdit(subtask, "subtarefa")} className={`kanban-subtask ${subtask.estado === "concluido" ? "is-done" : ""}`}>↳ {subtask.titulo}</button>)}
+                              </div>}
+                          </div>
+                      );
+                  })}
+              </div>
+              {!isTaskCard && !isCompleted && <form onSubmit={(e) => handleAddTarefa(e, atividade.id)} className="kanban-add-task">
+                  <input type="text" placeholder="+ Nova tarefa" value={novaTarefaNome.ativId === atividade.id ? novaTarefaNome.nome : ""} onChange={(e) => setNovaTarefaNome({ ativId: atividade.id, nome: e.target.value })} />
+              </form>}
+          </article>
+      );
+  };
 
   // --- MODAIS E EDIÇÃO ---
   function handleNovo() {
@@ -1337,8 +1465,13 @@ export default function Tarefas() {
 
     let parentSearchName = "";
     if (tipo === 'tarefa' && item.atividade_id) {
-        const parentAtiv = atividadesBase.find(a => a.id === item.atividade_id);
-        if (parentAtiv) parentSearchName = `${parentAtiv.titulo} (Proj: ${parentAtiv.projetos?.titulo})`;
+        const atividadeId = String(item.atividade_id);
+        const parentAtiv = atividadesBase.find((a) => String(a.id) === atividadeId)
+            || atividadesAgrupadas.find((a) => String(a.id) === atividadeId);
+        if (parentAtiv) {
+            const projetoNome = parentAtiv.projetos?.titulo || parentAtiv.projetoNome || "Projeto";
+            parentSearchName = `${parentAtiv.titulo} (Proj: ${projetoNome})`;
+        }
     }
     setSearchAtivText(parentSearchName);
 
@@ -1633,10 +1766,29 @@ export default function Tarefas() {
         <label style={{display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.85rem', color: '#475569', fontWeight: '600', background: 'white', padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1'}}>
             <input type="checkbox" checked={mostrarConcluidos} onChange={(e) => setMostrarConcluidos(e.target.checked)} style={{width: '14px', height: '14px', accentColor: 'var(--color-btnPrimary)', cursor: 'pointer'}} /> Mostrar Concluídos
         </label>
+        <div className="task-view-switcher" aria-label="Modo de visualização">
+            {[['projetos', 'Projetos'], ['kanban', 'Kanban · Prazo'], ['estados', 'Kanban · Estados']].map(([mode, label]) => (
+                <button key={mode} type="button" onClick={() => saveViewMode(mode)} className={viewMode === mode ? 'is-selected' : ''}>{label}</button>
+            ))}
+        </div>
       </div>
 
       <div>
-        {projetosRenderList.length > 0 ? (
+        {viewMode !== 'projetos' ? (
+            <div className="kanban-board">
+                {getKanbanColumns().map((column) => (
+                    <section className="kanban-column" key={column.id}>
+                        <div className="kanban-column-header" style={{ borderTopColor: column.color }}>
+                            <div><span className="kanban-column-dot" style={{ background: column.color }}></span><strong>{column.title}</strong></div>
+                            <span className="kanban-column-count">{column.items.length}</span>
+                        </div>
+                        <div className="kanban-column-content">
+                            {column.items.length > 0 ? column.items.map((item) => renderKanbanActivity(item, column)) : <div className="kanban-column-empty">Nada por aqui</div>}
+                        </div>
+                    </section>
+                ))}
+            </div>
+        ) : projetosRenderList.length > 0 ? (
             projetosRenderList.map(proj => {
                 const limit = visibleLimits[proj.id] || 5;
                 const visibleAtivs = proj.atividades.slice(0, limit);
@@ -2558,6 +2710,46 @@ export default function Tarefas() {
       )}
 
       <style>{`
+          .task-view-switcher { display: inline-flex; gap: 3px; padding: 3px; margin-left: auto; background: #e2e8f0; border-radius: 9px; }
+          .task-view-switcher button { border: 0; border-radius: 7px; background: transparent; color: #64748b; padding: 7px 10px; font-size: 0.75rem; font-weight: 800; cursor: pointer; white-space: nowrap; }
+          .task-view-switcher button.is-selected { background: #fff; color: var(--color-btnPrimary); box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12); }
+          .kanban-board { display: grid; grid-template-columns: repeat(6, minmax(220px, 1fr)); gap: 14px; overflow-x: auto; padding-bottom: 10px; align-items: start; }
+          .kanban-column { min-width: 220px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; }
+          .kanban-column-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 12px; border-top: 3px solid; background: #fff; color: #334155; }
+          .kanban-column-header > div { display: flex; align-items: center; gap: 7px; }
+          .kanban-column-dot { width: 8px; height: 8px; border-radius: 50%; }
+          .kanban-column-count { min-width: 22px; padding: 2px 6px; border-radius: 999px; background: #f1f5f9; color: #64748b; text-align: center; font-size: 0.7rem; font-weight: 800; }
+          .kanban-column-content { display: flex; flex-direction: column; gap: 10px; padding: 10px; min-height: 125px; }
+          .kanban-column-empty { padding: 28px 8px; color: #94a3b8; text-align: center; font-size: 0.78rem; }
+          .kanban-activity-card { background: #fff; border: 1px solid #e2e8f0; border-top: 3px solid; border-radius: 8px; padding: 11px; box-shadow: 0 2px 5px rgba(15, 23, 42, 0.04); }
+          .kanban-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+          .kanban-activity-title-row { display: flex; align-items: flex-start; gap: 6px; }
+          .kanban-activity-check { margin-top: 1px; }
+          .kanban-title, .kanban-project-link, .kanban-task-title { display: block; border: 0; padding: 0; background: transparent; text-align: left; cursor: pointer; }
+          .kanban-title { width: 100%; color: #1e293b; font-size: 0.86rem; font-weight: 800; line-height: 1.25; }
+          .kanban-title:hover, .kanban-task-title:hover { color: var(--color-btnPrimary); text-decoration: underline; }
+          .kanban-project-link { max-width: 100%; overflow: hidden; color: #94a3b8; font-size: 0.68rem; text-overflow: ellipsis; white-space: nowrap; }
+          .kanban-timer, .kanban-task-timer { flex: 0 0 auto; border: 1px solid #d1fae5; border-radius: 999px; background: #ecfdf5; color: #059669; cursor: pointer; }
+          .kanban-timer { width: 28px; height: 28px; }
+          .kanban-timer.is-active, .kanban-task-timer.is-active { border-color: #fecaca; background: #fee2e2; color: #dc2626; }
+          .kanban-meta { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 8px; color: #94a3b8; font-size: 0.66rem; }
+          .kanban-task-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; padding-top: 8px; border-top: 1px solid #f1f5f9; }
+          .kanban-task-row { display: flex; align-items: flex-start; gap: 6px; }
+          .kanban-check { flex: 0 0 auto; width: 15px; height: 15px; padding: 0; border: 2px solid #cbd5e1; border-radius: 50%; background: #fff; color: #fff; cursor: pointer; font-size: 0.58rem; line-height: 11px; }
+          .kanban-check.is-done { border-color: var(--color-btnPrimary); background: var(--color-btnPrimary); }
+          .kanban-task-title { flex: 1; color: #475569; font-size: 0.74rem; line-height: 1.3; }
+          .kanban-task-title.is-done { color: #94a3b8; text-decoration: line-through; }
+          .kanban-task-timer { width: 20px; height: 20px; font-size: 0.58rem; }
+          .kanban-subtask-count { flex: 0 0 auto; border: 0; border-radius: 4px; padding: 2px 5px; background: #e2e8f0; color: #64748b; cursor: pointer; font-size: 0.62rem; font-weight: 800; }
+          .kanban-subtask-list { display: flex; flex-direction: column; gap: 3px; margin: 5px 0 0 21px; }
+          .kanban-subtask { border: 0; padding: 0; background: transparent; color: #64748b; cursor: pointer; text-align: left; font-size: 0.68rem; }
+          .kanban-subtask:hover { color: var(--color-btnPrimary); text-decoration: underline; }
+          .kanban-subtask.is-done { color: #94a3b8; text-decoration: line-through; }
+          .kanban-empty-task { color: #cbd5e1; font-size: 0.72rem; }
+          .kanban-add-task { margin-top: 9px; }
+          .kanban-add-task input { width: 100%; box-sizing: border-box; padding: 5px 0; border: 0; border-bottom: 1px dashed #cbd5e1; outline: 0; background: transparent; color: #64748b; font-size: 0.72rem; }
+          @media (max-width: 900px) { .task-view-switcher { width: 100%; margin-left: 0; } .task-view-switcher button { flex: 1; } .kanban-board { grid-template-columns: repeat(6, minmax(250px, 1fr)); } }
+
           .project-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; }
           @media (max-width: 1300px) { .project-grid { grid-template-columns: repeat(4, 1fr); } }
           @media (max-width: 1000px) { .project-grid { grid-template-columns: repeat(3, 1fr); } }
