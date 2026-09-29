@@ -21,8 +21,11 @@ import {
 } from "lucide-react";
 import { PDFDocument, degrees } from "pdf-lib";
 import JSZip from "jszip";
-import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
-import pdfWorkerUrl from "pdfjs-dist/legacy/build/pdf.worker.mjs?url";
+
+// ALTERAÇÃO CRÍTICA: Importar a build normal em vez da 'legacy' para melhor suporte a compressões nativas (JBIG2/CCITT)
+import * as pdfjsLib from "pdfjs-dist/build/pdf.mjs";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.mjs?url";
+
 import { createWorker } from "tesseract.js";
 import {
   PDF_CATEGORIES,
@@ -156,7 +159,13 @@ async function readPdf(file, onProgress) {
       const canvas = document.createElement("canvas");
       canvas.width = Math.ceil(renderViewport.width);
       canvas.height = Math.ceil(renderViewport.height);
-      await page.render({ canvasContext: canvas.getContext("2d"), viewport: renderViewport }).promise;
+      
+      // ALTERAÇÃO CRÍTICA: intent 'print' assegura que a imagem JBIG2 não fique em branco na tela HTML
+      await page.render({ 
+        canvasContext: canvas.getContext("2d"), 
+        viewport: renderViewport,
+        intent: 'print' 
+      }).promise;
 
       // O canvas já está na vertical! Testa 0° (vertical direito) primeiro, depois 180°
       const rotationsToTry = [0, 180, 270, 90];
@@ -212,7 +221,14 @@ async function renderPagePreview(bytes, pageNumber, scale = 0.28, rotation = 0) 
   const canvas = document.createElement("canvas");
   canvas.width = Math.ceil(viewport.width);
   canvas.height = Math.ceil(viewport.height);
-  await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+  
+  // ALTERAÇÃO CRÍTICA: intent 'print' assegura que JBIG2 carrega na miniatura/zoom de visualização
+  await page.render({ 
+    canvasContext: canvas.getContext("2d"), 
+    viewport,
+    intent: 'print'
+  }).promise;
+  
   return canvas.toDataURL("image/jpeg", 0.82);
 }
 

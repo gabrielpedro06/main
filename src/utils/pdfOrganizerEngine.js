@@ -336,8 +336,6 @@ export function extractDocumentDate(text) {
   const normalized = normalizeText(text);
 
   // 1. Procurar PRIMEIRO datas explicitamente rotuladas (têm máxima fiabilidade)
-  // Ex: "Data: 10/09/2026", "Data: 2026-08-28", "Data de emissão: 2026-08-28", "Emitida em 2026-08-28",
-  // "Data Hora 04-09-26", "Data: 26-09-10", "Fatura FT ... de 05/09/2026"
   const labeledPatterns = [
     // Data rotulada com AAAA-MM-DD ou AAAA/MM/DD
     /(?:data(?:\s*de\s*emiss[aã]o|\s*do\s*documento|\s*hora)?|emitid[ao]\s*em)\s*[:-]?\s*(20[12]\d)[/\-.](0?[1-9]|1[0-2])[/\-.](0?[1-9]|[12]\d|3[01])\b/i,
@@ -368,7 +366,7 @@ export function extractDocumentDate(text) {
     }
   }
 
-  // 2. Limpar menções a leis fiscais, decretos, portarias e certificados que induzem em erro anos passados (ex: Decreto-Lei 152-D/2017)
+  // 2. Limpar menções a leis fiscais, decretos, portarias e certificados que induzem em erro anos passados
   const cleanedText = normalized
     .replace(/\b(?:decreto(?:[- ]lei)?|lei|portaria)\s*(?:n[ºo.]?)?\s*[\w\-/]+(?:\s*de\s*\d{1,2}\/\d{1,2})?/gi, " ")
     .replace(/\b(?:certificado|programa\s*certificado)\s*(?:n[ºo.]?)?\s*[\w\-/]+/gi, " ")
