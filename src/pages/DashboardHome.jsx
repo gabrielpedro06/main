@@ -95,6 +95,8 @@ export default function DashboardHome() {
     const [notification, setNotification] = useState(null);
     const [projectNotifications, setProjectNotifications] = useState([]);
     const [notificationsLoading, setNotificationsLoading] = useState(false);
+    const [showBellDropdown, setShowBellDropdown] = useState(false);
+    const bellDropdownRef = useRef(null);
     
     const [timerSwitchModal, setTimerSwitchModal] = useState({
             show: false,
@@ -124,6 +126,7 @@ export default function DashboardHome() {
                 .select("id, project_id, titulo, mensagem, link, tipo, is_read, created_at")
                 .eq("user_id", user.id)
                 .eq("is_read", false)
+                .not("tipo", "like", "absence_*")
                 .order("created_at", { ascending: false })
                 .limit(5);
 
@@ -222,6 +225,16 @@ export default function DashboardHome() {
       };
     }
   }, [user]);
+
+  useEffect(() => {
+      const handleClickOutside = (e) => {
+          if (bellDropdownRef.current && !bellDropdownRef.current.contains(e.target)) {
+              setShowBellDropdown(false);
+          }
+      };
+      if (showBellDropdown) document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showBellDropdown]);
 
     async function refreshDashboardWorkItems() {
         if (!user?.id) return;
@@ -1293,6 +1306,128 @@ export default function DashboardHome() {
                 </div>
             )}
 
+            {/* 🔔 SINO DE NOTIFICAÇÕES */}
+            <div ref={bellDropdownRef} style={{ position: 'relative' }}>
+                <button
+                    onClick={() => setShowBellDropdown(v => !v)}
+                    style={{
+                        position: 'relative', background: showBellDropdown ? '#f1f5f9' : 'transparent',
+                        border: '1px solid #e2e8f0', borderRadius: '10px', padding: '8px', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s',
+                        color: '#64748b'
+                    }}
+                    title="Notificações"
+                >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                        <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                    </svg>
+                    {projectNotifications.length > 0 && (
+                        <span style={{
+                            position: 'absolute', top: '-5px', right: '-5px',
+                            background: '#ef4444', color: 'white', borderRadius: '999px',
+                            fontSize: '0.65rem', fontWeight: '800', minWidth: '18px', height: '18px',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            padding: '0 3px', border: '2px solid white', lineHeight: 1
+                        }}>
+                            {projectNotifications.length > 9 ? '9+' : projectNotifications.length}
+                        </span>
+                    )}
+                </button>
+
+                {showBellDropdown && (
+                    <div style={{
+                        position: 'absolute', top: 'calc(100% + 8px)', right: 0,
+                        background: 'white', border: '1px solid #e2e8f0', borderRadius: '16px',
+                        boxShadow: '0 16px 40px rgba(15,23,42,0.12)', minWidth: '360px', maxWidth: '400px',
+                        zIndex: 9999, overflow: 'hidden', animation: 'fadeIn 0.15s ease-out'
+                    }}>
+                        {/* Header */}
+                        <div style={{ padding: '14px 18px', borderBottom: '1px solid #f1f5f9', background: '#fafafa', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#b45309" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                                    <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                                </svg>
+                                <span style={{ fontWeight: '800', fontSize: '0.85rem', color: '#1e293b' }}>Notificações</span>
+                            </div>
+                            {projectNotifications.length > 0 && (
+                                <span style={{ background: '#fff4db', color: '#b45309', padding: '3px 8px', borderRadius: '999px', fontSize: '0.72rem', fontWeight: '800' }}>
+                                    {projectNotifications.length} nova{projectNotifications.length === 1 ? '' : 's'}
+                                </span>
+                            )}
+                        </div>
+
+                        {/* Body */}
+                        <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                            {notificationsLoading ? (
+                                <div style={{ padding: '24px', textAlign: 'center', color: '#64748b', fontSize: '0.9rem' }}>
+                                    A carregar...
+                                </div>
+                            ) : projectNotifications.length === 0 ? (
+                                <div style={{ padding: '32px 24px', textAlign: 'center' }}>
+                                    <div style={{ fontSize: '2rem', marginBottom: '8px' }}>✅</div>
+                                    <div style={{ fontWeight: '700', color: '#1e293b', marginBottom: '4px' }}>Tudo em dia!</div>
+                                    <div style={{ color: '#64748b', fontSize: '0.85rem' }}>Sem notificações pendentes.</div>
+                                </div>
+                            ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                    {projectNotifications.map((notificationItem, idx) => {
+                                        const isAbsenceNotification = String(notificationItem.tipo || '').startsWith('absence_');
+                                        return (
+                                            <div key={notificationItem.id} style={{
+                                                padding: '14px 18px',
+                                                borderBottom: idx < projectNotifications.length - 1 ? '1px solid #f1f5f9' : 'none',
+                                                display: 'flex', flexDirection: 'column', gap: '8px'
+                                            }}>
+                                                <div style={{ fontWeight: '700', color: '#0f172a', fontSize: '0.88rem' }}>
+                                                    {notificationItem.titulo}
+                                                </div>
+                                                <div style={{ fontSize: '0.82rem', color: '#475569', lineHeight: 1.4 }}>
+                                                    {notificationItem.mensagem}
+                                                </div>
+                                                <div style={{ display: 'flex', gap: '8px', marginTop: '2px' }}>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => { setShowBellDropdown(false); openProjectNotification(notificationItem); }}
+                                                        style={{ flex: 1, padding: '7px 12px', borderRadius: '8px', border: 'none', background: '#0f172a', color: 'white', fontWeight: '700', fontSize: '0.78rem', cursor: 'pointer' }}
+                                                    >
+                                                        {isAbsenceNotification ? 'Ver pedidos RH' : 'Abrir projeto'}
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => markProjectNotificationAsRead(notificationItem.id)}
+                                                        style={{ padding: '7px 10px', borderRadius: '8px', border: '1px solid #e2e8f0', background: 'white', color: '#64748b', fontWeight: '600', fontSize: '0.78rem', cursor: 'pointer' }}
+                                                        title="Marcar como lida"
+                                                    >
+                                                        ✓
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Footer */}
+                        {projectNotifications.length > 0 && (
+                            <div style={{ padding: '10px 18px', borderTop: '1px solid #f1f5f9', background: '#fafafa' }}>
+                                <button
+                                    onClick={async () => {
+                                        await Promise.all(projectNotifications.map(n => markProjectNotificationAsRead(n.id)));
+                                        setShowBellDropdown(false);
+                                    }}
+                                    style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid #e2e8f0', background: 'white', color: '#64748b', fontWeight: '600', fontSize: '0.8rem', cursor: 'pointer' }}
+                                >
+                                    Marcar todas como lidas
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+
             <div style={{ position: 'relative' }}>
                 <div onClick={() => setShowMenu(!showMenu)} style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', padding: '8px 12px', borderRadius: '8px', background: showMenu ? '#f1f5f9' : 'transparent', transition: 'all 0.2s' }}>
                     <div style={{textAlign: 'right', display: 'flex', flexDirection: 'column'}}>
@@ -1308,6 +1443,7 @@ export default function DashboardHome() {
                         )}
                     </div>
                 </div>
+
 
                 {showMenu && (
                   <div style={{ position: 'absolute', top: '110%', right: 0, background: 'white', border: '1px solid #e2e8f0', borderRadius: '10px', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', minWidth: '220px', zIndex: 9999, overflow: 'hidden', animation: 'fadeIn 0.2s ease-out' }}>
@@ -1337,45 +1473,8 @@ export default function DashboardHome() {
         {/* COLUNA ESQUERDA: Stats, Assiduidade, Histórico, Equipa & Aniversários */}
         <div style={{display: 'flex', flexDirection: 'column', gap: '24px'}}>
 
-            {(notificationsLoading || projectNotifications.length > 0) && (
-                <div className="card boom-reveal" style={{ '--d': '55ms', padding: '18px', borderRadius: '18px', border: '1px solid #f3d59f', background: 'linear-gradient(135deg, #fffaf0 0%, #fff 100%)', boxShadow: '0 12px 30px rgba(245, 158, 11, 0.08)' }}>
-                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '14px'}}>
-                        <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
-                            <div style={{width: '38px', height: '38px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff4db', color: '#b45309'}}>
-                                <Icons.AlertTriangle size={18} />
-                            </div>
-                            <div>
-                                <div style={{fontSize: '0.72rem', fontWeight: '800', color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.08em'}}>Notificações</div>
-                                <div style={{fontSize: '1rem', fontWeight: '800', color: '#1e293b'}}>Tem {projectNotifications.length} nova{projectNotifications.length === 1 ? '' : 's'} notificação{projectNotifications.length === 1 ? '' : 'ões'}</div>
-                            </div>
-                        </div>
-                        <span style={{background: '#fff4db', color: '#b45309', padding: '6px 10px', borderRadius: '999px', fontSize: '0.75rem', fontWeight: '800'}}>{projectNotifications.length}</span>
-                    </div>
-
-                    {notificationsLoading ? (
-                        <div style={{color: '#64748b', fontSize: '0.9rem'}}>A carregar notificações...</div>
-                    ) : (
-                        <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
-                            {projectNotifications.map((notificationItem) => {
-                                const isAbsenceNotification = String(notificationItem.tipo || '').startsWith('absence_');
-                                return (
-                                    <div key={notificationItem.id} style={{display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', padding: '14px', borderRadius: '14px', background: '#ffffff', border: '1px solid #f1e4c8'}}>
-                                        <div style={{minWidth: 0}}>
-                                            <div style={{fontWeight: '800', color: '#0f172a', marginBottom: '4px'}}>{notificationItem.titulo}</div>
-                                            <div style={{fontSize: '0.92rem', color: '#475569', lineHeight: 1.45}}>{notificationItem.mensagem}</div>
-                                        </div>
-                                        <div style={{display: 'flex', gap: '8px', flexShrink: 0}}>
-                                            <button type="button" onClick={() => openProjectNotification(notificationItem)} className="btn-primary hover-shadow" style={{padding: '10px 14px', borderRadius: '10px', fontSize: '0.85rem', whiteSpace: 'nowrap'}}>{isAbsenceNotification ? 'Abrir pedidos RH' : 'Abrir projeto'}</button>
-                                            <button type="button" onClick={() => markProjectNotificationAsRead(notificationItem.id)} className="btn-small hover-shadow" style={{padding: '10px 12px', borderRadius: '10px', fontSize: '0.8rem', background: '#fff', border: '1px solid #e2e8f0', color: '#475569'}}>Marcar lida</button>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-                </div>
-            )}
             
+
             {/* --- OS 3 CARTÕES DE RESUMO --- */}
             <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
                 <div className="card stat-card neo-stat boom-reveal" onClick={() => navigate("/dashboard/projetos")} style={{ '--d': '90ms', borderLeft: '3px solid #a8b7d1', cursor: 'pointer', transition: '0.2s', padding: '16px' }}>

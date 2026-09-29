@@ -11,7 +11,6 @@ import {
     parseLocalDate,
     validarSaldoFeriasParaIntervalo,
 } from "../utils/feriasSaldo";
-import { createDashboardNotifications } from "../utils/dashboardNotifications";
 import CalculadoraKm from "../components/CalculadoraKm";
 import "./../styles/dashboard.css";
 
@@ -390,13 +389,15 @@ export default function Ferias({ forcedType = null }) {
       if (anexo_url) payload.anexo_url = anexo_url;
 
       let dbError;
+      let savedRequestId = editingId;
       if (isEditing) {
           payload.estado = 'pendente';
           const { error } = await supabase.from("ferias").update(payload).eq("id", editingId);
           dbError = error;
       } else {
           payload.estado = 'pendente';
-          const { error } = await supabase.from("ferias").insert([payload]);
+          const { data: savedRequest, error } = await supabase.from("ferias").insert([payload]).select("id").single();
+          savedRequestId = savedRequest?.id || null;
           dbError = error;
       }
 
@@ -405,30 +406,46 @@ export default function Ferias({ forcedType = null }) {
       try {
           const { data: adminProfiles, error: adminError } = await supabase
               .from("profiles")
-              .select("id, role, tipo, ativo");
+              .select("id, role, tipo, ativo, email");
           if (adminError) throw adminError;
 
-          const adminIds = (adminProfiles || [])
+          const adminEmails = (adminProfiles || [])
               .filter((profile) => {
                   const roles = [profile.role, profile.tipo].map((value) => String(value || "").toLowerCase());
-                  return profile.ativo !== false && roles.some((role) => ["admin", "administrador"].includes(role));
+                  return profile.ativo !== false
+                      && roles.some((role) => ["admin", "administrador"].includes(role))
+                      && profile.email;
               })
-              .map((profile) => profile.id)
-              .filter((profileId) => String(profileId) !== String(user.id));
+              .map((profile) => profile.email.trim().toLowerCase())
+              .filter((email, index, emails) => emails.indexOf(email) === index);
 
-          const actionLabel = isEditing ? "foi atualizado" : "foi criado";
           const dateLabel = form.data_inicio ? new Date(form.data_inicio).toLocaleDateString("pt-PT") : "";
-          await createDashboardNotifications({
-              supabaseClient: supabase,
-              recipientIds: adminIds,
-              createdBy: user.id,
-              type: "absence_request_created",
-              title: "Novo pedido de ausência",
-              message: `O pedido de ${normalizedTipo} de ${dateLabel} ${actionLabel} e aguarda análise.`,
-              link: "/dashboard/rh",
-          });
+          if (adminEmails.length > 0 && savedRequestId) {
+              const apiBase = import.meta.env.VITE_MARKETING_API_BASE || "";
+              const requestUrl = `${window.location.origin}/dashboard/rh?pedidoId=${encodeURIComponent(savedRequestId)}`;
+              const response = await fetch(`${apiBase}/api/absence-notifications/send-request`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                      emails: adminEmails,
+                      requestType: normalizedTipo,
+                      requesterName: user.user_metadata?.nome || user.email,
+                      dateLabel,
+                      requestUrl,
+                      requestId: savedRequestId,
+                      isEditing,
+                  }),
+              });
+              if (!response.ok) throw new Error(`Dispatcher de email respondeu ${response.status}.`);
+          }
       } catch (notificationError) {
-          console.error("Erro ao notificar administradores sobre pedido de ausência:", notificationError);
+          console.error("Erro ao enviar email aos administradores sobre pedido de ausência:", notificationError);
+          // Pedido guardado mas email falhou — avisa o utilizador
+          setNotification({ show: true, message: "O teu pedido foi guardado com sucesso, mas houve um problema ao enviar o email de notificação aos administradores. Podes contactá-los diretamente.", type: "error" });
+          handleCloseModal();
+          fetchPedidos();
+          fetchDiasReais();
+          return;
       }
 
       handleCloseModal();

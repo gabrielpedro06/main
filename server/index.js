@@ -4,6 +4,8 @@ import express from "express";
 import { sendTransactionalCampaign } from "./brevoCampaignSender.js";
 import { getCaeDescriptions } from "./caeCatalog.js";
 import { lookupSicaeCaesByNif } from "./sicaeCaeLookup.js";
+import absenceSendRequest from "../api/absence-notifications/send-request.js";
+import absenceAction, { buildActionToken } from "../api/absence-notifications/action.js";
 
 const app = express();
 
@@ -193,6 +195,9 @@ app.get("/api/cae-descriptions", (req, res) => {
   const caes = getCaeDescriptions(codes);
   return res.status(200).json({ ok: true, total: caes.length, caes });
 });
+
+app.post("/api/absence-notifications/send-request", (req, res) => absenceSendRequest(req, res));
+app.get("/api/absence-notifications/action", (req, res) => absenceAction(req, res));
 
 const PORT = Number(process.env.PORT || 8787);
 app.listen(PORT, () => {
