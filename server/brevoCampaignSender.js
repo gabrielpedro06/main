@@ -3,7 +3,7 @@ const BREVO_TEMPLATE_API_BASE = "https://api.brevo.com/v3/smtp/templates";
 
 const DEFAULTS = {
   senderEmail: process.env.BREVO_SENDER_EMAIL || "marketing@geoflicks.pt",
-  senderName: process.env.BREVO_SENDER_NAME || "GeoFlicks Marketing",
+  senderName: process.env.BREVO_SENDER_NAME || "Bizin Manager",
   batchSize: Number(process.env.BREVO_BATCH_SIZE || 75),
   batchDelayMs: Number(process.env.BREVO_BATCH_DELAY_MS || 1200),
   maxRetries: Number(process.env.BREVO_MAX_RETRIES || 3),
