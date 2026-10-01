@@ -1246,6 +1246,26 @@ export default function DashboardHome() {
           return "Boa noite";
   })();
 
+  const focoDeHoje = activeLog
+      ? { label: "Cronómetro em curso", detail: "Continua o trabalho que já tens iniciado.", action: "Ir para a tarefa" }
+      : tarefasHoje.length > 0
+          ? { label: `${tarefasHoje.length} prioridade${tarefasHoje.length === 1 ? '' : 's'} para hoje`, detail: "Começa pela tarefa com maior urgência.", action: "Abrir prioridades" }
+          : { label: "Dia sem urgências", detail: "Podes avançar para uma das próximas tarefas.", action: "Ver tarefas" };
+
+  const handleFocusAction = () => {
+      if (activeLog) {
+          navigateToActiveTask();
+          return;
+      }
+
+      if (tarefasHoje.length > 0) {
+          navigateToTaskCard(tarefasHoje[0]);
+          return;
+      }
+
+      navigate("/dashboard/tarefas");
+  };
+
   return (
     <div className="dashboard-home modern-boom factorial-like">
       
@@ -1487,6 +1507,22 @@ export default function DashboardHome() {
             </div>
         </div>
       </div>
+
+            <section className="dashboard-focus-strip boom-reveal" style={{ '--d': '60ms' }} aria-label="Foco de hoje">
+                <div className="dashboard-focus-copy">
+                    <span className="dashboard-focus-kicker"><Icons.Flame size={14} /> Foco de hoje</span>
+                    <strong>{focoDeHoje.label}</strong>
+                    <span>{focoDeHoje.detail}</span>
+                </div>
+                <div className="dashboard-focus-metrics" aria-label="Resumo de tarefas">
+                    <span><strong>{tarefasHoje.length}</strong> urgentes</span>
+                    <span><strong>{tarefasGerais.length}</strong> próximas</span>
+                    <span><strong>{tarefasEmAnalise.length}</strong> em análise</span>
+                </div>
+                <button type="button" className="dashboard-focus-action" onClick={handleFocusAction}>
+                    {focoDeHoje.action} <Icons.ArrowRight size={15} />
+                </button>
+            </section>
 
       {/* GRID PRINCIPAL (2 COLUNAS 100% FOCADAS E ARRUMADAS) */}
     <div className="dashboard-grid" style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: '28px', alignItems: 'start' }}>
@@ -2215,6 +2251,81 @@ export default function DashboardHome() {
                     backdrop-filter: blur(12px);
                 }
 
+                .dashboard-focus-strip {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 18px;
+                    margin-bottom: 24px;
+                    padding: 14px 18px;
+                    background: linear-gradient(105deg, #fff7ed 0%, #ffffff 52%, var(--color-bgSecondary) 100%);
+                    border: 1px solid #fed7aa;
+                    border-radius: 14px;
+                    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
+                }
+
+                .dashboard-focus-copy {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    min-width: 0;
+                    color: #64748b;
+                    font-size: 0.82rem;
+                }
+
+                .dashboard-focus-copy strong {
+                    color: #1e293b;
+                    font-size: 0.94rem;
+                    white-space: nowrap;
+                }
+
+                .dashboard-focus-kicker {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 5px;
+                    color: #c2410c;
+                    font-size: 0.72rem;
+                    font-weight: 800;
+                    text-transform: uppercase;
+                    letter-spacing: 0.04em;
+                    white-space: nowrap;
+                }
+
+                .dashboard-focus-metrics {
+                    display: flex;
+                    align-items: center;
+                    gap: 14px;
+                    color: #64748b;
+                    font-size: 0.75rem;
+                    white-space: nowrap;
+                }
+
+                .dashboard-focus-metrics strong {
+                    color: #1e293b;
+                    font-size: 0.95rem;
+                }
+
+                .dashboard-focus-action {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    flex-shrink: 0;
+                    border: 1px solid #fdba74;
+                    border-radius: 9px;
+                    padding: 8px 12px;
+                    background: #fff;
+                    color: #c2410c;
+                    font-size: 0.78rem;
+                    font-weight: 800;
+                    cursor: pointer;
+                    transition: background 0.2s ease, transform 0.2s ease;
+                }
+
+                .dashboard-focus-action:hover {
+                    background: #fff7ed;
+                    transform: translateY(-1px);
+                }
+
                 .neo-stat {
                     background: linear-gradient(180deg, var(--color-bgTertiary) 0%, var(--color-bgSecondary) 100%);
                     box-shadow: 0 6px 14px rgba(15, 23, 42, 0.04);
@@ -2289,6 +2400,10 @@ export default function DashboardHome() {
         @media (max-width: 768px) {
             .stats-grid { grid-template-columns: 1fr !important; }
             .bottom-split-grid { grid-template-columns: 1fr !important; }
+            .dashboard-focus-strip { align-items: flex-start; flex-direction: column; gap: 12px; }
+            .dashboard-focus-copy { flex-wrap: wrap; }
+            .dashboard-focus-metrics { width: 100%; justify-content: space-between; gap: 8px; }
+            .dashboard-focus-action { width: 100%; justify-content: center; }
         }
       `}</style>
 
