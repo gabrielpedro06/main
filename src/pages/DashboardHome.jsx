@@ -1732,8 +1732,8 @@ export default function DashboardHome() {
                 </div>
                 
                 {tarefasHoje.length === 0 ? (
-                    <div style={{textAlign: 'center', padding: '20px 0', color: '#94a3b8', fontSize: '0.9rem', background: '#f8fafc', borderRadius: '12px'}}>
-                        Sem tarefas urgentes! 🎉
+                    <div className="dashboard-empty-state" style={{textAlign: 'center', padding: '20px 0', color: '#94a3b8', fontSize: '0.9rem', background: '#f8fafc', borderRadius: '12px'}}>
+                        Tudo limpo por agora
                     </div>
                 ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
@@ -1786,8 +1786,8 @@ export default function DashboardHome() {
                 </div>
                 
                 {tarefasGerais.length === 0 ? (
-                    <div style={{textAlign: 'center', padding: '20px 0', color: '#94a3b8', fontSize: '0.9rem', background: '#f8fafc', borderRadius: '12px'}}>
-                        Não tens mais tarefas pendentes. 😎
+                    <div className="dashboard-empty-state" style={{textAlign: 'center', padding: '20px 0', color: '#94a3b8', fontSize: '0.9rem', background: '#f8fafc', borderRadius: '12px'}}>
+                        Não tens mais tarefas pendentes
                     </div>
                 ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
@@ -1835,7 +1835,7 @@ export default function DashboardHome() {
                     {tarefasEmAnalise.length > 0 && <span style={{fontSize: '0.8rem', background: '#fce7f3', color: '#be123c', padding: '4px 10px', borderRadius: '999px', fontWeight: 'bold'}}>{tarefasEmAnalise.length}</span>}
                 </div>
                 {tarefasEmAnalise.length === 0 ? (
-                    <div style={{textAlign: 'center', padding: '20px 0', color: '#94a3b8', fontSize: '0.9rem', background: '#f8fafc', borderRadius: '12px'}}>Nenhuma tarefa em análise no momento. ✨</div>
+                    <div className="dashboard-empty-state" style={{textAlign: 'center', padding: '20px 0', color: '#94a3b8', fontSize: '0.9rem', background: '#f8fafc', borderRadius: '12px'}}>Nenhuma tarefa em análise neste momento</div>
                 ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
                     {tarefasEmAnalise.map((t) => (
@@ -2360,6 +2360,19 @@ export default function DashboardHome() {
                 .dashboard-resume-grid > .task-hover-card:only-child {
                     grid-column: 1 / -1;
                     max-width: none;
+                }
+
+                .dashboard-empty-state {
+                    min-height: 42px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 12px 16px !important;
+                    border: 1px dashed var(--color-borderColorLight);
+                    background: var(--color-bgSecondary) !important;
+                    color: var(--color-textLight) !important;
+                    font-size: 0.82rem !important;
+                    letter-spacing: 0.01em;
                 }
 
                 .neo-stat {
