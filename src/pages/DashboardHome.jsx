@@ -1247,10 +1247,10 @@ export default function DashboardHome() {
   })();
 
   const focoDeHoje = activeLog
-      ? { label: "Cronómetro em curso", detail: "Continua o trabalho que já tens iniciado.", action: "Ir para a tarefa" }
+      ? { label: "A trabalhar agora", detail: getActiveTaskName(), action: "Abrir tarefa", tone: "active" }
       : tarefasHoje.length > 0
-          ? { label: `${tarefasHoje.length} prioridade${tarefasHoje.length === 1 ? '' : 's'} para hoje`, detail: "Começa pela tarefa com maior urgência.", action: "Abrir prioridades" }
-          : { label: "Dia sem urgências", detail: "Podes avançar para uma das próximas tarefas.", action: "Ver tarefas" };
+          ? { label: `${tarefasHoje.length} prioridade${tarefasHoje.length === 1 ? '' : 's'} para hoje`, detail: "Começa pela tarefa com maior urgência.", action: "Abrir prioridades", tone: "urgent" }
+          : { label: "Dia sem urgências", detail: "Podes avançar para uma das próximas tarefas.", action: "Ver tarefas", tone: "clear" };
 
   const handleFocusAction = () => {
       if (activeLog) {
@@ -1508,11 +1508,11 @@ export default function DashboardHome() {
         </div>
       </div>
 
-            <section className="dashboard-focus-strip boom-reveal" style={{ '--d': '60ms' }} aria-label="Foco de hoje">
+            <section className={`dashboard-focus-strip dashboard-focus-${focoDeHoje.tone} boom-reveal`} style={{ '--d': '60ms' }} aria-label="Foco de hoje">
                 <div className="dashboard-focus-copy">
                     <span className="dashboard-focus-kicker"><Icons.Flame size={14} /> Foco de hoje</span>
                     <strong>{focoDeHoje.label}</strong>
-                    <span>{focoDeHoje.detail}</span>
+                    <span className="dashboard-focus-detail" title={focoDeHoje.detail}>{focoDeHoje.detail}</span>
                 </div>
                 <div className="dashboard-focus-metrics" aria-label="Resumo de tarefas">
                     <span><strong>{tarefasHoje.length}</strong> urgentes</span>
@@ -1550,7 +1550,7 @@ export default function DashboardHome() {
 
                 <div className="card stat-card neo-stat boom-reveal" onClick={() => navigate("/dashboard/forum")} style={{ '--d': '190ms', borderLeft: '3px solid #d4b48f', cursor: 'pointer', transition: '0.2s', padding: '16px' }}>
                     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
-                        <div><h3 style={{fontSize: '0.8rem', color: '#64748b', margin: '0 0 5px 0'}}>Comunicação</h3><p style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#1e293b', margin: 0 }}>{stats.forum}</p></div>
+                        <div><h3 style={{fontSize: '0.8rem', color: '#64748b', margin: '0 0 5px 0'}}>Publicações</h3><p style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#1e293b', margin: 0 }}>{stats.forum}</p></div>
                         <span style={{background: '#fef3c7', color: '#d97706', padding: '6px', borderRadius: '8px', display: 'flex'}}><Icons.Message size={18}/></span>
                     </div>
                 </div>
@@ -1647,16 +1647,16 @@ export default function DashboardHome() {
         <div style={{display: 'flex', flexDirection: 'column', gap: '24px'}}>
 
             {/* 🕐 RETOMAR - ÚLTIMAS TAREFAS TRABALHADAS */}
-            <div className="card boom-reveal" style={{ '--d': '280ms', padding: '20px', background: 'white', borderRadius: '16px' }}>
+            <div className="card dashboard-resume-card boom-reveal" style={{ '--d': '280ms', padding: '20px', background: 'white', borderRadius: '16px' }}>
                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px'}}>
                     <h4 style={{margin: 0, color: '#1e293b', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px'}}>
                         <Icons.Clock size={18} color="#8b5cf6" /> Retomar Trabalho
                     </h4>
-                    <span style={{fontSize:'0.72rem', color:'#94a3b8', fontStyle:'italic'}}>Últimas atividades do cronómetro</span>
+                    <span style={{fontSize:'0.72rem', color:'#94a3b8', fontStyle:'italic'}}>Últimas atividades</span>
                 </div>
                 {tarefasRecentesCards.length > 0 ? (
                     <>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+                        <div className="dashboard-resume-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px' }}>
                         {tarefasRecentesCards.slice(0, recentTasksVisibleCount).map((t) => {
                             const isRunning = isTaskCardRunning(t);
                             return (
@@ -2258,10 +2258,34 @@ export default function DashboardHome() {
                     gap: 18px;
                     margin-bottom: 24px;
                     padding: 14px 18px;
-                    background: linear-gradient(105deg, #fff7ed 0%, #ffffff 52%, var(--color-bgSecondary) 100%);
-                    border: 1px solid #fed7aa;
+                    background: linear-gradient(105deg, var(--color-bgTertiary) 0%, var(--color-bgSecondary) 52%, var(--color-bgPrimary) 100%);
+                    border: 1px solid var(--color-borderColorLight);
                     border-radius: 14px;
                     box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
+                }
+
+                .dashboard-focus-active {
+                    box-shadow: 0 8px 20px var(--color-btnPrimaryShadow);
+                }
+
+                .dashboard-focus-clear {
+                    background: linear-gradient(105deg, var(--color-bgSecondary) 0%, var(--color-bgTertiary) 52%, var(--color-bgPrimary) 100%);
+                }
+
+                .dashboard-focus-active .dashboard-focus-kicker,
+                .dashboard-focus-clear .dashboard-focus-kicker {
+                    color: var(--color-btnPrimary);
+                }
+
+                .dashboard-focus-active .dashboard-focus-action,
+                .dashboard-focus-clear .dashboard-focus-action {
+                    border-color: var(--color-borderColor);
+                    color: var(--color-btnPrimary);
+                }
+
+                .dashboard-focus-active .dashboard-focus-action:hover,
+                .dashboard-focus-clear .dashboard-focus-action:hover {
+                    background: var(--color-bgSecondary);
                 }
 
                 .dashboard-focus-copy {
@@ -2279,11 +2303,18 @@ export default function DashboardHome() {
                     white-space: nowrap;
                 }
 
+                .dashboard-focus-detail {
+                    max-width: 340px;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                }
+
                 .dashboard-focus-kicker {
                     display: inline-flex;
                     align-items: center;
                     gap: 5px;
-                    color: #c2410c;
+                    color: var(--color-btnPrimary);
                     font-size: 0.72rem;
                     font-weight: 800;
                     text-transform: uppercase;
@@ -2310,11 +2341,11 @@ export default function DashboardHome() {
                     align-items: center;
                     gap: 6px;
                     flex-shrink: 0;
-                    border: 1px solid #fdba74;
+                    border: 1px solid var(--color-borderColor);
                     border-radius: 9px;
                     padding: 8px 12px;
                     background: #fff;
-                    color: #c2410c;
+                    color: var(--color-btnPrimary);
                     font-size: 0.78rem;
                     font-weight: 800;
                     cursor: pointer;
@@ -2322,8 +2353,13 @@ export default function DashboardHome() {
                 }
 
                 .dashboard-focus-action:hover {
-                    background: #fff7ed;
+                    background: var(--color-bgSecondary);
                     transform: translateY(-1px);
+                }
+
+                .dashboard-resume-grid > .task-hover-card:only-child {
+                    grid-column: 1 / -1;
+                    max-width: none;
                 }
 
                 .neo-stat {
@@ -2404,6 +2440,10 @@ export default function DashboardHome() {
             .dashboard-focus-copy { flex-wrap: wrap; }
             .dashboard-focus-metrics { width: 100%; justify-content: space-between; gap: 8px; }
             .dashboard-focus-action { width: 100%; justify-content: center; }
+            .dashboard-focus-detail { max-width: 100%; width: 100%; }
+            .dashboard-resume-card { min-height: 0; }
+            .dashboard-resume-grid { grid-template-columns: 1fr !important; }
+            .dashboard-resume-grid > .task-hover-card:only-child { max-width: none; }
         }
       `}</style>
 

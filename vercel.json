@@ -9,7 +9,7 @@
       "destination": "https://www.nif.pt"
     },
     {
-      "source": "/((?!api(/|$)).*)",
+      "source": "/((?!api/|api$).*)",
       "destination": "/index.html"
     }
   ]
