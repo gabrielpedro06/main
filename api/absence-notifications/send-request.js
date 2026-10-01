@@ -111,7 +111,7 @@ function buildDetailsBlock(details, safeType) {
   return tableBlock + motivoBlock;
 }
 
-function buildActionButtons(requestId, adminEmail, safeRequestUrl, apiBase) {
+function buildActionButtons(requestId, adminEmail, safeRequestUrl, apiBase, safeRequestUrlDisplay) {
   const token = requestId ? buildActionToken(requestId, adminEmail) : null;
   if (!token) {
     return `<p style="margin:20px 0">
@@ -120,8 +120,10 @@ function buildActionButtons(requestId, adminEmail, safeRequestUrl, apiBase) {
       </a></p>`;
   }
 
-  const approveUrl = escapeHtml(`${apiBase}/api/absence-notifications/action?token=${encodeURIComponent(token)}&action=approve`);
-  const rejectUrl  = escapeHtml(`${apiBase}/api/absence-notifications/action?token=${encodeURIComponent(token)}&action=reject`);
+  // Nota: NÃO usar escapeHtml nas URLs — o & deve ficar como & para que o
+  // tracker de clicks do Brevo redirecione corretamente.
+  const approveUrl = `${apiBase}/api/absence-notifications/action?token=${encodeURIComponent(token)}&action=approve`;
+  const rejectUrl  = `${apiBase}/api/absence-notifications/action?token=${encodeURIComponent(token)}&action=reject`;
 
   return `
   <table cellpadding="0" cellspacing="0" style="margin:24px 0">
@@ -135,7 +137,7 @@ function buildActionButtons(requestId, adminEmail, safeRequestUrl, apiBase) {
     </tr>
   </table>
   <p style="margin:6px 0 0;color:#64748b;font-size:12px">
-    Ou acede ao painel completo: <a href="${safeRequestUrl}" style="color:#0f172a">${safeRequestUrl}</a>
+    Ou acede ao painel completo: <a href="${safeRequestUrl}" style="color:#0f172a">${safeRequestUrlDisplay}</a>
   </p>`;
 }
 
@@ -174,7 +176,9 @@ export default async function handler(req, res) {
 
   const safeType = escapeHtml(requestType || "ausência");
   const safeRequesterName = escapeHtml(requesterName || "Um colaborador");
-  const safeRequestUrl = escapeHtml(requestUrl);
+  // Nota: requestUrl vai em hrefs — não escapar & para não quebrar o tracker do Brevo
+  const safeRequestUrl = requestUrl || "";
+  const safeRequestUrlDisplay = escapeHtml(requestUrl || "");
 
   // Construir URL base absoluta a partir dos headers da request
   // (funciona em Vercel produção e em localhost)
@@ -192,7 +196,7 @@ export default async function handler(req, res) {
   try {
     const results = await Promise.allSettled(
       validEmails.map((adminEmail) => {
-        const actionButtons = buildActionButtons(requestId, adminEmail, safeRequestUrl, apiBase);
+        const actionButtons = buildActionButtons(requestId, adminEmail, safeRequestUrl, apiBase, safeRequestUrlDisplay);
 
         const htmlContent = `
           <div style="font-family:Arial,sans-serif;line-height:1.6;color:#1e293b;max-width:580px">
