@@ -175,7 +175,13 @@ export default async function handler(req, res) {
   const safeType = escapeHtml(requestType || "ausência");
   const safeRequesterName = escapeHtml(requesterName || "Um colaborador");
   const safeRequestUrl = escapeHtml(requestUrl);
-  const apiBase = process.env.VITE_MARKETING_API_BASE || process.env.MARKETING_API_BASE || "";
+
+  // Construir URL base absoluta a partir dos headers da request
+  // (funciona em Vercel produção e em localhost)
+  const proto = req.headers["x-forwarded-proto"] || "https";
+  const host  = req.headers["x-forwarded-host"] || req.headers.host || "";
+  const apiBase = process.env.MARKETING_API_BASE
+    || (host ? `${proto}://${host}` : "");
 
   const subject = isEditing
     ? `Pedido de ${requestType || "ausência"} atualizado — ação necessária`
