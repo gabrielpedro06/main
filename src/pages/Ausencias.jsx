@@ -434,6 +434,20 @@ export default function Ferias({ forcedType = null }) {
                       requestUrl,
                       requestId: savedRequestId,
                       isEditing,
+                      // Detalhes completos do pedido
+                      details: {
+                          data_inicio: form.data_inicio,
+                          data_fim: isKmRequest ? form.data_inicio : (form.is_parcial ? form.data_inicio : form.data_fim),
+                          is_parcial: form.is_parcial,
+                          hora_inicio: form.is_parcial ? form.hora_inicio : null,
+                          hora_fim: form.is_parcial ? form.hora_fim : null,
+                          motivo: form.motivo,
+                          km_origem: isKmRequest ? form.km_origem : null,
+                          km_destino: isKmRequest ? form.km_destino : null,
+                          km_total: isKmRequest ? form.km_total : null,
+                          veiculo: isKmRequest ? form.veiculo : null,
+                          isKmRequest,
+                      },
                   }),
               });
               if (!response.ok) throw new Error(`Dispatcher de email respondeu ${response.status}.`);
