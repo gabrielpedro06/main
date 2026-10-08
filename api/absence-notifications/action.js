@@ -113,7 +113,7 @@ export default async function handler(req, res) {
 
   if (action === "approve") {
     const { error: approvalError } = await supabase.rpc("aprovar_pedido_ferias_por_email", {
-      p_pedido_id: pedidoId,
+      p_pedido_id: Number(pedidoId),
     });
     if (approvalError) {
       const functionMissing = approvalError.code === "42883"
