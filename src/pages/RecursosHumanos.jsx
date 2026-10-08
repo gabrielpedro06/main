@@ -872,7 +872,7 @@ export default function RecursosHumanos() {
       await atualizarSaldoFeriasDireto(userId, delta);
   }
 
-  async function sincronizarSaldoFeriasDosPerfis(userIds = []) {
+  async function sincronizarSaldoFeriasDosPerfis(userIds = [], ano = new Date().getFullYear()) {
       if (!hasDiasFeriasTotalColumn) return;
 
       const idsUnicos = [...new Set((userIds || []).filter(Boolean))];
@@ -884,6 +884,7 @@ export default function RecursosHumanos() {
               return sincronizarSaldoFeriasPerfil({
                   supabaseClient: supabase,
                   userId,
+                  ano,
                   diasLimiteAnual,
               });
           }),
@@ -1206,7 +1207,8 @@ export default function RecursosHumanos() {
           const isKmRequest = pedido.tipo === KM_REQUEST_TYPE;
           if (!isKmRequest && pedido.user_id) {
               if (hasDiasFeriasTotalColumn) {
-                  await sincronizarSaldoFeriasDosPerfis([pedido.user_id]);
+                  const anoPedido = parseLocalDate(pedido.data_inicio)?.getFullYear() || new Date().getFullYear();
+                  await sincronizarSaldoFeriasDosPerfis([pedido.user_id], anoPedido);
               } else if (diasPedidoFerias > 0) {
                   if (acao === 'aprovar') {
                       await atualizarSaldoFeriasDireto(pedido.user_id, -diasPedidoFerias);
@@ -1268,7 +1270,7 @@ export default function RecursosHumanos() {
       const ids = pedidos.map(p => p.id);
       
       setIsSubmitting(true);
-      const usersToSync = new Set();
+      const usersToSync = new Map();
 
       try {
           for (const pedido of pedidos) {
@@ -1311,7 +1313,10 @@ export default function RecursosHumanos() {
               // Gestão de saldos locais
               if (!isKmRequest && pedido.user_id) {
                   if (hasDiasFeriasTotalColumn) {
-                      usersToSync.add(pedido.user_id);
+                      const anoPedido = parseLocalDate(pedido.data_inicio)?.getFullYear() || new Date().getFullYear();
+                      const anosDoUser = usersToSync.get(pedido.user_id) || new Set();
+                      anosDoUser.add(anoPedido);
+                      usersToSync.set(pedido.user_id, anosDoUser);
                   } else if (diasPedidoFerias > 0) {
                       await atualizarSaldoFeriasDireto(pedido.user_id, -diasPedidoFerias);
                   }
@@ -1319,7 +1324,11 @@ export default function RecursosHumanos() {
           }
 
           if (usersToSync.size > 0) {
-              await sincronizarSaldoFeriasDosPerfis(Array.from(usersToSync));
+              for (const [userId, anos] of usersToSync.entries()) {
+                  for (const ano of anos) {
+                      await sincronizarSaldoFeriasDosPerfis([userId], ano);
+                  }
+              }
           }
 
           if (tipo === 'ausencias') {
