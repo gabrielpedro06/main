@@ -31,6 +31,66 @@ function stripDiacritics(str) {
   return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
+/** Portuguese public holidays for a given year (same as feriasSaldo.js). */
+function getFeriados(ano) {
+  const a = ano % 19;
+  const b = Math.floor(ano / 100);
+  const c = ano % 100;
+  const d = Math.floor(b / 4);
+  const e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4);
+  const k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const mesPascoa = Math.floor((h + l - 7 * m + 114) / 31) - 1;
+  const diaPascoa = ((h + l - 7 * m + 114) % 31) + 1;
+
+  const pascoa = new Date(ano, mesPascoa, diaPascoa);
+  const sextaSanta = new Date(pascoa); sextaSanta.setDate(pascoa.getDate() - 2);
+  const carnaval = new Date(pascoa); carnaval.setDate(pascoa.getDate() - 47);
+  const corpoDeus = new Date(pascoa); corpoDeus.setDate(pascoa.getDate() + 60);
+
+  return [
+    { d: 1, m: 0 }, { d: carnaval.getDate(), m: carnaval.getMonth() },
+    { d: sextaSanta.getDate(), m: sextaSanta.getMonth() },
+    { d: pascoa.getDate(), m: pascoa.getMonth() },
+    { d: 25, m: 3 }, { d: 1, m: 4 },
+    { d: corpoDeus.getDate(), m: corpoDeus.getMonth() },
+    { d: 10, m: 5 }, { d: 15, m: 7 }, { d: 7, m: 8 },
+    { d: 5, m: 9 }, { d: 1, m: 10 }, { d: 1, m: 11 },
+    { d: 8, m: 11 }, { d: 25, m: 11 },
+  ];
+}
+
+function isHoliday(date) {
+  const feriados = getFeriados(date.getFullYear());
+  return feriados.some((f) => f.d === date.getDate() && f.m === date.getMonth());
+}
+
+/** Count working days (skip weekends + holidays), clamped to a specific year. */
+function calcularDiasUteisNoAno(dataInicio, dataFim, ano) {
+  const inicio = new Date(`${dataInicio}T00:00:00`);
+  const fim = new Date(`${dataFim || dataInicio}T00:00:00`);
+  const inicioAno = new Date(ano, 0, 1);
+  const fimAno = new Date(ano, 11, 31);
+
+  // Clamp to year boundaries
+  const inicioFinal = inicio < inicioAno ? inicioAno : inicio;
+  const fimFinal = fim > fimAno ? fimAno : fim;
+
+  if (inicioFinal > fimFinal) return 0;
+
+  let dias = 0;
+  for (const d = new Date(inicioFinal); d <= fimFinal; d.setDate(d.getDate() + 1)) {
+    const diaSemana = d.getDay();
+    if (diaSemana !== 0 && diaSemana !== 6 && !isHoliday(d)) dias += 1;
+  }
+  return dias;
+}
+
 function signToken(payload) {
   const data = Buffer.from(JSON.stringify(payload)).toString("base64url");
   const sig = crypto.createHmac("sha256", SECRET).update(data).digest("base64url");
@@ -172,14 +232,7 @@ export default async function handler(req, res) {
         return total + (Number.isFinite(horas) && horas > 0 ? horas / 8 : 0);
       }
 
-      const inicio = new Date(`${item.data_inicio}T00:00:00`);
-      const fim = new Date(`${item.data_fim || item.data_inicio}T00:00:00`);
-      let dias = 0;
-      for (const data = new Date(inicio); data <= fim; data.setDate(data.getDate() + 1)) {
-        const diaSemana = data.getDay();
-        if (diaSemana !== 0 && diaSemana !== 6) dias += 1;
-      }
-      return total + dias;
+      return total + calcularDiasUteisNoAno(item.data_inicio, item.data_fim, anoPedido);
     }, 0);
 
     const { error: balanceError } = await supabase
