@@ -18,6 +18,16 @@ export const resolveAnnualVacationLimit = (value) => {
 export const getAnnualVacationLimitFromProfile = (profile = null) =>
   resolveAnnualVacationLimit(profile?.dias_ferias_total ?? profile?.dias_ferias);
 
+export const getAnnualVacationLimitForYear = ({
+  diasLimiteAnual,
+  dataAdmissao = null,
+  ano = getCurrentYear(),
+}) => {
+  const anoAdmissao = parseLocalDate(dataAdmissao)?.getFullYear();
+  if (anoAdmissao && anoAdmissao !== ano) return ANNUAL_VACATION_DAYS;
+  return resolveAnnualVacationLimit(diasLimiteAnual);
+};
+
 const removeAccents = (value = "") =>
   String(value).normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
@@ -277,63 +287,186 @@ export const calcularDiasFeriasNoAno = (dataInicio, dataFim, ano, skipDates = nu
 
 export const getCurrentYear = () => new Date().getFullYear();
 
+export const isVacationBookingBeforeAnnualOpening = (
+  dataInicio,
+  dataReferencia = new Date(),
+) => {
+  const inicio = parseLocalDate(dataInicio);
+  const referencia = parseLocalDate(dataReferencia);
+  if (!inicio || !referencia) return false;
+
+  const abertura = new Date(referencia.getFullYear(), 11, 1);
+  return inicio.getFullYear() > referencia.getFullYear() && referencia < abertura;
+};
+
+export const isAnnualVacationOpeningAvailable = (dataReferencia = new Date()) => {
+  const referencia = parseLocalDate(dataReferencia);
+  if (!referencia) return false;
+
+  return referencia >= new Date(referencia.getFullYear(), 11, 1);
+};
+
+const getFirstDayOfYear = (ano) => `${ano}-01-01`;
+const getLastDayOfYear = (ano) => `${ano}-12-31`;
+const getCarryoverDeadline = (ano) => `${ano}-03-31`;
+
+const getPedidoDays = (pedido, ano, skipDates) => {
+  if (!isVacationType(pedido.tipo)) return 0;
+
+  if (pedido.is_parcial) {
+    const anoPedido = parseLocalDate(pedido.data_inicio)?.getFullYear();
+    if (anoPedido !== ano || !pedido.hora_inicio || !pedido.hora_fim) return 0;
+
+    const [hInicio, mInicio] = pedido.hora_inicio.split(":").map(Number);
+    const [hFim, mFim] = pedido.hora_fim.split(":").map(Number);
+    const diferencaHoras = (hFim - hInicio) + ((mFim - mInicio) / 60);
+    return diferencaHoras > 0 ? diferencaHoras / 8 : 0;
+  }
+
+  return calcularDiasFeriasNoAno(
+    pedido.data_inicio,
+    pedido.data_fim || pedido.data_inicio,
+    ano,
+    skipDates,
+  );
+};
+
+const getPedidoDaysBeforeCarryoverDeadline = (pedido, ano, skipDates) => {
+  if (pedido.is_parcial) {
+    const dataPedido = parseLocalDate(pedido.data_inicio);
+    if (!dataPedido || dataPedido.getFullYear() !== ano || dataPedido > parseLocalDate(getCarryoverDeadline(ano))) {
+      return 0;
+    }
+
+    const [hInicio, mInicio] = String(pedido.hora_inicio || "").split(":").map(Number);
+    const [hFim, mFim] = String(pedido.hora_fim || "").split(":").map(Number);
+    const diferencaHoras = (hFim - hInicio) + ((mFim - mInicio) / 60);
+    return diferencaHoras > 0 ? diferencaHoras / 8 : 0;
+  }
+
+  return calcularDiasUteisNoPeriodo(
+    pedido.data_inicio,
+    pedido.data_fim || pedido.data_inicio,
+    getFirstDayOfYear(ano),
+    getCarryoverDeadline(ano),
+    skipDates,
+  );
+};
+
+async function obterPedidosFeriasAno({
+  supabaseClient,
+  userId,
+  ano,
+  incluirPendentes = false,
+}) {
+  const { data, error } = await supabaseClient
+    .from("ferias")
+    .select("id, tipo, data_inicio, data_fim, is_parcial, hora_inicio, hora_fim, estado")
+    .eq("user_id", userId)
+    .in("estado", incluirPendentes ? ["aprovado", "pendente"] : ["aprovado"])
+    .lte("data_inicio", getLastDayOfYear(ano))
+    .gte("data_fim", getFirstDayOfYear(ano));
+
+  if (error) throw error;
+  return data || [];
+}
+
 export async function obterSaldoFeriasAno({
   supabaseClient,
   userId,
   ano = getCurrentYear(),
   excluirPedidoId = null,
   diasLimiteAnual = ANNUAL_VACATION_DAYS,
+  dataAdmissao = null,
   tolerancias = [],
 }) {
-  const inicioAno = `${ano}-01-01`;
-  const fimAno = `${ano}-12-31`;
-
-  // 1. ADICIONADO: hora_inicio e hora_fim ao select
-  const { data, error } = await supabaseClient
-    .from("ferias")
-    .select("id, tipo, data_inicio, data_fim, is_parcial, hora_inicio, hora_fim") 
-    .eq("user_id", userId)
-    .eq("estado", "aprovado")
-    .lte("data_inicio", fimAno)
-    .gte("data_fim", inicioAno);
-
-  if (error) throw error;
-
   const diasLimite = resolveAnnualVacationLimit(diasLimiteAnual);
   const skipDates = buildToleranciasSkipSet(tolerancias, userId);
-
-  let diasConsumidos = 0;
-  for (const pedido of data || []) {
-    if (excluirPedidoId && pedido.id === excluirPedidoId) continue;
-    if (!isVacationType(pedido.tipo)) continue;
-
-    // 2. NOVA LÓGICA: Se for parcial, converte as horas em dias (Ex: 4h = 0.5 dias)
-    if (pedido.is_parcial) {
-      const anoPedido = new Date(pedido.data_inicio).getFullYear();
-      if (anoPedido === ano && pedido.hora_inicio && pedido.hora_fim) {
-        const [hI, mI] = pedido.hora_inicio.split(':').map(Number);
-        const [hF, mF] = pedido.hora_fim.split(':').map(Number);
-        const diferenca = (hF - hI) + ((mF - mI) / 60);
-        if (diferenca > 0) {
-          diasConsumidos += (diferenca / 8);
-        }
-      }
-      continue; // Passa para o próximo pedido sem contar o dia inteiro
-    }
-
-    diasConsumidos += calcularDiasFeriasNoAno(
-      pedido.data_inicio,
-      pedido.data_fim || pedido.data_inicio,
-      ano,
-      skipDates,
-    );
-  }
+  const data = await obterPedidosFeriasAno({ supabaseClient, userId, ano });
+  const diasConsumidos = data
+    .filter((pedido) => !excluirPedidoId || pedido.id !== excluirPedidoId)
+    .reduce((total, pedido) => total + getPedidoDays(pedido, ano, skipDates), 0);
 
   return {
     ano,
     diasConsumidos,
     diasLimite,
     diasRestantes: Math.max(0, diasLimite - diasConsumidos),
+  };
+}
+
+const isMissingVacationBalanceTableError = (error) =>
+  error?.code === "42P01" || /relation .*vacation_balances.* does not exist/i.test(error?.message || "");
+
+async function obterSaldoFeriasTabela({ supabaseClient, userId, ano }) {
+  const { data, error } = await supabaseClient
+    .from("vacation_balances")
+    .select("ano, dias_atribuidos, dias_transitados, dias_gozados, dias_disponiveis, transito_expira_em")
+    .eq("user_id", userId)
+    .eq("ano", ano)
+    .maybeSingle();
+
+  if (error) {
+    if (isMissingVacationBalanceTableError(error)) return null;
+    throw error;
+  }
+
+  return data;
+}
+
+export async function obterSaldoFeriasAnoComTransicao({
+  supabaseClient,
+  userId,
+  ano = getCurrentYear(),
+  diasLimiteAnual = ANNUAL_VACATION_DAYS,
+  dataAdmissao = null,
+  tolerancias = [],
+  dataReferencia = new Date(),
+}) {
+  const saldoTabela = await obterSaldoFeriasTabela({ supabaseClient, userId, ano });
+  if (saldoTabela) {
+    const referencia = parseLocalDate(dataReferencia);
+    const transitoValido = referencia
+      && referencia.getFullYear() === ano
+      && referencia <= parseLocalDate(getCarryoverDeadline(ano));
+    const diasTransitados = transitoValido ? Number(saldoTabela.dias_transitados) || 0 : 0;
+    const diasLimite = Number(saldoTabela.dias_atribuidos) || ANNUAL_VACATION_DAYS;
+    const diasConsumidos = Number(saldoTabela.dias_gozados) || 0;
+
+    return {
+      ano,
+      diasLimite,
+      diasConsumidos,
+      diasRestantes: Math.max(0, diasLimite - diasConsumidos),
+      diasTransitados,
+      diasDisponiveis: Math.max(0, diasLimite + diasTransitados - diasConsumidos),
+    };
+  }
+
+  const saldoAno = await obterSaldoFeriasAno({
+    supabaseClient,
+    userId,
+    ano,
+    diasLimiteAnual: getAnnualVacationLimitForYear({ diasLimiteAnual, dataAdmissao, ano }),
+    tolerancias,
+  });
+
+  const hoje = parseLocalDate(dataReferencia);
+  const saldoAnoAnterior = await obterSaldoFeriasAno({
+    supabaseClient,
+    userId,
+    ano: ano - 1,
+    diasLimiteAnual: getAnnualVacationLimitForYear({ diasLimiteAnual, dataAdmissao, ano: ano - 1 }),
+    tolerancias,
+  });
+  const diasTransitados = ano > 1 && hoje && hoje.getFullYear() === ano && hoje <= parseLocalDate(getCarryoverDeadline(ano))
+    ? saldoAnoAnterior.diasRestantes
+    : 0;
+
+  return {
+    ...saldoAno,
+    diasTransitados,
+    diasDisponiveis: saldoAno.diasRestantes + diasTransitados,
   };
 }
 
@@ -347,6 +480,7 @@ export async function validarSaldoFeriasParaIntervalo({
   hora_fim = null,    // ADICIONADO
   excluirPedidoId = null,
   diasLimiteAnual = ANNUAL_VACATION_DAYS,
+  dataAdmissao = null,
   tolerancias = [],
 }) {
   const anos = getYearsInRange(dataInicio, dataFim || dataInicio);
@@ -375,18 +509,83 @@ export async function validarSaldoFeriasParaIntervalo({
       userId,
       ano,
       excluirPedidoId,
-      diasLimiteAnual,
+      diasLimiteAnual: getAnnualVacationLimitForYear({ diasLimiteAnual, dataAdmissao, ano }),
       tolerancias,
     });
+    const saldoTabela = await obterSaldoFeriasTabela({ supabaseClient, userId, ano });
+    const diasDisponiveisTabela = Number(saldoTabela?.dias_disponiveis);
+    if (saldoTabela && Number.isFinite(diasDisponiveisTabela) && diasDisponiveisTabela <= 0) {
+      const detalheSemSaldo = {
+        ano,
+        diasPedidoNoAno,
+        diasDisponiveis: 0,
+        diasTransitados: 0,
+      };
+      detalhes.push(detalheSemSaldo);
+      return {
+        ok: false,
+        ...detalheSemSaldo,
+        detalhes,
+      };
+    }
+    const diasLimiteAno = Number(saldoTabela?.dias_atribuidos)
+      || getAnnualVacationLimitForYear({ diasLimiteAnual, dataAdmissao, ano });
+
+    const pedidosAno = await obterPedidosFeriasAno({
+      supabaseClient,
+      userId,
+      ano,
+      incluirPendentes: true,
+    });
+    const diasPendentes = pedidosAno
+      .filter((pedido) => pedido.estado === "pendente")
+      .filter((pedido) => !excluirPedidoId || pedido.id !== excluirPedidoId)
+      .reduce((total, pedido) => total + getPedidoDays(pedido, ano, skipDates), 0);
+    const diasConsumidosAntesDoPrazo = pedidosAno
+      .filter((pedido) => pedido.estado === "aprovado")
+      .filter((pedido) => !excluirPedidoId || pedido.id !== excluirPedidoId)
+      .reduce(
+        (total, pedido) => total + getPedidoDaysBeforeCarryoverDeadline(pedido, ano, skipDates),
+        0,
+      );
+
+    const diasPedidoAntesDoPrazo = calcularDiasUteisNoPeriodo(
+      dataInicio,
+      dataFim || dataInicio,
+      getFirstDayOfYear(ano),
+      getCarryoverDeadline(ano),
+      skipDates,
+    );
+
+    let diasTransitados = 0;
+    if (saldoTabela && (diasConsumidosAntesDoPrazo + diasPedidoAntesDoPrazo) > 0) {
+      diasTransitados = Number(saldoTabela.dias_transitados) || 0;
+    } else if ((diasConsumidosAntesDoPrazo + diasPedidoAntesDoPrazo) > 0) {
+      const saldoAnoAnterior = await obterSaldoFeriasAno({
+        supabaseClient,
+        userId,
+        ano: ano - 1,
+        excluirPedidoId,
+        diasLimiteAnual: getAnnualVacationLimitForYear({ diasLimiteAnual, dataAdmissao, ano: ano - 1 }),
+        tolerancias,
+      });
+      diasTransitados = Math.max(0, saldoAnoAnterior.diasRestantes);
+    }
+
+    const diasDisponiveis = Math.max(
+      0,
+      diasLimiteAno + diasTransitados - saldoAno.diasConsumidos - diasPendentes,
+    );
 
     const detalhe = {
       ano,
       diasPedidoNoAno,
-      diasDisponiveis: saldoAno.diasRestantes,
+      diasDisponiveis,
+      diasTransitados,
     };
     detalhes.push(detalhe);
 
-    if (diasPedidoNoAno > saldoAno.diasRestantes) {
+    if (diasPedidoNoAno > diasDisponiveis) {
       return {
         ok: false,
         ...detalhe,
@@ -403,6 +602,7 @@ export async function sincronizarSaldoFeriasPerfil({
   userId,
   ano = getCurrentYear(),
   diasLimiteAnual = ANNUAL_VACATION_DAYS,
+  dataAdmissao = null,
   tolerancias = null,
 }) {
   const toleranciasAtivas = Array.isArray(tolerancias)
@@ -417,12 +617,43 @@ export async function sincronizarSaldoFeriasPerfil({
     tolerancias: toleranciasAtivas,
   });
 
-  const { error } = await supabaseClient
-    .from("profiles")
-    .update({ dias_ferias: saldo.diasRestantes })
-    .eq("id", userId);
+  const diasLimite = getAnnualVacationLimitForYear({ diasLimiteAnual, dataAdmissao, ano });
+  const saldoExistente = await obterSaldoFeriasTabela({ supabaseClient, userId, ano });
+  let diasTransitados = Number(saldoExistente?.dias_transitados) || 0;
 
-  if (error) throw error;
+  if (!saldoExistente && ano > 1) {
+    const saldoAnoAnterior = await obterSaldoFeriasAnoComTransicao({
+      supabaseClient,
+      userId,
+      ano: ano - 1,
+      diasLimiteAnual,
+      dataAdmissao,
+      tolerancias: toleranciasAtivas,
+      dataReferencia: new Date(ano - 1, 2, 31),
+    });
+    diasTransitados = saldoAnoAnterior.diasDisponiveis;
+  }
+
+  const { error } = await supabaseClient
+    .from("vacation_balances")
+    .upsert({
+      user_id: userId,
+      ano,
+      dias_atribuidos: saldoExistente?.dias_atribuidos ?? diasLimite,
+      dias_transitados: diasTransitados,
+      dias_gozados: saldo.diasConsumidos,
+      transito_expira_em: `${ano + 1}-03-31`,
+      atualizado_em: new Date().toISOString(),
+    }, { onConflict: "user_id,ano" });
+
+  if (error && !isMissingVacationBalanceTableError(error)) throw error;
+  if (error && isMissingVacationBalanceTableError(error)) {
+    const { error: legacyError } = await supabaseClient
+      .from("profiles")
+      .update({ dias_ferias: saldo.diasRestantes })
+      .eq("id", userId);
+    if (legacyError) throw legacyError;
+  }
 
   return saldo;
 }

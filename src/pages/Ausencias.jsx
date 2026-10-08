@@ -8,6 +8,8 @@ import {
     formatAbsenceTypeLabel,
     getAnnualVacationLimitFromProfile,
     isVacationType,
+    isVacationBookingBeforeAnnualOpening,
+    obterSaldoFeriasAnoComTransicao,
     parseLocalDate,
     validarSaldoFeriasParaIntervalo,
 } from "../utils/feriasSaldo";
@@ -66,7 +68,9 @@ export default function Ferias({ forcedType = null }) {
   const [pedidos, setPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [diasFerias, setDiasFerias] = useState(null); 
+        const [diasFeriasDisponiveis, setDiasFeriasDisponiveis] = useState(null);
     const [diasFeriasTotal, setDiasFeriasTotal] = useState(null);
+        const [dataAdmissao, setDataAdmissao] = useState(null);
     const [hasDiasFeriasTotalColumn, setHasDiasFeriasTotalColumn] = useState(true);
   const [tolerancias, setTolerancias] = useState([]);
   
@@ -161,7 +165,7 @@ export default function Ferias({ forcedType = null }) {
 
       ({ data, error } = await supabase
           .from('profiles')
-          .select('dias_ferias, dias_ferias_total, veiculos') // 💡 Adicionada query de veiculos
+          .select('dias_ferias, dias_ferias_total, data_admissao, veiculos') // 💡 Adicionada query de veiculos
           .eq('id', user.id)
           .single());
 
@@ -169,7 +173,7 @@ export default function Ferias({ forcedType = null }) {
           setHasDiasFeriasTotalColumn(false);
           ({ data, error } = await supabase
               .from('profiles')
-              .select('dias_ferias, veiculos') // Mantém veiculos no fallback
+              .select('dias_ferias, data_admissao, veiculos') // Mantém veiculos no fallback
               .eq('id', user.id)
               .single());
       } else {
@@ -184,6 +188,17 @@ export default function Ferias({ forcedType = null }) {
       if (data) {
           setDiasFerias(data.dias_ferias);
           setDiasFeriasTotal(getAnnualVacationLimitFromProfile(data));
+          setDataAdmissao(data.data_admissao || null);
+          const saldoAnual = await obterSaldoFeriasAnoComTransicao({
+              supabaseClient: supabase,
+              userId: user.id,
+              ano: new Date().getFullYear(),
+              diasLimiteAnual: getAnnualVacationLimitFromProfile(data),
+              dataAdmissao: data.data_admissao,
+              dataReferencia: new Date(),
+              tolerancias,
+          });
+          setDiasFeriasDisponiveis(saldoAnual.diasDisponiveis);
           setMeusVeiculos(Array.isArray(data.veiculos) ? data.veiculos : []); // 💡 Guarda veículos
       }
   }
@@ -321,12 +336,23 @@ export default function Ferias({ forcedType = null }) {
 
     const isVacationRequest = !isKmRequest && isVacationType(normalizedTipo);
     if (isVacationRequest) {
+        if (isVacationBookingBeforeAnnualOpening(form.data_inicio)) {
+            setNotification({
+                show: true,
+                message: "A marcação de férias para o ano seguinte só fica disponível a partir de 1 de dezembro.",
+                type: "error",
+            });
+            return;
+        }
+
         if (!hasDiasFeriasTotalColumn) {
             const saldoAtual = Number(diasFerias) || 0;
             if (diasUteis > saldoAtual) {
                 setNotification({
                     show: true,
-                    message: `Saldo insuficiente: pedido de ${diasUteis} dia(s), disponível ${saldoAtual}.`,
+                    message: saldoAtual <= 0
+                        ? "Não tem férias disponíveis e, por isso, o pedido não pode avançar."
+                        : `Saldo insuficiente: pedido de ${diasUteis} dia(s), disponível ${saldoAtual}.`,
                     type: "error",
                 });
                 return;
@@ -342,13 +368,16 @@ export default function Ferias({ forcedType = null }) {
                 hora_fim: form.hora_fim, // 💡 CORREÇÃO 0.5 DIAS
                 excluirPedidoId: isEditing ? editingId : null, // 💡 IGNORAR SE FOR EDIÇÃO
                 diasLimiteAnual: diasFeriasTotal ?? diasFerias,
+                dataAdmissao,
                 tolerancias,
             });
 
             if (!saldoCheck.ok) {
                 setNotification({
                     show: true,
-                    message: `Saldo insuficiente para ${saldoCheck.ano}: pedido de ${saldoCheck.diasPedidoNoAno} dia(s), disponível ${saldoCheck.diasDisponiveis}.`,
+                    message: saldoCheck.diasDisponiveis <= 0
+                        ? "Não tem férias disponíveis e, por isso, o pedido não pode avançar."
+                        : `Saldo insuficiente para ${saldoCheck.ano}: pedido de ${saldoCheck.diasPedidoNoAno} dia(s), disponível ${saldoCheck.diasDisponiveis}.`,
                     type: "error",
                 });
                 return;
@@ -582,7 +611,10 @@ export default function Ferias({ forcedType = null }) {
             <div style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '15px', borderRadius: '50%'}}><Icons.Sun size={24} /></div>
             <div>
                 <h3 style={{margin: '0 0 5px 0', fontSize: '0.9rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Dias Disponíveis</h3>
-                <p style={{margin: 0, color: '#1e293b', fontSize: '1.8rem', fontWeight: '900'}}>{diasFerias ?? '--'}</p>
+                <p style={{margin: 0, color: '#1e293b', fontSize: '1.8rem', fontWeight: '900'}}>{diasFeriasDisponiveis ?? diasFerias ?? '--'}</p>
+                <p style={{margin: '6px 0 0', color: '#64748b', fontSize: '0.75rem', lineHeight: 1.35, maxWidth: '230px'}}>
+                    Os dias não gozados transitam até 31 de março do ano seguinte e depois expiram.
+                </p>
             </div>
         </div>
         )}
@@ -800,15 +832,17 @@ export default function Ferias({ forcedType = null }) {
                             </div>
                             {!isKmRequest && form.data_inicio && (
                                 <div style={{
-                                    background: diasUteis > 0 ? 'var(--color-bgSecondary)' : '#fef2f2', 
-                                    color: diasUteis > 0 ? 'var(--color-btnPrimaryHover)' : '#b91c1c', 
-                                    border: `1px solid ${diasUteis > 0 ? 'var(--color-borderColor)' : '#fecaca'}`, 
+                                    background: diasUteis > 0 && (!isVacationType(form.tipo) || diasFeriasDisponiveis === null || diasFeriasDisponiveis > 0) ? 'var(--color-bgSecondary)' : '#fef2f2', 
+                                    color: diasUteis > 0 && (!isVacationType(form.tipo) || diasFeriasDisponiveis === null || diasFeriasDisponiveis > 0) ? 'var(--color-btnPrimaryHover)' : '#b91c1c', 
+                                    border: `1px solid ${diasUteis > 0 && (!isVacationType(form.tipo) || diasFeriasDisponiveis === null || diasFeriasDisponiveis > 0) ? 'var(--color-borderColor)' : '#fecaca'}`, 
                                     padding: '12px 15px', borderRadius: '8px', marginBottom: '20px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '10px', fontWeight: '500'
                                 }}>
-                                    {diasUteis > 0 ? <Icons.Info size={18} /> : <Icons.AlertTriangle size={18} />}
+                                    {diasUteis > 0 && (!isVacationType(form.tipo) || diasFeriasDisponiveis === null || diasFeriasDisponiveis > 0) ? <Icons.Info size={18} /> : <Icons.AlertTriangle size={18} />}
                                     
                                     <span>
-                                        {diasUteis > 0 
+                                        {diasUteis > 0 && isVacationType(form.tipo) && diasFeriasDisponiveis !== null && diasFeriasDisponiveis <= 0
+                                            ? 'Não tem férias disponíveis para este período. O pedido não pode avançar.'
+                                            : diasUteis > 0 
                                             ? (isVacationType(form.tipo) 
                                                 ? `Este pedido consumirá ${diasUteis} dia(s) útil(eis) do seu saldo de férias.` 
                                                 : `Este pedido corresponde a ${diasUteis} dia(s) útil(eis). Tratando-se de justificação legal, não desconta férias.`)

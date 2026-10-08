@@ -15,9 +15,11 @@ import {
     getAnnualVacationLimitFromProfile,
     getAttendanceCalculationStartDate,
     getFeriados,
+    isAnnualVacationOpeningAvailable,
     isCollaboratorStatusType,
     isVacationType,
     normalizeAbsenceType,
+    obterSaldoFeriasAnoComTransicao,
     parseLocalDate,
     sincronizarSaldoFeriasPerfil,
     validarSaldoFeriasParaIntervalo,
@@ -209,6 +211,11 @@ const isMissingColumnError = (error) => {
     return error.code === "42703" || /column .* does not exist/i.test(error.message || "");
 };
 
+const isMissingFunctionError = (error) => {
+    if (!error) return false;
+    return error.code === "42883" || /function .* does not exist/i.test(error.message || "");
+};
+
 const MIN_SA_WORK_SECONDS = 5 * 60 * 60;
 
 const timeToSeconds = (timeValue) => {
@@ -348,6 +355,8 @@ export default function RecursosHumanos() {
     const [hasKmRateSettingTable, setHasKmRateSettingTable] = useState(true);
     const [isSavingKmRate, setIsSavingKmRate] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
+        const [saldoFeriasAnoSelecionado, setSaldoFeriasAnoSelecionado] = useState(null);
+        const [saldoFeriasAnoSeguinte, setSaldoFeriasAnoSeguinte] = useState(null);
     const [isGeneratingRhPdf, setIsGeneratingRhPdf] = useState(false);
     const [isGeneratingIndividualPdf, setIsGeneratingIndividualPdf] = useState(false);
         const [isGeneratingDeslocacoesPdf, setIsGeneratingDeslocacoesPdf] = useState(false);
@@ -541,8 +550,21 @@ export default function RecursosHumanos() {
   };
 
     useEffect(() => {
+        async function provisionarSaldosFeriasAnoSeguinte() {
+            const hoje = new Date();
+            if (hoje.getMonth() !== 11) return;
+
+            const { error } = await supabase.rpc("provisionar_saldos_ferias", {
+                p_ano: hoje.getFullYear() + 1,
+            });
+            if (error && !isMissingFunctionError(error)) {
+                console.error("Erro ao provisionar saldos anuais de férias:", error);
+            }
+        }
+
         async function initRhData() {
                 try {
+                        await provisionarSaldosFeriasAnoSeguinte();
                         await detectarColunaDiasFeriasTotal();
                         fetchColaboradores();
                         fetchPedidosPendentes();
@@ -602,6 +624,56 @@ export default function RecursosHumanos() {
   useEffect(() => {
             fetchDadosMensais();
         }, [selectedUser, currentDate, colaboradores]);
+
+    useEffect(() => {
+        if (!selectedUser) {
+            setSaldoFeriasAnoSelecionado(null);
+            setSaldoFeriasAnoSeguinte(null);
+            return;
+        }
+
+        let isMounted = true;
+        const profile = colaboradores.find((colaborador) => colaborador.id === selectedUser);
+        const anoSelecionado = currentDate.getFullYear();
+        const anoSeguinte = anoSelecionado + 1;
+        const isNextVacationYearAvailable = isAnnualVacationOpeningAvailable();
+        const saldoAtualPromise = obterSaldoFeriasAnoComTransicao({
+            supabaseClient: supabase,
+            userId: selectedUser,
+            ano: anoSelecionado,
+            diasLimiteAnual: getAnnualVacationLimitFromProfile(profile),
+            dataAdmissao: profile?.data_admissao,
+            tolerancias,
+            dataReferencia: currentDate,
+        });
+        const saldoSeguintePromise = isNextVacationYearAvailable
+            ? obterSaldoFeriasAnoComTransicao({
+                supabaseClient: supabase,
+                userId: selectedUser,
+                ano: anoSeguinte,
+                diasLimiteAnual: getAnnualVacationLimitFromProfile(profile),
+                dataAdmissao: profile?.data_admissao,
+                tolerancias,
+                dataReferencia: new Date(anoSeguinte, 0, 1),
+            })
+            : Promise.resolve(null);
+
+        Promise.all([saldoAtualPromise, saldoSeguintePromise]).then(([saldoAtual, saldoSeguinte]) => {
+            if (!isMounted) return;
+            setSaldoFeriasAnoSelecionado(saldoAtual);
+            setSaldoFeriasAnoSeguinte(saldoSeguinte);
+        }).catch((error) => {
+            console.error("Erro ao carregar saldo anual de férias:", error);
+            if (isMounted) {
+                setSaldoFeriasAnoSelecionado(null);
+                setSaldoFeriasAnoSeguinte(null);
+            }
+        });
+
+        return () => {
+            isMounted = false;
+        };
+    }, [selectedUser, currentDate, colaboradores, tolerancias]);
 
     useEffect(() => {
         if (!selectedUser) {
@@ -1110,6 +1182,7 @@ export default function RecursosHumanos() {
                         hora_fim: pedido.hora_fim, // ADICIONADO
                         excluirPedidoId: pedido.id,
                         diasLimiteAnual,
+                        dataAdmissao: profile?.data_admissao,
                         tolerancias,
                       });
 
@@ -1223,6 +1296,7 @@ export default function RecursosHumanos() {
                         hora_fim: pedido.hora_fim, // ADICIONADO
                         excluirPedidoId: pedido.id,
                         diasLimiteAnual,
+                        dataAdmissao: profile?.data_admissao,
                         tolerancias,
                     });
                       if (!saldoCheck.ok) throw new Error(`Saldo insuficiente para ${profile.nome}. Abortado.`);
@@ -1647,6 +1721,7 @@ export default function RecursosHumanos() {
                     hora_fim: isKmRequest ? null : (newAbsence.is_parcial ? newAbsence.hora_fim || null : null), // ADICIONADO
                     excluirPedidoId: isEditingAbsence ? editingAbsenceData.id : null,
                     diasLimiteAnual,
+                    dataAdmissao: profile?.data_admissao,
                     tolerancias,
                 });
 
@@ -3109,9 +3184,25 @@ export default function RecursosHumanos() {
                                                 <span style={{fontWeight:'bold', fontSize:'1.1rem'}}>{Number(currentUserProfile?.valor_sa || 0).toFixed(2)} €</span>
                                             </div>
                                             <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px', padding:'10px', background:'var(--color-bgSecondary)', borderRadius:'8px', border:'1px dashed var(--color-borderColor)'}}>
-                                                <span style={{color:'var(--color-btnPrimaryHover)', fontSize:'0.9rem', display:'flex', alignItems:'center', gap:'6px'}}><Icons.Sun size={16}/> Férias Disponíveis</span>
-                                                <span style={{fontWeight:'bold', color:'var(--color-btnPrimary)', fontSize:'1.1rem'}}>{currentUserProfile?.dias_ferias ?? '--'} dias</span>
+                                                <span style={{color:'var(--color-btnPrimaryHover)', fontSize:'0.9rem', display:'flex', alignItems:'center', gap:'6px'}}><Icons.Sun size={16}/> Férias disponíveis ({currentDate.getFullYear()})</span>
+                                                <span style={{fontWeight:'bold', color:'var(--color-btnPrimary)', fontSize:'1.1rem'}}>{saldoFeriasAnoSelecionado?.diasDisponiveis ?? '--'} dias</span>
                                             </div>
+                                            {isAnnualVacationOpeningAvailable() && (
+                                                <>
+                                                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px', padding:'10px', background:'#ecfeff', borderRadius:'8px', border:'1px dashed #a5f3fc'}}>
+                                                        <span style={{color:'#0e7490', fontSize:'0.9rem', display:'flex', alignItems:'center', gap:'6px'}}><Icons.Calendar size={16}/> Férias disponíveis ({currentDate.getFullYear() + 1})</span>
+                                                        <span style={{fontWeight:'bold', color:'#0f766e', fontSize:'1.1rem'}}>{saldoFeriasAnoSeguinte?.diasDisponiveis ?? '--'} dias</span>
+                                                    </div>
+                                                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px', padding:'10px', background:'#f0fdf4', borderRadius:'8px', border:'1px dashed #bbf7d0'}}>
+                                                        <span style={{color:'#15803d', fontSize:'0.9rem', display:'flex', alignItems:'center', gap:'6px'}}><Icons.Sun size={16}/> Total disponível (2 anos)</span>
+                                                        <span style={{fontWeight:'bold', color:'#15803d', fontSize:'1.1rem'}}>
+                                                            {saldoFeriasAnoSelecionado && saldoFeriasAnoSeguinte
+                                                                ? `${saldoFeriasAnoSelecionado.diasDisponiveis + saldoFeriasAnoSeguinte.diasDisponiveis} dias`
+                                                                : '--'}
+                                                        </span>
+                                                    </div>
+                                                </>
+                                            )}
                                             <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px', padding:'10px', background:'#ecfeff', borderRadius:'8px', border:'1px dashed #a5f3fc'}}>
                                                 <span style={{color:'#0e7490', fontSize:'0.9rem', display:'flex', alignItems:'center', gap:'6px'}}><Icons.Flag size={16}/> Limite Anual de Férias</span>
                                                 <span style={{fontWeight:'bold', color:'#0f766e', fontSize:'1.1rem'}}>
