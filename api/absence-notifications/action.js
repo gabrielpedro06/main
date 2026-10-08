@@ -131,9 +131,61 @@ export default async function handler(req, res) {
       return;
     }
 
-    const { error: balanceError } = await supabase.rpc("provisionar_saldos_ferias", {
-      p_ano: anoPedido,
-    });
+    const { data: saldo, error: balanceReadError } = await supabase
+      .from("vacation_balances")
+      .select("dias_atribuidos, dias_transitados")
+      .eq("user_id", pedido.user_id)
+      .eq("ano", anoPedido)
+      .maybeSingle();
+
+    if (balanceReadError || !saldo) {
+      console.error("[absence-action] Saldo anual não encontrado:", balanceReadError);
+      res.status(500).send(htmlPage("Erro ao processar", "O pedido foi aprovado, mas não foi possível localizar o saldo anual de férias.", "#dc2626"));
+      return;
+    }
+
+    const { data: pedidosAprovados, error: approvedRequestsError } = await supabase
+      .from("ferias")
+      .select("data_inicio, data_fim, is_parcial, hora_inicio, hora_fim")
+      .eq("user_id", pedido.user_id)
+      .eq("estado", "aprovado")
+      .ilike("tipo", "%fer%")
+      .lte("data_inicio", `${anoPedido}-12-31`)
+      .gte("data_fim", `${anoPedido}-01-01`);
+
+    if (approvedRequestsError) {
+      console.error("[absence-action] Erro ao calcular férias aprovadas:", approvedRequestsError);
+      res.status(500).send(htmlPage("Erro ao processar", "O pedido foi aprovado, mas não foi possível calcular os dias gozados.", "#dc2626"));
+      return;
+    }
+
+    const diasGozados = (pedidosAprovados || []).reduce((total, item) => {
+      if (item.is_parcial) {
+        const [horaInicio, minutoInicio] = String(item.hora_inicio || "").split(":").map(Number);
+        const [horaFim, minutoFim] = String(item.hora_fim || "").split(":").map(Number);
+        const horas = (horaFim * 60 + minutoFim - horaInicio * 60 - minutoInicio) / 60;
+        return total + (Number.isFinite(horas) && horas > 0 ? horas / 8 : 0);
+      }
+
+      const inicio = new Date(`${item.data_inicio}T00:00:00`);
+      const fim = new Date(`${item.data_fim || item.data_inicio}T00:00:00`);
+      let dias = 0;
+      for (const data = new Date(inicio); data <= fim; data.setDate(data.getDate() + 1)) {
+        const diaSemana = data.getDay();
+        if (diaSemana !== 0 && diaSemana !== 6) dias += 1;
+      }
+      return total + dias;
+    }, 0);
+
+    const { error: balanceError } = await supabase
+      .from("vacation_balances")
+      .update({
+        dias_gozados: diasGozados,
+        atualizado_em: new Date().toISOString(),
+      })
+      .eq("user_id", pedido.user_id)
+      .eq("ano", anoPedido);
+
     if (balanceError) {
       console.error("[absence-action] Erro ao sincronizar vacation_balances:", balanceError);
       res.status(500).send(htmlPage("Erro ao processar", "O pedido foi aprovado, mas não foi possível sincronizar o saldo de férias.", "#dc2626"));
