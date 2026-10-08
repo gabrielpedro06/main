@@ -92,7 +92,7 @@ export default async function handler(req, res) {
   // Fetch the request to make sure it still exists and is pending
   const { data: pedido, error: fetchError } = await supabase
     .from("ferias")
-    .select("id, estado, tipo, user_id, data_inicio")
+    .select("id, estado, tipo")
     .eq("id", pedidoId)
     .single();
 
@@ -111,84 +111,23 @@ export default async function handler(req, res) {
     return;
   }
 
-  const novoEstado = action === "approve" ? "aprovado" : "rejeitado";
-  const { error: updateError } = await supabase
-    .from("ferias")
-    .update({ estado: novoEstado })
-    .eq("id", pedidoId);
-
-  if (updateError) {
-    console.error("[absence-action] Erro ao atualizar ferias:", updateError);
-    res.status(500).send(htmlPage("Erro ao processar", "Não foi possível atualizar o pedido. Tenta novamente mais tarde.", "#dc2626"));
-    return;
-  }
-
-  if (action === "approve" && String(pedido.tipo || "").toLowerCase().includes("fer")) {
-    const anoPedido = Number(String(pedido.data_inicio || "").slice(0, 4));
-    if (!Number.isInteger(anoPedido) || anoPedido < 2000) {
-      console.error("[absence-action] Data de início inválida para sincronizar saldo:", pedido.data_inicio);
-      res.status(500).send(htmlPage("Erro ao processar", "O pedido foi aprovado, mas não foi possível sincronizar o saldo de férias.", "#dc2626"));
+  if (action === "approve") {
+    const { error: approvalError } = await supabase.rpc("aprovar_pedido_ferias_por_email", {
+      p_pedido_id: pedidoId,
+    });
+    if (approvalError) {
+      console.error("[absence-action] Erro ao aprovar e sincronizar férias:", approvalError);
+      res.status(500).send(htmlPage("Erro ao processar", "Não foi possível aprovar o pedido e atualizar o saldo de férias.", "#dc2626"));
       return;
     }
-
-    const { data: saldo, error: balanceReadError } = await supabase
-      .from("vacation_balances")
-      .select("dias_atribuidos, dias_transitados")
-      .eq("user_id", pedido.user_id)
-      .eq("ano", anoPedido)
-      .maybeSingle();
-
-    if (balanceReadError || !saldo) {
-      console.error("[absence-action] Saldo anual não encontrado:", balanceReadError);
-      res.status(500).send(htmlPage("Erro ao processar", "O pedido foi aprovado, mas não foi possível localizar o saldo anual de férias.", "#dc2626"));
-      return;
-    }
-
-    const { data: pedidosAprovados, error: approvedRequestsError } = await supabase
+  } else {
+    const { error: rejectionError } = await supabase
       .from("ferias")
-      .select("data_inicio, data_fim, is_parcial, hora_inicio, hora_fim")
-      .eq("user_id", pedido.user_id)
-      .eq("estado", "aprovado")
-      .ilike("tipo", "%fer%")
-      .lte("data_inicio", `${anoPedido}-12-31`)
-      .gte("data_fim", `${anoPedido}-01-01`);
-
-    if (approvedRequestsError) {
-      console.error("[absence-action] Erro ao calcular férias aprovadas:", approvedRequestsError);
-      res.status(500).send(htmlPage("Erro ao processar", "O pedido foi aprovado, mas não foi possível calcular os dias gozados.", "#dc2626"));
-      return;
-    }
-
-    const diasGozados = (pedidosAprovados || []).reduce((total, item) => {
-      if (item.is_parcial) {
-        const [horaInicio, minutoInicio] = String(item.hora_inicio || "").split(":").map(Number);
-        const [horaFim, minutoFim] = String(item.hora_fim || "").split(":").map(Number);
-        const horas = (horaFim * 60 + minutoFim - horaInicio * 60 - minutoInicio) / 60;
-        return total + (Number.isFinite(horas) && horas > 0 ? horas / 8 : 0);
-      }
-
-      const inicio = new Date(`${item.data_inicio}T00:00:00`);
-      const fim = new Date(`${item.data_fim || item.data_inicio}T00:00:00`);
-      let dias = 0;
-      for (const data = new Date(inicio); data <= fim; data.setDate(data.getDate() + 1)) {
-        const diaSemana = data.getDay();
-        if (diaSemana !== 0 && diaSemana !== 6) dias += 1;
-      }
-      return total + dias;
-    }, 0);
-
-    const { error: balanceError } = await supabase
-      .from("vacation_balances")
-      .update({
-        dias_gozados: diasGozados,
-        atualizado_em: new Date().toISOString(),
-      })
-      .eq("user_id", pedido.user_id)
-      .eq("ano", anoPedido);
-
-    if (balanceError) {
-      console.error("[absence-action] Erro ao sincronizar vacation_balances:", balanceError);
-      res.status(500).send(htmlPage("Erro ao processar", "O pedido foi aprovado, mas não foi possível sincronizar o saldo de férias.", "#dc2626"));
+      .update({ estado: "rejeitado" })
+      .eq("id", pedidoId);
+    if (rejectionError) {
+      console.error("[absence-action] Erro ao rejeitar ferias:", rejectionError);
+      res.status(500).send(htmlPage("Erro ao processar", "Não foi possível atualizar o pedido. Tenta novamente mais tarde.", "#dc2626"));
       return;
     }
   }
