@@ -26,6 +26,11 @@ function escapeHtml(v) {
     .replaceAll("'", "&#039;");
 }
 
+/** Remove diacritics so "Férias" → "Ferias", allowing reliable substring matching. */
+function stripDiacritics(str) {
+  return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
 function signToken(payload) {
   const data = Buffer.from(JSON.stringify(payload)).toString("base64url");
   const sig = crypto.createHmac("sha256", SECRET).update(data).digest("base64url");
@@ -123,7 +128,7 @@ export default async function handler(req, res) {
     return;
   }
 
-  if (action === "approve" && String(pedido.tipo || "").toLowerCase().includes("fer")) {
+  if (action === "approve" && stripDiacritics(String(pedido.tipo || "")).toLowerCase().includes("fer")) {
     const anoPedido = Number(String(pedido.data_inicio || "").slice(0, 4));
     if (!Number.isInteger(anoPedido) || anoPedido < 2000) {
       console.error("[absence-action] Data de início inválida para sincronizar saldo:", pedido.data_inicio);
@@ -149,7 +154,7 @@ export default async function handler(req, res) {
       .select("data_inicio, data_fim, is_parcial, hora_inicio, hora_fim")
       .eq("user_id", pedido.user_id)
       .eq("estado", "aprovado")
-      .ilike("tipo", "%fer%")
+      .ilike("tipo", "%f_r%")
       .lte("data_inicio", `${anoPedido}-12-31`)
       .gte("data_fim", `${anoPedido}-01-01`);
 
