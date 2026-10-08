@@ -92,7 +92,7 @@ export default async function handler(req, res) {
   // Fetch the request to make sure it still exists and is pending
   const { data: pedido, error: fetchError } = await supabase
     .from("ferias")
-    .select("id, estado, tipo, user_id")
+    .select("id, estado, tipo, user_id, data_inicio")
     .eq("id", pedidoId)
     .single();
 
@@ -121,6 +121,24 @@ export default async function handler(req, res) {
     console.error("[absence-action] Erro ao atualizar ferias:", updateError);
     res.status(500).send(htmlPage("Erro ao processar", "Não foi possível atualizar o pedido. Tenta novamente mais tarde.", "#dc2626"));
     return;
+  }
+
+  if (action === "approve" && String(pedido.tipo || "").toLowerCase().includes("fer")) {
+    const anoPedido = Number(String(pedido.data_inicio || "").slice(0, 4));
+    if (!Number.isInteger(anoPedido) || anoPedido < 2000) {
+      console.error("[absence-action] Data de início inválida para sincronizar saldo:", pedido.data_inicio);
+      res.status(500).send(htmlPage("Erro ao processar", "O pedido foi aprovado, mas não foi possível sincronizar o saldo de férias.", "#dc2626"));
+      return;
+    }
+
+    const { error: balanceError } = await supabase.rpc("provisionar_saldos_ferias", {
+      p_ano: anoPedido,
+    });
+    if (balanceError) {
+      console.error("[absence-action] Erro ao sincronizar vacation_balances:", balanceError);
+      res.status(500).send(htmlPage("Erro ao processar", "O pedido foi aprovado, mas não foi possível sincronizar o saldo de férias.", "#dc2626"));
+      return;
+    }
   }
 
   const successTitle = action === "approve" ? "✅ Pedido Aprovado" : "❌ Pedido Rejeitado";
