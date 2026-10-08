@@ -92,7 +92,7 @@ export default async function handler(req, res) {
   // Fetch the request to make sure it still exists and is pending
   const { data: pedido, error: fetchError } = await supabase
     .from("ferias")
-    .select("id, estado, tipo")
+    .select("id, estado, tipo, user_id, data_inicio")
     .eq("id", pedidoId)
     .single();
 
@@ -116,9 +116,40 @@ export default async function handler(req, res) {
       p_pedido_id: pedidoId,
     });
     if (approvalError) {
-      console.error("[absence-action] Erro ao aprovar e sincronizar férias:", approvalError);
-      res.status(500).send(htmlPage("Erro ao processar", "Não foi possível aprovar o pedido e atualizar o saldo de férias.", "#dc2626"));
-      return;
+      const functionMissing = approvalError.code === "42883"
+        || approvalError.code === "PGRST202"
+        || /aprovar_pedido_ferias_por_email|function .* does not exist/i.test(approvalError.message || "");
+
+      if (!functionMissing) {
+        console.error("[absence-action] Erro ao aprovar e sincronizar férias:", approvalError);
+        res.status(500).send(htmlPage("Erro ao processar", "Não foi possível aprovar o pedido e atualizar o saldo de férias.", "#dc2626"));
+        return;
+      }
+
+      console.warn("[absence-action] RPC de aprovação não encontrada; a usar fallback compatível.");
+      const { error: fallbackUpdateError } = await supabase
+        .from("ferias")
+        .update({ estado: "aprovado" })
+        .eq("id", pedidoId)
+        .eq("estado", "pendente");
+
+      if (fallbackUpdateError) {
+        console.error("[absence-action] Erro no fallback de aprovação:", fallbackUpdateError);
+        res.status(500).send(htmlPage("Erro ao processar", "Não foi possível aprovar o pedido.", "#dc2626"));
+        return;
+      }
+
+      const anoPedido = Number(String(pedido.data_inicio || "").slice(0, 4));
+      const { error: syncError } = await supabase.rpc("provisionar_saldos_ferias", {
+        p_ano: anoPedido,
+      });
+
+      if (syncError) {
+        await supabase.from("ferias").update({ estado: "pendente" }).eq("id", pedidoId).eq("estado", "aprovado");
+        console.error("[absence-action] Erro no fallback de sincronização:", syncError);
+        res.status(500).send(htmlPage("Erro ao processar", "Não foi possível atualizar o saldo de férias.", "#dc2626"));
+        return;
+      }
     }
   } else {
     const { error: rejectionError } = await supabase
