@@ -254,6 +254,9 @@ export default function ProjetoDetalhe() {
   const [programas, setProgramas] = useState([]);
   const [avisos, setAvisos] = useState([]);
   const [activeTab, setActiveTab] = useState("atividades");
+  const [pedidosReembolso, setPedidosReembolso] = useState([]);
+  const [pedidoReembolsoForm, setPedidoReembolsoForm] = useState(null);
+  const [pedidoReembolsoSaving, setPedidoReembolsoSaving] = useState(false);
     const [ganttWindow, setGanttWindow] = useState("total");
   const [notification, setNotification] = useState(null);
 
@@ -371,6 +374,24 @@ export default function ProjetoDetalhe() {
         const focusAttemptRef = useRef(0);
     const [highlightedTarget, setHighlightedTarget] = useState(null);
         const [focusRetryTick, setFocusRetryTick] = useState(0);
+
+        const newPedidoReembolso = () => ({
+            pedido: "",
+            data_pedido: "",
+            valor_investimento: "",
+            valor_incentivo: "",
+            valor_pago: "",
+            data_pagamento: "",
+            notas: ""
+        });
+
+        const getPedidoPmp = (pedido) => {
+            if (!pedido?.data_pedido || !pedido?.data_pagamento) return null;
+            const start = new Date(`${pedido.data_pedido}T00:00:00`);
+            const end = new Date(`${pedido.data_pagamento}T00:00:00`);
+            if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null;
+            return Math.round((end - start) / (1000 * 60 * 60 * 24));
+        };
 
   const normalizeIdsList = (raw) => {
       if (Array.isArray(raw)) return raw.filter(Boolean);
@@ -762,9 +783,73 @@ export default function ProjetoDetalhe() {
         .eq("projeto_id", id)
         .order("start_time", { ascending: false });
     if (logsData) setLogs(logsData);
+
+    const { data: pedidosData, error: pedidosError } = await supabase
+        .from("pedidos_reembolso")
+        .select("id, projeto_id, pedido, data_pedido, valor_investimento, valor_incentivo, valor_pago, data_pagamento, notas")
+        .eq("projeto_id", id)
+        .order("data_pedido", { ascending: true })
+        .order("created_at", { ascending: true });
+    if (pedidosError) {
+        console.error("Erro ao carregar pedidos de reembolso:", pedidosError);
+        showToast("Erro ao carregar pedidos de reembolso.", "error");
+    } else {
+        setPedidosReembolso(pedidosData || []);
+    }
     
     setLoading(false);
   }
+
+  const savePedidoReembolso = async (event) => {
+      event.preventDefault();
+      if (!pedidoReembolsoForm || pedidoReembolsoSaving) return;
+      if (!pedidoReembolsoForm.pedido.trim()) {
+          showToast("Indica o número ou referência do pedido.", "warning");
+          return;
+      }
+
+      const payload = {
+          projeto_id: id,
+          pedido: pedidoReembolsoForm.pedido.trim(),
+          data_pedido: pedidoReembolsoForm.data_pedido || null,
+          valor_investimento: Number(pedidoReembolsoForm.valor_investimento) || 0,
+          valor_incentivo: Number(pedidoReembolsoForm.valor_incentivo) || 0,
+          valor_pago: Number(pedidoReembolsoForm.valor_pago) || 0,
+          data_pagamento: pedidoReembolsoForm.data_pagamento || null,
+          notas: pedidoReembolsoForm.notas?.trim() || null
+      };
+
+      setPedidoReembolsoSaving(true);
+      try {
+          const query = pedidoReembolsoForm.id
+              ? supabase.from("pedidos_reembolso").update(payload).eq("id", pedidoReembolsoForm.id).select().single()
+              : supabase.from("pedidos_reembolso").insert(payload).select().single();
+          const { data, error } = await query;
+          if (error) throw error;
+          setPedidosReembolso((previous) => pedidoReembolsoForm.id
+              ? previous.map((item) => item.id === data.id ? data : item)
+              : [...previous, data].sort((a, b) => String(a.data_pedido || "").localeCompare(String(b.data_pedido || ""))));
+          setPedidoReembolsoForm(null);
+          showToast(pedidoReembolsoForm.id ? "Pedido atualizado." : "Pedido registado.", "success");
+      } catch (error) {
+          console.error("Erro ao guardar pedido de reembolso:", error);
+          showToast(`Erro ao guardar pedido: ${error.message}`, "error");
+      } finally {
+          setPedidoReembolsoSaving(false);
+      }
+  };
+
+  const deletePedidoReembolso = async (pedidoId) => {
+      if (!window.confirm("Apagar este pedido de reembolso?")) return;
+      const { error } = await supabase.from("pedidos_reembolso").delete().eq("id", pedidoId);
+      if (error) {
+          console.error("Erro ao apagar pedido de reembolso:", error);
+          showToast(`Erro ao apagar pedido: ${error.message}`, "error");
+          return;
+      }
+      setPedidosReembolso((previous) => previous.filter((item) => item.id !== pedidoId));
+      showToast("Pedido apagado.", "success");
+  };
 
   // --- LÓGICA DE DRAG & DROP (NATIVO HTML5) ---
   const handleDragStartAtiv = (e, index) => {
@@ -2369,6 +2454,10 @@ export default function ProjetoDetalhe() {
             <Icons.Clock /> Relatório de Tempos
             {activeTab === 'relatorio' && <div style={{position:'absolute', bottom:'-12px', left:0, right:0, height:'3px', background:'var(--color-btnPrimary)', borderRadius:'3px 3px 0 0'}} />}
         </button>
+        <button style={{background: 'none', border: 'none', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: activeTab === 'execucao' ? '800' : '600', color: activeTab === 'execucao' ? 'var(--color-btnPrimary)' : '#64748b', cursor: 'pointer', padding: '10px 20px', position: 'relative', transition: '0.2s'}} onClick={() => setActiveTab('execucao')} className="tab-hover">
+            <Icons.Dollar /> Execução Financeira
+            {activeTab === 'execucao' && <div style={{position:'absolute', bottom:'-12px', left:0, right:0, height:'3px', background:'var(--color-btnPrimary)', borderRadius:'3px 3px 0 0'}} />}
+        </button>
         <button style={{background: 'none', border: 'none', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: activeTab === 'geral' ? '800' : '600', color: activeTab === 'geral' ? 'var(--color-btnPrimary)' : '#64748b', cursor: 'pointer', padding: '10px 20px', position: 'relative', transition: '0.2s'}} onClick={() => setActiveTab('geral')} className="tab-hover">
             <Icons.Settings /> Configurações e Dados
             {activeTab === 'geral' && <div style={{position:'absolute', bottom:'-12px', left:0, right:0, height:'3px', background:'var(--color-btnPrimary)', borderRadius:'3px 3px 0 0'}} />}
@@ -2376,6 +2465,158 @@ export default function ProjetoDetalhe() {
       </div>
 
       <div style={{minHeight: '50vh'}}>
+
+        {activeTab === 'execucao' && (() => {
+            const totalInvestimento = pedidosReembolso.reduce((sum, item) => sum + (Number(item.valor_investimento) || 0), 0);
+            const totalIncentivo = pedidosReembolso.reduce((sum, item) => sum + (Number(item.valor_incentivo) || 0), 0);
+            const totalPago = pedidosReembolso.reduce((sum, item) => sum + (Number(item.valor_pago) || 0), 0);
+            const pmpValues = pedidosReembolso.map(getPedidoPmp).filter((value) => value !== null);
+            const mediaPmp = pmpValues.length ? pmpValues.reduce((sum, value) => sum + value, 0) / pmpValues.length : null;
+            const investimentoProjeto = Number(projeto.investimento) || 0;
+            const taxaExecucao = investimentoProjeto > 0 ? (totalInvestimento / investimentoProjeto) * 100 : null;
+            const metricCard = (label, value, color) => (
+                <div style={{background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px'}}>
+                    <div style={{fontSize: '0.7rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', marginBottom: '6px'}}>{label}</div>
+                    <div style={{fontSize: '1.25rem', fontWeight: '800', color}}>{value}</div>
+                </div>
+            );
+            const pedidoInput = (field, label, type = "number") => (
+                <div>
+                    <label style={labelStyle}>{label}</label>
+                    <input
+                        type={type}
+                        value={pedidoReembolsoForm[field] ?? ""}
+                        onChange={(event) => setPedidoReembolsoForm((previous) => ({ ...previous, [field]: event.target.value }))}
+                        style={inputStyle}
+                        step={type === "number" ? "0.01" : undefined}
+                        min={type === "number" ? "0" : undefined}
+                    />
+                </div>
+            );
+            return (
+                <div style={{background: 'white', padding: '30px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0'}}>
+                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '20px', flexWrap: 'wrap'}}>
+                        <div>
+                            <h2 style={{margin: 0, color: '#0f172a', fontSize: '1.3rem'}}>Execução Financeira</h2>
+                            <p style={{margin: '5px 0 0', color: '#64748b', fontSize: '0.85rem'}}>Pedidos de reembolso e leitura rápida da execução do projeto.</p>
+                        </div>
+                        <button onClick={() => setPedidoReembolsoForm(newPedidoReembolso())} className="btn-primary" style={{display: 'flex', alignItems: 'center', gap: '7px'}}>
+                            <Icons.Plus size={15} /> Novo pedido
+                        </button>
+                    </div>
+
+                    <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(155px, 1fr))', gap: '12px', marginBottom: '18px'}}>
+                        {metricCard('Taxa de execução', taxaExecucao === null ? '—' : `${formatNumber(taxaExecucao)}%`, '#0f766e')}
+                        {metricCard('Investimento pedido', `${formatNumber(totalInvestimento)} €`, '#1e293b')}
+                        {metricCard('Incentivo pedido', `${formatNumber(totalIncentivo)} €`, '#2563eb')}
+                        {metricCard('Valor pago', `${formatNumber(totalPago)} €`, '#7c3aed')}
+                        {metricCard('PMP médio', mediaPmp === null ? '—' : `${formatNumber(mediaPmp)} dias`, '#c2410c')}
+                    </div>
+
+                    <div style={{height: '8px', borderRadius: '99px', background: '#e2e8f0', overflow: 'hidden', marginBottom: '24px'}} title="Taxa de execução do investimento">
+                        <div style={{height: '100%', width: `${Math.min(Math.max(taxaExecucao || 0, 0), 100)}%`, background: 'var(--color-btnPrimary)', borderRadius: '99px', transition: 'width 0.3s'}} />
+                    </div>
+
+                    {pedidoReembolsoForm && (
+                        <form onSubmit={savePedidoReembolso} style={{background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '12px', padding: '18px', marginBottom: '22px'}}>
+                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px'}}>
+                                <h3 style={{margin: 0, color: '#1e293b', fontSize: '1rem'}}>{pedidoReembolsoForm.id ? 'Editar pedido' : 'Registar pedido'}</h3>
+                                <button type="button" onClick={() => setPedidoReembolsoForm(null)} style={{border: 0, background: 'none', cursor: 'pointer', color: '#64748b'}}><Icons.Close /></button>
+                            </div>
+                            <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(145px, 1fr))', gap: '12px'}}>
+                                {pedidoInput("pedido", "Pedido", "text")}
+                                {pedidoInput("data_pedido", "Data Pedido", "date")}
+                                {pedidoInput("valor_investimento", "Valor Investimento")}
+                                {pedidoInput("valor_incentivo", "Valor Incentivo")}
+                                {pedidoInput("valor_pago", "Valor Pago")}
+                                {pedidoInput("data_pagamento", "Data Pagamento", "date")}
+                                <div>
+                                    <label style={labelStyle}>Notas</label>
+                                    <textarea
+                                        rows="1"
+                                        value={pedidoReembolsoForm.notas ?? ""}
+                                        onChange={(event) => setPedidoReembolsoForm((previous) => ({ ...previous, notas: event.target.value }))}
+                                        style={{...inputStyle, minHeight: '38px', resize: 'vertical'}}
+                                        placeholder="Observações adicionais sobre este pedido"
+                                    />
+                                </div>
+                            </div>
+                            <div style={{display: 'flex', justifyContent: 'flex-end', gap: '10px'}}>
+                                <button
+                                    type="button"
+                                    onClick={() => setPedidoReembolsoForm(null)}
+                                    className="hover-shadow"
+                                    style={{
+                                        padding: '10px 16px',
+                                        borderRadius: '10px',
+                                        border: '1px solid #cbd5e1',
+                                        background: '#ffffff',
+                                        color: '#475569',
+                                        fontWeight: '700',
+                                        fontSize: '0.9rem',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s ease'
+                                    }}
+                                >
+                                    Cancelar
+                                </button>
+                                <button type="submit" disabled={pedidoReembolsoSaving} className="btn-primary"><Icons.Save size={14} /> {pedidoReembolsoSaving ? 'A guardar...' : 'Guardar'}</button>
+                            </div>
+                        </form>
+                    )}
+
+                    <div style={{overflowX: 'auto'}}>
+                        <table style={{width: '100%', borderCollapse: 'collapse', minWidth: '900px'}}>
+                            <thead><tr style={{background: '#f8fafc'}}>
+                                {['Pedido', 'Data Pedido', 'Valor Investimento', 'TXE', 'Valor Incentivo', 'Valor Pago', 'Data Pagamento', 'PMP', 'Notas', ''].map((heading) => <th key={heading} style={{padding: '11px 10px', textAlign: ['Pedido', 'Notas'].includes(heading) ? 'left' : 'right', color: '#64748b', fontSize: '0.7rem', textTransform: 'uppercase', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap'}}>{heading}</th>)}
+                            </tr></thead>
+                            <tbody>
+                                {pedidosReembolso.map((pedido) => {
+                                    const investimento = Number(pedido.valor_investimento) || 0;
+                                    const txe = investimentoProjeto > 0 ? (investimento / investimentoProjeto) * 100 : null;
+                                    const pmp = getPedidoPmp(pedido);
+                                    return <tr key={pedido.id}>
+                                        <td style={{padding: '12px 10px', fontWeight: '700', color: '#1e293b', borderBottom: '1px solid #f1f5f9'}}>{pedido.pedido}</td>
+                                        <td style={{padding: '12px 10px', textAlign: 'right', borderBottom: '1px solid #f1f5f9'}}>{pedido.data_pedido ? new Date(`${pedido.data_pedido}T00:00:00`).toLocaleDateString('pt-PT') : '—'}</td>
+                                        <td style={{padding: '12px 10px', textAlign: 'right', borderBottom: '1px solid #f1f5f9'}}>{formatNumber(investimento)} €</td>
+                                        <td style={{padding: '12px 10px', textAlign: 'right', fontWeight: '700', color: '#0f766e', borderBottom: '1px solid #f1f5f9'}}>{txe === null ? '—' : `${formatNumber(txe)}%`}</td>
+                                        <td style={{padding: '12px 10px', textAlign: 'right', borderBottom: '1px solid #f1f5f9'}}>{formatNumber(pedido.valor_incentivo)} €</td>
+                                        <td style={{padding: '12px 10px', textAlign: 'right', borderBottom: '1px solid #f1f5f9'}}>{formatNumber(pedido.valor_pago)} €</td>
+                                        <td style={{padding: '12px 10px', textAlign: 'right', borderBottom: '1px solid #f1f5f9'}}>{pedido.data_pagamento ? new Date(`${pedido.data_pagamento}T00:00:00`).toLocaleDateString('pt-PT') : '—'}</td>
+                                        <td style={{padding: '12px 10px', textAlign: 'right', borderBottom: '1px solid #f1f5f9'}}>{pmp === null ? '—' : `${pmp} dias`}</td>
+                                        <td style={{padding: '12px 10px', maxWidth: '220px', color: '#475569', borderBottom: '1px solid #f1f5f9'}}>
+                                            {pedido.notas ? (
+                                                <details>
+                                                    <summary style={{cursor: 'pointer', color: '#0f766e', fontWeight: '700', fontSize: '0.8rem'}}>
+                                                        Ver notas
+                                                    </summary>
+                                                    <div style={{paddingTop: '6px', whiteSpace: 'pre-wrap', fontSize: '0.8rem', lineHeight: '1.4'}}>
+                                                        {pedido.notas}
+                                                    </div>
+                                                </details>
+                                            ) : '—'}
+                                        </td>
+                                        <td style={{padding: '12px 10px', textAlign: 'right', borderBottom: '1px solid #f1f5f9', whiteSpace: 'nowrap'}}>
+                                            <button onClick={() => setPedidoReembolsoForm({...pedido})} style={{border: 0, background: 'none', cursor: 'pointer', color: '#2563eb', marginRight: '8px'}} title="Editar"><Icons.Edit size={14} /></button>
+                                            <button onClick={() => deletePedidoReembolso(pedido.id)} style={{border: 0, background: 'none', cursor: 'pointer', color: '#dc2626'}} title="Apagar"><Icons.Trash size={14} /></button>
+                                        </td>
+                                    </tr>;
+                                })}
+                                <tr style={{background: '#f8fafc', fontWeight: '800'}}>
+                                    <td style={{padding: '12px 10px', color: '#475569'}}>Total / média</td><td></td>
+                                    <td style={{padding: '12px 10px', textAlign: 'right'}}>{formatNumber(totalInvestimento)} €</td>
+                                    <td style={{padding: '12px 10px', textAlign: 'right', color: '#0f766e'}}>{taxaExecucao === null ? '—' : `${formatNumber(taxaExecucao)}%`}</td>
+                                    <td style={{padding: '12px 10px', textAlign: 'right'}}>{formatNumber(totalIncentivo)} €</td>
+                                    <td style={{padding: '12px 10px', textAlign: 'right'}}>{formatNumber(totalPago)} €</td><td></td>
+                                    <td style={{padding: '12px 10px', textAlign: 'right'}}>{mediaPmp === null ? '—' : `${formatNumber(mediaPmp)} dias`}</td><td></td><td></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        {pedidosReembolso.length === 0 && <div style={{padding: '35px 15px', textAlign: 'center', color: '#94a3b8'}}>Ainda não existem pedidos de reembolso registados.</div>}
+                    </div>
+                </div>
+            );
+        })()}
         
         {/* =========================================
             ABA 1: BOARD DE ATIVIDADES (C/ DRAG & DROP)
