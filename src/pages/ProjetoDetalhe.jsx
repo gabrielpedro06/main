@@ -3513,35 +3513,40 @@ export default function ProjetoDetalhe() {
                         <div>
                             <label style={labelStyle}>Nome do Projeto</label>
                             <input type="text" value={formGeral.titulo || ''} onChange={e => setFormGeral({...formGeral, titulo: e.target.value})} style={{...inputStyle, fontWeight: 'bold', color: '#0f172a'}} className="input-focus" />
+
+                            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginTop: '15px', marginBottom: '15px'}}>
+                                <div>
+                                    <label style={labelStyle}>Data Início</label>
+                                    <input
+                                        type="date"
+                                        value={formGeral.data_inicio || ''}
+                                        onChange={e => setFormGeral({...formGeral, data_inicio: e.target.value})}
+                                        style={{...inputStyle, marginBottom: 0}}
+                                        className="input-focus"
+                                    />
+                                </div>
+                                <div>
+                                    <label style={labelStyle}>Data Fim (Prazo)</label>
+                                    <input
+                                        type="date"
+                                        value={formGeral.data_fim || ''}
+                                        onChange={e => setFormGeral({...formGeral, data_fim: e.target.value})}
+                                        style={{...inputStyle, marginBottom: 0}}
+                                        className="input-focus"
+                                    />
+                                </div>
+                            </div>
+
+                            <div style={{marginTop: '15px', marginBottom: '20px'}}>
+                                <label style={labelStyle}>Estado do Projeto</label>
+                                {renderStatePills(formGeral.estado || 'pendente', (estado) => setFormGeral({...formGeral, estado}))}
+                            </div>
                             
                             {(() => {
                                 const tipoSelecionadoLocal = tiposProjeto.find(t => String(t.id) === String(formGeral.tipo_projeto_id));
                                 const isFormacaoLocal = tipoSelecionadoLocal?.eh_formacao === true;
                                 if (isFormacaoLocal) {
-                                    return (
-                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginTop: '15px', marginBottom: '15px' }}>
-                                            <div>
-                                                <label style={labelStyle}>Data Início</label>
-                                                <input 
-                                                    type="date" 
-                                                    value={formGeral.data_inicio || ''} 
-                                                    onChange={e => setFormGeral({...formGeral, data_inicio: e.target.value})} 
-                                                    style={{...inputStyle, marginBottom: 0}} 
-                                                    className="input-focus" 
-                                                />
-                                            </div>
-                                            <div>
-                                                <label style={labelStyle}>Data Fim (Prazo)</label>
-                                                <input 
-                                                    type="date" 
-                                                    value={formGeral.data_fim || ''} 
-                                                    onChange={e => setFormGeral({...formGeral, data_fim: e.target.value})} 
-                                                    style={{...inputStyle, marginBottom: 0}} 
-                                                    className="input-focus" 
-                                                />
-                                            </div>
-                                        </div>
-                                    );
+                                    return null;
                                 }
 
                                 // Vai buscar as listas para os dropdowns
