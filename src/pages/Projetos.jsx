@@ -136,6 +136,7 @@ export default function Projetos() {
   const TOTAL_STEPS = 5;
 
   const [projetos, setProjetos] = useState([]);
+  const [pedidosReembolso, setPedidosReembolso] = useState([]);
   const [loading, setLoading] = useState(true);
     const [programas, setProgramas] = useState([]);
     const [avisos, setAvisos] = useState([]);
@@ -163,6 +164,8 @@ export default function Projetos() {
   const [busca, setBusca] = useState("");
   const [mostrarConcluidos, setMostrarConcluidos] = useState(false);
     const [viewMode, setViewMode] = useState("cards");
+  const [portfolioView, setPortfolioView] = useState("mine");
+  const [overviewPanel, setOverviewPanel] = useState("gantt");
   const [showOnlyMine, setShowOnlyMine] = useState(true); 
   const [menuPrincipal, setMenuPrincipal] = useState("tipo");
   const [selectedCategoria, setSelectedCategoria] = useState(null); 
@@ -558,6 +561,17 @@ export default function Projetos() {
 
     if (error) console.error("Erro no fetch:", error);
     else setProjetos(projData || []);
+
+    const { data: pedidosReembolsoData, error: pedidosReembolsoError } = await supabase
+        .from("pedidos_reembolso")
+        .select("id, projeto_id, data_pedido, valor_investimento")
+        .order("data_pedido", { ascending: false });
+    if (pedidosReembolsoError) {
+        console.error("Erro ao carregar pedidos de reembolso para a vista geral:", pedidosReembolsoError);
+        setPedidosReembolso([]);
+    } else {
+        setPedidosReembolso(pedidosReembolsoData || []);
+    }
 
         // Load programas normally
         const { data: programasData, error: programasError } = await supabase
@@ -1264,7 +1278,7 @@ export default function Projetos() {
   }
 
   const checkUserInvolvement = (p) => {
-      if (!showOnlyMine) return true; 
+      if (!showOnlyMine || portfolioView === "overview") return true; 
       if (!user?.id) return false;
       if (p.responsavel_id === user.id) return true; 
       if (p.colaboradores?.includes(user.id)) return true;
@@ -1353,9 +1367,10 @@ export default function Projetos() {
   const getEstadoInfo = (estado) => estadosProjeto.find(e => e.id === estado) || { id: estado || 'pendente', nome: (estado || 'pendente').replace('_', ' '), color: '#64748b' };
 
  const isSearchActive = busca.trim().length > 0;
+ const isVistaGeral = portfolioView === "overview";
   
   // A lista abre-se se estivermos a pesquisar OR se clicarmos no 1º nível de qualquer aba
-  const isProjectListOpen = isSearchActive || 
+  const isProjectListOpen = isVistaGeral || isSearchActive || 
       (menuPrincipal === 'tipo' && selectedCategoria) || 
       (menuPrincipal === 'estado' && selectedEstado) ||
       (menuPrincipal === 'programa' && selectedProgramaNav);
@@ -1418,9 +1433,29 @@ export default function Projetos() {
       : '';
 
   // --- NOVA LÓGICA DE AGRUPAMENTO ---
+  const getProjectProgramName = (project) => {
+      const programa = getProgramaById(project.programa_id);
+      if (programa) return programa.codigo ? `${programa.codigo} - ${programa.nome}` : programa.nome;
+      return 'Sem Programa Associado';
+  };
+
+  const sortVistaGeralProjects = (projects) => [...projects].sort((a, b) => (
+      String(a.titulo || "").localeCompare(String(b.titulo || ""), "pt-PT", { sensitivity: "base" })
+  ));
+
   const groupedProjects = {};
   if (isProjectListOpen) {
-      if (isSearchActive) {
+      if (isVistaGeral) {
+          projetosFiltrados.forEach(p => {
+              const groupName = getProjectProgramName(p);
+              if (!groupedProjects[groupName]) groupedProjects[groupName] = [];
+              groupedProjects[groupName].push(p);
+          });
+
+          Object.keys(groupedProjects).forEach(groupName => {
+              groupedProjects[groupName] = sortVistaGeralProjects(groupedProjects[groupName]);
+          });
+      } else if (isSearchActive) {
           groupedProjects['Resultados'] = projetosFiltrados;
       } else if (menuPrincipal === 'tipo') {
           estadosProjeto.forEach(est => groupedProjects[est.nome] = []);
@@ -1460,6 +1495,16 @@ export default function Projetos() {
       Object.keys(groupedProjects).forEach(k => {
           if (!groupedProjects[k] || groupedProjects[k].length === 0) delete groupedProjects[k];
       });
+
+      if (isVistaGeral) {
+          const orderedGroups = Object.keys(groupedProjects).sort((a, b) => a.localeCompare(b, "pt-PT", { sensitivity: "base" }));
+          const orderedGroupedProjects = {};
+          orderedGroups.forEach(groupName => {
+              orderedGroupedProjects[groupName] = groupedProjects[groupName];
+          });
+          Object.keys(groupedProjects).forEach(groupName => delete groupedProjects[groupName]);
+          Object.assign(groupedProjects, orderedGroupedProjects);
+      }
   }
 
     const selectedPrograma = getProgramaById(form.programa_id);
@@ -1984,7 +2029,9 @@ export default function Projetos() {
       }] : [])
   ];
 
-  const currentMenuTitle = isSearchActive 
+  const currentMenuTitle = isVistaGeral
+      ? "Vista Geral"
+      : isSearchActive 
       ? "Resultados da Pesquisa"
       : isProjectListOpen
           ? [selectedCategoriaNome, selectedEstadoNome].filter(Boolean).join(' - ')
@@ -1994,7 +2041,9 @@ export default function Projetos() {
                   ? `Tipos em ${selectedEstadoNome}`
                   : (menuPrincipal === 'tipo' ? 'Tipos de Projeto' : menuPrincipal === 'estado' ? 'Estados de Projeto' : 'Programas de Financiamento');
 
-  const currentMenuSubtitle = isSearchActive
+  const currentMenuSubtitle = isVistaGeral
+      ? `${projetosFiltrados.length} projeto${projetosFiltrados.length === 1 ? '' : 's'} agrupado${projetosFiltrados.length === 1 ? '' : 's'} por programa.`
+      : isSearchActive
       ? `${projetosFiltrados.length} projeto${projetosFiltrados.length === 1 ? '' : 's'} encontrado${projetosFiltrados.length === 1 ? '' : 's'} na pesquisa.`
       : isProjectListOpen
           ? `${projetosFiltrados.length} projeto${projetosFiltrados.length === 1 ? '' : 's'} encontrado${projetosFiltrados.length === 1 ? '' : 's'}.`
@@ -2006,31 +2055,230 @@ export default function Projetos() {
 
   if (loading) return <div className="page-container" style={{display:'flex', justifyContent:'center', alignItems:'center', height:'80vh'}}><div className="pulse-dot-white" style={{background:'var(--color-btnPrimary)'}}></div></div>;
 
+  if (isVistaGeral) {
+      const overviewGroups = Object.entries(groupedProjects);
+      const overviewProjects = projetosFiltrados;
+      const financialProjects = overviewProjects.filter((project) => (
+          Number(project.investimento || 0) > 0
+      ));
+      const getLastReimbursementDate = (project) => {
+          const projectRequests = pedidosReembolso
+              .filter((request) => String(request.projeto_id) === String(project.id))
+              .map((request) => request.data_pedido)
+              .filter(Boolean)
+              .sort((a, b) => String(b).localeCompare(String(a)));
+          return projectRequests[0] ||
+              project.data_ultimo_pedido_reembolso ||
+              project.data_ultimo_reembolso ||
+              project.ultimo_pedido_reembolso ||
+              project.ultimo_reembolso ||
+              project.data_reembolso ||
+              "";
+      };
+      const reimbursementProjects = overviewProjects.filter((project) => Boolean(getLastReimbursementDate(project)));
+      const parseOverviewDate = (value) => {
+          if (!value) return null;
+          const date = new Date(value);
+          return Number.isNaN(date.getTime()) ? null : date;
+      };
+      const ganttDates = overviewProjects
+          .flatMap((project) => [parseOverviewDate(project.data_inicio), parseOverviewDate(project.data_fim)])
+          .filter(Boolean);
+      const ganttStart = ganttDates.length ? new Date(Math.min(...ganttDates.map((date) => date.getTime()))) : new Date();
+      const ganttEnd = ganttDates.length ? new Date(Math.max(...ganttDates.map((date) => date.getTime()))) : new Date(ganttStart);
+      if (ganttStart.getTime() === ganttEnd.getTime()) ganttEnd.setDate(ganttEnd.getDate() + 1);
+      const ganttTotalDays = Math.max(1, Math.ceil((ganttEnd - ganttStart) / 86400000));
+      const formatOverviewDate = (value) => value ? new Date(value).toLocaleDateString("pt-PT") : "-";
+      const formatOverviewCurrency = (value) => `${Number(value || 0).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR`;
+      const openProjectDetails = (project) => {
+          if (project?.id) navigate(`/dashboard/projetos/${project.id}`);
+      };
+      const getExecutionRate = (project) => {
+          const projectInvestment = Number(project.investimento || 0);
+          const requestedInvestment = pedidosReembolso
+              .filter((request) => String(request.projeto_id) === String(project.id))
+              .reduce((total, request) => total + (Number(request.valor_investimento) || 0), 0);
+          return projectInvestment > 0 ? `${((requestedInvestment / projectInvestment) * 100).toFixed(1)}%` : "0.0%";
+      };
+      const exportOverview = (filename, headers, rows) => {
+          const csv = [headers, ...rows]
+              .map((row) => row.map((value) => `"${String(value ?? "").replace(/"/g, '""')}"`).join(";"))
+              .join("\r\n");
+          const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = filename;
+          link.click();
+          URL.revokeObjectURL(url);
+      };
+      const exportCurrentOverview = () => {
+          if (overviewPanel === "gantt") {
+              exportOverview("mapa-gantt-projetos.csv", ["Programa", "Projeto", "Data início", "Data fim"], overviewProjects.map((project) => [getProjectProgramName(project), project.titulo || "", project.data_inicio || "", project.data_fim || ""]));
+          } else if (overviewPanel === "financial") {
+              exportOverview("investimento-taxa-execucao.csv", ["Programa", "Projeto", "Investimento", "Taxa de execução"], financialProjects.map((project) => [getProjectProgramName(project), project.titulo || "", project.investimento || 0, getExecutionRate(project)]));
+          } else {
+              exportOverview("ultimo-pedido-reembolso.csv", ["Programa", "Projeto", "Data último pedido reembolso"], reimbursementProjects.map((project) => [getProjectProgramName(project), project.titulo || "", getLastReimbursementDate(project)]));
+          }
+      };
+      const compareOverviewPrograms = (a, b) => {
+          const programA = getProjectProgramName(a);
+          const programB = getProjectProgramName(b);
+          const hasProgramA = programA !== "Sem Programa Associado";
+          const hasProgramB = programB !== "Sem Programa Associado";
+          if (hasProgramA !== hasProgramB) return hasProgramA ? -1 : 1;
+          return programA.localeCompare(programB, "pt-PT", { sensitivity: "base" });
+      };
+      const activeOverviewRows = [...(overviewPanel === "reimbursement" ? reimbursementProjects : overviewProjects)].sort((a, b) => {
+          if (overviewPanel === "gantt") {
+              const programComparison = compareOverviewPrograms(a, b);
+              if (programComparison !== 0) return programComparison;
+
+              return String(a.titulo || "").localeCompare(String(b.titulo || ""), "pt-PT", { sensitivity: "base" });
+          }
+
+          const programComparison = compareOverviewPrograms(a, b);
+          if (programComparison !== 0) return programComparison;
+          if (overviewPanel === "reimbursement") {
+              const dateComparison = String(getLastReimbursementDate(b)).localeCompare(String(getLastReimbursementDate(a)));
+              if (dateComparison !== 0) return dateComparison;
+          }
+          return String(a.titulo || "").localeCompare(String(b.titulo || ""), "pt-PT", { sensitivity: "base" });
+      });
+      const financialOverviewRows = [...financialProjects].sort((a, b) => {
+          const programComparison = compareOverviewPrograms(a, b);
+          if (programComparison !== 0) return programComparison;
+          return String(a.titulo || "").localeCompare(String(b.titulo || ""), "pt-PT", { sensitivity: "base" });
+      });
+      const getOverviewProgramRowSpan = (rows, index) => {
+          const programName = getProjectProgramName(rows[index]);
+          const nextProgramOffset = rows.slice(index + 1).findIndex((row) => getProjectProgramName(row) !== programName);
+          return nextProgramOffset === -1 ? rows.length - index : nextProgramOffset + 1;
+      };
+      const isFirstOverviewProgramRow = (rows, index) => (
+          index === 0 || getProjectProgramName(rows[index - 1]) !== getProjectProgramName(rows[index])
+      );
+      const overviewProgramColors = ["#2563eb", "#db2777", "#16a34a", "#ea580c", "#7c3aed", "#0891b2", "#ca8a04", "#dc2626", "#4f46e5", "#0f766e"];
+      const overviewProgramNames = [...new Set(overviewProjects.map(getProjectProgramName))].sort((a, b) => {
+          const aIsUnassigned = a === "Sem Programa Associado";
+          const bIsUnassigned = b === "Sem Programa Associado";
+          if (aIsUnassigned !== bIsUnassigned) return aIsUnassigned ? 1 : -1;
+          return a.localeCompare(b, "pt-PT", { sensitivity: "base" });
+      });
+      const getOverviewProgramColor = (programName) => {
+          const index = overviewProgramNames.indexOf(programName);
+          return overviewProgramColors[index >= 0 ? index % overviewProgramColors.length : 0];
+      };
+      const getOverviewProgramCode = (programName) => {
+          const program = programas.find((item) => {
+              const fullName = item.codigo ? `${item.codigo} - ${item.nome}` : item.nome;
+              return fullName === programName;
+          });
+          return program?.codigo || programName;
+      };
+      const getOverviewProgramCellStyle = (programName) => {
+          const programColor = getOverviewProgramColor(programName);
+          return {
+              color: programColor,
+              background: `${programColor}18`,
+              borderLeft: `2px solid ${programColor}`,
+              boxShadow: `inset 2px 0 0 ${programColor}`,
+              fontWeight: '800',
+              verticalAlign: 'middle'
+          };
+      };
+      const getOverviewProjectRowStyle = (programName) => ({
+          cursor: 'pointer',
+          background: `${getOverviewProgramColor(programName)}0d`
+      });
+
+      return (
+          <div className="page-container" style={{maxWidth: '1400px', margin: '0 auto', padding: '15px'}}>
+              <div style={{background: 'white', padding: '20px 25px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', flexWrap: 'wrap', gap: '15px'}}>
+                  <div style={{display:'flex', alignItems:'center', gap:'20px'}}>
+                      <div style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '12px', borderRadius: '12px', display: 'flex'}}><Icons.Folder size={24} /></div>
+                      <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.8rem', fontWeight: '900'}}>Portfólio</h1>
+                      <div style={{display: 'flex', background: '#f1f5f9', borderRadius: '8px', padding: '4px', border: '1px solid #e2e8f0'}}>
+                          <button onClick={() => { setPortfolioView("mine"); setShowOnlyMine(true); }} style={{padding: '6px 16px', border: 'none', borderRadius: '6px', fontWeight: 'bold', background: 'transparent', color: '#64748b', cursor: 'pointer'}}><Icons.User /> Os Meus</button>
+                          <button onClick={() => { setPortfolioView("company"); setShowOnlyMine(false); }} style={{padding: '6px 16px', border: 'none', borderRadius: '6px', fontWeight: 'bold', background: 'transparent', color: '#64748b', cursor: 'pointer'}}><Icons.Globe /> Empresa</button>
+                          <button onClick={() => setPortfolioView("overview")} style={{padding: '6px 16px', border: 'none', borderRadius: '6px', fontWeight: 'bold', background: 'white', color: 'var(--color-btnPrimary)', cursor: 'pointer'}}><Icons.Folder size={14} /> Vista Geral</button>
+                      </div>
+                  </div>
+                  <button className="btn-primary hover-shadow" onClick={handleNovo} style={{display:'flex', alignItems:'center', gap:'8px', fontWeight:'bold'}}><Icons.Plus /> Novo Projeto</button>
+              </div>
+              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '12px', flexWrap: 'wrap'}}>
+                  <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center'}}>
+                      {[["gantt", "Mapa Gantt"], ["financial", "Investimento e execução"], ["reimbursement", "Último pedido reembolso"]].map(([id, label]) => (
+                          <button key={id} onClick={() => setOverviewPanel(id)} style={{padding: '9px 15px', border: overviewPanel === id ? '1px solid var(--color-btnPrimary)' : '1px solid var(--color-borderColorLight)', borderRadius: '9px', background: overviewPanel === id ? 'var(--color-bgSecondary)' : 'var(--color-bgPrimary)', color: overviewPanel === id ? 'var(--color-btnPrimary)' : 'var(--color-textPrimary)', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer', boxShadow: overviewPanel === id ? '0 4px 10px var(--color-btnPrimaryShadow)' : '0 1px 2px rgba(15, 23, 42, 0.04)', transition: 'all 0.2s ease'}}>{label}</button>
+                      ))}
+                  </div>
+                  <div style={{display: 'flex', alignItems: 'center'}}>
+                      <button onClick={exportCurrentOverview} style={{padding: '9px 16px', border: '1px solid var(--color-btnPrimaryDark)', borderRadius: '9px', background: 'var(--color-btnPrimary)', color: 'var(--color-textWhite)', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer', boxShadow: '0 4px 10px var(--color-btnPrimaryShadow)', transition: 'all 0.2s ease'}}>Exportar CSV</button>
+                  </div>
+              </div>
+
+              {overviewPanel === "gantt" ? (
+                  <div className="table-responsive" style={{border: '1px solid #94a3b8', background: 'white', overflowX: 'auto'}}>
+                      <table style={{width: '100%', minWidth: '900px', borderCollapse: 'collapse', tableLayout: 'fixed', fontSize: '0.8rem'}}>
+                          <thead><tr><th style={{width: '22%', padding: '7px', border: '1px solid #94a3b8', background: '#c5e5f2'}}>Programa / Projeto</th><th style={{padding: '7px', border: '1px solid #94a3b8', background: '#c5e5f2'}}>Execução ({formatOverviewDate(ganttStart)} - {formatOverviewDate(ganttEnd)})</th></tr></thead>
+                          <tbody>{activeOverviewRows.map((project) => {
+                              const start = parseOverviewDate(project.data_inicio);
+                              const end = parseOverviewDate(project.data_fim) || start;
+                              const left = start ? Math.max(0, ((start - ganttStart) / 86400000) / ganttTotalDays * 100) : 0;
+                              const width = start && end ? Math.max(1, ((end - start) / 86400000) / ganttTotalDays * 100) : 1;
+                              const programColor = getOverviewProgramColor(getProjectProgramName(project));
+                              return <tr key={project.id} onClick={() => openProjectDetails(project)} style={{cursor: 'pointer'}}><td style={{padding: '6px 8px', border: '1px solid #cbd5e1', borderLeft: `2px solid ${programColor}`, boxShadow: `inset 2px 0 0 ${programColor}`}}><b>{project.titulo || 'Sem título'}</b><br />{getProjectProgramName(project)}</td><td style={{padding: '6px 8px', border: '1px solid #cbd5e1'}}><div style={{height: '20px', position: 'relative', background: '#f1f5f9'}}><div style={{position: 'absolute', left: `${left}%`, width: `${width}%`, height: '100%', background: programColor, borderRadius: '3px'}} title={`${formatOverviewDate(project.data_inicio)} - ${formatOverviewDate(project.data_fim)}`} /></div></td></tr>;
+                          })}</tbody>
+                      </table>
+                      <div style={{display: 'flex', flexWrap: 'wrap', gap: '8px 16px', padding: '8px 10px', borderTop: '1px solid #cbd5e1', background: '#f8fafc'}}>
+                          {overviewProgramNames.map((programName) => (
+                              <span key={programName} title={programName} style={{display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#475569', fontSize: '0.75rem', fontWeight: '700'}}>
+                                  <span style={{width: '10px', height: '10px', borderRadius: '2px', background: getOverviewProgramColor(programName)}} />
+                                  {getOverviewProgramCode(programName)}
+                              </span>
+                          ))}
+                      </div>
+                  </div>
+              ) : overviewPanel === "financial" ? (
+                  <div className="table-responsive"><table className="data-table" style={{width: '100%'}}><thead><tr><th>Programa</th><th>Projeto</th><th>Investimento</th><th>Taxa de execução</th></tr></thead><tbody>{financialOverviewRows.map((project, index) => <tr key={project.id} onClick={() => openProjectDetails(project)} style={getOverviewProjectRowStyle(getProjectProgramName(project))}>{isFirstOverviewProgramRow(financialOverviewRows, index) && <td rowSpan={getOverviewProgramRowSpan(financialOverviewRows, index)} style={getOverviewProgramCellStyle(getProjectProgramName(project))}>{getProjectProgramName(project)}</td>}<td>{project.titulo || 'Sem título'}</td><td>{formatOverviewCurrency(project.investimento)}</td><td>{getExecutionRate(project)}</td></tr>)}</tbody></table></div>
+              ) : (
+                  <div className="table-responsive"><table className="data-table" style={{width: '100%'}}><thead><tr><th>Programa</th><th>Projeto</th><th>Data último pedido reembolso</th></tr></thead><tbody>{activeOverviewRows.map((project, index) => <tr key={project.id} onClick={() => openProjectDetails(project)} style={getOverviewProjectRowStyle(getProjectProgramName(project))}>{isFirstOverviewProgramRow(activeOverviewRows, index) && <td rowSpan={getOverviewProgramRowSpan(activeOverviewRows, index)} style={getOverviewProgramCellStyle(getProjectProgramName(project))}>{getProjectProgramName(project)}</td>}<td>{project.titulo || 'Sem título'}</td><td>{formatOverviewDate(getLastReimbursementDate(project))}</td></tr>)}</tbody></table></div>
+              )}
+          </div>
+      );
+  }
+
   return (
     <div className="page-container" style={{maxWidth: '1400px', margin: '0 auto', padding: '15px'}}>
       
-      <div style={{background: 'white', padding: '20px 25px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', flexWrap: 'wrap', gap: '15px'}}>
+      <div style={{background: 'white', padding: isVistaGeral ? '12px 18px' : '20px 25px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: isVistaGeral ? '12px' : '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', flexWrap: 'wrap', gap: '15px'}}>
         <div style={{display:'flex', alignItems:'center', gap:'20px'}}>
-            <div style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '12px', borderRadius: '12px', display: 'flex'}}><Icons.Folder size={24} /></div>
-            <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>Portfólio</h1>
+            {!isVistaGeral && <div style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '12px', borderRadius: '12px', display: 'flex'}}><Icons.Folder size={24} /></div>}
+            <h1 style={{margin: 0, color: '#0f172a', fontSize: isVistaGeral ? '1.25rem' : '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>{isVistaGeral ? 'Vista Geral' : 'Portfólio'}</h1>
             
             <div style={{display: 'flex', background: '#f1f5f9', borderRadius: '8px', padding: '4px', border: '1px solid #e2e8f0'}}>
                 <button 
-                    onClick={() => setShowOnlyMine(true)} 
+                    onClick={() => { setPortfolioView("mine"); setShowOnlyMine(true); resetProjectMenus(); }} 
                     style={{padding: '6px 16px', borderRadius: '6px', border: 'none', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', transition: '0.2s', background: showOnlyMine ? 'white' : 'transparent', color: showOnlyMine ? 'var(--color-btnPrimary)' : '#64748b', boxShadow: showOnlyMine ? '0 2px 4px rgba(0,0,0,0.05)' : 'none', display:'flex', alignItems:'center', gap:'6px'}}
                 >
                     <Icons.User /> Os Meus
                 </button>
                 <button 
-                    onClick={() => setShowOnlyMine(false)} 
-                    style={{padding: '6px 16px', borderRadius: '6px', border: 'none', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', transition: '0.2s', background: !showOnlyMine ? 'white' : 'transparent', color: !showOnlyMine ? 'var(--color-btnPrimary)' : '#64748b', boxShadow: !showOnlyMine ? '0 2px 4px rgba(0,0,0,0.05)' : 'none', display:'flex', alignItems:'center', gap:'6px'}}
+                    onClick={() => { setPortfolioView("company"); setShowOnlyMine(false); resetProjectMenus(); }} 
+                    style={{padding: '6px 16px', borderRadius: '6px', border: 'none', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', transition: '0.2s', background: portfolioView === "company" ? 'white' : 'transparent', color: portfolioView === "company" ? 'var(--color-btnPrimary)' : '#64748b', boxShadow: portfolioView === "company" ? '0 2px 4px rgba(0,0,0,0.05)' : 'none', display:'flex', alignItems:'center', gap:'6px'}}
                 >
                     <Icons.Globe /> Empresa
+                </button>
+                <button 
+                    onClick={() => { setPortfolioView("overview"); setShowOnlyMine(false); resetProjectMenus(); }} 
+                    style={{padding: '6px 16px', borderRadius: '6px', border: 'none', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', transition: '0.2s', background: isVistaGeral ? 'white' : 'transparent', color: isVistaGeral ? 'var(--color-btnPrimary)' : '#64748b', boxShadow: isVistaGeral ? '0 2px 4px rgba(0,0,0,0.05)' : 'none', display:'flex', alignItems:'center', gap:'6px'}}
+                >
+                    <Icons.Folder size={14} /> Vista Geral
                 </button>
             </div>
         </div>
 
-        <div style={{display: 'flex', gap: '15px', alignItems: 'center'}}>
+        {!isVistaGeral && <div style={{display: 'flex', gap: '15px', alignItems: 'center'}}>
             {activeLog && (
                 <div onClick={() => navigate(activeLogRoute || '/dashboard/projetos')} className="hover-shadow" title="Ir para o item com cronómetro em curso" style={{background: 'linear-gradient(to right, #ef4444, #b91c1c)', color: 'white', padding: '10px 20px', borderRadius: '30px', display: 'flex', alignItems: 'center', gap: '15px', border: '2px solid #fecaca', boxShadow: '0 4px 10px rgba(239, 68, 68, 0.4)', transition: '0.2s', whiteSpace: 'nowrap', cursor: 'pointer'}}>
                 <div style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700', fontSize: '0.95rem'}}>
@@ -2042,10 +2290,10 @@ export default function Projetos() {
                 </div>
             )}
             <button className="btn-primary hover-shadow" onClick={handleNovo} style={{display:'flex', alignItems:'center', gap:'8px', fontWeight:'bold'}}><Icons.Plus /> Novo Projeto</button>
-        </div>
+        </div>}
       </div>
 
-      <div style={{background: '#f8fafc', padding: '12px 20px', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '25px', display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap'}}>
+      {!isVistaGeral && <div style={{background: '#f8fafc', padding: '12px 20px', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '25px', display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap'}}>
         <div style={{display: 'flex', background: '#e2e8f0', borderRadius: '8px', padding: '4px', border: '1px solid #cbd5e1'}}>
             <button
                 type="button"
@@ -2078,8 +2326,8 @@ export default function Projetos() {
         <label style={{display:'flex', alignItems:'center', gap:'6px', cursor:'pointer', fontSize:'0.85rem', color: '#475569', fontWeight: 'bold'}}>
           <input type="checkbox" checked={mostrarConcluidos} onChange={e => setMostrarConcluidos(e.target.checked)} style={{width:'16px', height:'16px', accentColor: '#10b981'}} /> Mostrar Arquivados
         </label>
-        {renderViewModeToggle()}
-      </div>
+        {!isVistaGeral && renderViewModeToggle()}
+      </div>}
 
       {/* 1. SE NÃO ESTIVER ABERTO: RENDERIZAR OS MENUS (PASTAS) */}
       {!isProjectListOpen && (
@@ -2095,7 +2343,7 @@ export default function Projetos() {
       {/* 2. SE ESTIVER ABERTO: RENDERIZAR OS PROJETOS AGRUPADOS */}
       {isProjectListOpen && (
           <div className="fade-in">
-              <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '15px', marginBottom: '30px', borderBottom: '1px solid #cbd5e1', paddingBottom: '15px', flexWrap: 'wrap'}}>
+              {!isVistaGeral && <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '15px', marginBottom: '30px', borderBottom: '1px solid #cbd5e1', paddingBottom: '15px', flexWrap: 'wrap'}}>
                   <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
                       <button 
                           onClick={handleVoltarProjetos}
@@ -2109,14 +2357,48 @@ export default function Projetos() {
                           <p style={{margin: '4px 0 0 0', color: '#64748b', fontSize: '0.88rem', fontWeight: '600'}}>{currentMenuSubtitle}</p>
                       </div>
                   </div>
-              </div>
+              </div>}
 
-              {Object.keys(groupedProjects).length > 0 ? (
+              {isVistaGeral ? (
+                  Object.keys(groupedProjects).length > 0 ? (
+                      <div className="table-responsive" style={{borderRadius: '4px', border: '1px solid #94a3b8', background: 'white'}}>
+                          <table style={{width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', fontSize: '0.82rem'}}>
+                              <thead>
+                                  <tr>
+                                      <th style={{width: '28%', padding: '7px 10px', border: '1px solid #94a3b8', background: '#dbeafe', color: '#1e293b', textAlign: 'center', fontWeight: '800'}}>Programa</th>
+                                      <th style={{padding: '7px 10px', border: '1px solid #94a3b8', background: '#dbeafe', color: '#1e293b', textAlign: 'left', fontWeight: '800'}}>Projeto</th>
+                                  </tr>
+                              </thead>
+                              <tbody>
+                                  {Object.entries(groupedProjects).map(([groupName, projs], groupIndex) => (
+                                      projs.map((project, projectIndex) => (
+                                          <tr key={project.id} className="overview-project-row">
+                                              {projectIndex === 0 && (
+                                                  <td rowSpan={projs.length} style={{padding: '7px 10px', border: '1px solid #94a3b8', background: groupIndex % 2 === 0 ? '#d9eef7' : '#efd5f0', color: '#1e293b', textAlign: 'center', verticalAlign: 'middle', fontWeight: '700'}}>
+                                                      {groupName}
+                                                  </td>
+                                              )}
+                                              <td style={{padding: '7px 10px', border: '1px solid #94a3b8', background: groupIndex % 2 === 0 ? '#f7fcff' : '#fff7ff', color: '#1e293b'}}>
+                                                  {project.titulo || 'Sem título'}
+                                              </td>
+                                          </tr>
+                                      ))
+                                  ))}
+                              </tbody>
+                          </table>
+                      </div>
+                  ) : (
+                      <div style={{textAlign: 'center', padding: '35px', background: 'white', border: '1px dashed #cbd5e1'}}>
+                          <h3 style={{color: '#1e293b', margin: '0 0 5px 0'}}>Vazio por aqui.</h3>
+                          <p style={{color: '#64748b', margin: 0}}>Não há projetos ativos a corresponder aos critérios.</p>
+                      </div>
+                  )
+              ) : Object.keys(groupedProjects).length > 0 ? (
                   Object.entries(groupedProjects).map(([groupName, projs]) => (
-                      <div key={groupName} style={{marginBottom: '45px'}}>
+                      <div key={groupName} style={{marginBottom: isVistaGeral ? '20px' : '45px'}}>
                           
                           {/* --- SEPARADOR DO GRUPO --- */}
-                          <div style={{display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px'}}>
+                          <div style={{display: 'flex', alignItems: 'center', gap: '15px', marginBottom: isVistaGeral ? '8px' : '20px'}}>
                               <span style={{fontWeight: '800', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px'}}>
                                   {groupName} 
                                   <span style={{background: '#e2e8f0', color: '#475569', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem'}}>{projs.length}</span>
