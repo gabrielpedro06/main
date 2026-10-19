@@ -131,6 +131,7 @@ const getLastProjetoFaseDate = (fases) => {
 };
 
 const OVERVIEW_FILTER_CACHE_KEY = "projetos-vista-geral-filtros";
+const DEFAULT_OVERVIEW_SORT = { key: "entities", direction: "asc" };
 
 const readOverviewFilterCache = () => {
     if (typeof window === "undefined") return {};
@@ -184,7 +185,13 @@ export default function Projetos() {
   const [portfolioView, setPortfolioView] = useState("mine");
   const [showOnlyMine, setShowOnlyMine] = useState(true); 
   const [showUnassignedOverviewProjects, setShowUnassignedOverviewProjects] = useState(() => overviewFilterCache.showUnassignedOverviewProjects === true);
-  const [overviewSort, setOverviewSort] = useState(() => overviewFilterCache.overviewSort || { key: null, direction: null });
+  const [overviewSort, setOverviewSort] = useState(() => (
+      overviewFilterCache.overviewSort?.key === "project" && overviewFilterCache.overviewSort?.direction === "asc"
+          ? DEFAULT_OVERVIEW_SORT
+          : overviewFilterCache.overviewSort?.key && overviewFilterCache.overviewSort?.direction
+          ? overviewFilterCache.overviewSort
+          : DEFAULT_OVERVIEW_SORT
+  ));
   const [overviewTypeFilter, setOverviewTypeFilter] = useState(() => overviewFilterCache.overviewTypeFilter || "");
   const [overviewProgramFilter, setOverviewProgramFilter] = useState(() => overviewFilterCache.overviewProgramFilter || "");
   const [menuPrincipal, setMenuPrincipal] = useState("tipo");
@@ -2327,7 +2334,7 @@ export default function Projetos() {
           setOverviewSort((current) => {
               if (current.key !== key || current.direction === null) return { key, direction: "asc" };
               if (current.direction === "asc") return { key, direction: "desc" };
-              return { key: null, direction: null };
+              return DEFAULT_OVERVIEW_SORT;
           });
       };
       const getOverviewSortIndicator = (key) => {
