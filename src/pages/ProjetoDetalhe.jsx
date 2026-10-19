@@ -1675,10 +1675,6 @@ export default function ProjetoDetalhe() {
               organismo_contacto_id: formGeral.has_organismo && formGeral.organismo_id && formGeral.organismo_contacto_id ? formGeral.organismo_contacto_id : null
           };
 
-          if (payload.prazos_fases.length > 0) {
-              payload.data_fim = getLastProjetoFaseDate(payload.prazos_fases) || payload.data_fim;
-          }
-
           const { error } = await supabase.from("projetos").update(payload).eq("id", id);
           if (error) throw error;
           showToast("Projeto atualizado com sucesso!");
@@ -2104,7 +2100,6 @@ export default function ProjetoDetalhe() {
 
     const statusTheme = getProjectStatusTheme(projeto.estado);
     const projetoFases = normalizeProjetoFases(formGeral.prazos_fases);
-    const deadlineFinal = formGeral.data_fim || getLastProjetoFaseDate(projetoFases);
   const labelStyle = { display: 'block', marginBottom: '6px', fontSize: '0.75rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' };
   const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', marginBottom: '15px', transition: 'all 0.2s', color: '#1e293b' };
   const sectionTitleStyle = { fontSize: '0.8rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px', marginBottom: '15px', marginTop: '5px' };

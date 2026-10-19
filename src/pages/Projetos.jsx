@@ -128,10 +128,25 @@ const getLastProjetoFaseDate = (fases) => {
     return dates.length > 0 ? dates[dates.length - 1] : "";
 };
 
+const OVERVIEW_FILTER_CACHE_KEY = "projetos-vista-geral-filtros";
+
+const readOverviewFilterCache = () => {
+    if (typeof window === "undefined") return {};
+    const cached = window.localStorage.getItem(OVERVIEW_FILTER_CACHE_KEY);
+    if (!cached) return {};
+    try {
+        const parsed = JSON.parse(cached);
+        return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+        return {};
+    }
+};
+
 export default function Projetos() {
   const { user } = useAuth();
   const navigate = useNavigate(); 
   const location = useLocation(); 
+  const overviewFilterCache = readOverviewFilterCache();
   const [currentStep, setCurrentStep] = useState(1);
   const TOTAL_STEPS = 5;
 
@@ -161,12 +176,15 @@ export default function Projetos() {
   const [confirmDialog, setConfirmDialog] = useState({ show: false, message: '', confirmText: 'Confirmar', isDanger: true, onConfirm: null });
   const [alertDialog, setAlertDialog] = useState({ show: false, message: '', title: 'Aviso' });
   
-  const [busca, setBusca] = useState("");
-  const [mostrarConcluidos, setMostrarConcluidos] = useState(false);
+  const [busca, setBusca] = useState(() => typeof overviewFilterCache.busca === "string" ? overviewFilterCache.busca : "");
+  const [mostrarConcluidos, setMostrarConcluidos] = useState(() => overviewFilterCache.mostrarConcluidos === true);
     const [viewMode, setViewMode] = useState("cards");
   const [portfolioView, setPortfolioView] = useState("mine");
-  const [overviewPanel, setOverviewPanel] = useState("gantt");
   const [showOnlyMine, setShowOnlyMine] = useState(true); 
+  const [showUnassignedOverviewProjects, setShowUnassignedOverviewProjects] = useState(() => overviewFilterCache.showUnassignedOverviewProjects === true);
+  const [overviewSort, setOverviewSort] = useState(() => overviewFilterCache.overviewSort || { key: null, direction: null });
+  const [overviewTypeFilter, setOverviewTypeFilter] = useState(() => overviewFilterCache.overviewTypeFilter || "");
+  const [overviewProgramFilter, setOverviewProgramFilter] = useState(() => overviewFilterCache.overviewProgramFilter || "");
   const [menuPrincipal, setMenuPrincipal] = useState("tipo");
   const [selectedCategoria, setSelectedCategoria] = useState(null); 
   const [selectedEstado, setSelectedEstado] = useState(null); 
@@ -206,6 +224,17 @@ export default function Projetos() {
   };
 
   const [form, setForm] = useState(initialForm);
+
+  useEffect(() => {
+      window.localStorage.setItem(OVERVIEW_FILTER_CACHE_KEY, JSON.stringify({
+          busca,
+          mostrarConcluidos,
+          showUnassignedOverviewProjects,
+          overviewSort,
+          overviewTypeFilter,
+          overviewProgramFilter
+      }));
+  }, [busca, mostrarConcluidos, showUnassignedOverviewProjects, overviewSort, overviewTypeFilter, overviewProgramFilter]);
         
   const isLocalHost = (hostname) => {
       const normalized = String(hostname || "").toLowerCase();
@@ -969,7 +998,7 @@ export default function Projetos() {
         tipo_projeto_id: proj.tipo_projeto_id || "", 
         responsavel_id: proj.responsavel_id || "", colaboradores: normalizeIdsList(proj.colaboradores),
         estado: proj.estado || "pendente", data_inicio: proj.data_inicio || "",
-        data_fim: proj.data_fim || getLastProjetoFaseDate(projetoFases) || "", observacoes: proj.observacoes || "",
+        data_fim: proj.data_fim || "", observacoes: proj.observacoes || "",
         programa: proj.programa || matchedPrograma?.nome || "", aviso: proj.aviso || matchedAviso?.codigo || avisoBase?.codigo || "",
         programa_id: matchedPrograma?.id || proj.programa_id || "",
         aviso_id: matchedAviso?.id || proj.aviso_id || avisoBase?.id || "",
@@ -1034,6 +1063,14 @@ export default function Projetos() {
     e.preventDefault();
     setIsSubmitting(true);
     const payload = { ...form };
+    const normalizeDateInput = (value) => {
+        if (!value) return "";
+        const normalized = String(value).slice(0, 10);
+        return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : "";
+    };
+
+    payload.data_inicio = normalizeDateInput(payload.data_inicio);
+    payload.data_fim = normalizeDateInput(payload.data_fim);
 
     const selectedPrograma = getProgramaById(payload.programa_id);
     const selectedAviso = getAvisoById(payload.avisos_ids) || getAvisoForPrograma(selectedPrograma);
@@ -1054,6 +1091,18 @@ export default function Projetos() {
     if (payload.tipo_projeto_id === "") payload.tipo_projeto_id = null;
     if (payload.responsavel_id === "") payload.responsavel_id = null;
     if (payload.data_fim === "") payload.data_fim = null;
+
+    if (payload.data_inicio && payload.data_fim && payload.data_inicio > payload.data_fim) {
+        setAlertDialog({
+            show: true,
+            title: "Período do Projeto Inválido",
+            message: "A Data de Início não pode ser posterior à Data de Fim. Corrige as datas antes de guardar o projeto."
+        });
+        showToast("A Data de Início não pode ser posterior à Data de Fim.", "warning");
+        setCurrentStep(3);
+        setIsSubmitting(false);
+        return;
+    }
 
     if (normalizedFases.length > 0) {
         const lastPhaseDate = getLastProjetoFaseDate(normalizedFases);
@@ -1129,8 +1178,24 @@ export default function Projetos() {
 
     try {
         if (editId) {
-            const { error } = await supabase.from("projetos").update(payload).eq("id", editId);
-            if (error) throw error;
+            const projectPayload = {
+                ...payload,
+                data_inicio: payload.data_inicio || null,
+                data_fim: payload.data_fim || null
+            };
+            const { error } = await supabase.from("projetos").update(projectPayload).eq("id", editId);
+            if (error) {
+                console.error("Erro ao atualizar projeto:", {
+                    error,
+                    projetoId: editId,
+                    data_inicio: projectPayload.data_inicio,
+                    data_fim: projectPayload.data_fim
+                });
+                if (error.code === "23514" && error.message?.includes("projetos_data_range_check")) {
+                    throw new Error(`Não foi possível guardar o projeto: o intervalo enviado foi ${projectPayload.data_inicio || "sem data"} - ${projectPayload.data_fim || "sem data"}. A Data de Início tem de ser anterior ou igual à Data de Fim.`);
+                }
+                throw error;
+            }
             showToast("Projeto atualizado!");
             setShowModal(false); 
             fetchData(); 
@@ -1261,7 +1326,6 @@ export default function Projetos() {
                         .eq("id", realAtivId);
                 }
 
-                if (!payload.data_fim) await supabase.from("projetos").update({ data_fim: currentAtivDate }).eq("id", newProj.id);
             }
 
             await notifyProjectCreated(newProj, payload.responsavel_id || null);
@@ -1271,7 +1335,15 @@ export default function Projetos() {
             navigate(`/dashboard/projetos/${newProj.id}`);
         }
     } catch (err) { 
-        showToast("Erro: " + err.message, "error"); 
+        showToast("Erro: " + err.message, "error");
+        if (String(err.message || "").includes("Data de Início continua posterior")) {
+            setAlertDialog({
+                show: true,
+                title: "Período do Projeto Inválido",
+                message: err.message
+            });
+            setCurrentStep(3);
+        }
     } finally { 
         setIsSubmitting(false); 
     }
@@ -2056,11 +2128,19 @@ export default function Projetos() {
   if (loading) return <div className="page-container" style={{display:'flex', justifyContent:'center', alignItems:'center', height:'80vh'}}><div className="pulse-dot-white" style={{background:'var(--color-btnPrimary)'}}></div></div>;
 
   if (isVistaGeral) {
-      const overviewGroups = Object.entries(groupedProjects);
-      const overviewProjects = projetosFiltrados;
-      const financialProjects = overviewProjects.filter((project) => (
-          Number(project.investimento || 0) > 0
-      ));
+      const overviewProjects = projetosFiltrados.filter((project) => {
+          const matchesType = !overviewTypeFilter || (
+              overviewTypeFilter === "sem-tipo"
+                  ? !project.tipo_projeto_id
+                  : String(project.tipo_projeto_id || "") === String(overviewTypeFilter)
+          );
+          const matchesProgram = !overviewProgramFilter || (
+              overviewProgramFilter === "sem-programa"
+                  ? !project.programa_id
+                  : String(project.programa_id || "") === String(overviewProgramFilter)
+          );
+          return matchesType && matchesProgram;
+      });
       const getLastReimbursementDate = (project) => {
           const projectRequests = pedidosReembolso
               .filter((request) => String(request.projeto_id) === String(project.id))
@@ -2075,24 +2155,59 @@ export default function Projetos() {
               project.data_reembolso ||
               "";
       };
-      const reimbursementProjects = overviewProjects.filter((project) => Boolean(getLastReimbursementDate(project)));
       const parseOverviewDate = (value) => {
           if (!value) return null;
           const date = new Date(value);
           return Number.isNaN(date.getTime()) ? null : date;
       };
+      const hasValidOverviewDateRange = (project) => {
+          if (!project.data_inicio || !project.data_fim) return true;
+          return project.data_inicio <= project.data_fim;
+      };
       const ganttDates = overviewProjects
+          .filter(hasValidOverviewDateRange)
           .flatMap((project) => [parseOverviewDate(project.data_inicio), parseOverviewDate(project.data_fim)])
           .filter(Boolean);
       const ganttStart = ganttDates.length ? new Date(Math.min(...ganttDates.map((date) => date.getTime()))) : new Date();
       const ganttEnd = ganttDates.length ? new Date(Math.max(...ganttDates.map((date) => date.getTime()))) : new Date(ganttStart);
       if (ganttStart.getTime() === ganttEnd.getTime()) ganttEnd.setDate(ganttEnd.getDate() + 1);
       const ganttTotalDays = Math.max(1, Math.ceil((ganttEnd - ganttStart) / 86400000));
+      const ganttYearMarkers = [];
+      for (let year = ganttStart.getFullYear(); year <= ganttEnd.getFullYear(); year += 1) {
+          const yearStart = new Date(year, 0, 1);
+          const position = Math.max(0, Math.min(100, ((yearStart - ganttStart) / 86400000) / ganttTotalDays * 100));
+          ganttYearMarkers.push({ year, position });
+      }
       const formatOverviewDate = (value) => value ? new Date(value).toLocaleDateString("pt-PT") : "-";
       const formatOverviewCurrency = (value) => `${Number(value || 0).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR`;
       const openProjectDetails = (project) => {
           if (project?.id) navigate(`/dashboard/projetos/${project.id}`);
       };
+      const getEntityName = (entityId, project = null) => {
+          const normalizedId = String(entityId || "").trim();
+          if (!normalizedId) return "";
+          const entity = clientes.find((client) => String(client.id) === normalizedId);
+          if (entity) return entity.marca?.trim() || entity.entidade?.trim() || "";
+          if (project && String(project.cliente_id) === normalizedId && project.clientes) {
+              return project.clientes.marca?.trim() || project.clientes.entidade?.trim() || "";
+          }
+          return "";
+      };
+      const getEntityAcronym = (entityId) => {
+          const normalizedId = String(entityId || "").trim();
+          if (!normalizedId) return "";
+          return clientes.find((client) => String(client.id) === normalizedId)?.sigla?.trim() || "";
+      };
+      const getProjectInvolvedEntities = (project) => {
+          const entityIds = [
+              project.cliente_id,
+              ...normalizeIdsList(project.parceiros_ids)
+          ].map((id) => String(id || "").trim()).filter(Boolean);
+          const uniqueEntityIds = [...new Set(entityIds)];
+          const entityNames = uniqueEntityIds.map((entityId) => getEntityName(entityId, project)).filter(Boolean);
+          return [...new Set(entityNames)].join(" / ");
+      };
+      const getProjectOrganism = (project) => getEntityAcronym(project.organismo_id);
       const getExecutionRate = (project) => {
           const projectInvestment = Number(project.investimento || 0);
           const requestedInvestment = pedidosReembolso
@@ -2113,13 +2228,7 @@ export default function Projetos() {
           URL.revokeObjectURL(url);
       };
       const exportCurrentOverview = () => {
-          if (overviewPanel === "gantt") {
-              exportOverview("mapa-gantt-projetos.csv", ["Programa", "Projeto", "Data início", "Data fim"], overviewProjects.map((project) => [getProjectProgramName(project), project.titulo || "", project.data_inicio || "", project.data_fim || ""]));
-          } else if (overviewPanel === "financial") {
-              exportOverview("investimento-taxa-execucao.csv", ["Programa", "Projeto", "Investimento", "Taxa de execução"], financialProjects.map((project) => [getProjectProgramName(project), project.titulo || "", project.investimento || 0, getExecutionRate(project)]));
-          } else {
-              exportOverview("ultimo-pedido-reembolso.csv", ["Programa", "Projeto", "Data último pedido reembolso"], reimbursementProjects.map((project) => [getProjectProgramName(project), project.titulo || "", getLastReimbursementDate(project)]));
-          }
+          exportOverview("mapa-gantt-projetos.csv", ["Programa", "Projeto", "Entidades", "Organismos", "Data início", "Data fim", "Investimento", "Taxa de execução", "Data último pedido reembolso"], overviewProjects.map((project) => [getProjectProgramName(project), project.titulo || "", getProjectInvolvedEntities(project), getProjectOrganism(project), project.data_inicio || "", project.data_fim || "", project.investimento || 0, getExecutionRate(project), getLastReimbursementDate(project)]));
       };
       const compareOverviewPrograms = (a, b) => {
           const programA = getProjectProgramName(a);
@@ -2129,35 +2238,71 @@ export default function Projetos() {
           if (hasProgramA !== hasProgramB) return hasProgramA ? -1 : 1;
           return programA.localeCompare(programB, "pt-PT", { sensitivity: "base" });
       };
-      const activeOverviewRows = [...(overviewPanel === "reimbursement" ? reimbursementProjects : overviewProjects)].sort((a, b) => {
-          if (overviewPanel === "gantt") {
-              const programComparison = compareOverviewPrograms(a, b);
-              if (programComparison !== 0) return programComparison;
-
-              return String(a.titulo || "").localeCompare(String(b.titulo || ""), "pt-PT", { sensitivity: "base" });
-          }
-
-          const programComparison = compareOverviewPrograms(a, b);
-          if (programComparison !== 0) return programComparison;
-          if (overviewPanel === "reimbursement") {
-              const dateComparison = String(getLastReimbursementDate(b)).localeCompare(String(getLastReimbursementDate(a)));
-              if (dateComparison !== 0) return dateComparison;
-          }
-          return String(a.titulo || "").localeCompare(String(b.titulo || ""), "pt-PT", { sensitivity: "base" });
-      });
-      const financialOverviewRows = [...financialProjects].sort((a, b) => {
+      const compareOverviewDefault = (a, b) => {
           const programComparison = compareOverviewPrograms(a, b);
           if (programComparison !== 0) return programComparison;
           return String(a.titulo || "").localeCompare(String(b.titulo || ""), "pt-PT", { sensitivity: "base" });
-      });
-      const getOverviewProgramRowSpan = (rows, index) => {
-          const programName = getProjectProgramName(rows[index]);
-          const nextProgramOffset = rows.slice(index + 1).findIndex((row) => getProjectProgramName(row) !== programName);
-          return nextProgramOffset === -1 ? rows.length - index : nextProgramOffset + 1;
       };
-      const isFirstOverviewProgramRow = (rows, index) => (
-          index === 0 || getProjectProgramName(rows[index - 1]) !== getProjectProgramName(rows[index])
+      const getOverviewSortValue = (project, key) => {
+          if (key === "program") return getProjectProgramName(project);
+          if (key === "project") return project.titulo || "";
+          if (key === "entities") return getProjectInvolvedEntities(project);
+          if (key === "organism") return getProjectOrganism(project);
+          if (key === "execution") return parseOverviewDate(project.data_inicio)?.getTime() ?? Number.POSITIVE_INFINITY;
+          if (key === "investment") return Number(project.investimento || 0);
+          if (key === "executionRate") {
+              const projectInvestment = Number(project.investimento || 0);
+              const requestedInvestment = pedidosReembolso
+                  .filter((request) => String(request.projeto_id) === String(project.id))
+                  .reduce((total, request) => total + (Number(request.valor_investimento) || 0), 0);
+              return projectInvestment > 0 ? requestedInvestment / projectInvestment : 0;
+          }
+          if (key === "reimbursement") return parseOverviewDate(getLastReimbursementDate(project))?.getTime() ?? 0;
+          return "";
+      };
+      const sortOverviewRows = (rows) => {
+          if (!overviewSort.key || !overviewSort.direction) return [...rows].sort(compareOverviewDefault);
+          const directionMultiplier = overviewSort.direction === "asc" ? 1 : -1;
+          return [...rows].sort((a, b) => {
+              const valueA = getOverviewSortValue(a, overviewSort.key);
+              const valueB = getOverviewSortValue(b, overviewSort.key);
+              let comparison;
+              if (typeof valueA === "number" && typeof valueB === "number") {
+                  comparison = valueA - valueB;
+              } else {
+                  comparison = String(valueA).localeCompare(String(valueB), "pt-PT", { sensitivity: "base" });
+              }
+              return comparison !== 0 ? comparison * directionMultiplier : compareOverviewDefault(a, b);
+          });
+      };
+      const cycleOverviewSort = (key) => {
+          setOverviewSort((current) => {
+              if (current.key !== key || current.direction === null) return { key, direction: "asc" };
+              if (current.direction === "asc") return { key, direction: "desc" };
+              return { key: null, direction: null };
+          });
+      };
+      const getOverviewSortIndicator = (key) => {
+          if (overviewSort.key !== key) return "↕";
+          return overviewSort.direction === "asc" ? "↑" : "↓";
+      };
+      const overviewHeaderButton = (key, label, extra = "") => (
+          <button
+              type="button"
+              onClick={() => cycleOverviewSort(key)}
+              aria-label={`Ordenar ${label}`}
+              title={`Ordenar por ${label}`}
+              style={{display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '4px', width: '100%', padding: 0, border: 'none', background: 'transparent', color: '#1e293b', font: 'inherit', fontWeight: '800', cursor: 'pointer'}}
+          >
+              <span>{extra || label}</span>
+              <span aria-hidden="true" style={{fontSize: '0.72rem', color: overviewSort.key === key ? '#0369a1' : '#64748b'}}>{getOverviewSortIndicator(key)}</span>
+          </button>
       );
+      const activeOverviewRows = sortOverviewRows(overviewProjects);
+      const unassignedOverviewProjects = activeOverviewRows.filter((project) => getProjectProgramName(project) === "Sem Programa Associado");
+      const visibleOverviewRows = showUnassignedOverviewProjects
+          ? activeOverviewRows
+          : activeOverviewRows.filter((project) => getProjectProgramName(project) !== "Sem Programa Associado");
       const overviewProgramColors = ["#2563eb", "#db2777", "#16a34a", "#ea580c", "#7c3aed", "#0891b2", "#ca8a04", "#dc2626", "#4f46e5", "#0f766e"];
       const overviewProgramNames = [...new Set(overviewProjects.map(getProjectProgramName))].sort((a, b) => {
           const aIsUnassigned = a === "Sem Programa Associado";
@@ -2176,21 +2321,6 @@ export default function Projetos() {
           });
           return program?.codigo || programName;
       };
-      const getOverviewProgramCellStyle = (programName) => {
-          const programColor = getOverviewProgramColor(programName);
-          return {
-              color: programColor,
-              background: `${programColor}18`,
-              borderLeft: `2px solid ${programColor}`,
-              boxShadow: `inset 2px 0 0 ${programColor}`,
-              fontWeight: '800',
-              verticalAlign: 'middle'
-          };
-      };
-      const getOverviewProjectRowStyle = (programName) => ({
-          cursor: 'pointer',
-          background: `${getOverviewProgramColor(programName)}0d`
-      });
 
       return (
           <div className="page-container" style={{maxWidth: '1400px', margin: '0 auto', padding: '15px'}}>
@@ -2206,31 +2336,75 @@ export default function Projetos() {
                   </div>
                   <button className="btn-primary hover-shadow" onClick={handleNovo} style={{display:'flex', alignItems:'center', gap:'8px', fontWeight:'bold'}}><Icons.Plus /> Novo Projeto</button>
               </div>
-              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '12px', flexWrap: 'wrap'}}>
-                  <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center'}}>
-                      {[["gantt", "Mapa Gantt"], ["financial", "Investimento e execução"], ["reimbursement", "Último pedido reembolso"]].map(([id, label]) => (
-                          <button key={id} onClick={() => setOverviewPanel(id)} style={{padding: '9px 15px', border: overviewPanel === id ? '1px solid var(--color-btnPrimary)' : '1px solid var(--color-borderColorLight)', borderRadius: '9px', background: overviewPanel === id ? 'var(--color-bgSecondary)' : 'var(--color-bgPrimary)', color: overviewPanel === id ? 'var(--color-btnPrimary)' : 'var(--color-textPrimary)', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer', boxShadow: overviewPanel === id ? '0 4px 10px var(--color-btnPrimaryShadow)' : '0 1px 2px rgba(15, 23, 42, 0.04)', transition: 'all 0.2s ease'}}>{label}</button>
-                      ))}
-                  </div>
-                  <div style={{display: 'flex', alignItems: 'center'}}>
-                      <button onClick={exportCurrentOverview} style={{padding: '9px 16px', border: '1px solid var(--color-btnPrimaryDark)', borderRadius: '9px', background: 'var(--color-btnPrimary)', color: 'var(--color-textWhite)', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer', boxShadow: '0 4px 10px var(--color-btnPrimaryShadow)', transition: 'all 0.2s ease'}}>Exportar CSV</button>
-                  </div>
+              <div style={{display: 'flex', alignItems: 'flex-end', gap: '10px', flexWrap: 'wrap', marginBottom: '12px', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '9px', background: '#f8fafc'}}>
+                  <label style={{display: 'flex', flexDirection: 'column', gap: '4px', color: '#475569', fontSize: '0.74rem', fontWeight: '800'}}>
+                      Tipo de projeto
+                      <select
+                          value={overviewTypeFilter}
+                          onChange={(event) => setOverviewTypeFilter(event.target.value)}
+                          style={{minWidth: '190px', padding: '7px 9px', border: '1px solid #cbd5e1', borderRadius: '7px', background: 'white', color: '#1e293b', fontSize: '0.8rem'}}
+                      >
+                          <option value="">Todos os tipos</option>
+                          {[...tipos]
+                              .sort((a, b) => String(a.nome || "").localeCompare(String(b.nome || ""), "pt-PT", { sensitivity: "base" }))
+                              .map((tipo) => <option key={tipo.id} value={tipo.id}>{tipo.nome}</option>)}
+                          <option value="sem-tipo">Sem tipo de projeto</option>
+                      </select>
+                  </label>
+                  <label style={{display: 'flex', flexDirection: 'column', gap: '4px', color: '#475569', fontSize: '0.74rem', fontWeight: '800'}}>
+                      Programa
+                      <select
+                          value={overviewProgramFilter}
+                          onChange={(event) => setOverviewProgramFilter(event.target.value)}
+                          style={{minWidth: '240px', padding: '7px 9px', border: '1px solid #cbd5e1', borderRadius: '7px', background: 'white', color: '#1e293b', fontSize: '0.8rem'}}
+                      >
+                          <option value="">Todos os programas</option>
+                          {[...programas]
+                              .sort((a, b) => String(a.nome || "").localeCompare(String(b.nome || ""), "pt-PT", { sensitivity: "base" }))
+                              .map((program) => <option key={program.id} value={program.id}>{program.codigo ? `${program.codigo} - ${program.nome}` : program.nome}</option>)}
+                          <option value="sem-programa">Sem programa associado</option>
+                      </select>
+                  </label>
+                  {(overviewTypeFilter || overviewProgramFilter) && (
+                      <button
+                          type="button"
+                          onClick={() => { setOverviewTypeFilter(""); setOverviewProgramFilter(""); }}
+                          style={{padding: '7px 10px', border: '1px solid #94a3b8', borderRadius: '7px', background: 'white', color: '#475569', fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer'}}
+                      >
+                          Limpar filtros
+                      </button>
+                  )}
+                  <button onClick={exportCurrentOverview} style={{marginLeft: 'auto', padding: '9px 16px', border: '1px solid var(--color-btnPrimaryDark)', borderRadius: '9px', background: 'var(--color-btnPrimary)', color: 'var(--color-textWhite)', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer', boxShadow: '0 4px 10px var(--color-btnPrimaryShadow)', transition: 'all 0.2s ease'}}>Exportar CSV</button>
               </div>
 
-              {overviewPanel === "gantt" ? (
-                  <div className="table-responsive" style={{border: '1px solid #94a3b8', background: 'white', overflowX: 'auto'}}>
-                      <table style={{width: '100%', minWidth: '900px', borderCollapse: 'collapse', tableLayout: 'fixed', fontSize: '0.8rem'}}>
-                          <thead><tr><th style={{width: '22%', padding: '7px', border: '1px solid #94a3b8', background: '#c5e5f2'}}>Programa / Projeto</th><th style={{padding: '7px', border: '1px solid #94a3b8', background: '#c5e5f2'}}>Execução ({formatOverviewDate(ganttStart)} - {formatOverviewDate(ganttEnd)})</th></tr></thead>
-                          <tbody>{activeOverviewRows.map((project) => {
+                  <div style={{background: 'transparent', overflowX: 'auto'}}>
+                      <table style={{width: '100%', minWidth: '1100px', border: '1px solid #94a3b8', borderRadius: '12px', borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed', fontSize: '0.8rem', background: 'white', overflow: 'hidden'}}>
+                          <thead><tr><th style={{width: '20%', padding: '7px', border: '1px solid #94a3b8', background: '#c5e5f2'}}>{overviewHeaderButton("project", "projeto", "Projetos / Programas")}</th><th style={{width: '8%', padding: '7px', border: '1px solid #94a3b8', background: '#c5e5f2'}}>{overviewHeaderButton("entities", "Entidades")}</th><th style={{width: '8%', padding: '7px', border: '1px solid #94a3b8', background: '#c5e5f2'}}>{overviewHeaderButton("organism", "Organismos")}</th><th style={{width: '37%', padding: '7px', border: '1px solid #94a3b8', background: '#c5e5f2'}}>{overviewHeaderButton("execution", "execução", `Execução (${formatOverviewDate(ganttStart)} - ${formatOverviewDate(ganttEnd)})`)}</th><th style={{width: '8%', padding: '7px', border: '1px solid #94a3b8', background: '#c5e5f2'}}>{overviewHeaderButton("investment", "Investimento")}</th><th style={{width: '7%', padding: '7px', border: '1px solid #94a3b8', background: '#c5e5f2'}}>{overviewHeaderButton("executionRate", "taxa de execução", "TXE")}</th><th style={{width: '10%', padding: '7px', border: '1px solid #94a3b8', background: '#c5e5f2'}}>{overviewHeaderButton("reimbursement", "Último pedido de reembolso")}</th></tr></thead>
+                          <tbody>{visibleOverviewRows.map((project) => {
                               const start = parseOverviewDate(project.data_inicio);
                               const end = parseOverviewDate(project.data_fim) || start;
-                              const left = start ? Math.max(0, ((start - ganttStart) / 86400000) / ganttTotalDays * 100) : 0;
-                              const width = start && end ? Math.max(1, ((end - start) / 86400000) / ganttTotalDays * 100) : 1;
+                              const hasInvalidDateRange = !hasValidOverviewDateRange(project);
+                              const left = !hasInvalidDateRange && start ? Math.max(0, ((start - ganttStart) / 86400000) / ganttTotalDays * 100) : 0;
+                              const width = !hasInvalidDateRange && start && end ? Math.max(1, ((end - start) / 86400000) / ganttTotalDays * 100) : 1;
                               const programColor = getOverviewProgramColor(getProjectProgramName(project));
-                              return <tr key={project.id} onClick={() => openProjectDetails(project)} style={{cursor: 'pointer'}}><td style={{padding: '6px 8px', border: '1px solid #cbd5e1', borderLeft: `2px solid ${programColor}`, boxShadow: `inset 2px 0 0 ${programColor}`}}><b>{project.titulo || 'Sem título'}</b><br />{getProjectProgramName(project)}</td><td style={{padding: '6px 8px', border: '1px solid #cbd5e1'}}><div style={{height: '20px', position: 'relative', background: '#f1f5f9'}}><div style={{position: 'absolute', left: `${left}%`, width: `${width}%`, height: '100%', background: programColor, borderRadius: '3px'}} title={`${formatOverviewDate(project.data_inicio)} - ${formatOverviewDate(project.data_fim)}`} /></div></td></tr>;
-                          })}</tbody>
+                              return <tr key={project.id} onClick={() => openProjectDetails(project)} style={{cursor: 'pointer'}}><td style={{padding: '6px 8px', border: '1px solid #cbd5e1', borderLeft: `2px solid ${programColor}`, boxShadow: `inset 2px 0 0 ${programColor}`}}><b>{project.titulo || 'Sem título'}</b><br />{getProjectProgramName(project)}</td><td style={{padding: '6px 8px', border: '1px solid #cbd5e1', verticalAlign: 'top'}}>{getProjectInvolvedEntities(project) || "-"}</td><td style={{padding: '6px 8px', border: '1px solid #cbd5e1', verticalAlign: 'top'}}>{getProjectOrganism(project) || "-"}</td><td style={{padding: '0', border: `1px solid ${hasInvalidDateRange ? '#ef4444' : '#cbd5e1'}`, verticalAlign: 'top', position: 'relative'}}><div style={{position: 'absolute', inset: 0, background: hasInvalidDateRange ? '#fef2f2' : '#f1f5f9', overflow: 'hidden'}}>{ganttYearMarkers.map((marker) => <span key={marker.year} style={{position: 'absolute', left: `${marker.position}%`, top: 0, bottom: 0, borderLeft: '1px dashed #94a3b8', opacity: 0.7}} title={String(marker.year)} />)}{ganttYearMarkers.map((marker) => <span key={`label-${marker.year}`} style={{position: 'absolute', left: `${marker.position}%`, top: 0, transform: 'translateX(3px)', fontSize: '0.65rem', color: '#64748b', fontWeight: '700'}}>{marker.year}</span>)}{hasInvalidDateRange ? <span title="Este projeto precisa de ser retificado: a Data de Início é posterior à Data de Fim." aria-label="Projeto precisa de ser retificado" style={{position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', display: 'inline-flex', color: '#dc2626', zIndex: 2}}><Icons.Alert size={18} color="#dc2626" /></span> : <div style={{position: 'absolute', left: `${left}%`, top: '50%', transform: 'translateY(-50%)', width: `${width}%`, height: '20px', background: programColor, borderRadius: '3px', zIndex: 1}} title={`${formatOverviewDate(project.data_inicio)} - ${formatOverviewDate(project.data_fim)}`} />}</div></td><td style={{padding: '6px 8px', border: '1px solid #cbd5e1', whiteSpace: 'nowrap'}}>{formatOverviewCurrency(project.investimento)}</td><td style={{padding: '6px 8px', border: '1px solid #cbd5e1', whiteSpace: 'nowrap'}}>{getExecutionRate(project)}</td><td style={{padding: '6px 8px', border: '1px solid #cbd5e1', whiteSpace: 'nowrap'}}>{formatOverviewDate(getLastReimbursementDate(project))}</td></tr>;
+                          })}
+                              {unassignedOverviewProjects.length > 0 && (
+                                  <tr>
+                                      <td colSpan="7" style={{padding: '10px', border: '1px solid #cbd5e1', background: '#f8fafc', textAlign: 'center'}}>
+                                          <button
+                                              type="button"
+                                              onClick={() => setShowUnassignedOverviewProjects((current) => !current)}
+                                              style={{border: '1px solid #94a3b8', borderRadius: '7px', background: 'white', color: '#475569', padding: '6px 14px', fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer'}}
+                                          >
+                                              {showUnassignedOverviewProjects ? 'Ver menos' : `Ver mais (${unassignedOverviewProjects.length})`}
+                                          </button>
+                                      </td>
+                                  </tr>
+                              )}
+                          </tbody>
                       </table>
-                      <div style={{display: 'flex', flexWrap: 'wrap', gap: '8px 16px', padding: '8px 10px', borderTop: '1px solid #cbd5e1', background: '#f8fafc'}}>
+                      <div style={{display: 'flex', flexWrap: 'wrap', gap: '8px 16px', width: '100%', boxSizing: 'border-box', padding: '8px 10px', border: '1px solid #cbd5e1', borderTop: 'none', borderRadius: '0 0 12px 12px', background: '#f8fafc'}}>
                           {overviewProgramNames.map((programName) => (
                               <span key={programName} title={programName} style={{display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#475569', fontSize: '0.75rem', fontWeight: '700'}}>
                                   <span style={{width: '10px', height: '10px', borderRadius: '2px', background: getOverviewProgramColor(programName)}} />
@@ -2239,11 +2413,6 @@ export default function Projetos() {
                           ))}
                       </div>
                   </div>
-              ) : overviewPanel === "financial" ? (
-                  <div className="table-responsive"><table className="data-table" style={{width: '100%'}}><thead><tr><th>Programa</th><th>Projeto</th><th>Investimento</th><th>Taxa de execução</th></tr></thead><tbody>{financialOverviewRows.map((project, index) => <tr key={project.id} onClick={() => openProjectDetails(project)} style={getOverviewProjectRowStyle(getProjectProgramName(project))}>{isFirstOverviewProgramRow(financialOverviewRows, index) && <td rowSpan={getOverviewProgramRowSpan(financialOverviewRows, index)} style={getOverviewProgramCellStyle(getProjectProgramName(project))}>{getProjectProgramName(project)}</td>}<td>{project.titulo || 'Sem título'}</td><td>{formatOverviewCurrency(project.investimento)}</td><td>{getExecutionRate(project)}</td></tr>)}</tbody></table></div>
-              ) : (
-                  <div className="table-responsive"><table className="data-table" style={{width: '100%'}}><thead><tr><th>Programa</th><th>Projeto</th><th>Data último pedido reembolso</th></tr></thead><tbody>{activeOverviewRows.map((project, index) => <tr key={project.id} onClick={() => openProjectDetails(project)} style={getOverviewProjectRowStyle(getProjectProgramName(project))}>{isFirstOverviewProgramRow(activeOverviewRows, index) && <td rowSpan={getOverviewProgramRowSpan(activeOverviewRows, index)} style={getOverviewProgramCellStyle(getProjectProgramName(project))}>{getProjectProgramName(project)}</td>}<td>{project.titulo || 'Sem título'}</td><td>{formatOverviewDate(getLastReimbursementDate(project))}</td></tr>)}</tbody></table></div>
-              )}
           </div>
       );
   }
@@ -3025,26 +3194,35 @@ export default function Projetos() {
                                     <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '20px'}}>
                                         <div>
                                             <label style={labelStyle}>Data Início Base</label>
-                                            <input type="date" value={form.data_inicio || ''} onChange={e => setForm({...form, data_inicio: e.target.value})} style={inputStyle} className="input-focus" required />
+                                            <input type="date" value={form.data_inicio || ''} max={form.data_fim || undefined} onChange={e => setForm({...form, data_inicio: e.target.value})} style={{...inputStyle, border: form.data_inicio && form.data_fim && form.data_inicio > form.data_fim ? '1px solid #ef4444' : inputStyle.border}} className="input-focus" required />
                                         </div>
                                         <div>
                                             <label style={labelStyle}>Data Fim</label>
                                             <input
                                                 type="date"
                                                 value={form.data_fim || ''}
-                                                onChange={e => setForm({...form, data_fim: e.target.value})}
-                                                style={{...inputStyle, border: form.data_fim ? '1px solid #fca5a5' : '1px solid #cbd5e1'}}
+                                                min={form.data_inicio || undefined}
+                                                onChange={e => {
+                                                    setForm({...form, data_fim: e.target.value});
+                                                    setSelectedPhaseDeadline("");
+                                                }}
+                                                style={{...inputStyle, border: form.data_inicio && form.data_fim && form.data_inicio > form.data_fim ? '1px solid #ef4444' : inputStyle.border}}
                                                 className="input-focus"
                                             />
                                         </div>
                                     </div>
+                                    {form.data_inicio && form.data_fim && form.data_inicio > form.data_fim && (
+                                        <div style={{marginTop: '-18px', marginBottom: '18px', color: '#b91c1c', fontSize: '0.8rem', fontWeight: '700'}}>
+                                            A Data de Início tem de ser anterior ou igual à Data de Fim.
+                                        </div>
+                                    )}
 
                                     {!isProjetoFormacao && (
                                         <div style={{marginBottom: '10px', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', background: '#f8fafc'}}>
                                             <div style={{marginBottom: '10px'}}>
                                                 <div style={{fontSize: '0.8rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Fases do Projeto</div>
                                                 <div style={{fontSize: '0.85rem', color: '#64748b'}}>
-                                                    As fases são importadas automaticamente a partir do Aviso selecionado. Seleciona qual delas define a <strong>Data Limite</strong> do projeto.
+                                                As fases são importadas automaticamente a partir do Aviso selecionado. Servem apenas como referência e não alteram as datas do projeto.
                                                 </div>
                                             </div>
 
@@ -3052,7 +3230,7 @@ export default function Projetos() {
                                             <div style={{display: 'grid', gap: '12px'}}>
                                                 {fasesEfetivas && fasesEfetivas.length > 0 ? (
                                                     fasesEfetivas.map((fase, index) => {
-                                                        const isSelected = String(fase?.prazo || '') === String(form.data_fim || '');
+                                                        const isSelected = false;
                                                         
                                                         return (
                                                             <div key={`fase-${fase.nome}-${index}`} style={{display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', borderRadius: '10px', background: isSelected ? 'var(--color-bgSecondary)' : 'white', border: `1px solid ${isSelected ? 'var(--color-btnPrimary)' : '#e2e8f0'}`, transition: 'all 0.2s'}}>
@@ -3062,18 +3240,10 @@ export default function Projetos() {
                                                                     <input
                                                                         type="radio"
                                                                         name="fase_limite_projeto"
-                                                                        checked={isSelected}
-                                                                        disabled={isViewOnly}
-                                                                        onChange={() => {
-                                                                            if (!isViewOnly) {
-                                                                                setForm((prev) => ({
-                                                                                    ...prev,
-                                                                                    data_fim: fase.prazo || ''
-                                                                                }));
-                                                                            }
-                                                                        }}
+                                                                        checked={false}
+                                                                        disabled
                                                                         style={{accentColor: 'var(--color-btnPrimary)', width: '20px', height: '20px', cursor: isViewOnly ? 'default' : 'pointer'}}
-                                                                        title="Definir como Data Limite do Projeto"
+                                                                        title="Prazo de referência da fase; não altera a data do projeto"
                                                                     />
                                                                     <span style={{fontSize: '0.65rem', fontWeight: '800', textTransform: 'uppercase', color: isSelected ? 'var(--color-btnPrimary)' : '#94a3b8'}}> </span>
                                                                 </div>
