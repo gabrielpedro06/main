@@ -2179,7 +2179,7 @@ export default function Projetos() {
           ganttYearMarkers.push({ year, position });
       }
       const formatOverviewDate = (value) => value ? new Date(value).toLocaleDateString("pt-PT") : "-";
-      const formatOverviewCurrency = (value) => `${Number(value || 0).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR`;
+      const formatOverviewCurrency = (value) => Number(value || 0).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       const openProjectDetails = (project) => {
           if (project?.id) navigate(`/dashboard/projetos/${project.id}`);
       };
@@ -2193,11 +2193,6 @@ export default function Projetos() {
           }
           return "";
       };
-      const getEntityAcronym = (entityId) => {
-          const normalizedId = String(entityId || "").trim();
-          if (!normalizedId) return "";
-          return clientes.find((client) => String(client.id) === normalizedId)?.sigla?.trim() || "";
-      };
       const getProjectInvolvedEntities = (project) => {
           const entityIds = [
               project.cliente_id,
@@ -2207,7 +2202,6 @@ export default function Projetos() {
           const entityNames = uniqueEntityIds.map((entityId) => getEntityName(entityId, project)).filter(Boolean);
           return [...new Set(entityNames)].join(" / ");
       };
-      const getProjectOrganism = (project) => getEntityAcronym(project.organismo_id);
       const getExecutionRate = (project) => {
           const projectInvestment = Number(project.investimento || 0);
           const requestedInvestment = pedidosReembolso
@@ -2228,7 +2222,7 @@ export default function Projetos() {
           URL.revokeObjectURL(url);
       };
       const exportCurrentOverview = () => {
-          exportOverview("mapa-gantt-projetos.csv", ["Programa", "Projeto", "Entidades", "Organismos", "Data início", "Data fim", "Investimento", "Taxa de execução", "Data último pedido reembolso"], overviewProjects.map((project) => [getProjectProgramName(project), project.titulo || "", getProjectInvolvedEntities(project), getProjectOrganism(project), project.data_inicio || "", project.data_fim || "", project.investimento || 0, getExecutionRate(project), getLastReimbursementDate(project)]));
+          exportOverview("mapa-gantt-projetos.csv", ["Entidades", "Programa", "Projeto", "Data início", "Data fim", "Investimento (EUR)", "Taxa de execução", "Data último pedido reembolso"], overviewProjects.map((project) => [getProjectInvolvedEntities(project), getProjectProgramName(project), project.titulo || "", project.data_inicio || "", project.data_fim || "", project.investimento || 0, getExecutionRate(project), getLastReimbursementDate(project)]));
       };
       const compareOverviewPrograms = (a, b) => {
           const programA = getProjectProgramName(a);
@@ -2247,7 +2241,6 @@ export default function Projetos() {
           if (key === "program") return getProjectProgramName(project);
           if (key === "project") return project.titulo || "";
           if (key === "entities") return getProjectInvolvedEntities(project);
-          if (key === "organism") return getProjectOrganism(project);
           if (key === "execution") return parseOverviewDate(project.data_inicio)?.getTime() ?? Number.POSITIVE_INFINITY;
           if (key === "investment") return Number(project.investimento || 0);
           if (key === "executionRate") {
@@ -2379,7 +2372,7 @@ export default function Projetos() {
 
                   <div style={{background: 'transparent', overflowX: 'auto'}}>
                       <table style={{width: '100%', minWidth: '1100px', border: '1px solid #94a3b8', borderRadius: '12px', borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed', fontSize: '0.8rem', background: 'white', overflow: 'hidden'}}>
-                          <thead><tr><th style={{width: '20%', padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("project", "projeto", "Projetos / Programas")}</th><th style={{width: '8%', padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("entities", "Entidades")}</th><th style={{width: '8%', padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("organism", "Organismos")}</th><th style={{width: '37%', padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("execution", "execução", `Execução (${formatOverviewDate(ganttStart)} - ${formatOverviewDate(ganttEnd)})`)}</th><th style={{width: '8%', padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("investment", "Investimento")}</th><th style={{width: '7%', padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("executionRate", "taxa de execução", "TXE")}</th><th style={{width: '10%', padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("reimbursement", "Último pedido de reembolso")}</th></tr></thead>
+                          <thead><tr><th style={{width: '12%', padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("entities", "entidades", "Entidades")}</th><th style={{width: '20%', padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("project", "projeto", "Projetos / Programas")}</th><th style={{width: '41%', padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("execution", "execução", `Execução (${formatOverviewDate(ganttStart)} - ${formatOverviewDate(ganttEnd)})`)}</th><th style={{width: '10%', padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("investment", "investimento", "Investimento (EUR)")}</th><th style={{width: '7%', minWidth: '70px', padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("executionRate", "taxa de execução", "TXE")}</th><th style={{width: '10%', padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("reimbursement", "último pedido de reembolso")}</th></tr></thead>
                           <tbody>{visibleOverviewRows.map((project) => {
                               const start = parseOverviewDate(project.data_inicio);
                               const end = parseOverviewDate(project.data_fim) || start;
@@ -2387,11 +2380,11 @@ export default function Projetos() {
                               const left = !hasInvalidDateRange && start ? Math.max(0, ((start - ganttStart) / 86400000) / ganttTotalDays * 100) : 0;
                               const width = !hasInvalidDateRange && start && end ? Math.max(1, ((end - start) / 86400000) / ganttTotalDays * 100) : 1;
                               const programColor = getOverviewProgramColor(getProjectProgramName(project));
-                              return <tr key={project.id} onClick={() => openProjectDetails(project)} style={{cursor: 'pointer'}}><td style={{padding: '6px 8px', border: '1px solid #cbd5e1', borderLeft: `2px solid ${programColor}`, boxShadow: `inset 2px 0 0 ${programColor}`}}><b>{project.titulo || 'Sem título'}</b><br />{getProjectProgramName(project)}</td><td style={{padding: '6px 8px', border: '1px solid #cbd5e1', verticalAlign: 'top'}}>{getProjectInvolvedEntities(project) || "-"}</td><td style={{padding: '6px 8px', border: '1px solid #cbd5e1', verticalAlign: 'top'}}>{getProjectOrganism(project) || "-"}</td><td style={{padding: '0', border: `1px solid ${hasInvalidDateRange ? '#ef4444' : '#cbd5e1'}`, verticalAlign: 'top', position: 'relative'}}><div style={{position: 'absolute', inset: 0, background: hasInvalidDateRange ? '#fef2f2' : '#f1f5f9', overflow: 'hidden'}}>{ganttYearMarkers.map((marker) => <span key={marker.year} style={{position: 'absolute', left: `${marker.position}%`, top: 0, bottom: 0, borderLeft: '1px dashed #94a3b8', opacity: 0.7}} title={String(marker.year)} />)}{ganttYearMarkers.map((marker) => <span key={`label-${marker.year}`} style={{position: 'absolute', left: `${marker.position}%`, top: 0, transform: 'translateX(3px)', fontSize: '0.65rem', color: '#64748b', fontWeight: '700'}}>{marker.year}</span>)}{hasInvalidDateRange ? <span title="Este projeto precisa de ser retificado: a Data de Início é posterior à Data de Fim." aria-label="Projeto precisa de ser retificado" style={{position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', display: 'inline-flex', color: '#dc2626', zIndex: 2}}><Icons.Alert size={18} color="#dc2626" /></span> : <div style={{position: 'absolute', left: `${left}%`, top: '50%', transform: 'translateY(-50%)', width: `${width}%`, height: '20px', background: programColor, borderRadius: '3px', zIndex: 1}} title={`${formatOverviewDate(project.data_inicio)} - ${formatOverviewDate(project.data_fim)}`} />}</div></td><td style={{padding: '6px 8px', border: '1px solid #cbd5e1', whiteSpace: 'nowrap'}}>{formatOverviewCurrency(project.investimento)}</td><td style={{padding: '6px 8px', border: '1px solid #cbd5e1', whiteSpace: 'nowrap'}}>{getExecutionRate(project)}</td><td style={{padding: '6px 8px', border: '1px solid #cbd5e1', whiteSpace: 'nowrap'}}>{formatOverviewDate(getLastReimbursementDate(project))}</td></tr>;
+                              return <tr key={project.id} onClick={() => openProjectDetails(project)} style={{cursor: 'pointer'}}><td style={{padding: '6px 8px', border: '1px solid #cbd5e1', borderLeft: `2px solid ${programColor}`, boxShadow: `inset 2px 0 0 ${programColor}`, verticalAlign: 'top'}}>{getProjectInvolvedEntities(project) || "-"}</td><td style={{padding: '6px 8px', border: '1px solid #cbd5e1', verticalAlign: 'top'}}><b>{project.titulo || 'Sem título'}</b><br />{getProjectProgramName(project)}</td><td style={{padding: '0', border: `1px solid ${hasInvalidDateRange ? '#ef4444' : '#cbd5e1'}`, verticalAlign: 'top', position: 'relative'}}><div style={{position: 'absolute', inset: 0, background: hasInvalidDateRange ? '#fef2f2' : '#f1f5f9', overflow: 'hidden'}}>{ganttYearMarkers.map((marker) => <span key={marker.year} style={{position: 'absolute', left: `${marker.position}%`, top: 0, bottom: 0, borderLeft: '1px dashed #94a3b8', opacity: 0.7}} title={String(marker.year)} />)}{ganttYearMarkers.map((marker) => <span key={`label-${marker.year}`} style={{position: 'absolute', left: `${marker.position}%`, top: 0, transform: 'translateX(3px)', fontSize: '0.65rem', color: '#64748b', fontWeight: '700'}}>{marker.year}</span>)}{hasInvalidDateRange ? <span title="Este projeto precisa de ser retificado: a Data de Início é posterior à Data de Fim." aria-label="Projeto precisa de ser retificado" style={{position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', display: 'inline-flex', color: '#dc2626', zIndex: 2}}><Icons.Alert size={18} color="#dc2626" /></span> : <div style={{position: 'absolute', left: `${left}%`, top: '50%', transform: 'translateY(-50%)', width: `${width}%`, height: '20px', background: programColor, borderRadius: '3px', zIndex: 1}} title={`${formatOverviewDate(project.data_inicio)} - ${formatOverviewDate(project.data_fim)}`} />}</div></td><td style={{padding: '6px 8px', border: '1px solid #cbd5e1', whiteSpace: 'nowrap'}}>{formatOverviewCurrency(project.investimento)}</td><td style={{padding: '6px 8px', border: '1px solid #cbd5e1', whiteSpace: 'nowrap'}}>{getExecutionRate(project)}</td><td style={{padding: '6px 8px', border: '1px solid #cbd5e1', whiteSpace: 'nowrap'}}>{formatOverviewDate(getLastReimbursementDate(project))}</td></tr>;
                           })}
                               {unassignedOverviewProjects.length > 0 && (
                                   <tr>
-                                      <td colSpan="7" style={{padding: '10px', border: '1px solid #cbd5e1', background: '#f8fafc', textAlign: 'center'}}>
+                                      <td colSpan="6" style={{padding: '10px', border: '1px solid #cbd5e1', background: '#f8fafc', textAlign: 'center'}}>
                                           <button
                                               type="button"
                                               onClick={() => setShowUnassignedOverviewProjects((current) => !current)}
