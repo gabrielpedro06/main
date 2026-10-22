@@ -194,6 +194,8 @@ export default function Projetos() {
   ));
   const [overviewTypeFilter, setOverviewTypeFilter] = useState(() => overviewFilterCache.overviewTypeFilter || "");
   const [overviewProgramFilter, setOverviewProgramFilter] = useState(() => overviewFilterCache.overviewProgramFilter || "");
+  const [overviewStateFilter, setOverviewStateFilter] = useState(() => overviewFilterCache.overviewStateFilter || "");
+  const [overviewEntityFilter, setOverviewEntityFilter] = useState(() => overviewFilterCache.overviewEntityFilter || "");
   const [menuPrincipal, setMenuPrincipal] = useState("tipo");
   const [selectedCategoria, setSelectedCategoria] = useState(null); 
   const [selectedEstado, setSelectedEstado] = useState(null); 
@@ -241,9 +243,11 @@ export default function Projetos() {
           showUnassignedOverviewProjects,
           overviewSort,
           overviewTypeFilter,
-          overviewProgramFilter
+          overviewProgramFilter,
+          overviewStateFilter,
+          overviewEntityFilter
       }));
-  }, [busca, mostrarConcluidos, showUnassignedOverviewProjects, overviewSort, overviewTypeFilter, overviewProgramFilter]);
+  }, [busca, mostrarConcluidos, showUnassignedOverviewProjects, overviewSort, overviewTypeFilter, overviewProgramFilter, overviewStateFilter, overviewEntityFilter]);
         
   const isLocalHost = (hostname) => {
       const normalized = String(hostname || "").toLowerCase();
@@ -725,8 +729,8 @@ export default function Projetos() {
 
     async function openProjectTimerModal(e, proj) {
         if (e?.stopPropagation) e.stopPropagation();
-        if (!proj?.id || proj.estado === "concluido") {
-            showToast("Projeto concluído. Não é possível iniciar cronómetro.", "warning");
+        if (!proj?.id || proj.estado === "encerrado" || proj.estado === "cancelado") {
+            showToast("Projeto encerrado ou cancelado. Não é possível iniciar cronómetro.", "warning");
             return;
         }
 
@@ -794,8 +798,8 @@ export default function Projetos() {
     }
 
     async function handleStartFromProjectSelection() {
-        if (projectTimerModal.project?.estado === "concluido") {
-            showToast("Projeto concluído. Não é possível iniciar cronómetro.", "warning");
+        if (projectTimerModal.project?.estado === "encerrado" || projectTimerModal.project?.estado === "cancelado") {
+            showToast("Projeto encerrado ou cancelado. Não é possível iniciar cronómetro.", "warning");
             return;
         }
 
@@ -1381,7 +1385,8 @@ export default function Projetos() {
       { id: 'pendente', nome: 'Pendente', color: '#f59e0b' },
       { id: 'em_curso', nome: 'Em Curso', color: '#10b981' },
       { id: 'em_analise', nome: 'Em Análise', color: '#6366f1' },
-      { id: 'concluido', nome: 'Concluído', color: '#64748b' },
+      { id: 'concluido', nome: 'Concluído', color: '#0ea5e9' },
+      { id: 'encerrado', nome: 'Encerrado', color: '#64748b' },
       { id: 'cancelado', nome: 'Cancelado', color: '#ef4444' }
   ];
 
@@ -1391,11 +1396,14 @@ export default function Projetos() {
     if (!checkUserInvolvement(p)) return false;
 
     const termo = busca.toLowerCase();
-        const matchBusca = normalizeText(p.titulo).includes(termo) || normalizeText(p.clientes?.marca).includes(termo) || normalizeText(p.clientes?.sigla).includes(termo) || normalizeText(p.codigo_projeto).includes(termo);
+    const matchBusca = normalizeText(p.titulo).includes(termo) || normalizeText(p.clientes?.marca).includes(termo) || normalizeText(p.clientes?.sigla).includes(termo) || normalizeText(p.codigo_projeto).includes(termo);
     if (!matchBusca) return false;
 
-    const isInactive = p.estado === 'concluido' || p.estado === 'cancelado';
-    if (!mostrarConcluidos && isInactive) return false;
+    const isInactive = p.estado === 'encerrado' || p.estado === 'cancelado';
+    // 👇 Se estivermos na Vista Geral com um estado específico selecionado, permite mostrá-lo
+    if (!mostrarConcluidos && isInactive && !(portfolioView === "overview" && overviewStateFilter === p.estado)) {
+        return false;
+    }
 
     return true;
   };
@@ -1430,8 +1438,9 @@ export default function Projetos() {
     let color = '#64748b'; let bg = '#f1f5f9'; let text = `⏳ ${new Date(dateString).toLocaleDateString('pt-PT')}`;
     let icon = <Icons.Calendar />;
 
-    if (estado === 'concluido') { color = '#94a3b8'; bg = 'transparent'; text = `Concluído`; icon = <span style={{fontSize:'0.65rem'}}>✔️</span>; } 
-    else if (diffDays < 0) { color = '#ef4444'; bg = '#fee2e2'; text = `Atrasado (${Math.abs(diffDays)}d)`; icon = <span style={{fontSize:'0.65rem'}}>🔴</span>; } 
+    if (estado === 'encerrado') { color = '#94a3b8'; bg = 'transparent'; text = `Encerrado`; icon = <span style={{fontSize:'0.65rem'}}>🔒</span>; } 
+    else if (estado === 'concluido') { color = '#0ea5e9'; bg = '#e0f2fe'; text = `Concluído`; icon = <span style={{fontSize:'0.65rem'}}>✔️</span>; } 
+    else if (diffDays < 0) { color = '#ef4444'; bg = '#fee2e2'; text = `Atrasado (${Math.abs(diffDays)}d)`; icon = <span style={{fontSize:'0.65rem'}}>🔴</span>; }
     else if (diffDays === 0) { color = '#d97706'; bg = '#fef3c7'; text = `Termina Hoje!`; icon = <span style={{fontSize:'0.65rem'}}>⚠️</span>; } 
     else if (diffDays <= 5) { color = '#ea580c'; bg = '#ffedd5'; text = `Em ${diffDays} dias`; icon = <span style={{fontSize:'0.65rem'}}>⏳</span>; }
 
@@ -1524,7 +1533,18 @@ export default function Projetos() {
               ? !project.programa_id
               : String(project.programa_id || "") === String(overviewProgramFilter)
       );
-      return matchesType && matchesProgram;
+      const matchesState = !overviewStateFilter || String(project.estado || "pendente") === String(overviewStateFilter);
+      
+      const matchesEntity = !overviewEntityFilter || (
+          overviewEntityFilter === "sem-entidade"
+              ? (!project.cliente_id && normalizeIdsList(project.parceiros_ids).length === 0)
+              : (
+                  String(project.cliente_id || "") === String(overviewEntityFilter) ||
+                  normalizeIdsList(project.parceiros_ids).includes(String(overviewEntityFilter))
+              )
+      );
+
+      return matchesType && matchesProgram && matchesState && matchesEntity;
   };
   const overviewProjectsCount = isVistaGeral
       ? projetosFiltrados.filter(matchesOverviewFilters).length
@@ -1701,7 +1721,7 @@ export default function Projetos() {
   );
 
   const renderProjectCard = (p) => {
-      const isCompleted = p.estado === 'concluido';
+      const isCompleted = p.estado === 'encerrado' || p.estado === 'cancelado';
       const isTimerActive = activeLog?.projeto_id === p.id;
       const catColor = getColorForCategory(p.tipo_projeto_id);
       const clientInfo = getProjetoClientDisplay(p);
@@ -1750,7 +1770,7 @@ export default function Projetos() {
   };
 
   const renderProjectRow = (p) => {
-      const isCompleted = p.estado === 'concluido';
+      const isCompleted = p.estado === 'encerrado' || p.estado === 'cancelado';
       const isTimerActive = activeLog?.projeto_id === p.id;
       const catColor = getColorForCategory(p.tipo_projeto_id);
       const clientInfo = getProjetoClientDisplay(p);
@@ -2259,33 +2279,50 @@ export default function Projetos() {
           URL.revokeObjectURL(url);
       };
       const exportCurrentOverview = () => {
-          exportOverview("mapa-gantt-projetos.csv", ["Entidades", "Programa", "Projeto", "Data início", "Data fim", "Investimento (EUR)", "Taxa de execução", "Data último pedido reembolso", "Dias desde último pedido"], overviewProjects.map((project) => [getProjectInvolvedEntities(project), getProjectProgramName(project), project.titulo || "", project.data_inicio || "", project.data_fim || "", project.investimento || 0, getExecutionRate(project), getLastReimbursementDate(project), getDaysSinceLastReimbursement(project) ?? ""]));
-      };
+      exportOverview(
+          "mapa-gantt-projetos.csv", 
+          ["Entidades", "Programa", "Projeto", "Data início", "Data fim", "Investimento (EUR)", "Incentivo (EUR)", "Taxa de execução", "Data último pedido reembolso", "Dias desde último pedido"], 
+          activeOverviewRows.map((project) => [ // 👈 Mudar de overviewProjects para activeOverviewRows
+              getProjectInvolvedEntities(project), 
+              getProjectProgramName(project), 
+              project.titulo || "", 
+              project.data_inicio || "", 
+              project.data_fim || "", 
+              project.investimento || 0, 
+              project.incentivo || 0,
+              getExecutionRate(project), 
+              getLastReimbursementDate(project), 
+              getDaysSinceLastReimbursement(project) ?? ""
+          ])
+      );
+  };
       const exportCurrentOverviewPdf = () => {
-          const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-          pdf.setFontSize(14);
-          pdf.text("Vista Geral de Projetos", 14, 13);
-          pdf.setFontSize(8);
-          pdf.setTextColor(100, 116, 139);
-          pdf.text(`${overviewProjects.length} projeto${overviewProjects.length === 1 ? "" : "s"} listado${overviewProjects.length === 1 ? "" : "s"} | ${formatOverviewDate(ganttStart)} - ${formatOverviewDate(ganttEnd)}`, 14, 19);
-          autoTable(pdf, {
-              startY: 23,
-              head: [["Entidades", "Projetos / Programas", "Execução", "Investimento (EUR)", "TXE", "Último pedido / dias"]],
-              body: overviewProjects.map((project) => [
-                  getProjectInvolvedEntities(project) || "-",
-                  `${project.titulo || "Sem título"}\n${getProjectProgramName(project)}`,
-                  `${formatOverviewDate(project.data_inicio)} - ${formatOverviewDate(project.data_fim)}`,
-                  formatOverviewCurrency(project.investimento),
-                  getExecutionRate(project),
-                  `${formatOverviewDate(getLastReimbursementDate(project))}${getDaysSinceLastReimbursement(project) !== null ? `\n${getDaysSinceLastReimbursement(project)} dias` : ""}${hasReimbursementOverdue(project) ? "\n+3 meses" : ""}`
-              ]),
-              theme: "grid",
-              styles: { fontSize: 7, cellPadding: 2, valign: "middle" },
-              headStyles: { fillColor: [15, 118, 110], textColor: 255, fontStyle: "bold" },
-              columnStyles: { 0: { cellWidth: 35 }, 1: { cellWidth: 67 }, 2: { cellWidth: 48 }, 3: { cellWidth: 28, halign: "right" }, 4: { cellWidth: 18, halign: "center" }, 5: { cellWidth: 35 } }
-          });
-          pdf.save("vista-geral-projetos.pdf");
-      };
+      const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+      pdf.setFontSize(14);
+      pdf.text("Vista Geral de Projetos", 14, 13);
+      pdf.setFontSize(8);
+      pdf.setTextColor(100, 116, 139);
+      pdf.text(`${activeOverviewRows.length} projeto${activeOverviewRows.length === 1 ? "" : "s"} listado${activeOverviewRows.length === 1 ? "" : "s"} | ${formatOverviewDate(ganttStart)} - ${formatOverviewDate(ganttEnd)}`, 14, 19);
+      
+      autoTable(pdf, {
+          startY: 23,
+          head: [["Entidades", "Projetos / Programas", "Execução", "Investimento (EUR)", "Incentivo (EUR)", "TXE", "Último pedido / dias"]],
+          body: activeOverviewRows.map((project) => [ 
+              getProjectInvolvedEntities(project) || "-",
+              `${project.titulo || "Sem título"}\n${getProjectProgramName(project)}`,
+              `${formatOverviewDate(project.data_inicio)} - ${formatOverviewDate(project.data_fim)}`,
+              formatOverviewCurrency(project.investimento),
+              formatOverviewCurrency(project.incentivo),
+              getExecutionRate(project),
+              `${formatOverviewDate(getLastReimbursementDate(project))}${getDaysSinceLastReimbursement(project) !== null ? `\n${getDaysSinceLastReimbursement(project)} dias` : ""}${hasReimbursementOverdue(project) ? "\n+3 meses" : ""}`
+          ]),
+          theme: "grid",
+          styles: { fontSize: 7, cellPadding: 2, valign: "middle" },
+          headStyles: { fillColor: [15, 118, 110], textColor: 255, fontStyle: "bold" },
+          columnStyles: { 0: { cellWidth: 32 }, 1: { cellWidth: 62 }, 2: { cellWidth: 48 }, 3: { cellWidth: 25, halign: "right" }, 4: { cellWidth: 25, halign: "right" }, 5: { cellWidth: 16, halign: "center" }, 6: { cellWidth: 32 } }
+      });
+      pdf.save("vista-geral-projetos.pdf");
+  };
       const compareOverviewPrograms = (a, b) => {
           const programA = getProjectProgramName(a);
           const programB = getProjectProgramName(b);
@@ -2305,6 +2342,7 @@ export default function Projetos() {
           if (key === "entities") return getProjectInvolvedEntities(project);
           if (key === "execution") return parseOverviewDate(project.data_inicio)?.getTime() ?? Number.POSITIVE_INFINITY;
           if (key === "investment") return Number(project.investimento || 0);
+          if (key === "incentive") return Number(project.incentivo || 0);
           if (key === "executionRate") {
               const projectInvestment = Number(project.investimento || 0);
               const requestedInvestment = pedidosReembolso
@@ -2395,6 +2433,8 @@ export default function Projetos() {
                   <div style={{display: 'flex', alignItems: 'center', alignSelf: 'center', padding: '6px 10px', borderRadius: '7px', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', fontSize: '0.78rem', fontWeight: '800', whiteSpace: 'nowrap'}}>
                       {overviewProjectsCount} projeto{overviewProjectsCount === 1 ? '' : 's'} listado{overviewProjectsCount === 1 ? '' : 's'}
                   </div>
+
+                  {/* FILTRO: TIPO DE PROJETO */}
                   <label style={{display: 'flex', flexDirection: 'column', gap: '4px', color: '#475569', fontSize: '0.74rem', fontWeight: '800'}}>
                       Tipo de projeto
                       <select
@@ -2409,6 +2449,8 @@ export default function Projetos() {
                           <option value="sem-tipo">Sem tipo de projeto</option>
                       </select>
                   </label>
+
+                  {/* FILTRO: PROGRAMA */}
                   <label style={{display: 'flex', flexDirection: 'column', gap: '4px', color: '#475569', fontSize: '0.74rem', fontWeight: '800'}}>
                       Programa
                       <select
@@ -2423,15 +2465,58 @@ export default function Projetos() {
                           <option value="sem-programa">Sem programa associado</option>
                       </select>
                   </label>
-                  {(overviewTypeFilter || overviewProgramFilter) && (
+
+                  {/* 👇 NOVO FILTRO: ESTADO DO PROJETO */}
+                  <label style={{display: 'flex', flexDirection: 'column', gap: '4px', color: '#475569', fontSize: '0.74rem', fontWeight: '800'}}>
+                      Estado
+                      <select
+                          value={overviewStateFilter}
+                          onChange={(event) => setOverviewStateFilter(event.target.value)}
+                          style={{width: '140px', padding: '5px 7px', border: '1px solid #cbd5e1', borderRadius: '7px', background: 'white', color: '#1e293b', fontSize: '0.74rem'}}
+                      >
+                          <option value="">Todos os estados</option>
+                          {estadosProjeto.map((est) => (
+                              <option key={est.id} value={est.id}>{est.nome}</option>
+                          ))}
+                      </select>
+                  </label>
+
+                  {/* 👇 NOVO FILTRO: ENTIDADE (LÍDER OU PARCEIRA) */}
+                  <label style={{display: 'flex', flexDirection: 'column', gap: '4px', color: '#475569', fontSize: '0.74rem', fontWeight: '800'}}>
+                      Entidade
+                      <select
+                          value={overviewEntityFilter}
+                          onChange={(event) => setOverviewEntityFilter(event.target.value)}
+                          style={{width: '180px', padding: '5px 7px', border: '1px solid #cbd5e1', borderRadius: '7px', background: 'white', color: '#1e293b', fontSize: '0.74rem'}}
+                      >
+                          <option value="">Todas as entidades</option>
+                          {[...clientes]
+                              .filter((c) => !c.eh_organismo)
+                              .sort((a, b) => String(getClientDisplayName(a) || a.marca || "").localeCompare(String(getClientDisplayName(b) || b.marca || ""), "pt-PT", { sensitivity: "base" }))
+                              .map((client) => (
+                                  <option key={client.id} value={client.id}>
+                                      {getClientDisplayName(client) || client.marca}
+                                  </option>
+                              ))}
+                      </select>
+                  </label>
+
+                  {/* BOTÃO LIMPAR FILTROS ATUALIZADO */}
+                  {(overviewTypeFilter || overviewProgramFilter || overviewStateFilter || overviewEntityFilter) && (
                       <button
                           type="button"
-                          onClick={() => { setOverviewTypeFilter(""); setOverviewProgramFilter(""); }}
+                          onClick={() => {
+                              setOverviewTypeFilter("");
+                              setOverviewProgramFilter("");
+                              setOverviewStateFilter("");
+                              setOverviewEntityFilter("");
+                          }}
                           style={{padding: '7px 10px', border: '1px solid #94a3b8', borderRadius: '7px', background: 'white', color: '#475569', fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer'}}
                       >
                           Limpar filtros
                       </button>
                   )}
+
                   <div style={{display: 'flex', gap: '6px', marginLeft: 'auto'}}>
                       <button onClick={exportCurrentOverview} style={{padding: '7px 10px', border: '1px solid var(--color-btnPrimaryDark)', borderRadius: '7px', background: 'var(--color-btnPrimary)', color: 'var(--color-textWhite)', fontWeight: '800', fontSize: '0.74rem', cursor: 'pointer', boxShadow: '0 4px 10px var(--color-btnPrimaryShadow)'}}>Exportar CSV</button>
                       <button onClick={exportCurrentOverviewPdf} style={{padding: '7px 10px', border: '1px solid var(--color-btnPrimaryDark)', borderRadius: '7px', background: 'var(--color-btnPrimaryDark)', color: 'var(--color-textWhite)', fontWeight: '800', fontSize: '0.74rem', cursor: 'pointer', boxShadow: '0 4px 10px var(--color-btnPrimaryShadow)'}}>Exportar PDF</button>
@@ -2440,7 +2525,17 @@ export default function Projetos() {
 
                   <div style={{background: 'transparent', overflowX: 'auto'}}>
                       <table style={{width: '100%', minWidth: '1100px', border: '1px solid #94a3b8', borderRadius: '12px', borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed', fontSize: '0.8rem', background: 'white', overflow: 'hidden'}}>
-                          <thead><tr><th style={{width: '12%', padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("entities", "entidades", "Entidades")}</th><th style={{width: '20%', padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("project", "projeto", "Projetos / Programas")}</th><th style={{width: '41%', padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("execution", "execução", `Execução (${formatOverviewDate(ganttStart)} - ${formatOverviewDate(ganttEnd)})`)}</th><th style={{width: '10%', padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("investment", "investimento", "Investimento (EUR)")}</th><th style={{width: '7%', minWidth: '70px', padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("executionRate", "taxa de execução", "TXE")}</th><th style={{width: '10%', padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("reimbursement", "último pedido de reembolso", "Último pedido / dias")}</th></tr></thead>
+                          <thead>
+                                <tr>
+                                    <th style={{width: '12%', padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("entities", "entidades", "Entidades")}</th>
+                                    <th style={{width: '18%', padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("project", "projeto", "Projetos / Programas")}</th>
+                                    <th style={{width: '31%', padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("execution", "execução", `Execução (${formatOverviewDate(ganttStart)} - ${formatOverviewDate(ganttEnd)})`)}</th>
+                                    <th style={{width: '10%', padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("investment", "investimento", "Invest. (EUR)")}</th>
+                                    <th style={{width: '10%', padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("incentive", "incentivo", "Incentivo (EUR)")}</th>
+                                    <th style={{width: '7%', minWidth: '60px', padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("executionRate", "taxa de execução", "TXE")}</th>
+                                    <th style={{width: '12%', padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("reimbursement", "último pedido de reembolso", "Último pedido")}</th>
+                              </tr>
+                          </thead>
                           <tbody>{visibleOverviewRows.map((project) => {
                               const start = parseOverviewDate(project.data_inicio);
                               const end = parseOverviewDate(project.data_fim) || start;
@@ -2450,7 +2545,14 @@ export default function Projetos() {
                               const programColor = getOverviewProgramColor(getProjectProgramName(project));
                               const daysSinceLastRequest = getDaysSinceLastReimbursement(project);
                               const reimbursementOverdue = hasReimbursementOverdue(project);
-                              return <tr key={project.id} onClick={() => openProjectDetails(project)} style={{cursor: 'pointer'}}><td style={{padding: '6px 8px', border: '1px solid #cbd5e1', borderLeft: `2px solid ${programColor}`, boxShadow: `inset 2px 0 0 ${programColor}`, verticalAlign: 'top'}}>{getProjectInvolvedEntities(project) || "-"}</td><td style={{padding: '6px 8px', border: '1px solid #cbd5e1', verticalAlign: 'top'}}><b>{project.titulo || 'Sem título'}</b><br />{getProjectProgramName(project)}</td><td style={{padding: '0', border: `1px solid ${hasInvalidDateRange ? '#ef4444' : '#cbd5e1'}`, verticalAlign: 'top', position: 'relative'}}><div style={{position: 'absolute', inset: 0, background: hasInvalidDateRange ? '#fef2f2' : '#f1f5f9', overflow: 'hidden'}}>{ganttYearMarkers.map((marker) => <span key={marker.year} style={{position: 'absolute', left: `${marker.position}%`, top: 0, bottom: 0, borderLeft: '1px dashed #94a3b8', opacity: 0.7}} title={String(marker.year)} />)}{ganttYearLabels.map((marker) => <span key={`label-${marker.year}`} style={{position: 'absolute', left: `${marker.position}%`, top: 0, transform: 'translateX(3px)', fontSize: '0.65rem', color: '#64748b', fontWeight: '700'}}>{marker.year}</span>)}{hasInvalidDateRange ? <span title="Este projeto precisa de ser retificado: a Data de Início é posterior à Data de Fim." aria-label="Projeto precisa de ser retificado" style={{position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', display: 'inline-flex', color: '#dc2626', zIndex: 2}}><Icons.Alert size={18} color="#dc2626" /></span> : <div style={{position: 'absolute', left: `${left}%`, top: '50%', transform: 'translateY(-50%)', width: `${width}%`, height: '20px', background: programColor, borderRadius: '3px', zIndex: 1}} title={`${formatOverviewDate(project.data_inicio)} - ${formatOverviewDate(project.data_fim)}`} />}</div></td><td style={{padding: '6px 8px', border: '1px solid #cbd5e1', whiteSpace: 'nowrap', textAlign: 'right'}}>{formatOverviewCurrency(project.investimento)}</td><td style={{padding: '6px 8px', border: '1px solid #cbd5e1', whiteSpace: 'nowrap', textAlign: 'center'}}>{getExecutionRate(project)}</td><td style={{padding: '6px 8px', border: '1px solid #cbd5e1', whiteSpace: 'nowrap'}}>{formatOverviewDate(getLastReimbursementDate(project))}{daysSinceLastRequest !== null && <div style={{fontSize: '0.7rem', color: reimbursementOverdue ? '#b91c1c' : '#64748b', marginTop: '2px'}}>{daysSinceLastRequest} {daysSinceLastRequest === 1 ? 'dia' : 'dias'}</div>}{reimbursementOverdue && <div title="Já passaram 3 meses desde o último pedido de reembolso." aria-label="Já passaram 3 meses desde o último pedido de reembolso." style={{display: 'inline-flex', alignItems: 'center', gap: '3px', marginTop: '3px', padding: '2px 5px', borderRadius: '4px', background: '#fee2e2', color: '#b91c1c', fontSize: '0.66rem', fontWeight: '800'}}><Icons.Alert size={11} color="#b91c1c" /> +3 meses</div>}</td></tr>;
+                              return <tr key={project.id} onClick={() => openProjectDetails(project)} style={{cursor: 'pointer'}}>
+                                <td style={{padding: '6px 8px', border: '1px solid #cbd5e1', borderLeft: `2px solid ${programColor}`, boxShadow: `inset 2px 0 0 ${programColor}`, verticalAlign: 'top'}}>{getProjectInvolvedEntities(project) || "-"}</td>
+                                <td style={{padding: '6px 8px', border: '1px solid #cbd5e1', verticalAlign: 'top'}}><b>{project.titulo || 'Sem título'}</b><br /><span style={{fontSize: '0.75rem', color: '#64748b', fontWeight: '700'}}>{getOverviewProgramCode(getProjectProgramName(project))}</span></td>
+                                <td style={{padding: '0', border: `1px solid ${hasInvalidDateRange ? '#ef4444' : '#cbd5e1'}`, verticalAlign: 'top', position: 'relative'}}><div style={{position: 'absolute', inset: 0, background: hasInvalidDateRange ? '#fef2f2' : '#f1f5f9', overflow: 'hidden'}}>{ganttYearMarkers.map((marker) => <span key={marker.year} style={{position: 'absolute', left: `${marker.position}%`, top: 0, bottom: 0, borderLeft: '1px dashed #94a3b8', opacity: 0.7}} title={String(marker.year)} />)}{ganttYearLabels.map((marker) => <span key={`label-${marker.year}`} style={{position: 'absolute', left: `${marker.position}%`, top: 0, transform: 'translateX(3px)', fontSize: '0.65rem', color: '#64748b', fontWeight: '700'}}>{marker.year}</span>)}{hasInvalidDateRange ? <span title="Este projeto precisa de ser retificado: a Data de Início é posterior à Data de Fim." aria-label="Projeto precisa de ser retificado" style={{position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', display: 'inline-flex', color: '#dc2626', zIndex: 2}}><Icons.Alert size={18} color="#dc2626" /></span> : <div style={{position: 'absolute', left: `${left}%`, top: '50%', transform: 'translateY(-50%)', width: `${width}%`, height: '20px', background: programColor, borderRadius: '3px', zIndex: 1}} title={`${formatOverviewDate(project.data_inicio)} - ${formatOverviewDate(project.data_fim)}`} />}</div></td>
+                                <td style={{padding: '6px 8px', border: '1px solid #cbd5e1', whiteSpace: 'nowrap', textAlign: 'right'}}>{formatOverviewCurrency(project.investimento)}</td>
+                                <td style={{padding: '6px 8px', border: '1px solid #cbd5e1', whiteSpace: 'nowrap', textAlign: 'right'}}>{formatOverviewCurrency(project.incentivo)}</td>
+                                <td style={{padding: '6px 8px', border: '1px solid #cbd5e1', whiteSpace: 'nowrap', textAlign: 'center'}}>{getExecutionRate(project)}</td>
+                                <td style={{padding: '6px 8px', border: '1px solid #cbd5e1', whiteSpace: 'nowrap'}}>{formatOverviewDate(getLastReimbursementDate(project))}{daysSinceLastRequest !== null && <div style={{fontSize: '0.7rem', color: reimbursementOverdue ? '#b91c1c' : '#64748b', marginTop: '2px'}}>{daysSinceLastRequest} {daysSinceLastRequest === 1 ? 'dia' : 'dias'}</div>}{reimbursementOverdue && <div title="Já passaram 3 meses desde o último pedido de reembolso." aria-label="Já passaram 3 meses desde o último pedido de reembolso." style={{display: 'inline-flex', alignItems: 'center', gap: '3px', marginTop: '3px', padding: '2px 5px', borderRadius: '4px', background: '#fee2e2', color: '#b91c1c', fontSize: '0.66rem', fontWeight: '800'}}><Icons.Alert size={11} color="#b91c1c" /> +3 meses</div>}</td></tr>;
                           })}
                               {unassignedOverviewProjects.length > 0 && (
                                   <tr>
@@ -2846,8 +2948,8 @@ export default function Projetos() {
                           <button
                               type="button"
                               onClick={handleStartFromProjectSelection}
-                              disabled={projectTimerModal.loading || projectTimerModal.atividades.length === 0 || projectTimerModal.project?.estado === 'concluido'}
-                              style={{padding:'10px 18px', borderRadius:'10px', border:'none', background:projectTimerModal.loading || projectTimerModal.atividades.length === 0 || projectTimerModal.project?.estado === 'concluido' ? '#94a3b8' : 'linear-gradient(135deg, #16a34a, #15803d)', color:'white', fontWeight:'800', cursor:projectTimerModal.loading || projectTimerModal.atividades.length === 0 || projectTimerModal.project?.estado === 'concluido' ? 'not-allowed' : 'pointer', display:'inline-flex', alignItems:'center', gap:'6px'}}
+                              disabled={projectTimerModal.loading || projectTimerModal.atividades.length === 0 || projectTimerModal.project?.estado === 'encerrado' || projectTimerModal.project?.estado === 'cancelado'}
+                              style={{padding:'10px 18px', borderRadius:'10px', border:'none', background:projectTimerModal.loading || projectTimerModal.atividades.length === 0 || projectTimerModal.project?.estado === 'encerrado' || projectTimerModal.project?.estado === 'cancelado' ? '#94a3b8' : 'linear-gradient(135deg, #16a34a, #15803d)', color:'white', fontWeight:'800', cursor:projectTimerModal.loading || projectTimerModal.atividades.length === 0 || projectTimerModal.project?.estado === 'encerrado' || projectTimerModal.project?.estado === 'cancelado' ? 'not-allowed' : 'pointer', display:'inline-flex', alignItems:'center', gap:'6px'}}
                               className="hover-shadow"
                           >
                               <Icons.Play /> Iniciar
@@ -3551,17 +3653,18 @@ export default function Projetos() {
                                     </div>
 
                                     <div style={sectionTitleStyle}><Icons.Check /> Estado do Projeto</div>
-                                    <div style={{display: 'flex', gap: '10px', marginBottom: '10px'}}>
+                                    <div style={{display: 'flex', gap: '10px', marginBottom: '10px', flexWrap: 'wrap'}}>
                                         {[
                                             {val: 'pendente', label: 'Pendente'}, 
                                             {val: 'em_curso', label: 'Em Curso'}, 
                                             {val: 'em_analise', label: 'Em Análise'}, 
                                             {val: 'concluido', label: 'Concluído'}, 
+                                            {val: 'encerrado', label: 'Encerrado'}, 
                                             {val: 'cancelado', label: 'Cancelado'}
                                         ].map(st => (
                                             <div key={st.val} onClick={() => !isViewOnly && setForm({...form, estado: st.val})}
                                                 style={{
-                                                    flex: 1, textAlign: 'center', padding: '10px', borderRadius: '8px', cursor: isViewOnly ? 'default' : 'pointer',
+                                                    flex: 1, minWidth: '110px', textAlign: 'center', padding: '10px', borderRadius: '8px', cursor: isViewOnly ? 'default' : 'pointer',
                                                     fontSize: '0.8rem', fontWeight: '700',
                                                     background: form.estado === st.val ? 'var(--color-btnPrimary)' : '#f8fafc',
                                                     color: form.estado === st.val ? 'white' : '#64748b',

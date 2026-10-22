@@ -161,7 +161,7 @@ const dayDiff = (start, end) => {
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 const getProgressByState = (estado) => {
-    if (estado === "concluido") return 100;
+    if (estado === "concluido" || estado === "encerrado") return 100;
     if (estado === "em_curso") return 65;
     if (estado === "em_analise") return 45;
     if (estado === "pendente") return 20;
@@ -294,7 +294,6 @@ export default function ProjetoDetalhe() {
       }
   };
 
-    const [transitionPromptOpen, setTransitionPromptOpen] = useState(false);
   const [projectActionLoading, setProjectActionLoading] = useState(false);
   const [confirmModal, setConfirmModal] = useState({
       show: false,
@@ -520,32 +519,6 @@ export default function ProjetoDetalhe() {
       );
   }, [location.state, location.pathname, location.search, navigate]);
 
-    // 💡 Monitoriza o progresso e conclui o projeto automaticamente
-    useEffect(() => {
-        if (!projeto || projeto.estado === 'concluido' || atividades.length === 0) return;
-
-        const todasConcluidas = atividades.every(ativ => ativ.estado === 'concluido');
-    
-        if (todasConcluidas) {
-            const concluirProjetoAuto = async () => {
-                const { error } = await supabase
-                    .from("projetos")
-                    .update({ estado: "concluido" })
-                    .eq("id", id);
-        
-                if (!error) {
-                    setProjeto(prev => ({ ...prev, estado: "concluido" }));
-                    setNotification({ 
-                        message: "Projeto finalizado! Queres iniciar a próxima etapa (ex: Gestão)?", 
-                        type: 'success'
-                    });
-                    setTransitionPromptOpen(true);
-                }
-            };
-            concluirProjetoAuto();
-        }
-    }, [atividades]);
-
   useEffect(() => {
       const pending = pendingFocusRef.current;
       if (!pending || atividades.length === 0) return;
@@ -661,33 +634,6 @@ export default function ProjetoDetalhe() {
       });
   }
 
-    // 💡 Transmitir projeto para nova etapa (ex: Gestão)
-    const handleTransmitirProjeto = () => {
-        const dadosParaClonar = {
-            titulo: `${projeto.titulo}`,
-            cliente_id: projeto.cliente_id,
-            is_parceria: normalizeBoolean(projeto.is_parceria),
-            parceiros_ids: normalizeIdsList(projeto.parceiros_ids),
-            responsavel_id: projeto.responsavel_id,
-            colaboradores: normalizeIdsList(projeto.colaboradores),
-            programa: projeto.programa,
-            aviso: projeto.aviso,
-            codigo_projeto: projeto.codigo_projeto,
-            numero_projeto: projeto.numero_projeto,
-            investimento: projeto.investimento,
-            incentivo: projeto.incentivo,
-            descricao: projeto.descricao,
-            // Deixamos o tipo_projeto_id vazio para a pessoa escolher o novo modelo (ex: Gestão)
-        };
-
-        // Navega e passa o estado para o componente pai
-        navigate('/dashboard/projetos', { 
-            state: { 
-                prefillData: dadosParaClonar, 
-                openModal: true 
-            } 
-        });
-    };
 
   async function checkActiveLog() {
       if(!user?.id) return;
@@ -697,8 +643,7 @@ export default function ProjetoDetalhe() {
 
   async function fetchProjetoDetails() {
     setLoading(true);
-    
-    // 👇 ALTERAÇÃO 1: adicionado !cliente_id a seguir a clientes
+
     const { data: projData } = await supabase.from("projetos").select("*, clientes!cliente_id(marca, sigla), tipos_projeto(nome), profiles(nome)").eq("id", id).single();
     if (projData) { 
         setProjeto(projData); 
@@ -1921,13 +1866,13 @@ export default function ProjetoDetalhe() {
       try {
           const { error } = await supabase
               .from("projetos")
-              .update({ estado: "cancelado" })
+              .update({ estado: "encerrado" })
               .eq("id", projeto.id);
 
           if (error) throw error;
 
           closeConfirmModal();
-          showToast("Projeto arquivado com sucesso.");
+          showToast("Projeto encerrado e arquivado com sucesso.");
           navigate("/dashboard/projetos");
       } catch (error) {
           showToast("Erro ao arquivar projeto: " + error.message, "error");
@@ -2068,11 +2013,12 @@ export default function ProjetoDetalhe() {
   };
 
   const getProjectStatusTheme = (estado) => {
-    if(estado === 'concluido') return { bg: 'var(--color-borderColorLight)', text: 'var(--color-btnPrimary)', border: 'var(--color-borderColor)', dot: 'var(--color-btnPrimary)' };
-      if(estado === 'em_curso') return { bg: '#fefce8', text: '#ca8a04', border: '#fde047', dot: '#eab308' };
-      if(estado === 'cancelado') return { bg: '#f1f5f9', text: '#64748b', border: '#e2e8f0', dot: '#64748b' };
-      return { bg: 'var(--color-bgSecondary)', text: 'var(--color-btnPrimary)', border: 'var(--color-borderColor)', dot: 'var(--color-btnPrimary)' }; 
-  };
+    if(estado === 'concluido') return { bg: '#e0f2fe', text: '#0284c7', border: '#bae6fd', dot: '#0ea5e9' };
+    if(estado === 'encerrado') return { bg: '#f1f5f9', text: '#475569', border: '#cbd5e1', dot: '#64748b' };
+    if(estado === 'em_curso') return { bg: '#fefce8', text: '#ca8a04', border: '#fde047', dot: '#eab308' };
+    if(estado === 'cancelado') return { bg: '#fef2f2', text: '#dc2626', border: '#fecaca', dot: '#ef4444' };
+    return { bg: 'var(--color-bgSecondary)', text: 'var(--color-btnPrimary)', border: 'var(--color-borderColor)', dot: 'var(--color-btnPrimary)' }; 
+};
 
   // --- FUNÇÃO PARA RENDERIZAÇÃO CONDICIONAL DOS MODAIS ---
   const deveMostrarCampoItem = (itemInfoAdicional, nomeCampo) => {
@@ -2104,20 +2050,19 @@ export default function ProjetoDetalhe() {
   const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', marginBottom: '15px', transition: 'all 0.2s', color: '#1e293b' };
   const sectionTitleStyle = { fontSize: '0.8rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px', marginBottom: '15px', marginTop: '5px' };
 
-  const renderStatePills = (currentState, onChange) => {
+  const renderStatePills = (currentState, onChange, includeEncerrado = false) => {
       const states = [
-          { val: 'pendente', label: 'PENDENTE', color: 'var(--color-btnPrimary)' },
-          { val: 'em_curso', label: 'EM CURSO', color: '#f59e0b' },
-          { val: 'em_analise', label: 'EM ANÁLISE', color: '#ec4899' },
-          { val: 'concluido', label: 'CONCLUÍDO', color: 'var(--color-btnPrimary)' },
-          { val: 'cancelado', label: 'CANCELADO', color: '#64748b' }
+          { val: 'pendente', label: 'PENDENTE', color: '#f59e0b' },
+          { val: 'em_curso', label: 'EM CURSO', color: '#10b981' },
+          { val: 'em_analise', label: 'EM ANÁLISE', color: '#6366f1' },
+          { val: 'concluido', label: 'CONCLUÍDO', color: '#0ea5e9' },
+          ...(includeEncerrado ? [{ val: 'encerrado', label: 'ENCERRADO', color: '#64748b' }] : []),
+          { val: 'cancelado', label: 'CANCELADO', color: '#ef4444' }
       ];
       return (
-          // 👇 Adicionado flexWrap: 'wrap' e ajustado o gap
           <div style={{display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap'}}>
               {states.map(s => (
                   <div key={s.val} onClick={() => onChange(s.val)} style={{
-                      // 👇 Ajustado o flex para se adaptarem bem em várias linhas
                       flex: '1 1 calc(33% - 8px)', minWidth: '95px', textAlign: 'center', padding: '10px 4px', borderRadius: '8px', cursor: 'pointer',
                       fontSize: '0.70rem', fontWeight: 'bold', border: `1px solid ${currentState === s.val ? s.color : '#cbd5e1'}`,
                       background: currentState === s.val ? s.color : '#f8fafc', color: currentState === s.val ? '#fff' : '#64748b', transition: 'all 0.2s'
@@ -2426,9 +2371,9 @@ export default function ProjetoDetalhe() {
                       </div>
                       <div>
                           <div style={{fontSize: '0.65rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', marginBottom: '2px', letterSpacing: '0.05em'}}>Deadline Final</div>
-                          <div style={{fontSize: '0.95rem', color: (projeto?.data_fim && new Date(projeto.data_fim) < new Date() && projeto.estado !== 'concluido') ? '#ef4444' : '#1e293b', fontWeight: '700'}}>
-                              {projeto?.data_fim ? new Date(projeto.data_fim).toLocaleDateString('pt-PT') : 'Sem Prazo'}
-                          </div>
+                          <div style={{fontSize: '0.95rem', color: (projeto?.data_fim && new Date(projeto.data_fim) < new Date() && !['concluido', 'encerrado', 'cancelado'].includes(projeto.estado)) ? '#ef4444' : '#1e293b', fontWeight: '700'}}>
+                            {projeto?.data_fim ? new Date(projeto.data_fim).toLocaleDateString('pt-PT') : 'Sem Prazo'}
+                        </div>
                       </div>
                   </div>
               </div>
@@ -2716,7 +2661,7 @@ export default function ProjetoDetalhe() {
                                 )}
 
                                 {/* BOTÃO PARA RECOLHER/EXPANDIR A ATIVIDADE */}
-                                {!isAtivDone && !hasNoTasks && (
+                                {!hasNoTasks && (
                                     <button 
                                         onClick={() => toggleCollapseAtiv(ativ.id)} 
                                         style={{background: 'transparent', border: '1px solid #cbd5e1', color: '#64748b', padding: '4px 10px', borderRadius: '12px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', transition: '0.2s'}} 
@@ -2742,7 +2687,7 @@ export default function ProjetoDetalhe() {
                         </div>
 
                         {/* LISTA DE TAREFAS */}
-                        {!isAtivDone && !isCollapsed && (
+                        {!isCollapsed && (
                             <div style={{padding: '10px 20px 20px 20px', background: '#f8fafc'}}>
                                 {ativ.tarefas?.map((tar, tIndex) => {
                                     const isTarDone = tar.estado === 'concluido';
@@ -3534,7 +3479,7 @@ export default function ProjetoDetalhe() {
 
                             <div style={{marginTop: '15px', marginBottom: '20px'}}>
                                 <label style={labelStyle}>Estado do Projeto</label>
-                                {renderStatePills(formGeral.estado || 'pendente', (estado) => setFormGeral({...formGeral, estado}))}
+                                {renderStatePills(formGeral.estado || 'pendente', (estado) => setFormGeral({...formGeral, estado}), true)}
                             </div>
                             
                             {(() => {
@@ -4415,94 +4360,6 @@ export default function ProjetoDetalhe() {
           </ModalPortal>
       )}
 
-      {transitionPromptOpen && (
-          <ModalPortal>
-              <div
-                  style={{
-                      position: 'fixed',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      background: 'rgba(15, 23, 42, 0.55)',
-                      backdropFilter: 'blur(4px)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      zIndex: 10000,
-                      padding: '16px'
-                  }}
-                  onClick={(e) => {
-                      if (e.target === e.currentTarget) setTransitionPromptOpen(false);
-                  }}
-              >
-                  <div
-                      style={{
-                          width: 'min(520px, 100%)',
-                          background: '#ffffff',
-                          borderRadius: '16px',
-                          border: '1px solid var(--color-borderColor)',
-                          boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.25)',
-                          overflow: 'hidden'
-                      }}
-                  >
-                      <div
-                          style={{
-                              padding: '16px 18px',
-                              background: 'linear-gradient(135deg, var(--color-bgSecondary) 0%, var(--color-borderColorLight) 100%)',
-                              borderBottom: '1px solid var(--color-borderColor)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              gap: '12px'
-                          }}
-                      >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <span style={{ fontSize: '1.2rem' }}>✅</span>
-                              <h3 style={{ margin: 0, color: 'var(--color-btnPrimaryHover)', fontSize: '1.05rem', fontWeight: '800' }}>Projeto concluído</h3>
-                          </div>
-                          <button
-                              onClick={() => setTransitionPromptOpen(false)}
-                              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-btnPrimaryDark)' }}
-                              aria-label="Fechar"
-                          >
-                              <Icons.Close size={18} color="currentColor" />
-                          </button>
-                      </div>
-
-                      <div style={{ padding: '20px 18px' }}>
-                          <p style={{ margin: 0, color: '#334155', lineHeight: 1.55 }}>
-                              Queres criar um novo projeto já pré-preenchido com esta informação para iniciar a próxima etapa (ex: Gestão)?
-                          </p>
-
-                          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '18px', flexWrap: 'wrap' }}>
-                              <button
-                                  type="button"
-                                  onClick={() => setTransitionPromptOpen(false)}
-                                  className="btn-small"
-                                  style={{ padding: '10px 14px', borderRadius: '10px', fontWeight: '700' }}
-                              >
-                                  Agora não
-                              </button>
-                              <button
-                                  type="button"
-                                  onClick={() => {
-                                      setTransitionPromptOpen(false);
-                                      handleTransmitirProjeto();
-                                  }}
-                                  className="btn-primary"
-                                  style={{ padding: '10px 14px', borderRadius: '10px', fontWeight: '800' }}
-                              >
-                                  <Icons.Rocket size={16} color="#ffffff" />
-                                  Iniciar próxima etapa
-                              </button>
-                          </div>
-                      </div>
-                  </div>
-              </div>
-          </ModalPortal>
-      )}
-      
       <style>{`
           .hover-blue-text:hover { color: var(--color-btnPrimary) !important; }
           .hover-blue-text:hover span { background: var(--color-bgTertiary) !important; color: var(--color-btnPrimary) !important; }
