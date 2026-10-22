@@ -196,6 +196,12 @@ export default function Projetos() {
   const [overviewProgramFilter, setOverviewProgramFilter] = useState(() => overviewFilterCache.overviewProgramFilter || "");
   const [overviewStateFilter, setOverviewStateFilter] = useState(() => overviewFilterCache.overviewStateFilter || "");
   const [overviewEntityFilter, setOverviewEntityFilter] = useState(() => overviewFilterCache.overviewEntityFilter || "");
+  const [overviewPage, setOverviewPage] = useState(1);
+
+  useEffect(() => {
+      setOverviewPage(1);
+  }, [overviewTypeFilter, overviewProgramFilter, overviewStateFilter, overviewEntityFilter, overviewSort, showUnassignedOverviewProjects]);
+
   const [menuPrincipal, setMenuPrincipal] = useState("tipo");
   const [selectedCategoria, setSelectedCategoria] = useState(null); 
   const [selectedEstado, setSelectedEstado] = useState(null); 
@@ -2396,6 +2402,16 @@ export default function Projetos() {
       const visibleOverviewRows = showUnassignedOverviewProjects
           ? activeOverviewRows
           : activeOverviewRows.filter((project) => getProjectProgramName(project) !== "Sem Programa Associado");
+
+      const ITEMS_PER_PAGE = 7;
+      const totalOverviewPages = Math.ceil(visibleOverviewRows.length / ITEMS_PER_PAGE);
+      const paginatedOverviewRows = visibleOverviewRows.slice(
+          (overviewPage - 1) * ITEMS_PER_PAGE, 
+          overviewPage * ITEMS_PER_PAGE
+      );
+      const isOverviewFiltered = Boolean(overviewTypeFilter || overviewProgramFilter || overviewStateFilter || overviewEntityFilter);
+      const totalOverviewInvestimento = visibleOverviewRows.reduce((acc, p) => acc + (Number(p.investimento) || 0), 0);
+      const totalOverviewIncentivo = visibleOverviewRows.reduce((acc, p) => acc + (Number(p.incentivo) || 0), 0);
       const overviewProgramColors = ["#2563eb", "#db2777", "#16a34a", "#ea580c", "#7c3aed", "#0891b2", "#ca8a04", "#dc2626", "#4f46e5", "#0f766e"];
       const overviewProgramNames = [...new Set(overviewProjects.map(getProjectProgramName))].sort((a, b) => {
           const aIsUnassigned = a === "Sem Programa Associado";
@@ -2431,8 +2447,9 @@ export default function Projetos() {
               </div>
               <div style={{display: 'flex', alignItems: 'flex-end', gap: '10px', flexWrap: 'wrap', marginBottom: '12px', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '9px', background: '#f8fafc'}}>
                   <div style={{display: 'flex', alignItems: 'center', alignSelf: 'center', padding: '6px 10px', borderRadius: '7px', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', fontSize: '0.78rem', fontWeight: '800', whiteSpace: 'nowrap'}}>
-                      {overviewProjectsCount} projeto{overviewProjectsCount === 1 ? '' : 's'} listado{overviewProjectsCount === 1 ? '' : 's'}
+                      {overviewProjectsCount} projeto{overviewProjectsCount === 1 ? '' : 's'}
                   </div>
+        
 
                   {/* FILTRO: TIPO DE PROJETO */}
                   <label style={{display: 'flex', flexDirection: 'column', gap: '4px', color: '#475569', fontSize: '0.74rem', fontWeight: '800'}}>
@@ -2536,7 +2553,7 @@ export default function Projetos() {
                                     <th style={{width: '12%', padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("reimbursement", "último pedido de reembolso", "Último pedido")}</th>
                               </tr>
                           </thead>
-                          <tbody>{visibleOverviewRows.map((project) => {
+                          <tbody>{paginatedOverviewRows.map((project) => {
                               const start = parseOverviewDate(project.data_inicio);
                               const end = parseOverviewDate(project.data_fim) || start;
                               const hasInvalidDateRange = !hasValidOverviewDateRange(project);
@@ -2547,28 +2564,108 @@ export default function Projetos() {
                               const reimbursementOverdue = hasReimbursementOverdue(project);
                               return <tr key={project.id} onClick={() => openProjectDetails(project)} style={{cursor: 'pointer'}}>
                                 <td style={{padding: '6px 8px', border: '1px solid #cbd5e1', borderLeft: `2px solid ${programColor}`, boxShadow: `inset 2px 0 0 ${programColor}`, verticalAlign: 'top'}}>{getProjectInvolvedEntities(project) || "-"}</td>
-                                <td style={{padding: '6px 8px', border: '1px solid #cbd5e1', verticalAlign: 'top'}}><b>{project.titulo || 'Sem título'}</b><br /><span style={{fontSize: '0.75rem', color: '#64748b', fontWeight: '700'}}>{getOverviewProgramCode(getProjectProgramName(project))}</span></td>
+                                <td style={{padding: '6px 8px', border: '1px solid #cbd5e1', verticalAlign: 'top'}}>
+                                              <b>{project.titulo || 'Sem título'}</b><br />
+                                              <span style={{fontSize: '0.75rem', color: '#64748b', fontWeight: '700'}}>
+                                                  {getOverviewProgramCode(getProjectProgramName(project))}
+                                              </span>
+                                              {project.numero_projeto && (
+                                                  <>
+                                                      <br />
+                                                      <span style={{fontSize: '0.7rem', color: '#94a3b8', fontFamily: 'monospace', fontWeight: '700'}}>
+                                                          Nº {project.numero_projeto}
+                                                      </span>
+                                                  </>
+                                              )}
+                                          </td>
                                 <td style={{padding: '0', border: `1px solid ${hasInvalidDateRange ? '#ef4444' : '#cbd5e1'}`, verticalAlign: 'top', position: 'relative'}}><div style={{position: 'absolute', inset: 0, background: hasInvalidDateRange ? '#fef2f2' : '#f1f5f9', overflow: 'hidden'}}>{ganttYearMarkers.map((marker) => <span key={marker.year} style={{position: 'absolute', left: `${marker.position}%`, top: 0, bottom: 0, borderLeft: '1px dashed #94a3b8', opacity: 0.7}} title={String(marker.year)} />)}{ganttYearLabels.map((marker) => <span key={`label-${marker.year}`} style={{position: 'absolute', left: `${marker.position}%`, top: 0, transform: 'translateX(3px)', fontSize: '0.65rem', color: '#64748b', fontWeight: '700'}}>{marker.year}</span>)}{hasInvalidDateRange ? <span title="Este projeto precisa de ser retificado: a Data de Início é posterior à Data de Fim." aria-label="Projeto precisa de ser retificado" style={{position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', display: 'inline-flex', color: '#dc2626', zIndex: 2}}><Icons.Alert size={18} color="#dc2626" /></span> : <div style={{position: 'absolute', left: `${left}%`, top: '50%', transform: 'translateY(-50%)', width: `${width}%`, height: '20px', background: programColor, borderRadius: '3px', zIndex: 1}} title={`${formatOverviewDate(project.data_inicio)} - ${formatOverviewDate(project.data_fim)}`} />}</div></td>
                                 <td style={{padding: '6px 8px', border: '1px solid #cbd5e1', whiteSpace: 'nowrap', textAlign: 'right'}}>{formatOverviewCurrency(project.investimento)}</td>
                                 <td style={{padding: '6px 8px', border: '1px solid #cbd5e1', whiteSpace: 'nowrap', textAlign: 'right'}}>{formatOverviewCurrency(project.incentivo)}</td>
                                 <td style={{padding: '6px 8px', border: '1px solid #cbd5e1', whiteSpace: 'nowrap', textAlign: 'center'}}>{getExecutionRate(project)}</td>
                                 <td style={{padding: '6px 8px', border: '1px solid #cbd5e1', whiteSpace: 'nowrap'}}>{formatOverviewDate(getLastReimbursementDate(project))}{daysSinceLastRequest !== null && <div style={{fontSize: '0.7rem', color: reimbursementOverdue ? '#b91c1c' : '#64748b', marginTop: '2px'}}>{daysSinceLastRequest} {daysSinceLastRequest === 1 ? 'dia' : 'dias'}</div>}{reimbursementOverdue && <div title="Já passaram 3 meses desde o último pedido de reembolso." aria-label="Já passaram 3 meses desde o último pedido de reembolso." style={{display: 'inline-flex', alignItems: 'center', gap: '3px', marginTop: '3px', padding: '2px 5px', borderRadius: '4px', background: '#fee2e2', color: '#b91c1c', fontSize: '0.66rem', fontWeight: '800'}}><Icons.Alert size={11} color="#b91c1c" /> +3 meses</div>}</td></tr>;
                           })}
-                              {unassignedOverviewProjects.length > 0 && (
-                                  <tr>
-                                      <td colSpan="6" style={{padding: '10px', border: '1px solid #cbd5e1', background: '#f8fafc', textAlign: 'center'}}>
-                                          <button
-                                              type="button"
-                                              onClick={() => setShowUnassignedOverviewProjects((current) => !current)}
-                                              style={{border: '1px solid #94a3b8', borderRadius: '7px', background: 'white', color: '#475569', padding: '6px 14px', fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer'}}
-                                          >
-                                              {showUnassignedOverviewProjects ? 'Ver menos' : `Ver mais (${unassignedOverviewProjects.length})`}
-                                          </button>
-                                      </td>
-                                  </tr>
-                              )}
                           </tbody>
-                      </table>
+                      {/* 👇 NOVO RODAPÉ (TFOOT) COM O TOTAL À ESQUERDA E PAGINAÇÃO À DIREITA */}
+                                {/* 👇 NOVO RODAPÉ (TFOOT) COM O TOTAL À ESQUERDA E PAGINAÇÃO À DIREITA */}
+                                <tfoot>
+                                    <tr>
+                                        {/* Célula Esquerda (Ocupa 3 colunas) - Label Dinâmico */}
+                                        <td colSpan="3" style={{ padding: '12px 14px', borderTop: '2px solid #cbd5e1', background: 'white', verticalAlign: 'middle', textAlign: 'right', fontWeight: '900', color: '#0f172a', fontSize: '0.9rem' }}>
+                                            {isOverviewFiltered ? "Total dos projetos filtrados:" : "Total de todos os projetos:"}
+                                        </td>
+                                        
+                                        {/* Célula do Somatório do Investimento */}
+                                        <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: '900', color: '#0f172a', background: '#f8fafc', borderTop: '2px solid #cbd5e1', borderLeft: '1px solid #cbd5e1', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
+                                            {formatOverviewCurrency(totalOverviewInvestimento)} €
+                                        </td>
+                                        
+                                        {/* Célula do Somatório do Incentivo */}
+                                        <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: '900', color: '#0f172a', background: '#f8fafc', borderTop: '2px solid #cbd5e1', borderLeft: '1px solid #cbd5e1', borderRight: '1px solid #cbd5e1', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
+                                            {formatOverviewCurrency(totalOverviewIncentivo)} €
+                                        </td>
+                                        
+                                        {/* Célula Direita (Ocupa as últimas 2 colunas) - Paginação Centrada Neste Espaço */}
+                                        <td colSpan="2" style={{ padding: '0 12px', borderTop: '2px solid #cbd5e1', background: 'white', verticalAlign: 'middle' }}>
+                                            {totalOverviewPages > 1 && (
+                                                <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px', minHeight: '56px'}}>
+                                                    <button 
+                                                        onClick={() => setOverviewPage(p => Math.max(1, p - 1))} 
+                                                        disabled={overviewPage === 1}
+                                                        style={{background: overviewPage === 1 ? '#f1f5f9' : 'var(--color-bgSecondary)', color: overviewPage === 1 ? '#cbd5e1' : 'var(--color-btnPrimary)', border: 'none', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: overviewPage === 1 ? 'not-allowed' : 'pointer'}}
+                                                    >
+                                                        <Icons.ArrowLeft size={16} />
+                                                    </button>
+                                                    
+                                                    <span style={{fontSize: '0.85rem', fontWeight: '800', color: '#475569', whiteSpace: 'nowrap'}}>
+                                                        Página {overviewPage} de {totalOverviewPages}
+                                                    </span>
+                                                    
+                                                    <button 
+                                                        onClick={() => setOverviewPage(p => Math.min(totalOverviewPages, p + 1))} 
+                                                        disabled={overviewPage === totalOverviewPages}
+                                                        style={{background: overviewPage === totalOverviewPages ? '#f1f5f9' : 'var(--color-bgSecondary)', color: overviewPage === totalOverviewPages ? '#cbd5e1' : 'var(--color-btnPrimary)', border: 'none', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: overviewPage === totalOverviewPages ? 'not-allowed' : 'pointer'}}
+                                                    >
+                                                        <div style={{transform: 'rotate(180deg)', display: 'flex'}}><Icons.ArrowLeft size={16} /></div>
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                        </table>
+
+                      
+
+                    
+
+                      {/* 👇 CONTROLOS DE PAGINAÇÃO */}
+                      {totalOverviewPages > 1 && (
+                          <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px', padding: '15px', background: 'white', border: '1px solid #cbd5e1', borderTop: 'none'}}>
+                              <button 
+                                  onClick={() => setOverviewPage(p => Math.max(1, p - 1))} 
+                                  disabled={overviewPage === 1}
+                                  style={{background: overviewPage === 1 ? '#f1f5f9' : 'var(--color-bgSecondary)', color: overviewPage === 1 ? '#cbd5e1' : 'var(--color-btnPrimary)', border: 'none', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: overviewPage === 1 ? 'not-allowed' : 'pointer'}}
+                              >
+                                  <Icons.ArrowLeft size={16} />
+                              </button>
+                              
+                              <span style={{fontSize: '0.85rem', fontWeight: '800', color: '#475569'}}>
+                                  Página {overviewPage} de {totalOverviewPages}
+                              </span>
+                              
+                              <button 
+                                  onClick={() => setOverviewPage(p => Math.min(totalOverviewPages, p + 1))} 
+                                  disabled={overviewPage === totalOverviewPages}
+                                  style={{background: overviewPage === totalOverviewPages ? '#f1f5f9' : 'var(--color-bgSecondary)', color: overviewPage === totalOverviewPages ? '#cbd5e1' : 'var(--color-btnPrimary)', border: 'none', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: overviewPage === totalOverviewPages ? 'not-allowed' : 'pointer'}}
+                              >
+                                  <div style={{transform: 'rotate(180deg)', display: 'flex'}}><Icons.ArrowLeft size={16} /></div>
+                              </button>
+                          </div>
+
+                          
+                      )}
+
+                      {/* 👇 LEGENDAS DE COR DOS PROGRAMAS */}
                       <div style={{display: 'flex', flexWrap: 'wrap', gap: '8px 16px', width: '100%', boxSizing: 'border-box', padding: '8px 10px', border: '1px solid #cbd5e1', borderTop: 'none', borderRadius: '0 0 12px 12px', background: '#f8fafc'}}>
                           {overviewProgramNames.map((programName) => (
                               <span key={programName} title={programName} style={{display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#475569', fontSize: '0.75rem', fontWeight: '700'}}>
@@ -2578,8 +2675,8 @@ export default function Projetos() {
                           ))}
                       </div>
                   </div>
-          </div>
-      );
+              </div>
+          );
   }
 
   return (
