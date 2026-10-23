@@ -197,18 +197,16 @@ export default function Projetos() {
   const [overviewStateFilter, setOverviewStateFilter] = useState(() => overviewFilterCache.overviewStateFilter || "");
   const [overviewEntityFilter, setOverviewEntityFilter] = useState(() => overviewFilterCache.overviewEntityFilter || "");
   const [overviewPage, setOverviewPage] = useState(1);
+  const [overviewItemsPerPage, setOverviewItemsPerPage] = useState(10);
 
   useEffect(() => {
       setOverviewPage(1);
-  }, [overviewTypeFilter, overviewProgramFilter, overviewStateFilter, overviewEntityFilter, overviewSort, showUnassignedOverviewProjects]);
+  }, [overviewTypeFilter, overviewProgramFilter, overviewStateFilter, overviewEntityFilter, overviewSort, showUnassignedOverviewProjects, overviewItemsPerPage]);
 
   const [menuPrincipal, setMenuPrincipal] = useState("tipo");
   const [selectedCategoria, setSelectedCategoria] = useState(null); 
   const [selectedEstado, setSelectedEstado] = useState(null); 
   const [selectedProgramaNav, setSelectedProgramaNav] = useState(null);
-
-
-
   const [clientes, setClientes] = useState([]);
   const [tipos, setTipos] = useState([]);
   const [staff, setStaff] = useState([]); 
@@ -2403,8 +2401,7 @@ export default function Projetos() {
           ? activeOverviewRows
           : activeOverviewRows.filter((project) => getProjectProgramName(project) !== "Sem Programa Associado");
 
-      const ITEMS_PER_PAGE = 7;
-      const totalOverviewPages = Math.ceil(visibleOverviewRows.length / ITEMS_PER_PAGE);
+      const ITEMS_PER_PAGE = overviewItemsPerPage === "all" ? visibleOverviewRows.length : overviewItemsPerPage;      const totalOverviewPages = Math.ceil(visibleOverviewRows.length / ITEMS_PER_PAGE);
       const paginatedOverviewRows = visibleOverviewRows.slice(
           (overviewPage - 1) * ITEMS_PER_PAGE, 
           overviewPage * ITEMS_PER_PAGE
@@ -2412,6 +2409,8 @@ export default function Projetos() {
       const isOverviewFiltered = Boolean(overviewTypeFilter || overviewProgramFilter || overviewStateFilter || overviewEntityFilter);
       const totalOverviewInvestimento = visibleOverviewRows.reduce((acc, p) => acc + (Number(p.investimento) || 0), 0);
       const totalOverviewIncentivo = visibleOverviewRows.reduce((acc, p) => acc + (Number(p.incentivo) || 0), 0);
+      const isAllItems = overviewItemsPerPage === "all";
+      const limit = isAllItems ? visibleOverviewRows.length : Number(overviewItemsPerPage) || 10;
       const overviewProgramColors = ["#2563eb", "#db2777", "#16a34a", "#ea580c", "#7c3aed", "#0891b2", "#ca8a04", "#dc2626", "#4f46e5", "#0f766e"];
       const overviewProgramNames = [...new Set(overviewProjects.map(getProjectProgramName))].sort((a, b) => {
           const aIsUnassigned = a === "Sem Programa Associado";
@@ -2564,16 +2563,19 @@ export default function Projetos() {
                               const reimbursementOverdue = hasReimbursementOverdue(project);
                               return <tr key={project.id} onClick={() => openProjectDetails(project)} style={{cursor: 'pointer'}}>
                                 <td style={{padding: '6px 8px', border: '1px solid #cbd5e1', borderLeft: `2px solid ${programColor}`, boxShadow: `inset 2px 0 0 ${programColor}`, verticalAlign: 'top'}}>{getProjectInvolvedEntities(project) || "-"}</td>
-                                <td style={{padding: '6px 8px', border: '1px solid #cbd5e1', verticalAlign: 'top'}}>
+                                {/* 👇 CÉLULA ATUALIZADA: Título + Programa + Número + Código */}
+                                          <td style={{padding: '6px 8px', border: '1px solid #cbd5e1', verticalAlign: 'top'}}>
                                               <b>{project.titulo || 'Sem título'}</b><br />
                                               <span style={{fontSize: '0.75rem', color: '#64748b', fontWeight: '700'}}>
                                                   {getOverviewProgramCode(getProjectProgramName(project))}
                                               </span>
-                                              {project.numero_projeto && (
+                                              {(project.numero_projeto || project.codigo_projeto) && (
                                                   <>
                                                       <br />
                                                       <span style={{fontSize: '0.7rem', color: '#94a3b8', fontFamily: 'monospace', fontWeight: '700'}}>
-                                                          Nº {project.numero_projeto}
+                                                          {project.numero_projeto ? `Nº ${project.numero_projeto}` : ''}
+                                                          {project.numero_projeto && project.codigo_projeto ? ' • ' : ''}
+                                                          {project.codigo_projeto ? project.codigo_projeto : ''}
                                                       </span>
                                                   </>
                                               )}
@@ -2585,85 +2587,74 @@ export default function Projetos() {
                                 <td style={{padding: '6px 8px', border: '1px solid #cbd5e1', whiteSpace: 'nowrap'}}>{formatOverviewDate(getLastReimbursementDate(project))}{daysSinceLastRequest !== null && <div style={{fontSize: '0.7rem', color: reimbursementOverdue ? '#b91c1c' : '#64748b', marginTop: '2px'}}>{daysSinceLastRequest} {daysSinceLastRequest === 1 ? 'dia' : 'dias'}</div>}{reimbursementOverdue && <div title="Já passaram 3 meses desde o último pedido de reembolso." aria-label="Já passaram 3 meses desde o último pedido de reembolso." style={{display: 'inline-flex', alignItems: 'center', gap: '3px', marginTop: '3px', padding: '2px 5px', borderRadius: '4px', background: '#fee2e2', color: '#b91c1c', fontSize: '0.66rem', fontWeight: '800'}}><Icons.Alert size={11} color="#b91c1c" /> +3 meses</div>}</td></tr>;
                           })}
                           </tbody>
-                      {/* 👇 NOVO RODAPÉ (TFOOT) COM O TOTAL À ESQUERDA E PAGINAÇÃO À DIREITA */}
-                                {/* 👇 NOVO RODAPÉ (TFOOT) COM O TOTAL À ESQUERDA E PAGINAÇÃO À DIREITA */}
+                                {/* 👇 NOVO RODAPÉ (TFOOT) - TUDO NUMA ÚNICA LINHA */}
                                 <tfoot>
                                     <tr>
-                                        {/* Célula Esquerda (Ocupa 3 colunas) - Label Dinâmico */}
-                                        <td colSpan="3" style={{ padding: '12px 14px', borderTop: '2px solid #cbd5e1', background: 'white', verticalAlign: 'middle', textAlign: 'right', fontWeight: '900', color: '#0f172a', fontSize: '0.9rem' }}>
-                                            {isOverviewFiltered ? "Total dos projetos filtrados:" : "Total de todos os projetos:"}
+                                        {/* CÉLULA 1 (Ocupa 3 colunas): Contém o "Mostrar" à esquerda e o "Total" à direita */}
+                                        <td colSpan="3" style={{ padding: '12px 14px', borderTop: '2px solid #cbd5e1', background: 'white', verticalAlign: 'middle' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                                                {/* Esquerda: Dropdown "Mostrar:" */}
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <span style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: '700' }}>Mostrar:</span>
+                                                    <select 
+                                                        value={overviewItemsPerPage} 
+                                                        onChange={(e) => setOverviewItemsPerPage(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                                                        style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', color: '#1e293b', fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer', outline: 'none' }}
+                                                    >
+                                                        <option value={10}>10 projetos</option>
+                                                        <option value={20}>20 projetos</option>
+                                                        <option value="all">Todos</option>
+                                                    </select>
+                                                </div>
+
+                                                {/* Direita: Label do Total */}
+                                                <div style={{ textAlign: 'right', fontWeight: '900', color: '#0f172a', fontSize: '0.9rem' }}>
+                                                    {isOverviewFiltered ? "Total dos projetos filtrados:" : "Total de todos os projetos:"}
+                                                </div>
+                                            </div>
                                         </td>
                                         
-                                        {/* Célula do Somatório do Investimento */}
+                                        {/* CÉLULA 2: Investimento */}
                                         <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: '900', color: '#0f172a', background: '#f8fafc', borderTop: '2px solid #cbd5e1', borderLeft: '1px solid #cbd5e1', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
                                             {formatOverviewCurrency(totalOverviewInvestimento)} €
                                         </td>
                                         
-                                        {/* Célula do Somatório do Incentivo */}
+                                        {/* CÉLULA 3: Incentivo */}
                                         <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: '900', color: '#0f172a', background: '#f8fafc', borderTop: '2px solid #cbd5e1', borderLeft: '1px solid #cbd5e1', borderRight: '1px solid #cbd5e1', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
                                             {formatOverviewCurrency(totalOverviewIncentivo)} €
                                         </td>
                                         
-                                        {/* Célula Direita (Ocupa as últimas 2 colunas) - Paginação Centrada Neste Espaço */}
+                                        {/* CÉLULA 4 (Ocupa 2 colunas): Paginação */}
                                         <td colSpan="2" style={{ padding: '0 12px', borderTop: '2px solid #cbd5e1', background: 'white', verticalAlign: 'middle' }}>
-                                            {totalOverviewPages > 1 && (
-                                                <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px', minHeight: '56px'}}>
-                                                    <button 
-                                                        onClick={() => setOverviewPage(p => Math.max(1, p - 1))} 
-                                                        disabled={overviewPage === 1}
-                                                        style={{background: overviewPage === 1 ? '#f1f5f9' : 'var(--color-bgSecondary)', color: overviewPage === 1 ? '#cbd5e1' : 'var(--color-btnPrimary)', border: 'none', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: overviewPage === 1 ? 'not-allowed' : 'pointer'}}
-                                                    >
-                                                        <Icons.ArrowLeft size={16} />
-                                                    </button>
-                                                    
-                                                    <span style={{fontSize: '0.85rem', fontWeight: '800', color: '#475569', whiteSpace: 'nowrap'}}>
-                                                        Página {overviewPage} de {totalOverviewPages}
-                                                    </span>
-                                                    
-                                                    <button 
-                                                        onClick={() => setOverviewPage(p => Math.min(totalOverviewPages, p + 1))} 
-                                                        disabled={overviewPage === totalOverviewPages}
-                                                        style={{background: overviewPage === totalOverviewPages ? '#f1f5f9' : 'var(--color-bgSecondary)', color: overviewPage === totalOverviewPages ? '#cbd5e1' : 'var(--color-btnPrimary)', border: 'none', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: overviewPage === totalOverviewPages ? 'not-allowed' : 'pointer'}}
-                                                    >
-                                                        <div style={{transform: 'rotate(180deg)', display: 'flex'}}><Icons.ArrowLeft size={16} /></div>
-                                                    </button>
-                                                </div>
-                                            )}
+                                            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '56px' }}>
+                                                {totalOverviewPages > 1 && (
+                                                    <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
+                                                        <button 
+                                                            onClick={() => setOverviewPage(p => Math.max(1, p - 1))} 
+                                                            disabled={overviewPage === 1}
+                                                            style={{background: overviewPage === 1 ? '#f8fafc' : 'var(--color-bgSecondary)', color: overviewPage === 1 ? '#cbd5e1' : 'var(--color-btnPrimary)', border: 'none', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: overviewPage === 1 ? 'not-allowed' : 'pointer'}}
+                                                        >
+                                                            <Icons.ArrowLeft size={16} />
+                                                        </button>
+                                                        
+                                                        <span style={{fontSize: '0.85rem', fontWeight: '800', color: '#1e293b', whiteSpace: 'nowrap'}}>
+                                                            Página {overviewPage} de {totalOverviewPages}
+                                                        </span>
+                                                        
+                                                        <button 
+                                                            onClick={() => setOverviewPage(p => Math.min(totalOverviewPages, p + 1))} 
+                                                            disabled={overviewPage === totalOverviewPages}
+                                                            style={{background: overviewPage === totalOverviewPages ? '#f8fafc' : 'var(--color-bgSecondary)', color: overviewPage === totalOverviewPages ? '#cbd5e1' : 'var(--color-btnPrimary)', border: 'none', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: overviewPage === totalOverviewPages ? 'not-allowed' : 'pointer'}}
+                                                        >
+                                                            <div style={{transform: 'rotate(180deg)', display: 'flex'}}><Icons.ArrowLeft size={16} /></div>
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </td>
                                     </tr>
                                 </tfoot>
                         </table>
-
-                      
-
-                    
-
-                      {/* 👇 CONTROLOS DE PAGINAÇÃO */}
-                      {totalOverviewPages > 1 && (
-                          <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px', padding: '15px', background: 'white', border: '1px solid #cbd5e1', borderTop: 'none'}}>
-                              <button 
-                                  onClick={() => setOverviewPage(p => Math.max(1, p - 1))} 
-                                  disabled={overviewPage === 1}
-                                  style={{background: overviewPage === 1 ? '#f1f5f9' : 'var(--color-bgSecondary)', color: overviewPage === 1 ? '#cbd5e1' : 'var(--color-btnPrimary)', border: 'none', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: overviewPage === 1 ? 'not-allowed' : 'pointer'}}
-                              >
-                                  <Icons.ArrowLeft size={16} />
-                              </button>
-                              
-                              <span style={{fontSize: '0.85rem', fontWeight: '800', color: '#475569'}}>
-                                  Página {overviewPage} de {totalOverviewPages}
-                              </span>
-                              
-                              <button 
-                                  onClick={() => setOverviewPage(p => Math.min(totalOverviewPages, p + 1))} 
-                                  disabled={overviewPage === totalOverviewPages}
-                                  style={{background: overviewPage === totalOverviewPages ? '#f1f5f9' : 'var(--color-bgSecondary)', color: overviewPage === totalOverviewPages ? '#cbd5e1' : 'var(--color-btnPrimary)', border: 'none', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: overviewPage === totalOverviewPages ? 'not-allowed' : 'pointer'}}
-                              >
-                                  <div style={{transform: 'rotate(180deg)', display: 'flex'}}><Icons.ArrowLeft size={16} /></div>
-                              </button>
-                          </div>
-
-                          
-                      )}
 
                       {/* 👇 LEGENDAS DE COR DOS PROGRAMAS */}
                       <div style={{display: 'flex', flexWrap: 'wrap', gap: '8px 16px', width: '100%', boxSizing: 'border-box', padding: '8px 10px', border: '1px solid #cbd5e1', borderTop: 'none', borderRadius: '0 0 12px 12px', background: '#f8fafc'}}>
