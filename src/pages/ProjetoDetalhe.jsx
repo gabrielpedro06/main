@@ -2498,8 +2498,7 @@ export default function ProjetoDetalhe() {
                         {metricCard('Investimento pedido', `${formatNumber(totalInvestimento)} €`, '#1e293b')}
                         {metricCard('Incentivo pedido', `${formatNumber(totalIncentivo)} €`, '#2563eb')}
                         {metricCard('Valor pago', `${formatNumber(totalPago)} €`, '#7c3aed')}
-                        {metricCard('PMP médio', mediaPmp === null ? '—' : `${formatNumber(mediaPmp)} dias`, '#c2410c')}
-                    </div>
+                                            </div>
         
 
                     <div style={{height: '8px', borderRadius: '99px', background: '#e2e8f0', overflow: 'hidden', marginBottom: '24px'}} title="Taxa de execução do investimento">
@@ -2622,7 +2621,6 @@ export default function ProjetoDetalhe() {
                                     <td style={{padding: '12px 10px', textAlign: 'right', color: '#0f766e'}}>{taxaExecucao === null ? '—' : `${formatNumber(taxaExecucao)}%`}</td>
                                     <td style={{padding: '12px 10px', textAlign: 'right'}}>{formatNumber(totalIncentivo)} €</td>
                                     <td style={{padding: '12px 10px', textAlign: 'right'}}>{formatNumber(totalPago)} €</td><td></td>
-                                    <td style={{padding: '12px 10px', textAlign: 'right'}}>{mediaPmp === null ? '—' : `${formatNumber(mediaPmp)} dias`}</td><td></td><td></td>
                                 </tr>
                             </tbody>
                         </table>
