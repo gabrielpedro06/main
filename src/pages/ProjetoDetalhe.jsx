@@ -2472,14 +2472,6 @@ export default function ProjetoDetalhe() {
                                 </div>
                             </div>
 
-                            {/* Autofinanciamento */}
-                            <div style={{ background: 'white', padding: '12px 15px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
-                                <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Autofinanciamento</span>
-                                <div style={{ fontSize: '1.1rem', fontWeight: '900', color: '#1e293b', marginTop: '4px' }}>
-                                    {new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(Math.max(0, Number(projeto?.investimento || 0) - Number(projeto?.incentivo || 0)))}
-                                </div>
-                            </div>
-
                         </div>
                     </div>
                     
