@@ -27,6 +27,7 @@ const Icons = {
   ClipboardList: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4"></path><path d="M12 16h4"></path><path d="M8 11h.01"></path><path d="M8 16h.01"></path></svg>,
   Clock: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>,
   Settings: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>,
+  Info: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>,
   Check: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>,
   Edit: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>,
   Trash: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>,
@@ -259,6 +260,7 @@ export default function ProjetoDetalhe() {
   const [pedidoReembolsoSaving, setPedidoReembolsoSaving] = useState(false);
     const [ganttWindow, setGanttWindow] = useState("total");
   const [notification, setNotification] = useState(null);
+  const [infoTooltip, setInfoTooltip] = useState(null); // { x, y, criadorNome, criadoEm }
 
   const [isExportingGantt, setIsExportingGantt] = useState(false);
   const ganttRef = useRef(null);
@@ -731,7 +733,7 @@ export default function ProjetoDetalhe() {
 
     const { data: pedidosData, error: pedidosError } = await supabase
         .from("pedidos_reembolso")
-        .select("id, projeto_id, pedido, data_pedido, valor_investimento, valor_incentivo, valor_pago, data_pagamento, notas")
+        .select("id, projeto_id, pedido, data_pedido, valor_investimento, valor_incentivo, valor_pago, data_pagamento, notas, user_id, created_at") // 👈 ADICIONADO AQUI
         .eq("projeto_id", id)
         .order("data_pedido", { ascending: true })
         .order("created_at", { ascending: true });
@@ -2434,7 +2436,53 @@ export default function ProjetoDetalhe() {
                 </div>
             );
             return (
+                
                 <div style={{background: 'white', padding: '30px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0'}}>
+                    {/* --- BLOCO DE RESUMO FINANCEIRO NA ABA DE EXECUÇÃO --- */}
+                    <div style={{ background: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
+                        <h3 style={{ margin: '0 0 15px 0', fontSize: '1rem', color: '#0f172a', fontWeight: '800' }}>
+                            Resumo Financeiro e Enquadramento
+                        </h3>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
+                            
+                            {/* Investimento Elegível */}
+                            <div style={{ background: 'white', padding: '12px 15px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+                                <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Investimento Elegível</span>
+                                <div style={{ fontSize: '1.1rem', fontWeight: '900', color: '#0f172a', marginTop: '4px' }}>
+                                    {Number(projeto?.investimento || 0).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                                </div>
+                            </div>
+
+                            {/* Incentivo Atribuído */}
+                            <div style={{ background: 'white', padding: '12px 15px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+                                <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Incentivo Atribuído</span>
+                                <div style={{ fontSize: '1.1rem', fontWeight: '900', color: '#0f172a', marginTop: '4px' }}>
+                                    {Number(projeto?.incentivo || 0).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                                </div>
+                            </div>
+
+                            {/* Taxa de Financiamento (Incentivo / Investimento) */}
+                            <div style={{ background: 'white', padding: '12px 15px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+                                <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Taxa de Financiamento</span>
+                                <div style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--color-btnPrimary)', marginTop: '4px' }}>
+                                    {Number(projeto?.investimento) > 0 
+                                        ? `${((Number(projeto?.incentivo || 0) / Number(projeto?.investimento)) * 100).toFixed(2)}%` 
+                                        : '0.00%'}
+                                </div>
+                            </div>
+
+                            {/* Autofinanciamento */}
+                            <div style={{ background: 'white', padding: '12px 15px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+                                <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Autofinanciamento</span>
+                                <div style={{ fontSize: '1.1rem', fontWeight: '900', color: '#1e293b', marginTop: '4px' }}>
+                                    {new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(Math.max(0, Number(projeto?.investimento || 0) - Number(projeto?.incentivo || 0)))}
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                    
                     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '20px', flexWrap: 'wrap'}}>
                         <div>
                             <h2 style={{margin: 0, color: '#0f172a', fontSize: '1.3rem'}}>Execução Financeira</h2>
@@ -2452,6 +2500,7 @@ export default function ProjetoDetalhe() {
                         {metricCard('Valor pago', `${formatNumber(totalPago)} €`, '#7c3aed')}
                         {metricCard('PMP médio', mediaPmp === null ? '—' : `${formatNumber(mediaPmp)} dias`, '#c2410c')}
                     </div>
+        
 
                     <div style={{height: '8px', borderRadius: '99px', background: '#e2e8f0', overflow: 'hidden', marginBottom: '24px'}} title="Taxa de execução do investimento">
                         <div style={{height: '100%', width: `${Math.min(Math.max(taxaExecucao || 0, 0), 100)}%`, background: 'var(--color-btnPrimary)', borderRadius: '99px', transition: 'width 0.3s'}} />
@@ -2480,6 +2529,7 @@ export default function ProjetoDetalhe() {
                                         placeholder="Observações adicionais sobre este pedido"
                                     />
                                 </div>
+                                
                             </div>
                             <div style={{display: 'flex', justifyContent: 'flex-end', gap: '10px'}}>
                                 <button
@@ -2512,36 +2562,60 @@ export default function ProjetoDetalhe() {
                             </tr></thead>
                             <tbody>
                                 {pedidosReembolso.map((pedido) => {
-                                    const investimento = Number(pedido.valor_investimento) || 0;
-                                    const txe = investimentoProjeto > 0 ? (investimento / investimentoProjeto) * 100 : null;
-                                    const pmp = getPedidoPmp(pedido);
-                                    return <tr key={pedido.id}>
-                                        <td style={{padding: '12px 10px', fontWeight: '700', color: '#1e293b', borderBottom: '1px solid #f1f5f9'}}>{pedido.pedido}</td>
-                                        <td style={{padding: '12px 10px', textAlign: 'right', borderBottom: '1px solid #f1f5f9'}}>{pedido.data_pedido ? new Date(`${pedido.data_pedido}T00:00:00`).toLocaleDateString('pt-PT') : '—'}</td>
-                                        <td style={{padding: '12px 10px', textAlign: 'right', borderBottom: '1px solid #f1f5f9'}}>{formatNumber(investimento)} €</td>
-                                        <td style={{padding: '12px 10px', textAlign: 'right', fontWeight: '700', color: '#0f766e', borderBottom: '1px solid #f1f5f9'}}>{txe === null ? '—' : `${formatNumber(txe)}%`}</td>
-                                        <td style={{padding: '12px 10px', textAlign: 'right', borderBottom: '1px solid #f1f5f9'}}>{formatNumber(pedido.valor_incentivo)} €</td>
-                                        <td style={{padding: '12px 10px', textAlign: 'right', borderBottom: '1px solid #f1f5f9'}}>{formatNumber(pedido.valor_pago)} €</td>
-                                        <td style={{padding: '12px 10px', textAlign: 'right', borderBottom: '1px solid #f1f5f9'}}>{pedido.data_pagamento ? new Date(`${pedido.data_pagamento}T00:00:00`).toLocaleDateString('pt-PT') : '—'}</td>
-                                        <td style={{padding: '12px 10px', textAlign: 'right', borderBottom: '1px solid #f1f5f9'}}>{pmp === null ? '—' : `${pmp} dias`}</td>
-                                        <td style={{padding: '12px 10px', maxWidth: '220px', color: '#475569', borderBottom: '1px solid #f1f5f9'}}>
-                                            {pedido.notas ? (
-                                                <details>
-                                                    <summary style={{cursor: 'pointer', color: '#0f766e', fontWeight: '700', fontSize: '0.8rem'}}>
-                                                        Ver notas
-                                                    </summary>
-                                                    <div style={{paddingTop: '6px', whiteSpace: 'pre-wrap', fontSize: '0.8rem', lineHeight: '1.4'}}>
-                                                        {pedido.notas}
-                                                    </div>
-                                                </details>
-                                            ) : '—'}
-                                        </td>
-                                        <td style={{padding: '12px 10px', textAlign: 'right', borderBottom: '1px solid #f1f5f9', whiteSpace: 'nowrap'}}>
-                                            <button onClick={() => setPedidoReembolsoForm({...pedido})} style={{border: 0, background: 'none', cursor: 'pointer', color: '#2563eb', marginRight: '8px'}} title="Editar"><Icons.Edit size={14} /></button>
-                                            <button onClick={() => deletePedidoReembolso(pedido.id)} style={{border: 0, background: 'none', cursor: 'pointer', color: '#dc2626'}} title="Apagar"><Icons.Trash size={14} /></button>
-                                        </td>
-                                    </tr>;
-                                })}
+    const investimento = Number(pedido.valor_investimento) || 0;
+    const txe = investimentoProjeto > 0 ? (investimento / investimentoProjeto) * 100 : null;
+    const pmp = getPedidoPmp(pedido);
+    
+    // 👇 DECLARAÇÕES ADICIONADAS AQUI PARA EVITAR O ERRO
+    const criadoEm = pedido.created_at ? new Date(pedido.created_at).toLocaleDateString('pt-PT') : '—';
+    const criadorNome = staff.find(s => String(s.id) === String(pedido.user_id))?.nome || 'Utilizador';
+
+    return (
+        <tr key={pedido.id}>
+            <td style={{padding: '12px 10px', fontWeight: '700', color: '#1e293b', borderBottom: '1px solid #f1f5f9'}}>
+                <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                    {pedido.pedido}
+                    
+                    {/* TOOLTIP DE INFO */}
+                    <div
+                        style={{display: 'inline-flex', cursor: 'pointer'}}
+                        onMouseEnter={(e) => {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            setInfoTooltip({
+                                x: rect.left + rect.width / 2,
+                                y: rect.bottom + 8,
+                                criadorNome,
+                                criadoEm
+                            });
+                        }}
+                        onMouseLeave={() => setInfoTooltip(null)}
+                    >
+                        <Icons.Info size={14} color="#64748b" />
+                    </div>
+                </div>
+            </td>
+            <td style={{padding: '12px 10px', textAlign: 'right', borderBottom: '1px solid #f1f5f9'}}>{pedido.data_pedido ? new Date(`${pedido.data_pedido}T00:00:00`).toLocaleDateString('pt-PT') : '—'}</td>
+            <td style={{padding: '12px 10px', textAlign: 'right', borderBottom: '1px solid #f1f5f9'}}>{formatNumber(investimento)} €</td>
+            <td style={{padding: '12px 10px', textAlign: 'right', fontWeight: '700', color: '#0f766e', borderBottom: '1px solid #f1f5f9'}}>{txe === null ? '—' : `${formatNumber(txe)}%`}</td>
+            <td style={{padding: '12px 10px', textAlign: 'right', borderBottom: '1px solid #f1f5f9'}}>{formatNumber(pedido.valor_incentivo)} €</td>
+            <td style={{padding: '12px 10px', textAlign: 'right', borderBottom: '1px solid #f1f5f9'}}>{formatNumber(pedido.valor_pago)} €</td>
+            <td style={{padding: '12px 10px', textAlign: 'right', borderBottom: '1px solid #f1f5f9'}}>{pedido.data_pagamento ? new Date(`${pedido.data_pagamento}T00:00:00`).toLocaleDateString('pt-PT') : '—'}</td>
+            <td style={{padding: '12px 10px', textAlign: 'right', borderBottom: '1px solid #f1f5f9'}}>{pmp === null ? '—' : `${pmp} dias`}</td>
+            <td style={{padding: '12px 10px', maxWidth: '220px', color: '#475569', borderBottom: '1px solid #f1f5f9'}}>
+                {pedido.notas ? (
+                    <details>
+                        <summary style={{cursor: 'pointer', color: '#0f766e', fontWeight: '700', fontSize: '0.8rem'}}>Ver notas</summary>
+                        <div style={{paddingTop: '6px', whiteSpace: 'pre-wrap', fontSize: '0.8rem', lineHeight: '1.4'}}>{pedido.notas}</div>
+                    </details>
+                ) : '—'}
+            </td>
+            <td style={{padding: '12px 10px', textAlign: 'right', borderBottom: '1px solid #f1f5f9', whiteSpace: 'nowrap'}}>
+                <button onClick={() => setPedidoReembolsoForm({...pedido})} style={{border: 0, background: 'none', cursor: 'pointer', color: '#2563eb', marginRight: '8px'}} title="Editar"><Icons.Edit size={14} /></button>
+                <button onClick={() => deletePedidoReembolso(pedido.id)} style={{border: 0, background: 'none', cursor: 'pointer', color: '#dc2626'}} title="Apagar"><Icons.Trash size={14} /></button>
+            </td>
+        </tr>
+    );
+})}
                                 <tr style={{background: '#f8fafc', fontWeight: '800'}}>
                                     <td style={{padding: '12px 10px', color: '#475569'}}>Total / média</td><td></td>
                                     <td style={{padding: '12px 10px', textAlign: 'right'}}>{formatNumber(totalInvestimento)} €</td>
@@ -4359,6 +4433,27 @@ export default function ProjetoDetalhe() {
               </div>
           </ModalPortal>
       )}
+      {infoTooltip && (
+    <ModalPortal>
+        <div style={{
+            position: 'fixed',
+            top: infoTooltip.y,
+            left: clamp(infoTooltip.x, 120, window.innerWidth - 120),
+            transform: 'translateX(-50%)',
+            width: '210px',
+            background: '#1e293b',
+            color: '#fff',
+            borderRadius: '8px',
+            padding: '10px 12px',
+            fontSize: '0.75rem',
+            boxShadow: '0 10px 25px -5px rgba(0,0,0,0.3)',
+            pointerEvents: 'none',
+            zIndex: 999999
+        }}>
+            <div>Criado por: {infoTooltip.criadorNome}</div>
+        </div>
+    </ModalPortal>
+)}
 
       <style>{`
           .hover-blue-text:hover { color: var(--color-btnPrimary) !important; }
