@@ -196,12 +196,14 @@ export default function Projetos() {
   const [overviewProgramFilter, setOverviewProgramFilter] = useState(() => overviewFilterCache.overviewProgramFilter || "");
   const [overviewStateFilter, setOverviewStateFilter] = useState(() => overviewFilterCache.overviewStateFilter || "");
   const [overviewEntityFilter, setOverviewEntityFilter] = useState(() => overviewFilterCache.overviewEntityFilter || "");
+  const [overviewTab, setOverviewTab] = useState("overview"); // "overview" | "anual"
+  const [anualYear, setAnualYear] = useState(new Date().getFullYear());
   const [overviewPage, setOverviewPage] = useState(1);
   const [overviewItemsPerPage, setOverviewItemsPerPage] = useState(10);
 
   useEffect(() => {
       setOverviewPage(1);
-  }, [overviewTypeFilter, overviewProgramFilter, overviewStateFilter, overviewEntityFilter, overviewSort, showUnassignedOverviewProjects, overviewItemsPerPage]);
+ }, [overviewTypeFilter, overviewProgramFilter, overviewStateFilter, overviewEntityFilter, overviewSort, showUnassignedOverviewProjects, overviewItemsPerPage, overviewTab]);
 
   const [menuPrincipal, setMenuPrincipal] = useState("tipo");
   const [selectedCategoria, setSelectedCategoria] = useState(null); 
@@ -2283,6 +2285,24 @@ export default function Projetos() {
           URL.revokeObjectURL(url);
       };
       const exportCurrentOverview = () => {
+        if (overviewTab === "anual") {
+            exportOverview(
+                `anual-reembolsos-${anualYear}.csv`,
+                ["Entidades", "Projeto", "Programa", ...MESES.map((m) => `${m} ${anualYear}`), `Total ${anualYear}`, "TXE"],
+                activeOverviewRows.map((project) => {
+                    const months = getMonthlyRequests(project, anualYear);
+                    return [
+                        getProjectInvolvedEntities(project),
+                        project.titulo || "",
+                        getProjectProgramName(project),
+                        ...months,
+                        sumArray(months),
+                        getExecutionRate(project)
+                    ];
+                })
+            );
+            return;
+        }
       exportOverview(
           "mapa-gantt-projetos.csv", 
           ["Entidades", "Programa", "Projeto", "Data início", "Data fim", "Investimento (EUR)", "Incentivo (EUR)", "Taxa de execução", "Data último pedido reembolso", "Dias desde último pedido"], 
@@ -2301,6 +2321,31 @@ export default function Projetos() {
       );
   };
       const exportCurrentOverviewPdf = () => {
+        if (overviewTab === "anual") {
+            const pdfAnual = new jsPDF({ orientation: "landscape", unit: "mm", format: "a3" });
+            pdfAnual.setFontSize(14);
+            pdfAnual.text(`Pedidos de Reembolso - ${anualYear}`, 14, 13);
+            autoTable(pdfAnual, {
+                startY: 20,
+                head: [["Entidades", "Projeto / Programa", ...MESES, "Total", "TXE"]],
+                body: activeOverviewRows.map((project) => {
+                    const months = getMonthlyRequests(project, anualYear);
+                    return [
+                        getProjectInvolvedEntities(project) || "-",
+                        `${project.titulo || "Sem título"}\n${getProjectProgramName(project)}`,
+                        ...months.map((v) => (v > 0 ? formatOverviewCurrency(v) : "-")),
+                        formatOverviewCurrency(sumArray(months)),
+                        getExecutionRate(project)
+                    ];
+                }),
+                theme: "grid",
+                styles: { fontSize: 6.5, cellPadding: 1.5, valign: "middle" },
+                headStyles: { fillColor: [15, 118, 110], textColor: 255, fontStyle: "bold" },
+                columnStyles: Object.fromEntries(Array.from({ length: 13 }, (_, i) => [i + 2, { halign: "right" }]))
+            });
+            pdfAnual.save(`reembolsos-anual-${anualYear}.pdf`);
+            return;
+        }
       const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
       pdf.setFontSize(14);
       pdf.text("Vista Geral de Projetos", 14, 13);
@@ -2430,6 +2475,46 @@ export default function Projetos() {
           return program?.codigo || programName;
       };
 
+      const MESES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+
+    // Lê ano/mês diretamente da string (evita problemas de fuso horário)
+    const getYearMonth = (value) => {
+        const [y, m] = String(value || "").slice(0, 10).split("-").map(Number);
+        return y && m ? { year: y, month: m - 1 } : null;
+    };
+
+    const availableYears = [...new Set([
+        new Date().getFullYear(),
+        ...pedidosReembolso.map((r) => getYearMonth(r.data_pedido)?.year).filter(Boolean)
+    ])].sort((a, b) => b - a);
+
+    const getMonthlyRequests = (project, year) => {
+        const months = Array(12).fill(0);
+        pedidosReembolso.forEach((r) => {
+            if (String(r.projeto_id) !== String(project.id)) return;
+            const ym = getYearMonth(r.data_pedido);
+            if (!ym || ym.year !== year) return;
+            months[ym.month] += Number(r.valor_investimento) || 0;
+        });
+        return months;
+    };
+
+    const sumArray = (arr) => arr.reduce((a, b) => a + b, 0);
+
+    // Totais por mês de todos os projetos visíveis (não só da página atual)
+    const anualMonthTotals = Array(12).fill(0);
+    visibleOverviewRows.forEach((p) => {
+        getMonthlyRequests(p, anualYear).forEach((v, i) => { anualMonthTotals[i] += v; });
+    });
+    const anualGrandTotal = sumArray(anualMonthTotals);
+    const totalRequestedAllTime = visibleOverviewRows.reduce((acc, p) =>
+        acc + pedidosReembolso
+            .filter((r) => String(r.projeto_id) === String(p.id))
+            .reduce((t, r) => t + (Number(r.valor_investimento) || 0), 0), 0);
+    const footerTxe = totalOverviewInvestimento > 0
+        ? `${((totalRequestedAllTime / totalOverviewInvestimento) * 100).toFixed(1)}%`
+        : "0.0%";
+
       return (
           <div className="page-container" style={{maxWidth: '1400px', margin: '0 auto', padding: '15px'}}>
               <div style={{background: 'white', padding: '20px 25px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', flexWrap: 'wrap', gap: '15px'}}>
@@ -2444,10 +2529,43 @@ export default function Projetos() {
                   </div>
                   <button className="btn-primary hover-shadow" onClick={handleNovo} style={{display:'flex', alignItems:'center', gap:'8px', fontWeight:'bold'}}><Icons.Plus /> Novo Projeto</button>
               </div>
+              <div style={{display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '12px', flexWrap: 'wrap'}}>
+    <div style={{display: 'flex', background: '#f1f5f9', borderRadius: '8px', padding: '4px', border: '1px solid #e2e8f0'}}>
+        {[{ id: "overview", label: "Overview" }, { id: "anual", label: "Anual" }].map((tab) => (
+            <button
+                key={tab.id}
+                type="button"
+                onClick={() => setOverviewTab(tab.id)}
+                style={{
+                    padding: '6px 18px', borderRadius: '6px', border: 'none', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer',
+                    background: overviewTab === tab.id ? 'white' : 'transparent',
+                    color: overviewTab === tab.id ? 'var(--color-btnPrimary)' : '#64748b',
+                    boxShadow: overviewTab === tab.id ? '0 2px 4px rgba(0,0,0,0.05)' : 'none'
+                }}
+            >
+                {tab.label}
+            </button>
+        ))}
+    </div>
+
+    {overviewTab === "anual" && (
+        <label style={{display: 'flex', alignItems: 'center', gap: '8px', color: '#475569', fontSize: '0.8rem', fontWeight: '800'}}>
+            Ano
+            <select
+                value={anualYear}
+                onChange={(e) => setAnualYear(Number(e.target.value))}
+                style={{padding: '6px 10px', border: '1px solid #cbd5e1', borderRadius: '7px', background: 'white', color: '#1e293b', fontSize: '0.8rem', fontWeight: '700'}}
+            >
+                {availableYears.map((y) => <option key={y} value={y}>{y}</option>)}
+            </select>
+        </label>
+    )}
+</div>
               <div style={{display: 'flex', alignItems: 'flex-end', gap: '10px', flexWrap: 'wrap', marginBottom: '12px', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '9px', background: '#f8fafc'}}>
                   <div style={{display: 'flex', alignItems: 'center', alignSelf: 'center', padding: '6px 10px', borderRadius: '7px', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', fontSize: '0.78rem', fontWeight: '800', whiteSpace: 'nowrap'}}>
                       {overviewProjectsCount} projeto{overviewProjectsCount === 1 ? '' : 's'}
                   </div>
+                  
         
 
                   {/* FILTRO: TIPO DE PROJETO */}
@@ -2540,6 +2658,7 @@ export default function Projetos() {
               </div>
 
                   <div style={{background: 'transparent', overflowX: 'auto'}}>
+                    {overviewTab === "overview" && (
                       <table style={{width: '100%', minWidth: '1100px', border: '1px solid #94a3b8', borderRadius: '12px', borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed', fontSize: '0.8rem', background: 'white', overflow: 'hidden'}}>
                           <thead>
                                 <tr>
@@ -2655,6 +2774,162 @@ export default function Projetos() {
                                     </tr>
                                 </tfoot>
                         </table>
+                    )}
+                    {overviewTab === "anual" && (
+                        <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse' }}>
+                            <colgroup>
+                                <col style={{width: '150px'}} />
+                                <col style={{width: '220px'}} />
+                                {MESES.map((m) => <col key={m} style={{width: '50px'}} />)}
+                                <col style={{width: '100px'}} />
+                                <col style={{width: '70px'}} />
+                            </colgroup>
+                            <thead>
+                                <tr>
+                                    <th style={{padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("entities", "entidades", "Entidades")}</th>
+                                    <th style={{padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("project", "projeto", "Projetos / Programas")}</th>
+                                    {MESES.map((m) => (
+                                        <th key={m} style={{padding: '4px 2px', fontSize: '0.8rem', textAlign: 'center'}}>{m}</th>
+                                    ))}
+                                    <th style={{padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)', color: '#1e293b', fontWeight: '800'}}>Total {anualYear}</th>
+                                    <th style={{padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("executionRate", "taxa de execução", "TXE")}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {paginatedOverviewRows.map((project) => {
+                                    const programColor = getOverviewProgramColor(getProjectProgramName(project));
+                                    const months = getMonthlyRequests(project, anualYear);
+                                    return (
+                                        <tr key={project.id} onClick={() => openProjectDetails(project)} style={{cursor: 'pointer'}}>
+                                            <td style={{padding: '6px 8px', border: '1px solid #cbd5e1', borderLeft: `2px solid ${programColor}`, boxShadow: `inset 2px 0 0 ${programColor}`, verticalAlign: 'top'}}>
+                                                {getProjectInvolvedEntities(project) || "-"}
+                                            </td>
+                                            <td style={{padding: '6px 8px', border: '1px solid #cbd5e1', verticalAlign: 'top'}}>
+                                                <b>{project.titulo || 'Sem título'}</b><br />
+                                                <span style={{fontSize: '0.75rem', color: '#64748b', fontWeight: '700'}}>
+                                                    {getOverviewProgramCode(getProjectProgramName(project))}
+                                                </span>
+                                                {(project.numero_projeto || project.codigo_projeto) && (
+                                                    <>
+                                                        <br />
+                                                        <span style={{fontSize: '0.7rem', color: '#94a3b8', fontFamily: 'monospace', fontWeight: '700'}}>
+                                                            {project.numero_projeto ? `Nº ${project.numero_projeto}` : ''}
+                                                            {project.numero_projeto && project.codigo_projeto ? ' • ' : ''}
+                                                            {project.codigo_projeto || ''}
+                                                        </span>
+                                                    </>
+                                                )}
+                                            </td>
+                                            {months.map((value, i) => (
+                                              <td key={i} style={{
+                                                    padding: '2px 4px', 
+                                                    border: '1px solid #cbd5e1', 
+                                                    textAlign: 'right', 
+                                                    whiteSpace: 'nowrap', 
+                                                    color: value > 0 ? '#0f172a' : '#cbd5e1', 
+                                                    fontWeight: value > 0 ? '600' : '400',
+                                                    fontSize: '0.75rem',
+                                                    letterSpacing: '-0.5px',
+                                                    background: value > 0 ? '#f0fdf4' : 'white'
+                                                }}>
+                                                    {value > 0 ? formatOverviewCurrency(value) : "-"}
+                                                </td>
+                                            ))}
+                                            <td style={{padding: '6px 8px', border: '1px solid #cbd5e1', textAlign: 'right', whiteSpace: 'nowrap', fontWeight: '800', background: '#f8fafc'}}>
+                                                {formatOverviewCurrency(sumArray(months))}
+                                            </td>
+                                            <td style={{padding: '6px 8px', border: '1px solid #cbd5e1', textAlign: 'center', whiteSpace: 'nowrap'}}>
+                                                {getExecutionRate(project)}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colSpan="2" style={{padding: '10px 14px', borderTop: '2px solid #cbd5e1', background: '#f8fafc', textAlign: 'right', fontWeight: '600', fontSize: '0.85rem', color: '#0f172a'}}>
+                                        {isOverviewFiltered ? "Total dos projetos filtrados:" : "Total de todos os projetos:"}
+                                    </td>
+
+                                    {anualMonthTotals.map((value, i) => (
+                                        <td key={i} style={{
+                                            padding: '10px 4px', /* Aumentei ligeiramente o padding lateral para respirar mais */
+                                            borderTop: '2px solid #cbd5e1', 
+                                            borderLeft: '1px solid #cbd5e1', 
+                                            background: '#f8fafc', 
+                                            textAlign: 'right', 
+                                            fontWeight: 'normal', /* <-- AQUI: Negrito removido dos números mensais */
+                                            fontSize: '0.65rem', 
+                                            letterSpacing: '-0.2px', /* Suavizei o letter-spacing já que não tem negrito */
+                                            whiteSpace: 'nowrap', 
+                                            overflow: 'hidden', 
+                                            color: '#475569' /* Escurecido ligeiramente, mas menos pesado que o preto total */
+                                        }}>
+                                            {value > 0 ? formatOverviewCurrency(value) : "-"}
+                                        </td>
+                                    ))}
+
+                                    <td style={{
+                                        padding: '10px 4px', 
+                                        borderTop: '2px solid #cbd5e1', 
+                                        borderLeft: '1px solid #cbd5e1', 
+                                        background: '#f1f5f9', 
+                                        textAlign: 'right', 
+                                        fontWeight: '500', /* Ligeiro destaque no total anual geral (opcional) */
+                                        fontSize: '1rem',
+                                        whiteSpace: 'nowrap', 
+                                        color: '#0f172a'
+                                    }}>
+                                        {formatOverviewCurrency(anualGrandTotal)} €
+                                    </td>
+
+                                    <td style={{
+                                        padding: '10px 4px', 
+                                        borderTop: '2px solid #cbd5e1', 
+                                        borderLeft: '1px solid #cbd5e1', 
+                                        background: '#f8fafc', 
+                                        textAlign: 'center', 
+                                        fontWeight: 'normal', /* <-- AQUI: Negrito removido da percentagem final */
+                                        fontSize: '1rem',
+                                        color: '#475569'
+                                    }}>
+                                        {footerTxe}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td colSpan={MESES.length + 4} style={{padding: '10px 14px', background: 'white', borderTop: '1px solid #cbd5e1'}}>
+                                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                                            <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                                <span style={{fontSize: '0.78rem', color: '#64748b', fontWeight: '700'}}>Mostrar:</span>
+                                                <select
+                                                    value={overviewItemsPerPage}
+                                                    onChange={(e) => setOverviewItemsPerPage(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                                                    style={{padding: '6px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', color: '#1e293b', fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer'}}
+                                                >
+                                                    <option value={10}>10 projetos</option>
+                                                    <option value={20}>20 projetos</option>
+                                                    <option value="all">Todos</option>
+                                                </select>
+                                            </div>
+                                            {totalOverviewPages > 1 && (
+                                                <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
+                                                    <button onClick={() => setOverviewPage((p) => Math.max(1, p - 1))} disabled={overviewPage === 1}
+                                                        style={{background: overviewPage === 1 ? '#f8fafc' : 'var(--color-bgSecondary)', color: overviewPage === 1 ? '#cbd5e1' : 'var(--color-btnPrimary)', border: 'none', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: overviewPage === 1 ? 'not-allowed' : 'pointer'}}>
+                                                        <Icons.ArrowLeft size={16} />
+                                                    </button>
+                                                    <span style={{fontSize: '0.85rem', fontWeight: '800', color: '#1e293b', whiteSpace: 'nowrap'}}>Página {overviewPage} de {totalOverviewPages}</span>
+                                                    <button onClick={() => setOverviewPage((p) => Math.min(totalOverviewPages, p + 1))} disabled={overviewPage === totalOverviewPages}
+                                                        style={{background: overviewPage === totalOverviewPages ? '#f8fafc' : 'var(--color-bgSecondary)', color: overviewPage === totalOverviewPages ? '#cbd5e1' : 'var(--color-btnPrimary)', border: 'none', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: overviewPage === totalOverviewPages ? 'not-allowed' : 'pointer'}}>
+                                                        <div style={{transform: 'rotate(180deg)', display: 'flex'}}><Icons.ArrowLeft size={16} /></div>
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    )}
 
                       {/* 👇 LEGENDAS DE COR DOS PROGRAMAS */}
                       <div style={{display: 'flex', flexWrap: 'wrap', gap: '8px 16px', width: '100%', boxSizing: 'border-box', padding: '8px 10px', border: '1px solid #cbd5e1', borderTop: 'none', borderRadius: '0 0 12px 12px', background: '#f8fafc'}}>
