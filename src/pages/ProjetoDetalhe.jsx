@@ -375,6 +375,9 @@ export default function ProjetoDetalhe() {
         const focusAttemptRef = useRef(0);
     const [highlightedTarget, setHighlightedTarget] = useState(null);
         const [focusRetryTick, setFocusRetryTick] = useState(0);
+    const [projetoEntidades, setProjetoEntidades] = useState([]);
+    const [execEntidadeId, setExecEntidadeId] = useState(null);
+    const [orcamentoEdit, setOrcamentoEdit] = useState(null); // { investimento, incentivo }
 
         const newPedidoReembolso = () => ({
             pedido: "",
@@ -733,7 +736,7 @@ export default function ProjetoDetalhe() {
 
     const { data: pedidosData, error: pedidosError } = await supabase
         .from("pedidos_reembolso")
-        .select("id, projeto_id, pedido, data_pedido, valor_investimento, valor_incentivo, valor_pago, data_pagamento, notas, user_id, created_at") // 👈 ADICIONADO AQUI
+        .select("id, projeto_id, entidade_id, pedido, data_pedido, valor_investimento, valor_incentivo, valor_pago, data_pagamento, notas, user_id, created_at")
         .eq("projeto_id", id)
         .order("data_pedido", { ascending: true })
         .order("created_at", { ascending: true });
@@ -744,6 +747,13 @@ export default function ProjetoDetalhe() {
         setPedidosReembolso(pedidosData || []);
     }
     
+    const { data: peData, error: peError } = await supabase
+        .from("projeto_entidades")
+        .select("projeto_id, entidade_id, papel, investimento, incentivo")
+        .eq("projeto_id", id);
+    if (peError) console.error("Erro ao carregar projeto_entidades:", peError);
+    setProjetoEntidades(peData || []);
+
     setLoading(false);
   }
 
@@ -763,7 +773,8 @@ export default function ProjetoDetalhe() {
           valor_incentivo: Number(pedidoReembolsoForm.valor_incentivo) || 0,
           valor_pago: Number(pedidoReembolsoForm.valor_pago) || 0,
           data_pagamento: pedidoReembolsoForm.data_pagamento || null,
-          notas: pedidoReembolsoForm.notas?.trim() || null
+          notas: pedidoReembolsoForm.notas?.trim() || null,
+          entidade_id: pedidoReembolsoForm.entidade_id || projeto.cliente_id
       };
 
       setPedidoReembolsoSaving(true);
@@ -785,6 +796,34 @@ export default function ProjetoDetalhe() {
           setPedidoReembolsoSaving(false);
       }
   };
+
+  const saveOrcamentoEntidade = async (entidadeId, entidadesIds) => {
+    const investimento = Number(orcamentoEdit?.investimento) || 0;
+    const incentivo = Number(orcamentoEdit?.incentivo) || 0;
+    const papel = String(entidadeId) === String(projeto.cliente_id) ? "lider" : "parceiro";
+
+    const { error } = await supabase.from("projeto_entidades").upsert(
+        { projeto_id: id, entidade_id: entidadeId, papel, investimento, incentivo },
+        { onConflict: "projeto_id,entidade_id" }
+    );
+    if (error) { showToast(`Erro ao guardar valores: ${error.message}`, "error"); return; }
+
+    const next = [
+        ...projetoEntidades.filter((r) => String(r.entidade_id) !== String(entidadeId)),
+        { projeto_id: id, entidade_id: entidadeId, papel, investimento, incentivo }
+    ];
+    setProjetoEntidades(next);
+
+    // mantém o total do projeto = soma das entidades (igual ao Projetos.jsx)
+    const soma = (f) => entidadesIds.reduce(
+        (t, eid) => t + (Number(next.find((r) => String(r.entidade_id) === String(eid))?.[f]) || 0), 0);
+    const totais = { investimento: soma("investimento"), incentivo: soma("incentivo") };
+    await supabase.from("projetos").update(totais).eq("id", id);
+    setProjeto((prev) => ({ ...prev, ...totais }));
+
+    setOrcamentoEdit(null);
+    showToast("Valores da entidade atualizados.", "success");
+};  
 
   const deletePedidoReembolso = async (pedidoId) => {
       if (!window.confirm("Apagar este pedido de reembolso?")) return;
@@ -1595,14 +1634,6 @@ export default function ProjetoDetalhe() {
               (pid) => String(pid) !== String(formGeral.cliente_id)
           );
 
-          const limpaParaSupabase = (val) => {
-                if (val === null || val === undefined || val === "") return 0;
-                // Remove espaços visuais que a máscara aplica
-                const limpo = String(val).replace(/\s/g, "");
-                const num = Number(limpo);
-                return Number.isFinite(num) ? num : 0;
-            };
-
           const payload = {
               titulo: formGeral.titulo, cliente_id: formGeral.cliente_id, responsavel_id: formGeral.responsavel_id,
               is_parceria: formGeral.is_parceria, parceiros_ids: formGeral.is_parceria ? parceirosSanitizados : [],
@@ -1612,8 +1643,6 @@ export default function ProjetoDetalhe() {
               programa: formGeral.programa, aviso: formGeral.aviso, codigo_projeto: formGeral.codigo_projeto,
               numero_projeto: formGeral.numero_projeto || "",
               descricao: formGeral.descricao, observacoes: formGeral.observacoes,
-              investimento: limpaParaSupabase(formGeral.investimento),
-              incentivo: limpaParaSupabase(formGeral.incentivo),
               programa_id: formGeral.programa_id || null,
               aviso_id: formGeral.aviso_id || null,
               prazos_fases: normalizeProjetoFases(formGeral.prazos_fases),
@@ -2045,7 +2074,10 @@ export default function ProjetoDetalhe() {
 
   if (loading) return <div className="page-container" style={{display:'flex', justifyContent:'center', alignItems:'center', height:'80vh'}}><div className="pulse-dot-white" style={{background:'var(--color-btnPrimary)'}}></div></div>;
   if (!projeto) return <div className="page-container"><p>Projeto não encontrado.</p><button onClick={() => navigate(-1)}>Voltar</button></div>;
-
+    const entidadesFin = [...new Set(
+    [projeto.cliente_id, ...(projeto.is_parceria ? normalizeIdsList(projeto.parceiros_ids) : [])]
+        .filter(Boolean).map(String)
+)];
     const statusTheme = getProjectStatusTheme(projeto.estado);
     const projetoFases = normalizeProjetoFases(formGeral.prazos_fases);
   const labelStyle = { display: 'block', marginBottom: '6px', fontSize: '0.75rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' };
@@ -2409,13 +2441,23 @@ export default function ProjetoDetalhe() {
       <div style={{minHeight: '50vh'}}>
 
         {activeTab === 'execucao' && (() => {
-            const totalInvestimento = pedidosReembolso.reduce((sum, item) => sum + (Number(item.valor_investimento) || 0), 0);
-            const totalIncentivo = pedidosReembolso.reduce((sum, item) => sum + (Number(item.valor_incentivo) || 0), 0);
-            const totalPago = pedidosReembolso.reduce((sum, item) => sum + (Number(item.valor_pago) || 0), 0);
-            const pmpValues = pedidosReembolso.map(getPedidoPmp).filter((value) => value !== null);
-            const mediaPmp = pmpValues.length ? pmpValues.reduce((sum, value) => sum + value, 0) / pmpValues.length : null;
-            const investimentoProjeto = Number(projeto.investimento) || 0;
-            const taxaExecucao = investimentoProjeto > 0 ? (totalInvestimento / investimentoProjeto) * 100 : null;
+            const liderId = String(projeto.cliente_id || "");
+            const entidadeAtivaId = entidadesFin.includes(String(execEntidadeId)) ? String(execEntidadeId) : entidadesFin[0];
+            const getEntNome = (eid) => getClientDisplayName(clientes.find((c) => String(c.id) === String(eid))) || "Entidade";
+            const orc = projetoEntidades.find((r) => String(r.entidade_id) === entidadeAtivaId);
+            const isSingle = entidadesFin.length === 1;
+            const orcInv = Number(orc?.investimento) || 0;
+            const orcInc = Number(orc?.incentivo) || 0;
+            const investimentoEnt = isSingle && orcInv === 0 ? Number(projeto.investimento) || 0 : orcInv;
+            const incentivoEnt = isSingle && orcInc === 0 ? Number(projeto.incentivo) || 0 : orcInc;
+            const pedidosEnt = pedidosReembolso.filter((p) => String(p.entidade_id || liderId) === entidadeAtivaId);
+            const totalInvestimento = pedidosEnt.reduce((s, i) => s + (Number(i.valor_investimento) || 0), 0);
+            const totalIncentivo = pedidosEnt.reduce((s, i) => s + (Number(i.valor_incentivo) || 0), 0);
+            const totalPago = pedidosEnt.reduce((s, i) => s + (Number(i.valor_pago) || 0), 0);
+            const pmpValues = pedidosEnt.map(getPedidoPmp).filter((v) => v !== null);
+            const mediaPmp = pmpValues.length ? pmpValues.reduce((s, v) => s + v, 0) / pmpValues.length : null;
+            const investimentoProjeto = investimentoEnt;   // usado no resto do código (TXE)
+            const taxaExecucao = investimentoEnt > 0 ? (totalInvestimento / investimentoEnt) * 100 : null;
             const metricCard = (label, value, color) => (
                 <div style={{background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px'}}>
                     <div style={{fontSize: '0.7rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', marginBottom: '6px'}}>{label}</div>
@@ -2439,40 +2481,77 @@ export default function ProjetoDetalhe() {
                 
                 <div style={{background: 'white', padding: '30px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0'}}>
                     {/* --- BLOCO DE RESUMO FINANCEIRO NA ABA DE EXECUÇÃO --- */}
-                    <div style={{ background: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
-                        <h3 style={{ margin: '0 0 15px 0', fontSize: '1rem', color: '#0f172a', fontWeight: '800' }}>
-                            Resumo Financeiro e Enquadramento
-                        </h3>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
-                            
-                            {/* Investimento Elegível */}
-                            <div style={{ background: 'white', padding: '12px 15px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
-                                <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Investimento Elegível</span>
-                                <div style={{ fontSize: '1.1rem', fontWeight: '900', color: '#0f172a', marginTop: '4px' }}>
-                                    {Number(projeto?.investimento || 0).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
-                                </div>
-                            </div>
-
-                            {/* Incentivo Atribuído */}
-                            <div style={{ background: 'white', padding: '12px 15px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
-                                <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Incentivo Atribuído</span>
-                                <div style={{ fontSize: '1.1rem', fontWeight: '900', color: '#0f172a', marginTop: '4px' }}>
-                                    {Number(projeto?.incentivo || 0).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
-                                </div>
-                            </div>
-
-                            {/* Taxa de Financiamento (Incentivo / Investimento) */}
-                            <div style={{ background: 'white', padding: '12px 15px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
-                                <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Taxa de Financiamento</span>
-                                <div style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--color-btnPrimary)', marginTop: '4px' }}>
-                                    {Number(projeto?.investimento) > 0 
-                                        ? `${((Number(projeto?.incentivo || 0) / Number(projeto?.investimento)) * 100).toFixed(2)}%` 
-                                        : '0.00%'}
-                                </div>
-                            </div>
-
+                    <div style={{display:'flex', gap:'8px', flexWrap:'wrap', marginBottom:'20px', borderBottom:'1px solid #e2e8f0', paddingBottom:'12px'}}>
+                        {entidadesFin.map((eid) => {
+                            const ativa = eid === entidadeAtivaId;
+                            return (
+                                <button key={eid} type="button"
+                                    onClick={() => { setExecEntidadeId(eid); setPedidoReembolsoForm(null); setOrcamentoEdit(null); }}
+                                    style={{
+                                        padding:'8px 16px', borderRadius:'999px', cursor:'pointer', fontWeight:'800', fontSize:'0.82rem',
+                                        border: ativa ? '1px solid var(--color-btnPrimary)' : '1px solid #cbd5e1',
+                                        background: ativa ? 'var(--color-btnPrimary)' : '#fff',
+                                        color: ativa ? '#fff' : '#475569'
+                                    }}>
+                                    {getEntNome(eid)}{eid === liderId && entidadesFin.length > 1 ? ' (líder)' : ''}
+                                </button>
+                            );
+                        })}
+                    </div>
+                    <div style={{ background:'#f8fafc', padding:'20px', borderRadius:'12px', border:'1px solid #e2e8f0', marginBottom:'20px' }}>
+                        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px', gap:'10px', flexWrap:'wrap'}}>
+                            <h3 style={{ margin:0, fontSize:'1rem', color:'#0f172a', fontWeight:'800' }}>
+                                Resumo Financeiro — {getEntNome(entidadeAtivaId)}
+                            </h3>
+                            {!orcamentoEdit && (
+                                <button type="button" className="hover-shadow"
+                                    onClick={() => setOrcamentoEdit({ investimento: investimentoEnt, incentivo: incentivoEnt })}
+                                    style={{display:'flex', alignItems:'center', gap:'6px', background:'white', border:'1px solid #cbd5e1', borderRadius:'8px', padding:'6px 12px', fontWeight:'700', color:'#475569', cursor:'pointer', fontSize:'0.8rem'}}>
+                                    <Icons.Edit size={14} /> Editar valores
+                                </button>
+                            )}
                         </div>
+
+                        {orcamentoEdit ? (
+                            <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(200px, 1fr))', gap:'15px', alignItems:'end'}}>
+                                <div>
+                                    <label style={labelStyle}>Investimento Elegível (€)</label>
+                                    <input type="number" step="0.01" min="0" style={{...inputStyle, marginBottom:0}} className="input-focus"
+                                        value={orcamentoEdit.investimento}
+                                        onChange={(e) => setOrcamentoEdit((p) => ({ ...p, investimento: e.target.value }))} />
+                                </div>
+                                <div>
+                                    <label style={labelStyle}>Incentivo Atribuído (€)</label>
+                                    <input type="number" step="0.01" min="0" style={{...inputStyle, marginBottom:0}} className="input-focus"
+                                        value={orcamentoEdit.incentivo}
+                                        onChange={(e) => setOrcamentoEdit((p) => ({ ...p, incentivo: e.target.value }))} />
+                                </div>
+                                <div style={{display:'flex', gap:'8px'}}>
+                                    <button type="button" onClick={() => setOrcamentoEdit(null)} className="hover-shadow"
+                                        style={{padding:'10px 14px', borderRadius:'8px', border:'1px solid #cbd5e1', background:'white', color:'#475569', fontWeight:'700', cursor:'pointer'}}>Cancelar</button>
+                                    <button type="button" onClick={() => saveOrcamentoEntidade(entidadeAtivaId, entidadesFin)} className="btn-primary">
+                                        <Icons.Save size={14} /> Guardar
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(200px, 1fr))', gap:'15px' }}>
+                                <div style={{ background:'white', padding:'12px 15px', borderRadius:'8px', border:'1px solid #cbd5e1' }}>
+                                    <span style={{ fontSize:'0.75rem', color:'#64748b', fontWeight:'700', textTransform:'uppercase' }}>Investimento Elegível</span>
+                                    <div style={{ fontSize:'1.1rem', fontWeight:'900', color:'#0f172a', marginTop:'4px' }}>{formatNumber(investimentoEnt)} €</div>
+                                </div>
+                                <div style={{ background:'white', padding:'12px 15px', borderRadius:'8px', border:'1px solid #cbd5e1' }}>
+                                    <span style={{ fontSize:'0.75rem', color:'#64748b', fontWeight:'700', textTransform:'uppercase' }}>Incentivo Atribuído</span>
+                                    <div style={{ fontSize:'1.1rem', fontWeight:'900', color:'#0f172a', marginTop:'4px' }}>{formatNumber(incentivoEnt)} €</div>
+                                </div>
+                                <div style={{ background:'white', padding:'12px 15px', borderRadius:'8px', border:'1px solid #cbd5e1' }}>
+                                    <span style={{ fontSize:'0.75rem', color:'#64748b', fontWeight:'700', textTransform:'uppercase' }}>Taxa de Financiamento</span>
+                                    <div style={{ fontSize:'1.1rem', fontWeight:'900', color:'var(--color-btnPrimary)', marginTop:'4px' }}>
+                                        {investimentoEnt > 0 ? `${((incentivoEnt / investimentoEnt) * 100).toFixed(2)}%` : '0.00%'}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                     
                     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '20px', flexWrap: 'wrap'}}>
@@ -2480,7 +2559,7 @@ export default function ProjetoDetalhe() {
                             <h2 style={{margin: 0, color: '#0f172a', fontSize: '1.3rem'}}>Execução Financeira</h2>
                             <p style={{margin: '5px 0 0', color: '#64748b', fontSize: '0.85rem'}}>Pedidos de reembolso e leitura rápida da execução do projeto.</p>
                         </div>
-                        <button onClick={() => setPedidoReembolsoForm(newPedidoReembolso())} className="btn-primary" style={{display: 'flex', alignItems: 'center', gap: '7px'}}>
+                        <button onClick={() => setPedidoReembolsoForm({ ...newPedidoReembolso(), entidade_id: entidadeAtivaId })} className="btn-primary" style={{display: 'flex', alignItems: 'center', gap: '7px'}}>
                             <Icons.Plus size={15} /> Novo pedido
                         </button>
                     </div>
@@ -2552,7 +2631,7 @@ export default function ProjetoDetalhe() {
                                 {['Pedido', 'Data Pedido', 'Valor Investimento', 'TXE', 'Valor Incentivo', 'Valor Pago', 'Data Pagamento', 'PMP', 'Notas', ''].map((heading) => <th key={heading} style={{padding: '11px 10px', textAlign: ['Pedido', 'Notas'].includes(heading) ? 'left' : 'right', color: '#64748b', fontSize: '0.7rem', textTransform: 'uppercase', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap'}}>{heading}</th>)}
                             </tr></thead>
                             <tbody>
-                                {pedidosReembolso.map((pedido) => {
+                                {pedidosEnt.map((pedido) => {
     const investimento = Number(pedido.valor_investimento) || 0;
     const txe = investimentoProjeto > 0 ? (investimento / investimentoProjeto) * 100 : null;
     const pmp = getPedidoPmp(pedido);
@@ -2601,7 +2680,7 @@ export default function ProjetoDetalhe() {
                 ) : '—'}
             </td>
             <td style={{padding: '12px 10px', textAlign: 'right', borderBottom: '1px solid #f1f5f9', whiteSpace: 'nowrap'}}>
-                <button onClick={() => setPedidoReembolsoForm({...pedido})} style={{border: 0, background: 'none', cursor: 'pointer', color: '#2563eb', marginRight: '8px'}} title="Editar"><Icons.Edit size={14} /></button>
+                <button onClick={() => setPedidoReembolsoForm({ ...pedido, entidade_id: pedido.entidade_id || entidadeAtivaId })} style={{border: 0, background: 'none', cursor: 'pointer', color: '#2563eb', marginRight: '8px'}} title="Editar"><Icons.Edit size={14} /></button>
                 <button onClick={() => deletePedidoReembolso(pedido.id)} style={{border: 0, background: 'none', cursor: 'pointer', color: '#dc2626'}} title="Apagar"><Icons.Trash size={14} /></button>
             </td>
         </tr>
@@ -2612,11 +2691,12 @@ export default function ProjetoDetalhe() {
                                     <td style={{padding: '12px 10px', textAlign: 'right'}}>{formatNumber(totalInvestimento)} €</td>
                                     <td style={{padding: '12px 10px', textAlign: 'right', color: '#0f766e'}}>{taxaExecucao === null ? '—' : `${formatNumber(taxaExecucao)}%`}</td>
                                     <td style={{padding: '12px 10px', textAlign: 'right'}}>{formatNumber(totalIncentivo)} €</td>
-                                    <td style={{padding: '12px 10px', textAlign: 'right'}}>{formatNumber(totalPago)} €</td><td></td>
+                                    <td style={{padding: '12px 10px', textAlign: 'right'}}>{formatNumber(totalPago)} €</td>
+                                    <td></td><td></td><td></td><td></td>
                                 </tr>
                             </tbody>
                         </table>
-                        {pedidosReembolso.length === 0 && <div style={{padding: '35px 15px', textAlign: 'center', color: '#94a3b8'}}>Ainda não existem pedidos de reembolso registados.</div>}
+                        {pedidosEnt.length === 0 && <div style={{padding: '35px 15px', textAlign: 'center', color: '#94a3b8'}}>Ainda não existem pedidos de reembolso registados.</div>}
                     </div>
                 </div>
             );
@@ -3274,8 +3354,7 @@ export default function ProjetoDetalhe() {
                         </button>
                     ) : (
                         <div style={{display: 'flex', gap: '10px'}}>
-                            <button onClick={() => { setIsEditingGeral(false); setFormGeral(projeto); }} className="btn-small hover-shadow" style={{padding: '8px 16px', borderRadius: '8px', fontSize: '0.9rem', background: 'white', border: '1px solid #cbd5e1', color: '#64748b', fontWeight: 'bold'}}>Cancelar</button>
-                            <button onClick={handleUpdateProjeto} className="btn-primary hover-shadow" style={{padding: '8px 20px', borderRadius: '8px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                            <button onClick={() => { setIsEditingGeral(false); setFormGeral({ ...projeto, has_organismo: !!projeto.organismo_id, prazos_fases: normalizeProjetoFases(projeto.prazos_fases) }); }} className="btn-small hover-shadow" style={{padding: '8px 16px', borderRadius: '8px', fontSize: '0.9rem', background: 'white', border: '1px solid #cbd5e1', color: '#64748b', fontWeight: 'bold'}}>Cancelar</button>                            <button onClick={handleUpdateProjeto} className="btn-primary hover-shadow" style={{padding: '8px 20px', borderRadius: '8px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px'}}>
                                 <Icons.Save /> Gravar Modificações
                             </button>
                         </div>
@@ -3599,7 +3678,7 @@ export default function ProjetoDetalhe() {
                                                             ...formGeral, 
                                                             aviso_id: avId, 
                                                             aviso: av?.codigo || "", 
-                                                            prazos_fases: av?.fases ? normalizeProjetoFases(av.fases) : prev.prazos_fases
+                                                            prazos_fases: av?.fases ? normalizeProjetoFases(av.fases) : formGeral.prazos_fases
                                                         });
                                                     }}
                                                     style={{
@@ -3649,46 +3728,6 @@ export default function ProjetoDetalhe() {
                         </div>
 
                         <div>
-                            {(() => {
-                                const tipoSelecionadoLocal = tiposProjeto.find(t => String(t.id) === String(formGeral.tipo_projeto_id));
-                                const isFormacaoLocal = tipoSelecionadoLocal?.eh_formacao === true;
-                                if (isFormacaoLocal) return null;
-                                return (
-                                    <div style={{ background: 'var(--color-bgSecondary)', padding: '20px', borderRadius: '12px', border: '1px solid var(--color-borderColor)', marginBottom: '20px' }}>
-                                        <h4 style={{ margin: '0 0 15px 0', color: 'var(--color-btnPrimaryHover)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1rem' }}><Icons.Dollar /> Financeiro</h4>
-                                        
-                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                                            {/* Campo Investimento */}
-                                            <div>
-                                                <label style={{ ...labelStyle, color: 'var(--color-btnPrimaryDark)' }}>Investimento (€)</label>
-                                                <input 
-                                                    type="text" 
-                                                    /* 💡 SE NÃO ESTIVER A EDITAR, MOSTRA FORÇADAMENTE FORMATADO */
-                                                    value={isEditingGeral ? (formGeral.investimento ?? "") : formatNumber(formGeral.investimento)} 
-                                                    onChange={e => setFormGeral({ ...formGeral, investimento: parseNumberInput(e.target.value) })}
-                                                    onBlur={e => setFormGeral({ ...formGeral, investimento: formatNumber(parseNumberInput(e.target.value)) })}
-                                                    style={{ ...inputStyle, borderColor: 'var(--color-borderColor)', marginBottom: 0 }} 
-                                                    className="input-focus" 
-                                                />
-                                            </div>
-                                            
-                                            {/* Campo Incentivo */}
-                                            <div>
-                                                <label style={{ ...labelStyle, color: 'var(--color-btnPrimaryDark)' }}>Incentivo (€)</label>
-                                                <input 
-                                                    type="text" 
-                                                    /* 💡 SE NÃO ESTIVER A EDITAR, MOSTRA FORÇADAMENTE FORMATADO */
-                                                    value={isEditingGeral ? (formGeral.incentivo ?? "") : formatNumber(formGeral.incentivo)} 
-                                                    onChange={e => setFormGeral({ ...formGeral, incentivo: parseNumberInput(e.target.value) })}
-                                                    onBlur={e => setFormGeral({ ...formGeral, incentivo: formatNumber(parseNumberInput(e.target.value)) })}
-                                                    style={{ ...inputStyle, borderColor: 'var(--color-borderColor)', color: 'var(--color-btnPrimary)', marginBottom: 0 }} 
-                                                    className="input-focus" 
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })()}
                             <label style={labelStyle}>Descrição Pública</label>
                             <textarea rows="3" value={formGeral.descricao || ''} onChange={e => setFormGeral({...formGeral, descricao: e.target.value})} style={{...inputStyle, resize: 'vertical', fontSize:'0.85rem'}} className="input-focus" />
                             <label style={{...labelStyle, color: '#b45309', marginTop: '5px'}}>Observações Internas</label>

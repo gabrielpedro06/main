@@ -200,11 +200,13 @@ export default function Projetos() {
   const [anualYear, setAnualYear] = useState(new Date().getFullYear());
   const [overviewPage, setOverviewPage] = useState(1);
   const [overviewItemsPerPage, setOverviewItemsPerPage] = useState(10);
+  const [orcamentos, setOrcamentos] = useState({}); // { [entidadeId]: { investimento, incentivo } }
+  const [projetoEntidades, setProjetoEntidades] = useState([]);
+  const [hideEmptyProjects, setHideEmptyProjects] = useState(false);
 
   useEffect(() => {
       setOverviewPage(1);
- }, [overviewTypeFilter, overviewProgramFilter, overviewStateFilter, overviewEntityFilter, overviewSort, showUnassignedOverviewProjects, overviewItemsPerPage, overviewTab]);
-
+  }, [overviewTypeFilter, overviewProgramFilter, overviewStateFilter, overviewEntityFilter, overviewSort, showUnassignedOverviewProjects, overviewItemsPerPage, overviewTab, hideEmptyProjects, anualYear]);
   const [menuPrincipal, setMenuPrincipal] = useState("tipo");
   const [selectedCategoria, setSelectedCategoria] = useState(null); 
   const [selectedEstado, setSelectedEstado] = useState(null); 
@@ -334,6 +336,22 @@ export default function Projetos() {
       window.dispatchEvent(new CustomEvent("project-notifications-updated"));
   };
 
+  const syncProjetoEntidades = async (projetoId, payload) => {
+    const lider = String(payload.cliente_id);
+    const ids = [...new Set([lider, ...(payload.parceiros_ids || []).map(String)])];
+    const rows = ids.map((id) => ({
+        projeto_id: projetoId,
+        entidade_id: id,
+        papel: id === lider ? "lider" : "parceiro",
+        investimento: ids.length === 1 ? Number(payload.investimento) || 0 : Number(orcamentos[id]?.investimento) || 0,
+        incentivo: ids.length === 1 ? Number(payload.incentivo) || 0 : Number(orcamentos[id]?.incentivo) || 0,
+    }));
+    const { error } = await supabase.from("projeto_entidades").upsert(rows, { onConflict: "projeto_id,entidade_id" });
+    if (error) throw error;
+    await supabase.from("projeto_entidades").delete()
+        .eq("projeto_id", projetoId).not("entidade_id", "in", `(${ids.join(",")})`);
+    };
+
   useEffect(() => {
         // Se o aviso mudar, atualiza as fases de acordo
         if (form.avisos_ids) {
@@ -360,7 +378,7 @@ export default function Projetos() {
   }, [user]);
 
     const getProgramaById = (programaId) => programas.find((programa) => String(programa.id) === String(programaId)) || null;
-    const getAvisoById = (avisoId) => avisos.find((aviso) => String(avisos.ids) === String(avisoId)) || null;
+    const getAvisoById = (avisoId) => avisos.find((aviso) => String(aviso.id) === String(avisoId)) || null;
     const normalizeCode = (v) => String(v || "").trim().toLowerCase();
     const getAvisoForPrograma = (programa) => {
       if (!programa) return null;
@@ -464,6 +482,7 @@ export default function Projetos() {
             setIsViewOnly(false);
             setActiveTab("geral");
             setCurrentStep(1);
+            setOrcamentos({});
             setShowModal(true); 
             // Limpa para não repetir ao atualizar a página
             navigate(location.pathname, { replace: true, state: {} });
@@ -491,6 +510,7 @@ export default function Projetos() {
           setIsViewOnly(false);
           setActiveTab("geral");
           setCurrentStep(1);
+          setOrcamentos({});
           setShowModal(true); 
           
           navigate(location.pathname, { replace: true, state: {} });
@@ -612,7 +632,7 @@ export default function Projetos() {
 
     const { data: pedidosReembolsoData, error: pedidosReembolsoError } = await supabase
         .from("pedidos_reembolso")
-        .select("id, projeto_id, data_pedido, valor_investimento, valor_incentivo")
+        .select("id, projeto_id, entidade_id, data_pedido, valor_investimento, valor_incentivo")
         .order("data_pedido", { ascending: false });
     if (pedidosReembolsoError) {
         console.error("Erro ao carregar pedidos de reembolso para a vista geral:", pedidosReembolsoError);
@@ -620,6 +640,9 @@ export default function Projetos() {
     } else {
         setPedidosReembolso(pedidosReembolsoData || []);
     }
+
+    const { data: peData } = await supabase.from("projeto_entidades").select("projeto_id, entidade_id, papel, investimento, incentivo");
+        setProjetoEntidades(peData || []);
 
         // Load programas normally
         const { data: programasData, error: programasError } = await supabase
@@ -990,10 +1013,16 @@ export default function Projetos() {
     setActiveTab("geral"); 
     setCurrentStep(1);
     setShowModal(true);
+    setOrcamentos({});
   }
 
-  function handleEdit(e, proj) {
-    e.stopPropagation();
+    async function handleEdit(e, proj) {
+        e.stopPropagation();
+        const { data: pe } = await supabase
+            .from("projeto_entidades").select("entidade_id, investimento, incentivo").eq("projeto_id", proj.id);
+        const map = {};
+        (pe || []).forEach((r) => { map[String(r.entidade_id)] = { investimento: Number(r.investimento) || 0, incentivo: Number(r.incentivo) || 0 }; });
+        setOrcamentos(map);
     setEditId(proj.id); setIsViewOnly(false);
         setParceiroSelecionado("");
     const matchedPrograma = programas.find((programa) =>
@@ -1001,8 +1030,8 @@ export default function Projetos() {
         String(programa.codigo || "").trim() === String(proj.programa || "").trim() ||
         String(programa.nome || "").trim() === String(proj.programa || "").trim()
     ) || null;
-    const matchedAviso = avisos.find((aviso) =>
-        String(avisos.ids) === String(proj.avisos_ids || "") ||
+      const matchedAviso = avisos.find((aviso) =>
+        String(aviso.id) === String(proj.avisos_ids || proj.aviso_id || "") ||
         String(aviso.codigo || "").trim() === String(proj.aviso || "").trim()
     ) || null;
     const avisoBase = matchedAviso || getAvisoForPrograma(matchedPrograma);
@@ -1021,6 +1050,7 @@ export default function Projetos() {
         programa: proj.programa || matchedPrograma?.nome || "", aviso: proj.aviso || matchedAviso?.codigo || avisoBase?.codigo || "",
         programa_id: matchedPrograma?.id || proj.programa_id || "",
         aviso_id: matchedAviso?.id || proj.aviso_id || avisoBase?.id || "",
+        avisos_ids: matchedAviso?.id || proj.avisos_ids || proj.aviso_id || avisoBase?.id || "",
         prazos_fases: projetoFases,
         codigo_projeto: proj.codigo_projeto || "", numero_projeto: proj.numero_projeto || "", investimento: proj.investimento || 0, incentivo: proj.incentivo || 0
     });
@@ -1105,6 +1135,10 @@ export default function Projetos() {
         payload.prazos_fases = normalizedFases;
         payload.programa = selectedPrograma ? `${selectedPrograma.codigo ? `${selectedPrograma.codigo} - ` : ""}${selectedPrograma.nome || ""}`.trim() : (payload.programa || "").trim();
         payload.aviso = selectedAviso?.codigo || (payload.aviso || "").trim();
+            if (entidadesProjeto.length > 1) {
+                payload.investimento = sumOrc("investimento");
+                payload.incentivo = sumOrc("incentivo");
+            }
 
     if (payload.cliente_id === "") payload.cliente_id = null;
     if (payload.tipo_projeto_id === "") payload.tipo_projeto_id = null;
@@ -1139,8 +1173,8 @@ export default function Projetos() {
         if (!payload.data_fim) missingFields.push("Data de Fim");
         if ((payload.programa_id || payload.avisos_ids) && normalizedFases.length === 0) missingFields.push("Datas das fases do aviso");
 
-        const numInvestimento = Number(payload.investimento) || 0;
-        const numIncentivo = Number(payload.incentivo) || 0;
+        const numInvestimento = isMultiEntidade ? sumOrc('investimento') : (Number(form.investimento) || 0);
+        const numIncentivo = isMultiEntidade ? sumOrc('incentivo') : (Number(form.incentivo) || 0);
         const semInvestimento = !isProjetoFormacao && numInvestimento <= 0;
         const semIncentivo = !isProjetoFormacao && numIncentivo <= 0;
 
@@ -1215,12 +1249,14 @@ export default function Projetos() {
                 }
                 throw error;
             }
+            await syncProjetoEntidades(editId, payload);
             showToast("Projeto atualizado!");
             setShowModal(false); 
             fetchData(); 
         } else {
             const { data: newProj, error: errProj } = await supabase.from("projetos").insert([payload]).select().single();
             if (errProj) throw errProj;
+            await syncProjetoEntidades(newProj.id, payload);
 
             // Gerar Árvore de Atividades
             if (payload.tipo_projeto_id && templateTree.length > 0) {
@@ -1642,7 +1678,7 @@ export default function Projetos() {
             ...prev,
             programa_id: "",
             programa: "",
-            aviso_id: aviso?.id || "",
+            avisos_ids: "",
             aviso: "",
             prazos_fases: []
         }));
@@ -1884,6 +1920,25 @@ export default function Projetos() {
   const labelStyle = { display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' };
   const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box' };
   const actionBtnStyle = { background: 'transparent', border: 'none', cursor: 'pointer', padding: '6px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.6, transition: '0.2s' };
+
+  const entidadesProjeto = [...new Set(
+    [form.cliente_id, ...(form.is_parceria ? (form.parceiros_ids || []) : [])].filter(Boolean).map(String)
+    )];
+    const isMultiEntidade = entidadesProjeto.length > 1;
+    const sumOrc = (f) => entidadesProjeto.reduce((t, id) => t + (Number(orcamentos[id]?.[f]) || 0), 0);
+    const setOrcamento = (id, field, value) =>
+    setOrcamentos((prev) => ({ ...prev, [id]: { investimento: 0, incentivo: 0, ...prev[id], [field]: value } }));
+    const fmtEUR = (v) => new Intl.NumberFormat('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(v) || 0);
+    const moneyInput = (value, onChange) => (
+    <input
+        type="text"
+        value={fmtEUR(value)}
+        onChange={(e) => { const d = e.target.value.replace(/\D/g, ""); onChange(d ? Number(d) / 100 : 0); }}
+        style={{ ...inputStyle, textAlign: 'right' }}
+        className="input-focus"
+    />
+    );
+
 
   const sanitizeNif = (value) => String(value || "").replace(/\D/g, "").slice(0, 9);
 
@@ -2186,15 +2241,29 @@ export default function Projetos() {
       ? { requestField: "valor_incentivo", projectField: "incentivo", file: "incentivo", title: "Incentivo" }
       : { requestField: "valor_investimento", projectField: "investimento", file: "investimento", title: "Investimento" };
 
-    const getRequestedTotal = (project) =>
-      pedidosReembolso
-        .filter((r) => String(r.projeto_id) === String(project.id))
-        .reduce((t, r) => t + (Number(r[monthlyConfig.requestField]) || 0), 0);
+    const getEntityBudget = (projectId, entityId) =>
+        projetoEntidades.find((r) => String(r.projeto_id) === String(projectId) && String(r.entidade_id) === String(entityId));
 
-    const getMonthlyRate = (project) => {
-      const base = Number(project[monthlyConfig.projectField] || 0);
-      return base > 0 ? `${((getRequestedTotal(project) / base) * 100).toFixed(1)}%` : "0.0%";
-    };
+    const getRequestedTotal = (project, entityId = null) =>
+        pedidosReembolso
+            .filter((r) => String(r.projeto_id) === String(project.id) &&
+            (!entityId || String(r.entidade_id || project.cliente_id) === String(entityId)))
+            .reduce((t, r) => t + (Number(r[monthlyConfig.requestField]) || 0), 0);
+
+    const getMonthlyRate = (project, entityId = null) => {
+        const base = entityId
+            ? Number(getEntityBudget(project.id, entityId)?.[monthlyConfig.projectField] || 0)
+            : Number(project[monthlyConfig.projectField] || 0);
+        return base > 0 ? `${((getRequestedTotal(project, entityId) / base) * 100).toFixed(1)}%` : "0.0%";
+        };
+
+    const buildMonthlyRows = (projects) => projects.flatMap((project) => {
+        const ids = [...new Set([project.cliente_id, ...(project.is_parceria ? normalizeIdsList(project.parceiros_ids) : [])]
+            .filter(Boolean).map(String))]
+            .filter((id) => !overviewEntityFilter || id === String(overviewEntityFilter));
+        return ids.map((entityId) => ({ project, entityId }));
+        });
+
       const getLastReimbursementDate = (project) => {
           const projectRequests = pedidosReembolso
               .filter((request) => String(request.projeto_id) === String(project.id))
@@ -2303,15 +2372,15 @@ export default function Projetos() {
         exportOverview(
             `${monthlyConfig.file}-reembolsos-${anualYear}.csv`,
             ["Entidades", "Projeto", "Programa", ...MESES.map((m) => `${m} ${anualYear}`), `Total ${anualYear}`, "TXE"],
-            activeOverviewRows.map((project) => {
-                const months = getMonthlyRequests(project, anualYear);
+            buildMonthlyRows(activeOverviewRows).map(({ project, entityId }) => {
+                const months = getMonthlyRequests(project, anualYear, entityId);
                 return [
-                    getProjectInvolvedEntities(project),
+                    getEntityName(entityId, project),
                     project.titulo || "",
                     getProjectProgramName(project),
                     ...months,
                     sumArray(months),
-                    getMonthlyRate(project)
+                    getMonthlyRate(project, entityId)
                 ];
             })
         );
@@ -2343,17 +2412,19 @@ const exportCurrentOverviewPdf = () => {
         pdfAnual.text(`Pedidos de Reembolso (${monthlyConfig.title}) - ${anualYear}`, 14, 13);
         autoTable(pdfAnual, {
             startY: 20,
-            head: [["Entidades", "Projeto / Programa", ...MESES, "Total", "TXE"]],
-            body: activeOverviewRows.map((project) => {
-                const months = getMonthlyRequests(project, anualYear);
-                return [
-                    getProjectInvolvedEntities(project) || "-",
-                    `${project.titulo || "Sem título"}\n${getProjectProgramName(project)}`,
-                    ...months.map((v) => (v > 0 ? formatOverviewCurrency(v) : "-")),
-                    formatOverviewCurrency(sumArray(months)),
-                    getMonthlyRate(project)
-                ];
-            }),
+            head: [["Projetos / Programas", "Entidades", ...MESES, "Total", "TXE"]],
+            body: buildMonthlyRows(activeOverviewRows)
+                .filter((r) => !hideEmptyProjects || monthlyRowHasRequests(r))
+                .map(({ project, entityId }) => {
+                    const months = getMonthlyRequests(project, anualYear, entityId);
+                    return [
+                        `${project.titulo || "Sem título"}\n${getProjectProgramName(project)}`,
+                        getEntityName(entityId, project) || "-",
+                        ...months.map((v) => (v > 0 ? formatOverviewCurrency(v) : "-")),
+                        formatOverviewCurrency(sumArray(months)),
+                        getMonthlyRate(project, entityId)
+                    ];
+                }),
             theme: "grid",
             styles: { fontSize: 6.5, cellPadding: 1.5, valign: "middle" },
             headStyles: { fillColor: [15, 118, 110], textColor: 255, fontStyle: "bold" },
@@ -2502,18 +2573,32 @@ const exportCurrentOverviewPdf = () => {
         ...pedidosReembolso.map((r) => getYearMonth(r.data_pedido)?.year).filter(Boolean)
     ])].sort((a, b) => b - a);
 
-    const getMonthlyRequests = (project, year) => {
-    const months = Array(12).fill(0);
-    pedidosReembolso.forEach((r) => {
-        if (String(r.projeto_id) !== String(project.id)) return;
-        const ym = getYearMonth(r.data_pedido);
-        if (!ym || ym.year !== year) return;
-        months[ym.month] += Number(r[monthlyConfig.requestField]) || 0;
-    });
-    return months;
-};
+    const getMonthlyRequests = (project, year, entityId = null) => {
+        const months = Array(12).fill(0);
+        pedidosReembolso.forEach((r) => {
+            if (String(r.projeto_id) !== String(project.id)) return;
+            if (entityId && String(r.entidade_id || project.cliente_id) !== String(entityId)) return;
+            const ym = getYearMonth(r.data_pedido);
+            if (!ym || ym.year !== year) return;
+            months[ym.month] += Number(r[monthlyConfig.requestField]) || 0;
+        });
+        return months;
+    };
 
     const sumArray = (arr) => arr.reduce((a, b) => a + b, 0);
+
+    const monthlyRowHasRequests = ({ project, entityId }) =>
+    sumArray(getMonthlyRequests(project, anualYear, entityId)) > 0;
+
+    const monthlyBaseRows = (isMonthlyTab && hideEmptyProjects)
+        ? visibleOverviewRows.filter((p) => buildMonthlyRows([p]).some(monthlyRowHasRequests))
+        : visibleOverviewRows;
+
+    const monthlyTotalPages = Math.max(1, Math.ceil(monthlyBaseRows.length / (ITEMS_PER_PAGE || 1)));
+    const monthlyPagedRows = monthlyBaseRows.slice(
+        (overviewPage - 1) * ITEMS_PER_PAGE,
+        overviewPage * ITEMS_PER_PAGE
+);
 
     // Totais por mês de todos os projetos visíveis (não só da página atual)
     const anualMonthTotals = Array(12).fill(0);
@@ -2648,6 +2733,16 @@ const exportCurrentOverviewPdf = () => {
                               ))}
                       </select>
                   </label>
+
+                  {isMonthlyTab && (
+                        <button
+                            type="button"
+                            onClick={() => setHideEmptyProjects((v) => !v)}
+                            style={{padding: '7px 10px', border: '1px solid #94a3b8', borderRadius: '7px', background: hideEmptyProjects ? 'var(--color-btnPrimary)' : 'white', color: hideEmptyProjects ? 'white' : '#475569', fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer'}}
+                        >
+                            {hideEmptyProjects ? "Mostrar a 0's" : "Ocultar a 0's"}
+                        </button>
+                    )}
 
                   {/* BOTÃO LIMPAR FILTROS ATUALIZADO */}
                   {(overviewTypeFilter || overviewProgramFilter || overviewStateFilter || overviewEntityFilter) && (
@@ -2792,16 +2887,16 @@ const exportCurrentOverviewPdf = () => {
                     {isMonthlyTab && (
                         <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse' }}>
                             <colgroup>
-                                <col style={{width: '150px'}} />
                                 <col style={{width: '220px'}} />
+                                <col style={{width: '150px'}} />
                                 {MESES.map((m) => <col key={m} style={{width: '50px'}} />)}
                                 <col style={{width: '100px'}} />
                                 <col style={{width: '70px'}} />
                             </colgroup>
                             <thead>
                                 <tr>
-                                    <th style={{padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("entities", "entidades", "Entidades")}</th>
                                     <th style={{padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("project", "projeto", "Projetos / Programas")}</th>
+                                    <th style={{padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("entities", "entidades", "Entidades")}</th>
                                     {MESES.map((m) => (
                                         <th key={m} style={{padding: '4px 2px', fontSize: '0.8rem', textAlign: 'center'}}>{m}</th>
                                     ))}
@@ -2810,54 +2905,64 @@ const exportCurrentOverviewPdf = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {paginatedOverviewRows.map((project) => {
-                                    const programColor = getOverviewProgramColor(getProjectProgramName(project));
-                                    const months = getMonthlyRequests(project, anualYear);
-                                    return (
-                                        <tr key={project.id} onClick={() => openProjectDetails(project)} style={{cursor: 'pointer'}}>
-                                            <td style={{padding: '6px 8px', border: '1px solid #cbd5e1', borderLeft: `2px solid ${programColor}`, boxShadow: `inset 2px 0 0 ${programColor}`, verticalAlign: 'top'}}>
-                                                {getProjectInvolvedEntities(project) || "-"}
-                                            </td>
-                                            <td style={{padding: '6px 8px', border: '1px solid #cbd5e1', verticalAlign: 'top'}}>
-                                                <b>{project.titulo || 'Sem título'}</b><br />
-                                                <span style={{fontSize: '0.75rem', color: '#64748b', fontWeight: '700'}}>
-                                                    {getOverviewProgramCode(getProjectProgramName(project))}
-                                                </span>
-                                                {(project.numero_projeto || project.codigo_projeto) && (
-                                                    <>
-                                                        <br />
-                                                        <span style={{fontSize: '0.7rem', color: '#94a3b8', fontFamily: 'monospace', fontWeight: '700'}}>
-                                                            {project.numero_projeto ? `Nº ${project.numero_projeto}` : ''}
-                                                            {project.numero_projeto && project.codigo_projeto ? ' • ' : ''}
-                                                            {project.codigo_projeto || ''}
+                                {(() => {
+                                    const rows = buildMonthlyRows(monthlyPagedRows)
+                                        .filter((r) => !hideEmptyProjects || monthlyRowHasRequests(r));
+                                    return rows.map(({ project, entityId }, idx) => {
+                                        const programColor = getOverviewProgramColor(getProjectProgramName(project));
+                                        const months = getMonthlyRequests(project, anualYear, entityId);
+                                        const isFirstOfProject = idx === 0 || rows[idx - 1].project.id !== project.id;
+                                        const span = isFirstOfProject ? rows.filter((r) => r.project.id === project.id).length : 0;
+                                        return (
+                                            <tr key={`${project.id}-${entityId}`} onClick={() => openProjectDetails(project)} style={{cursor: 'pointer'}}>
+                                                {isFirstOfProject && (
+                                                    <td rowSpan={span} style={{padding: '6px 8px', border: '1px solid #cbd5e1', borderLeft: `2px solid ${programColor}`, boxShadow: `inset 2px 0 0 ${programColor}`, verticalAlign: 'middle', textAlign: 'center', background: 'white'}}>
+                                                        <b>{project.titulo || 'Sem título'}</b><br />
+                                                        <span style={{fontSize: '0.75rem', color: '#64748b', fontWeight: '700'}}>
+                                                            {getOverviewProgramCode(getProjectProgramName(project))}
                                                         </span>
-                                                    </>
+                                                        {(project.numero_projeto || project.codigo_projeto) && (
+                                                            <>
+                                                                <br />
+                                                                <span style={{fontSize: '0.7rem', color: '#94a3b8', fontFamily: 'monospace', fontWeight: '700'}}>
+                                                                    {project.numero_projeto ? `Nº ${project.numero_projeto}` : ''}
+                                                                    {project.numero_projeto && project.codigo_projeto ? ' • ' : ''}
+                                                                    {project.codigo_projeto || ''}
+                                                                </span>
+                                                            </>
+                                                        )}
+                                                    </td>
                                                 )}
-                                            </td>
-                                            {months.map((value, i) => (
-                                              <td key={i} style={{
-                                                    padding: '2px 4px', 
-                                                    border: '1px solid #cbd5e1', 
-                                                    textAlign: 'right', 
-                                                    whiteSpace: 'nowrap', 
-                                                    color: value > 0 ? '#0f172a' : '#cbd5e1', 
-                                                    fontWeight: value > 0 ? '600' : '400',
-                                                    fontSize: '0.75rem',
-                                                    letterSpacing: '-0.5px',
-                                                    background: value > 0 ? '#f0fdf4' : 'white'
-                                                }}>
-                                                    {value > 0 ? formatOverviewCurrency(value) : "-"}
+                                                <td style={{padding: '6px 8px', border: '1px solid #cbd5e1', verticalAlign: 'top'}}>
+                                                    {getEntityName(entityId, project) || "-"}
+                                                    {project.is_parceria && String(entityId) === String(project.cliente_id) &&
+                                                        <span style={{marginLeft: 6, fontSize: '0.65rem', color: '#64748b', fontWeight: 800}}>LÍDER</span>}
                                                 </td>
-                                            ))}
-                                            <td style={{padding: '6px 8px', border: '1px solid #cbd5e1', textAlign: 'right', whiteSpace: 'nowrap', fontWeight: '800', background: '#f8fafc'}}>
-                                                {formatOverviewCurrency(sumArray(months))}
-                                            </td>
-                                            <td style={{padding: '6px 8px', border: '1px solid #cbd5e1', textAlign: 'center', whiteSpace: 'nowrap'}}>
-                                                {getMonthlyRate(project)}
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
+                                                {months.map((value, i) => (
+                                                    <td key={i} style={{
+                                                        padding: '2px 4px',
+                                                        border: '1px solid #cbd5e1',
+                                                        textAlign: 'right',
+                                                        whiteSpace: 'nowrap',
+                                                        color: value > 0 ? '#0f172a' : '#cbd5e1',
+                                                        fontWeight: value > 0 ? '600' : '400',
+                                                        fontSize: '0.75rem',
+                                                        letterSpacing: '-0.5px',
+                                                        background: value > 0 ? '#f0fdf4' : 'white'
+                                                    }}>
+                                                        {value > 0 ? formatOverviewCurrency(value) : "-"}
+                                                    </td>
+                                                ))}
+                                                <td style={{padding: '6px 8px', border: '1px solid #cbd5e1', textAlign: 'right', whiteSpace: 'nowrap', fontWeight: '800', background: '#f8fafc'}}>
+                                                    {formatOverviewCurrency(sumArray(months))}
+                                                </td>
+                                                <td style={{padding: '6px 8px', border: '1px solid #cbd5e1', textAlign: 'center', whiteSpace: 'nowrap'}}>
+                                                    {getMonthlyRate(project, entityId)}
+                                                </td>
+                                            </tr>
+                                        );
+                                    });
+                                })()}
                             </tbody>
                             <tfoot>
                                 <tr>
@@ -3745,7 +3850,6 @@ const exportCurrentOverviewPdf = () => {
                                                 min={form.data_inicio || undefined}
                                                 onChange={e => {
                                                     setForm({...form, data_fim: e.target.value});
-                                                    setSelectedPhaseDeadline("");
                                                 }}
                                                 style={{...inputStyle, border: form.data_inicio && form.data_fim && form.data_inicio > form.data_fim ? '1px solid #ef4444' : inputStyle.border}}
                                                 className="input-focus"
@@ -3899,12 +4003,12 @@ const exportCurrentOverviewPdf = () => {
 
                                 {/* ========== PASSO 5: FINANÇAS & NOTAS ========== */}
                                 {currentStep === 5 && (
-                                  <div className="fade-in">
+                                <div className="fade-in">
                                     {!isProjetoFormacao && (
                                         <>
                                             <div style={{...sectionTitleStyle, marginTop: 0}}><Icons.Dollar /> Valores de Investimento</div>
-                                            
-                                            {!editId && (Number(form.investimento || 0) <= 0 || Number(form.incentivo || 0) <= 0) && (
+
+                                            {!isMultiEntidade && !editId && (Number(form.investimento || 0) <= 0 || Number(form.incentivo || 0) <= 0) && (
                                                 <div style={{
                                                     background: '#fffbeb',
                                                     border: '1px solid #fde68a',
@@ -3933,86 +4037,114 @@ const exportCurrentOverviewPdf = () => {
                                                 </div>
                                             )}
 
-                                            <div style={{
-                                                display: 'grid',
-                                                gridTemplateColumns: '1fr 1fr',
-                                                gap: '30px',
-                                                background: '#f8fafc',
-                                                padding: '20px',
-                                                borderRadius: '12px',
-                                                border: (!editId && (Number(form.investimento || 0) <= 0 || Number(form.incentivo || 0) <= 0)) ? '1px solid #fed7aa' : '1px solid #e2e8f0',
-                                                marginBottom: '30px'
-                                            }}>
-                                                <div>
-                                                    <label style={labelStyle}>
-                                                        Investimento Elegível (€) {!editId && <span style={{ color: '#ef4444', fontWeight: 'bold' }}>*</span>}
-                                                    </label>
-                                                    <input
-                                                        type="text"
-                                                        value={form.investimento || form.investimento === 0 ? new Intl.NumberFormat('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(form.investimento) : ''}
-                                                        onChange={e => {
-                                                            const apenasNumeros = e.target.value.replace(/\D/g, "");
-                                                            const valorReal = apenasNumeros ? Number(apenasNumeros) / 100 : 0;
-                                                            setForm({...form, investimento: valorReal});
-                                                        }}
-                                                        style={{
-                                                            width: '100%',
-                                                            padding: '10px 12px',
-                                                            borderRadius: '8px',
-                                                            border: `1px solid ${!editId && Number(form.investimento || 0) <= 0 ? '#f87171' : '#cbd5e1'}`,
-                                                            fontSize:'1.2rem',
-                                                            background: !editId && Number(form.investimento || 0) <= 0 ? '#fff5f5' : 'white',
-                                                            textAlign: 'right'
-                                                        }}
-                                                        className="input-focus"
-                                                    />
-                                                    {!editId && Number(form.investimento || 0) <= 0 && (
-                                                        <span style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '500' }}>
-                                                            ⚠️ Insira o valor do investimento elegível (superior a 0,00 €)
-                                                        </span>
-                                                    )}
+                                            {isMultiEntidade ? (
+                                                <div style={{ background: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '30px' }}>
+                                                <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', gap: '12px', fontSize: '0.74rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', marginBottom: '8px' }}>
+                                                    <span>Entidade</span>
+                                                    <span style={{ textAlign: 'right' }}>Investimento elegível (€)</span>
+                                                    <span style={{ textAlign: 'right' }}>Incentivo (€)</span>
                                                 </div>
-                                                <div>
-                                                    <label style={labelStyle}>
-                                                        Incentivo Atribuído (€) {!editId && <span style={{ color: '#ef4444', fontWeight: 'bold' }}>*</span>}
-                                                    </label>
-                                                    <input
-                                                        type="text"
-                                                        value={form.incentivo || form.incentivo === 0 ? new Intl.NumberFormat('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(form.incentivo) : ''}
-                                                        onChange={e => {
-                                                            const apenasNumeros = e.target.value.replace(/\D/g, "");
-                                                            const valorReal = apenasNumeros ? Number(apenasNumeros) / 100 : 0;
-                                                            setForm({...form, incentivo: valorReal});
-                                                        }}
-                                                        style={{
-                                                            width: '100%',
-                                                            padding: '10px 12px',
-                                                            borderRadius: '8px',
-                                                            border: `1px solid ${!editId && Number(form.incentivo || 0) <= 0 ? '#f87171' : '#cbd5e1'}`,
-                                                            fontSize:'1.2rem',
-                                                            background: !editId && Number(form.incentivo || 0) <= 0 ? '#fff5f5' : 'white',
-                                                            textAlign: 'right'
-                                                        }}
-                                                        className="input-focus"
-                                                    />
-                                                    {!editId && Number(form.incentivo || 0) <= 0 && (
-                                                        <span style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '500' }}>
-                                                            ⚠️ Insira o valor do incentivo atribuído (superior a 0,00 €)
+                                                {entidadesProjeto.map((id) => {
+                                                    const ent = clientes.find((c) => String(c.id) === id);
+                                                    return (
+                                                    <div key={id} style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', gap: '12px', alignItems: 'center', marginBottom: '8px' }}>
+                                                        <span style={{ fontWeight: 700, color: '#1e293b' }}>
+                                                        {getClientDisplayName(ent) || ent?.marca}
+                                                        {id === String(form.cliente_id) && <em style={{ marginLeft: 6, fontSize: '0.7rem', color: '#64748b' }}>(líder)</em>}
                                                         </span>
-                                                    )}
-                                                </div>
-
-                                                {Number(form.investimento || 0) > 0 && Number(form.incentivo || 0) > 0 && (
-                                                    <div style={{ gridColumn: 'span 2', display: 'flex', gap: '15px', paddingTop: '10px', borderTop: '1px dashed #cbd5e1', fontSize: '0.85rem' }}>
-                                                        <div style={{ background: '#f1f5f9', padding: '6px 12px', borderRadius: '6px', color: '#475569' }}>
-                                                            Taxa de Financiamento: <strong style={{ color: 'var(--color-btnPrimary)' }}>{((Number(form.incentivo) / Number(form.investimento)) * 100).toFixed(2)}%</strong>
-                                                        </div>
-                                                        <div style={{ background: '#f1f5f9', padding: '6px 12px', borderRadius: '6px', color: '#475569' }}>
-                                                            Autofinanciamento: <strong style={{ color: '#1e293b' }}>{new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(Math.max(0, Number(form.investimento) - Number(form.incentivo)))}</strong>
-                                                        </div>
+                                                        {moneyInput(orcamentos[id]?.investimento, (v) => setOrcamento(id, 'investimento', v))}
+                                                        {moneyInput(orcamentos[id]?.incentivo, (v) => setOrcamento(id, 'incentivo', v))}
                                                     </div>
-                                                )}
-                                            </div>
+                                                    );
+                                                })}
+                                                <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', gap: '12px', paddingTop: '10px', borderTop: '1px dashed #cbd5e1', fontWeight: 800 }}>
+                                                    <span>Total do projeto</span>
+                                                    <span style={{ textAlign: 'right' }}>{fmtEUR(sumOrc('investimento'))} €</span>
+                                                    <span style={{ textAlign: 'right' }}>{fmtEUR(sumOrc('incentivo'))} €</span>
+                                                </div>
+                                                </div>
+                                            ) : (
+                                                <div style={{
+                                                    display: 'grid',
+                                                    gridTemplateColumns: '1fr 1fr',
+                                                    gap: '30px',
+                                                    background: '#f8fafc',
+                                                    padding: '20px',
+                                                    borderRadius: '12px',
+                                                    border: (!editId && (Number(form.investimento || 0) <= 0 || Number(form.incentivo || 0) <= 0)) ? '1px solid #fed7aa' : '1px solid #e2e8f0',
+                                                    marginBottom: '30px'
+                                                }}>
+                                                    <div>
+                                                        <label style={labelStyle}>
+                                                            Investimento Elegível (€) {!editId && <span style={{ color: '#ef4444', fontWeight: 'bold' }}>*</span>}
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            value={form.investimento || form.investimento === 0 ? new Intl.NumberFormat('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(form.investimento) : ''}
+                                                            onChange={e => {
+                                                                const apenasNumeros = e.target.value.replace(/\D/g, "");
+                                                                const valorReal = apenasNumeros ? Number(apenasNumeros) / 100 : 0;
+                                                                setForm({...form, investimento: valorReal});
+                                                            }}
+                                                            style={{
+                                                                width: '100%',
+                                                                padding: '10px 12px',
+                                                                borderRadius: '8px',
+                                                                border: `1px solid ${!editId && Number(form.investimento || 0) <= 0 ? '#f87171' : '#cbd5e1'}`,
+                                                                fontSize:'1.2rem',
+                                                                background: !editId && Number(form.investimento || 0) <= 0 ? '#fff5f5' : 'white',
+                                                                textAlign: 'right'
+                                                            }}
+                                                            className="input-focus"
+                                                        />
+                                                        {!editId && Number(form.investimento || 0) <= 0 && (
+                                                            <span style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '500' }}>
+                                                                ⚠️ Insira o valor do investimento elegível (superior a 0,00 €)
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div>
+                                                        <label style={labelStyle}>
+                                                            Incentivo Atribuído (€) {!editId && <span style={{ color: '#ef4444', fontWeight: 'bold' }}>*</span>}
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            value={form.incentivo || form.incentivo === 0 ? new Intl.NumberFormat('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(form.incentivo) : ''}
+                                                            onChange={e => {
+                                                                const apenasNumeros = e.target.value.replace(/\D/g, "");
+                                                                const valorReal = apenasNumeros ? Number(apenasNumeros) / 100 : 0;
+                                                                setForm({...form, incentivo: valorReal});
+                                                            }}
+                                                            style={{
+                                                                width: '100%',
+                                                                padding: '10px 12px',
+                                                                borderRadius: '8px',
+                                                                border: `1px solid ${!editId && Number(form.incentivo || 0) <= 0 ? '#f87171' : '#cbd5e1'}`,
+                                                                fontSize:'1.2rem',
+                                                                background: !editId && Number(form.incentivo || 0) <= 0 ? '#fff5f5' : 'white',
+                                                                textAlign: 'right'
+                                                            }}
+                                                            className="input-focus"
+                                                        />
+                                                        {!editId && Number(form.incentivo || 0) <= 0 && (
+                                                            <span style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '500' }}>
+                                                                ⚠️ Insira o valor do incentivo atribuído (superior a 0,00 €)
+                                                            </span>
+                                                        )}
+                                                    </div>
+
+                                                    {Number(form.investimento || 0) > 0 && Number(form.incentivo || 0) > 0 && (
+                                                        <div style={{ gridColumn: 'span 2', display: 'flex', gap: '15px', paddingTop: '10px', borderTop: '1px dashed #cbd5e1', fontSize: '0.85rem' }}>
+                                                            <div style={{ background: '#f1f5f9', padding: '6px 12px', borderRadius: '6px', color: '#475569' }}>
+                                                                Taxa de Financiamento: <strong style={{ color: 'var(--color-btnPrimary)' }}>{((Number(form.incentivo) / Number(form.investimento)) * 100).toFixed(2)}%</strong>
+                                                            </div>
+                                                            <div style={{ background: '#f1f5f9', padding: '6px 12px', borderRadius: '6px', color: '#475569' }}>
+                                                                Autofinanciamento: <strong style={{ color: '#1e293b' }}>{new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(Math.max(0, Number(form.investimento) - Number(form.incentivo)))}</strong>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
                                         </>
                                     )}
 
@@ -4031,11 +4163,11 @@ const exportCurrentOverviewPdf = () => {
                                     <div style={sectionTitleStyle}><Icons.Check /> Estado do Projeto</div>
                                     <div style={{display: 'flex', gap: '10px', marginBottom: '10px', flexWrap: 'wrap'}}>
                                         {[
-                                            {val: 'pendente', label: 'Pendente'}, 
-                                            {val: 'em_curso', label: 'Em Curso'}, 
-                                            {val: 'em_analise', label: 'Em Análise'}, 
-                                            {val: 'concluido', label: 'Concluído'}, 
-                                            {val: 'encerrado', label: 'Encerrado'}, 
+                                            {val: 'pendente', label: 'Pendente'},
+                                            {val: 'em_curso', label: 'Em Curso'},
+                                            {val: 'em_analise', label: 'Em Análise'},
+                                            {val: 'concluido', label: 'Concluído'},
+                                            {val: 'encerrado', label: 'Encerrado'},
                                             {val: 'cancelado', label: 'Cancelado'}
                                         ].map(st => (
                                             <div key={st.val} onClick={() => !isViewOnly && setForm({...form, estado: st.val})}
@@ -4052,7 +4184,7 @@ const exportCurrentOverviewPdf = () => {
                                             </div>
                                         ))}
                                     </div>
-                                  </div>
+                                </div>
                                 )}
                             </>
                         );
@@ -4115,8 +4247,8 @@ const exportCurrentOverviewPdf = () => {
                           const tipoSelecionado = tipos.find(t => String(t.id) === String(form.tipo_projeto_id));
                           const isProjetoFormacao = tipoSelecionado?.eh_formacao === true;
                           if (!editId && !isProjetoFormacao) {
-                            const numInvestimento = Number(form.investimento) || 0;
-                            const numIncentivo = Number(form.incentivo) || 0;
+                            const numInvestimento = isMultiEntidade ? sumOrc('investimento') : (Number(form.investimento) || 0);
+                            const numIncentivo = isMultiEntidade ? sumOrc('incentivo') : (Number(form.incentivo) || 0);
                             const semInvest = numInvestimento <= 0;
                             const semIncent = numIncentivo <= 0;
                             if (semInvest || semIncent) {
