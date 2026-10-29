@@ -612,7 +612,7 @@ export default function Projetos() {
 
     const { data: pedidosReembolsoData, error: pedidosReembolsoError } = await supabase
         .from("pedidos_reembolso")
-        .select("id, projeto_id, data_pedido, valor_investimento")
+        .select("id, projeto_id, data_pedido, valor_investimento, valor_incentivo")
         .order("data_pedido", { ascending: false });
     if (pedidosReembolsoError) {
         console.error("Erro ao carregar pedidos de reembolso para a vista geral:", pedidosReembolsoError);
@@ -2181,6 +2181,20 @@ export default function Projetos() {
 
   if (isVistaGeral) {
       const overviewProjects = projetosFiltrados.filter(matchesOverviewFilters);
+          const isMonthlyTab = overviewTab === "anual" || overviewTab === "incentivo";
+    const monthlyConfig = overviewTab === "incentivo"
+      ? { requestField: "valor_incentivo", projectField: "incentivo", file: "incentivo", title: "Incentivo" }
+      : { requestField: "valor_investimento", projectField: "investimento", file: "investimento", title: "Investimento" };
+
+    const getRequestedTotal = (project) =>
+      pedidosReembolso
+        .filter((r) => String(r.projeto_id) === String(project.id))
+        .reduce((t, r) => t + (Number(r[monthlyConfig.requestField]) || 0), 0);
+
+    const getMonthlyRate = (project) => {
+      const base = Number(project[monthlyConfig.projectField] || 0);
+      return base > 0 ? `${((getRequestedTotal(project) / base) * 100).toFixed(1)}%` : "0.0%";
+    };
       const getLastReimbursementDate = (project) => {
           const projectRequests = pedidosReembolso
               .filter((request) => String(request.projeto_id) === String(project.id))
@@ -2285,93 +2299,96 @@ export default function Projetos() {
           URL.revokeObjectURL(url);
       };
       const exportCurrentOverview = () => {
-        if (overviewTab === "anual") {
-            exportOverview(
-                `anual-reembolsos-${anualYear}.csv`,
-                ["Entidades", "Projeto", "Programa", ...MESES.map((m) => `${m} ${anualYear}`), `Total ${anualYear}`, "TXE"],
-                activeOverviewRows.map((project) => {
-                    const months = getMonthlyRequests(project, anualYear);
-                    return [
-                        getProjectInvolvedEntities(project),
-                        project.titulo || "",
-                        getProjectProgramName(project),
-                        ...months,
-                        sumArray(months),
-                        getExecutionRate(project)
-                    ];
-                })
-            );
-            return;
-        }
-      exportOverview(
-          "mapa-gantt-projetos.csv", 
-          ["Entidades", "Programa", "Projeto", "Data início", "Data fim", "Investimento (EUR)", "Incentivo (EUR)", "Taxa de execução", "Data último pedido reembolso", "Dias desde último pedido"], 
-          activeOverviewRows.map((project) => [ // 👈 Mudar de overviewProjects para activeOverviewRows
-              getProjectInvolvedEntities(project), 
-              getProjectProgramName(project), 
-              project.titulo || "", 
-              project.data_inicio || "", 
-              project.data_fim || "", 
-              project.investimento || 0, 
-              project.incentivo || 0,
-              getExecutionRate(project), 
-              getLastReimbursementDate(project), 
-              getDaysSinceLastReimbursement(project) ?? ""
-          ])
-      );
-  };
-      const exportCurrentOverviewPdf = () => {
-        if (overviewTab === "anual") {
-            const pdfAnual = new jsPDF({ orientation: "landscape", unit: "mm", format: "a3" });
-            pdfAnual.setFontSize(14);
-            pdfAnual.text(`Pedidos de Reembolso - ${anualYear}`, 14, 13);
-            autoTable(pdfAnual, {
-                startY: 20,
-                head: [["Entidades", "Projeto / Programa", ...MESES, "Total", "TXE"]],
-                body: activeOverviewRows.map((project) => {
-                    const months = getMonthlyRequests(project, anualYear);
-                    return [
-                        getProjectInvolvedEntities(project) || "-",
-                        `${project.titulo || "Sem título"}\n${getProjectProgramName(project)}`,
-                        ...months.map((v) => (v > 0 ? formatOverviewCurrency(v) : "-")),
-                        formatOverviewCurrency(sumArray(months)),
-                        getExecutionRate(project)
-                    ];
-                }),
-                theme: "grid",
-                styles: { fontSize: 6.5, cellPadding: 1.5, valign: "middle" },
-                headStyles: { fillColor: [15, 118, 110], textColor: 255, fontStyle: "bold" },
-                columnStyles: Object.fromEntries(Array.from({ length: 13 }, (_, i) => [i + 2, { halign: "right" }]))
-            });
-            pdfAnual.save(`reembolsos-anual-${anualYear}.pdf`);
-            return;
-        }
-      const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-      pdf.setFontSize(14);
-      pdf.text("Vista Geral de Projetos", 14, 13);
-      pdf.setFontSize(8);
-      pdf.setTextColor(100, 116, 139);
-      pdf.text(`${activeOverviewRows.length} projeto${activeOverviewRows.length === 1 ? "" : "s"} listado${activeOverviewRows.length === 1 ? "" : "s"} | ${formatOverviewDate(ganttStart)} - ${formatOverviewDate(ganttEnd)}`, 14, 19);
-      
-      autoTable(pdf, {
-          startY: 23,
-          head: [["Entidades", "Projetos / Programas", "Execução", "Investimento (EUR)", "Incentivo (EUR)", "TXE", "Último pedido / dias"]],
-          body: activeOverviewRows.map((project) => [ 
-              getProjectInvolvedEntities(project) || "-",
-              `${project.titulo || "Sem título"}\n${getProjectProgramName(project)}`,
-              `${formatOverviewDate(project.data_inicio)} - ${formatOverviewDate(project.data_fim)}`,
-              formatOverviewCurrency(project.investimento),
-              formatOverviewCurrency(project.incentivo),
-              getExecutionRate(project),
-              `${formatOverviewDate(getLastReimbursementDate(project))}${getDaysSinceLastReimbursement(project) !== null ? `\n${getDaysSinceLastReimbursement(project)} dias` : ""}${hasReimbursementOverdue(project) ? "\n+3 meses" : ""}`
-          ]),
-          theme: "grid",
-          styles: { fontSize: 7, cellPadding: 2, valign: "middle" },
-          headStyles: { fillColor: [15, 118, 110], textColor: 255, fontStyle: "bold" },
-          columnStyles: { 0: { cellWidth: 32 }, 1: { cellWidth: 62 }, 2: { cellWidth: 48 }, 3: { cellWidth: 25, halign: "right" }, 4: { cellWidth: 25, halign: "right" }, 5: { cellWidth: 16, halign: "center" }, 6: { cellWidth: 32 } }
-      });
-      pdf.save("vista-geral-projetos.pdf");
-  };
+    if (isMonthlyTab) {
+        exportOverview(
+            `${monthlyConfig.file}-reembolsos-${anualYear}.csv`,
+            ["Entidades", "Projeto", "Programa", ...MESES.map((m) => `${m} ${anualYear}`), `Total ${anualYear}`, "TXE"],
+            activeOverviewRows.map((project) => {
+                const months = getMonthlyRequests(project, anualYear);
+                return [
+                    getProjectInvolvedEntities(project),
+                    project.titulo || "",
+                    getProjectProgramName(project),
+                    ...months,
+                    sumArray(months),
+                    getMonthlyRate(project)
+                ];
+            })
+        );
+        return;
+    }
+
+    exportOverview(
+        "mapa-gantt-projetos.csv",
+        ["Entidades", "Programa", "Projeto", "Data início", "Data fim", "Investimento (EUR)", "Incentivo (EUR)", "Taxa de execução", "Data último pedido reembolso", "Dias desde último pedido"],
+        activeOverviewRows.map((project) => [
+            getProjectInvolvedEntities(project),
+            getProjectProgramName(project),
+            project.titulo || "",
+            project.data_inicio || "",
+            project.data_fim || "",
+            project.investimento || 0,
+            project.incentivo || 0,
+            getExecutionRate(project),
+            getLastReimbursementDate(project),
+            getDaysSinceLastReimbursement(project) ?? ""
+        ])
+    );
+};
+
+const exportCurrentOverviewPdf = () => {
+    if (isMonthlyTab) {
+        const pdfAnual = new jsPDF({ orientation: "landscape", unit: "mm", format: "a3" });
+        pdfAnual.setFontSize(14);
+        pdfAnual.text(`Pedidos de Reembolso (${monthlyConfig.title}) - ${anualYear}`, 14, 13);
+        autoTable(pdfAnual, {
+            startY: 20,
+            head: [["Entidades", "Projeto / Programa", ...MESES, "Total", "TXE"]],
+            body: activeOverviewRows.map((project) => {
+                const months = getMonthlyRequests(project, anualYear);
+                return [
+                    getProjectInvolvedEntities(project) || "-",
+                    `${project.titulo || "Sem título"}\n${getProjectProgramName(project)}`,
+                    ...months.map((v) => (v > 0 ? formatOverviewCurrency(v) : "-")),
+                    formatOverviewCurrency(sumArray(months)),
+                    getMonthlyRate(project)
+                ];
+            }),
+            theme: "grid",
+            styles: { fontSize: 6.5, cellPadding: 1.5, valign: "middle" },
+            headStyles: { fillColor: [15, 118, 110], textColor: 255, fontStyle: "bold" },
+            columnStyles: Object.fromEntries(Array.from({ length: 13 }, (_, i) => [i + 2, { halign: "right" }]))
+        });
+        pdfAnual.save(`reembolsos-${monthlyConfig.file}-${anualYear}.pdf`);
+        return;
+    }
+
+    const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    pdf.setFontSize(14);
+    pdf.text("Vista Geral de Projetos", 14, 13);
+    pdf.setFontSize(8);
+    pdf.setTextColor(100, 116, 139);
+    pdf.text(`${activeOverviewRows.length} projeto${activeOverviewRows.length === 1 ? "" : "s"} listado${activeOverviewRows.length === 1 ? "" : "s"} | ${formatOverviewDate(ganttStart)} - ${formatOverviewDate(ganttEnd)}`, 14, 19);
+
+    autoTable(pdf, {
+        startY: 23,
+        head: [["Entidades", "Projetos / Programas", "Execução", "Investimento (EUR)", "Incentivo (EUR)", "TXE", "Último pedido / dias"]],
+        body: activeOverviewRows.map((project) => [
+            getProjectInvolvedEntities(project) || "-",
+            `${project.titulo || "Sem título"}\n${getProjectProgramName(project)}`,
+            `${formatOverviewDate(project.data_inicio)} - ${formatOverviewDate(project.data_fim)}`,
+            formatOverviewCurrency(project.investimento),
+            formatOverviewCurrency(project.incentivo),
+            getExecutionRate(project),
+            `${formatOverviewDate(getLastReimbursementDate(project))}${getDaysSinceLastReimbursement(project) !== null ? `\n${getDaysSinceLastReimbursement(project)} dias` : ""}${hasReimbursementOverdue(project) ? "\n+3 meses" : ""}`
+        ]),
+        theme: "grid",
+        styles: { fontSize: 7, cellPadding: 2, valign: "middle" },
+        headStyles: { fillColor: [15, 118, 110], textColor: 255, fontStyle: "bold" },
+        columnStyles: { 0: { cellWidth: 32 }, 1: { cellWidth: 62 }, 2: { cellWidth: 48 }, 3: { cellWidth: 25, halign: "right" }, 4: { cellWidth: 25, halign: "right" }, 5: { cellWidth: 16, halign: "center" }, 6: { cellWidth: 32 } }
+    });
+    pdf.save("vista-geral-projetos.pdf");
+};
       const compareOverviewPrograms = (a, b) => {
           const programA = getProjectProgramName(a);
           const programB = getProjectProgramName(b);
@@ -2393,12 +2410,9 @@ export default function Projetos() {
           if (key === "investment") return Number(project.investimento || 0);
           if (key === "incentive") return Number(project.incentivo || 0);
           if (key === "executionRate") {
-              const projectInvestment = Number(project.investimento || 0);
-              const requestedInvestment = pedidosReembolso
-                  .filter((request) => String(request.projeto_id) === String(project.id))
-                  .reduce((total, request) => total + (Number(request.valor_investimento) || 0), 0);
-              return projectInvestment > 0 ? requestedInvestment / projectInvestment : 0;
-          }
+                const base = Number(project[monthlyConfig.projectField] || 0);
+                return base > 0 ? getRequestedTotal(project) / base : 0;
+            }
           if (key === "reimbursement") return parseOverviewDate(getLastReimbursementDate(project))?.getTime() ?? 0;
           return "";
       };
@@ -2489,15 +2503,15 @@ export default function Projetos() {
     ])].sort((a, b) => b - a);
 
     const getMonthlyRequests = (project, year) => {
-        const months = Array(12).fill(0);
-        pedidosReembolso.forEach((r) => {
-            if (String(r.projeto_id) !== String(project.id)) return;
-            const ym = getYearMonth(r.data_pedido);
-            if (!ym || ym.year !== year) return;
-            months[ym.month] += Number(r.valor_investimento) || 0;
-        });
-        return months;
-    };
+    const months = Array(12).fill(0);
+    pedidosReembolso.forEach((r) => {
+        if (String(r.projeto_id) !== String(project.id)) return;
+        const ym = getYearMonth(r.data_pedido);
+        if (!ym || ym.year !== year) return;
+        months[ym.month] += Number(r[monthlyConfig.requestField]) || 0;
+    });
+    return months;
+};
 
     const sumArray = (arr) => arr.reduce((a, b) => a + b, 0);
 
@@ -2507,13 +2521,9 @@ export default function Projetos() {
         getMonthlyRequests(p, anualYear).forEach((v, i) => { anualMonthTotals[i] += v; });
     });
     const anualGrandTotal = sumArray(anualMonthTotals);
-    const totalRequestedAllTime = visibleOverviewRows.reduce((acc, p) =>
-        acc + pedidosReembolso
-            .filter((r) => String(r.projeto_id) === String(p.id))
-            .reduce((t, r) => t + (Number(r.valor_investimento) || 0), 0), 0);
-    const footerTxe = totalOverviewInvestimento > 0
-        ? `${((totalRequestedAllTime / totalOverviewInvestimento) * 100).toFixed(1)}%`
-        : "0.0%";
+    const totalRequestedAllTime = visibleOverviewRows.reduce((acc, p) => acc + getRequestedTotal(p), 0);
+    const footerBase = overviewTab === "incentivo" ? totalOverviewIncentivo : totalOverviewInvestimento;
+    const footerTxe = footerBase > 0 ? `${((totalRequestedAllTime / footerBase) * 100).toFixed(1)}%` : "0.0%";
 
       return (
           <div className="page-container" style={{maxWidth: '1400px', margin: '0 auto', padding: '15px'}}>
@@ -2531,7 +2541,11 @@ export default function Projetos() {
               </div>
               <div style={{display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '12px', flexWrap: 'wrap'}}>
     <div style={{display: 'flex', background: '#f1f5f9', borderRadius: '8px', padding: '4px', border: '1px solid #e2e8f0'}}>
-        {[{ id: "overview", label: "Overview" }, { id: "anual", label: "Anual" }].map((tab) => (
+        {[
+            { id: "overview", label: "Overview" },
+            { id: "anual", label: "Investimento" },
+            { id: "incentivo", label: "Incentivo" }
+            ].map((tab) => (
             <button
                 key={tab.id}
                 type="button"
@@ -2548,7 +2562,7 @@ export default function Projetos() {
         ))}
     </div>
 
-    {overviewTab === "anual" && (
+    {(overviewTab === "anual" || overviewTab === "incentivo") && (
         <label style={{display: 'flex', alignItems: 'center', gap: '8px', color: '#475569', fontSize: '0.8rem', fontWeight: '800'}}>
             Ano
             <select
@@ -2775,7 +2789,7 @@ export default function Projetos() {
                                 </tfoot>
                         </table>
                     )}
-                    {overviewTab === "anual" && (
+                    {isMonthlyTab && (
                         <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse' }}>
                             <colgroup>
                                 <col style={{width: '150px'}} />
@@ -2839,7 +2853,7 @@ export default function Projetos() {
                                                 {formatOverviewCurrency(sumArray(months))}
                                             </td>
                                             <td style={{padding: '6px 8px', border: '1px solid #cbd5e1', textAlign: 'center', whiteSpace: 'nowrap'}}>
-                                                {getExecutionRate(project)}
+                                                {getMonthlyRate(project)}
                                             </td>
                                         </tr>
                                     );
@@ -2930,7 +2944,6 @@ export default function Projetos() {
                             </tfoot>
                         </table>
                     )}
-
                       {/* 👇 LEGENDAS DE COR DOS PROGRAMAS */}
                       <div style={{display: 'flex', flexWrap: 'wrap', gap: '8px 16px', width: '100%', boxSizing: 'border-box', padding: '8px 10px', border: '1px solid #cbd5e1', borderTop: 'none', borderRadius: '0 0 12px 12px', background: '#f8fafc'}}>
                           {overviewProgramNames.map((programName) => (
