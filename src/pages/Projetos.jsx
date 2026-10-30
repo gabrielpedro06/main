@@ -1256,7 +1256,14 @@ export default function Projetos() {
         } else {
             const { data: newProj, error: errProj } = await supabase.from("projetos").insert([payload]).select().single();
             if (errProj) throw errProj;
-            await syncProjetoEntidades(newProj.id, payload);
+
+            let falhasGeracao = 0;
+            try {
+                await syncProjetoEntidades(newProj.id, payload);
+            } catch (syncErr) {
+                console.error("Erro ao gravar valores por entidade:", syncErr);
+                falhasGeracao++;
+            }
 
             // Gerar Árvore de Atividades
             if (payload.tipo_projeto_id && templateTree.length > 0) {
@@ -1272,7 +1279,7 @@ export default function Projetos() {
                     const ativStart = currentAtivDate;
                     const ativEnd = (tAtiv.dias_estimados > 0) ? addDays(ativStart, tAtiv.dias_estimados) : (projEndStr || ativStart);
 
-                    const { data: realAtiv } = await supabase.from("atividades").insert([{ 
+                    const { data: realAtiv, error: ativErr } = await supabase.from("atividades").insert([{ 
                         projeto_id: newProj.id,
                         titulo: tAtiv.nome,
                         estado: 'pendente',
@@ -1285,6 +1292,10 @@ export default function Projetos() {
                         info_adicional: tAtiv.info_adicional ? tAtiv.info_adicional : {}
                     }]).select().single();
 
+                    if (ativErr) {
+                        console.error("Erro ao criar atividade:", tAtiv.nome, ativErr);
+                        falhasGeracao++;
+                    }
                     if (realAtiv) {
                         templateToRealAtividade.set(String(tAtiv.id), String(realAtiv.id));
                     }
@@ -1302,7 +1313,7 @@ export default function Projetos() {
                             const tarEnd = (tTar.dias_estimados > 0) ? addDays(tarStart, tTar.dias_estimados) : (projEndStr || tarStart);
 
                             // Adiciona template_tarefa_id ao criar tarefa
-                            const { data: realTar } = await supabase.from("tarefas").insert([{ 
+                            const { data: realTar, error: tarErr } = await supabase.from("tarefas").insert([{ 
                                 atividade_id: realAtiv.id,
                                 titulo: tTar.nome,
                                 estado: 'pendente',
@@ -1316,6 +1327,10 @@ export default function Projetos() {
                                 info_adicional: tTar.info_adicional ? tTar.info_adicional : {}
                             }]).select().single();
 
+                            if (tarErr) {
+                                console.error("Erro ao criar tarefa:", tTar.nome, tarErr);
+                                falhasGeracao++;
+                            }
                             if (realTar) {
                                 templateToRealTarefa.set(String(tTar.id), String(realTar.id));
                             }
@@ -1340,7 +1355,11 @@ export default function Projetos() {
                                 }
                                 
                                 if (subTarefasParaInserir.length > 0) {
-                                    await supabase.from("subtarefas").insert(subTarefasParaInserir);
+                                    const { error: subErr } = await supabase.from("subtarefas").insert(subTarefasParaInserir);
+                                    if (subErr) {
+                                        console.error("Erro ao criar passos da tarefa:", tTar.nome, subErr);
+                                        falhasGeracao++;
+                                    }
                                 }
                             }
                         }
@@ -1385,7 +1404,11 @@ export default function Projetos() {
 
             await notifyProjectCreated(newProj, payload.responsavel_id || null);
             
-            showToast("Projeto criado com sucesso!");
+            if (falhasGeracao > 0) {
+                showToast(`Projeto criado, mas ${falhasGeracao} elemento(s) não foram gravados. Vê a consola (F12) para detalhes.`, "warning");
+            } else {
+                showToast("Projeto criado com sucesso!");
+            }
             setShowModal(false); 
             navigate(`/dashboard/projetos/${newProj.id}`);
         }
