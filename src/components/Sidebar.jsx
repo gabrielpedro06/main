@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../services/supabase"; 
@@ -26,10 +26,15 @@ const Icons = {
   Monitor: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>,
   File: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8" y1="13" x2="16" y2="13"></line><line x1="8" y1="17" x2="14" y2="17"></line></svg>,
   Close: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>,
+  Building: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"></rect><path d="M9 22v-4h6v4"></path><path d="M8 6h.01"></path><path d="M16 6h.01"></path><path d="M12 6h.01"></path><path d="M12 10h.01"></path><path d="M12 14h.01"></path><path d="M16 10h.01"></path><path d="M16 14h.01"></path><path d="M8 10h.01"></path><path d="M8 14h.01"></path></svg>,
+  Book: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>,
+  Graduation: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5z"></path><path d="M6 12v5c3 3 9 3 12 0v-5"></path></svg>,
+  Megaphone: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 11 18-5v12L3 14v-3z"></path><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"></path></svg>,
+  Transfer: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3 4 7l4 4"></path><path d="M4 7h16"></path><path d="m16 21 4-4-4-4"></path><path d="M20 17H4"></path></svg>,
   ChevronDown: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
 };
 
-export default function Sidebar({ menuOpen, setMenuOpen }) {
+export default function Sidebar({ menuOpen, setMenuOpen, isMobile = false }) {
   const location = useLocation();
   const { user, userProfile } = useAuth();
   
@@ -47,7 +52,7 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
   });
 
   const toggleGroup = (groupName) => {
-    if (!menuOpen) {
+    if (!menuOpen && !isMobile) {
       setMenuOpen(true); 
     }
     setOpenGroups(prev => ({ ...prev, [groupName]: !prev[groupName] }));
@@ -234,10 +239,81 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
     return '';
   };
 
-  const getSidebarTooltip = (label) => (!menuOpen ? label : undefined);
+  const getSidebarTooltip = (label) => (!menuOpen && !isMobile ? label : undefined);
+  // No mobile a gaveta mostra sempre o menu completo
+  const showFull = menuOpen || isMobile;
+
+  // --- DESTAQUE DESLIZANTE DO ITEM ATIVO ---
+  // Um único "pill" absoluto que se move (e estica) entre itens do menu.
+  const navListRef = useRef(null);
+  const pillRef = useRef(null);
+  const lastPillPos = useRef(null);
+
+  const positionPill = useCallback((animate) => {
+    const list = navListRef.current;
+    const pill = pillRef.current;
+    if (!list || !pill) return;
+
+    const activeLink = list.querySelector('li.active > a');
+    const isHidden = !activeLink || activeLink.closest('.sidebar-group-content:not(.open)');
+    if (isHidden) {
+      pill.style.opacity = '0';
+      lastPillPos.current = null;
+      return;
+    }
+
+    const listRect = list.getBoundingClientRect();
+    const linkRect = activeLink.getBoundingClientRect();
+    const top = linkRect.top - listRect.top;
+    const bottom = listRect.bottom - linkRect.bottom;
+    const prev = lastPillPos.current;
+
+    if (!animate || !prev) {
+      pill.style.transition = 'opacity 0.25s ease';
+    } else if (prev.top !== top) {
+      // A ponta da frente parte primeiro e a de trás segue com atraso:
+      // o destaque estica durante o movimento e "assenta" no destino.
+      const lead = '0.38s cubic-bezier(0.3, 0.8, 0.25, 1)';
+      const trail = '0.52s cubic-bezier(0.55, 0, 0.1, 1) 0.07s';
+      const movingDown = top > prev.top;
+      pill.style.transition = movingDown
+        ? `bottom ${lead}, top ${trail}, opacity 0.25s ease`
+        : `top ${lead}, bottom ${trail}, opacity 0.25s ease`;
+      pill.classList.remove('is-moving');
+      void pill.offsetWidth;
+      pill.classList.add('is-moving');
+    }
+
+    pill.style.top = `${top}px`;
+    pill.style.bottom = `${bottom}px`;
+    pill.style.opacity = '1';
+    lastPillPos.current = { top, bottom };
+  }, []);
+
+  // Ao mudar de rota, o destaque desliza para o novo item
+  useLayoutEffect(() => {
+    positionPill(true);
+  }, [location.pathname, positionPill]);
+
+  // Mudanças de layout (grupos a abrir/fechar, sidebar a encolher) seguem sem animação
+  useEffect(() => {
+    const list = navListRef.current;
+    if (!list || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => positionPill(false));
+    ro.observe(list);
+    return () => ro.disconnect();
+  }, [positionPill]);
+
+  useEffect(() => {
+    positionPill(false);
+  }, [openGroups, menuOpen, isMobile, userProfile?.role, positionPill]);
+
+  const displayName = userProfile?.nome || userProfile?.nome_completo || user?.email?.split('@')[0] || 'Utilizador';
+  const initials = displayName.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
+  const roleLabel = userProfile?.role ? String(userProfile.role).charAt(0).toUpperCase() + String(userProfile.role).slice(1) : '';
 
   const renderGroupHeader = (key, label) => {
-    if (!menuOpen) return <div className="sidebar-divider" />;
+    if (!showFull) return <div className="sidebar-divider" />;
     return (
       <div className="sidebar-group-header" onClick={() => toggleGroup(key)}>
         <span>{label}</span>
@@ -250,7 +326,7 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
 
   return (
     <>
-      <aside className={`sidebar ${menuOpen ? "open" : "closed"}`} style={{ display: 'flex', flexDirection: 'column', height: '100vh', zIndex: 100 }}>
+      <aside className={`sidebar ${menuOpen ? "open" : "closed"} ${isMobile ? "is-mobile" : ""}`} style={{ display: 'flex', flexDirection: 'column', height: '100vh', zIndex: 100 }}>
         
         {/* 💡 LOGO CONTAINER TRANSFORMA-SE NO BOTÃO DE TOGGLE */}
         <div 
@@ -258,14 +334,15 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
           className="logo-toggle-container"
         >
             <img 
-              src={menuOpen ? logoFull : logoIcon} 
+              src={showFull ? logoFull : logoIcon} 
               alt="Bizin Logo" 
-              className={menuOpen ? "logo-full" : "logo-icon"}
+              className={showFull ? "logo-full" : "logo-icon"}
             />
         </div>
 
         <nav style={{ flex: 1, overflowY: 'auto', padding: '15px 0' }} className="sidebar-scroll">
-          <ul style={{ margin: 0, padding: 0 }}>
+          <ul ref={navListRef} className="sidebar-nav-list" style={{ margin: 0 }}>
+            <div ref={pillRef} className="sidebar-active-pill" aria-hidden="true" />
             
             {/* --- INÍCIO --- */}
             <li className={isActive('/dashboard')}>
@@ -302,8 +379,8 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
 
             {/* --- GRUPO: PLANEAMENTO --- */}
             {renderGroupHeader('planeamento', 'PLANEAMENTO')}
-            {openGroups.planeamento && (
-              <div className="sidebar-group-content">
+            <div className={`sidebar-group-content ${openGroups.planeamento ? 'open' : ''}`} inert={!openGroups.planeamento}>
+              <div className="sidebar-group-inner">
                 <li className={isActive('/dashboard/minhas-tarefas')}>
                   <Link to="/dashboard/minhas-tarefas" title={getSidebarTooltip("Agenda")}>
                     <span className="icon"><Icons.Pin /></span> 
@@ -323,12 +400,12 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
                   </Link>
                 </li>
               </div>
-            )}
+              </div>
 
             {/* --- GRUPO: PRODUÇÃO --- */}
             {renderGroupHeader('producao', 'PRODUÇÃO')}
-            {openGroups.producao && (
-              <div className="sidebar-group-content">
+            <div className={`sidebar-group-content ${openGroups.producao ? 'open' : ''}`} inert={!openGroups.producao}>
+              <div className="sidebar-group-inner">
                 <li className={isActive('/dashboard/projetos')}>
                   <Link to="/dashboard/projetos" title={getSidebarTooltip("Projetos")}>
                     <span className="icon"><Icons.Rocket /></span> 
@@ -343,32 +420,32 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
                 </li>
                 <li className={isActive('/dashboard/cursos')}>
                   <Link to="/dashboard/cursos" title={getSidebarTooltip("Gestão de Cursos") }>
-                    <span className="icon"><Icons.Clipboard /></span>
+                    <span className="icon"><Icons.Book /></span>
                     <span className="link-text">Cursos</span>
                   </Link>
                 </li>
                 <li className={isActive('/dashboard/acoes-formacao')}>
                   <Link to="/dashboard/acoes-formacao" title={getSidebarTooltip("Ações de Formação") }>
-                    <span className="icon"><Icons.Clipboard /></span>
+                    <span className="icon"><Icons.Graduation /></span>
                     <span className="link-text">Ações de Formação</span>
                   </Link>
                 </li>
               </div>
-            )}
+              </div>
 
             {/* --- GRUPO: COMERCIAL --- */}
             {renderGroupHeader('comercial', 'COMERCIAL')}
-            {openGroups.comercial && (
-              <div className="sidebar-group-content">
+            <div className={`sidebar-group-content ${openGroups.comercial ? 'open' : ''}`} inert={!openGroups.comercial}>
+              <div className="sidebar-group-inner">
                 <li className={isActive('/dashboard/clientes')}>
                   <Link to="/dashboard/clientes" title={getSidebarTooltip("Entidades")}>
-                    <span className="icon"><Icons.Users /></span> 
+                    <span className="icon"><Icons.Building /></span> 
                     <span className="link-text">Entidades</span>
                   </Link>
                 </li>
                 <li className={isActive('/dashboard/avisos')}>
                   <Link to="/dashboard/avisos" title={getSidebarTooltip("Programas e Avisos") }>
-                    <span className="icon"><Icons.Pin /></span>
+                    <span className="icon"><Icons.Megaphone /></span>
                     <span className="link-text">Programas/Avisos</span>
                   </Link>
                 </li>
@@ -391,20 +468,20 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
                 {['admin', 'gestor'].includes(userProfile?.role) && (
                   <li className={isActive('/dashboard/transfergest')}>
                     <Link to="/dashboard/transfergest" title={getSidebarTooltip("TransferGest")}>
-                      <span className="icon"><Icons.Users /></span>
+                      <span className="icon"><Icons.Transfer /></span>
                       <span className="link-text">TransferGest</span>
                     </Link>
                   </li>
                 )}
               </div>
-            )}
+              </div>
 
             {/* --- GRUPO: GESTÃO --- */}
             {((['admin', 'gestor'].includes(userProfile?.role)) || ['admin', 'administrador'].includes(String(userProfile?.role || userProfile?.tipo || '').toLowerCase())) && 
               renderGroupHeader('gestao', 'GESTÃO')
             }
-            {openGroups.gestao && (
-              <div className="sidebar-group-content">
+            <div className={`sidebar-group-content ${openGroups.gestao ? 'open' : ''}`} inert={!openGroups.gestao}>
+              <div className="sidebar-group-inner">
                 {['admin', 'gestor'].includes(userProfile?.role) && (
                   <li className={isActive('/dashboard/rh')}>
                     <Link to="/dashboard/rh" title={getSidebarTooltip("Recursos Humanos")}>
@@ -436,10 +513,28 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
                   </li>
                 )}
               </div>
-            )}
+              </div>
 
           </ul>
         </nav>
+
+        {/* --- CARTÃO DO UTILIZADOR --- */}
+        <Link
+          to="/dashboard/perfil"
+          className={`sidebar-user-card ${isActive('/dashboard/perfil')}`}
+          title={getSidebarTooltip(displayName)}
+        >
+          <span className="sidebar-user-avatar">
+            {userProfile?.avatar_url
+              ? <img src={userProfile.avatar_url} alt="" />
+              : <span>{initials}</span>}
+            <span className="sidebar-user-status" />
+          </span>
+          <span className="sidebar-user-info">
+            <span className="sidebar-user-name">{displayName}</span>
+            {roleLabel && <span className="sidebar-user-role">{roleLabel}</span>}
+          </span>
+        </Link>
 
         <style>{`
     /* Novo container clicável para o Logo */
@@ -536,7 +631,20 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
     }
     
     .sidebar-group-content {
-        animation: fadeIn 0.2s ease-out;
+        display: grid;
+        grid-template-rows: 0fr;
+        opacity: 0;
+        transition: grid-template-rows 0.32s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease;
+    }
+
+    .sidebar-group-content.open {
+        grid-template-rows: 1fr;
+        opacity: 1;
+    }
+
+    .sidebar-group-inner {
+        overflow: hidden;
+        min-height: 0;
     }
     
     .sidebar-divider {

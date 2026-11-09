@@ -2706,7 +2706,7 @@ export default function ProjetoDetalhe() {
             ABA 1: BOARD DE ATIVIDADES (C/ DRAG & DROP)
         ========================================= */}
         {activeTab === 'atividades' && (
-            <div style={{width: '100%'}}>
+            <div className="bz-tab-panel" style={{width: '100%'}}>
                 {atividades.map((ativ, aIndex) => {
                     const isAtivDone = ativ.estado === 'concluido';
                     const progresso = ativ.tarefas?.length > 0 ? Math.round((ativ.tarefas.filter(t => t.estado === 'concluido').length / ativ.tarefas.length) * 100) : 0;
@@ -3007,7 +3007,7 @@ export default function ProjetoDetalhe() {
             ABA 2: RELATÓRIO DE TEMPOS
         ========================================= */}
         {activeTab === 'relatorio' && (
-            <div style={{background: 'white', padding: '30px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0'}}>
+            <div className="bz-tab-panel" style={{background: 'white', padding: '30px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0'}}>
                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '20px'}}>
                     <h2 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '10px'}}><Icons.Clock size={24} color="var(--color-btnPrimary)" /> Relatório de Execução</h2>
                     <button onClick={openCreateTimeLogModal} className="btn-primary hover-shadow" style={{display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px'}}>
@@ -3186,7 +3186,7 @@ export default function ProjetoDetalhe() {
             ABA 3: GANTT
         ========================================= */}
         {activeTab === 'gantt' && (
-            <div ref={ganttRef} style={{background: 'white', padding: '20px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0'}}>
+            <div className="bz-tab-panel" ref={ganttRef} style={{background: 'white', padding: '20px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0'}}>
                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '12px', flexWrap: 'wrap'}}>
                     <div>
                         <h2 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.2rem'}}><Icons.Calendar size={18} color="var(--color-btnPrimary)" /> Gantt do Projeto</h2>
@@ -3345,7 +3345,7 @@ export default function ProjetoDetalhe() {
             ABA 4: VISÃO GERAL (Formulário)
         ========================================= */}
         {activeTab === 'geral' && (
-            <div style={{background: 'white', padding: '35px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0'}}>
+            <div className="bz-tab-panel" style={{background: 'white', padding: '35px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0'}}>
                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', borderBottom: '1px solid #f1f5f9', paddingBottom: '15px'}}>
                     <h2 style={{margin: 0, color: '#0f172a', fontSize: '1.3rem'}}>Ficha do Projeto</h2>
                     {!isEditingGeral ? (

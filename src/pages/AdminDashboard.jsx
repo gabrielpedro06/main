@@ -557,7 +557,7 @@ export default function AdminDashboard() {
         <>
           {/* TAB 1: VISÃO GLOBAL (ANALYTICS) */}
           {activeTab === "analytics" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
+            <div className="bz-tab-panel" style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
               
               {/* KPIs GLOBAIS */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "14px" }}>
@@ -676,7 +676,7 @@ export default function AdminDashboard() {
 
           {/* TAB 2: EQUIPA & ASSIDUIDADE */}
           {activeTab === "equipa" && (
-            <div style={{ overflowX: "auto", background: "#fff", border: "1px solid var(--color-borderColor)", borderRadius: "14px" }}>
+            <div className="bz-tab-panel" style={{ overflowX: "auto", background: "#fff", border: "1px solid var(--color-borderColor)", borderRadius: "14px" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "980px" }}>
                 <thead>
                   <tr style={{ background: "var(--color-bgTertiary)", textAlign: "left" }}>
@@ -745,7 +745,7 @@ export default function AdminDashboard() {
 
           {/* TAB 3: GESTÃO INDIVIDUAL */}
           {activeTab === "gestao" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+            <div className="bz-tab-panel" style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
               
               <div style={{ display: "flex", gap: "10px", alignItems: "center", background: "#fff", border: "1px solid var(--color-borderColor)", borderRadius: "14px", padding: "16px" }}>
                 <span style={{ color: "var(--color-textPrimary)", fontWeight: 700, fontSize: "0.95rem" }}>Selecionar Colaborador:</span>

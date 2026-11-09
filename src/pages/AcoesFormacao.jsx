@@ -1401,7 +1401,7 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
         ))}
       </div>
 
-      <div style={{ background: "white", borderRadius: 14, border: "1px solid #e2e8f0", overflow: "hidden", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)" }}>
+      <div key={activeTab} className="bz-tab-panel" style={{ background: "white", borderRadius: 14, border: "1px solid #e2e8f0", overflow: "hidden", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)" }}>
         {loading ? (
           <div style={{ padding: 50, textAlign: "center", color: "#64748b" }}>A carregar dados...</div>
         ) : activeTab === "estatisticas" ? (

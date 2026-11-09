@@ -2508,7 +2508,7 @@ export default function Clientes() {
                 
                 {/* --- ABA GERAL --- */}
                 {activeTab === 'geral' && (
-                  <form onSubmit={handleSubmitGeral}>
+                  <form className="bz-tab-panel" onSubmit={handleSubmitGeral}>
                      <fieldset disabled={isViewOnly} style={{border: 'none', padding: 0, margin: 0}}>
                       <div style={{display:'flex', alignItems:'center', gap:'14px', marginBottom:'18px'}}>
                         {isViewOnly ? (
@@ -2580,7 +2580,7 @@ export default function Clientes() {
 
                 {/* --- ABA FUNÇÕES --- */}
                 {activeTab === 'funcoes' && (
-                  <form onSubmit={handleSubmitGeral}>
+                  <form className="bz-tab-panel" onSubmit={handleSubmitGeral}>
                     <fieldset disabled={isViewOnly} style={{border: 'none', padding: 0, margin: 0}}>
                       <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'20px', marginTop:'10px'}}>
                         <div>
@@ -2619,7 +2619,7 @@ export default function Clientes() {
 
                 {/* --- ABA DE PROJETOS DOZ CLIENTE --- */}
                 {activeTab === 'projetos' && (
-                    <div>
+                    <div className="bz-tab-panel">
                         <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px', background:'white', padding:'20px', borderRadius:'12px', border:'1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)'}}>
                             <div>
                                 <h4 style={{margin:0, fontSize: '1.2rem', color: '#1e293b'}}>Histórico de Projetos</h4>
@@ -2731,7 +2731,7 @@ export default function Clientes() {
 
                 {/* --- ABA ATIVIDADE E CAES --- */}
                 {activeTab === 'atividade' && (
-                  <div style={{display:'flex', flexDirection:'column', gap:'30px'}}>
+                  <div className="bz-tab-panel" style={{display:'flex', flexDirection:'column', gap:'30px'}}>
                     <div style={{background:'white', padding:'20px', borderRadius:'12px', border:'1px solid #e2e8f0'}}>
                         <label style={labelStyle}>Objeto Social</label>
                         <textarea disabled={isViewOnly} rows="5" value={form.objeto_social} onChange={e => setForm({...form, objeto_social: e.target.value})} style={{...inputStyle, resize:'vertical', marginBottom:'15px'}} className="input-focus" />
@@ -2796,7 +2796,7 @@ export default function Clientes() {
 
                 {/* --- ABA DOCUMENTOS --- */}
                 {activeTab === 'documentos' && (
-                  <form onSubmit={handleSubmitGeral}>
+                  <form className="bz-tab-panel" onSubmit={handleSubmitGeral}>
                      <div style={{border:'none', padding:0, margin: 0}}>
                       
                       <div style={{background:'white', padding:'30px', borderRadius:'12px', border:'1px solid #e2e8f0', marginBottom:'20px'}}>
@@ -2858,7 +2858,7 @@ export default function Clientes() {
 
                 {/* --- ABA PLANO --- */}
                 {activeTab === 'plano' && (
-                  <div style={{background:'white', padding:'40px', borderRadius:'16px', border:'1px solid #e2e8f0', textAlign:'center', maxWidth:'500px', margin:'0 auto', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
+                  <div className="bz-tab-panel" style={{background:'white', padding:'40px', borderRadius:'16px', border:'1px solid #e2e8f0', textAlign:'center', maxWidth:'500px', margin:'0 auto', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
                      <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px', color: 'var(--color-btnPrimary)'}}><Icons.Diamond size={48} /></div>
                      <h3 style={{marginTop:0, color:'#1e293b', fontSize:'1.5rem'}}>Plano de Subscrição</h3>
                      <select disabled={isViewOnly} value={form.plano} onChange={e => setForm({...form, plano: e.target.value})} style={{...inputStyle, fontSize:'1.1rem', padding:'15px', margin:'20px auto', display:'block', fontWeight: 'bold', color: 'var(--color-btnPrimary)', background: 'var(--color-bgSecondary)', borderColor: 'var(--color-borderColor)', cursor: 'pointer'}}>
@@ -2872,7 +2872,7 @@ export default function Clientes() {
 
                 {/* --- ABA PESSOAS --- */}
                 {activeTab === 'contactos' && (
-                  <div>
+                  <div className="bz-tab-panel">
                     <div style={{display:'flex', justifyContent:'space-between', marginBottom:'15px', alignItems:'center'}}>
                       <h4 style={{margin:0, fontSize:'1.1rem', color:'#1e293b'}}>Equipa da Entidade</h4>
                       {!isViewOnly && !showAddContacto && <button className="btn-small-add hover-shadow" onClick={() => { setNovoContacto(initContacto); setIsOutroCargo(false); setShowAddContacto(true); }} style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.Plus /> Adicionar Pessoa</button>}
@@ -2969,7 +2969,7 @@ export default function Clientes() {
 
                 {/* --- ABA MORADAS --- */}
                 {activeTab === 'moradas' && (
-                  <div>
+                  <div className="bz-tab-panel">
                     <div style={{display:'flex', justifyContent:'space-between', marginBottom:'15px', alignItems:'center'}}>
                       <h4 style={{margin:0, fontSize:'1.1rem', color:'#1e293b'}}>Moradas Registadas</h4>
                       {!isViewOnly && !showAddMorada && <button className="btn-small-add hover-shadow" onClick={() => {setNovaMorada(initMorada); setShowAddMorada(true)}} style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.Plus /> Adicionar Morada</button>}
@@ -3069,7 +3069,7 @@ export default function Clientes() {
 
                 {/* --- ABA CONFIGURAÇÕES DE ENTIDADE (só para consultoras) --- */}
                 {activeTab === 'configuracoes' && form.eh_empresa_consultora && (
-                  <div style={{background:'white', padding:'40px', borderRadius:'16px', border:'1px solid #e2e8f0', maxWidth: 1200, margin: '0 auto', marginBottom: 30, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
+                  <div className="bz-tab-panel" style={{background:'white', padding:'40px', borderRadius:'16px', border:'1px solid #e2e8f0', maxWidth: 1200, margin: '0 auto', marginBottom: 30, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
                     <div style={{fontSize: '1.3rem', fontWeight: 800, color: '#0f172a', marginBottom: 30}}>Configurações de Proposta</div>
                     
                     <div style={sectionTitleStyle}>Assinatura e Contacto da Proposta</div>
@@ -3449,7 +3449,7 @@ export default function Clientes() {
 
                 {/* --- ABA ACESSOS --- */}
                 {activeTab === 'acessos' && podeVerAcessos && (
-                  <div>
+                  <div className="bz-tab-panel">
                     <div style={{background: '#fffbeb', padding: '20px', borderRadius: '12px', borderLeft: '5px solid #f59e0b', marginBottom: '25px', color:'#b45309', fontWeight:'600', fontSize:'0.95rem', display: 'flex', alignItems: 'center', gap: '10px'}}>
                       <Icons.Alert size={20} color="#b45309" /> Acesso Restrito para Administração. Não partilhe estas credenciais fora da plataforma.
                     </div>

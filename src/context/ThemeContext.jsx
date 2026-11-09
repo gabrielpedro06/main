@@ -3,6 +3,29 @@ import { THEMES, DEFAULT_THEME } from '../constants/themes'
 
 const ThemeContext = createContext()
 
+function applyThemeVariables(themeName) {
+  const theme = THEMES[themeName]
+  if (!theme) return
+
+  const root = document.documentElement
+
+  // Registar propriedades de top-level (bgGradient, sidebarBgSecondary, accentColor)
+  if (theme.bgGradient) {
+    root.style.setProperty('--color-bgGradient', theme.bgGradient)
+  }
+  if (theme.sidebarBgSecondary) {
+    root.style.setProperty('--color-sidebarBgSecondary', theme.sidebarBgSecondary)
+  }
+  if (theme.accentColor) {
+    root.style.setProperty('--color-accentColor', theme.accentColor)
+  }
+
+  // Registar propriedades de cores
+  Object.entries(theme.colors).forEach(([key, value]) => {
+    root.style.setProperty(`--color-${key}`, value)
+  })
+}
+
 export function ThemeProvider({ children }) {
   const [currentTheme, setCurrentTheme] = useState(DEFAULT_THEME)
   const [isLoading, setIsLoading] = useState(true)
@@ -19,36 +42,29 @@ export function ThemeProvider({ children }) {
   // Atualiza as CSS variables sempre que o tema muda
   useEffect(() => {
     if (isLoading) return
-
-    const theme = THEMES[currentTheme]
-    if (!theme) return
-
-    const root = document.documentElement
-    
-    // Registar propriedades de top-level (bgGradient, sidebarBgSecondary, accentColor)
-    if (theme.bgGradient) {
-      root.style.setProperty('--color-bgGradient', theme.bgGradient)
-    }
-    if (theme.sidebarBgSecondary) {
-      root.style.setProperty('--color-sidebarBgSecondary', theme.sidebarBgSecondary)
-    }
-    if (theme.accentColor) {
-      root.style.setProperty('--color-accentColor', theme.accentColor)
-    }
-    
-    // Registar propriedades de cores
-    Object.entries(theme.colors).forEach(([key, value]) => {
-      root.style.setProperty(`--color-${key}`, value)
-    })
-
+    applyThemeVariables(currentTheme)
     // Salva no localStorage
     localStorage.setItem('app-theme', currentTheme)
   }, [currentTheme, isLoading])
 
   const changeTheme = (themeName) => {
-    if (THEMES[themeName]) {
+    if (!THEMES[themeName] || themeName === currentTheme) return
+
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    if (typeof document.startViewTransition !== 'function' || reduceMotion) {
       setCurrentTheme(themeName)
+      return
     }
+
+    // Transição suave entre temas (cross-fade de toda a app)
+    document.documentElement.classList.add('bz-theme-transition')
+    const transition = document.startViewTransition(() => {
+      applyThemeVariables(themeName)
+    })
+    transition.finished.finally(() => {
+      document.documentElement.classList.remove('bz-theme-transition')
+    })
+    setCurrentTheme(themeName)
   }
 
   const value = {
