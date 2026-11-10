@@ -8,7 +8,13 @@ function normalizeRole(value) {
 export default function ProtectedRoute({ children, allowedRoles = null }) {
   const { user, userProfile, loading } = useAuth()
 
-  if (loading) return <p>A carregar...</p>
+  if (loading) {
+    return (
+      <div className="bz-hold" role="status" aria-label="A carregar">
+        <span className="bz-hold-line"><span /></span>
+      </div>
+    )
+  }
 
   if (!user) {
     return <Navigate to="/" />

@@ -2,6 +2,7 @@ import { useState } from "react"
 import { supabase } from "../services/supabase"
 import { useNavigate, Link } from "react-router-dom"
 import "./login.css"
+import { resetBrandIntro } from "../utils/brandIntro"
 
 export default function Login() {
   const [email, setEmail] = useState("")
@@ -22,6 +23,7 @@ export default function Login() {
     if (error) {
       setError("Email ou password inválidos")
     } else {
+      resetBrandIntro()
       navigate("/dashboard")
     }
   }
