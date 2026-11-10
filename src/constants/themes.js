@@ -125,12 +125,42 @@ const THEME_CATALOG = [
   ["amanhecer_startup", "Amanhecer/Startup", "Laranja aurora", "#fff7ed", "#ea580c"],
 ];
 
-export const THEMES = Object.fromEntries(
-  THEME_CATALOG.map(([key, name, description, bgBase, darkBase]) => [
+// Temas de celebração: paleta + decorações animadas (ver components/ThemeDecor.jsx)
+// [chave, nome, descrição, fundo, cor principal, decoração, época "MM-DD" início/fim]
+const FESTIVE_CATALOG = [
+  ["festa_natal", "Natal Mágico", "Grinalda de bolas, árvore, bengalas e neve", "#fbf4ee", "#a3162b", "natal", ["11-01", "01-06"]],
+  ["festa_inverno", "Inverno Nevado", "Flocos de neve a cair suavemente", "#eef5fb", "#1d4f7a", "neve", ["12-01", "02-28"]],
+  ["festa_ano_novo", "Passagem de Ano", "Fogo de artifício e confettis dourados", "#faf7f0", "#1f1a14", "anonovo", ["12-26", "01-07"]],
+  ["festa_sao_martinho", "S. Martinho", "Castanhas quentes e folhas de outono", "#fbf2e9", "#7a3410", "martinho", ["11-01", "11-16"]],
+  ["festa_outono", "Outono Dourado", "Folhas a cair", "#fcf5ea", "#9a3412", "outono", ["09-22", "11-30"]],
+  ["festa_halloween", "Halloween", "Abóboras, morcegos e teias de aranha", "#f6f2ee", "#3e1c5e", "halloween", ["10-15", "11-02"]],
+  ["festa_carnaval", "Carnaval", "Confettis e serpentinas", "#f8f4ff", "#6d28d9", "carnaval", ["02-01", "03-10"]],
+  ["festa_valentim", "S. Valentim", "Corações a flutuar", "#fff3f5", "#be123c", "valentim", ["02-01", "02-15"]],
+  ["festa_pascoa", "Páscoa", "Ovos pintados e pétalas", "#fdf6f3", "#8a3f7c", "pascoa", ["03-15", "04-30"]],
+  ["festa_liberdade", "25 de Abril", "Cravos vermelhos", "#fdf4f2", "#b4161b", "cravos", ["04-15", "04-30"]],
+  ["festa_primavera", "Primavera em Flor", "Pétalas e flores", "#f5fbf2", "#2e7a3d", "primavera", ["03-20", "05-31"]],
+  ["festa_santos", "Santos Populares", "Bandeirinhas, manjericos e sardinhas", "#f2faf5", "#0d6a49", "santos", ["06-01", "06-30"]],
+  ["festa_verao", "Verão na Praia", "Sol, ondas e gaivotas", "#eff8fc", "#0b6a96", "verao", ["06-21", "09-15"]],
+];
+
+export const THEMES = Object.fromEntries([
+  ...THEME_CATALOG.map(([key, name, description, bgBase, darkBase]) => [
     key,
-    createTheme(name, description, bgBase, darkBase),
-  ])
-);
+    { ...createTheme(name, description, bgBase, darkBase), group: "basic" },
+  ]),
+  ...FESTIVE_CATALOG.map(([key, name, description, bgBase, darkBase, decor, season]) => [
+    key,
+    { ...createTheme(name, description, bgBase, darkBase), group: "festive", decor, season },
+  ]),
+]);
+
+// Está dentro da época do tema? (suporta épocas que passam o fim do ano)
+export const isThemeInSeason = (theme, date = new Date()) => {
+  if (!theme?.season) return false;
+  const md = `${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  const [start, end] = theme.season;
+  return start <= end ? md >= start && md <= end : md >= start || md <= end;
+};
 
 export const THEME_KEYS = Object.keys(THEMES);
 export const DEFAULT_THEME = "default";
