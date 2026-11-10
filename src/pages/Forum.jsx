@@ -3195,11 +3195,18 @@ async function handleSendChat(e) {
                             <button type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} className={`fx-icon-btn ${showEmojiPicker ? 'is-on' : ''}`} aria-label="Emojis">
                                 <Icons.Smile size={20} />
                             </button>
-                            <input
+                            <textarea
                                 ref={chatInputRef}
-                                type="text"
+                                rows={1}
                                 value={chatDraft}
                                 onChange={(e) => handleChatDraftChange(e.target.value)}
+                                onKeyDown={(e) => {
+                                    // Enter envia; Shift+Enter muda de linha
+                                    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                                        e.preventDefault();
+                                        e.currentTarget.form?.requestSubmit();
+                                    }
+                                }}
                                 onPaste={handleChatPaste}
                                 onClick={() => setShowEmojiPicker(false)}
                                 placeholder={chatStagedFile ? "Adicionar uma legenda..." : "Escreve uma mensagem..."}

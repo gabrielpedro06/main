@@ -1464,11 +1464,19 @@
   box-shadow: 0 0 0 4px var(--color-btnPrimaryShadow, rgba(15, 23, 42, 0.08));
 }
 .fx-chat-input .fx-icon-btn { border-radius: 50%; width: 38px; height: 38px; }
-.fx-chat-input input {
+.fx-chat-input input,
+.fx-chat-input textarea {
   flex: 1; min-width: 0;
   padding: 10px 4px;
   border: none !important; outline: none; background: transparent; box-shadow: none !important;
-  font: inherit; font-size: 0.95rem; color: var(--fx-ink);
+  font: inherit; font-size: 0.95rem; line-height: 1.4; color: var(--fx-ink);
+}
+.fx-chat-input { align-items: flex-end; border-radius: 22px; }
+.fx-chat-input textarea {
+  resize: none;
+  field-sizing: content;
+  min-height: 40px; max-height: 160px;
+  overflow-y: auto;
 }
 .fx-emoji-pop {
   position: absolute; bottom: calc(100% + 8px); left: 18px;
