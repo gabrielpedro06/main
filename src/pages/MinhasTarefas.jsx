@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
 import TimerSwitchModal from "../components/TimerSwitchModal";
+import FancySelect from "../components/FancySelect";
 import StopTimerNoteModal from "../components/StopTimerNoteModal";
 import { hasAttendanceStartedToday, startAttendanceNow } from "../utils/attendanceGuard";
 import { resolveActiveTimerMeta } from "../utils/activeTimerResolver";
@@ -1032,6 +1033,23 @@ export default function MinhasTarefas() {
       );
   }
 
+  // Opções do filtro de projetos (dropdown moderno)
+  const PROJECT_TILE_COLORS = [['#60a5fa', '#2563eb'], ['#34d399', '#059669'], ['#fbbf24', '#ea580c'], ['#f472b6', '#db2777'], ['#a78bfa', '#6d28d9'], ['#22d3ee', '#0891b2'], ['#fb7185', '#e11d48']];
+  const projectTile = (name, idx) => {
+      const [t1, t2] = PROJECT_TILE_COLORS[idx % PROJECT_TILE_COLORS.length];
+      const initials = String(name || '?').replace(/[^\p{L}\p{N} ]/gu, ' ').trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?';
+      return <span className="fs-tile" style={{ '--t1': t1, '--t2': t2 }}>{initials}</span>;
+  };
+  const projectFilterOptions = [
+      { value: 'avulsas', label: 'Tarefas avulsas', hint: 'Sem projeto associado', icon: <span className="fs-tile" style={{ '--t1': '#cbd5e1', '--t2': '#64748b' }}><Icons.Inbox size={14} /></span> },
+      { value: 'todos', label: 'Todos os projetos', hint: 'Tudo o que tens atribuído', icon: <span className="fs-tile" style={{ '--t1': 'color-mix(in srgb, var(--color-btnPrimary) 55%, #fff)', '--t2': 'var(--color-btnPrimary)' }}><Icons.Kanban size={14} /></span> },
+      ...availableProjects.map((p, i) => {
+          const m = String(p.name || '').match(/^\[(.+?)\]\s*(.*)$/);
+          const label = m ? (m[2] || m[1]) : p.name;
+          return { value: p.id, label, hint: m ? m[1] : 'Projeto', group: 'Projetos', icon: projectTile(label, i) };
+      }),
+  ];
+
   const agCount = (key) => (tasks[key] || []).length;
   const timerTitle = getActiveTimerTitle();
 
@@ -1059,17 +1077,15 @@ export default function MinhasTarefas() {
           </div>
 
           <div className="ag-hero-row ag-hero-tools">
-              <label className="ag-select">
-                  <Icons.Folder size={14} />
-                  <select value={selectedProjectFilter} onChange={(e) => setSelectedProjectFilter(e.target.value)}>
-                      <option value="avulsas">Tarefas avulsas</option>
-                      <option value="todos">Todos os projetos</option>
-                      {availableProjects.map(p => (
-                          <option key={p.id} value={p.id}>{p.name}</option>
-                      ))}
-                  </select>
-                  <span className="ag-select-caret" aria-hidden="true">▾</span>
-              </label>
+              <FancySelect
+                  value={selectedProjectFilter}
+                  onChange={setSelectedProjectFilter}
+                  options={projectFilterOptions}
+                  icon={<Icons.Folder size={14} />}
+                  className="fs-glass ag-project-picker"
+                  searchPlaceholder="Procurar projeto..."
+                  ariaLabel="Filtrar por projeto"
+              />
 
               <div className="ag-hero-actions">
                   {activeLog && (
