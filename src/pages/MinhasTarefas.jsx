@@ -10,6 +10,7 @@ import { resolveActiveTimerMeta } from "../utils/activeTimerResolver";
 import { concludeActivityWithChildren } from "../utils/activityStatusCascade";
 import { applyStopStatusUpdateForLogTarget } from "../utils/taskTimerLifecycle";
 import "./../styles/dashboard.css";
+import "../styles/agenda.css";
 
 // --- ÍCONES SVG PROFISSIONAIS (SaaS Premium) ---
 const Icons = {
@@ -141,7 +142,7 @@ export default function MinhasTarefas() {
       setLoading(true);
       await Promise.all([
           (async () => {
-              const { data: staffData } = await supabase.from("profiles").select("id, nome, email, ativo").order("nome");
+              const { data: staffData } = await supabase.from("profiles").select("id, nome, email, ativo, avatar_url").order("nome");
               setStaff(staffData || []);
           })(),
           checkActiveLog(),
@@ -889,89 +890,91 @@ export default function MinhasTarefas() {
       setDraggedTask(null);
   }
 
-  const renderCardTarefa = (task) => {
+  const AG_COLUMNS = [
+      { id: "atrasadas", title: "Atrasadas", icon: <Icons.AlertTriangle size={15} />, tone: "late", empty: "Sem atrasos. Bom trabalho!" },
+      { id: "hoje", title: "Para hoje", icon: <Icons.Flame size={15} />, tone: "today", empty: "Nada para hoje. Arrasta algo para aqui." },
+      { id: "amanha", title: "Amanhã", icon: <Icons.Calendar size={15} />, tone: "tomorrow", empty: "Amanhã está livre." },
+      { id: "depois", title: "Mais tarde", icon: <Icons.Calendar size={15} />, tone: "later", empty: "Sem planos para mais tarde." },
+      { id: "semData", title: "Sem data", icon: <Icons.Inbox size={15} />, tone: "nodate", empty: "Tudo tem data. Organizado!" },
+  ];
+
+  const renderCardTarefa = (task, index = 0) => {
       const isTimerActive = activeLog?.task_id === task.id;
       const timeSpent = getTaskTime(task.id);
       const isCompleted = task.estado === 'concluido';
       const taskDeadline = task.data_fim || task.data_limite;
-      
-      let dateColor = '#64748b';
+
+      let deadlineTone = 'neutral';
       if (taskDeadline && !isCompleted) {
           const d = new Date(taskDeadline); d.setHours(0,0,0,0);
           const t = new Date(); t.setHours(0,0,0,0);
-          if (d < t) dateColor = '#ef4444';
-          else if (d.getTime() === t.getTime()) dateColor = 'var(--color-btnPrimary)';
+          if (d < t) deadlineTone = 'late';
+          else if (d.getTime() === t.getTime()) deadlineTone = 'today';
       }
 
       const proj = task.atividades?.projetos;
       const contexto = proj ? (proj.codigo_projeto ? `[${proj.codigo_projeto}] ${proj.titulo}` : proj.titulo) : "Avulsa";
-      
+
       const hasExtraColabs = task.colaboradores_extra && task.colaboradores_extra.length > 0;
       const totalDocs = Array.isArray(task.anexos) ? task.anexos.length : (task.arquivo_url ? 1 : 0);
-      
+
       const showDelegated = task.criado_por && task.criado_por !== task.responsavel_id;
       const creatorName = task.profiles ? getSafeFirstName(task.profiles.nome) : null;
 
       return (
-          <div 
+          <div
               id={`my-task-card-${task.id}`}
               key={task.id}
-              draggable 
+              draggable
               onDragStart={() => setDraggedTask(task)}
               onDragEnd={() => setDraggedTask(null)}
-              style={{ 
-                  background: isTimerActive ? 'var(--color-bgSecondary)' : 'white', 
-                  borderRadius: '10px', padding: '12px 15px', marginBottom: '10px', 
-                  border: isTimerActive ? '2px solid var(--color-btnPrimary)' : '1px solid #e2e8f0', 
-                  boxShadow: isTimerActive ? '0 4px 6px -1px rgba(59, 130, 246, 0.2)' : '0 1px 3px rgba(0,0,0,0.05)', 
-                  display: 'flex', gap: '12px', alignItems: 'flex-start', cursor: 'grab', 
-                  opacity: (draggedTask?.id === task.id || isCompleted) ? 0.6 : 1,
-                  transition: 'all 0.2s ease'
-              }} 
-              className="asana-card hover-shadow"
+              className={`ag-card ${isTimerActive ? 'is-running' : ''} ${isCompleted ? 'is-done' : ''} ${draggedTask?.id === task.id ? 'is-dragging' : ''}`}
+              style={{ '--i': Math.min(index, 8) }}
           >
-              <button 
-                onClick={() => handleCompleteTask(task)} 
-                style={{
-                    width: '22px', height: '22px', borderRadius: '50%', cursor: 'pointer', marginTop: '2px', transition: '0.2s', flexShrink: 0, 
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                    border: isCompleted ? 'none' : '2px solid #cbd5e1', 
-                    background: isCompleted ? 'var(--color-btnPrimary)' : 'transparent',
-                    color: isCompleted ? 'white' : 'transparent'
-                }} 
-                className="hover-check-circle" 
+              <button
+                type="button"
+                onClick={() => handleCompleteTask(task)}
+                className={`ag-check ${isCompleted ? 'is-on' : ''}`}
                 title="Marcar como concluído"
+                aria-label="Marcar como concluído"
               >
                   <Icons.Check size={12} />
               </button>
 
-              <div style={{flex: 1, overflow: 'hidden'}}>
-                  <h4 onClick={() => openEditModal(task)} style={{margin: '0 0 4px 0', fontSize: '0.95rem', color: isCompleted ? '#94a3b8' : '#1e293b', textDecoration: isCompleted ? 'line-through' : 'none', cursor: 'pointer', wordBreak: 'break-word', lineHeight: '1.4'}} className="hover-text-blue">
+              <div className="ag-card-body">
+                  <h4 onClick={() => openEditModal(task)} className="ag-card-title">
                       {task.titulo}
                   </h4>
-                  
-                  <div style={{fontSize: '0.7rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>
-                      <Icons.Folder size={10} color="#cbd5e1" /> {contexto}
+
+                  <div className={`ag-card-context ${proj ? '' : 'is-loose'}`}>
+                      <Icons.Folder size={11} /> <span>{contexto}</span>
                   </div>
-                  
-                  <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px'}}>
-                      <div style={{display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap'}}>
-                          {showDelegated && creatorName && (
-                              <span style={{fontSize: '0.65rem', background: '#f1f5f9', border: '1px solid #e2e8f0', color: '#64748b', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold'}} title="Atribuído por">
-                                  🙋 De: {creatorName}
+
+                  <div className="ag-card-foot">
+                      <div className="ag-card-chips">
+                          {taskDeadline && (
+                              <span className={`ag-chip ag-chip-date is-${isCompleted ? 'neutral' : deadlineTone}`}>
+                                  <Icons.Calendar size={11} /> {new Date(taskDeadline).toLocaleDateString('pt-PT', {day:'2-digit', month:'short'}).replace('.', '')}
                               </span>
                           )}
-                          {taskDeadline && <span style={{fontSize: '0.7rem', color: isCompleted ? '#94a3b8' : dateColor, fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.Calendar /> {new Date(taskDeadline).toLocaleDateString('pt-PT', {day:'2-digit', month:'short'})}</span>}
-                          {task.descricao && <span style={{color: '#94a3b8'}} title="Tem notas"><Icons.FileText /></span>}
-                          {totalDocs > 0 && <span style={{color: 'var(--color-btnPrimary)', display: 'flex', alignItems: 'center', gap: '2px', fontSize: '0.7rem', fontWeight: 'bold'}} title="Documentos em Anexo"><Icons.FileText size={12} /> {totalDocs}</span>}
-                          {hasExtraColabs && <span style={{color: '#8b5cf6', display: 'flex', alignItems: 'center', gap: '2px', fontSize: '0.7rem', fontWeight: 'bold'}} title="Colaboradores partilhados"><Icons.Users size={12} /> +{task.colaboradores_extra.length}</span>}
+                          {showDelegated && creatorName && (
+                              <span className="ag-chip" title="Atribuído por">De {creatorName}</span>
+                          )}
+                          {task.descricao && <span className="ag-chip ag-chip-icon" title="Tem notas"><Icons.FileText size={11} /></span>}
+                          {totalDocs > 0 && <span className="ag-chip ag-chip-docs" title="Documentos em anexo"><Icons.FileText size={11} /> {totalDocs}</span>}
+                          {hasExtraColabs && <span className="ag-chip ag-chip-team" title="Colaboradores partilhados"><Icons.Users size={11} /> +{task.colaboradores_extra.length}</span>}
                       </div>
 
-                      <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
-                          {timeSpent > 0 && <span style={{fontSize: '0.7rem', color: '#94a3b8', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.Clock /> {formatTime(timeSpent)}</span>}
-                          
+                      <div className="ag-card-timer">
+                          {timeSpent > 0 && <span className="ag-time"><Icons.Clock size={11} /> {formatTime(timeSpent)}</span>}
                           {!isCompleted && (
-                              <button onClick={() => handleToggleTimer(task)} style={{background: isTimerActive ? '#fee2e2' : '#f1f5f9', color: isTimerActive ? '#ef4444' : '#64748b', border: 'none', padding: '6px 12px', borderRadius: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', transition: '0.2s'}} className="hover-icon-btn">
+                              <button
+                                  type="button"
+                                  onClick={() => handleToggleTimer(task)}
+                                  className={`ag-play ${isTimerActive ? 'is-on' : ''}`}
+                                  title={isTimerActive ? 'Parar cronómetro' : 'Iniciar cronómetro'}
+                                  aria-label={isTimerActive ? 'Parar cronómetro' : 'Iniciar cronómetro'}
+                              >
                                   {isTimerActive ? <Icons.Stop /> : <Icons.Play />}
                               </button>
                           )}
@@ -982,143 +985,146 @@ export default function MinhasTarefas() {
       );
   };
 
-  const renderKanbanColumn = (id, title, icon, color, tasksList) => {
+  const renderKanbanColumn = (col, tasksList) => {
+      const { id } = col;
       const isOver = dragOverCol === id;
 
       return (
-          <div 
+          <section
               key={id}
               onDragOver={(e) => { e.preventDefault(); setDragOverCol(id); }}
               onDragLeave={() => setDragOverCol(null)}
               onDrop={(e) => handleDrop(e, id)}
-              style={{ 
-                  background: isOver ? 'var(--color-bgTertiary)' : '#f8fafc', 
-                  borderRadius: '12px', padding: '15px', display: 'flex', flexDirection: 'column', height: '100%', 
-                  border: isOver ? '2px dashed var(--color-btnPrimary)' : '1px solid transparent', 
-                  minHeight: '60vh', transition: 'all 0.2s ease'
-              }}
+              className={`ag-col ag-col-${col.tone} ${isOver ? 'is-over' : ''}`}
           >
-              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', paddingBottom: '10px', borderBottom: '2px solid var(--color-borderColor)'}}>
-                  <h3 style={{margin: 0, fontSize: '0.9rem', color: color, fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px'}}>
-                      {icon} {title}
-                  </h3>
-                  <span style={{color: '#64748b', fontSize: '0.85rem', fontWeight: 'bold', background: 'white', border: '1px solid #e2e8f0', padding: '2px 8px', borderRadius: '12px'}}>{tasksList.length}</span>
-              </div>
-              
-              <div style={{overflowY: 'auto', flex: 1, paddingRight: '5px'}} className="custom-scrollbar">
-                  {tasksList.map(t => renderCardTarefa(t))}
-                  
-                  <form onSubmit={(e) => handleQuickAdd(e, id)} style={{marginTop: '5px'}}>
-                      <div style={{position: 'relative'}}>
-                          <span style={{position: 'absolute', left: '10px', top: '10px', color: '#94a3b8'}}><Icons.Plus /></span>
-                          <input 
-                              type="text" 
-                              placeholder="Adicionar avulsa..." 
-                              value={newTasks[id] || ''} 
-                              onChange={e => setNewTasks({...newTasks, [id]: e.target.value})} 
-                              style={{width: '100%', padding: '10px 10px 10px 32px', background: 'white', border: '1px dashed #cbd5e1', borderRadius: '8px', outline: 'none', fontSize: '0.85rem', color: '#475569', transition: '0.2s', boxSizing: 'border-box'}} 
-                              className="input-focus"
-                          />
-                      </div>
+              <header className="ag-col-head">
+                  <span className="ag-col-icon">{col.icon}</span>
+                  <h3>{col.title}</h3>
+                  <span className="ag-col-count">{tasksList.length}</span>
+              </header>
+
+              <div className="ag-col-body custom-scrollbar">
+                  {tasksList.map((t, i) => renderCardTarefa(t, i))}
+
+                  {tasksList.length === 0 && (
+                      <div className="ag-col-empty">{isOver ? 'Larga aqui' : col.empty}</div>
+                  )}
+
+                  <form onSubmit={(e) => handleQuickAdd(e, id)} className="ag-quick">
+                      <span className="ag-quick-icon"><Icons.Plus size={14} /></span>
+                      <input
+                          type="text"
+                          placeholder="Adicionar avulsa..."
+                          value={newTasks[id] || ''}
+                          onChange={e => setNewTasks({...newTasks, [id]: e.target.value})}
+                      />
                   </form>
               </div>
-          </div>
+          </section>
       );
   };
 
-  if (loading) return <div className="page-container" style={{display:'flex', justifyContent:'center', alignItems:'center', height:'80vh'}}><div className="pulse-dot-white" style={{background:'var(--color-btnPrimary)'}}></div></div>;
+  if (loading) {
+      return (
+          <div className="page-container ag-page">
+              <div className="ag-loading"><span /><span /><span /></div>
+          </div>
+      );
+  }
+
+  const agCount = (key) => (tasks[key] || []).length;
+  const timerTitle = getActiveTimerTitle();
 
   return (
-    <div className="page-container" style={{padding: '20px', height: '100vh', display: 'flex', flexDirection: 'column', maxWidth: '1600px', margin: '0 auto'}}>
-      
-      {/* HEADER DO KANBAN */}
-      <div className="card" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '30px', flexWrap: 'wrap', gap: '15px', background: 'white', padding: '25px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
-          <div style={{display: 'flex', alignItems: 'center', gap: '15px', flex: 1, minWidth: '300px'}}>
-              <div style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '12px', borderRadius: '12px', display: 'flex'}}><Icons.Kanban /></div>
-              <div>
-                  <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>Agenda</h1>
-                  <p style={{margin: '0', color: '#64748b', fontSize: '0.9rem', fontWeight: '500'}}>O teu quadro de produtividade pessoal. Arrasta os cartões!</p>
+    <div className="page-container ag-page">
+
+      {/* HERO */}
+      <header className="ag-hero">
+          <div className="ag-hero-bg" aria-hidden="true"><span className="ag-orb ag-orb-a" /><span className="ag-orb ag-orb-b" /></div>
+
+          <div className="ag-hero-row">
+              <div className="ag-hero-main">
+                  <span className="ag-hero-icon"><Icons.Kanban size={22} /></span>
+                  <div>
+                      <h1>Agenda</h1>
+                      <p>O teu quadro de produtividade pessoal. Arrasta os cartões!</p>
+                  </div>
+              </div>
+
+              <div className="ag-hero-stats">
+                  <span className={`ag-stat ${agCount('atrasadas') > 0 ? 'is-alert' : ''}`}><strong>{agCount('atrasadas')}</strong> atrasadas</span>
+                  <span className="ag-stat"><strong>{agCount('hoje')}</strong> para hoje</span>
+                  <span className="ag-stat"><strong>{agCount('amanha') + agCount('depois')}</strong> a seguir</span>
               </div>
           </div>
-          
-          <div style={{display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end'}}>
-              <div style={{position: 'relative'}}>
-                  <select 
-                      value={selectedProjectFilter} 
-                      onChange={(e) => setSelectedProjectFilter(e.target.value)}
-                      style={{ padding: '8px 30px 8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', background: 'white', color: '#475569', fontSize: '0.85rem', fontWeight: '600', cursor: 'pointer', appearance: 'none', height: '36px' }}
-                      className="hover-shadow"
-                  >
-                      <option value="avulsas">⚪ Tarefas Avulsas</option>
-                      <option value="todos">📁 Todos os Projetos</option>
+
+          <div className="ag-hero-row ag-hero-tools">
+              <label className="ag-select">
+                  <Icons.Folder size={14} />
+                  <select value={selectedProjectFilter} onChange={(e) => setSelectedProjectFilter(e.target.value)}>
+                      <option value="avulsas">Tarefas avulsas</option>
+                      <option value="todos">Todos os projetos</option>
                       {availableProjects.map(p => (
-                          <option key={p.id} value={p.id}>📁 {p.name}</option>
+                          <option key={p.id} value={p.id}>{p.name}</option>
                       ))}
                   </select>
-                  <span style={{position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', fontSize: '0.6rem', color: '#94a3b8'}}>▼</span>
-              </div>
+                  <span className="ag-select-caret" aria-hidden="true">▾</span>
+              </label>
 
-              <button onClick={openCompletedHistory} title="Histórico" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#475569', background: '#f8fafc', padding: '0', width: '36px', height: '36px', borderRadius: '8px', border: '1px solid #e2e8f0', transition: '0.2s'}} className="hover-shadow hover-text-blue">
-                  <Icons.History size={16} />
-              </button>
-
-              <button onClick={openTimeCreateModal} title="Tempo Manual" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-btnPrimary)', background: 'var(--color-bgSecondary)', padding: '0', width: '36px', height: '36px', borderRadius: '8px', border: '1px solid var(--color-borderColor)', transition: '0.2s'}} className="hover-shadow">
-                  <Icons.Clock size={16} />
-              </button>
-
-              <button onClick={() => setShowQuickTaskModal(true)} style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--color-btnPrimary)', fontWeight: '700', background: 'var(--color-bgSecondary)', padding: '0 15px', height: '36px', borderRadius: '8px', border: '1px solid var(--color-borderColor)', transition: '0.2s'}} className="hover-shadow">
-                  <Icons.Plus size={14} /> Adicionar Tarefa
-              </button>
-
-              {activeLog && (
-                  <div onClick={openActiveTimerLocation} className="hover-shadow" title="Clica para ir para a tarefa/atividade em curso" style={{background: 'linear-gradient(to right, #ef4444, #b91c1c)', color: 'white', padding: '10px 20px', borderRadius: '30px', display: 'inline-flex', alignItems: 'center', gap: '15px', border: '2px solid #fecaca', boxShadow: '0 4px 10px rgba(239, 68, 68, 0.4)', cursor: 'pointer', transition: '0.2s', whiteSpace: 'nowrap'}}>
-                      <div style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700', fontSize: '0.95rem'}}>
-                          <span className="pulse-dot-white" style={{width: '8px', height: '8px'}}></span>
-                          {getActiveTimerTitle().length > 30 ? `${getActiveTimerTitle().slice(0, 30)}...` : getActiveTimerTitle()}
+              <div className="ag-hero-actions">
+                  {activeLog && (
+                      <div onClick={openActiveTimerLocation} title="Clica para ir para a tarefa/atividade em curso" className="ag-live">
+                          <span className="ag-live-dot" />
+                          <span className="ag-live-title">{timerTitle.length > 30 ? `${timerTitle.slice(0, 30)}...` : timerTitle}</span>
+                          <button type="button" onClick={openStopNoteModal} className="ag-live-stop"><Icons.Stop /> Parar</button>
                       </div>
-                      <div style={{width: '1px', height: '20px', background: 'rgba(255,255,255,0.3)'}}></div>
-                      <button type="button" onClick={openStopNoteModal} style={{background: 'white', color:'#ef4444', border:'none', borderRadius:'20px', padding:'6px 12px', cursor:'pointer', fontWeight:'700', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px', transition: '0.2s'}}><Icons.Stop /> Parar</button>
-                  </div>
-              )}
+                  )}
+                  <button type="button" onClick={openCompletedHistory} title="Histórico de concluídas" className="ag-glass-btn">
+                      <Icons.History size={16} /> <span>Histórico</span>
+                  </button>
+                  <button type="button" onClick={openTimeCreateModal} title="Registar tempo manual" className="ag-glass-btn">
+                      <Icons.Clock size={16} /> <span>Tempo manual</span>
+                  </button>
+                  <button type="button" onClick={() => setShowQuickTaskModal(true)} className="ag-primary-btn">
+                      <Icons.Plus size={15} /> Adicionar tarefa
+                  </button>
+              </div>
           </div>
+      </header>
+
+      {/* QUADRO */}
+      <div className="ag-board">
+          {AG_COLUMNS.map((col) => renderKanbanColumn(col, tasks[col.id] || []))}
       </div>
 
-      {/* QUADRO KANBAN LIMPO COM A GRELHA ATIVADA */}
-      <div className="kanban-grid" style={{flex: 1}}>
-          {renderKanbanColumn("atrasadas", "Atrasadas", <Icons.AlertTriangle />, "#ef4444", tasks.atrasadas)}
-          {renderKanbanColumn("hoje", "Para Hoje", <Icons.Flame />, "#d97706", tasks.hoje)}
-          {renderKanbanColumn("amanha", "Amanhã", <Icons.Calendar />, "var(--color-btnPrimary)", tasks.amanha)}
-          {renderKanbanColumn("depois", "Mais Tarde", <Icons.Calendar />, "#8b5cf6", tasks.depois)}
-          {renderKanbanColumn("semData", "Sem Data", <Icons.Inbox />, "#64748b", tasks.semData)}
-      </div>
-
-      {/* MODAL GIGANTE DE TAREFAS CONCLUÍDAS */}
+      {/* MODAL DE TAREFAS CONCLUÍDAS */}
       {showCompletedModal && (
           <ModalPortal>
-              <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, backdropFilter: 'blur(4px)'}} onClick={() => setShowCompletedModal(false)}>
-                  <div style={{background: '#fff', width: '90%', maxWidth: '750px', borderRadius: '16px', padding: '30px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out', maxHeight: '85vh', display: 'flex', flexDirection: 'column'}} onClick={e => e.stopPropagation()}>
-                      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
-                          <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.25rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '10px'}}>
-                              <Icons.History color="var(--color-btnPrimary)" size={24} /> Arquivo de Concluídas
-                          </h3>
-                          <button onClick={() => setShowCompletedModal(false)} style={{background:'none', border:'none', cursor:'pointer', color:'#94a3b8', display: 'flex'}} className="hover-red-text"><Icons.Close size={20} /></button>
+              <div className="ag-overlay" style={{ zIndex: 99999 }} onClick={() => setShowCompletedModal(false)}>
+                  <div className="ag-modal" onClick={e => e.stopPropagation()} role="dialog" aria-label="Arquivo de concluídas">
+                      <div className="ag-modal-head">
+                          <span className="ag-modal-icon"><Icons.History size={20} /></span>
+                          <div>
+                              <p className="ag-kicker">Histórico</p>
+                              <h3>Arquivo de concluídas</h3>
+                          </div>
+                          <button type="button" onClick={() => setShowCompletedModal(false)} className="ag-close" aria-label="Fechar"><Icons.Close size={18} /></button>
                       </div>
 
-                      <div style={{ display: 'flex', gap: '10px', borderBottom: '1px solid #e2e8f0', marginBottom: '20px', paddingBottom: '5px' }}>
+                      <div className="ag-segment">
                           {Object.keys(completedTasksGroups).map(groupName => {
                               const isActive = activeHistoryTab === groupName;
                               return (
-                                  <button key={groupName} onClick={() => setActiveHistoryTab(groupName)} style={{ background: 'none', border: 'none', padding: '10px 15px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: isActive ? '800' : '600', color: isActive ? 'var(--color-btnPrimary)' : '#64748b', position: 'relative', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '8px' }} className="tab-hover-green">
-                                      {groupName} <span style={{ background: isActive ? 'var(--color-borderColorLight)' : '#f1f5f9', color: isActive ? 'var(--color-btnPrimary)' : '#94a3b8', padding: '2px 8px', borderRadius: '12px', fontSize: '0.7rem' }}>{completedTasksGroups[groupName].length}</span>
-                                      {isActive && <div style={{position:'absolute', bottom:'-6px', left:0, right:0, height:'3px', background:'var(--color-btnPrimary)', borderRadius:'3px 3px 0 0'}} />}
+                                  <button type="button" key={groupName} onClick={() => setActiveHistoryTab(groupName)} className={isActive ? 'is-on' : ''}>
+                                      {groupName} <span>{completedTasksGroups[groupName].length}</span>
                                   </button>
                               );
                           })}
                       </div>
 
-                      <div style={{overflowY: 'auto', paddingRight: '10px', flex: 1}} className="custom-scrollbar">
-                          <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
-                              {completedTasksGroups[activeHistoryTab]?.map(t => {
+                      <div className="ag-modal-body custom-scrollbar">
+                          <div className="ag-done-list" key={activeHistoryTab}>
+                              {completedTasksGroups[activeHistoryTab]?.map((t, i) => {
                                   let ctx = "Avulsa";
                                   if (t.atividades?.projetos) {
                                       const p = t.atividades.projetos;
@@ -1126,27 +1132,27 @@ export default function MinhasTarefas() {
                                   }
 
                                   return (
-                                      <div key={t.id} style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'white', padding: '15px', borderRadius: '12px', border: '1px solid #e2e8f0', transition: '0.2s'}} className="hover-shadow">
-                                          <div style={{display: 'flex', alignItems: 'center', gap: '12px', flex: 1, overflow: 'hidden'}}>
-                                              <div style={{width: '24px', height: '24px', borderRadius: '50%', background: 'var(--color-borderColorLight)', color: 'var(--color-btnPrimary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0}}><Icons.Check size={14} /></div>
-                                              <div style={{display: 'flex', flexDirection: 'column', overflow: 'hidden'}}>
-                                                  <span style={{fontSize: '0.95rem', color: '#475569', textDecoration: 'line-through', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: '500'}}>{t.titulo}</span>
-                                                  <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px'}}>
-                                                      <span style={{fontSize: '0.75rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.Folder size={10} /> {ctx.length > 40 ? ctx.slice(0,40)+'...' : ctx}</span>
-                                                      <span style={{fontSize: '0.75rem', color: '#cbd5e1'}}>•</span>
-                                                      <span style={{fontSize: '0.75rem', color: '#94a3b8'}}>{new Date(t.data_conclusao || t.created_at).toLocaleDateString('pt-PT')}</span>
-                                                  </div>
-                                              </div>
+                                      <div key={t.id} className="ag-done" style={{ '--i': Math.min(i, 10) }}>
+                                          <span className="ag-done-check"><Icons.Check size={13} /></span>
+                                          <div className="ag-done-text">
+                                              <span className="ag-done-title">{t.titulo}</span>
+                                              <span className="ag-done-meta">
+                                                  <Icons.Folder size={10} /> {ctx.length > 40 ? ctx.slice(0,40)+'...' : ctx}
+                                                  <i /> {new Date(t.data_conclusao || t.created_at).toLocaleDateString('pt-PT')}
+                                              </span>
                                           </div>
-                                          <div style={{display: 'flex', gap: '8px'}}>
-                                              <button onClick={() => handleRestoreTask(t)} style={{background: 'white', border: '1px solid #cbd5e1', color: 'var(--color-btnPrimary)', padding: '6px 12px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', transition: '0.2s'}} className="hover-bg-blue-light"><Icons.Restore /> Restaurar</button>
-                                              <button onClick={() => handlePermanentDelete(t.id)} style={{background: 'transparent', border: 'none', color: '#ef4444', padding: '6px', cursor: 'pointer', opacity: 0.6, transition: '0.2s'}} className="hover-red"><Icons.Trash /></button>
+                                          <div className="ag-done-actions">
+                                              <button type="button" onClick={() => handleRestoreTask(t)} className="ag-restore"><Icons.Restore size={14} /> Restaurar</button>
+                                              <button type="button" onClick={() => handlePermanentDelete(t.id)} className="ag-icon-danger" title="Apagar definitivamente" aria-label="Apagar definitivamente"><Icons.Trash size={15} /></button>
                                           </div>
                                       </div>
                                   );
                               })}
                               {completedTasksGroups[activeHistoryTab]?.length === 0 && (
-                                  <div style={{textAlign: 'center', color: '#94a3b8', padding: '50px 0', fontSize: '0.95rem'}}><div style={{display: 'flex', justifyContent: 'center', marginBottom: '10px', opacity: 0.5}}><Icons.Inbox size={40} /></div>Não tens tarefas nesta categoria.</div>
+                                  <div className="ag-done-empty">
+                                      <span><Icons.Inbox size={28} /></span>
+                                      Não tens tarefas nesta categoria.
+                                  </div>
                               )}
                           </div>
                       </div>
@@ -1155,260 +1161,306 @@ export default function MinhasTarefas() {
           </ModalPortal>
       )}
 
-      {/* 💡 MODAL DE EDIÇÃO DE TAREFA (COM MÚLTIPLOS DOCUMENTOS E DRAG & DROP) */}
-      {editModal.show && editModal.data && (
+      {/* MODAL DE DETALHES DA TAREFA */}
+      {editModal.show && editModal.data && (() => {
+          const d = editModal.data;
+          const setData = (patch) => setEditModal((prev) => ({ ...prev, data: { ...prev.data, ...patch } }));
+          const proj = d.atividades?.projetos;
+          const contexto = proj ? (proj.codigo_projeto ? `[${proj.codigo_projeto}] ${proj.titulo}` : proj.titulo) : 'Tarefa avulsa';
+          const toISO = (offsetDays) => { const x = new Date(); x.setDate(x.getDate() + offsetDays); return x.toLocaleDateString('en-CA'); };
+          const nextMonday = () => { const x = new Date(); const add = ((8 - x.getDay()) % 7) || 7; x.setDate(x.getDate() + add); return x.toLocaleDateString('en-CA'); };
+          const quickDates = [
+              { label: 'Hoje', value: toISO(0) },
+              { label: 'Amanhã', value: toISO(1) },
+              { label: 'Próx. semana', value: nextMonday() },
+              { label: 'Sem data', value: '' },
+          ];
+          const responsavel = staff.find((s) => String(s.id) === String(d.responsavel_id));
+          const extras = Array.isArray(d.colaboradores_extra) ? d.colaboradores_extra : [];
+          const shareable = staff
+              .filter(s => s.id !== d.responsavel_id)
+              .filter(s => s.ativo !== false || extras.includes(s.id));
+
+          return (
           <ModalPortal>
-              <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, backdropFilter: 'blur(4px)'}} onClick={() => setEditModal({show: false, data: null})}>
-                  <div style={{background: '#fff', width: '90%', maxWidth: '650px', borderRadius: '16px', padding: '30px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out', maxHeight: '90vh', overflowY: 'auto'}} onClick={e => e.stopPropagation()} className="custom-scrollbar">
-                      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px', borderBottom: '1px solid #f1f5f9', paddingBottom: '15px'}}>
-                          <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.25rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Edit color="var(--color-btnPrimary)" size={20} /> Detalhes da Tarefa</h3>
-                          <div style={{display: 'flex', gap: '15px', alignItems: 'center'}}>
-                              <button onClick={() => handleDeleteTaskFromKanban(editModal.data.id)} style={{background:'transparent', border:'none', cursor:'pointer', color:'#ef4444', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 'bold'}} className="hover-red-text" title="Apagar Tarefa">
-                                  <Icons.Trash /> Apagar
-                              </button>
-                              <div style={{width: '1px', height: '20px', background: '#e2e8f0'}}></div>
-                              <button onClick={() => setEditModal({show: false, data: null})} style={{background:'none', border:'none', cursor:'pointer', color:'#94a3b8', display: 'flex'}} className="hover-red-text"><Icons.Close size={20} /></button>
+              <div className="ag-overlay" style={{ zIndex: 99999 }} onClick={() => setEditModal({show: false, data: null})}>
+                  <form className="ag-modal ag-task" onClick={e => e.stopPropagation()} onSubmit={handleSaveModal} role="dialog" aria-label="Detalhes da tarefa">
+                      <div className="ag-task-head">
+                          <div className="ag-task-head-top">
+                              <span className={`ag-task-ctx ${proj ? '' : 'is-loose'}`}><Icons.Folder size={12} /> {contexto}</span>
+                              <div className="ag-task-head-actions">
+                                  <button type="button" onClick={() => handleDeleteTaskFromKanban(d.id)} className="ag-icon-danger" title="Apagar tarefa" aria-label="Apagar tarefa">
+                                      <Icons.Trash size={16} />
+                                  </button>
+                                  <button type="button" onClick={() => setEditModal({show: false, data: null})} className="ag-close" aria-label="Fechar"><Icons.Close size={18} /></button>
+                              </div>
                           </div>
+                          <textarea
+                              rows={1}
+                              value={d.titulo}
+                              onChange={e => setData({ titulo: e.target.value.replace(/\n/g, ' ') })}
+                              required
+                              className="ag-task-title"
+                              placeholder="O que é para fazer?"
+                              aria-label="Título da tarefa"
+                          />
                       </div>
 
-                      <form onSubmit={handleSaveModal}>
-                          <label style={{display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em'}}>O que é para fazer?</label>
-                          <input type="text" value={editModal.data.titulo} onChange={e => setEditModal({...editModal, data: {...editModal.data, titulo: e.target.value}})} required style={{width: '100%', padding: '15px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#f8fafc', fontSize: '1.05rem', marginBottom: '20px', outline: 'none', boxSizing: 'border-box', fontWeight: 'bold', color: '#0f172a', transition: '0.2s'}} className="input-focus" />
+                      <div className="ag-task-body custom-scrollbar">
+                          {/* Propriedades */}
+                          <div className="ag-props">
+                              <div className="ag-prop">
+                                  <span className="ag-prop-label"><Icons.Users size={14} /> Responsável</span>
+                                  <label className="ag-prop-value ag-person-select">
+                                      <span className="ag-avatar">{responsavel?.avatar_url ? <img src={responsavel.avatar_url} alt="" /> : getSafeFirstName(responsavel?.nome, responsavel?.email).slice(0, 1)}</span>
+                                      <select
+                                          value={d.responsavel_id || ''}
+                                          onChange={e => {
+                                              const newResp = e.target.value;
+                                              setEditModal(prev => {
+                                                  const ex = Array.isArray(prev.data.colaboradores_extra) ? prev.data.colaboradores_extra : [];
+                                                  return { ...prev, data: { ...prev.data, responsavel_id: newResp, colaboradores_extra: ex.filter(id => id !== newResp) } };
+                                              });
+                                          }}
+                                      >
+                                          {staff
+                                              .filter(s => s.ativo !== false || String(s.id) === String(d.responsavel_id))
+                                              .map(s => (
+                                                  <option key={s.id} value={s.id}>{s.nome || s.email}{s.ativo === false ? ' (Inativo)' : ''}</option>
+                                              ))}
+                                      </select>
+                                      <span className="ag-caret" aria-hidden="true">▾</span>
+                                  </label>
+                              </div>
 
-                          <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px'}}>
-                              <div>
-                                  <label style={{display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Responsável</label>
-                                  <select 
-                                      value={editModal.data.responsavel_id || ''} 
-                                      onChange={e => {
-                                          const newResp = e.target.value;
-                                          setEditModal(prev => {
-                                              const extras = Array.isArray(prev.data.colaboradores_extra) ? prev.data.colaboradores_extra : [];
-                                              return { ...prev, data: { ...prev.data, responsavel_id: newResp, colaboradores_extra: extras.filter(id => id !== newResp) } }
-                                          })
-                                      }} 
-                                      style={{width: '100%', padding: '12px 15px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', cursor: 'pointer', transition: '0.2s'}} className="input-focus"
-                                  >
-                                      {staff
-                                          .filter(s => s.ativo !== false || String(s.id) === String(editModal.data.responsavel_id))
-                                          .map(s => (
-                                              <option key={s.id} value={s.id}>
-                                                  {s.nome || s.email}{s.ativo === false ? ' (Inativo)' : ''}
-                                              </option>
+                              <div className="ag-prop">
+                                  <span className="ag-prop-label"><Icons.Calendar size={14} /> Data limite</span>
+                                  <div className="ag-prop-value ag-date-row">
+                                      <input type="date" value={d._form_deadline || ''} onChange={e => setData({ _form_deadline: e.target.value })} className="ag-date" />
+                                      <div className="ag-date-chips">
+                                          {quickDates.map((q) => (
+                                              <button key={q.label} type="button" className={(d._form_deadline || '') === q.value ? 'is-on' : ''} onClick={() => setData({ _form_deadline: q.value })}>
+                                                  {q.label}
+                                              </button>
                                           ))}
-                                  </select>
+                                      </div>
+                                  </div>
                               </div>
-                              <div>
-                                  <label style={{display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Data Limite</label>
-                                  <input type="date" value={editModal.data._form_deadline || ''} onChange={e => setEditModal({...editModal, data: {...editModal.data, _form_deadline: e.target.value}})} style={{width: '100%', padding: '12px 15px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', transition: '0.2s'}} className="input-focus" />
-                              </div>
-                          </div>
 
-                          <div style={{marginBottom: '20px'}}>
-                              <label style={{display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Partilhar com mais alguém?</label>
-                              <div style={{background: 'white', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '12px', maxHeight: '120px', overflowY: 'auto'}} className="custom-scrollbar input-focus">
-                                  <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap'}}> 
-                                      {staff
-                                          .filter(s => s.id !== editModal.data.responsavel_id)
-                                          .filter(s => s.ativo !== false || (editModal.data.colaboradores_extra || []).includes(s.id))
-                                          .map(s => {
-                                          const isChecked = Array.isArray(editModal.data.colaboradores_extra) && editModal.data.colaboradores_extra.includes(s.id);
+                              <div className="ag-prop ag-prop-top">
+                                  <span className="ag-prop-label"><Icons.Users size={14} /> Partilhar com</span>
+                                  <div className="ag-prop-value ag-share custom-scrollbar">
+                                      {shareable.map(s => {
+                                          const isChecked = extras.includes(s.id);
                                           const sNome = getSafeFirstName(s.nome, s.email);
                                           return (
-                                              <div key={s.id} onClick={() => toggleColaboradorExtra(s.id)} style={{ background: isChecked ? 'var(--color-bgSecondary)' : '#f8fafc', color: isChecked ? 'var(--color-btnPrimary)' : '#64748b', border: `1px solid ${isChecked ? 'var(--color-btnPrimary)' : '#e2e8f0'}`, padding: '6px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', gap: '6px' }} className="hover-shadow">
-                                                      {isChecked && '✓'} {sNome}{s.ativo === false ? ' (Inativo)' : ''}
-                                              </div>
-                                          )
+                                              <button type="button" key={s.id} onClick={() => toggleColaboradorExtra(s.id)} className={`ag-share-chip ${isChecked ? 'is-on' : ''}`} aria-pressed={isChecked}>
+                                                  <span className="ag-avatar ag-avatar-sm">
+                                                      {isChecked ? <Icons.Check size={10} /> : (s.avatar_url ? <img src={s.avatar_url} alt="" /> : sNome.slice(0, 1))}
+                                                  </span>
+                                                  {sNome}{s.ativo === false ? ' (Inativo)' : ''}
+                                              </button>
+                                          );
                                       })}
                                   </div>
                               </div>
                           </div>
 
-                          {/* 💡 LISTA DE MÚLTIPLOS DOCUMENTOS E ENTREGÁVEIS (COM DRAG & DROP) */}
-                          <div 
+                          {/* Documentos */}
+                          <section
                               onDragOver={handleFileDragOver}
                               onDragLeave={handleFileDragLeave}
                               onDrop={handleFileDropGeneral}
-                              style={{
-                                  background: isDraggingFile ? '#f0f9ff' : '#fff', 
-                                  border: isDraggingFile ? '2px dashed var(--color-btnPrimary)' : '1px solid #e2e8f0', 
-                                  borderRadius: '8px', 
-                                  padding: '20px', 
-                                  marginBottom: '20px', 
-                                  boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
-                                  transition: 'all 0.2s ease'
-                              }}
+                              className={`ag-docs ${isDraggingFile ? 'is-dragging' : ''}`}
                           >
-                              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px'}}>
-                                  <label style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '800', color: '#1e293b', fontSize: '0.95rem'}}>
-                                      <Icons.FileText size={18} color="var(--color-btnPrimary)" /> Documentos & Entregáveis
-                                  </label>
-                                  <span style={{background: 'var(--color-bgTertiary)', color: 'var(--color-btnPrimary)', padding: '2px 8px', borderRadius: '12px', fontSize: '0.7rem', fontWeight: 'bold'}}>{editModal.data.anexos?.length || 0} Itens</span>
+                              <div className="ag-section-head">
+                                  <span className="ag-section-icon"><Icons.FileText size={14} /></span>
+                                  <h4>Documentos e entregáveis</h4>
+                                  <span className="ag-count">{d.anexos?.length || 0}</span>
                               </div>
-                              
-                              {editModal.data.anexos?.length > 0 && (
-                                  <div style={{display: 'flex', flexDirection: 'column', gap: '15px'}}>
-                                      {editModal.data.anexos.map((anexo) => (
-                                          <div 
-                                              key={anexo.id} 
-                                              onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }} // Permite dropar neste slot
+
+                              {d.anexos?.length > 0 && (
+                                  <div className="ag-doc-list">
+                                      {d.anexos.map((anexo) => (
+                                          <div
+                                              key={anexo.id}
+                                              onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
                                               onDrop={(e) => handleFileDropSpecific(e, anexo.id)}
-                                              style={{background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '10px', padding: '15px'}}
+                                              className={`ag-doc ${anexo.url ? 'has-file' : anexo.file ? 'is-ready' : ''}`}
                                           >
-                                              <div style={{display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '10px', marginBottom: '10px'}}>
-                                                  <div>
-                                                      <label style={{display: 'block', marginBottom: '4px', fontSize: '0.7rem', fontWeight: '700', color: '#64748b'}}>Nome do Documento</label>
-                                                      <input type="text" placeholder="Ex: Contrato Assinado" value={anexo.nome} onChange={e => updateAnexo(anexo.id, 'nome', e.target.value)} style={{width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box', fontSize: '0.85rem'}} className="input-focus" />
-                                                  </div>
-                                                  <div>
-                                                      <label style={{display: 'block', marginBottom: '4px', fontSize: '0.7rem', fontWeight: '700', color: '#64748b'}}>Data Limite</label>
-                                                      <input type="date" value={anexo.data_limite} onChange={e => updateAnexo(anexo.id, 'data_limite', e.target.value)} style={{width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box', fontSize: '0.85rem'}} className="input-focus" />
+                                              <span className="ag-doc-icon">{anexo.url ? <Icons.FileText size={16} /> : <Icons.UploadCloud size={16} />}</span>
+                                              <div className="ag-doc-main">
+                                                  <input type="text" placeholder="Nome do documento (ex: Contrato assinado)" value={anexo.nome} onChange={e => updateAnexo(anexo.id, 'nome', e.target.value)} className="ag-doc-name" />
+                                                  <div className="ag-doc-meta">
+                                                      {anexo.url ? (
+                                                          <a href={anexo.url} target="_blank" rel="noopener noreferrer"><Icons.ExternalLink size={12} /> Abrir ficheiro</a>
+                                                      ) : anexo.file ? (
+                                                          <span className="is-ready"><Icons.UploadCloud size={12} /> Pronto a guardar: {anexo.file.name}</span>
+                                                      ) : (
+                                                          <span className="is-empty">Arrasta um ficheiro para aqui</span>
+                                                      )}
+                                                      <label className="ag-doc-date" title="Data limite do documento">
+                                                          <Icons.Calendar size={11} />
+                                                          <input type="date" value={anexo.data_limite} onChange={e => updateAnexo(anexo.id, 'data_limite', e.target.value)} />
+                                                      </label>
                                                   </div>
                                               </div>
-
-                                              <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'white', padding: '10px', borderRadius: '6px', border: '1px dashed #cbd5e1'}}>
-                                                  {anexo.url ? (
-                                                      <a href={anexo.url} target="_blank" rel="noopener noreferrer" style={{display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-btnPrimary)', fontWeight: 'bold', textDecoration: 'none', fontSize: '0.8rem'}}>
-                                                          <Icons.ExternalLink size={14} /> Abrir Ficheiro Atual
-                                                      </a>
-                                                  ) : anexo.file ? (
-                                                      <span style={{fontSize: '0.8rem', color: '#10b981', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.UploadCloud size={14}/> Pronto a guardar: {anexo.file.name}</span>
-                                                  ) : (
-                                                      <span style={{fontSize: '0.8rem', color: '#94a3b8', fontStyle: 'italic'}}>Arrasta ficheiro para aqui ou anexa</span>
-                                                  )}
-
-                                                  <div style={{display: 'flex', gap: '10px', alignItems: 'center'}}>
-                                                      <label style={{background: '#f1f5f9', color: '#475569', padding: '6px 12px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer', border: '1px solid #e2e8f0'}} className="hover-shadow">
-                                                          Anexar/Substituir
-                                                          <input type="file" style={{display: 'none'}} onChange={(e) => handleFileSelect(e, anexo.id)} />
-                                                      </label>
-                                                      <button type="button" onClick={() => removeAnexoSlot(anexo.id)} style={{background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px'}} className="hover-red-text" title="Apagar">
-                                                          <Icons.Trash size={14} />
-                                                      </button>
-                                                  </div>
+                                              <div className="ag-doc-actions">
+                                                  <label className="ag-doc-btn" title="Anexar / substituir ficheiro">
+                                                      <Icons.UploadCloud size={14} />
+                                                      <input type="file" style={{display: 'none'}} onChange={(e) => handleFileSelect(e, anexo.id)} />
+                                                  </label>
+                                                  <button type="button" onClick={() => removeAnexoSlot(anexo.id)} className="ag-icon-danger" title="Remover" aria-label="Remover documento">
+                                                      <Icons.Trash size={14} />
+                                                  </button>
                                               </div>
                                           </div>
                                       ))}
                                   </div>
                               )}
 
-                              {/* Área de Drop / Botão Adicionar */}
-                              <div 
-                                  onClick={addAnexoSlot}
-                                  style={{
-                                      width: '100%', marginTop: '15px', padding: isDraggingFile ? '25px 10px' : '15px 10px', 
-                                      background: isDraggingFile ? 'var(--color-bgTertiary)' : '#f8fafc', 
-                                      border: isDraggingFile ? '2px dashed var(--color-btnPrimary)' : '1px dashed #cbd5e1', 
-                                      borderRadius: '8px', color: isDraggingFile ? 'var(--color-btnPrimary)' : 'var(--color-btnPrimary)', 
-                                      fontWeight: 'bold', cursor: 'pointer', display: 'flex', flexDirection: 'column', 
-                                      justifyContent: 'center', alignItems: 'center', gap: '6px', transition: '0.2s'
-                                  }} 
-                                  className="hover-border-blue hover-shadow"
-                              >
+                              <button type="button" onClick={addAnexoSlot} className="ag-dropzone">
                                   {isDraggingFile ? (
-                                      <>
-                                          <Icons.UploadCloud size={24} />
-                                          <span>Larga os ficheiros aqui para anexar</span>
-                                      </>
+                                      <><Icons.UploadCloud size={22} /> <span>Larga os ficheiros aqui para anexar</span></>
                                   ) : (
-                                      <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
-                                          <Icons.Plus size={14} /> Adicionar Espaço ou Arrastar Ficheiros
-                                      </div>
+                                      <><Icons.Plus size={14} /> <span>Adicionar documento <small>ou arrasta ficheiros para aqui</small></span></>
                                   )}
-                              </div>
-                          </div>
-
-                          <label style={{display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Notas / Descrição</label>
-                          <textarea rows="4" value={editModal.data.descricao || ''} onChange={e => setEditModal({...editModal, data: {...editModal.data, descricao: e.target.value}})} placeholder="Ex: Link do drive, apontamentos da reunião..." style={{width: '100%', padding: '15px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#fffbeb', fontSize: '0.95rem', marginBottom: '30px', outline: 'none', boxSizing: 'border-box', resize: 'vertical', transition: '0.2s'}} className="input-focus" />
-
-                          <div style={{display: 'flex', gap: '10px', marginTop: '10px', paddingTop: '20px', borderTop: '1px solid #e2e8f0', alignItems: 'center'}}>
-                              <div style={{flex: 1, fontSize: '0.7rem', color: '#94a3b8', fontStyle: 'italic'}}>
-                                  {editModal.data.created_at ? `Criado por: ${getSafeFirstName(editModal.data.criado_por_nome)} em ${new Date(editModal.data.created_at).toLocaleDateString('pt-PT')}` : ''}
-                              </div>
-                              <button type="button" onClick={() => setEditModal({show: false, data: null})} style={{padding: '12px 20px', background: 'white', color: '#64748b', border: '1px solid #cbd5e1', borderRadius: '10px', fontWeight: 'bold', fontSize: '0.9rem', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">Cancelar</button>
-                              <button type="submit" disabled={isUploading} style={{padding: '12px 20px', background: 'var(--color-btnPrimary)', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '0.9rem', cursor: isUploading ? 'wait' : 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', gap: '8px', opacity: isUploading ? 0.7 : 1}} className="hover-shadow hover-bg-blue">
-                                  {isUploading ? "A carregar PDFs..." : <><Icons.Save size={16}/> Guardar Alterações</>}
                               </button>
-                          </div>
-                      </form>
-                  </div>
+                          </section>
+
+                          {/* Notas */}
+                          <section className="ag-notes">
+                              <div className="ag-section-head">
+                                  <span className="ag-section-icon is-note"><Icons.Edit size={13} /></span>
+                                  <h4>Notas</h4>
+                              </div>
+                              <textarea rows="3" value={d.descricao || ''} onChange={e => setData({ descricao: e.target.value })} placeholder="Link do drive, apontamentos da reunião..." className="ag-notes-input" />
+                          </section>
+                      </div>
+
+                      <div className="ag-modal-foot">
+                          <span className="ag-foot-meta">
+                              {d.created_at ? <>Criada por <strong>{getSafeFirstName(d.criado_por_nome)}</strong> a {new Date(d.created_at).toLocaleDateString('pt-PT')}</> : ''}
+                          </span>
+                          <button type="button" onClick={() => setEditModal({show: false, data: null})} className="ag-btn ag-btn-ghost">Cancelar</button>
+                          <button type="submit" disabled={isUploading} className="ag-btn ag-btn-primary">
+                              {isUploading ? <><span className="ag-spinner" /> A carregar...</> : <><Icons.Save size={15}/> Guardar</>}
+                          </button>
+                      </div>
+                  </form>
               </div>
           </ModalPortal>
-      )}
+          );
+      })()}
 
-      {showTimeModal && (
+      {/* MODAL DE TEMPO MANUAL */}
+      {showTimeModal && (() => {
+          const timeLogs = logs.filter(l => (l.duration_minutes || 0) > 0);
+          const totalMins = timeLogs.reduce((acc, l) => acc + (l.duration_minutes || 0), 0);
+          const mins = Math.max(0, parseInt(timeLogForm.duration_minutes || "0", 10) || 0);
+          const presets = [15, 30, 60, 120, 240, 480];
+          const staffName = (id) => {
+              const s = staff.find((x) => String(x.id) === String(id));
+              return s?.nome || s?.email || 'Utilizador';
+          };
+          return (
           <ModalPortal>
-              <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, backdropFilter: 'blur(4px)'}} onClick={() => !timeLogSaving && setShowTimeModal(false)}>
-                  <div style={{background: '#fff', width: '92%', maxWidth: '760px', borderRadius: '16px', padding: '24px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'}} onClick={e => e.stopPropagation()}>
-                      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px'}}>
-                          <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.1rem'}}>{editingTimeLogId ? 'Editar Registo de Tempo' : 'Novo Registo de Tempo'}</h3>
-                          <button onClick={() => !timeLogSaving && setShowTimeModal(false)} style={{background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer'}}><Icons.Close size={20} /></button>
+              <div className="ag-overlay" style={{ zIndex: 99999 }} onClick={() => !timeLogSaving && setShowTimeModal(false)}>
+                  <div className="ag-modal ag-timelog" onClick={e => e.stopPropagation()} role="dialog" aria-label="Registo de tempo">
+                      <div className="ag-modal-head">
+                          <span className="ag-modal-icon is-time"><Icons.Clock size={20} /></span>
+                          <div>
+                              <p className="ag-kicker">{editingTimeLogId ? 'A editar registo' : 'Tempo manual'}</p>
+                              <h3>{editingTimeLogId ? 'Editar registo de tempo' : 'Novo registo de tempo'}</h3>
+                          </div>
+                          <button type="button" onClick={() => !timeLogSaving && setShowTimeModal(false)} className="ag-close" aria-label="Fechar"><Icons.Close size={18} /></button>
                       </div>
 
-                      <form onSubmit={handleSaveTimeLog} style={{display: 'grid', gap: '12px', marginBottom: '16px'}}>
-                          <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px'}}>
-                              <div>
-                                  <label style={{display: 'block', marginBottom: '4px', fontSize: '0.78rem', color: '#64748b', fontWeight: '700'}}>Colaborador</label>
-                                  <select value={timeLogForm.user_id} onChange={e => setTimeLogForm(prev => ({...prev, user_id: e.target.value}))} style={{width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1'}} required>
-                                      <option value="">Selecionar...</option>
-                                      {staff
-                                          .filter(s => s.ativo !== false || String(s.id) === String(timeLogForm.user_id))
-                                          .map((s) => <option key={s.id} value={s.id}>{s.nome || s.email}{s.ativo === false ? ' (Inativo)' : ''}</option>)}
-                                  </select>
+                      <div className="ag-modal-body custom-scrollbar">
+                          <form onSubmit={handleSaveTimeLog} className={`ag-time-form ${editingTimeLogId ? 'is-editing' : ''}`}>
+                              <div className="ag-time-grid">
+                                  <label className="ag-field">
+                                      <span>Colaborador</span>
+                                      <select value={timeLogForm.user_id} onChange={e => setTimeLogForm(prev => ({...prev, user_id: e.target.value}))} required className="ag-input">
+                                          <option value="">Selecionar...</option>
+                                          {staff
+                                              .filter(s => s.ativo !== false || String(s.id) === String(timeLogForm.user_id))
+                                              .map((s) => <option key={s.id} value={s.id}>{s.nome || s.email}{s.ativo === false ? ' (Inativo)' : ''}</option>)}
+                                      </select>
+                                  </label>
+                                  <label className="ag-field">
+                                      <span>Tarefa</span>
+                                      <select value={timeLogForm.task_id} onChange={e => setTimeLogForm(prev => ({...prev, task_id: e.target.value}))} required className="ag-input">
+                                          <option value="">Selecionar...</option>
+                                          {uniqueTaskOptions.map((opt) => <option key={opt.id} value={opt.id}>{opt.label}</option>)}
+                                      </select>
+                                  </label>
                               </div>
-                              <div>
-                                  <label style={{display: 'block', marginBottom: '4px', fontSize: '0.78rem', color: '#64748b', fontWeight: '700'}}>Tempo (minutos)</label>
-                                  <input type="number" min="1" value={timeLogForm.duration_minutes} onChange={e => setTimeLogForm(prev => ({...prev, duration_minutes: e.target.value}))} style={{width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1'}} required />
-                              </div>
-                          </div>
-                          <div>
-                              <label style={{display: 'block', marginBottom: '4px', fontSize: '0.78rem', color: '#64748b', fontWeight: '700'}}>Tarefa</label>
-                              <select value={timeLogForm.task_id} onChange={e => setTimeLogForm(prev => ({...prev, task_id: e.target.value}))} style={{width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1'}} required>
-                                  <option value="">Selecionar...</option>
-                                  {uniqueTaskOptions.map((opt) => <option key={opt.id} value={opt.id}>{opt.label}</option>)}
-                              </select>
-                          </div>
-                          <div style={{fontSize: '0.78rem', color: '#64748b'}}>Pré-visualização: {formatTime(Math.max(0, parseInt(timeLogForm.duration_minutes || "0", 10) || 0))}</div>
-                          <div style={{display: 'flex', justifyContent: 'flex-end', gap: '10px'}}>
-                              <button type="button" onClick={() => setShowTimeModal(false)} style={{padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white'}}>Cancelar</button>
-                              <button type="submit" disabled={timeLogSaving} style={{padding: '10px 14px', borderRadius: '8px', border: 'none', background: 'var(--color-btnPrimary)', color: 'white', fontWeight: '700'}}>{timeLogSaving ? 'A guardar...' : 'Guardar'}</button>
-                          </div>
-                      </form>
 
-                      <div style={{borderTop: '1px solid #e2e8f0', paddingTop: '12px', maxHeight: '260px', overflowY: 'auto'}} className="custom-scrollbar">
-                          <table style={{width: '100%', borderCollapse: 'collapse'}}>
-                              <thead>
-                                  <tr style={{fontSize: '0.72rem', color: '#64748b', textTransform: 'uppercase', borderBottom: '1px solid #e2e8f0'}}>
-                                      <th style={{padding: '8px', textAlign: 'left'}}>Data</th>
-                                      <th style={{padding: '8px', textAlign: 'left'}}>Tarefa</th>
-                                      <th style={{padding: '8px', textAlign: 'left'}}>Quem</th>
-                                      <th style={{padding: '8px', textAlign: 'right'}}>Tempo</th>
-                                      <th style={{padding: '8px', textAlign: 'right'}}>Ações</th>
-                                  </tr>
-                              </thead>
-                              <tbody>
-                                  {logs.filter(l => (l.duration_minutes || 0) > 0).map((log) => (
-                                      <tr key={log.id} style={{borderBottom: '1px solid #f1f5f9'}}>
-                                          <td style={{padding: '8px', fontSize: '0.78rem', color: '#64748b'}}>{log.start_time ? new Date(log.start_time).toLocaleString('pt-PT') : '-'}</td>
-                                          <td style={{padding: '8px', fontSize: '0.8rem', color: '#334155'}}>{getTaskLabelById(log.task_id)}</td>
-                                          <td style={{padding: '8px', fontSize: '0.8rem', color: '#334155'}}>{staff.find((s) => String(s.id) === String(log.user_id))?.nome || staff.find((s) => String(s.id) === String(log.user_id))?.email || 'Utilizador'}</td>
-                                          <td style={{padding: '8px', textAlign: 'right', fontWeight: '700'}}>{formatTime(log.duration_minutes || 0)}</td>
-                                          <td style={{padding: '8px', textAlign: 'right'}}>
-                                              <button onClick={() => openTimeEditModal(log)} style={{border: 'none', background: 'transparent', color: '#f97316', cursor: 'pointer', marginRight: '6px'}}>✎</button>
-                                              <button onClick={() => handleDeleteTimeLog(log.id)} style={{border: 'none', background: 'transparent', color: '#ef4444', cursor: 'pointer'}}>🗑</button>
-                                          </td>
-                                      </tr>
-                                  ))}
-                                  {logs.filter(l => (l.duration_minutes || 0) > 0).length === 0 && (
-                                      <tr><td colSpan={5} style={{padding: '12px', textAlign: 'center', color: '#94a3b8'}}>Sem registos de tempo.</td></tr>
-                                  )}
-                              </tbody>
-                          </table>
+                              <div className="ag-field">
+                                  <span>Duração</span>
+                                  <div className="ag-duration">
+                                      <div className="ag-duration-input">
+                                          <input type="number" min="1" value={timeLogForm.duration_minutes} onChange={e => setTimeLogForm(prev => ({...prev, duration_minutes: e.target.value}))} required placeholder="0" />
+                                          <span>min</span>
+                                      </div>
+                                      <div className="ag-presets">
+                                          {presets.map((p) => (
+                                              <button key={p} type="button" className={mins === p ? 'is-on' : ''} onClick={() => setTimeLogForm(prev => ({...prev, duration_minutes: String(p)}))}>
+                                                  {p < 60 ? `${p}m` : `${p / 60}h`}
+                                              </button>
+                                          ))}
+                                      </div>
+                                      <div className="ag-duration-preview" key={mins}>{formatTime(mins)}</div>
+                                  </div>
+                              </div>
+
+                              <div className="ag-time-actions">
+                                  <button type="button" onClick={() => setShowTimeModal(false)} className="ag-btn ag-btn-ghost">Cancelar</button>
+                                  <button type="submit" disabled={timeLogSaving} className="ag-btn ag-btn-primary">
+                                      {timeLogSaving ? <><span className="ag-spinner" /> A guardar...</> : <><Icons.Save size={15} /> {editingTimeLogId ? 'Guardar alterações' : 'Registar tempo'}</>}
+                                  </button>
+                              </div>
+                          </form>
+
+                          <div className="ag-section-head ag-logs-head">
+                              <span className="ag-section-icon"><Icons.History size={14} /></span>
+                              <h4>Registos</h4>
+                              <span className="ag-count">{timeLogs.length}</span>
+                              {totalMins > 0 && <span className="ag-logs-total">Total <strong>{formatTime(totalMins)}</strong></span>}
+                          </div>
+
+                          <div className="ag-logs">
+                              {timeLogs.map((log, i) => {
+                                  const dt = log.start_time ? new Date(log.start_time) : null;
+                                  return (
+                                      <div key={log.id} className={`ag-done ag-log ${editingTimeLogId === log.id ? 'is-editing' : ''}`} style={{ '--i': Math.min(i, 10) }}>
+                                          <span className="ag-log-icon"><Icons.Clock size={13} /></span>
+                                          <div className="ag-done-text">
+                                              <span className="ag-log-task">{getTaskLabelById(log.task_id)}</span>
+                                              <span className="ag-done-meta">
+                                                  <Icons.Users size={10} /> {staffName(log.user_id)}
+                                                  {dt && <><i /> {dt.toLocaleDateString('pt-PT', { day: '2-digit', month: 'short' }).replace('.', '')}, {dt.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}</>}
+                                              </span>
+                                          </div>
+                                          <span className="ag-log-time">{formatTime(log.duration_minutes || 0)}</span>
+                                          <div className="ag-log-actions">
+                                              <button type="button" onClick={() => openTimeEditModal(log)} className="ag-icon-btn" title="Editar" aria-label="Editar registo"><Icons.Edit size={14} /></button>
+                                              <button type="button" onClick={() => handleDeleteTimeLog(log.id)} className="ag-icon-danger" title="Apagar" aria-label="Apagar registo"><Icons.Trash size={14} /></button>
+                                          </div>
+                                      </div>
+                                  );
+                              })}
+                              {timeLogs.length === 0 && (
+                                  <div className="ag-done-empty"><span><Icons.Clock size={26} /></span>Sem registos de tempo.</div>
+                              )}
+                          </div>
                       </div>
                   </div>
               </div>
           </ModalPortal>
-      )}
+          );
+      })()}
 
       <TimerSwitchModal
           open={timerSwitchModal.show}
@@ -1444,64 +1496,44 @@ export default function MinhasTarefas() {
       {/* MODAL TAREFA RÁPIDA */}
       {showQuickTaskModal && (
           <ModalPortal>
-              <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, backdropFilter: 'blur(4px)'}} onClick={() => setShowQuickTaskModal(false)}>
-                  <div style={{background: 'white', borderRadius: '16px', padding: '40px', maxWidth: '420px', width: '90%', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', textAlign: 'center'}} onClick={e => e.stopPropagation()}>
-                      <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--color-bgSecondary)', width: '60px', height: '60px', borderRadius: '12px', margin: '0 auto 24px', color: 'var(--color-btnPrimary)'}}>
-                          <Icons.Flame size={32} />
-                      </div>
-                      <h2 style={{margin: '0 0 8px 0', color: '#0f172a', fontSize: '1.4rem', fontWeight: '900'}}>Nova Tarefa Rápida</h2>
-                      <p style={{margin: '0 0 24px 0', color: '#64748b', fontSize: '0.9rem', fontWeight: '500'}}>Adiciona uma tarefa avulsa rápida ao teu quadro</p>
-                      <form onSubmit={(e) => {
+              <div className="ag-overlay ag-overlay-top" style={{ zIndex: 99999 }} onClick={() => setShowQuickTaskModal(false)}>
+                  <form
+                      className="ag-quickbar"
+                      onClick={e => e.stopPropagation()}
+                      onKeyDown={(e) => { if (e.key === 'Escape') setShowQuickTaskModal(false); }}
+                      onSubmit={(e) => {
                           e.preventDefault();
                           if (!novaTarefaNome.trim()) return;
                           handleCreatePessoal(e);
                           setShowQuickTaskModal(false);
-                      }} style={{display: 'flex', flexDirection: 'column', gap: '16px'}}>
-                          <input type="text" placeholder="O que vais fazer?" value={novaTarefaNome} onChange={e => setNovaTarefaNome(e.target.value)} autoFocus style={{padding: '12px 15px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#f8fafc', fontSize: '1rem', outline: 'none', boxSizing: 'border-box', transition: '0.2s'}} className="input-focus" />
-                          <div style={{display: 'flex', gap: '10px', justifyContent: 'center'}}>
-                              <button type="button" onClick={() => setShowQuickTaskModal(false)} style={{background: '#f8fafc', color: '#475569', border: '1px solid #e2e8f0', padding: '10px 24px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', transition: '0.2s', flex: 1}} className="hover-shadow">Cancelar</button>
-                              <button type="submit" style={{background: 'var(--color-btnPrimary)', color: 'white', border: 'none', padding: '10px 24px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', transition: '0.2s', flex: 1}} className="hover-bg-blue">Adicionar</button>
-                          </div>
-                      </form>
-                  </div>
+                      }}
+                  >
+                      <div className="ag-quickbar-row">
+                          <span className="ag-quickbar-icon"><Icons.Flame size={20} /></span>
+                          <input type="text" placeholder="O que vais fazer?" value={novaTarefaNome} onChange={e => setNovaTarefaNome(e.target.value)} autoFocus aria-label="Nova tarefa rápida" />
+                          <button type="submit" className="ag-quickbar-go" disabled={!novaTarefaNome.trim()} aria-label="Adicionar">
+                              <Icons.Plus size={18} />
+                          </button>
+                      </div>
+                      <div className="ag-quickbar-foot">
+                          <span>Tarefa avulsa · vai para o teu quadro</span>
+                          <span className="ag-keys"><kbd>Enter</kbd> adicionar <kbd>Esc</kbd> fechar</span>
+                      </div>
+                  </form>
               </div>
           </ModalPortal>
       )}
 
       {confirmDialog.show && (
           <ModalPortal>
-              <div
-                  style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100000, backdropFilter: 'blur(4px)', padding: '20px'}}
-                  onClick={closeConfirmDialog}
-              >
-                  <div
-                      style={{background: '#fff', width: '90%', maxWidth: '460px', borderRadius: '16px', padding: '28px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out'}}
-                      onClick={(e) => e.stopPropagation()}
-                  >
-                      <div style={{display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px'}}>
-                          <div style={{width: '40px', height: '40px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: confirmDialog.isDanger ? '#fee2e2' : 'var(--color-bgSecondary)', color: confirmDialog.isDanger ? '#ef4444' : 'var(--color-btnPrimary)'}}>
-                              <Icons.AlertTriangle size={18} />
-                          </div>
-                          <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.2rem', fontWeight: '800'}}>{confirmDialog.title || 'Confirmação'}</h3>
-                      </div>
-
-                      <p style={{margin: '0 0 24px 0', color: '#64748b', fontSize: '0.95rem', lineHeight: '1.5'}}>{confirmDialog.message}</p>
-
-                      <div style={{display: 'flex', gap: '10px', justifyContent: 'flex-end'}}>
-                          <button
-                              type="button"
-                              onClick={closeConfirmDialog}
-                              style={{padding: '10px 16px', borderRadius: '10px', border: '1px solid #cbd5e1', background: 'white', color: '#475569', fontWeight: '700', cursor: 'pointer'}}
-                              className="hover-shadow"
-                          >
-                              Cancelar
-                          </button>
-                          <button
-                              type="button"
-                              onClick={confirmDialog.onConfirm}
-                              style={{padding: '10px 16px', borderRadius: '10px', border: 'none', background: confirmDialog.isDanger ? '#ef4444' : 'var(--color-btnPrimary)', color: 'white', fontWeight: '800', cursor: 'pointer'}}
-                              className="hover-shadow"
-                          >
+              <div className="ag-overlay" style={{ zIndex: 100000 }} onClick={closeConfirmDialog}>
+                  <div className={`ag-dialog ${confirmDialog.isDanger ? 'is-danger' : ''}`} onClick={(e) => e.stopPropagation()} role="alertdialog">
+                      <span className="ag-dialog-icon">{confirmDialog.isDanger ? <Icons.Trash size={24} /> : <Icons.AlertTriangle size={24} />}</span>
+                      <h3>{confirmDialog.title || 'Confirmação'}</h3>
+                      <p>{confirmDialog.message}</p>
+                      <div className="ag-dialog-actions">
+                          <button type="button" onClick={closeConfirmDialog} className="ag-btn ag-btn-ghost">Cancelar</button>
+                          <button type="button" onClick={confirmDialog.onConfirm} className={`ag-btn ${confirmDialog.isDanger ? 'ag-btn-danger' : 'ag-btn-primary'}`}>
                               {confirmDialog.confirmText || 'Confirmar'}
                           </button>
                       </div>
@@ -1514,8 +1546,6 @@ export default function MinhasTarefas() {
       {notification && <div className={`toast-container ${notification.type}`}>{notification.type === 'success' ? '✅' : '⚠️'} {notification.message}</div>}
       
       <style>{`
-          .kanban-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px; align-items: stretch; }
-          @media (max-width: 1100px) { .kanban-grid { display: flex; overflow-x: auto; padding-bottom: 15px; } .kanban-grid > div { min-width: 300px; flex: 1; } }
 
           .hover-blue-text:hover { color: var(--color-btnPrimary) !important; }
           .hover-blue-text:hover span { background: var(--color-bgTertiary) !important; color: var(--color-btnPrimary) !important; }

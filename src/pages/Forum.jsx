@@ -2194,6 +2194,25 @@ async function handleSendChat(e) {
       if (diffDays < 6) return d.toLocaleDateString('pt-PT', { weekday: 'short' }).replace('.', '');
       return d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
   };
+  // Ctrl+V de imagens (ou ficheiros) no chat: fica em pré-visualização pronta a enviar
+  const handleChatPaste = (event) => {
+      if (chatInputDisabled) return;
+      const items = Array.from(event.clipboardData?.items || []);
+      const fileItem = items.find((item) => item.kind === "file");
+      const file = fileItem?.getAsFile();
+      if (!file) return;
+      event.preventDefault();
+      let staged = file;
+      // As capturas coladas chegam como "image.png": damos-lhes um nome com data/hora
+      if (file.type.startsWith("image/") && (!file.name || /^image\.\w+$/i.test(file.name))) {
+          const ext = (file.type.split("/")[1] || "png").replace("jpeg", "jpg");
+          const stamp = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, "");
+          staged = new File([file], `captura-${stamp}.${ext}`, { type: file.type });
+      }
+      setChatStagedFile(staged);
+      setShowEmojiPicker(false);
+  };
+
   const getSenderAvatar = (senderId) => chatCollaborators.find((profile) => profile.id === senderId)?.avatar_url || null;
 
   const renderRoomItem = (room) => {
@@ -3181,6 +3200,7 @@ async function handleSendChat(e) {
                                 type="text"
                                 value={chatDraft}
                                 onChange={(e) => handleChatDraftChange(e.target.value)}
+                                onPaste={handleChatPaste}
                                 onClick={() => setShowEmojiPicker(false)}
                                 placeholder={chatStagedFile ? "Adicionar uma legenda..." : "Escreve uma mensagem..."}
                                 disabled={chatInputDisabled}
