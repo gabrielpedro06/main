@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { announceNewMessages, bindNotificationUnlock } from "../utils/notifySound";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../services/supabase"; 
 import WidgetCalendar from "./WidgetCalendar"; 
@@ -234,6 +235,36 @@ export default function Sidebar({ menuOpen, setMenuOpen, isMobile = false }) {
 
   const totalCommsUnread = Number(forumUnreadCount || 0) + Number(chatUnreadCount || 0);
 
+  // --- Aviso de mensagens novas: animação no item + som / notificação do Windows ---
+  const navigate = useNavigate();
+  const commsLinkRef = useRef(null);
+  const prevCommsUnreadRef = useRef(0);
+  const commsReadyAtRef = useRef(0);
+
+  useEffect(() => {
+    bindNotificationUnlock();
+    // Ignora a contagem inicial (ao abrir a app não queremos tocar)
+    commsReadyAtRef.current = Date.now() + 4000;
+  }, []);
+
+  useEffect(() => {
+    const prev = prevCommsUnreadRef.current;
+    prevCommsUnreadRef.current = totalCommsUnread;
+    if (totalCommsUnread <= prev) return undefined;
+    if (!commsReadyAtRef.current || Date.now() < commsReadyAtRef.current) return undefined;
+
+    const el = commsLinkRef.current;
+    let timer;
+    if (el) {
+      el.classList.remove("is-ringing");
+      void el.offsetWidth; // reinicia a animação
+      el.classList.add("is-ringing");
+      timer = setTimeout(() => el.classList.remove("is-ringing"), 1800);
+    }
+    announceNewMessages({ total: totalCommsUnread, onClick: () => navigate("/dashboard/forum") });
+    return () => clearTimeout(timer);
+  }, [totalCommsUnread, navigate]);
+
   const isActive = (path) => {
     if (path === '/dashboard' && location.pathname === '/dashboard') return 'active';
     if (path !== '/dashboard' && location.pathname.startsWith(path)) return 'active';
@@ -366,26 +397,20 @@ export default function Sidebar({ menuOpen, setMenuOpen, isMobile = false }) {
 
             {/* --- COMUNICAÇÃO INTERNA --- */}
             <li className={isActive('/dashboard/forum')}>
-              <Link to="/dashboard/forum" title={getSidebarTooltip("Fórum")} onClick={() => {
+              <Link ref={commsLinkRef} className={totalCommsUnread > 0 ? "has-unread" : undefined} to="/dashboard/forum" title={getSidebarTooltip("Fórum")} onClick={() => {
                   localStorage.setItem('lastForumVisit', new Date().toISOString());
                   setForumUnreadCount(0);
               }}>
-                <span className="icon" style={{position: 'relative', display: 'flex', alignItems: 'center'}}>
+                <span className="icon sidebar-icon-wrap">
                     <Icons.Message />
-                    {totalCommsUnread > 0 && (
-                        <span style={{
-                            position: 'absolute', top: '-6px', right: '-8px',
-                            background: '#ef4444', color: 'white',
-                            fontSize: '0.6rem', fontWeight: 'bold',
-                            padding: '2px 5px', borderRadius: '10px',
-                            border: '1px solid white',
-                            animation: 'pulse 2s infinite'
-                        }}>
-                            {totalCommsUnread}
-                        </span>
-                    )}
-                </span> 
+                    {totalCommsUnread > 0 && <span className="sidebar-dot" aria-hidden="true" />}
+                </span>
                 <span className="link-text">Comunicação Interna</span>
+                {totalCommsUnread > 0 && (
+                    <span key={totalCommsUnread} className="sidebar-count" aria-label={`${totalCommsUnread} por ler`}>
+                        {totalCommsUnread > 99 ? '99+' : totalCommsUnread}
+                    </span>
+                )}
               </Link>
             </li>
 

@@ -6,6 +6,7 @@ import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
 import { closeAllActiveTaskLogsForUser } from "../utils/taskTimerLifecycle";
 import { resolveActiveTimerMeta } from "../utils/activeTimerResolver";
+import "../styles/attendance.css";
 
 // --- ÍCONES SVG PROFISSIONAIS ---
 const Icons = {
@@ -1066,136 +1067,185 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
           </div>
         </ModalPortal>
       )}
-      <div className="card" style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', minHeight: '360px', padding: '32px 28px', background: '#ffffff' }}>
+      {(() => {
+        // --- CARTÃO DE ASSIDUIDADE ---
+        const META_SECONDS = 8 * 3600;
+        const progress = Math.min(timer / META_SECONDS, 1);
+        const overtime = Math.max(0, timer - META_SECONDS);
+        const remaining = Math.max(0, META_SECONDS - timer);
+        const RADIUS = 78;
+        const SIZE = 196;
+        const C = SIZE / 2;
+        const circumference = 2 * Math.PI * RADIUS;
+        const offset = circumference * (1 - progress);
+        const angle = progress * 2 * Math.PI - Math.PI / 2;
+        const tipX = C + RADIUS * Math.cos(angle);
+        const tipY = C + RADIUS * Math.sin(angle);
 
-      {/* Toggle registos */}
-      <button onClick={() => { setShowRecords(v => !v); if (!showRecords) fetchRecentRecords(); }} title="Últimos registos" style={{position:'absolute', top:'20px', right:'20px', background: showRecords ? 'var(--color-bgSecondary)' : '#f8fafc', border: showRecords ? '1px solid var(--color-btnPrimary)' : '1px solid #e2e8f0', borderRadius:'10px', padding:'8px 10px', cursor:'pointer', color: showRecords ? 'var(--color-btnPrimary)' : '#94a3b8', display:'flex', alignItems:'center', justifyContent:'center', transition:'all 0.2s', fontWeight: '600'}}>
-        <Icons.Calendar size={18} />
-      </button>
+        const h = Math.floor(timer / 3600);
+        const m = Math.floor((timer % 3600) / 60);
+        const s = timer % 60;
+        const fmtHm = (secs) => `${Math.floor(secs / 3600)}h ${String(Math.floor((secs % 3600) / 60)).padStart(2, '0')}m`;
 
-      {/* STATUS E TIMER COM PROGRESS RING */}
-      <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', marginBottom: '28px'}}>
-        
-        {/* Status Label */}
-        {status !== 'stopped' && (
-          <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px'}}>
-            <div style={{ fontSize: '0.75rem', color: status === 'paused' ? '#eab308' : 'var(--color-btnPrimary)', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-              {status === 'paused' ? '⏸ EM PAUSA' : '▶ A TRABALHAR'}
+        const entradaHm = activeRecord?.hora_entrada?.slice(0, 5) || null;
+        const pausaSecs = Number(activeRecord?.tempo_pausa_acumulado || 0);
+        // Saída prevista = entrada + 8h + pausas já feitas (só faz sentido a trabalhar)
+        let saidaPrevista = null;
+        if (status === 'running' && entradaHm) {
+          const [eh, em] = entradaHm.split(':').map(Number);
+          const totalMin = eh * 60 + em + 8 * 60 + Math.round(pausaSecs / 60);
+          saidaPrevista = `${String(Math.floor(totalMin / 60) % 24).padStart(2, '0')}:${String(totalMin % 60).padStart(2, '0')}`;
+        }
+
+        const statusLabel = status === 'running' ? 'A trabalhar' : status === 'paused' ? 'Em pausa' : 'Fora de serviço';
+        const headline = status === 'stopped'
+          ? 'Pronto para começar?'
+          : status === 'paused'
+            ? (activeRecord?.ultima_pausa_inicio ? `Pausa desde as ${activeRecord.ultima_pausa_inicio.slice(0, 5)}` : 'Pausa em curso')
+            : (entradaHm ? `Entrada às ${entradaHm}` : 'Dia em curso');
+
+        const ticks = Array.from({ length: 8 }, (_, i) => {
+          const a = (i / 8) * 2 * Math.PI - Math.PI / 2;
+          const done = progress >= i / 8 && status !== 'stopped' && i > 0;
+          return { x1: C + (RADIUS + 15) * Math.cos(a), y1: C + (RADIUS + 15) * Math.sin(a), x2: C + (RADIUS + 19) * Math.cos(a), y2: C + (RADIUS + 19) * Math.sin(a), done, key: i };
+        });
+
+        return (
+          <div className={`card wa-card is-${status}`}>
+            <span className="wa-glow" aria-hidden="true" />
+
+            <button
+              type="button"
+              onClick={() => { setShowRecords(v => !v); if (!showRecords) fetchRecentRecords(); }}
+              title="Últimos registos"
+              className={`wa-records-toggle ${showRecords ? 'is-on' : ''}`}
+            >
+              <Icons.Calendar size={17} />
+            </button>
+
+            <div className="wa-main">
+              {/* Anel de progresso */}
+              <div className="wa-ring" style={{ width: SIZE, height: SIZE }}>
+                <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} aria-hidden="true">
+                  <defs>
+                    <linearGradient id="waGradRun" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" className="wa-stop-a" />
+                      <stop offset="100%" className="wa-stop-b" />
+                    </linearGradient>
+                  </defs>
+                  {ticks.map((t) => (
+                    <line key={t.key} x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2} className={`wa-tick ${t.done ? 'is-done' : ''}`} />
+                  ))}
+                  <circle cx={C} cy={C} r={RADIUS} className="wa-track" />
+                  <circle
+                    cx={C} cy={C} r={RADIUS}
+                    className="wa-arc"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={offset}
+                    transform={`rotate(-90 ${C} ${C})`}
+                  />
+                  {status !== 'stopped' && progress > 0.005 && (
+                    <circle cx={tipX} cy={tipY} r="7" className="wa-tip" />
+                  )}
+                </svg>
+
+                <div className="wa-ring-center">
+                  <div className="wa-time">
+                    <span>{h}</span><small>h</small>
+                    <span>{String(m).padStart(2, '0')}</span><small>m</small>
+                  </div>
+                  {status === 'running'
+                    ? <div className="wa-seconds">{String(s).padStart(2, '0')}s</div>
+                    : <div className="wa-of">de 8h</div>}
+                </div>
+              </div>
+
+              {/* Informação + ações */}
+              <div className="wa-info">
+                <span className="wa-status">
+                  <span className="wa-status-dot" />
+                  {statusLabel}
+                </span>
+                <h3 className="wa-headline">{headline}</h3>
+
+                {status === 'stopped' ? (
+                  <p className="wa-hint">Marca a entrada e planeia as tarefas do dia.</p>
+                ) : (
+                  <div className="wa-stats">
+                    <div className="wa-stat">
+                      <span>{overtime > 0 ? 'Extra' : 'Falta'}</span>
+                      <strong className={overtime > 0 ? 'is-extra' : ''}>{overtime > 0 ? `+${fmtHm(overtime)}` : fmtHm(remaining)}</strong>
+                    </div>
+                    <div className="wa-stat">
+                      <span>{saidaPrevista ? 'Saída prevista' : 'Pausas'}</span>
+                      <strong>{saidaPrevista || fmtHm(pausaSecs)}</strong>
+                    </div>
+                    <div className="wa-stat">
+                      <span>Progresso</span>
+                      <strong>{Math.round(progress * 100)}%</strong>
+                    </div>
+                  </div>
+                )}
+
+                <div className="wa-actions">
+                  {status === 'stopped' && (
+                    <button type="button" onClick={openStartModal} disabled={loading} className="wa-btn wa-btn-primary wa-btn-wide">
+                      <Icons.Play size={16} /> {loading ? "A iniciar..." : "Iniciar dia de trabalho"}
+                    </button>
+                  )}
+                  {status === 'running' && (
+                    <>
+                      <button type="button" onClick={handlePause} disabled={loading} className="wa-btn wa-btn-pause">
+                        <Icons.Pause size={15} /> Pausar
+                      </button>
+                      <button type="button" onClick={handleFinishClick} disabled={loading} className="wa-btn wa-btn-stop">
+                        <Icons.Stop size={14} /> Terminar
+                      </button>
+                    </>
+                  )}
+                  {status === 'paused' && (
+                    <>
+                      <button type="button" onClick={handleResume} disabled={loading} className="wa-btn wa-btn-primary">
+                        <Icons.Play size={15} /> Retomar
+                      </button>
+                      <button type="button" onClick={handleFinishClick} disabled={loading} className="wa-btn wa-btn-stop">
+                        <Icons.Stop size={14} /> Terminar
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
-            {activeRecord && (
-              <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: '500' }}>
-                Início às {activeRecord.hora_entrada?.slice(0, 5)}
+
+            {/* Painel de Registos Recentes */}
+            {showRecords && (
+              <div className="wa-records">
+                <div className="wa-records-head">
+                  <span>Últimos registos</span>
+                  {onViewHistory && <button type="button" onClick={onViewHistory}>Ver histórico →</button>}
+                </div>
+                {recentRecords.length === 0 ? (
+                  <div className="wa-records-empty">Sem registos este mês.</div>
+                ) : (
+                  <div className="wa-records-list">
+                    {recentRecords.map(r => (
+                      <div key={r.id} className="wa-record">
+                        <span className="wa-record-date">{new Date(r.data_registo).toLocaleDateString('pt-PT').slice(0, 5)}</span>
+                        <span className="wa-record-range">
+                          <span className="is-in">{r.hora_entrada?.slice(0, 5)}</span>
+                          <span className="wa-record-line" />
+                          <span className={r.hora_saida ? 'is-out' : 'is-open'}>{r.hora_saida?.slice(0, 5) || 'agora'}</span>
+                        </span>
+                        <strong className="wa-record-total">{fmtHrs(calcSec(r.hora_entrada, r.hora_saida, r.tempo_pausa_acumulado))}</strong>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
-        )}
-
-        {/* Progress Ring com Timer — círculo completo, timer centrado */}
-        {(() => {
-          const META_SECONDS = 8 * 3600;
-          const progress = Math.min(timer / META_SECONDS, 1);
-          const radius = 75;
-          const circumference = 2 * Math.PI * radius;
-          const offset = circumference * (1 - progress);
-          const color = status === 'paused' ? '#eab308' : (status === 'running' ? 'var(--color-btnPrimary)' : '#cbd5e1');
-          const h = Math.floor(timer / 3600);
-          const m = Math.floor((timer % 3600) / 60);
-          const timeLabel = `${h}h ${String(m).padStart(2,'0')}m`;
-
-          return (
-            <div style={{position: 'relative', width: '180px', height: '180px', flexShrink: 0}}>
-              <svg width="180" height="180" style={{position: 'absolute', top: 0, left: 0, transform: 'rotate(-90deg)'}}>
-                <circle cx="90" cy="90" r={radius} fill="none" stroke="#e8edf2" strokeWidth="8" />
-                <circle
-                  cx="90" cy="90" r={radius}
-                  fill="none"
-                  stroke={color}
-                  strokeWidth="8"
-                  strokeLinecap="round"
-                  strokeDasharray={circumference}
-                  strokeDashoffset={offset}
-                  style={{transition: 'stroke-dashoffset 0.6s ease, stroke 0.3s'}}
-                />
-              </svg>
-              {/* Texto centrado dentro do círculo */}
-              <div style={{position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '3px'}}>
-                <div style={{fontSize: '1.8rem', fontWeight: '800', color: color, letterSpacing: '-1px', fontVariantNumeric: 'tabular-nums', lineHeight: 1}}>
-                  {timeLabel}
-                </div>
-                <div style={{fontSize: '0.78rem', color: '#94a3b8', fontWeight: '500'}}>
-                  de 8.00 hrs
-                </div>
-              </div>
-            </div>
-          );
-        })()}
-      </div>
-
-      {/* BOTÕES DE AÇÃO */}
-      <div style={{ marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        {status === 'stopped' && (
-            <button onClick={openStartModal} disabled={loading} className="btn-primary hover-shadow" style={{ width: '100%', padding: '16px 20px', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', fontSize: '1rem', fontWeight: '800', transition: '0.2s', background: 'var(--color-btnPrimary)', color: 'white', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}>
-            <Icons.Play size={18} /> {loading ? "A iniciar..." : "Iniciar Dia de Trabalho"}
-            </button>
-        )}
-        {status === 'running' && (
-            <div style={{display: 'flex', gap: '12px'}}>
-                <button onClick={handlePause} disabled={loading} style={{ flex: 1, padding: '16px', borderRadius: '12px', border: 'none', cursor: 'pointer', background: '#fef3c7', color: '#a16207', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: '0.2s', fontSize: '0.95rem', opacity: loading ? 0.7 : 1 }} className="hover-shadow">
-                    <Icons.Pause size={16} /> Pausar
-                </button>
-                <button onClick={handleFinishClick} disabled={loading} style={{ flex: 1, padding: '16px', borderRadius: '12px', border: 'none', cursor: 'pointer', background: '#fee2e2', color: '#991b1b', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: '0.2s', fontSize: '0.95rem', opacity: loading ? 0.7 : 1 }} className="hover-shadow">
-                    <Icons.Stop size={16} /> Terminar
-                </button>
-            </div>
-        )}
-        {status === 'paused' && (
-            <div style={{display: 'flex', gap: '12px'}}>
-                <button onClick={handleResume} disabled={loading} style={{ flex: 2, padding: '16px', borderRadius: '12px', border: 'none', cursor: 'pointer', background: '#ef4444', color: 'white', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: '0.2s', fontSize: '0.95rem', opacity: loading ? 0.7 : 1 }} className="hover-shadow">
-                    <Icons.Play size={16} /> Retomar
-                </button>
-                <button onClick={handleFinishClick} disabled={loading} style={{ flex: 1, padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', cursor: 'pointer', background: '#f8fafc', color: '#64748b', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: '0.2s', fontSize: '0.95rem', opacity: loading ? 0.7 : 1 }} className="hover-shadow">
-                    <Icons.Stop size={16} /> Terminar
-                </button>
-            </div>
-        )}
-      </div>
-
-    {status === 'running' && <div style={{textAlign: 'center', fontSize:'0.85rem', color:'var(--color-btnPrimary)', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '4px', letterSpacing: '0.02em'}}><span className="pulse-dot"></span> Tempo a decorrer</div>}
-      {status === 'paused' && <div style={{textAlign: 'center', fontSize:'0.85rem', color:'#eab308', fontWeight: '700', marginTop: '4px', letterSpacing: '0.02em'}}>⏸ Pausa em curso</div>}
-
-      {/* Painel de Registos Recentes */}
-      {showRecords && (
-        <div style={{marginTop:'20px', borderTop:'1px solid #f1f5f9', paddingTop:'16px', textAlign:'left'}}>
-          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'10px'}}>
-            <span style={{fontSize:'0.78rem', fontWeight:'700', color:'#64748b', textTransform:'uppercase', letterSpacing:'0.05em'}}>Últimos Registos</span>
-            {onViewHistory && <button onClick={onViewHistory} style={{background:'none', border:'none', color:'var(--color-btnPrimary)', fontSize:'0.78rem', fontWeight:'600', cursor:'pointer', padding:0}}>Ver histórico →</button>}
-          </div>
-          {recentRecords.length === 0 ? (
-            <div style={{textAlign:'center', color:'#94a3b8', fontSize:'0.82rem', padding:'8px 0'}}>Sem registos este mês.</div>
-          ) : (
-            <table style={{width:'100%', borderCollapse:'collapse', fontSize:'0.8rem'}}>
-              <thead>
-                <tr style={{color:'#94a3b8', borderBottom:'1px solid #f1f5f9'}}>
-                  <th style={{paddingBottom:'6px', fontWeight:'600', textAlign:'left'}}>Data</th>
-                  <th style={{paddingBottom:'6px', fontWeight:'600', textAlign:'center'}}>Entrada</th>
-                  <th style={{paddingBottom:'6px', fontWeight:'600', textAlign:'center'}}>Saída</th>
-                  <th style={{paddingBottom:'6px', fontWeight:'600', textAlign:'right'}}>Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentRecords.map(r => (
-                  <tr key={r.id} style={{borderBottom:'1px solid #f8fafc'}}>
-                    <td style={{padding:'7px 0', fontWeight:'600', color:'#334155'}}>{new Date(r.data_registo).toLocaleDateString('pt-PT').slice(0,5)}</td>
-                    <td style={{padding:'7px 0', color:'var(--color-btnPrimary)', fontWeight:'500', textAlign:'center'}}>{r.hora_entrada?.slice(0,5)}</td>
-                    <td style={{padding:'7px 0', color: r.hora_saida ? '#ef4444' : '#94a3b8', fontWeight:'500', textAlign:'center'}}>{r.hora_saida?.slice(0,5) || '—'}</td>
-                    <td style={{padding:'7px 0', textAlign:'right', fontWeight:'700', color:'var(--color-btnPrimary)'}}>{fmtHrs(calcSec(r.hora_entrada, r.hora_saida, r.tempo_pausa_acumulado))}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
+        );
+      })()}
 
       {/* ============================================================== */}
       {/* 💡 MODAL DA MANHÃ: PLANEAR O DIA COM FILTRO E ORDENAÇÃO */}
@@ -1343,7 +1393,6 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>
-    </div>
     </>
   );
 });

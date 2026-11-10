@@ -8,6 +8,8 @@ import { resolveActiveTimerMeta } from "../utils/activeTimerResolver";
 import { applyStopStatusUpdateForLogTarget } from "../utils/taskTimerLifecycle";
 import "./../styles/dashboard.css";
 import EmojiPicker from 'emoji-picker-react';
+import SlidingTabs from "../components/SlidingTabs";
+import "../styles/forum.css";
 
 // --- ÍCONES SVG PROFISSIONAIS ---
 const Icons = {
@@ -26,6 +28,9 @@ const Icons = {
   Heart: ({ size = 16, color = "currentColor", fill = "none" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>,
     Stop: ({ size = 12, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none"><rect x="6" y="6" width="12" height="12" rx="2" ry="2"></rect></svg>,
     GripVertical: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="19" r="1"></circle></svg>,
+  Check: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>,
+  Search: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>,
+  Users: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>,
   Edit: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
 };
 
@@ -176,6 +181,10 @@ export default function Forum() {
     const [hoveredMessageId, setHoveredMessageId] = useState(null);
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [reactionMenuMessageId, setReactionMenuMessageId] = useState(null);
+    const [categoryFilter, setCategoryFilter] = useState('all');
+    const [chatPeopleQuery, setChatPeopleQuery] = useState('');
+    const [feedReactPicker, setFeedReactPicker] = useState(null);
+    const [lastMessageByRoom, setLastMessageByRoom] = useState({});
 
   function scrollChatToBottom(delayMs = 0) {
       const run = () => {
@@ -408,6 +417,7 @@ export default function Forum() {
                 async (payload) => {
                     const incoming = payload.new;
                     if (!incoming?.room_id) return;
+                    rememberLastMessages([incoming]);
                     if (incoming.sender_id === user.id) return;
 
                     const roomIdSet = new Set(chatRooms.map((room) => room.id));
@@ -627,6 +637,26 @@ export default function Forum() {
       }));
   }
 
+  function rememberLastMessages(messages = []) {
+      if (!messages.length) return;
+      setLastMessageByRoom((prev) => {
+          const next = { ...prev };
+          messages.forEach((msg) => {
+              if (!msg?.room_id || !msg.created_at) return;
+              const current = next[msg.room_id];
+              if (!current || new Date(msg.created_at) > new Date(current.created_at)) {
+                  next[msg.room_id] = {
+                      created_at: msg.created_at,
+                      sender_id: msg.sender_id,
+                      content: msg.content || "",
+                      file_name: msg.file_name || "",
+                  };
+              }
+          });
+          return next;
+      });
+  }
+
   async function refreshUnreadCounts(roomIds = []) {
       if (!user?.id || !roomIds.length) {
           setUnreadByRoom({});
@@ -651,12 +681,13 @@ export default function Forum() {
 
       const { data, error } = await supabase
           .from("chat_messages")
-          .select("room_id, sender_id, created_at")
+          .select("room_id, sender_id, created_at, content, file_name")
           .in("room_id", roomIds)
           .order("created_at", { ascending: false })
           .limit(500);
 
       if (error) return;
+      rememberLastMessages(data || []);
 
       const nextCounts = {};
       roomIds.forEach((id) => {
@@ -1786,22 +1817,9 @@ async function handleSendChat(e) {
   };
 
   const getCategoryBadge = (cat) => {
-      const configs = { 
-          aviso: { bg: '#fee2e2', text: '#ef4444', label: 'Aviso' },
-          duvida: { bg: '#fefce8', text: '#eab308', label: 'Dúvida' },
-          ideia: { bg: '#f0fdf4', text: '#22c55e', label: 'Ideia' },
-          geral: { bg: '#f1f5f9', text: '#64748b', label: 'Geral' }
-      };
-      const config = configs[cat] || configs.geral;
-      
-      return (
-          <span style={{
-              backgroundColor: config.bg, color: config.text, padding: '4px 8px', borderRadius: '6px', 
-              fontSize: '0.65rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em'
-          }}>
-              {config.label}
-          </span>
-      );
+      const labels = { aviso: 'Aviso', duvida: 'Dúvida', ideia: 'Ideia', geral: 'Geral' };
+      const key = labels[cat] ? cat : 'geral';
+      return <span className={`fx-cat fx-cat-${key}`}>{labels[key]}</span>;
   };
 
   const formatDate = (dateString) => {
@@ -1992,7 +2010,7 @@ async function handleSendChat(e) {
       const blocks = parsePostBlocks(post);
       const imageMaxHeight = options.imageMaxHeight || 350;
       return (
-          <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+          <div className="fx-blocks">
               {blocks.map((block, idx) => {
                   if (block.type === "image") {
                       const imageUrl = block.previewUrl || block.uploadedUrl;
@@ -2000,15 +2018,15 @@ async function handleSendChat(e) {
                       const sizeConfig = getImageSizeConfig(block.size);
 
                       return (
-                          <div key={`img_${idx}`} style={{ borderRadius: "12px", overflow: "hidden", background: "transparent", display: "flex", justifyContent: "center", padding: "0", width: "100%", maxWidth: sizeConfig.maxWidth, alignSelf: "center" }}>
-                              <img src={imageUrl} alt="Anexo da publicação" style={{ width: "100%", maxHeight: `${imageMaxHeight}px`, objectFit: "contain", display: "block", borderRadius: sizeConfig.value === "full" ? "0" : "8px" }} loading="lazy" />
+                          <div key={`img_${idx}`} className={`fx-block-img ${sizeConfig.value === "full" ? "is-full" : ""}`} style={{ maxWidth: sizeConfig.maxWidth }}>
+                              <img src={imageUrl} alt="Anexo da publicação" style={{ maxHeight: `${imageMaxHeight}px` }} loading="lazy" />
                           </div>
                       );
                   }
 
                   if (!String(block.text || "").trim()) return null;
                   return (
-                      <div key={`txt_${idx}`} style={{ fontSize: "0.95rem", color: "#334155", lineHeight: "1.6", whiteSpace: "pre-wrap", overflowWrap: "break-word", textAlign: block.align || "left" }}>
+                      <div key={`txt_${idx}`} className="fx-block-text" style={{ textAlign: block.align || "left" }}>
                           {renderWithLinks(block.text)}
                       </div>
                   );
@@ -2017,462 +2035,467 @@ async function handleSendChat(e) {
       );
   };
 
-  const inputStyle = { width: '100%', padding: '12px 15px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', color: '#1e293b', outline: 'none', boxSizing: 'border-box', marginBottom: '15px', transition: '0.2s' };
-  const labelStyle = { display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' };
-  const actionBtnStyle = { background: 'transparent', border: 'none', cursor: 'pointer', padding: '6px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.6, transition: '0.2s' };
+  const FORUM_CATEGORIES = {
+      geral: { label: 'Geral', plural: 'Geral', emoji: '💬' },
+      aviso: { label: 'Aviso', plural: 'Avisos', emoji: '📣' },
+      duvida: { label: 'Dúvida', plural: 'Dúvidas', emoji: '🤔' },
+      ideia: { label: 'Ideia', plural: 'Ideias', emoji: '💡' },
+  };
+  const getCategoryKey = (cat) => (FORUM_CATEGORIES[cat] ? cat : 'geral');
 
-  const displayedPosts = selectedUserFilter ? posts.filter(p => p.user_id === selectedUserFilter.id) : posts;
-    const totalUnreadChats = Object.values(unreadByRoom).reduce((acc, value) => acc + Number(value || 0), 0);
+  const userPosts = selectedUserFilter ? posts.filter(p => p.user_id === selectedUserFilter.id) : posts;
+  const displayedPosts = categoryFilter === 'all' ? userPosts : userPosts.filter((p) => getCategoryKey(p.categoria) === categoryFilter);
+  const feedTabs = [
+      { id: 'all', label: 'Tudo', count: userPosts.length },
+      ...['aviso', 'duvida', 'ideia', 'geral'].map((key) => ({
+          id: key,
+          label: FORUM_CATEGORIES[key].plural,
+          count: userPosts.filter((p) => getCategoryKey(p.categoria) === key).length,
+      })),
+  ];
+  const totalUnreadChats = Object.values(unreadByRoom).reduce((acc, value) => acc + Number(value || 0), 0);
+  const firstName = String(userProfile?.nome || '').trim().split(/\s+/)[0];
+  const typingNames = Object.keys(typingUsersById).map((typingUserId) => getChatSenderDisplayName(typingUserId)).filter(Boolean);
+  const chatInputDisabled = !activeChatRoom?.id || chatSending || chatUploadingFile;
+  const newChatDisabled = newChatLoading || (newChatType === 'group' && !newChatName.trim()) || (newChatType === 'private' && !selectedUserForChat);
+  const peopleQuery = chatPeopleQuery.trim().toLowerCase();
+  const filterPeople = (list) => (peopleQuery ? list.filter((c) => String(c.nome || '').toLowerCase().includes(peopleQuery)) : list);
+  const addableCollaborators = chatCollaborators.filter((collab) => !existingGroupMemberIds.includes(collab.id));
+  const timerLabel = activeLogTitle || 'Tempo a decorrer...';
+
+  const openNewPostWithCategory = (categoria) => {
+      openNewPostModal();
+      setNewPost({ titulo: '', categoria });
+  };
+
+  const closeNewChatDialog = () => {
+      setChatPeopleQuery('');
+      closeNewChatModal();
+  };
+
+  const closeAddMembersDialog = () => {
+      setChatPeopleQuery('');
+      closeAddGroupMembersModal();
+  };
+
+  // Última atividade de cada sala: mensagem mais recente conhecida (ou a criação da sala)
+  const getRoomLastMessage = (room) => {
+      const known = lastMessageByRoom[room.id];
+      if (activeChatRoom?.id === room.id && chatMessages.length) {
+          const last = chatMessages[chatMessages.length - 1];
+          if (last?.created_at && (!known || new Date(last.created_at) >= new Date(known.created_at))) return last;
+      }
+      return known || null;
+  };
+  const getRoomActivity = (room) => {
+      const last = getRoomLastMessage(room);
+      return new Date(last?.created_at || room.created_at || 0).getTime();
+  };
+  const sortedChatRooms = [...chatRooms].sort((a, b) => getRoomActivity(b) - getRoomActivity(a));
+  const formatRoomTime = (iso) => {
+      if (!iso) return '';
+      const d = new Date(iso);
+      const now = new Date();
+      const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      if (d >= startToday) return d.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
+      const diffDays = Math.floor((startToday - d) / 86400000);
+      if (diffDays < 1) return 'Ontem';
+      if (diffDays < 6) return d.toLocaleDateString('pt-PT', { weekday: 'short' }).replace('.', '');
+      return d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
+  };
+  const getRoomPreview = (room) => {
+      const last = getRoomLastMessage(room);
+      if (!last) return room.display_subtitle || (room.is_group ? 'Grupo' : 'Conversa privada');
+      const body = last.content?.trim() || (last.file_name ? `📎 ${last.file_name}` : 'Mensagem');
+      if (last.sender_id === user?.id) return `Tu: ${body}`;
+      if (room.is_group) {
+          const name = String(getChatSenderDisplayName(last.sender_id) || '').split(' ')[0];
+          return name ? `${name}: ${body}` : body;
+      }
+      return body;
+  };
+
+  const getSenderAvatar = (senderId) => chatCollaborators.find((profile) => profile.id === senderId)?.avatar_url || null;
+
+  const renderRoomItem = (room) => {
+      const unreadCount = unreadByRoom[room.id] || 0;
+      const title = room.display_title || room.nome || 'Conversa privada';
+      return (
+          <button
+              key={room.id}
+              type="button"
+              onClick={() => openExistingRoom(room)}
+              className={`fx-room ${activeChatRoom?.id === room.id && chatModal.show ? 'is-active' : ''} ${unreadCount ? 'has-unread' : ''}`}
+              title={title}
+          >
+              <span className={`fx-avatar fx-avatar-sm ${room.is_group ? 'is-group' : ''}`}>
+                  {renderAvatar(title, room.display_avatar_url || null, 38, '0.8rem')}
+              </span>
+              <span className="fx-room-text">
+                  <span className="fx-room-top">
+                      <span className="fx-room-title">{title}</span>
+                      {getRoomLastMessage(room) && <span className="fx-room-time">{formatRoomTime(getRoomLastMessage(room).created_at)}</span>}
+                  </span>
+                  <span className="fx-room-bottom">
+                      <span className="fx-room-sub">{getRoomPreview(room)}</span>
+                      {unreadCount > 0 && <span className="fx-badge">{unreadCount}</span>}
+                  </span>
+              </span>
+          </button>
+      );
+  };
+
+  const renderPersonOption = (collab, selected, onToggle, multi) => (
+      <button key={collab.id} type="button" onClick={onToggle} className={`fx-person ${selected ? 'is-selected' : ''}`} aria-pressed={selected}>
+          <span className="fx-avatar fx-avatar-sm">{renderAvatar(collab.nome, collab.avatar_url, 36, '0.78rem')}</span>
+          <span className="fx-person-name">{collab.nome}</span>
+          <span className={`fx-check ${multi ? 'is-multi' : ''}`}><Icons.Check size={13} /></span>
+      </button>
+  );
+
+  const renderReactionButtons = (post, emojis, { showEmpty }) =>
+      emojis.map((emoji) => {
+          const count = getReactionCounts(post.forum_reactions)[emoji] || 0;
+          const hasReacted = post.forum_reactions?.find(r => r.user_id === user.id && r.reaction_type === emoji);
+          if (!showEmpty && count === 0 && emoji !== '❤️') return null;
+          return (
+              <button
+                  key={emoji}
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setFeedReactPicker(null); handleReact(emoji, post.id, post.forum_reactions); }}
+                  className={`fx-react ${hasReacted ? 'is-mine' : ''}`}
+                  title={hasReacted ? 'Remover reação' : 'Reagir'}
+              >
+                  <span className="fx-react-emoji">{emoji}</span>
+                  <span className="fx-react-count">{count > 0 ? count : (showEmpty ? 0 : 'Gostar')}</span>
+              </button>
+          );
+      });
+
+  const renderReplyChip = (target, onCancel) => target?.nome && (
+      <div className="fx-reply-chip">
+          <span>A responder a <strong>{target.nome}</strong></span>
+          <button type="button" onClick={onCancel} aria-label="Cancelar resposta"><Icons.Close size={14} /></button>
+      </div>
+  );
 
     return (
-        <div className="page-container" style={{maxWidth: '1200px', margin: '0 auto', paddingBottom: '40px'}}>
+        <div className="page-container fx-page">
 
-          <div className="card" style={{ marginBottom: 25, padding: '25px', display: "flex", justifyContent: "space-between", alignItems: 'center', flexWrap: 'wrap', gap: '15px', background: 'white', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
-            <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
-                <div style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '12px', borderRadius: '12px', display: 'flex'}}><Icons.Message size={24} /></div>
-                <div>
-                    <h1 style={{margin: 0, color: '#0f182c', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>Comunicação Interna</h1>
-                    <p style={{color: '#64748b', margin: 0, fontWeight: '500', fontSize: '0.9rem'}}>Forúm de partilha de informações e discussões</p>
+          {/* --- HERO --- */}
+          <header className="fx-hero">
+            <div className="fx-hero-bg" aria-hidden="true">
+                <span className="fx-orb fx-orb-a" />
+                <span className="fx-orb fx-orb-b" />
+                <span className="fx-hero-grid" />
+            </div>
+
+            <div className="fx-hero-main">
+                <span className="fx-hero-icon"><Icons.Message size={26} /></span>
+                <div className="fx-hero-copy">
+                    <h1 className="fx-hero-title">Comunicação Interna</h1>
+                    <p className="fx-hero-sub">Fórum de partilha de informações e discussões</p>
                 </div>
             </div>
-            <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+
+            <div className="fx-hero-side">
+                <div className="fx-hero-stats">
+                    <span className="fx-stat"><strong>{posts.length}</strong> publicações</span>
+                    <span className="fx-stat"><strong>{chatRooms.length}</strong> conversas</span>
+                    {totalUnreadChats > 0 && <span className="fx-stat is-alert"><strong>{totalUnreadChats}</strong> por ler</span>}
+                </div>
                 {activeLog && (
-                    <div onClick={() => navigate(activeLogRoute || '/dashboard/tarefas')} title="Ir para o item com cronometro em curso" className="hover-shadow" style={{background: 'linear-gradient(to right, #ef4444, #b91c1c)', color: 'white', padding: '10px 20px', borderRadius: '30px', display: 'flex', alignItems: 'center', gap: '15px', border: '2px solid #fecaca', boxShadow: '0 4px 10px rgba(239, 68, 68, 0.4)', transition: '0.2s', whiteSpace: 'nowrap', cursor: 'pointer'}}>
-                        <div style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700', fontSize: '0.95rem'}}>
-                            <span className="pulse-dot-white" style={{width: '8px', height: '8px'}}></span>
-                            {(activeLogTitle || 'Tempo a decorrer...').length > 30 ? `${(activeLogTitle || 'Tempo a decorrer...').slice(0, 30)}...` : (activeLogTitle || 'Tempo a decorrer...')}
-                        </div>
-                        <div style={{width: '1px', height: '20px', background: 'rgba(255,255,255,0.3)'}}></div>
-                        <button type="button" onClick={openStopNoteModal} style={{background: 'white', color:'#ef4444', border:'none', borderRadius:'20px', padding:'6px 12px', cursor:'pointer', fontWeight:'700', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px', transition: '0.2s'}}><Icons.Stop /> Parar</button>
+                    <div onClick={() => navigate(activeLogRoute || '/dashboard/tarefas')} title="Ir para o item com cronometro em curso" className="fx-live">
+                        <span className="fx-live-dot" />
+                        <span className="fx-live-title">{timerLabel.length > 30 ? `${timerLabel.slice(0, 30)}...` : timerLabel}</span>
+                        <button type="button" onClick={openStopNoteModal} className="fx-live-stop"><Icons.Stop /> Parar</button>
                     </div>
                 )}
             </div>
-          </div>
+          </header>
 
           {selectedUserFilter && (
-             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--color-bgSecondary)', padding: '15px 20px', borderRadius: '12px', border: '1px solid var(--color-borderColor)', marginBottom: '25px' }}>
-                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                     <Icons.User color="var(--color-btnPrimary)" />
-                     <span style={{ color: 'var(--color-btnPrimaryHover)', fontWeight: 'bold', fontSize: '1.1rem' }}>A ver o perfil de: {selectedUserFilter.nome}</span>
-                 </div>
-                 <button onClick={() => setSelectedUserFilter(null)} style={{ background: 'white', border: '1px solid var(--color-borderColor)', color: 'var(--color-btnPrimary)', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', transition: '0.2s' }} className="hover-shadow">Ver Tudo</button>
+             <div className="fx-filter-banner">
+                 <span className="fx-filter-icon"><Icons.User /></span>
+                 <span className="fx-filter-text">A ver as publicações de <strong>{selectedUserFilter.nome}</strong></span>
+                 <button type="button" onClick={() => setSelectedUserFilter(null)} className="fx-btn fx-btn-ghost fx-btn-sm">Ver tudo</button>
              </div>
           )}
 
-          <div className="card forum-collab-bar" style={{background: 'white', padding: '16px 20px', borderRadius: '16px', border: '1px solid #e2e8f0', marginBottom: '18px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)'}}>
-              <div style={{display: 'flex', gap: '14px', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap'}}>
-                  <div style={{display: 'flex', gap: '12px', alignItems: 'center', minWidth: 0}}>
-                      <div style={{width: '44px', height: '44px', borderRadius: '50%', overflow: 'hidden', background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0}}>
-                          {renderAvatar(userProfile?.nome, userProfile?.avatar_url, 44, '1rem')}
-                      </div>
-                      <div style={{minWidth: 0}}>
-                          <div style={{fontSize: '0.78rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: '800', letterSpacing: '0.05em'}}>Colaborador</div>
-                          <div style={{fontSize: '1.02rem', color: '#1e293b', fontWeight: '800', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>{userProfile?.nome || 'Utilizador'}</div>
-                      </div>
-                  </div>
-
-                  <button className="btn-cta" onClick={openNewPostModal} style={{ marginRight: '6px' }}><Icons.Plus /> Novo Post</button>
-              </div>
-          </div>
-
       {/* --- FEED DE PUBLICAÇÕES + CHAT LATERAL --- */}
-      <div className="forum-main-layout">
-      <div className="forum-feed" style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
-        {displayedPosts.length === 0 && !loading && (
-            <div style={{textAlign: 'center', padding: '60px', background: 'white', borderRadius: '12px', border: '1px dashed #cbd5e1'}}>
-                <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px', color: '#cbd5e1'}}><Icons.Message size={48} /></div>
-                <h4 style={{color: '#1e293b', margin: '0 0 5px 0', fontSize:'1.2rem'}}>Ainda não há publicações.</h4>
-                <p style={{color:'#64748b'}}>Sê o primeiro a partilhar algo!</p>
+      <div className="fx-layout">
+      <div className="fx-feed">
+
+        <div className="fx-composer-card">
+            <span className="fx-avatar fx-avatar-md">{renderAvatar(userProfile?.nome, userProfile?.avatar_url, 44, '1rem')}</span>
+            <button type="button" className="fx-composer-fake" onClick={openNewPostModal}>
+                Partilha algo com a equipa{firstName ? `, ${firstName}` : ''}…
+            </button>
+            <div className="fx-composer-quick">
+                {['aviso', 'duvida', 'ideia'].map((key) => (
+                    <button key={key} type="button" className={`fx-quick fx-cat-${key}`} onClick={() => openNewPostWithCategory(key)}>
+                        <span aria-hidden="true">{FORUM_CATEGORIES[key].emoji}</span> {FORUM_CATEGORIES[key].label}
+                    </button>
+                ))}
+                <button type="button" className="btn-cta fx-composer-cta" onClick={openNewPostModal}><Icons.Plus /> Novo post</button>
+            </div>
+        </div>
+
+        <SlidingTabs tabs={feedTabs} value={categoryFilter} onChange={setCategoryFilter} ariaLabel="Filtrar publicações" className="fx-feed-tabs" />
+
+        {loading && posts.length === 0 && (
+            <div className="fx-skeletons" aria-label="A carregar publicações">
+                {[0, 1].map((k) => (
+                    <div key={k} className="fx-post fx-post-skeleton">
+                        <div className="fx-sk-row"><span className="fx-sk fx-sk-avatar" /><span className="fx-sk-lines"><span className="fx-sk" /><span className="fx-sk" /></span></div>
+                        <span className="fx-sk fx-sk-title" />
+                        <span className="fx-sk fx-sk-text" />
+                        <span className="fx-sk fx-sk-text is-short" />
+                    </div>
+                ))}
             </div>
         )}
-        
-        {displayedPosts.map((post) => {
+
+        {displayedPosts.length === 0 && !loading && (
+            <div className="fx-empty">
+                <span className="fx-empty-icon"><Icons.Message size={30} /></span>
+                <h4>{categoryFilter === 'all' ? 'Ainda não há publicações.' : `Sem ${FORUM_CATEGORIES[categoryFilter]?.plural.toLowerCase() || 'publicações'} por aqui.`}</h4>
+                <p>Sê o primeiro a partilhar algo!</p>
+                <button type="button" className="fx-btn fx-btn-primary" onClick={() => (categoryFilter === 'all' ? openNewPostModal() : openNewPostWithCategory(categoryFilter))}>
+                    <Icons.Plus size={15} /> Criar publicação
+                </button>
+            </div>
+        )}
+
+        {displayedPosts.map((post, postIndex) => {
             const postComments = postCommentsByPost[post.id] || [];
             const commentsLoaded = Boolean(postCommentsByPost[post.id]);
             const showCommentBox = Boolean(inlineCommentOpen[post.id]);
             const showAllComments = Boolean(inlineCommentExpanded[post.id]);
             const visibleComments = showAllComments ? postComments : postComments.slice(0, 3);
+            const catKey = getCategoryKey(post.categoria);
+            const commentCount = post.forum_comments?.[0]?.count || 0;
+            const openAuthor = (e) => { e.stopPropagation(); setSelectedUserFilter({ id: post.user_id, nome: post.profiles?.nome }); };
 
             return (
-            <div key={post.id} className="card" style={{ display: 'flex', flexDirection: 'column', transition: 'all 0.2s', width: '100%', boxSizing: 'border-box', padding: '25px', borderRadius: '16px', border: '1px solid #e2e8f0', background: 'white', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.03)' }}>
-                
+            <article key={post.id} className={`fx-post fx-post-${catKey}`} style={{ '--i': Math.min(postIndex, 6) }}>
+
                 {/* CABEÇALHO DO POST */}
-                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '15px'}}>
-                    <div style={{display: 'flex', gap: '12px', alignItems: 'center'}}>
-                        <div 
-                            onClick={(e) => { e.stopPropagation(); setSelectedUserFilter({ id: post.user_id, nome: post.profiles?.nome }); }}
-                            style={{width: '40px', height: '40px', borderRadius: '50%', background: '#f1f5f9', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1rem', border: '1px solid #cbd5e1', cursor: 'pointer'}} 
-                            className="hover-avatar"
-                            title={`Ver publicações de ${post.profiles?.nome}`}
-                        >
-                            {renderAvatar(post.profiles?.nome, post.profiles?.avatar_url, 40, '0.95rem')}
+                <header className="fx-post-head">
+                    <button type="button" onClick={openAuthor} className="fx-avatar fx-avatar-md fx-avatar-btn" title={`Ver publicações de ${post.profiles?.nome}`}>
+                        {renderAvatar(post.profiles?.nome, post.profiles?.avatar_url, 44, '0.95rem')}
+                    </button>
+                    <div className="fx-post-meta">
+                        <div className="fx-post-author">
+                            <button type="button" onClick={openAuthor} className="fx-link-name">{post.profiles?.nome}</button>
+                            {getCategoryBadge(post.categoria)}
                         </div>
-                        <div>
-                            <div style={{fontWeight: '800', color: '#1e293b', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px'}}>
-                                <span onClick={(e) => { e.stopPropagation(); setSelectedUserFilter({ id: post.user_id, nome: post.profiles?.nome }); }} className="hover-name" style={{cursor: 'pointer'}}>{post.profiles?.nome}</span>
-                                {getCategoryBadge(post.categoria)}
-                            </div>
-                            <div style={{fontSize: '0.75rem', color: '#94a3b8', fontWeight: '500', marginTop: '2px'}}>{formatDate(post.created_at)}</div>
-                        </div>
+                        <span className="fx-post-time">{formatDate(post.created_at)}</span>
                     </div>
-                    
-                    <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+
+                    <div className="fx-post-tools">
                         {canEdit(post.user_id) && (
-                            <button 
-                                onClick={(e) => { e.stopPropagation(); handleStartEdit(post); }} 
-                                style={actionBtnStyle} 
-                                className="hover-bg-light" 
-                                title="Editar Publicação"
-                            >
+                            <button type="button" onClick={(e) => { e.stopPropagation(); handleStartEdit(post); }} className="fx-icon-btn" title="Editar Publicação">
                                 <Icons.Edit size={16} />
                             </button>
                         )}
-
                         {canDelete(post.user_id) && (
-                            <button 
-                                onClick={(e) => { e.stopPropagation(); requestDelete(post.id, 'post'); }} 
-                                style={actionBtnStyle} 
-                                className="hover-red-btn" 
-                                title="Apagar Publicação"
-                            >
+                            <button type="button" onClick={(e) => { e.stopPropagation(); requestDelete(post.id, 'post'); }} className="fx-icon-btn is-danger" title="Apagar Publicação">
                                 <Icons.Trash />
                             </button>
                         )}
                     </div>
-                </div>
-                
+                </header>
+
                 {/* CORPO DO POST */}
-                <div style={{marginBottom: '15px'}}>
-                    <h3 style={{margin: '0 0 10px 0', color: '#0f172a', fontSize: '1.2rem', fontWeight: '800'}}>{post.titulo}</h3>
+                <div className="fx-post-body">
+                    <h3 className="fx-post-title">
+                        <button type="button" onClick={() => handleOpenPost(post)} title="Abrir discussão">{post.titulo}</button>
+                    </h3>
                     {renderPostBlocks(post, { imageMaxHeight: 560 })}
                 </div>
 
                 {/* RODAPÉ DO POST */}
-                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f1f5f9', paddingTop: '15px', color: '#64748b', fontSize: '0.85rem', fontWeight: '600'}}>
-                    <div style={{display: 'flex', gap: '8px'}}>
-                        {['👍','❤️','💡','🚀'].map(emoji => {
-                            const count = getReactionCounts(post.forum_reactions)[emoji] || 0;
-                            const hasReacted = post.forum_reactions?.find(r => r.user_id === user.id && r.reaction_type === emoji);
-                            
-                            if (count === 0 && emoji !== '❤️') return null;
-
-                            return (
-                                <button 
-                                    key={emoji} 
-                                    onClick={(e) => { e.stopPropagation(); handleReact(emoji, post.id, post.forum_reactions); }} 
-                                    style={{
-                                        background: hasReacted ? 'var(--color-bgSecondary)' : 'transparent', color: hasReacted ? 'var(--color-btnPrimary)' : '#64748b',
-                                        border: hasReacted ? '1px solid var(--color-borderColor)' : '1px solid transparent', borderRadius: '20px', padding: '6px 12px', cursor: 'pointer', transition: '0.2s',
-                                        display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold'
-                                    }}
-                                    className="hover-bg-light"
-                                >
-                                    <span style={{fontSize: '1.1rem'}}>{emoji}</span> {count > 0 ? count : 'Gostar'}
-                                </button>
-                            );
-                        })}
+                <footer className="fx-post-foot">
+                    <div className="fx-reactions">
+                        {renderReactionButtons(post, ['👍', '❤️', '💡', '🚀'], { showEmpty: false })}
+                        <div className="fx-react-more">
+                            <button type="button" className="fx-react fx-react-add" onClick={() => setFeedReactPicker((prev) => (prev === post.id ? null : post.id))} title="Mais reações" aria-label="Mais reações">
+                                <Icons.Smile size={16} /><span className="fx-react-plus">+</span>
+                            </button>
+                            {feedReactPicker === post.id && (
+                                <>
+                                    <div className="fx-click-away" onClick={() => setFeedReactPicker(null)} />
+                                    <div className="fx-react-menu">
+                                        {['👍', '❤️', '💡', '🚀'].map((emoji) => (
+                                            <button key={emoji} type="button" onClick={() => { setFeedReactPicker(null); handleReact(emoji, post.id, post.forum_reactions); }}>{emoji}</button>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
+                        </div>
                     </div>
-                    
-                    <button onClick={() => toggleInlineComments(post.id)} style={{background: 'transparent', border: 'none', color: '#64748b', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '20px'}} className="hover-bg-light">
-                        <Icons.Message size={14} /> {post.forum_comments?.[0]?.count || 0} Comentários
-                    </button>
-                </div>
+
+                    <div className="fx-post-actions">
+                        <button type="button" onClick={() => toggleInlineComments(post.id)} className={`fx-pill-btn ${showCommentBox ? 'is-on' : ''}`}>
+                            <Icons.Message size={15} /> {commentCount} <span className="fx-hide-sm">{commentCount === 1 ? 'comentário' : 'comentários'}</span>
+                        </button>
+                        <button type="button" onClick={() => handleOpenPost(post)} className="fx-pill-btn" title="Abrir discussão">
+                            Abrir <span aria-hidden="true">↗</span>
+                        </button>
+                    </div>
+                </footer>
 
                 {showCommentBox && (
-                    <div style={{ marginTop: '14px', borderTop: '1px solid #e2e8f0', paddingTop: '14px' }}>
+                    <div className="fx-comments">
                         {loadingInlineComments[post.id] && (
-                            <div style={{ color: '#94a3b8', fontSize: '0.88rem', marginBottom: '8px' }}>A carregar comentários...</div>
+                            <div className="fx-comments-note"><span className="fx-spinner is-dark" /> A carregar comentários...</div>
                         )}
 
                         {!loadingInlineComments[post.id] && commentsLoaded && postComments.length === 0 && (
-                            <div style={{ color: '#94a3b8', fontSize: '0.88rem', marginBottom: '10px' }}>Ainda sem comentários neste post.</div>
+                            <div className="fx-comments-note">Ainda sem comentários. Começa tu a conversa.</div>
                         )}
 
                         {!loadingInlineComments[post.id] && visibleComments.length > 0 && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '10px' }}>
+                            <div className="fx-comment-list">
                                 {visibleComments.map((c) => (
-                                    <div key={c.id} className="comment-bubble-row">
-                                        <div className="comment-avatar-mini" style={{overflow:'hidden'}}>{renderAvatar(c.profiles?.nome, c.profiles?.avatar_url, 28, '0.68rem')}</div>
-                                        <div className="comment-bubble">
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                                                <div style={{ fontSize: '0.8rem', color: '#334155', fontWeight: '800' }}>
-                                                    {c.profiles?.nome} <span style={{ color: '#94a3b8', fontWeight: '600' }}>· {formatDate(c.created_at)}</span>
+                                    <div key={c.id} className="fx-comment">
+                                        <span className="fx-avatar fx-avatar-xs">{renderAvatar(c.profiles?.nome, c.profiles?.avatar_url, 30, '0.68rem')}</span>
+                                        <div className="fx-comment-main">
+                                            <div className="fx-comment-bubble">
+                                                <div className="fx-comment-head">
+                                                    <strong>{c.profiles?.nome}</strong>
+                                                    <span>{formatDate(c.created_at)}</span>
                                                 </div>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                    <button
-                                                        onClick={() => setReplyTargetByPost((prev) => ({ ...prev, [post.id]: { id: c.id, nome: c.profiles?.nome || 'Utilizador' } }))}
-                                                        style={{ background: 'transparent', border: 'none', color: 'var(--color-btnPrimary)', fontWeight: '700', cursor: 'pointer', fontSize: '0.78rem' }}
-                                                    >
-                                                        Responder
-                                                    </button>
-                                                    {canDelete(c.user_id) && (
-                                                        <button onClick={() => requestDelete(c.id, 'comment', post.id)} style={actionBtnStyle} className="hover-red-btn" title="Apagar Comentário">
-                                                            <Icons.Trash size={14} />
-                                                        </button>
-                                                    )}
-                                                </div>
+                                                <div className="fx-comment-text">{renderWithLinks(c.conteudo)}</div>
                                             </div>
-                                            <div style={{ fontSize: '0.9rem', color: '#475569', whiteSpace: 'pre-wrap', overflowWrap: 'break-word' }}>
-                                                {renderWithLinks(c.conteudo)}
+                                            <div className="fx-comment-actions">
+                                                <button type="button" className="fx-text-btn" onClick={() => setReplyTargetByPost((prev) => ({ ...prev, [post.id]: { id: c.id, nome: c.profiles?.nome || 'Utilizador' } }))}>
+                                                    Responder
+                                                </button>
+                                                {canDelete(c.user_id) && (
+                                                    <button type="button" onClick={() => requestDelete(c.id, 'comment', post.id)} className="fx-text-btn is-danger" title="Apagar Comentário">
+                                                        Apagar
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
                                 ))}
 
                                 {postComments.length > 3 && (
-                                    <button
-                                        onClick={() => setInlineCommentExpanded((prev) => ({ ...prev, [post.id]: !showAllComments }))}
-                                        style={{ background: 'transparent', border: 'none', color: 'var(--color-btnPrimary)', fontWeight: '700', cursor: 'pointer', textAlign: 'left', padding: '2px 0' }}
-                                    >
+                                    <button type="button" className="fx-text-btn fx-more-comments" onClick={() => setInlineCommentExpanded((prev) => ({ ...prev, [post.id]: !showAllComments }))}>
                                         {showAllComments ? 'Mostrar menos comentários' : `Ver mais ${postComments.length - 3} comentário(s)`}
                                     </button>
                                 )}
                             </div>
                         )}
 
-                        {replyTargetByPost[post.id]?.nome && (
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '8px', padding: '6px 10px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '10px', color: '#1e3a8a', fontSize: '0.82rem' }}>
-                                <span>A responder a <strong>{replyTargetByPost[post.id].nome}</strong></span>
-                                <button onClick={() => setReplyTargetByPost((prev) => ({ ...prev, [post.id]: null }))} style={{ background: 'transparent', border: 'none', color: '#1e3a8a', cursor: 'pointer', fontWeight: '700' }}>Cancelar</button>
-                            </div>
-                        )}
+                        {renderReplyChip(replyTargetByPost[post.id], () => setReplyTargetByPost((prev) => ({ ...prev, [post.id]: null })))}
 
-                        <form onSubmit={(e) => handleSendInlineComment(e, post.id)} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                            <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: '#e2e8f0', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: '800', flexShrink: 0, overflow:'hidden', border:'1px solid #cbd5e1' }}>
-                                {renderAvatar(userProfile?.nome, userProfile?.avatar_url, 30, '0.75rem')}
+                        <form onSubmit={(e) => handleSendInlineComment(e, post.id)} className="fx-comment-form">
+                            <span className="fx-avatar fx-avatar-xs">{renderAvatar(userProfile?.nome, userProfile?.avatar_url, 30, '0.75rem')}</span>
+                            <div className="fx-input-pill">
+                                <input
+                                    type="text"
+                                    value={inlineCommentDrafts[post.id] || ''}
+                                    onChange={(e) => setInlineCommentDrafts((prev) => ({ ...prev, [post.id]: e.target.value }))}
+                                    placeholder={replyTargetByPost[post.id]?.nome ? `Responder a ${replyTargetByPost[post.id].nome}...` : 'Escreve um comentário...'}
+                                />
+                                <button type="submit" className="fx-send" disabled={!String(inlineCommentDrafts[post.id] || '').trim()} aria-label="Enviar comentário">
+                                    <Icons.Send size={15} />
+                                </button>
                             </div>
-                            <input
-                                type="text"
-                                value={inlineCommentDrafts[post.id] || ''}
-                                onChange={(e) => setInlineCommentDrafts((prev) => ({ ...prev, [post.id]: e.target.value }))}
-                                placeholder={replyTargetByPost[post.id]?.nome ? `Responder a ${replyTargetByPost[post.id].nome}...` : 'Escreve um comentário...'}
-                                className="input-focus"
-                                style={{ flex: 1, padding: '10px 14px', borderRadius: '999px', border: '1px solid #cbd5e1', background: '#f8fafc', fontSize: '0.9rem', outline: 'none' }}
-                            />
-                            <button
-                                type="submit"
-                                disabled={!String(inlineCommentDrafts[post.id] || '').trim()}
-                                className="btn-primary"
-                                style={{ borderRadius: '999px', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: '5px', opacity: String(inlineCommentDrafts[post.id] || '').trim() ? 1 : 0.6 }}
-                            >
-                                <Icons.Send size={14} />
-                            </button>
                         </form>
                     </div>
                 )}
-            </div>
+            </article>
             );
         })}
       </div>
 
-      <aside className="forum-chat-sidebar card" style={{ position: 'sticky', top: '24px', alignSelf: 'start', padding: '18px', maxHeight: 'calc(100vh - 120px)', overflowY: 'auto', display: 'flex', flexDirection: 'column', backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '15px' }}>
-              <h4 style={{ margin: 0, color: '#0f172a', fontSize: '1rem', fontWeight: '900' }}>Chats Internos</h4>
-              {totalUnreadChats > 0 && (
-                  <span style={{padding:'4px 10px', borderRadius:'999px', fontSize:'0.72rem', fontWeight:'900', color:'#fff', background:'linear-gradient(135deg, #ef4444, #f97316)', boxShadow:'0 6px 14px rgba(239,68,68,0.35)'}}>
-                      {totalUnreadChats} nova(s)
-                  </span>
-              )}
+      <aside className="fx-chats">
+          <div className="fx-chats-head">
+              <div>
+                  <h4>Chats internos</h4>
+                  <p>{chatRooms.length} {chatRooms.length === 1 ? 'conversa' : 'conversas'}</p>
+              </div>
+              {totalUnreadChats > 0 && <span className="fx-badge fx-badge-lg">{totalUnreadChats} nova{totalUnreadChats === 1 ? '' : 's'}</span>}
           </div>
 
-          {totalUnreadChats > 0 && (
-              <div style={{marginBottom:'12px', padding:'10px 12px', borderRadius:'10px', border:'1px solid #fecaca', background:'linear-gradient(135deg, #fff1f2, #fff7ed)', color:'#9f1239', fontSize:'0.82rem', fontWeight:'700'}}>
-                  Tens {totalUnreadChats} mensagem(ns) nova(s) por ler.
-              </div>
-          )}
-          
-          <button
-              onClick={() => setShowNewChatModal(true)}
-              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center', marginBottom: '12px', border: '1px solid #d1d5db', borderRadius: '10px', background: 'var(--color-btnPrimary)', color: '#fff', padding: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '0.9rem', transition: '0.2s' }}
-              className="hover-shadow"
-          >
-              <Icons.Plus size={16} /> Novo Chat
+          <button type="button" onClick={() => setShowNewChatModal(true)} className="fx-btn fx-btn-primary fx-btn-block">
+              <Icons.Plus size={16} /> Novo chat
           </button>
 
-          <p style={{ margin: '0 0 10px 0', color: '#64748b', fontSize: '0.84rem' }}>Meus Chats</p>
-
-          {chatRooms.length > 0 ? (
-              chatRooms.map((room) => {
-                  const unreadCount = unreadByRoom[room.id] || 0;
-                  return (
-                      <button
-                          key={room.id}
-                          onClick={() => openExistingRoom(room)}
-                          style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', textAlign: 'left', marginBottom: '8px', border: unreadCount ? '1px solid #fca5a5' : '1px solid #e2e8f0', borderRadius: '10px', background: activeChatRoom?.id === room.id ? '#eff6ff' : '#fff', padding: '10px', cursor: 'pointer', transition: '0.2s', boxShadow: unreadCount ? '0 6px 16px rgba(239,68,68,0.12)' : 'none' }}
-                          className="hover-shadow"
-                      >
-                          <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', overflow:'hidden' }}>
-                              {renderAvatar(room.display_title || room.nome || 'Conversa privada', room.display_avatar_url || null, 34, '0.78rem')}
-                          </div>
-                          <div style={{ minWidth: 0, flex: 1 }}>
-                              <div style={{ color: '#1e293b', fontWeight: '800', fontSize: '0.9rem', display:'flex', alignItems:'center', gap:'8px' }}>
-                                  <span style={{minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{room.display_title || room.nome || 'Conversa privada'}</span>
-                                  {unreadCount > 0 && <span style={{width:'8px', height:'8px', borderRadius:'999px', background:'#ef4444', boxShadow:'0 0 0 4px rgba(239,68,68,0.2)', flexShrink:0}}></span>}
-                              </div>
-                              <div style={{ color: '#94a3b8', fontSize: '0.78rem', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'8px' }}>
-                                  <span>{room.display_subtitle || (room.is_group ? 'Group Chat' : 'Chat')}</span>
-                                  {unreadCount > 0 && <span style={{padding:'2px 7px', borderRadius:'999px', fontSize:'0.7rem', fontWeight:'900', color:'#fff', background:'#ef4444'}}>{unreadCount}</span>}
-                              </div>
-                          </div>
-                      </button>
-                  );
-              })
-          ) : (
-              <p style={{ margin: '8px 0', color: '#94a3b8', fontSize: '0.85rem' }}>Ainda não criaste chats.</p>
-          )}
+          <div className="fx-room-list custom-scrollbar">
+              {chatRooms.length > 0 ? sortedChatRooms.map(renderRoomItem) : (
+                  <div className="fx-rooms-empty">
+                      <Icons.Message size={22} />
+                      <span>Ainda não criaste chats.</span>
+                  </div>
+              )}
+          </div>
       </aside>
       </div>
 
       {/* --- MODAL NOVO CHAT --- */}
       {showNewChatModal && (
           <ModalPortal>
-              <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.72)', backdropFilter: 'blur(5px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000001, padding:'16px'}}>
-                  <div style={{background:'white', width:'min(480px, 95vw)', borderRadius:'18px', boxShadow: '0 30px 60px -20px rgba(15, 23, 42, 0.45)', overflow: 'hidden', border:'1px solid var(--color-borderColorLight)'}}>
-                      <div style={{padding:'18px 24px', background:'#f8fafc', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+              <div className="fx-overlay" style={{ zIndex: 1000001 }} onClick={closeNewChatDialog}>
+                  <div className="fx-modal fx-modal-sm" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Novo chat">
+                      <div className="fx-modal-head">
                           <div>
-                              <p style={{margin:'0 0 4px 0', fontSize:'0.72rem', fontWeight:'800', letterSpacing:'0.07em', color:'var(--color-btnPrimary)', textTransform:'uppercase'}}>Novo Chat</p>
-                              <h3 style={{margin:0, color:'#1e293b', fontSize:'1.25rem', fontWeight:'900'}}>Criar Conversa</h3>
+                              <p className="fx-kicker">Novo chat</p>
+                              <h3>Com quem queres falar?</h3>
                           </div>
-                          <button onClick={closeNewChatModal} style={{background:'#fff', border:'1px solid #cbd5e1', cursor:'pointer', color:'#64748b', width:'36px', height:'36px', borderRadius:'10px', display:'flex', alignItems:'center', justifyContent:'center'}} className="hover-red-text"><Icons.Close size={20} /></button>
+                          <button type="button" onClick={closeNewChatDialog} className="fx-close" aria-label="Fechar"><Icons.Close size={18} /></button>
                       </div>
 
-                      <div style={{padding:'24px'}}>
-                          {chatError && (
-                              <div style={{padding:'12px', background:'#fee2e2', border:'1px solid #fecaca', borderRadius:'8px', color:'#991b1b', marginBottom:'16px', fontSize:'0.9rem'}}>
-                                  {chatError}
-                              </div>
-                          )}
+                      <div className="fx-modal-body">
+                          {chatError && <div className="fx-alert">{chatError}</div>}
 
-                          <div style={{marginBottom:'20px'}}>
-                              <label style={{display:'block', marginBottom:'10px', fontSize:'0.85rem', fontWeight:'700', color:'#1e293b', textTransform:'uppercase', letterSpacing:'0.05em'}}>Tipo de Chat</label>
-                              <div style={{display:'flex', gap:'12px'}}>
-                                  <button
-                                      type="button"
-                                      onClick={() => {
-                                          setNewChatType('private');
-                                          setSelectedUsersForGroupChat([]);
-                                      }}
-                                      style={{
-                                          flex:1,
-                                          padding:'12px',
-                                          border:'1px solid #cbd5e1',
-                                          borderRadius:'10px',
-                                          background: newChatType === 'private' ? '#e0e7ff' : '#fff',
-                                          color:'#1e293b',
-                                          fontWeight:'800',
-                                          cursor:'pointer',
-                                          transition:'0.2s'
-                                      }}
-                                  >
-                                      Chat Privado
-                                  </button>
-                                  <button
-                                      type="button"
-                                      onClick={() => {
-                                          setNewChatType('group');
-                                          setSelectedUserForChat(null);
-                                      }}
-                                      style={{
-                                          flex:1,
-                                          padding:'12px',
-                                          border:'1px solid #cbd5e1',
-                                          borderRadius:'10px',
-                                          background: newChatType === 'group' ? '#e0e7ff' : '#fff',
-                                          color:'#1e293b',
-                                          fontWeight:'800',
-                                          cursor:'pointer',
-                                          transition:'0.2s'
-                                      }}
-                                  >
-                                      Grupo
-                                  </button>
-                              </div>
-                          </div>
-
-                          {newChatType === 'group' ? (
-                              <div style={{marginBottom:'20px', display:'grid', gap:'14px'}}>
-                                  <label style={{display:'block', marginBottom:'8px', fontSize:'0.85rem', fontWeight:'700', color:'#1e293b', textTransform:'uppercase', letterSpacing:'0.05em'}}>Nome do Grupo</label>
-                                  <input
-                                      type="text"
-                                      value={newChatName}
-                                      onChange={(e) => setNewChatName(e.target.value)}
-                                      placeholder="Ex: Equipa de Vendas"
-                                      style={{width:'100%', padding:'12px 15px', borderRadius:'8px', border:'1px solid #cbd5e1', background:'#fff', fontSize:'0.95rem', color:'#1e293b', outline:'none', boxSizing:'border-box'}}
-                                  />
-
-                                  <div>
-                                      <label style={{display:'block', marginBottom:'8px', fontSize:'0.85rem', fontWeight:'700', color:'#1e293b', textTransform:'uppercase', letterSpacing:'0.05em'}}>
-                                          Membros do Grupo ({selectedUsersForGroupChat.length} selecionado(s))
-                                      </label>
-                                      <div style={{maxHeight:'220px', overflowY:'auto', border:'1px solid #e2e8f0', borderRadius:'10px', padding:'8px', display:'grid', gap:'8px', background:'#fff'}}>
-                                          {chatCollaborators.length === 0 && (
-                                              <div style={{fontSize:'0.85rem', color:'#94a3b8', padding:'8px'}}>Sem colaboradores disponíveis.</div>
-                                          )}
-                                          {chatCollaborators.map((collab) => {
-                                              const selected = selectedUsersForGroupChat.includes(collab.id);
-                                              return (
-                                                  <button
-                                                      key={collab.id}
-                                                      type="button"
-                                                      onClick={() => toggleGroupParticipant(collab.id)}
-                                                      style={{
-                                                          width:'100%',
-                                                          display:'flex',
-                                                          alignItems:'center',
-                                                          justifyContent:'space-between',
-                                                          gap:'10px',
-                                                          border: selected ? '1px solid #93c5fd' : '1px solid #e2e8f0',
-                                                          borderRadius:'8px',
-                                                          padding:'10px',
-                                                          background: selected ? '#eff6ff' : '#fff',
-                                                          cursor:'pointer',
-                                                          textAlign:'left'
-                                                      }}
-                                                  >
-                                                      <span style={{fontWeight:'700', color:'#1e293b', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{collab.nome}</span>
-                                                      <span style={{fontSize:'0.75rem', fontWeight:'800', color: selected ? '#1d4ed8' : '#94a3b8'}}>{selected ? 'Selecionado' : 'Selecionar'}</span>
-                                                  </button>
-                                              );
-                                          })}
-                                      </div>
-                                  </div>
-                              </div>
-                          ) : (
-                              <div style={{marginBottom:'20px'}}>
-                                  <label style={{display:'block', marginBottom:'8px', fontSize:'0.85rem', fontWeight:'700', color:'#1e293b', textTransform:'uppercase', letterSpacing:'0.05em'}}>Selecionar Utilizador</label>
-                                  <select
-                                      value={selectedUserForChat?.id || ''}
-                                      onChange={(e) => {
-                                          const user = chatCollaborators.find(u => u.id === e.target.value);
-                                          setSelectedUserForChat(user);
-                                      }}
-                                      style={{width:'100%', padding:'12px 15px', borderRadius:'8px', border:'1px solid #cbd5e1', background:'#fff', fontSize:'0.95rem', color:'#1e293b', outline:'none', boxSizing:'border-box'}}
-                                  >
-                                      <option value="">-- Escolha um utilizador --</option>
-                                      {chatCollaborators.map(collab => (
-                                          <option key={collab.id} value={collab.id}>{collab.nome}</option>
-                                      ))}
-                                  </select>
-                              </div>
-                          )}
-
-                          <div style={{display:'flex', gap:'12px', marginTop:'24px'}}>
-                              <button
-                                  onClick={closeNewChatModal}
-                                  style={{flex:1, padding:'12px 20px', borderRadius:'8px', border:'1px solid #cbd5e1', background:'#fff', color:'#1e293b', fontWeight:'700', cursor:'pointer', transition:'0.2s'}}
-                                  className="hover-shadow"
-                              >
-                                  Cancelar
+                          <div className="fx-segment" data-value={newChatType}>
+                              <span className="fx-segment-pill" aria-hidden="true" />
+                              <button type="button" className={newChatType === 'private' ? 'is-on' : ''} onClick={() => { setNewChatType('private'); setSelectedUsersForGroupChat([]); }}>
+                                  <Icons.User size={15} /> Privado
                               </button>
-                              <button
-                                  onClick={createNewChat}
-                                  disabled={newChatLoading || (newChatType === 'group' && !newChatName.trim()) || (newChatType === 'private' && !selectedUserForChat)}
-                                  style={{flex:1, padding:'12px 20px', borderRadius:'8px', border:'none', background:'var(--color-btnPrimary)', color:'#fff', fontWeight:'700', cursor: newChatLoading || (newChatType === 'group' && !newChatName.trim()) || (newChatType === 'private' && !selectedUserForChat) ? 'not-allowed' : 'pointer', opacity: newChatLoading || (newChatType === 'group' && !newChatName.trim()) || (newChatType === 'private' && !selectedUserForChat) ? 0.6 : 1, transition:'0.2s'}}
-                                  className="hover-shadow"
-                              >
-                                  {newChatLoading ? 'Criando...' : 'Criar Chat'}
+                              <button type="button" className={newChatType === 'group' ? 'is-on' : ''} onClick={() => { setNewChatType('group'); setSelectedUserForChat(null); }}>
+                                  <Icons.Users size={15} /> Grupo
                               </button>
                           </div>
+
+                          {newChatType === 'group' && (
+                              <label className="fx-field">
+                                  <span className="fx-label">Nome do grupo</span>
+                                  <input type="text" className="fx-input" value={newChatName} onChange={(e) => setNewChatName(e.target.value)} placeholder="Ex: Equipa de Vendas" />
+                              </label>
+                          )}
+
+                          <div className="fx-field">
+                              <span className="fx-label">
+                                  {newChatType === 'group' ? `Membros · ${selectedUsersForGroupChat.length} selecionado(s)` : 'Escolhe um colega'}
+                              </span>
+                              <div className="fx-search">
+                                  <Icons.Search size={16} />
+                                  <input type="text" value={chatPeopleQuery} onChange={(e) => setChatPeopleQuery(e.target.value)} placeholder="Procurar colega..." />
+                              </div>
+                              <div className="fx-people custom-scrollbar">
+                                  {chatCollaborators.length === 0 && <div className="fx-people-empty">Sem colaboradores disponíveis.</div>}
+                                  {chatCollaborators.length > 0 && filterPeople(chatCollaborators).length === 0 && <div className="fx-people-empty">Ninguém com esse nome.</div>}
+                                  {filterPeople(chatCollaborators).map((collab) => (
+                                      newChatType === 'group'
+                                          ? renderPersonOption(collab, selectedUsersForGroupChat.includes(collab.id), () => toggleGroupParticipant(collab.id), true)
+                                          : renderPersonOption(collab, selectedUserForChat?.id === collab.id, () => setSelectedUserForChat(collab), false)
+                                  ))}
+                              </div>
+                          </div>
+                      </div>
+
+                      <div className="fx-modal-foot">
+                          <button type="button" onClick={closeNewChatDialog} className="fx-btn fx-btn-ghost">Cancelar</button>
+                          <button type="button" onClick={createNewChat} disabled={newChatDisabled} className="fx-btn fx-btn-primary">
+                              {newChatLoading ? <><span className="fx-spinner" /> A criar...</> : 'Criar chat'}
+                          </button>
                       </div>
                   </div>
               </div>
@@ -2482,83 +2505,73 @@ async function handleSendChat(e) {
       {/* --- MODAL NOVO POST --- */}
       {showNewPostModal && (
         <ModalPortal>
-            <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.72)', backdropFilter: 'blur(5px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:99999, padding:'16px'}}>
-                <div style={{background:'white', width:'min(1220px, 98vw)', height:'88vh', borderRadius:'18px', boxShadow: '0 30px 60px -20px rgba(15, 23, 42, 0.45)', overflow: 'hidden', animation: 'fadeIn 0.2s ease-out', display:'flex', flexDirection:'column', border:'1px solid var(--color-borderColorLight)'}}>
-                    <div style={{padding:'18px 24px', background:'#f8fafc', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+            <div className="fx-overlay" style={{ zIndex: 99999 }}>
+                <div className="fx-modal fx-modal-composer" role="dialog" aria-label="Compositor de publicação">
+                    <div className="fx-modal-head">
                         <div>
-                            <p style={{
-                                margin:'0 0 4px 0', fontSize:'0.72rem', fontWeight:'800', letterSpacing:'0.07em', 
-                                color: editingPost ? '#d97706' : 'var(--color-btnPrimary)', textTransform:'uppercase'
-                            }}>
-                                {editingPost ? "Modo de Edição" : "Novo Conteúdo"}
-                            </p>
-
-                            <h3 style={{margin:0, color:'#1e293b', fontSize:'1.35rem', fontWeight:'900', display: 'flex', alignItems: 'center', gap: '10px'}}>
-                                <span style={{color: editingPost ? '#d97706' : 'var(--color-btnPrimary)'}}>
-                                    <Icons.Edit size={22} />
-                                </span> 
-                                {editingPost ? `A editar publicação...` : "Compositor de Publicação"}
-                            </h3>
+                            <p className={`fx-kicker ${editingPost ? 'is-warn' : ''}`}>{editingPost ? 'Modo de edição' : 'Nova publicação'}</p>
+                            <h3>{editingPost ? 'A editar publicação' : 'Compositor de publicação'}</h3>
                         </div>
-                        <button onClick={closeNewPostModal} style={{background:'#fff', border:'1px solid #cbd5e1', cursor:'pointer', color:'#64748b', width:'36px', height:'36px', borderRadius:'10px', display:'flex', alignItems:'center', justifyContent:'center'}} className="hover-red-text"><Icons.Close size={20} /></button>
+                        <button type="button" onClick={closeNewPostModal} className="fx-close" aria-label="Fechar"><Icons.Close size={18} /></button>
                     </div>
 
-                    <form onSubmit={handleCreatePost} onPaste={handleComposerPaste} style={{display:'grid', gridTemplateColumns:'280px 1fr', flex:1, minHeight:0}}>
-                        <aside style={{borderRight:'1px solid #e2e8f0', background:'linear-gradient(180deg, #f8fafc 0%, #ffffff 100%)', padding:'20px 16px', overflowY:'auto'}}>
-                            <div style={{border:'1px solid var(--color-borderColorLight)', borderRadius:'12px', background:'var(--color-bgSecondary)', padding:'12px', marginBottom:'14px'}}>
-                                <p style={{margin:'0 0 6px 0', fontSize:'0.72rem', fontWeight:'800', letterSpacing:'0.06em', color:'var(--color-btnPrimaryDark)', textTransform:'uppercase'}}>Guia Rapido</p>
-                                <div style={{fontSize:'0.85rem', color:'var(--color-btnPrimaryDark)', lineHeight:'1.45'}}>
-                                    1. Define titulo e categoria.
-                                    <br />2. Adiciona blocos de texto e imagem.
-                                    <br />3. Podes colar imagem com CTRL+V.
-                                </div>
+                    <form onSubmit={handleCreatePost} onPaste={handleComposerPaste} className="fx-composer">
+                        <aside className="fx-composer-side custom-scrollbar">
+                            <div className="fx-guide">
+                                <p className="fx-kicker">Guia rápido</p>
+                                <ol>
+                                    <li>Define o título e a categoria.</li>
+                                    <li>Junta blocos de texto e imagem.</li>
+                                    <li>Arrasta os blocos para os reordenar.</li>
+                                </ol>
                             </div>
 
-                            <div style={{display:'grid', gap:'8px', marginBottom:'14px'}}>
-                                <button type="button" onClick={addTextBlock} style={{border: '1px solid #cbd5e1', background: 'white', color: '#334155', borderRadius: '10px', padding: '10px 12px', cursor: 'pointer', fontWeight: '700', fontSize: '0.85rem', textAlign:'left'}}>+ Bloco de texto</button>
-                                <button type="button" onClick={addImageBlock} style={{border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', borderRadius: '10px', padding: '10px 12px', cursor: 'pointer', fontWeight: '700', fontSize: '0.85rem', textAlign:'left'}}>+ Bloco de imagem</button>
+                            <p className="fx-label">Adicionar bloco</p>
+                            <div className="fx-add-blocks">
+                                <button type="button" onClick={addTextBlock} className="fx-add-block">
+                                    <span className="fx-add-icon">¶</span>
+                                    <span><strong>Texto</strong><small>Parágrafo livre</small></span>
+                                </button>
+                                <button type="button" onClick={addImageBlock} className="fx-add-block">
+                                    <span className="fx-add-icon"><Icons.Image size={18} /></span>
+                                    <span><strong>Imagem</strong><small>Ou cola com Ctrl+V</small></span>
+                                </button>
                             </div>
 
-                            <div style={{fontSize:'0.8rem', color:'#64748b', lineHeight:'1.5', borderTop:'1px solid #e2e8f0', paddingTop:'12px'}}>
-                                Blocos atuais: <strong>{postBlocks.length}</strong>
-                                <br />
-                                Dica: usa CTRL+V para colar prints diretamente no post.
-                            </div>
+                            <p className="fx-side-foot">Blocos atuais: <strong>{postBlocks.length}</strong></p>
                         </aside>
 
-                        <div style={{display:'flex', flexDirection:'column', minHeight:0}}>
-                            <div style={{padding: '18px 22px 12px 22px', borderBottom:'1px solid #f1f5f9', background:'#fff'}}>
-                                <div style={{display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '14px'}}>
-                                    <div>
-                                        <label style={labelStyle}>Titulo Breve *</label>
-                                        <input type="text" value={newPost.titulo} onChange={e => setNewPost({...newPost, titulo: e.target.value})} required style={inputStyle} className="input-focus" placeholder="Ex: Nova atualização do sistema..." />
-                                    </div>
-                                    <div>
-                                        <label style={labelStyle}>Categoria *</label>
-                                        <select value={newPost.categoria} onChange={e => setNewPost({...newPost, categoria: e.target.value})} style={{...inputStyle, cursor: 'pointer'}} className="input-focus" required>
-                                            <option value="geral">Geral</option>
-                                            <option value="aviso">Aviso</option>
-                                            <option value="duvida">Dúvida</option>
-                                            <option value="ideia">Ideia</option>
-                                        </select>
+                        <div className="fx-composer-main">
+                            <div className="fx-composer-fields">
+                                <label className="fx-field">
+                                    <span className="fx-label">Título *</span>
+                                    <input type="text" value={newPost.titulo} onChange={e => setNewPost({...newPost, titulo: e.target.value})} required className="fx-input fx-input-lg" placeholder="Ex: Nova atualização do sistema..." />
+                                </label>
+                                <div className="fx-field">
+                                    <span className="fx-label">Categoria *</span>
+                                    <div className="fx-cat-picker">
+                                        {['geral', 'aviso', 'duvida', 'ideia'].map((key) => (
+                                            <button key={key} type="button" className={`fx-cat-option fx-cat-${key} ${newPost.categoria === key ? 'is-on' : ''}`} onClick={() => setNewPost({ ...newPost, categoria: key })}>
+                                                <span aria-hidden="true">{FORUM_CATEGORIES[key].emoji}</span> {FORUM_CATEGORIES[key].label}
+                                            </button>
+                                        ))}
                                     </div>
                                 </div>
-                                <p style={{margin:'0', fontSize:'0.82rem', color:'#64748b'}}>Compositor em blocos: texto e imagem na ordem que quiseres.</p>
                             </div>
 
                             <div
-                                style={{padding:'16px 22px 18px 22px', overflowY:'auto', flex:1, background:'#ffffff'}}
-                                className="custom-scrollbar"
+                                className="fx-composer-canvas custom-scrollbar"
                                 onDragOver={(event) => {
                                     event.preventDefault();
                                     event.dataTransfer.dropEffect = "copy";
                                 }}
                                 onDrop={handleComposerDrop}
                             >
-                                <div style={{marginBottom: '14px', padding: '14px 16px', borderRadius: '14px', border: '1px dashed var(--color-borderColor)', background: 'linear-gradient(180deg, #f8fafc 0%, #ffffff 100%)', color: '#475569', fontSize: '0.9rem', lineHeight: '1.5'}}>
-                                    Solta imagens aqui para criar blocos automaticamente. Também podes usar CTRL+V para colar capturas.
+                                <div className="fx-dropzone">
+                                    <Icons.Image size={18} /> Solta imagens aqui ou cola capturas com <kbd>Ctrl</kbd> + <kbd>V</kbd>
                                 </div>
-                                <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
+
+                                <div className="fx-block-list">
                                     {postBlocks.map((block, idx) => (
                                         <div
                                             key={block.id}
@@ -2567,80 +2580,52 @@ async function handleSendChat(e) {
                                             onDragOver={(event) => handleBlockDragOver(event, idx)}
                                             onDrop={(event) => handleBlockDrop(event, idx)}
                                             onDragEnd={handleBlockDragEnd}
-                                            style={{
-                                                border: dragOverBlockIndex === idx ? '2px dashed var(--color-btnPrimary)' : '1px solid #e2e8f0',
-                                                borderRadius: '12px',
-                                                background: draggedBlockIndex === idx ? '#eff6ff' : '#f8fafc',
-                                                padding: '12px',
-                                                opacity: draggedBlockIndex === idx ? 0.85 : 1,
-                                                boxShadow: dragOverBlockIndex === idx ? '0 0 0 3px rgba(59, 130, 246, 0.08)' : 'none',
-                                                cursor: 'grab',
-                                            }}
+                                            className={`fx-block ${dragOverBlockIndex === idx ? 'is-over' : ''} ${draggedBlockIndex === idx ? 'is-dragging' : ''}`}
                                         >
-                                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px'}}>
-                                                <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
-                                                    <span style={{display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '8px', background: 'white', border: '1px solid #dbe4ee', color: '#64748b'}}>
-                                                        <Icons.GripVertical size={14} />
-                                                    </span>
-                                                    <div style={{fontSize: '0.75rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em'}}>
-                                                        Bloco {idx + 1}: {block.type === 'text' ? 'Texto' : 'Imagem'}
-                                                    </div>
-                                                </div>
-                                                <div style={{display: 'flex', gap: '6px'}}>
-                                                    <button type="button" onClick={() => removeBlock(idx)} style={{border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', borderRadius: '6px', padding: '4px 8px', cursor: 'pointer'}}>Remover</button>
-                                                </div>
-                                            </div>
-
-                                            {block.type === 'text' ? (
-                                                <div style={{display: 'grid', gap: '8px'}}>
-                                                    <div style={{display: 'grid', gridTemplateColumns: 'auto 1fr', alignItems: 'center', gap: '10px'}}>
-                                                        <span style={{fontSize: '0.8rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Alinhamento</span>
-                                                        <select
-                                                            value={block.align || 'left'}
-                                                            onChange={(e) => updateTextBlockAlignment(block.id, e.target.value)}
-                                                            style={{...inputStyle, marginBottom: 0, cursor: 'pointer', padding: '10px 12px'}}
-                                                            className="input-focus"
-                                                        >
+                                            <div className="fx-block-head">
+                                                <span className="fx-grip" title="Arrastar para reordenar"><Icons.GripVertical size={14} /></span>
+                                                <span className="fx-block-tag">
+                                                    {block.type === 'text' ? '¶' : <Icons.Image size={13} />} Bloco {idx + 1} · {block.type === 'text' ? 'Texto' : 'Imagem'}
+                                                </span>
+                                                <div className="fx-block-tools">
+                                                    {block.type === 'text' ? (
+                                                        <select value={block.align || 'left'} onChange={(e) => updateTextBlockAlignment(block.id, e.target.value)} className="fx-select-sm" title="Alinhamento">
                                                             {TEXT_ALIGNMENT_OPTIONS.map((option) => (
                                                                 <option key={option.value} value={option.value}>{option.label}</option>
                                                             ))}
                                                         </select>
-                                                    </div>
-                                                    <textarea
-                                                        rows="4"
-                                                        value={block.text}
-                                                        onChange={(e) => updateTextBlock(block.id, e.target.value)}
-                                                        style={{...inputStyle, marginBottom: 0, resize: 'vertical', textAlign: block.align || 'left'}}
-                                                        className="input-focus"
-                                                        placeholder="Escreve o texto deste bloco..."
-                                                    />
-                                                </div>
-                                            ) : (
-                                                <div style={{display: 'grid', gap: '8px'}}>
-                                                    <label style={{display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: '600', color: 'var(--color-btnPrimary)'}}>
-                                                        <Icons.Image size={18} color="var(--color-btnPrimary)" /> Selecionar imagem
-                                                        <input type="file" accept="image/*" onChange={(e) => updateImageBlockFile(block.id, e.target.files?.[0])} style={{display: 'none'}} />
-                                                    </label>
-                                                    <div style={{display: 'grid', gridTemplateColumns: 'auto 1fr', alignItems: 'center', gap: '10px'}}>
-                                                        <span style={{fontSize: '0.8rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Tamanho</span>
-                                                        <select
-                                                            value={block.size || 'lg'}
-                                                            onChange={(e) => updateImageBlockSize(block.id, e.target.value)}
-                                                            style={{...inputStyle, marginBottom: 0, cursor: 'pointer', padding: '10px 12px'}}
-                                                            className="input-focus"
-                                                        >
+                                                    ) : (
+                                                        <select value={block.size || 'lg'} onChange={(e) => updateImageBlockSize(block.id, e.target.value)} className="fx-select-sm" title="Tamanho">
                                                             {IMAGE_SIZE_OPTIONS.map((option) => (
                                                                 <option key={option.value} value={option.value}>{option.label}</option>
                                                             ))}
                                                         </select>
-                                                    </div>
-                                                    {(block.previewUrl || block.uploadedUrl) ? (
-                                                        <div style={{borderRadius: '8px', overflow: 'hidden', background: 'transparent', padding: '0', display: 'flex', justifyContent: 'center', width: '100%', maxWidth: getImageSizeConfig(block.size).maxWidth, alignSelf: 'center'}}>
-                                                            <img src={block.previewUrl || block.uploadedUrl} alt="Preview do bloco" style={{width: '100%', maxHeight: '360px', objectFit: 'contain', borderRadius: '6px'}} />
-                                                        </div>
-                                                    ) : (
-                                                        <div style={{fontSize: '0.8rem', color: '#64748b'}}>Sem imagem selecionada neste bloco.</div>
                                                     )}
+                                                    <button type="button" onClick={() => removeBlock(idx)} className="fx-icon-btn is-danger" title="Remover bloco"><Icons.Trash size={15} /></button>
+                                                </div>
+                                            </div>
+
+                                            {block.type === 'text' ? (
+                                                <textarea
+                                                    rows="4"
+                                                    value={block.text}
+                                                    onChange={(e) => updateTextBlock(block.id, e.target.value)}
+                                                    style={{ textAlign: block.align || 'left' }}
+                                                    className="fx-input fx-textarea"
+                                                    placeholder="Escreve o texto deste bloco..."
+                                                />
+                                            ) : (
+                                                <div className="fx-image-block">
+                                                    {(block.previewUrl || block.uploadedUrl) ? (
+                                                        <div className="fx-image-preview" style={{ maxWidth: getImageSizeConfig(block.size).maxWidth }}>
+                                                            <img src={block.previewUrl || block.uploadedUrl} alt="Preview do bloco" />
+                                                        </div>
+                                                    ) : null}
+                                                    <label className={`fx-image-pick ${(block.previewUrl || block.uploadedUrl) ? 'is-compact' : ''}`}>
+                                                        <Icons.Image size={20} />
+                                                        <span>{(block.previewUrl || block.uploadedUrl) ? 'Trocar imagem' : 'Selecionar imagem'}</span>
+                                                        <input type="file" accept="image/*" onChange={(e) => updateImageBlockFile(block.id, e.target.files?.[0])} style={{ display: 'none' }} />
+                                                    </label>
                                                 </div>
                                             )}
                                         </div>
@@ -2648,14 +2633,13 @@ async function handleSendChat(e) {
                                 </div>
                             </div>
 
-                            <div style={{display: 'flex', gap: '10px', justifyContent: 'flex-end', padding:'14px 22px', borderTop: '1px solid #e2e8f0', background:'#f8fafc'}}>
-                                <button type="button" onClick={closeNewPostModal} style={{padding: '11px 18px', borderRadius: '10px', border: '1px solid #cbd5e1', background: 'white', color: '#64748b', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">Cancelar</button>
-                                <button type="submit" disabled={isUploading} className="btn-primary hover-shadow" style={{padding: '11px 24px', borderRadius: '10px', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px'}}>
-                                    {isUploading ? (editingPost ? "A guardar..." : "A publicar...") : (
-                                        <>
-                                            <Icons.Send size={16}/> 
-                                            {editingPost ? "Guardar Alterações" : "Publicar"}
-                                        </>
+                            <div className="fx-modal-foot">
+                                <button type="button" onClick={closeNewPostModal} className="fx-btn fx-btn-ghost">Cancelar</button>
+                                <button type="submit" disabled={isUploading} className="fx-btn fx-btn-primary">
+                                    {isUploading ? (
+                                        <><span className="fx-spinner" /> {editingPost ? "A guardar..." : "A publicar..."}</>
+                                    ) : (
+                                        <><Icons.Send size={16} /> {editingPost ? "Guardar alterações" : "Publicar"}</>
                                     )}
                                 </button>
                             </div>
@@ -2666,114 +2650,87 @@ async function handleSendChat(e) {
         </ModalPortal>
       )}
 
-      {/* --- MODAL SPLIT-SCREEN GIGANTE (DETALHE DO POST) --- */}
+      {/* --- MODAL DE DETALHE DO POST --- */}
       {selectedPost && (
         <ModalPortal>
-            <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:99999}} onClick={() => setSelectedPost(null)}>
-            
-            <div style={{background:'#fff', width:'98%', maxWidth:'1100px', borderRadius:'16px', boxShadow:'0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow:'hidden', display:'flex', flexDirection:'column', height:'90vh', maxHeight:'90vh', animation: 'fadeIn 0.2s ease-out'}} onClick={e => e.stopPropagation()}>
-                
-                <div style={{padding:'20px 25px', background:'white', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                    <h3 style={{margin:0, color:'#1e293b', fontSize:'1.2rem', fontWeight:'800'}}>Discussão Aberta</h3>
-                    <button onClick={() => setSelectedPost(null)} style={{background:'#f1f5f9', border:'none', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor:'pointer', color:'#64748b', transition: '0.2s'}} className="hover-red-btn"><Icons.Close size={18} /></button>
+            <div className="fx-overlay" style={{ zIndex: 99999 }} onClick={() => setSelectedPost(null)}>
+            <div className="fx-modal fx-modal-detail" onClick={e => e.stopPropagation()} role="dialog" aria-label="Discussão">
+                <div className="fx-modal-head">
+                    <div>
+                        <p className="fx-kicker">Discussão aberta</p>
+                        <h3 className="fx-ellipsis">{selectedPost.titulo}</h3>
+                    </div>
+                    <button type="button" onClick={() => setSelectedPost(null)} className="fx-close" aria-label="Fechar"><Icons.Close size={18} /></button>
                 </div>
 
-                <div className="post-modal-layout">
-                    
+                <div className="fx-detail">
                     {/* ESQUERDA: POST ORIGINAL */}
-                    <div className="post-modal-left custom-scrollbar" style={{padding: '30px', overflowY: 'auto'}}>
-                        <div style={{display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px'}}>
-                            <div style={{width: '50px', height: '50px', borderRadius: '50%', background: '#f1f5f9', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem', border: '1px solid #e2e8f0'}}>
-                                {renderAvatar(selectedPost.profiles?.nome, selectedPost.profiles?.avatar_url, 50, '1rem')}
-                            </div>
-                            <div>
-                                <div style={{fontSize: '1.1rem', color: '#1e293b', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '10px'}}>
-                                    {selectedPost.profiles?.nome} 
+                    <div className={`fx-detail-post fx-post-${getCategoryKey(selectedPost.categoria)} custom-scrollbar`}>
+                        <div className="fx-post-head">
+                            <span className="fx-avatar fx-avatar-lg">{renderAvatar(selectedPost.profiles?.nome, selectedPost.profiles?.avatar_url, 52, '1rem')}</span>
+                            <div className="fx-post-meta">
+                                <div className="fx-post-author">
+                                    <strong className="fx-detail-author">{selectedPost.profiles?.nome}</strong>
                                     {getCategoryBadge(selectedPost.categoria)}
                                 </div>
-                                <div style={{fontSize: '0.85rem', color: '#94a3b8', fontWeight: '500', marginTop: '2px'}}>
-                                    {formatDate(selectedPost.created_at)}
-                                </div>
+                                <span className="fx-post-time">{formatDate(selectedPost.created_at)}</span>
                             </div>
                         </div>
-                        
-                        <h2 style={{margin: '0 0 15px 0', color: '#0f172a', fontSize: '1.6rem', fontWeight: '900', lineHeight: '1.3'}}>{selectedPost.titulo}</h2>
-                        <div style={{ marginBottom: '25px' }}>
+
+                        <h2 className="fx-detail-title">{selectedPost.titulo}</h2>
+                        <div className="fx-detail-body">
                             {renderPostBlocks(selectedPost, { imageMaxHeight: 560 })}
                         </div>
 
-                        <div style={{marginTop: 'auto', paddingTop: '20px', borderTop: '1px solid #e2e8f0', display:'flex', gap:'10px', alignItems:'center', flexWrap: 'wrap'}}>
-                            {['👍','❤️','💡','🚀','😂','😮','😢'].map(emoji => {
-                                const count = getReactionCounts(selectedPost.forum_reactions)[emoji] || 0;
-                                const hasReacted = selectedPost.forum_reactions?.find(r => r.user_id === user.id && r.reaction_type === emoji);
-                                return (
-                                    <button key={emoji} onClick={() => handleReact(emoji, selectedPost.id, selectedPost.forum_reactions)} style={{
-                                            background: hasReacted ? 'var(--color-bgSecondary)' : 'white', border: hasReacted ? '1px solid var(--color-borderColor)' : '1px solid #e2e8f0', 
-                                            borderRadius: '20px', padding: '8px 16px', cursor: 'pointer', fontSize:'1.2rem', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '8px'
-                                        }} className={!hasReacted ? "hover-shadow" : ""}>
-                                        {emoji} <span style={{fontSize:'0.9rem', fontWeight:'bold', color: hasReacted ? 'var(--color-btnPrimary)' : '#64748b'}}>{count}</span>
-                                    </button>
-                                );
-                            })}
+                        <div className="fx-detail-reactions">
+                            {renderReactionButtons(selectedPost, ['👍', '❤️', '💡', '🚀', '😂', '😮', '😢'], { showEmpty: true })}
                         </div>
                     </div>
 
                     {/* DIREITA: COMENTÁRIOS */}
-                    <div className="post-modal-right" style={{background: '#f8fafc', display: 'flex', flexDirection: 'column'}}>
-                        
-                        <div style={{padding: '20px 25px', borderBottom: '1px solid #e2e8f0', background: 'white'}}>
-                            <h4 style={{margin: 0, color: '#1e293b', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px'}}>
-                                <Icons.Message size={18} color="var(--color-btnPrimary)" /> Comentários ({comments.length})
-                            </h4>
+                    <div className="fx-thread">
+                        <div className="fx-thread-head">
+                            <Icons.Message size={17} /> Comentários <span className="fx-count">{comments.length}</span>
                         </div>
 
-                        <div style={{flex: 1, overflowY: 'auto', padding: '20px 25px', display: 'flex', flexDirection: 'column', gap: '15px'}} className="custom-scrollbar">
+                        <div className="fx-thread-list custom-scrollbar">
                             {comments.map(c => (
-                                <div key={c.id} style={{background: 'white', padding: '15px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.02)'}}>
-                                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px'}}>
-                                        <div style={{display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.85rem'}}>
-                                            <div style={{width: '28px', height: '28px', borderRadius: '50%', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.75rem', border: '1px solid var(--color-borderColor)', overflow:'hidden'}}>
-                                                {renderAvatar(c.profiles?.nome, c.profiles?.avatar_url, 28, '0.7rem')}
+                                <div key={c.id} className="fx-comment">
+                                    <span className="fx-avatar fx-avatar-xs">{renderAvatar(c.profiles?.nome, c.profiles?.avatar_url, 30, '0.7rem')}</span>
+                                    <div className="fx-comment-main">
+                                        <div className="fx-comment-bubble is-white">
+                                            <div className="fx-comment-head">
+                                                <strong>{c.profiles?.nome}</strong>
+                                                <span>{formatDate(c.created_at)}</span>
                                             </div>
-                                            <span style={{fontWeight: '800', color: '#1e293b', fontSize: '0.95rem'}}>{c.profiles?.nome}</span>
-                                            <span style={{color: '#94a3b8', fontWeight: '500'}}>{formatDate(c.created_at)}</span>
+                                            <div className="fx-comment-text">{renderWithLinks(c.conteudo)}</div>
                                         </div>
-                                        
-                                        {canDelete(c.user_id) && (
-                                            <button onClick={() => requestDelete(c.id, 'comment', selectedPost?.id || null)} style={actionBtnStyle} className="hover-red-btn" title="Apagar Comentário">
-                                                <Icons.Trash />
-                                            </button>
-                                        )}
-                                        <button onClick={() => setModalReplyTarget({ id: c.id, nome: c.profiles?.nome || 'Utilizador' })} style={{background:'transparent', border:'none', color:'var(--color-btnPrimary)', fontWeight:'700', cursor:'pointer', fontSize:'0.78rem'}}>Responder</button>
-                                    </div>
-                                    <div style={{fontSize: '0.95rem', color: '#475569', overflowWrap: 'break-word', whiteSpace: 'pre-wrap', lineHeight: '1.5', paddingLeft: '38px'}}>
-                                        {renderWithLinks(c.conteudo)}
+                                        <div className="fx-comment-actions">
+                                            <button type="button" onClick={() => setModalReplyTarget({ id: c.id, nome: c.profiles?.nome || 'Utilizador' })} className="fx-text-btn">Responder</button>
+                                            {canDelete(c.user_id) && (
+                                                <button type="button" onClick={() => requestDelete(c.id, 'comment', selectedPost?.id || null)} className="fx-text-btn is-danger" title="Apagar Comentário">Apagar</button>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             ))}
                             {comments.length === 0 && (
-                                <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#94a3b8', opacity: 0.6}}>
-                                    <Icons.Message size={40} />
-                                    <p style={{marginTop: '10px', fontWeight: '500'}}>Sê o primeiro a comentar.</p>
+                                <div className="fx-thread-empty">
+                                    <span className="fx-empty-icon"><Icons.Message size={26} /></span>
+                                    <p>Sê o primeiro a comentar.</p>
                                 </div>
                             )}
                         </div>
 
-                        <div style={{padding: '20px 25px', borderTop: '1px solid #e2e8f0', background: 'white'}}>
-                            {modalReplyTarget?.nome && (
-                                <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'8px', padding:'8px 10px', borderRadius:'10px', border:'1px solid #bfdbfe', background:'#eff6ff', color:'#1e3a8a', fontSize:'0.84rem'}}>
-                                    <span>A responder a <strong>{modalReplyTarget.nome}</strong></span>
-                                    <button onClick={() => setModalReplyTarget(null)} style={{background:'transparent', border:'none', color:'#1e3a8a', cursor:'pointer', fontWeight:'700'}}>Cancelar</button>
-                                </div>
-                            )}
-                            <form onSubmit={handleSendComment} style={{display:'flex', gap:'10px', alignItems: 'center'}}>
-                                <input type="text" placeholder={modalReplyTarget?.nome ? `Responder a ${modalReplyTarget.nome}...` : 'Escreve uma resposta...'} value={newCommentText} onChange={e => setNewCommentText(e.target.value)} style={{ flex: 1, padding: '15px 20px', borderRadius: '30px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.95rem', background: '#f1f5f9', transition: '0.2s' }} className="input-focus" />
-                                <button type="submit" className="btn-primary hover-shadow" style={{width: '48px', height: '48px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0}} disabled={!newCommentText.trim()}>
-                                    <Icons.Send size={20} />
+                        <div className="fx-thread-form">
+                            {renderReplyChip(modalReplyTarget, () => setModalReplyTarget(null))}
+                            <form onSubmit={handleSendComment} className="fx-input-pill fx-input-pill-lg">
+                                <input type="text" placeholder={modalReplyTarget?.nome ? `Responder a ${modalReplyTarget.nome}...` : 'Escreve uma resposta...'} value={newCommentText} onChange={e => setNewCommentText(e.target.value)} />
+                                <button type="submit" className="fx-send" disabled={!newCommentText.trim()} aria-label="Enviar">
+                                    <Icons.Send size={17} />
                                 </button>
                             </form>
                         </div>
-
                     </div>
                 </div>
             </div>
@@ -2781,285 +2738,176 @@ async function handleSendChat(e) {
         </ModalPortal>
       )}
 
+      {/* --- MODAL DE CHAT --- */}
       {chatModal.show && (
     <ModalPortal>
-        <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.72)', backdropFilter: 'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:999999, padding:'14px'}} onClick={closeInternalChatModal}>
-            <div style={{background:'white', width:'min(1600px, 98vw)', height:'96vh', borderRadius:'18px', border:'1px solid #e2e8f0', boxShadow:'0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow:'hidden', display:'grid', gridTemplateColumns:'320px 1fr'}} onClick={(e) => e.stopPropagation()}>
-                <div style={{borderRight:'1px solid #e2e8f0', background:'#f8fafc', display:'flex', flexDirection:'column', minHeight:0}}>
-                    <div style={{padding:'16px', borderBottom:'1px solid #e2e8f0', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'8px'}}>
-                        <h3 style={{margin:0, color:'#0f172a', fontSize:'1rem', fontWeight:'900'}}>Chats Internos</h3>
-                        <button onClick={closeInternalChatModal} style={{background:'#fff', border:'1px solid #cbd5e1', width: '30px', height: '30px', borderRadius: '999px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor:'pointer', color:'#64748b'}} className="hover-red-btn"><Icons.Close size={15} /></button>
+        <div className="fx-overlay fx-overlay-chat" style={{ zIndex: 999999 }} onClick={closeInternalChatModal}>
+            <div className="fx-chat" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Chats internos">
+                <aside className="fx-chat-rooms">
+                    <div className="fx-chat-rooms-head">
+                        <h3>Conversas</h3>
+                        <button type="button" onClick={() => setShowNewChatModal(true)} className="fx-icon-btn fx-icon-btn-solid" title="Novo chat" aria-label="Novo chat">
+                            <Icons.Plus size={16} />
+                        </button>
                     </div>
 
-                    <div style={{padding:'12px', overflowY:'auto', minHeight:0}} className="custom-scrollbar">
-                        <button
-                            onClick={() => setShowNewChatModal(true)}
-                            style={{width:'100%', display:'flex', alignItems:'center', gap:'10px', justifyContent:'center', marginBottom:'12px', border:'1px solid #d1d5db', borderRadius:'10px', background:'var(--color-btnPrimary)', color:'#fff', padding:'10px', cursor:'pointer', fontWeight:'700', fontSize:'0.9rem', transition:'0.2s'}}
-                            className="hover-shadow"
-                        >
-                            <Icons.Plus size={16} /> Novo Chat
-                        </button>
-
-                        {chatRooms.length > 0 ? (
-                            chatRooms.map((room) => {
-                                const unreadCount = unreadByRoom[room.id] || 0;
-                                return (
-                                    <button
-                                        key={room.id}
-                                        onClick={() => openExistingRoom(room)}
-                                        className="hover-shadow"
-                                        style={{
-                                            width:'100%', display:'flex', alignItems:'center', gap:'10px', textAlign:'left',
-                                            border: unreadCount ? '1px solid #fca5a5' : '1px solid #e2e8f0',
-                                            borderRadius:'10px', background: activeChatRoom?.id === room.id ? '#eff6ff' : '#fff',
-                                            marginBottom:'8px', padding:'10px', cursor:'pointer',
-                                            boxShadow: unreadCount ? '0 6px 16px rgba(239,68,68,0.12)' : 'none',
-                                        }}
-                                    >
-                                        <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', overflow:'hidden' }}>
-                                            {renderAvatar(room.display_title || room.nome || 'Conversa privada', room.display_avatar_url || null, 34, '0.78rem')}
-                                        </div>
-                                        <div style={{minWidth:0, flex:1}}>
-                                            <div style={{color:'#0f172a', fontWeight:'800', fontSize:'0.95rem', display:'flex', alignItems:'center', gap:'8px'}}>
-                                                <span style={{minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{room.display_title || room.nome || 'Conversa privada'}</span>
-                                                {unreadCount > 0 && <span style={{width:'8px', height:'8px', borderRadius:'999px', background:'#ef4444', boxShadow:'0 0 0 4px rgba(239,68,68,0.2)', flexShrink:0}}></span>}
-                                            </div>
-                                            <div style={{color:'#94a3b8', fontSize:'0.8rem', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'8px'}}>
-                                                <span>{room.display_subtitle || (room.is_group ? 'Group Chat' : 'Chat')}</span>
-                                                {unreadCount > 0 && <span style={{padding:'2px 7px', borderRadius:'999px', fontSize:'0.7rem', fontWeight:'900', color:'#fff', background:'#ef4444'}}>{unreadCount}</span>}
-                                            </div>
-                                        </div>
-                                    </button>
-                                );
-                            })
-                        ) : (
-                            <div style={{padding:'12px', color:'#94a3b8', fontSize:'0.85rem', textAlign:'center'}}>Ainda não criaste chats.</div>
+                    <div className="fx-room-list custom-scrollbar">
+                        {chatRooms.length > 0 ? sortedChatRooms.map(renderRoomItem) : (
+                            <div className="fx-rooms-empty"><span>Ainda não criaste chats.</span></div>
                         )}
                     </div>
-                </div>
+                </aside>
 
-                <div 
-                    style={{display:'flex', flexDirection:'column', minHeight:0, position: 'relative'}}
+                <section
+                    className="fx-chat-main"
                     onDragEnter={handleChatDragEnter}
                     onDragOver={handleChatDragOver}
                     onDragLeave={handleChatDragLeave}
                     onDrop={handleChatDrop}
                 >
                     {isDraggingChatFile && (
-                        <div style={{
-                            position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(239, 246, 255, 0.95)',
-                            backdropFilter: 'blur(2px)', border: '3px dashed var(--color-btnPrimary)', zIndex: 50, display: 'flex', flexDirection: 'column',
-                            alignItems: 'center', justifyContent: 'center', color: 'var(--color-btnPrimary)', transition: 'all 0.2s ease', pointerEvents: 'none'
-                        }}>
-                            <Icons.Paperclip size={48} />
-                            <h3 style={{marginTop: '16px', fontWeight: '800'}}>Larga o ficheiro para enviar</h3>
+                        <div className="fx-chat-drop">
+                            <span className="fx-chat-drop-icon"><Icons.Paperclip size={36} /></span>
+                            <h3>Larga o ficheiro para enviar</h3>
                         </div>
                     )}
 
-                    <div style={{padding:'16px 18px', borderBottom:'1px solid #e2e8f0', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'12px'}}>
-                        <div>
-                            <h3 style={{margin:'0 0 3px 0', color:'#0f172a', fontSize:'1.15rem', fontWeight:'900'}}>{chatModal.target?.title || 'Seleciona um chat'}</h3>
-                            <p style={{margin:0, color:'#94a3b8', fontSize:'0.82rem'}}>{activeChatRoom?.id ? `Sala: ${activeChatRoom.id.slice(0, 8)}...` : 'Sem sala ativa'}</p>
+                    <header className="fx-chat-head">
+                        <span className={`fx-avatar fx-avatar-md ${activeChatRoom?.is_group ? 'is-group' : ''}`}>
+                            {renderAvatar(chatModal.target?.title || 'Chat', chatModal.target?.avatar_url || null, 42, '0.9rem')}
+                        </span>
+                        <div className="fx-chat-head-text">
+                            <h3>{chatModal.target?.title || 'Seleciona um chat'}</h3>
+                            <p className={typingNames.length ? 'is-typing' : ''}>
+                                {typingNames.length
+                                    ? `${typingNames.join(', ') || 'Alguém'} a escrever...`
+                                    : (chatModal.target?.subtitle || (activeChatRoom?.id ? 'Conversa' : 'Sem sala ativa'))}
+                            </p>
                         </div>
                         {activeChatRoom?.is_group && (
-                            <button
-                                type="button" onClick={openAddGroupMembersModal}
-                                style={{border:'1px solid #cbd5e1', background:'#fff', color:'#1e293b', borderRadius:'10px', padding:'8px 12px', cursor:'pointer', fontWeight:'700', fontSize:'0.82rem'}} className="hover-shadow"
-                            >
-                                + Adicionar pessoas
+                            <button type="button" onClick={openAddGroupMembersModal} className="fx-btn fx-btn-ghost fx-btn-sm">
+                                <Icons.Plus size={14} /> <span className="fx-hide-sm">Adicionar pessoas</span>
                             </button>
                         )}
-                    </div>
+                        <button type="button" onClick={closeInternalChatModal} className="fx-close" aria-label="Fechar"><Icons.Close size={18} /></button>
+                    </header>
 
-                    {chatError && (
-                        <div style={{margin:'10px 16px 0 16px', padding:'10px 12px', border:'1px solid #fecaca', background:'#fef2f2', color:'#991b1b', borderRadius:'10px', fontSize:'0.85rem'}}>{chatError}</div>
-                    )}
+                    {chatError && <div className="fx-alert fx-chat-alert">{chatError}</div>}
 
-                    <div style={{margin:'10px 16px 0 16px', minHeight:'20px', color:'#64748b', fontSize:'0.82rem', fontStyle:'italic'}}>
-                        {(() => {
-                            const typingNames = Object.keys(typingUsersById).map((typingUserId) => getChatSenderDisplayName(typingUserId)).filter(Boolean);
-                            if (!typingNames.length) return null;
-                            return `${typingNames.join(', ') || 'Alguém'} a escrever...`;
-                        })()}
-                    </div>
-
-                    <div 
-                        ref={chatMessagesContainerRef} 
-                        className="custom-scrollbar"
-                        style={{ flex: 1, overflowY: 'auto', padding: '20px 5%', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc' }} 
-                    >
-                        {chatLoading && <div style={{color:'#64748b', fontSize:'0.9rem', textAlign:'center', marginTop: '20px'}}>A carregar mensagens...</div>}
+                    <div ref={chatMessagesContainerRef} className="fx-chat-messages custom-scrollbar">
+                        {chatLoading && <div className="fx-chat-note"><span className="fx-spinner is-dark" /> A carregar mensagens...</div>}
 
                         {!chatLoading && chatMessages.length === 0 && (
-                            <div style={{margin:'auto', textAlign:'center', color:'#94a3b8'}}>
-                                <Icons.Message size={42} />
-                                <div style={{marginTop:'8px', fontWeight: '500'}}>Sem mensagens nesta conversa.</div>
+                            <div className="fx-chat-empty">
+                                <span className="fx-empty-icon"><Icons.Message size={28} /></span>
+                                <strong>Sem mensagens nesta conversa.</strong>
+                                <span>Diz olá 👋</span>
                             </div>
                         )}
 
                         {!chatLoading && chatMessages.map((msg, index) => {
                             const mine = msg.sender_id === user.id;
-                            const showSenderName = Boolean(activeChatRoom?.is_group);
+                            const isGroup = Boolean(activeChatRoom?.is_group);
                             const tick = getMessageReadTick(msg);
-                            
+
                             // LÓGICA DE AGRUPAMENTO
                             const prevMsg = chatMessages[index - 1];
                             const nextMsg = chatMessages[index + 1];
                             const isFirstInGroup = !prevMsg || prevMsg.sender_id !== msg.sender_id;
                             const isLastInGroup = !nextMsg || nextMsg.sender_id !== msg.sender_id;
-
-                            const bubbleRadius = mine 
-                                ? (isFirstInGroup ? '12px 0px 12px 12px' : '12px 12px 12px 12px')
-                                : (isFirstInGroup ? '0px 12px 12px 12px' : '12px 12px 12px 12px');
-                            
-                            // 1. AJUSTE DE ESPAÇO: Adiciona 16px extra se a mensagem tiver reações para não chocar com a próxima
                             const hasReactions = msg.chat_reactions && msg.chat_reactions.length > 0;
-                            const baseMarginBottom = isLastInGroup ? 16 : 2;
-                            const marginBottom = `${hasReactions ? baseMarginBottom + 16 : baseMarginBottom}px`;
 
                             // VERIFICA QUAL É A TUA REAÇÃO ATUAL
                             const myCurrentReaction = msg.chat_reactions?.find(r => r.user_id === user.id)?.emoji;
+                            const isImage = msg.file_url && msg.file_name && /\.(jpeg|jpg|gif|png|webp|svg)$/i.test(msg.file_name);
+                            const timeLabel = formatDate(msg.created_at || new Date().toISOString());
 
                             return (
-                                <div 
-                                    key={msg.id} 
-                                    style={{display:'flex', justifyContent: mine ? 'flex-end' : 'flex-start', marginBottom}}
+                                <div
+                                    key={msg.id}
+                                    className={`fx-msg-row ${mine ? 'is-mine' : ''} ${isFirstInGroup ? 'is-first' : ''} ${isLastInGroup ? 'is-last' : ''} ${hasReactions ? 'has-reactions' : ''}`}
                                     onMouseEnter={() => setHoveredMessageId(msg.id)}
                                     onMouseLeave={() => setHoveredMessageId(null)}
                                 >
-                                    <div style={{
-                                        maxWidth:'85%', 
-                                        background: mine ? '#eff6ff' : '#ffffff',
-                                        border: mine ? '1px solid #bfdbfe' : '1px solid #e2e8f0',
-                                        boxShadow: '0 1px 2px rgba(0,0,0,0.02)', 
-                                        borderRadius: bubbleRadius, 
-                                        padding:'6px 8px 6px 12px',
-                                        position: 'relative'
-                                    }}>
-                                        
+                                    {!mine && isGroup && (
+                                        <span className="fx-msg-avatar">
+                                            {isLastInGroup && <span className="fx-avatar fx-avatar-xs">{renderAvatar(getChatSenderDisplayName(msg.sender_id), getSenderAvatar(msg.sender_id), 28, '0.62rem')}</span>}
+                                        </span>
+                                    )}
+
+                                    <div className={`fx-bubble ${isImage && !msg.content ? 'is-media' : ''}`}>
+
                                         {/* BOTÃO FLUTUANTE DE HOVER */}
                                         {hoveredMessageId === msg.id && reactionMenuMessageId !== msg.id && (
-                                            <div 
+                                            <button
+                                                type="button"
                                                 title="Reagir"
-                                                style={{
-                                                    position: 'absolute', top: '50%', transform: 'translateY(-50%)',
-                                                    [mine ? 'left' : 'right']: '-38px', background: 'white', border: '1px solid #e2e8f0',
-                                                    borderRadius: '50%', padding: '6px', boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
-                                                    cursor: 'pointer', display: 'flex', zIndex: 10, transition: 'all 0.2s'
-                                                }} 
-                                                className="hover-shadow"
+                                                className="fx-bubble-react"
                                                 onClick={(e) => { e.stopPropagation(); setReactionMenuMessageId(msg.id); }}
                                             >
-                                                <Icons.Smile size={18} color="#94a3b8" />
-                                            </div>
+                                                <Icons.Smile size={17} />
+                                            </button>
                                         )}
 
                                         {/* MENU RÁPIDO DE REAÇÕES */}
                                         {reactionMenuMessageId === msg.id && (
                                             <>
-                                                {/* 3. OVERLAY INVISÍVEL PARA FECHAR AO CLICAR FORA */}
-                                                <div 
-                                                    style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 15 }} 
-                                                    onClick={(e) => { e.stopPropagation(); setReactionMenuMessageId(null); }} 
-                                                />
-                                                
-                                                <div style={{
-                                                    position: 'absolute', top: '-45px', [mine ? 'right' : 'left']: '0',
-                                                    background: 'white', border: '1px solid #e2e8f0', borderRadius: '30px',
-                                                    padding: '4px 8px', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.2)',
-                                                    display: 'flex', gap: '4px', zIndex: 20, animation: 'fadeIn 0.15s ease-out'
-                                                }}>
-                                                    {['👍', '❤️', '😂', '😮', '😢', '🙏'].map(emoji => {
-                                                        const isSelected = myCurrentReaction === emoji;
-                                                        return (
-                                                            <button
-                                                                key={emoji}
-                                                                onClick={(e) => { e.stopPropagation(); handleChatReaction(msg.id, emoji); }}
-                                                                title={isSelected ? "Remover reação" : "Reagir"}
-                                                                style={{ 
-                                                                    background: isSelected ? '#e2e8f0' : 'transparent', // 2. FUNDO ACINZENTADO SE SELECIONADO
-                                                                    border: 'none', fontSize: '1.3rem', cursor: 'pointer', 
-                                                                    padding: '4px 6px', borderRadius: '8px', transition: 'transform 0.1s' 
-                                                                }}
-                                                                onMouseEnter={(e) => !isSelected && (e.currentTarget.style.transform = 'scale(1.2)')}
-                                                                onMouseLeave={(e) => !isSelected && (e.currentTarget.style.transform = 'scale(1)')}
-                                                            >
-                                                                {emoji}
-                                                            </button>
-                                                        )
-                                                    })}
+                                                <div className="fx-click-away" onClick={(e) => { e.stopPropagation(); setReactionMenuMessageId(null); }} />
+                                                <div className="fx-react-menu fx-react-menu-chat">
+                                                    {['👍', '❤️', '😂', '😮', '😢', '🙏'].map(emoji => (
+                                                        <button
+                                                            key={emoji}
+                                                            type="button"
+                                                            className={myCurrentReaction === emoji ? 'is-on' : ''}
+                                                            onClick={(e) => { e.stopPropagation(); handleChatReaction(msg.id, emoji); }}
+                                                            title={myCurrentReaction === emoji ? "Remover reação" : "Reagir"}
+                                                        >
+                                                            {emoji}
+                                                        </button>
+                                                    ))}
                                                 </div>
                                             </>
                                         )}
-                                        
+
                                         {/* REMETENTE, FICHEIROS E TEXTO */}
-                                        {showSenderName && isFirstInGroup && !mine && (
-                                            <div style={{marginBottom:'2px', fontSize:'0.76rem', fontWeight:'800', color: 'var(--color-btnPrimary)'}}>
-                                                {getChatSenderDisplayName(msg.sender_id)}
-                                            </div>
-                                        )}
-                                        
-                                        {msg.file_url && (
-                                            (() => {
-                                                const isImage = msg.file_name && /\.(jpeg|jpg|gif|png|webp|svg)$/i.test(msg.file_name);
-                                                return isImage ? (
-                                                    <div style={{ marginBottom: msg.content ? '6px' : '0', marginTop: '2px' }}>
-                                                        <a href={msg.file_url} target="_blank" rel="noreferrer">
-                                                            <img src={msg.file_url} alt={msg.file_name} style={{ maxWidth: '100%', maxHeight: '450px', borderRadius: '8px', display: 'block', cursor: 'pointer', border: '1px solid #e2e8f0' }} />
-                                                        </a>
-                                                    </div>
-                                                ) : (
-                                                    <div style={{display:'grid', gap:'6px', marginBottom: msg.content ? '6px' : '0', marginTop: '2px', padding: '10px', background: 'rgba(0,0,0,0.03)', borderRadius: '8px', border: '1px solid #e2e8f0'}}>
-                                                        <a href={msg.file_url} target="_blank" rel="noreferrer" style={{color:'var(--color-btnPrimary)', fontWeight:'700', textDecoration:'none', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem'}}>
-                                                            <Icons.Paperclip size={18} /> {msg.file_name || 'Documento'}
-                                                        </a>
-                                                        {msg.requires_sig && !msg.is_signed && <span style={{fontSize:'0.75rem', color:'#b45309'}}>Aguarda assinatura</span>}
-                                                        {msg.is_signed && <span style={{fontSize:'0.75rem', color:'#16a34a'}}>Assinado</span>}
-                                                    </div>
-                                                );
-                                            })()
+                                        {isGroup && isFirstInGroup && !mine && (
+                                            <div className="fx-bubble-sender">{getChatSenderDisplayName(msg.sender_id)}</div>
                                         )}
 
-                                        <div style={{display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: '12px'}}>
-                                            {msg.content && (
-                                                <div style={{color:'#1e293b', whiteSpace:'pre-wrap', overflowWrap:'anywhere', wordBreak:'break-word', fontSize: '0.92rem', lineHeight: '1.4', marginTop: '2px'}}>
-                                                    {msg.content}
+                                        {msg.file_url && (
+                                            isImage ? (
+                                                <a href={msg.file_url} target="_blank" rel="noreferrer" className="fx-bubble-image">
+                                                    <img src={msg.file_url} alt={msg.file_name} />
+                                                </a>
+                                            ) : (
+                                                <div className="fx-bubble-file">
+                                                    <a href={msg.file_url} target="_blank" rel="noreferrer">
+                                                        <span className="fx-file-icon"><Icons.Paperclip size={16} /></span>
+                                                        <span className="fx-file-name">{msg.file_name || 'Documento'}</span>
+                                                    </a>
+                                                    {msg.requires_sig && !msg.is_signed && <span className="fx-file-tag is-warn">Aguarda assinatura</span>}
+                                                    {msg.is_signed && <span className="fx-file-tag is-ok">Assinado</span>}
                                                 </div>
-                                            )}
-                                            
-                                            <div style={{ fontSize:'0.65rem', color:'#64748b', display:'flex', alignItems:'center', gap:'4px', marginLeft: msg.content ? 'auto' : '0', marginBottom: '-2px' }}>
-                                                <span>
-                                                    {formatDate(msg.created_at || new Date().toISOString()).includes(' às ') 
-                                                        ? formatDate(msg.created_at || new Date().toISOString()).split(' às ')[1] 
-                                                        : formatDate(msg.created_at || new Date().toISOString())}
-                                                </span>
-                                                {mine && (
-                                                    <span style={{fontWeight:'800', color: tick === '✓✓' ? 'var(--color-btnPrimary)' : '#94a3b8', fontSize: '0.75rem'}}>
-                                                        {tick}
-                                                    </span>
-                                                )}
-                                            </div>
+                                            )
+                                        )}
+
+                                        <div className="fx-bubble-line">
+                                            {msg.content && <div className="fx-bubble-text">{msg.content}</div>}
+                                            <span className="fx-bubble-meta">
+                                                {timeLabel.includes(' às ') ? timeLabel.split(' às ')[1] : timeLabel}
+                                                {mine && <span className={`fx-tick ${tick === '✓✓' ? 'is-read' : ''}`}>{tick}</span>}
+                                            </span>
                                         </div>
 
                                         {/* MOSTRAR AS REAÇÕES PRESAS À BOLHA */}
-                                        {msg.chat_reactions && msg.chat_reactions.length > 0 && (
-                                            <div style={{
-                                                position: 'absolute', bottom: '-14px', [mine ? 'right' : 'left']: '10px', // O bottom passou para -14 para não tapar o texto
-                                                background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px',
-                                                padding: '2px 6px', display: 'flex', alignItems: 'center', gap: '2px',
-                                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)', fontSize: '0.8rem', zIndex: 5
-                                            }}>
+                                        {hasReactions && (
+                                            <div className="fx-bubble-reactions">
                                                 {Array.from(new Set(msg.chat_reactions.map(r => r.emoji))).map((emoji, i) => (
                                                     <span key={i}>{emoji}</span>
                                                 ))}
-                                                {msg.chat_reactions.length > 1 && (
-                                                    <span style={{ color: '#64748b', fontWeight: 'bold', marginLeft: '2px', fontSize: '0.75rem' }}>
-                                                        {msg.chat_reactions.length}
-                                                    </span>
-                                                )}
+                                                {msg.chat_reactions.length > 1 && <span className="fx-bubble-reactions-count">{msg.chat_reactions.length}</span>}
                                             </div>
                                         )}
-
                                     </div>
                                 </div>
                             );
@@ -3068,32 +2916,27 @@ async function handleSendChat(e) {
 
                     {/* ZONA DE PREVIEW DOS FICHEIROS STAGED */}
                     {chatStagedFile && (
-                        <div style={{ padding: '12px 16px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <div style={{ position: 'relative', display: 'inline-block' }}>
+                        <div className="fx-staged">
+                            <div className="fx-staged-thumb">
                                 {chatStagedFile.type.startsWith('image/') ? (
-                                    <img src={URL.createObjectURL(chatStagedFile)} alt="Preview" style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                                    <img src={URL.createObjectURL(chatStagedFile)} alt="Preview" />
                                 ) : (
-                                    <div style={{ width: '60px', height: '60px', borderRadius: '8px', background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
-                                        <Icons.Paperclip size={24} />
-                                    </div>
+                                    <span><Icons.Paperclip size={22} /></span>
                                 )}
-                                <button type="button" onClick={() => setChatStagedFile(null)} style={{ position: 'absolute', top: '-8px', right: '-8px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '50%', width: '22px', height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }}>
-                                    <Icons.Close size={12} />
-                                </button>
+                                <button type="button" onClick={() => setChatStagedFile(null)} aria-label="Remover ficheiro"><Icons.Close size={12} /></button>
                             </div>
-                            <div style={{ fontSize: '0.85rem', color: '#334155', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '250px' }}>
-                                {chatStagedFile.name}
-                                <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 'normal' }}>Pronto a enviar</div>
+                            <div className="fx-staged-text">
+                                <strong>{chatStagedFile.name}</strong>
+                                <span>Pronto a enviar</span>
                             </div>
                         </div>
                     )}
 
                     {/* FORMULÁRIO UNIFICADO COM O EMOJI PICKER */}
-                    <form onSubmit={handleSendChat} style={{padding:'12px 16px', borderTop:'1px solid #e2e8f0', display:'flex', gap:'8px', alignItems:'center', position: 'relative'}}>
-                        
+                    <form onSubmit={handleSendChat} className="fx-chat-composer">
                         {showEmojiPicker && (
-                            <div style={{ position: 'absolute', bottom: '65px', left: '16px', zIndex: 100, boxShadow: '0 10px 25px -5px rgba(0,0,0,0.2)', borderRadius: '8px', overflow: 'hidden' }}>
-                                <EmojiPicker 
+                            <div className="fx-emoji-pop">
+                                <EmojiPicker
                                     onEmojiClick={(emojiObject) => {
                                         setChatDraft(prev => prev + emojiObject.emoji);
                                         chatInputRef.current?.focus();
@@ -3107,105 +2950,71 @@ async function handleSendChat(e) {
                             </div>
                         )}
 
-                        <button 
-                            type="button" 
-                            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                            className="hover-shadow"
-                            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: showEmojiPicker ? 'var(--color-btnPrimary)' : '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: '50%', transition: '0.2s' }}
-                        >
-                            <Icons.Smile size={24} />
-                        </button>
-
-                        <input
-                            ref={chatInputRef}
-                            type="text"
-                            value={chatDraft}
-                            onChange={(e) => handleChatDraftChange(e.target.value)}
-                            onClick={() => setShowEmojiPicker(false)}
-                            placeholder={chatStagedFile ? "Adicionar uma legenda..." : "Escreve uma mensagem..."}
-                            className="input-focus"
-                            style={{flex:1, padding:'12px 14px', borderRadius:'10px', border:'1px solid #cbd5e1', outline:'none', fontSize: '0.95rem'}}
-                            disabled={!activeChatRoom?.id || chatSending || chatUploadingFile}
-                        />
-                        <label className="hover-shadow" title="Anexar ficheiro" style={{ border:'1px solid #cbd5e1', borderRadius:'999px', width:'38px', height:'38px', cursor: !activeChatRoom?.id || chatSending || chatUploadingFile ? 'not-allowed' : 'pointer', color:'#334155', background:'#fff', display:'inline-flex', alignItems:'center', justifyContent:'center', opacity: !activeChatRoom?.id || chatSending || chatUploadingFile ? 0.6 : 1 }}>
-                            <Icons.Paperclip size={17} />
-                            <input type="file" style={{display:'none'}} disabled={!activeChatRoom?.id || chatSending || chatUploadingFile} onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) { setChatStagedFile(file); setShowEmojiPicker(false); }
-                                e.target.value = '';
-                            }} />
-                        </label>
-                        <button type="submit" className="btn-primary hover-shadow" style={{borderRadius:'10px', padding:'10px 14px', opacity: (chatDraft.trim() || chatStagedFile) && activeChatRoom?.id ? 1 : 0.6}} disabled={(!chatDraft.trim() && !chatStagedFile) || !activeChatRoom?.id || chatSending || chatUploadingFile}>
-                            {chatSending || chatUploadingFile ? '...' : 'Enviar'}
+                        <div className="fx-chat-input">
+                            <button type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} className={`fx-icon-btn ${showEmojiPicker ? 'is-on' : ''}`} aria-label="Emojis">
+                                <Icons.Smile size={20} />
+                            </button>
+                            <input
+                                ref={chatInputRef}
+                                type="text"
+                                value={chatDraft}
+                                onChange={(e) => handleChatDraftChange(e.target.value)}
+                                onClick={() => setShowEmojiPicker(false)}
+                                placeholder={chatStagedFile ? "Adicionar uma legenda..." : "Escreve uma mensagem..."}
+                                disabled={chatInputDisabled}
+                            />
+                            <label className={`fx-icon-btn ${chatInputDisabled ? 'is-disabled' : ''}`} title="Anexar ficheiro">
+                                <Icons.Paperclip size={18} />
+                                <input type="file" style={{ display: 'none' }} disabled={chatInputDisabled} onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) { setChatStagedFile(file); setShowEmojiPicker(false); }
+                                    e.target.value = '';
+                                }} />
+                            </label>
+                        </div>
+                        <button type="submit" className="fx-send fx-send-lg" disabled={(!chatDraft.trim() && !chatStagedFile) || chatInputDisabled} aria-label="Enviar mensagem">
+                            {chatSending || chatUploadingFile ? <span className="fx-spinner" /> : <Icons.Send size={18} />}
                         </button>
                     </form>
-
-                </div>
+                </section>
             </div>
         </div>
     </ModalPortal>
 )}
 
+      {/* --- MODAL ADICIONAR PESSOAS AO GRUPO --- */}
       {showAddGroupMembersModal && (
           <ModalPortal>
-              <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.72)', backdropFilter:'blur(5px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000003, padding:'16px'}}>
-                  <div style={{background:'white', width:'min(500px, 96vw)', borderRadius:'16px', border:'1px solid #e2e8f0', boxShadow:'0 30px 60px -20px rgba(15, 23, 42, 0.45)', overflow:'hidden'}}>
-                      <div style={{padding:'16px 20px', borderBottom:'1px solid #e2e8f0', display:'flex', alignItems:'center', justifyContent:'space-between', background:'#f8fafc'}}>
+              <div className="fx-overlay" style={{ zIndex: 1000003 }} onClick={closeAddMembersDialog}>
+                  <div className="fx-modal fx-modal-sm" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Adicionar pessoas">
+                      <div className="fx-modal-head">
                           <div>
-                              <p style={{margin:'0 0 3px 0', fontSize:'0.72rem', fontWeight:'800', letterSpacing:'0.05em', color:'var(--color-btnPrimary)', textTransform:'uppercase'}}>Grupo</p>
-                              <h3 style={{margin:0, color:'#0f172a', fontSize:'1.1rem', fontWeight:'900'}}>Adicionar pessoas</h3>
+                              <p className="fx-kicker">Grupo</p>
+                              <h3>Adicionar pessoas</h3>
                           </div>
-                          <button onClick={closeAddGroupMembersModal} style={{background:'#fff', border:'1px solid #cbd5e1', cursor:'pointer', color:'#64748b', width:'34px', height:'34px', borderRadius:'10px', display:'flex', alignItems:'center', justifyContent:'center'}} className="hover-red-text"><Icons.Close size={18} /></button>
+                          <button type="button" onClick={closeAddMembersDialog} className="fx-close" aria-label="Fechar"><Icons.Close size={18} /></button>
                       </div>
 
-                      <div style={{padding:'18px 20px'}}>
-                          <p style={{margin:'0 0 10px 0', color:'#475569', fontSize:'0.87rem'}}>Seleciona quem queres adicionar à conversa.</p>
-                          <div style={{maxHeight:'260px', overflowY:'auto', border:'1px solid #e2e8f0', borderRadius:'10px', padding:'8px', display:'grid', gap:'8px', background:'#fff'}}>
-                              {chatCollaborators.filter((collab) => !existingGroupMemberIds.includes(collab.id)).length === 0 && (
-                                  <div style={{fontSize:'0.85rem', color:'#94a3b8', padding:'10px'}}>Todos os colaboradores já estão neste grupo.</div>
+                      <div className="fx-modal-body">
+                          <p className="fx-modal-hint">Seleciona quem queres adicionar à conversa.</p>
+                          <div className="fx-search">
+                              <Icons.Search size={16} />
+                              <input type="text" value={chatPeopleQuery} onChange={(e) => setChatPeopleQuery(e.target.value)} placeholder="Procurar colega..." />
+                          </div>
+                          <div className="fx-people custom-scrollbar">
+                              {addableCollaborators.length === 0 && <div className="fx-people-empty">Todos os colaboradores já estão neste grupo.</div>}
+                              {addableCollaborators.length > 0 && filterPeople(addableCollaborators).length === 0 && <div className="fx-people-empty">Ninguém com esse nome.</div>}
+                              {filterPeople(addableCollaborators).map((collab) =>
+                                  renderPersonOption(collab, selectedUsersToAddInGroup.includes(collab.id), () => toggleUserToAddInGroup(collab.id), true)
                               )}
-
-                              {chatCollaborators
-                                  .filter((collab) => !existingGroupMemberIds.includes(collab.id))
-                                  .map((collab) => {
-                                      const selected = selectedUsersToAddInGroup.includes(collab.id);
-                                      return (
-                                          <button
-                                              key={collab.id}
-                                              type="button"
-                                              onClick={() => toggleUserToAddInGroup(collab.id)}
-                                              style={{
-                                                  width:'100%',
-                                                  display:'flex',
-                                                  alignItems:'center',
-                                                  justifyContent:'space-between',
-                                                  gap:'10px',
-                                                  border: selected ? '1px solid #93c5fd' : '1px solid #e2e8f0',
-                                                  borderRadius:'8px',
-                                                  padding:'10px',
-                                                  background: selected ? '#eff6ff' : '#fff',
-                                                  cursor:'pointer',
-                                                  textAlign:'left'
-                                              }}
-                                          >
-                                              <span style={{fontWeight:'700', color:'#1e293b', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{collab.nome}</span>
-                                              <span style={{fontSize:'0.75rem', fontWeight:'800', color: selected ? '#1d4ed8' : '#94a3b8'}}>{selected ? 'Selecionado' : 'Selecionar'}</span>
-                                          </button>
-                                      );
-                                  })}
                           </div>
+                      </div>
 
-                          <div style={{display:'flex', gap:'10px', marginTop:'16px'}}>
-                              <button onClick={closeAddGroupMembersModal} style={{flex:1, padding:'11px 14px', borderRadius:'8px', border:'1px solid #cbd5e1', background:'#fff', color:'#1e293b', fontWeight:'700', cursor:'pointer'}} className="hover-shadow">Cancelar</button>
-                              <button
-                                  onClick={addSelectedUsersToGroup}
-                                  disabled={addingGroupMembers || !selectedUsersToAddInGroup.length}
-                                  style={{flex:1, padding:'11px 14px', borderRadius:'8px', border:'none', background:'var(--color-btnPrimary)', color:'#fff', fontWeight:'700', cursor: addingGroupMembers || !selectedUsersToAddInGroup.length ? 'not-allowed' : 'pointer', opacity: addingGroupMembers || !selectedUsersToAddInGroup.length ? 0.6 : 1}}
-                                  className="hover-shadow"
-                              >
-                                  {addingGroupMembers ? 'A adicionar...' : `Adicionar (${selectedUsersToAddInGroup.length})`}
-                              </button>
-                          </div>
+                      <div className="fx-modal-foot">
+                          <button type="button" onClick={closeAddMembersDialog} className="fx-btn fx-btn-ghost">Cancelar</button>
+                          <button type="button" onClick={addSelectedUsersToGroup} disabled={addingGroupMembers || !selectedUsersToAddInGroup.length} className="fx-btn fx-btn-primary">
+                              {addingGroupMembers ? <><span className="fx-spinner" /> A adicionar...</> : `Adicionar (${selectedUsersToAddInGroup.length})`}
+                          </button>
                       </div>
                   </div>
               </div>
@@ -3215,14 +3024,14 @@ async function handleSendChat(e) {
       {/* --- NOTIFICAÇÃO GLOBAL --- */}
       {notification.show && (
           <ModalPortal>
-              <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:999999}}>
-                  <div style={{background:'white', padding:'30px', borderRadius:'16px', width:'90%', maxWidth: '350px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', animation: 'fadeIn 0.2s ease-out'}}>
-                      <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px'}}>
-                          {notification.type === 'success' ? <Icons.CheckCircle color="#10b981" /> : <Icons.XCircle color="#ef4444" />}
-                      </div>
-                      <h3 style={{margin: '0 0 10px 0', color: '#1e293b', fontSize: '1.25rem'}}>{notification.type === 'success' ? 'Sucesso!' : 'Atenção'}</h3>
-                      <p style={{color: '#64748b', marginBottom: '25px', lineHeight: '1.5', fontSize: '0.95rem'}}>{notification.message}</p>
-                      <button onClick={() => setNotification({ show: false, message: '', type: 'success' })} className="btn-primary hover-shadow" style={{width: '100%', padding: '12px', borderRadius: '10px', fontWeight: 'bold'}}>Fechar</button>
+              <div className="fx-overlay" style={{ zIndex: 999999 }}>
+                  <div className="fx-dialog" role="alertdialog">
+                      <span className={`fx-dialog-icon ${notification.type === 'success' ? 'is-success' : 'is-danger'}`}>
+                          {notification.type === 'success' ? <Icons.CheckCircle size={30} /> : <Icons.XCircle size={30} />}
+                      </span>
+                      <h3>{notification.type === 'success' ? 'Sucesso!' : 'Atenção'}</h3>
+                      <p>{notification.message}</p>
+                      <button type="button" onClick={() => setNotification({ show: false, message: '', type: 'success' })} className="fx-btn fx-btn-primary fx-btn-block">Fechar</button>
                   </div>
               </div>
           </ModalPortal>
@@ -3231,19 +3040,19 @@ async function handleSendChat(e) {
       {/* --- MODAL DE CONFIRMAÇÃO --- */}
       {confirmModal.show && (
         <ModalPortal>
-            <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:999999}}>
-            <div style={{background:'white', padding:'30px', borderRadius:'16px', width:'90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', animation: 'fadeIn 0.2s ease-out'}}>
-                <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px'}}><Icons.AlertTriangle color="#ef4444" /></div>
-                <h3 style={{margin: '0 0 10px 0', color: '#1e293b', fontSize: '1.25rem'}}>Tem a certeza?</h3>
-                <p style={{color: '#64748b', marginBottom: '25px', lineHeight: '1.5', fontSize: '0.95rem'}}>
-                    {confirmModal.type === 'post' 
-                        ? 'Quer mesmo apagar este post e todos os comentários associados?' 
+            <div className="fx-overlay" style={{ zIndex: 999999 }} onClick={() => setConfirmModal({ show: false, id: null, type: null, postId: null })}>
+            <div className="fx-dialog" role="alertdialog" onClick={(e) => e.stopPropagation()}>
+                <span className="fx-dialog-icon is-danger"><Icons.Trash size={26} /></span>
+                <h3>Tem a certeza?</h3>
+                <p>
+                    {confirmModal.type === 'post'
+                        ? 'Quer mesmo apagar este post e todos os comentários associados?'
                         : 'Quer apagar este comentário?'}
                     <br/>Esta ação não pode ser desfeita.
                 </p>
-                <div style={{display: 'flex', gap: '10px'}}>
-                    <button onClick={() => setConfirmModal({ show: false, id: null, type: null, postId: null })} style={{flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', background: 'white', fontWeight: 'bold', color: '#475569', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">Cancelar</button>
-                    <button onClick={confirmDelete} style={{flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: '#ef4444', color: 'white', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">Sim, Apagar</button>
+                <div className="fx-dialog-actions">
+                    <button type="button" onClick={() => setConfirmModal({ show: false, id: null, type: null, postId: null })} className="fx-btn fx-btn-ghost">Cancelar</button>
+                    <button type="button" onClick={confirmDelete} className="fx-btn fx-btn-danger">Sim, apagar</button>
                 </div>
             </div>
             </div>
@@ -3252,13 +3061,11 @@ async function handleSendChat(e) {
 
       {chatNotice.show && (
           <ModalPortal>
-              <div style={{position:'fixed', right:'22px', bottom:'22px', zIndex:1000002, pointerEvents:'none'}}>
-                  <div style={{minWidth:'260px', maxWidth:'360px', padding:'12px 14px', borderRadius:'12px', background:'linear-gradient(135deg, #111827, #1f2937)', color:'#fff', boxShadow:'0 18px 35px rgba(15,23,42,0.35)', border:'1px solid rgba(255,255,255,0.14)'}}>
-                      <div style={{display:'flex', alignItems:'center', gap:'8px', fontWeight:'800', fontSize:'0.86rem'}}>
-                          <span style={{width:'8px', height:'8px', borderRadius:'999px', background:'#22c55e', boxShadow:'0 0 0 5px rgba(34,197,94,0.25)'}}></span>
-                          Nova mensagem interna
-                      </div>
-                      <div style={{marginTop:'6px', fontSize:'0.84rem', color:'#cbd5e1'}}>{chatNotice.text}</div>
+              <div className="fx-toast" style={{ zIndex: 1000002 }}>
+                  <span className="fx-toast-icon"><Icons.Message size={16} /></span>
+                  <div>
+                      <strong>Nova mensagem interna</strong>
+                      <span>{chatNotice.text}</span>
                   </div>
               </div>
           </ModalPortal>
@@ -3275,116 +3082,6 @@ async function handleSendChat(e) {
                 onCancel={closeStopNoteModal}
                 onConfirm={confirmStopWithNote}
             />
-
-      <style>{`
-        .hover-shadow:hover { transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-        .hover-red-btn:hover { background-color: #fef2f2 !important; color: #ef4444 !important; opacity: 1 !important; }
-        .hover-red-text:hover { color: #ef4444 !important; }
-        .hover-bg-light:hover { background-color: #f1f5f9 !important; color: #1e293b !important; }
-        .hover-input-fake:hover { background-color: #e2e8f0 !important; color: #334155 !important; }
-        .hover-border-blue:hover { border-color: var(--color-btnPrimary) !important; background: var(--color-bgSecondary) !important; }
-        
-        .hover-avatar:hover { background: #e2e8f0 !important; border-color: #94a3b8 !important; }
-        .hover-name:hover { text-decoration: underline; color: var(--color-btnPrimary) !important; }
-
-        .input-focus:focus { border-color: var(--color-btnPrimary) !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
-        
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
-
-        .forum-main-layout {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) 300px;
-            gap: 20px;
-            align-items: start;
-        }
-
-        .forum-collab-bar {
-            max-width: calc(100% - 362px);
-        }
-
-        .forum-chat-sidebar {
-            margin-top: -96px;
-            scrollbar-width: thin;
-            scrollbar-color: #cbd5e1 #f1f5f9;
-        }
-
-        .forum-chat-sidebar::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .forum-chat-sidebar::-webkit-scrollbar-track {
-            background: #f1f5f9;
-            border-radius: 3px;
-        }
-
-        .forum-chat-sidebar::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 3px;
-        }
-
-        .forum-chat-sidebar::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
-        }
-
-        .comment-bubble-row {
-            display: flex;
-            align-items: flex-start;
-            gap: 8px;
-        }
-
-        .comment-avatar-mini {
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            background: #e2e8f0;
-            color: #475569;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 800;
-            font-size: 0.68rem;
-            flex-shrink: 0;
-            margin-top: 2px;
-        }
-
-        .comment-bubble {
-            flex: 1;
-            min-width: 0;
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 14px;
-            padding: 8px 10px;
-        }
-
-        /* Layout Split Screen do Modal */
-        .post-modal-layout { display: flex; flex-direction: row; height: calc(100% - 77px); }
-        .post-modal-left { flex: 1.5; border-right: 1px solid #e2e8f0; }
-        .post-modal-right { flex: 1; border-left: none; }
-        
-        @media (max-width: 800px) {
-            .post-modal-layout { flex-direction: column; overflow-y: auto; }
-            .post-modal-left { flex: none; height: auto; border-right: none; }
-            .post-modal-right { flex: none; height: 500px; border-top: 1px solid #e2e8f0; }
-
-            .forum-main-layout {
-                grid-template-columns: 1fr;
-            }
-
-            .forum-collab-bar {
-                max-width: 100%;
-            }
-
-            .forum-chat-sidebar {
-                position: static !important;
-                top: auto !important;
-                margin-top: 0;
-            }
-        }
-
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-      `}</style>
     </div>
   );
 }
