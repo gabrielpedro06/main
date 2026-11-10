@@ -222,9 +222,10 @@ export const generateDeslocacoesMensaisPDF = async ({
             const reembolso = kms * Number(valorPorKm || 0);
             
             // 💡 Junta o trajeto com o carro utilizado por baixo
+            const trajeto = `${item.km_origem || "-"} - ${item.km_destino || "-"}${item.km_ida_volta ? " (ida e volta)" : ""}`;
             const percursoEVeiculo = item.veiculo 
-                ? `${item.km_origem || "-"} - ${item.km_destino || "-"}\n(Viatura: ${item.veiculo})`
-                : `${item.km_origem || "-"} - ${item.km_destino || "-"}`;
+                ? `${trajeto}\n(Viatura: ${item.veiculo})`
+                : trajeto;
 
             return [
                 toDateLabel(item.data_inicio),

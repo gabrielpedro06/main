@@ -28,7 +28,7 @@ function buildDetailsBlock(details, safeType) {
 
   const {
     data_inicio, data_fim, is_parcial, hora_inicio, hora_fim,
-    motivo, km_origem, km_destino, km_total, veiculo, isKmRequest,
+    motivo, km_origem, km_destino, km_total, veiculo, km_ida_volta, isKmRequest,
   } = details;
 
   const rows = [];
@@ -67,7 +67,7 @@ function buildDetailsBlock(details, safeType) {
       rows.push(`
     <tr>
       <td style="padding:10px 14px;color:#64748b;font-size:0.82rem;font-weight:600">Percurso</td>
-      <td style="padding:10px 14px;color:#0f172a;font-weight:700">${escapeHtml(km_origem || "—")} → ${escapeHtml(km_destino || "—")}</td>
+      <td style="padding:10px 14px;color:#0f172a;font-weight:700">${escapeHtml(km_origem || "—")} ${km_ida_volta ? "⇄" : "→"} ${escapeHtml(km_destino || "—")}${km_ida_volta ? ' <span style="color:#64748b;font-weight:600">(ida e volta)</span>' : ""}</td>
     </tr>`);
     }
     if (km_total) {

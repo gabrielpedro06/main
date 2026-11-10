@@ -319,6 +319,7 @@
   animation: abPop 0.35s var(--ab-spring) both;
 }
 .ab-modal-sm { width: min(460px, 100%); }
+.ab-modal-wide { width: min(760px, 100%); }
 .ab-modal-head {
   display: flex; align-items: center; gap: 14px;
   padding: 20px 22px 16px;
@@ -348,10 +349,7 @@
 .ab-label { display: flex; align-items: baseline; gap: 8px; font-size: 0.78rem; font-weight: 700; color: var(--ab-sub); }
 .ab-label em { font-style: normal; font-weight: 500; color: #94a3b8; }
 .ab-field > input,
-.ab-field > textarea,
-.ab-km input,
-.ab-km select,
-.ab-km textarea {
+.ab-field > textarea {
   width: 100% !important; box-sizing: border-box !important;
   min-height: 46px; padding: 0 14px !important;
   border-radius: 14px !important;
@@ -362,18 +360,13 @@
   outline: none;
   transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
-.ab-field > textarea, .ab-km textarea { padding: 12px 14px !important; resize: vertical; line-height: 1.45; }
+.ab-field > textarea { padding: 12px 14px !important; resize: vertical; line-height: 1.45; }
 .ab-field > input:focus,
-.ab-field > textarea:focus,
-.ab-km input:focus,
-.ab-km select:focus,
-.ab-km textarea:focus {
+.ab-field > textarea:focus {
   border-color: var(--ab-accent) !important;
   background: #fff !important;
   box-shadow: 0 0 0 4px var(--color-btnPrimaryShadow, rgba(59, 130, 246, 0.12));
 }
-.ab-km label { font-size: 0.78rem !important; font-weight: 700 !important; color: var(--ab-sub) !important; text-transform: none !important; letter-spacing: 0 !important; }
-.ab-km button { border-radius: 12px !important; }
 
 .ab-field .fs-trigger.ab-select { width: 100%; height: 48px; border-radius: 14px; border: 1.5px solid var(--ab-field-line); background: var(--ab-field-bg); box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.05); }
 .ab-field .fs-trigger.ab-select:hover { border-color: color-mix(in srgb, var(--color-btnPrimary) 45%, #cfd6df); }
@@ -479,7 +472,8 @@
 
 /* Campos: hover mais evidente */
 .ab-field > input:hover:not(:focus),
-.ab-field > textarea:hover:not(:focus),
-.ab-km input:hover:not(:focus),
-.ab-km select:hover:not(:focus),
-.ab-km textarea:hover:not(:focus) { border-color: color-mix(in srgb, var(--color-btnPrimary) 45%, #cfd6df) !important; }
+.ab-field > textarea:hover:not(:focus) { border-color: color-mix(in srgb, var(--color-btnPrimary) 45%, #cfd6df) !important; }
+
+/* Ida e volta */
+.ab-pill-trip { --t2: var(--color-btnPrimary); }
+.ab-route > i.is-both::before { content: ""; position: absolute; left: -2px; top: -3px; width: 8px; height: 8px; border-radius: 50%; background: var(--ab-accent); }

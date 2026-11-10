@@ -2706,7 +2706,7 @@ export default function RecursosHumanos() {
                                         </td>
                                         <td style={{padding: '12px', fontWeight: 'bold', color: 'var(--color-btnPrimary)'}}>{p.profiles?.nome}</td>
                                         <td style={{padding: '12px', color: '#334155', fontWeight: '500'}}>{p.km_origem || '-'}</td>
-                                        <td style={{padding: '12px', color: '#334155', fontWeight: '500'}}>{p.km_destino || '-'}</td>
+                                        <td style={{padding: '12px', color: '#334155', fontWeight: '500'}}>{p.km_destino || '-'}{p.km_ida_volta && <span style={{marginLeft: '6px', padding: '2px 8px', borderRadius: '99px', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', fontSize: '0.7rem', fontWeight: 800, whiteSpace: 'nowrap'}}>⇄ Ida e volta</span>}</td>
                                         <td style={{padding: '12px'}}>
                                             <div style={{display:'flex', flexDirection:'column'}}>
                                                 <span style={{fontSize:'0.95rem', fontWeight:'600', color: '#16a34a'}}>+{p.km_total ?? 0} km</span>
@@ -3554,7 +3554,7 @@ export default function RecursosHumanos() {
                                                   {h.tipo === KM_REQUEST_TYPE ? (
                                                       <>
                                                           <div>{new Date(h.data_inicio).toLocaleDateString('pt-PT')}</div>
-                                                          <div style={{fontSize: '0.8rem', color: '#94a3b8'}}>De {h.km_origem || '-'} para {h.km_destino || '-'} ({h.km_total ?? '-'} km)</div>
+                                                          <div style={{fontSize: '0.8rem', color: '#94a3b8'}}>De {h.km_origem || '-'} para {h.km_destino || '-'}{h.km_ida_volta ? ' e volta' : ''} ({h.km_total ?? '-'} km)</div>
                                                       </>
                                                   ) : h.is_parcial ? (
                                                       <>
@@ -3914,7 +3914,7 @@ export default function RecursosHumanos() {
                           {detailsModal.pedido.tipo === KM_REQUEST_TYPE && (
                               <div style={{background:'#f8fafc', padding:'12px', borderRadius:'8px', border:'1px solid #e2e8f0'}}>
                                   <div style={{fontSize:'0.8rem', color:'#64748b', fontWeight:'600', marginBottom:'4px'}}>Detalhe da Deslocação</div>
-                                  <div style={{fontSize:'0.9rem', color:'#334155'}}>De <b>{detailsModal.pedido.km_origem || '-'}</b> para <b>{detailsModal.pedido.km_destino || '-'}</b></div>
+                                  <div style={{fontSize:'0.9rem', color:'#334155'}}>De <b>{detailsModal.pedido.km_origem || '-'}</b> para <b>{detailsModal.pedido.km_destino || '-'}</b>{detailsModal.pedido.km_ida_volta && <span style={{marginLeft: '8px', padding: '2px 8px', borderRadius: '99px', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', fontSize: '0.75rem', fontWeight: 800}}>⇄ Ida e volta</span>}</div>
                               </div>
                           )}
 

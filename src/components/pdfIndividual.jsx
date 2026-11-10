@@ -374,7 +374,7 @@ export const generateIndividualRHPDF = async ({
 		.map((a) => [
 			a.data_inicio || "-",
 			a.km_origem || "-",
-			a.km_destino || "-",
+			`${a.km_destino || "-"}${a.km_ida_volta ? " (ida e volta)" : ""}`,
 			`${Number(a.km_total) || 0}`,
 			a.motivo || "-",
 		]);

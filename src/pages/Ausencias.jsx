@@ -146,10 +146,19 @@ export default function Ferias({ forcedType = null }) {
       km_origem: "",
       km_destino: "",
       km_total: "",
-      veiculo: "" // 💡 Adicionado campo de veículo
+      veiculo: "", // 💡 Adicionado campo de veículo
+      km_ida_volta: false
   });
   const [file, setFile] = useState(null); 
   const [diasUteis, setDiasUteis] = useState(0); 
+
+    // Sem a migração 051: guarda o "ida e volta" no texto do destino
+    const isKmIdaVoltaMissing = (error) => /km_ida_volta/i.test(`${error?.message || ""} ${error?.details || ""}`) || error?.code === "PGRST204";
+    const withoutIdaVolta = (payload) => {
+        const { km_ida_volta, ...rest } = payload;
+        if (km_ida_volta && rest.km_destino && !/ida e volta/i.test(rest.km_destino)) rest.km_destino = `${rest.km_destino} (ida e volta)`;
+        return rest;
+    };
 
     const isMissingColumnError = (error) => {
             if (!error) return false;
@@ -298,7 +307,8 @@ export default function Ferias({ forcedType = null }) {
           km_origem: pedido.km_origem || "",
           km_destino: pedido.km_destino || "",
           km_total: pedido.km_total ?? "",
-          veiculo: pedido.veiculo || "" // 💡 Recupera o veículo ao editar
+          veiculo: pedido.veiculo || "", // 💡 Recupera o veículo ao editar
+          km_ida_volta: Boolean(pedido.km_ida_volta)
       });
       setShowModal(true);
   };
@@ -308,7 +318,7 @@ export default function Ferias({ forcedType = null }) {
       setIsEditing(false);
       setEditingId(null);
       setFile(null);
-      setForm({ tipo: forcedType || "Férias", data_inicio: "", data_fim: "", is_parcial: false, hora_inicio: "", hora_fim: "", motivo: "", km_origem: "", km_destino: "", km_total: "", veiculo: "" });
+      setForm({ tipo: forcedType || "Férias", data_inicio: "", data_fim: "", is_parcial: false, hora_inicio: "", hora_fim: "", motivo: "", km_origem: "", km_destino: "", km_total: "", veiculo: "", km_ida_volta: false });
   };
 
   async function handleSubmit(e) {
@@ -456,7 +466,8 @@ export default function Ferias({ forcedType = null }) {
           km_origem: isKmRequest ? form.km_origem.trim() : null,
           km_destino: isKmRequest ? form.km_destino.trim() : null,
           km_total: isKmRequest ? Number(form.km_total) : null,
-          veiculo: isKmRequest ? form.veiculo : null // 💡 Adiciona o carro ao gravar
+          veiculo: isKmRequest ? form.veiculo : null, // 💡 Adiciona o carro ao gravar
+          km_ida_volta: isKmRequest ? Boolean(form.km_ida_volta) : false
       };
 
       if (anexo_url) payload.anexo_url = anexo_url;
@@ -465,11 +476,17 @@ export default function Ferias({ forcedType = null }) {
       let savedRequestId = editingId;
       if (isEditing) {
           payload.estado = 'pendente';
-          const { error } = await supabase.from("ferias").update(payload).eq("id", editingId);
+          let { error } = await supabase.from("ferias").update(payload).eq("id", editingId);
+          if (error && isKmIdaVoltaMissing(error)) {
+              ({ error } = await supabase.from("ferias").update(withoutIdaVolta(payload)).eq("id", editingId));
+          }
           dbError = error;
       } else {
           payload.estado = 'pendente';
-          const { data: savedRequest, error } = await supabase.from("ferias").insert([payload]).select("id").single();
+          let { data: savedRequest, error } = await supabase.from("ferias").insert([payload]).select("id").single();
+          if (error && isKmIdaVoltaMissing(error)) {
+              ({ data: savedRequest, error } = await supabase.from("ferias").insert([withoutIdaVolta(payload)]).select("id").single());
+          }
           savedRequestId = savedRequest?.id || null;
           dbError = error;
       }
@@ -519,6 +536,7 @@ export default function Ferias({ forcedType = null }) {
                           km_destino: isKmRequest ? form.km_destino : null,
                           km_total: isKmRequest ? form.km_total : null,
                           veiculo: isKmRequest ? form.veiculo : null,
+                          km_ida_volta: isKmRequest ? Boolean(form.km_ida_volta) : false,
                           isKmRequest,
                       },
                   }),
@@ -768,8 +786,9 @@ export default function Ferias({ forcedType = null }) {
                                   </div>
                                   {isKm ? (
                                       <div className="ab-route">
-                                          <span>{p.km_origem || '-'}</span><i />
+                                          <span>{p.km_origem || '-'}</span><i className={p.km_ida_volta ? 'is-both' : ''} />
                                           <span>{p.km_destino || '-'}</span>
+                                          {p.km_ida_volta && <span className="ab-pill ab-pill-trip">⇄ Ida e volta</span>}
                                           {p.veiculo && <em className="ab-mini-plate is-text"><i>P</i>{p.veiculo}</em>}
                                       </div>
                                   ) : null}
@@ -834,7 +853,7 @@ export default function Ferias({ forcedType = null }) {
                                     : 'O período calha num fim de semana ou feriado. Não é preciso marcar.';
                     const submitBlocked = !isKmRequest && !form.is_parcial && diasUteis === 0;
                     return (
-                        <form className="ab-modal" onSubmit={handleSubmit} style={{ '--t1': meta.c1, '--t2': meta.c2 }}>
+                        <form className={`ab-modal ${isKmRequest ? 'ab-modal-wide' : ''}`} onSubmit={handleSubmit} style={{ '--t1': meta.c1, '--t2': meta.c2 }}>
                             <div className="ab-modal-head">
                                 <span className="ab-modal-icon"><meta.Icon size={20} color="#fff" /></span>
                                 <div>
