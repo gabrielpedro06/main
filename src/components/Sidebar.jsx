@@ -714,20 +714,9 @@ export default function Sidebar({ menuOpen, setMenuOpen, isMobile = false }) {
 
       {/* --- MODAL DO CALENDÁRIO --- */}
       {showCalendarModal && (
-          <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999}} onClick={(e) => { if(e.target === e.currentTarget) setShowCalendarModal(false); }}>
-              <div style={{background: 'white', padding: '25px', borderRadius: '18px', width: '100%', maxWidth: '1000px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', animation: 'fadeIn 0.2s ease-out', display: 'flex', flexDirection: 'column', maxHeight: '90vh'}}>
-                  <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid #e2e8f0', paddingBottom: '15px'}}>
-                      <h3 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.2rem'}}>
-                          <div style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '8px', borderRadius: '10px', display: 'flex'}}><Icons.Calendar /></div>
-                          Calendário
-                      </h3>
-                      <button onClick={() => setShowCalendarModal(false)} style={{background:'none', border:'none', color:'#94a3b8', cursor:'pointer', display: 'flex'}} className="hover-red">
-                          <Icons.Close />
-                      </button>
-                  </div>
-                  <div style={{overflowY: 'auto', flex: 1}} className="custom-scrollbar">
-                      <WidgetCalendar />
-                  </div>
+          <div className="cal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setShowCalendarModal(false); }}>
+              <div className="cal-modal" role="dialog" aria-label="Calendário">
+                  <WidgetCalendar onClose={() => setShowCalendarModal(false)} />
               </div>
           </div>
       )}
