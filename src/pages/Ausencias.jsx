@@ -15,6 +15,8 @@ import {
 } from "../utils/feriasSaldo";
 import CalculadoraKm from "../components/CalculadoraKm";
 import "./../styles/dashboard.css";
+import "../styles/absences.css";
+import FancySelect from "../components/FancySelect";
 
 // --- ÍCONES SVG PROFISSIONAIS ---
 const Icons = {
@@ -45,6 +47,47 @@ const Icons = {
 
 const ModalPortal = ({ children }) => {
   return createPortal(children, document.body);
+};
+
+// --- TIPOS DE AUSÊNCIA: cor e ícone de cada um ---
+const ABSENCE_TYPES = [
+  "Férias",
+  "Assistência à família",
+  "Outros - Assuntos pessoais",
+  "Ausência sem motivo - injustificada",
+  "Doença, acidente e obrigação legal",
+  "Casamento",
+  "Deslocação a estabelecimento de ensino",
+  "Licença maternal/paternal",
+  "Licença sem vencimento",
+  "Falecimento de familiar",
+  "Prestação de provas de avaliação",
+  "Candidato a cargo público",
+];
+
+const TYPE_META = {
+  "Pedido de Km's": { Icon: Icons.Briefcase, c1: "color-mix(in srgb, var(--color-btnPrimary) 55%, #fff)", c2: "var(--color-btnPrimary)", hint: "Deslocação" },
+  "Férias": { Icon: Icons.Sun, c1: "#fbbf24", c2: "#ea580c" },
+  "Assistência à família": { Icon: Icons.Users, c1: "#60a5fa", c2: "#2563eb", hint: "Justificação legal" },
+  "Outros - Assuntos pessoais": { Icon: Icons.User, c1: "#94a3b8", c2: "#475569", hint: "Assuntos pessoais" },
+  "Ausência sem motivo - injustificada": { Icon: Icons.AlertTriangle, c1: "#f87171", c2: "#dc2626", hint: "Injustificada" },
+  "Doença, acidente e obrigação legal": { Icon: Icons.Activity, c1: "#a78bfa", c2: "#7c3aed", hint: "Justificação legal" },
+  "Casamento": { Icon: Icons.Heart, c1: "#f9a8d4", c2: "#db2777", hint: "Justificação legal" },
+  "Deslocação a estabelecimento de ensino": { Icon: Icons.BookOpen, c1: "#67e8f9", c2: "#0891b2", hint: "Justificação legal" },
+  "Licença maternal/paternal": { Icon: Icons.Heart, c1: "#fda4af", c2: "#e11d48", hint: "Licença" },
+  "Licença sem vencimento": { Icon: Icons.MinusCircle, c1: "#cbd5e1", c2: "#64748b", hint: "Licença" },
+  "Falecimento de familiar": { Icon: Icons.MinusCircle, c1: "#64748b", c2: "#0f172a", hint: "Justificação legal" },
+  "Prestação de provas de avaliação": { Icon: Icons.FileText, c1: "#5eead4", c2: "#0f766e", hint: "Justificação legal" },
+  "Candidato a cargo público": { Icon: Icons.Scale, c1: "#a5b4fc", c2: "#4f46e5", hint: "Justificação legal" },
+};
+const getTypeMeta = (label) => TYPE_META[label] || { Icon: Icons.AlertTriangle, c1: "#fcd34d", c2: "#d97706", hint: "" };
+
+const STATUS_META = {
+  pendente: { label: "Pendente", tone: "warn" },
+  aprovado: { label: "Aprovado", tone: "ok" },
+  rejeitado: { label: "Rejeitado", tone: "bad" },
+  cancelado: { label: "Cancelado", tone: "muted" },
+  pedido_cancelamento: { label: "A cancelar", tone: "warn" },
 };
 
 function formatHourShort(value) {
@@ -83,6 +126,7 @@ export default function Ferias({ forcedType = null }) {
   const [confirmCancel, setConfirmCancel] = useState({ show: false, pedido: null });
 
   // ESTADOS PARA EDIÇÃO DE PEDIDO
+  const [statusFilter, setStatusFilter] = useState('todos');
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState(null);
 
@@ -544,396 +588,411 @@ export default function Ferias({ forcedType = null }) {
       }
   }
 
-  const getStatusBadge = (estado) => {
-    switch (estado?.toLowerCase()) {
-      case 'aprovado': return <span className="badge" style={{background: '#dcfce7', color: '#166534', fontWeight: 'bold'}}>Aprovado</span>;
-      case 'rejeitado': return <span className="badge" style={{background: '#fee2e2', color: '#991b1b', fontWeight: 'bold'}}>Rejeitado</span>;
-      case 'cancelado': return <span className="badge" style={{background: '#f1f5f9', color: '#64748b', fontWeight: 'bold'}}>Cancelado</span>;
-      case 'pedido_cancelamento': return <span className="badge" style={{background: '#fefce8', color: '#a16207', fontWeight: 'bold'}}>A pedir cancelamento...</span>;
-      default: return <span className="badge" style={{background: '#fef3c7', color: '#b45309', fontWeight: 'bold'}}>Pendente</span>;
-    }
+  // ==========================================
+  // DERIVADOS PARA O NOVO LAYOUT
+  // ==========================================
+  const toLocal = (value) => (value ? parseLocalDate(value) : null);
+  const fmtShort = (value) => {
+      const d = toLocal(value);
+      if (!d || Number.isNaN(d.getTime())) return '-';
+      return d.toLocaleDateString('pt-PT', { day: 'numeric', month: 'short' }).replace('.', '');
+  };
+  const formatDate = (value) => {
+      const d = toLocal(value);
+      if (!d || Number.isNaN(d.getTime())) return '-';
+      return d.toLocaleDateString('pt-PT');
+  };
+  const skipSet = buildToleranciasSkipSet(tolerancias, user?.id || null);
+  const duracaoPedido = (p) => {
+      if (p.tipo === KM_REQUEST_TYPE) return p.km_total != null ? `${p.km_total} km` : null;
+      if (p.is_parcial) {
+          if (!p.hora_inicio || !p.hora_fim) return 'Parcial';
+          const [h1, m1] = String(p.hora_inicio).split(':').map(Number);
+          const [h2, m2] = String(p.hora_fim).split(':').map(Number);
+          const mins = (h2 * 60 + m2) - (h1 * 60 + m1);
+          if (!(mins > 0)) return 'Parcial';
+          return `${Math.floor(mins / 60)}h${mins % 60 ? String(mins % 60).padStart(2, '0') : ''}`;
+      }
+      if (!p.data_inicio) return null;
+      const n = calcularDiasUteis(p.data_inicio, p.data_fim || p.data_inicio, skipSet);
+      return `${n} ${n === 1 ? 'dia útil' : 'dias úteis'}`;
   };
 
-  const getTipoEstilo = (tipo) => {
-    const tipoLabel = formatAbsenceTypeLabel(tipo);
-    let icon, color;
-    switch (tipoLabel) {
-        case KM_REQUEST_TYPE: icon = <Icons.Briefcase color="var(--color-primary)" />; color = "var(--color-btnPrimary)"; break;
-      case 'Férias': icon = <Icons.Sun color="#d97706" />; color = "#b45309"; break;
-      case 'Assistência à família': icon = <Icons.Users color="var(--color-btnPrimary)" />; color = "var(--color-btnPrimaryDark)"; break;
-      case 'Outros - Assuntos pessoais': icon = <Icons.User color="#475569" />; color = "#334155"; break;
-      case 'Ausência sem motivo - injustificada': icon = <Icons.AlertTriangle color="#ef4444" />; color = "#b91c1c"; break;
-      case 'Doença, acidente e obrigação legal': icon = <Icons.Activity color="#8b5cf6" />; color = "#7e22ce"; break;
-      case 'Casamento': icon = <Icons.Heart color="#ec4899" />; color = "#be185d"; break;
-      case 'Deslocação a estabelecimento de ensino': icon = <Icons.BookOpen color="var(--color-primary)" />; color = "var(--color-btnPrimary)"; break;
-      case 'Licença maternal/paternal': icon = <Icons.Heart color="#f43f5e" />; color = "#e11d48"; break;
-      case 'Licença sem vencimento': icon = <Icons.MinusCircle color="#64748b" />; color = "#475569"; break;
-      case 'Falecimento de familiar': icon = <Icons.MinusCircle color="#1e293b" />; color = "#0f172a"; break;
-      case 'Prestação de provas de avaliação': icon = <Icons.FileText color="#14b8a6" />; color = "#0f766e"; break;
-      case 'Candidato a cargo público': icon = <Icons.Scale color="#6366f1" />; color = "#4338ca"; break;
-      default: icon = <Icons.AlertTriangle color="#f59e0b" />; color = "#b45309"; break;
-    }
-    return (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: color, fontWeight: '700', fontSize: '0.9rem' }}>
-            {icon} {tipoLabel || '-'}
-        </div>
-    );
+  const estadoKey = (p) => String(p.estado || 'pendente').toLowerCase();
+  const counts = {
+      todos: pedidos.length,
+      pendente: pedidos.filter((p) => ['pendente', 'pedido_cancelamento'].includes(estadoKey(p))).length,
+      aprovado: pedidos.filter((p) => estadoKey(p) === 'aprovado').length,
+      outros: pedidos.filter((p) => ['rejeitado', 'cancelado'].includes(estadoKey(p))).length,
   };
+  const pedidosFiltrados = pedidos.filter((p) => {
+      const k = estadoKey(p);
+      if (statusFilter === 'pendente') return ['pendente', 'pedido_cancelamento'].includes(k);
+      if (statusFilter === 'aprovado') return k === 'aprovado';
+      if (statusFilter === 'outros') return ['rejeitado', 'cancelado'].includes(k);
+      return true;
+  });
 
-  const formatDate = (dateString) => {
-      if (!dateString) return '-';
-      return new Date(dateString).toLocaleDateString('pt-PT');
-  };
+  const anoAtual = new Date().getFullYear();
+  const kmAprovadosAno = pedidos
+      .filter((p) => estadoKey(p) === 'aprovado' && String(p.data_inicio || '').startsWith(String(anoAtual)))
+      .reduce((acc, p) => acc + (Number(p.km_total) || 0), 0);
 
-  const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', color: '#1e293b', outline: 'none', boxSizing: 'border-box' };
-  const labelStyle = { display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' };
+  const saldo = diasFeriasDisponiveis ?? diasFerias;
+  const saldoTotal = Number(diasFeriasTotal) || 0;
+  const saldoPct = saldoTotal > 0 && saldo != null ? Math.max(0, Math.min(100, (Number(saldo) / saldoTotal) * 100)) : 0;
+
+  const openNewRequest = () => { setIsEditing(false); setEditingId(null); setShowModal(true); };
+
+  const absenceTypeOptions = ABSENCE_TYPES.map((t) => {
+      const meta = getTypeMeta(t);
+      return {
+          value: t,
+          label: t,
+          hint: isVacationType(t) ? 'Desconta no saldo de férias' : meta.hint,
+          icon: <span className="fs-tile" style={{ '--t1': meta.c1, '--t2': meta.c2 }}><meta.Icon size={14} color="#fff" /></span>,
+      };
+  });
+  const vehicleOptions = [
+      ...meusVeiculos.map((v) => ({ value: v.matricula, label: v.matricula, hint: v.marca || 'Veículo registado', icon: <span className="ab-mini-plate"><i>P</i></span> })),
+      { value: 'Outro (Não registado)', label: 'Outro veículo', hint: 'Não registado no perfil', icon: <span className="fs-tile" style={{ '--t1': '#cbd5e1', '--t2': '#64748b' }}><Icons.Briefcase size={13} color="#fff" /></span> },
+  ];
+
+  const renderDropzone = (current, onPick, required = false) => (
+      <label
+          className={`ab-drop ${current ? 'has-file' : ''}`}
+          onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('is-over'); }}
+          onDragLeave={(e) => e.currentTarget.classList.remove('is-over')}
+          onDrop={(e) => { e.preventDefault(); e.currentTarget.classList.remove('is-over'); const f = e.dataTransfer.files?.[0]; if (f) onPick(f); }}
+      >
+          <input type="file" accept=".pdf, image/*" hidden required={required && !current} onChange={(e) => { onPick(e.target.files?.[0] || null); e.target.value = ''; }} />
+          <span className="ab-drop-icon"><Icons.Paperclip /></span>
+          {current ? (
+              <span className="ab-drop-text"><strong>{current.name}</strong><em>{(current.size / 1024 / 1024).toFixed(2)} MB · clica para trocar</em></span>
+          ) : (
+              <span className="ab-drop-text"><strong>Arrasta um ficheiro ou clica para escolher</strong><em>PDF, JPG ou PNG · máx. 5MB</em></span>
+          )}
+          {current && <button type="button" className="ab-icon-btn" onClick={(e) => { e.preventDefault(); onPick(null); }} aria-label="Remover ficheiro"><Icons.Close /></button>}
+      </label>
+  );
 
   return (
-    <div className="page-container" style={{maxWidth: '1200px', margin: '0 auto', paddingBottom: '40px'}}>
-      
-      {/* HEADER */}
-      <div className="card" style={{ marginBottom: 25, padding: '25px', display: "flex", justifyContent: "space-between", alignItems: 'center', flexWrap: 'wrap', gap: '15px', background: 'white', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
-        <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
-            <div style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '12px', borderRadius: '12px', display: 'flex'}}><Icons.Sun size={24} /></div>
-            <div>
-                <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>{isKmOnlyMode ? "Pedido de Deslocação" : "Férias & Ausências"}</h1>
-                <p style={{color: '#64748b', margin: 0, fontWeight: '500', fontSize: '0.9rem'}}>{isKmOnlyMode ? 'Registo de deslocações extra para aprovação dos RH' : 'Gestão pessoal de tempo e calendário'}</p>
-            </div>
-        </div>
-        <button className="btn-cta" onClick={() => { setIsEditing(false); setEditingId(null); setShowModal(true); }}>
-            <Icons.Plus /> {isKmOnlyMode ? "Novo Pedido de Deslocação" : 'Novo Pedido'}
-        </button>
-      </div>
+    <div className="page-container ab-page">
 
-      <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '25px'}}>
-        {!isKmOnlyMode && (
-        <div className="card" style={{padding: '25px', display: 'flex', alignItems: 'center', gap: '20px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)'}}>
-            <div style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '15px', borderRadius: '50%'}}><Icons.Sun size={24} /></div>
-            <div>
-                <h3 style={{margin: '0 0 5px 0', fontSize: '0.9rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Dias Disponíveis</h3>
-                <p style={{margin: 0, color: '#1e293b', fontSize: '1.8rem', fontWeight: '900'}}>{diasFeriasDisponiveis ?? diasFerias ?? '--'}</p>
-                <p style={{margin: '6px 0 0', color: '#64748b', fontSize: '0.75rem', lineHeight: 1.35, maxWidth: '230px'}}>
-                    Os dias não gozados transitam até 31 de março do ano seguinte e depois expiram.
-                </p>
-            </div>
-        </div>
-        )}
-        <div className="card" style={{padding: '25px', display: 'flex', alignItems: 'center', gap: '20px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)'}}>
-            <div style={{background: '#fefce8', color: '#d97706', padding: '15px', borderRadius: '50%'}}><Icons.Clock size={24} color="#d97706" /></div>
-            <div>
-                <h3 style={{margin: '0 0 5px 0', fontSize: '0.9rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Pedidos Pendentes</h3>
-                <p style={{margin: 0, color: '#1e293b', fontSize: '1.8rem', fontWeight: '900'}}>{pedidos.filter(p => p.estado?.toLowerCase() === 'pendente').length}</p>
-            </div>
-        </div>
-      </div>
+      {/* --- HERO --- */}
+      <header className="ab-hero">
+          <div className="ab-hero-glow" aria-hidden="true" />
+          <div className="ab-hero-main">
+              <span className="ab-eyebrow">{isKmOnlyMode ? 'Deslocações' : 'Tempo pessoal'}</span>
+              <h1>{isKmOnlyMode ? 'Pedidos de Km\'s' : 'Férias & Ausências'}</h1>
+              <p>{isKmOnlyMode ? 'Regista deslocações extra para aprovação dos RH.' : 'Marca férias, justifica ausências e acompanha os teus pedidos.'}</p>
+              <button type="button" className="ab-cta" onClick={openNewRequest}>
+                  <Icons.Plus /> {isKmOnlyMode ? 'Nova deslocação' : 'Novo pedido'}
+              </button>
+          </div>
 
-      <div className="card" style={{ padding: '25px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)' }}>
-        <h3 style={{marginTop: 0, marginBottom: '20px', color: '#1e293b', fontSize: '1.2rem', fontWeight: '800'}}>O Meu Histórico</h3>
-        <div className="table-responsive">
-          <table className="data-table" style={{ width: "100%", borderCollapse: 'collapse', minWidth: '800px' }}>
-            <thead>
-              <tr style={{color: '#64748b', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em', borderBottom: '2px solid #f1f5f9'}}>
-                <th style={{padding: '15px', textAlign: 'left'}}>Tipo de Ausência</th>
-                <th style={{padding: '15px', textAlign: 'left'}}>Período</th>
-                <th style={{padding: '15px', textAlign: 'left'}}>Motivo / Notas</th>
-                <th style={{padding: '15px', textAlign: 'center'}}>Documento</th>
-                <th style={{padding: '15px', textAlign: 'left'}}>Estado</th>
-                <th style={{padding: '15px', textAlign: 'right'}}>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pedidos.length > 0 ? pedidos.map(p => (
-                <tr key={p.id} style={{borderBottom: '1px solid #f8fafc'}} className="table-row-hover">
-                  <td style={{padding: '15px'}}>
-                      {getTipoEstilo(p.tipo)}
-                  </td>
-                  
-                  <td style={{padding: '15px'}}>
-                    {p.is_parcial ? (
-                        <>
-                            <div style={{fontWeight: '600', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.Calendar size={14} /> {formatDate(p.data_inicio)}</div>
-                            <div style={{fontSize: '0.75rem', color: '#64748b', marginTop: '6px', background: '#f1f5f9', padding: '4px 8px', borderRadius: '6px', display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 'bold'}}>
-                                <Icons.Clock size={12} /> {formatHourShort(p.hora_inicio)} {p.hora_fim ? `às ${formatHourShort(p.hora_fim)}` : '(Saída)'}
-                            </div>
-                        </>
-                    ) : p.tipo === KM_REQUEST_TYPE ? (
-                        <div style={{fontWeight: '600', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px'}}>
-                            <Icons.Calendar size={14} /> {formatDate(p.data_inicio)}
-                        </div>
-                    ) : (
-                        <div style={{fontWeight: '600', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px'}}>
-                            <Icons.Calendar size={14} /> {formatDate(p.data_inicio)} <span style={{color: '#cbd5e1', fontWeight: 'normal'}}>até</span> {formatDate(p.data_fim)}
-                        </div>
-                    )}
-                  </td>
-
-                  {/* 💡 Exibição do Veículo na Lista de Km's */}
-                  <td style={{padding: '15px', maxWidth: '150px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#64748b', fontSize: '0.9rem'}} title={p.motivo}>
-                                            {p.tipo === KM_REQUEST_TYPE
-                                                ? `De: ${p.km_origem || '-'} | Para: ${p.km_destino || '-'} | Km: ${p.km_total ?? '-'}${p.veiculo ? ` | Viatura: ${p.veiculo}` : ''}${p.motivo ? ` | ${p.motivo}` : ''}`
-                                                : (p.motivo || '-')}
-                  </td>
-                  
-                  <td style={{padding: '15px', textAlign: 'center'}}>
-                      {p.anexo_url ? (
-                          <div style={{display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center'}}>
-                              <a href={p.anexo_url} target="_blank" rel="noreferrer" className="action-btn hover-blue-text hover-shadow" style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '6px', borderRadius: '6px'}} title="Ver Documento"><Icons.Eye size={16} /></a>
-                              <button onClick={() => setUploadModal({ show: true, pedido: p })} className="action-btn hover-orange-text hover-shadow" style={{background: '#f8fafc', color: '#64748b', padding: '6px', borderRadius: '6px'}} title="Substituir Documento"><Icons.Refresh size={16} /></button>
-                          </div>
-                      ) : (
-                          <button onClick={() => setUploadModal({ show: true, pedido: p })} className="hover-shadow" style={{background: 'white', border: '1px dashed #cbd5e1', color: '#64748b', padding: '6px 12px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', gap: '6px', margin: '0 auto'}}>
-                              <Icons.Paperclip size={14} /> Anexar
-                          </button>
-                      )}
-                  </td>
-
-                  <td style={{padding: '15px'}}>
-                      {getStatusBadge(p.estado)}
-                  </td>
-                  
-                  <td style={{padding: '15px', textAlign: 'right'}}>
-                      <div style={{display:'flex', gap:'6px', justifyContent:'flex-end'}}>
-                          {p.estado === 'pendente' && (
-                              <>
-                                  <button onClick={() => handleEditClick(p)} className="action-btn hover-blue-text" title="Editar Pedido"><Icons.Edit /></button>
-                                  <button onClick={() => setConfirmCancel({ show: true, pedido: p })} className="action-btn hover-red-text" title="Cancelar Pedido"><Icons.Trash /></button>
-                              </>
-                          )}
-                          {p.estado === 'aprovado' && (
-                              <button onClick={() => setConfirmCancel({ show: true, pedido: p })} style={{background: 'white', border: '1px solid #fde68a', color: '#d97706', padding: '6px 12px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', gap: '6px'}} className="hover-shadow" title="Pedir Cancelamento aos RH">
-                                  <Icons.Refresh size={14} /> Cancelar Aprovado
-                              </button>
-                          )}
-                          {['rejeitado', 'cancelado', 'pedido_cancelamento'].includes(p.estado) && (
-                              <span style={{fontSize: '0.8rem', color: '#cbd5e1'}}>- - -</span>
-                          )}
+          <div className="ab-hero-stats">
+              {!isKmOnlyMode ? (
+                  <div className="ab-balance" style={{ '--p': saldoPct }}>
+                      <svg viewBox="0 0 44 44" aria-hidden="true">
+                          <circle cx="22" cy="22" r="19" className="ab-ring-track" />
+                          <circle cx="22" cy="22" r="19" className="ab-ring-fill" pathLength="100" />
+                      </svg>
+                      <div className="ab-balance-text">
+                          <strong>{saldo ?? '--'}</strong>
+                          <span>{saldoTotal ? `de ${saldoTotal} dias` : 'dias'}</span>
                       </div>
-                  </td>
-                </tr>
-              )) : (
-                <tr><td colSpan="6" style={{textAlign: 'center', padding: '50px', color: '#94a3b8'}}>
-                    <Icons.Calendar size={40} color="#cbd5e1" />
-                    <p style={{marginTop: '10px', fontWeight: '500'}}>{isKmOnlyMode ? "Ainda não fizeste nenhum pedido de Deslocação." : 'Ainda não fizeste nenhum pedido.'}</p>
-                </td></tr>
+                  </div>
+              ) : (
+                  <div className="ab-stat ab-stat-big">
+                      <strong>{kmAprovadosAno.toLocaleString('pt-PT')}</strong>
+                      <span>km aprovados em {anoAtual}</span>
+                  </div>
               )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+              <div className="ab-stat-col">
+                  <div className="ab-stat"><strong>{counts.pendente}</strong><span>Pendentes</span></div>
+                  <div className="ab-stat"><strong>{counts.aprovado}</strong><span>Aprovados</span></div>
+              </div>
+          </div>
+      </header>
+      {!isKmOnlyMode && (
+          <p className="ab-hint"><Icons.Info size={14} /> Os dias de férias não gozados transitam até 31 de março do ano seguinte e depois expiram.</p>
+      )}
+
+      {/* --- HISTÓRICO --- */}
+      <section className="ab-card">
+          <div className="ab-card-head">
+              <div>
+                  <h2>O meu histórico</h2>
+                  <p>{pedidos.length} {pedidos.length === 1 ? 'pedido' : 'pedidos'} no total</p>
+              </div>
+              <div className="ab-segment" role="tablist">
+                  {[['todos', 'Todos'], ['pendente', 'Pendentes'], ['aprovado', 'Aprovados'], ['outros', 'Arquivados']].map(([key, label]) => (
+                      <button key={key} type="button" role="tab" aria-selected={statusFilter === key} className={statusFilter === key ? 'is-on' : ''} onClick={() => setStatusFilter(key)}>
+                          {label}<span>{counts[key]}</span>
+                      </button>
+                  ))}
+              </div>
+          </div>
+
+          {loading ? (
+              <div className="ab-list">
+                  {[0, 1, 2].map((i) => <div key={i} className="ab-row ab-skeleton" />)}
+              </div>
+          ) : pedidosFiltrados.length > 0 ? (
+              <div className="ab-list">
+                  {pedidosFiltrados.map((p, idx) => {
+                      const meta = getTypeMeta(p.tipo === KM_REQUEST_TYPE ? KM_REQUEST_TYPE : formatAbsenceTypeLabel(p.tipo));
+                      const st = STATUS_META[estadoKey(p)] || STATUS_META.pendente;
+                      const isKm = p.tipo === KM_REQUEST_TYPE;
+                      const multi = !isKm && !p.is_parcial && p.data_fim && p.data_fim !== p.data_inicio;
+                      const start = toLocal(p.data_inicio);
+                      const dur = duracaoPedido(p);
+                      const isClosed = ['rejeitado', 'cancelado'].includes(estadoKey(p));
+                      return (
+                          <article key={p.id} className={`ab-row ${isClosed ? 'is-closed' : ''}`} style={{ '--k': Math.min(idx, 12), '--t1': meta.c1, '--t2': meta.c2 }}>
+                              <div className="ab-date" aria-hidden="true">
+                                  <span className="ab-date-month">{start ? start.toLocaleDateString('pt-PT', { month: 'short' }).replace('.', '') : '--'}</span>
+                                  <span className="ab-date-day">{start ? start.getDate() : '--'}</span>
+                              </div>
+
+                              <div className="ab-row-main">
+                                  <div className="ab-row-title">
+                                      <span className="ab-type-icon"><meta.Icon size={14} color="#fff" /></span>
+                                      <strong>{isKm ? 'Deslocação' : (formatAbsenceTypeLabel(p.tipo) || '-')}</strong>
+                                  </div>
+                                  <div className="ab-row-meta">
+                                      <span><Icons.Calendar size={13} />{multi ? `${fmtShort(p.data_inicio)} → ${fmtShort(p.data_fim)}` : formatDate(p.data_inicio)}</span>
+                                      {p.is_parcial && <span><Icons.Clock size={13} />{formatHourShort(p.hora_inicio)}{p.hora_fim ? ` – ${formatHourShort(p.hora_fim)}` : ' (saída)'}</span>}
+                                      {dur && <span className="ab-pill">{dur}</span>}
+                                  </div>
+                                  {isKm ? (
+                                      <div className="ab-route">
+                                          <span>{p.km_origem || '-'}</span><i />
+                                          <span>{p.km_destino || '-'}</span>
+                                          {p.veiculo && <em className="ab-mini-plate is-text"><i>P</i>{p.veiculo}</em>}
+                                      </div>
+                                  ) : null}
+                                  {p.motivo && <p className="ab-row-note" title={p.motivo}>{p.motivo}</p>}
+                              </div>
+
+                              <div className="ab-row-side">
+                                  <span className={`ab-status is-${st.tone}`}><span className="ab-status-dot" />{st.label}</span>
+                                  <div className="ab-row-actions">
+                                      {p.anexo_url ? (
+                                          <>
+                                              <a href={p.anexo_url} target="_blank" rel="noreferrer" className="ab-chip-btn" title="Ver documento"><Icons.Eye /> Documento</a>
+                                              <button type="button" className="ab-icon-btn" onClick={() => setUploadModal({ show: true, pedido: p })} title="Substituir documento" aria-label="Substituir documento"><Icons.Refresh /></button>
+                                          </>
+                                      ) : !isClosed && (
+                                          <button type="button" className="ab-chip-btn is-dashed" onClick={() => setUploadModal({ show: true, pedido: p })}><Icons.Paperclip /> Anexar</button>
+                                      )}
+                                      {p.estado === 'pendente' && (
+                                          <>
+                                              <button type="button" className="ab-icon-btn" onClick={() => handleEditClick(p)} title="Editar pedido" aria-label="Editar pedido"><Icons.Edit /></button>
+                                              <button type="button" className="ab-icon-btn is-danger" onClick={() => setConfirmCancel({ show: true, pedido: p })} title="Cancelar pedido" aria-label="Cancelar pedido"><Icons.Trash /></button>
+                                          </>
+                                      )}
+                                      {p.estado === 'aprovado' && (
+                                          <button type="button" className="ab-chip-btn is-warn" onClick={() => setConfirmCancel({ show: true, pedido: p })} title="Pedir cancelamento aos RH"><Icons.Refresh /> Pedir cancelamento</button>
+                                      )}
+                                  </div>
+                              </div>
+                          </article>
+                      );
+                  })}
+              </div>
+          ) : (
+              <div className="ab-empty">
+                  <div className="ab-empty-icon">{isKmOnlyMode ? <Icons.Briefcase size={26} /> : <Icons.Sun size={26} />}</div>
+                  <strong>{statusFilter === 'todos' ? (isKmOnlyMode ? 'Ainda não registaste deslocações' : 'Ainda não fizeste nenhum pedido') : 'Nada por aqui'}</strong>
+                  <span>{statusFilter === 'todos' ? 'Quando fizeres um pedido, aparece aqui com o estado da aprovação.' : 'Não há pedidos neste filtro.'}</span>
+                  {statusFilter === 'todos' && <button type="button" className="ab-btn ab-btn-primary" onClick={openNewRequest}><Icons.Plus /> {isKmOnlyMode ? 'Nova deslocação' : 'Novo pedido'}</button>}
+              </div>
+          )}
+      </section>
 
       {/* MODAL DE NOVO / EDITAR PEDIDO */}
       {showModal && (
         <ModalPortal>
-            <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:99999}}>
-                <div style={{background:'white', width:'95%', maxWidth:'650px', borderRadius:'16px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow: 'hidden', animation: 'fadeIn 0.2s ease-out'}}>
-                    
-                    <div style={{padding:'20px 25px', background:'#f8fafc', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                        <h3 style={{margin:0, color:'#1e293b', fontSize:'1.25rem', fontWeight:'800', display: 'flex', alignItems: 'center', gap: '10px'}}>
-                            <span style={{color: 'var(--color-btnPrimary)'}}><Icons.Calendar size={22} /></span>
-                            {isEditing ? (isKmOnlyMode ? "Editar Pedido de Deslocação" : 'Editar Pedido de Ausência') : (isKmOnlyMode ? "Novo Pedido de Deslocação" : 'Novo Pedido de Ausência')}
-                        </h3>
-                        <button onClick={handleCloseModal} style={{background:'transparent', border:'none', cursor:'pointer', color:'#94a3b8'}} className="hover-red-text"><Icons.Close size={20} /></button>
-                    </div>
-
-                    <div style={{padding: '25px', overflowY: 'auto', maxHeight: '75vh'}}>
-                        <form onSubmit={handleSubmit}>
-                            {(() => {
-                                const isKmRequest = form.tipo === KM_REQUEST_TYPE;
-                                return (
-                                    <>
-                            
-                            <div style={{marginBottom: '20px'}}>
-                                <label style={labelStyle}>{isKmOnlyMode ? 'Tipo de Pedido' : 'Motivo da Ausência *'}</label>
-                                {isKmOnlyMode ? (
-                                    <input type="text" value={KM_REQUEST_TYPE} readOnly style={{...inputStyle, background: '#f8fafc', color: '#334155', fontWeight: '700'}} />
-                                ) : (
-                                    <select value={form.tipo} onChange={e => setForm({...form, tipo: e.target.value})} style={{...inputStyle, cursor: 'pointer'}} className="input-focus" required>
-                                        <option value="Férias">Férias</option>
-                                        <option value="Assistência à família">Assistência à família</option>
-                                        <option value="Outros - Assuntos pessoais">Outros - Assuntos pessoais</option>
-                                        <option value="Ausência sem motivo - injustificada">Ausência sem motivo - injustificada</option>
-                                        <option value="Doença, acidente e obrigação legal">Doença, acidente e obrigação legal</option>
-                                        <option value="Casamento">Casamento</option>
-                                        <option value="Deslocação a estabelecimento de ensino">Deslocação a estabelecimento de ensino</option>
-                                        <option value="Licença maternal/paternal">Licença maternal/paternal</option>
-                                        <option value="Licença sem vencimento">Licença sem vencimento</option>
-                                        <option value="Falecimento de familiar">Falecimento de familiar</option>
-                                        <option value="Prestação de provas de avaliação">Prestação de provas de avaliação</option>
-                                        <option value="Candidato a cargo público">Candidato a cargo público</option>
-                                    </select>
-                                )}
+            <div className="ab-overlay" onClick={(e) => { if (e.target === e.currentTarget) handleCloseModal(); }}>
+                {(() => {
+                    const isKmRequest = form.tipo === KM_REQUEST_TYPE;
+                    const meta = getTypeMeta(isKmRequest ? KM_REQUEST_TYPE : form.tipo);
+                    const saldoOk = !isVacationType(form.tipo) || diasFeriasDisponiveis === null || diasFeriasDisponiveis > 0;
+                    const summaryTone = diasUteis > 0 && saldoOk ? 'ok' : 'bad';
+                    const summaryText = diasUteis > 0 && isVacationType(form.tipo) && diasFeriasDisponiveis !== null && diasFeriasDisponiveis <= 0
+                        ? 'Não tens férias disponíveis para este período. O pedido não pode avançar.'
+                        : diasUteis > 0
+                            ? (isVacationType(form.tipo)
+                                ? `Este pedido consome ${Number(diasUteis.toFixed(2))} dia(s) útil(eis) do teu saldo de férias.`
+                                : `Corresponde a ${Number(diasUteis.toFixed(2))} dia(s) útil(eis). Sendo uma justificação legal, não desconta férias.`)
+                            : (form.is_parcial && (!form.hora_inicio || !form.hora_fim))
+                                ? 'Indica a hora de saída e de regresso para calcular o desconto.'
+                                : form.is_parcial
+                                    ? 'As horas não são válidas: o regresso tem de ser depois da saída.'
+                                    : 'O período calha num fim de semana ou feriado. Não é preciso marcar.';
+                    const submitBlocked = !isKmRequest && !form.is_parcial && diasUteis === 0;
+                    return (
+                        <form className="ab-modal" onSubmit={handleSubmit} style={{ '--t1': meta.c1, '--t2': meta.c2 }}>
+                            <div className="ab-modal-head">
+                                <span className="ab-modal-icon"><meta.Icon size={20} color="#fff" /></span>
+                                <div>
+                                    <h3>{isEditing ? (isKmOnlyMode ? 'Editar deslocação' : 'Editar pedido') : (isKmOnlyMode ? 'Nova deslocação' : 'Novo pedido de ausência')}</h3>
+                                    <p>{isKmOnlyMode ? 'Fica pendente até aprovação dos RH.' : 'Os RH recebem o pedido por email.'}</p>
+                                </div>
+                                <button type="button" className="ab-icon-btn" onClick={handleCloseModal} aria-label="Fechar"><Icons.Close /></button>
                             </div>
-                            
-                            {!isKmRequest && (
-                            <label style={{display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', marginBottom: '20px', color: 'var(--color-btnPrimaryHover)', fontWeight: 'bold', fontSize: '0.9rem', background: 'var(--color-bgSecondary)', padding: '15px', borderRadius: '10px', border: '1px solid var(--color-borderColor)', transition: '0.2s'}}>
-                                <input type="checkbox" checked={form.is_parcial} onChange={e => setForm({...form, is_parcial: e.target.checked, data_fim: e.target.checked ? form.data_inicio : form.data_fim})} style={{width: '18px', height: '18px', accentColor: 'var(--color-btnPrimary)'}} />
-                                <Icons.Clock size={18} /> Ausência Parcial (Apenas algumas horas no próprio dia)
-                            </label>
-                            )}
 
-                            <div style={{background: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px'}}>
+                            <div className="ab-modal-body">
+                                {!isKmOnlyMode && (
+                                    <div className="ab-field">
+                                        <span className="ab-label">Motivo da ausência</span>
+                                        <FancySelect
+                                            value={form.tipo}
+                                            onChange={(v) => setForm({ ...form, tipo: v })}
+                                            options={absenceTypeOptions}
+                                            className="ab-select"
+                                            menuWidth={380}
+                                            searchPlaceholder="Procurar motivo..."
+                                            ariaLabel="Motivo da ausência"
+                                        />
+                                    </div>
+                                )}
+
                                 {isKmRequest ? (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                                        <div style={{ display: 'flex', gap: '15px' }}>
-                                            <div style={{ flex: 1 }}>
-                                                <label style={labelStyle}>Data da Deslocação *</label>
-                                                <input type="date" value={form.data_inicio} onChange={e => setForm({...form, data_inicio: e.target.value, data_fim: e.target.value})} style={inputStyle} className="input-focus" required />
+                                    <>
+                                        <div className="ab-grid">
+                                            <div className="ab-field">
+                                                <span className="ab-label">Data da deslocação</span>
+                                                <input type="date" value={form.data_inicio} onChange={e => setForm({ ...form, data_inicio: e.target.value, data_fim: e.target.value })} required />
                                             </div>
-                                            
-                                            {/* 💡 NOVO: Dropdown de Veículos */}
-                                            <div style={{ flex: 1 }}>
-                                                <label style={labelStyle}>Veículo Utilizado *</label>
-                                                <select 
-                                                    value={form.veiculo} 
-                                                    onChange={e => setForm({...form, veiculo: e.target.value})} 
-                                                    style={{...inputStyle, cursor: 'pointer', fontFamily: 'monospace', fontWeight: 'bold'}} 
-                                                    className="input-focus" 
-                                                    required
-                                                >
-                                                    <option value="">-- Selecione a Matrícula --</option>
-                                                    {meusVeiculos.map((v, idx) => (
-                                                        <option key={idx} value={v.matricula}>{v.matricula} - {v.marca}</option>
-                                                    ))}
-                                                    <option value="Outro (Não registado)">Outro (Não registado)</option>
-                                                </select>
+                                            <div className="ab-field">
+                                                <span className="ab-label">Veículo utilizado</span>
+                                                <FancySelect
+                                                    value={form.veiculo}
+                                                    onChange={(v) => setForm({ ...form, veiculo: v })}
+                                                    options={vehicleOptions}
+                                                    placeholder="Escolher matrícula..."
+                                                    className="ab-select"
+                                                    menuWidth={300}
+                                                    ariaLabel="Veículo utilizado"
+                                                />
                                             </div>
                                         </div>
-                                        
-                                        {/* CALCULADORA INTELIGENTE */}
-                                        <CalculadoraKm form={form} setForm={setForm} />
-                                    </div>
-                                ) : !form.is_parcial ? (
-                                    <div style={{display: 'flex', gap: '20px'}}>
-                                        <div style={{flex: 1}}>
-                                            <label style={labelStyle}>Data Início *</label>
-                                            <input type="date" value={form.data_inicio} onChange={e => setForm({...form, data_inicio: e.target.value})} style={inputStyle} className="input-focus" required />
+                                        <div className="ab-km">
+                                            <CalculadoraKm form={form} setForm={setForm} />
                                         </div>
-                                        <div style={{flex: 1}}>
-                                            <label style={labelStyle}>Data Fim *</label>
-                                            <input type="date" value={form.data_fim} onChange={e => setForm({...form, data_fim: e.target.value})} style={inputStyle} className="input-focus" required />
-                                        </div>
-                                    </div>
+                                        <div className="ab-summary is-ok"><Icons.Info size={16} /><span>A deslocação vai para aprovação dos RH e fica refletida nos relatórios mensal individual e geral.</span></div>
+                                    </>
                                 ) : (
-                                    <div style={{display: 'flex', gap: '15px'}}>
-                                        <div style={{flex: 2}}>
-                                            <label style={labelStyle}>Data da Ocorrência *</label>
-                                            <input type="date" value={form.data_inicio} onChange={e => setForm({...form, data_inicio: e.target.value, data_fim: e.target.value})} style={inputStyle} className="input-focus" required />
+                                    <>
+                                        <div className="ab-segment ab-segment-full" role="tablist">
+                                            <button type="button" className={!form.is_parcial ? 'is-on' : ''} onClick={() => setForm({ ...form, is_parcial: false })}><Icons.Calendar size={14} /> Dias completos</button>
+                                            <button type="button" className={form.is_parcial ? 'is-on' : ''} onClick={() => setForm({ ...form, is_parcial: true, data_fim: form.data_inicio })}><Icons.Clock size={14} /> Algumas horas</button>
                                         </div>
-                                        <div style={{flex: 1}}>
-                                            <label style={labelStyle}>Hora Saída *</label>
-                                            <input type="time" value={form.hora_inicio} onChange={e => setForm({...form, hora_inicio: e.target.value})} style={inputStyle} className="input-focus" required />
-                                        </div>
-                                        <div style={{flex: 1}}>
-                                            <label style={labelStyle}>Regresso</label>
-                                            <input type="time" value={form.hora_fim} onChange={e => setForm({...form, hora_fim: e.target.value})} style={inputStyle} className="input-focus" required />
-                                        </div>
-                                    </div>
+
+                                        {!form.is_parcial ? (
+                                            <div className="ab-range">
+                                                <div className="ab-field">
+                                                    <span className="ab-label">De</span>
+                                                    <input type="date" value={form.data_inicio} onChange={e => setForm({ ...form, data_inicio: e.target.value, data_fim: form.data_fim && form.data_fim >= e.target.value ? form.data_fim : e.target.value })} required />
+                                                </div>
+                                                <span className="ab-range-arrow" aria-hidden="true">→</span>
+                                                <div className="ab-field">
+                                                    <span className="ab-label">Até</span>
+                                                    <input type="date" value={form.data_fim} min={form.data_inicio || undefined} onChange={e => setForm({ ...form, data_fim: e.target.value })} required />
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="ab-grid ab-grid-3">
+                                                <div className="ab-field">
+                                                    <span className="ab-label">Dia</span>
+                                                    <input type="date" value={form.data_inicio} onChange={e => setForm({ ...form, data_inicio: e.target.value, data_fim: e.target.value })} required />
+                                                </div>
+                                                <div className="ab-field">
+                                                    <span className="ab-label">Saída</span>
+                                                    <input type="time" value={form.hora_inicio} onChange={e => setForm({ ...form, hora_inicio: e.target.value })} required />
+                                                </div>
+                                                <div className="ab-field">
+                                                    <span className="ab-label">Regresso</span>
+                                                    <input type="time" value={form.hora_fim} onChange={e => setForm({ ...form, hora_fim: e.target.value })} required />
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {form.data_inicio && (
+                                            <div className={`ab-summary is-${summaryTone}`} key={summaryText}>
+                                                {summaryTone === 'ok' ? <Icons.Info size={16} /> : <Icons.AlertTriangle size={16} />}
+                                                <span>{summaryText}</span>
+                                                {diasUteis > 0 && <strong className="ab-summary-num">{Number(diasUteis.toFixed(2))}<small>{diasUteis === 1 ? 'dia' : 'dias'}</small></strong>}
+                                            </div>
+                                        )}
+                                    </>
                                 )}
-                            </div>
-                            {!isKmRequest && form.data_inicio && (
-                                <div style={{
-                                    background: diasUteis > 0 && (!isVacationType(form.tipo) || diasFeriasDisponiveis === null || diasFeriasDisponiveis > 0) ? 'var(--color-bgSecondary)' : '#fef2f2', 
-                                    color: diasUteis > 0 && (!isVacationType(form.tipo) || diasFeriasDisponiveis === null || diasFeriasDisponiveis > 0) ? 'var(--color-btnPrimaryHover)' : '#b91c1c', 
-                                    border: `1px solid ${diasUteis > 0 && (!isVacationType(form.tipo) || diasFeriasDisponiveis === null || diasFeriasDisponiveis > 0) ? 'var(--color-borderColor)' : '#fecaca'}`, 
-                                    padding: '12px 15px', borderRadius: '8px', marginBottom: '20px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '10px', fontWeight: '500'
-                                }}>
-                                    {diasUteis > 0 && (!isVacationType(form.tipo) || diasFeriasDisponiveis === null || diasFeriasDisponiveis > 0) ? <Icons.Info size={18} /> : <Icons.AlertTriangle size={18} />}
-                                    
-                                    <span>
-                                        {diasUteis > 0 && isVacationType(form.tipo) && diasFeriasDisponiveis !== null && diasFeriasDisponiveis <= 0
-                                            ? 'Não tem férias disponíveis para este período. O pedido não pode avançar.'
-                                            : diasUteis > 0 
-                                            ? (isVacationType(form.tipo) 
-                                                ? `Este pedido consumirá ${diasUteis} dia(s) útil(eis) do seu saldo de férias.` 
-                                                : `Este pedido corresponde a ${diasUteis} dia(s) útil(eis). Tratando-se de justificação legal, não desconta férias.`)
-                                            : (form.is_parcial && (!form.hora_inicio || !form.hora_fim))
-                                                ? `Introduza a hora de saída e regresso para calcular o desconto.`
-                                                : form.is_parcial 
-                                                    ? `As horas inseridas não são válidas (a hora de regresso tem de ser superior à saída).`
-                                                    : `Atenção: O período selecionado calha num fim de semana ou feriado. Não é necessário marcar.`}
-                                    </span>
-                                </div>
-                            )}
 
-                            {isKmRequest && (
-                                <div style={{background: 'var(--color-bgSecondary)', border: '1px solid var(--color-borderColor)', color: 'var(--color-btnPrimaryHover)', padding: '12px 15px', borderRadius: '8px', marginBottom: '20px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '10px', fontWeight: '500'}}>
-                                    <Icons.Info size={18} /> <span>Este pedido de Deslocação será enviado para aprovação dos Recursos Humanos e ficará refletido nos relatórios mensal individual e geral.</span>
+                                <div className="ab-field">
+                                    <span className="ab-label">Notas <em>opcional</em></span>
+                                    <textarea rows="3" value={form.motivo} onChange={e => setForm({ ...form, motivo: e.target.value })} placeholder="Mais detalhes sobre o pedido..." />
                                 </div>
-                            )}
 
-                            <div style={{marginBottom: '20px'}}>
-                                <label style={labelStyle}>Notas / Observações</label>
-                                <textarea rows="3" value={form.motivo} onChange={e => setForm({...form, motivo: e.target.value})} placeholder="Mais detalhes sobre o pedido (Opcional)..." style={{...inputStyle, resize: 'vertical'}} className="input-focus" />
+                                <div className="ab-field">
+                                    <span className="ab-label">Documento <em>opcional</em></span>
+                                    {renderDropzone(file, setFile)}
+                                </div>
                             </div>
-                            
-                            <div style={{marginBottom: '30px', background: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px dashed #cbd5e1'}}>
-                                <label style={{...labelStyle, display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Paperclip size={14} /> Anexar Documento (Opcional)</label>
-                                <input type="file" accept=".pdf, image/*" onChange={e => setFile(e.target.files[0])} style={{width: '100%', padding: '10px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '8px', color: '#475569', fontSize: '0.85rem', cursor: 'pointer'}} />
-                                <div style={{fontSize: '0.75rem', color: '#94a3b8', marginTop: '6px'}}>Formatos aceites: PDF, JPG, PNG. (Máx 5MB)</div>
-                            </div>
-                            
-                            <div style={{display: 'flex', gap: '15px', borderTop: '1px solid #e2e8f0', paddingTop: '20px'}}>
-                                <button type="button" onClick={handleCloseModal} style={{flex: 1, padding: '14px', borderRadius: '10px', border: '1px solid #cbd5e1', background: 'white', color: '#64748b', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">Cancelar</button>
-                                <button type="submit" disabled={isSubmitting || (!isKmRequest && !form.is_parcial && diasUteis === 0)} className="btn-primary hover-shadow" style={{flex: 2, padding: '14px', borderRadius: '10px', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: (!isKmRequest && !form.is_parcial && diasUteis === 0) ? 0.5 : 1}}>
-                                    {isSubmitting ? "A Guardar..." : (isEditing ? <><Icons.Edit size={18}/> Guardar Alterações</> : <><Icons.Plus size={18}/> Submeter Pedido</>)}
+
+                            <div className="ab-modal-foot">
+                                <button type="button" className="ab-btn ab-btn-ghost" onClick={handleCloseModal}>Cancelar</button>
+                                <button type="submit" className="ab-btn ab-btn-primary" disabled={isSubmitting || submitBlocked}>
+                                    {isSubmitting ? <><span className="ab-spinner" />A enviar...</> : (isEditing ? <><Icons.Edit /> Guardar alterações</> : <><Icons.Plus /> Submeter pedido</>)}
                                 </button>
                             </div>
-                                    </>
-                                );
-                            })()}
                         </form>
-                    </div>
-                </div>
+                    );
+                })()}
             </div>
         </ModalPortal>
       )}
 
-      {/* NOVO MODAL: ANEXAR DOCUMENTO LATER */}
+      {/* MODAL: ANEXAR DOCUMENTO */}
       {uploadModal.show && (
           <ModalPortal>
-              <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:99999}}>
-                  <div style={{background:'white', padding:'30px', borderRadius:'16px', width:'90%', maxWidth: '450px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', animation: 'fadeIn 0.2s ease-out'}}>
-                      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px'}}>
-                          <h3 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '10px'}}><Icons.Paperclip size={24} color="var(--color-btnPrimary)" /> Anexar Documento</h3>
-                          <button onClick={() => {setUploadModal({show: false, pedido: null}); setUploadFile(null);}} style={{background:'none', border:'none', cursor:'pointer', color:'#94a3b8'}} className="hover-red-text"><Icons.Close size={20} /></button>
-                      </div>
-                      
-                      <div style={{background: '#f8fafc', padding: '15px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #e2e8f0'}}>
-                          <p style={{margin: 0, color: '#475569', fontSize: '0.9rem', lineHeight: '1.5'}}>
-                              Adiciona ou substitui o justificativo (atestado, declaração, etc) para a ausência de <strong style={{color: '#1e293b'}}>{formatDate(uploadModal.pedido?.data_inicio)}</strong>.
-                          </p>
-                      </div>
-
-                      <form onSubmit={handleUploadOnly}>
-                          <div style={{border: '2px dashed #cbd5e1', padding: '30px 20px', borderRadius: '12px', textAlign: 'center', marginBottom: '25px', background: '#fafafa'}}>
-                              <input type="file" accept=".pdf, image/*" required onChange={e => setUploadFile(e.target.files[0])} style={{width:'100%', color: '#475569', cursor: 'pointer'}} />
+              <div className="ab-overlay" onClick={(e) => { if (e.target === e.currentTarget) { setUploadModal({ show: false, pedido: null }); setUploadFile(null); } }}>
+                  <form className="ab-modal ab-modal-sm" onSubmit={handleUploadOnly}>
+                      <div className="ab-modal-head">
+                          <span className="ab-modal-icon is-accent"><Icons.Paperclip /></span>
+                          <div>
+                              <h3>{uploadModal.pedido?.anexo_url ? 'Substituir documento' : 'Anexar documento'}</h3>
+                              <p>Justificativo da ausência de {formatDate(uploadModal.pedido?.data_inicio)}.</p>
                           </div>
-
-                          <div style={{display: 'flex', gap: '10px'}}>
-                              <button type="button" onClick={() => {setUploadModal({show: false, pedido: null}); setUploadFile(null);}} style={{flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', background: 'white', color: '#64748b', fontWeight: 'bold', cursor: 'pointer'}} className="hover-shadow">Cancelar</button>
-                              <button type="submit" className="btn-primary hover-shadow" style={{flex: 2, padding: '12px', borderRadius: '10px', fontWeight: 'bold'}} disabled={isUploadingDoc}>
-                                  {isUploadingDoc ? "A enviar..." : "Guardar Documento"}
-                              </button>
-                          </div>
-                      </form>
-                  </div>
+                          <button type="button" className="ab-icon-btn" onClick={() => { setUploadModal({ show: false, pedido: null }); setUploadFile(null); }} aria-label="Fechar"><Icons.Close /></button>
+                      </div>
+                      <div className="ab-modal-body">
+                          {renderDropzone(uploadFile, setUploadFile, true)}
+                      </div>
+                      <div className="ab-modal-foot">
+                          <button type="button" className="ab-btn ab-btn-ghost" onClick={() => { setUploadModal({ show: false, pedido: null }); setUploadFile(null); }}>Cancelar</button>
+                          <button type="submit" className="ab-btn ab-btn-primary" disabled={isUploadingDoc || !uploadFile}>
+                              {isUploadingDoc ? <><span className="ab-spinner" />A enviar...</> : 'Guardar documento'}
+                          </button>
+                      </div>
+                  </form>
               </div>
           </ModalPortal>
       )}
 
-      {/* POP-UPS DE CONFIRMAÇÃO */}
+      {/* CONFIRMAR CANCELAMENTO */}
       {confirmCancel.show && (
           <ModalPortal>
-              <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:99999}}>
-                  <div style={{background:'white', padding:'30px', borderRadius:'16px', width:'90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', animation: 'fadeIn 0.2s ease-out'}}>
-                      <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px'}}><Icons.AlertTriangle size={48} color="#ef4444" /></div>
-                      <h3 style={{margin: '0 0 10px 0', color: '#1e293b', fontSize: '1.25rem'}}>Cancelar Pedido</h3>
-                      <p style={{color: '#64748b', marginBottom: '25px', lineHeight: '1.5', fontSize: '0.95rem'}}>
-                          {confirmCancel.pedido?.estado === 'pendente' ? "Tem a certeza que deseja apagar este pedido pendente?" : "Como este pedido já foi aprovado, será enviado um pedido de cancelamento aos RH para que os seus dias sejam devolvidos. Confirma?"}
-                      </p>
-                      <div style={{display: 'flex', gap: '10px'}}>
-                          <button onClick={() => setConfirmCancel({ show: false, pedido: null })} style={{flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', background: 'white', fontWeight: 'bold', color: '#475569', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">Voltar</button>
-                          <button onClick={executarCancelamento} style={{flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: '#ef4444', color: 'white', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">Sim, Cancelar</button>
+              <div className="ab-overlay" onClick={(e) => { if (e.target === e.currentTarget) setConfirmCancel({ show: false, pedido: null }); }}>
+                  <div className="ab-dialog is-error" role="alertdialog">
+                      <div className="ab-dialog-icon"><Icons.AlertTriangle size={26} /></div>
+                      <h3>{confirmCancel.pedido?.estado === 'pendente' ? 'Cancelar pedido?' : 'Pedir cancelamento?'}</h3>
+                      <p>{confirmCancel.pedido?.estado === 'pendente' ? 'O pedido pendente vai ser removido.' : 'Este pedido já foi aprovado. Vamos pedir aos RH que o cancelem e devolvam os dias.'}</p>
+                      <div className="ab-dialog-actions">
+                          <button type="button" className="ab-btn ab-btn-ghost" onClick={() => setConfirmCancel({ show: false, pedido: null })}>Voltar</button>
+                          <button type="button" className="ab-btn ab-btn-danger" onClick={executarCancelamento}>Sim, cancelar</button>
                       </div>
                   </div>
               </div>
@@ -943,33 +1002,16 @@ export default function Ferias({ forcedType = null }) {
       {/* NOTIFICAÇÃO GLOBAL */}
       {notification.show && (
           <ModalPortal>
-              <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:99999}}>
-                  <div style={{background:'white', padding:'30px', borderRadius:'16px', width:'90%', maxWidth: '350px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', animation: 'fadeIn 0.2s ease-out'}}>
-                      <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px'}}>
-                          {notification.type === 'success' ? <Icons.CheckCircle size={48} color="#10b981" /> : <Icons.XCircle size={48} color="#ef4444" />}
-                      </div>
-                      <h3 style={{margin: '0 0 10px 0', color: '#1e293b', fontSize: '1.25rem'}}>{notification.type === 'success' ? 'Sucesso!' : 'Atenção'}</h3>
-                      <p style={{color: '#64748b', marginBottom: '25px', lineHeight: '1.5', fontSize: '0.95rem'}}>{notification.message}</p>
-                      <button onClick={() => setNotification({ show: false, message: '', type: 'success' })} className="btn-primary hover-shadow" style={{width: '100%', padding: '12px', borderRadius: '10px', fontWeight: 'bold'}}>Fechar</button>
+              <div className="ab-overlay ab-overlay-top" onClick={(e) => { if (e.target === e.currentTarget) setNotification({ show: false, message: '', type: 'success' }); }}>
+                  <div className={`ab-dialog is-${notification.type}`} role="alertdialog">
+                      <div className="ab-dialog-icon">{notification.type === 'success' ? <Icons.CheckCircle size={28} /> : <Icons.XCircle size={28} />}</div>
+                      <h3>{notification.type === 'success' ? 'Feito!' : 'Atenção'}</h3>
+                      <p>{notification.message}</p>
+                      <button type="button" autoFocus className="ab-btn ab-btn-primary ab-btn-block" onClick={() => setNotification({ show: false, message: '', type: 'success' })}>Fechar</button>
                   </div>
               </div>
           </ModalPortal>
       )}
-
-      <style>{`
-        .table-row-hover:hover { background-color: #f8fafc !important; }
-        .hover-shadow:hover { transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-        .hover-orange-text:hover { color: #f97316 !important; opacity: 1 !important; }
-        .hover-blue-text:hover { color: var(--color-btnPrimary) !important; opacity: 1 !important; }
-        .hover-red-text:hover { color: #ef4444 !important; opacity: 1 !important; }
-        
-        .input-focus:focus { border-color: var(--color-btnPrimary) !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
-        
-        .action-btn { background: transparent; border: none; cursor: pointer; opacity: 0.5; transition: 0.2s; display: flex; align-items: center; justify-content: center; padding: 4px; }
-        .action-btn:hover { opacity: 1; transform: scale(1.1); }
-
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-      `}</style>
     </div>
   );
 }

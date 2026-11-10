@@ -6,6 +6,8 @@
   --pf-sub: #64748b;
   --pf-line: #e2e8f0;
   --pf-soft: #f8fafc;
+  --pf-field-bg: color-mix(in srgb, var(--color-btnPrimary) 4%, #f3f5f8);
+  --pf-field-line: color-mix(in srgb, var(--color-btnPrimary) 22%, #cfd6df);
   --pf-accent: var(--color-btnPrimary);
   --pf-spring: cubic-bezier(0.22, 1, 0.36, 1);
   padding-bottom: 110px !important;
@@ -185,14 +187,15 @@
   width: 100%; box-sizing: border-box;
   height: 46px; padding: 0 14px;
   border-radius: 14px;
-  border: 1.5px solid var(--pf-line);
-  background: var(--pf-soft);
+  border: 1.5px solid var(--pf-field-line);
+  background: var(--pf-field-bg);
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.05);
   font: inherit; font-size: 0.94rem; font-weight: 500; color: var(--pf-ink);
   outline: none;
   transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
 .pf-field > input::placeholder, .pf-input::placeholder, .pf-password input::placeholder { color: #a8b3c4; font-weight: 400; }
-.pf-field > input:hover, .pf-input:hover, .pf-password input:hover { border-color: #cbd5e1; }
+.pf-field > input:hover, .pf-input:hover, .pf-password input:hover { border-color: color-mix(in srgb, var(--color-btnPrimary) 45%, #cfd6df); }
 .pf-field > input:focus,
 .pf-input:focus,
 .pf-password:focus-within,
@@ -215,18 +218,18 @@
 .pf-field .fs-trigger.pf-select {
   width: 100%; height: 46px;
   border-radius: 14px;
-  border: 1.5px solid var(--pf-line);
-  background: var(--pf-soft);
+  border: 1.5px solid var(--pf-field-line);
+  background: var(--pf-field-bg);
 }
-.pf-field .fs-trigger.pf-select:hover { border-color: #cbd5e1; }
+.pf-field .fs-trigger.pf-select:hover { border-color: color-mix(in srgb, var(--color-btnPrimary) 45%, #cfd6df); }
 .pf-field .fs-trigger.pf-select.is-open { border-color: var(--pf-accent); background: #fff; box-shadow: 0 0 0 4px var(--color-btnPrimaryShadow, rgba(59, 130, 246, 0.12)); }
 
 .pf-stepper {
   display: flex; align-items: center;
   height: 46px; box-sizing: border-box;
   border-radius: 14px;
-  border: 1.5px solid var(--pf-line);
-  background: var(--pf-soft);
+  border: 1.5px solid var(--pf-field-line);
+  background: var(--pf-field-bg);
   overflow: hidden;
   transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
