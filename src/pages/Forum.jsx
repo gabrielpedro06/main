@@ -8,7 +8,6 @@ import { resolveActiveTimerMeta } from "../utils/activeTimerResolver";
 import { applyStopStatusUpdateForLogTarget } from "../utils/taskTimerLifecycle";
 import "./../styles/dashboard.css";
 import EmojiPicker from 'emoji-picker-react';
-import SlidingTabs from "../components/SlidingTabs";
 import "../styles/forum.css";
 
 // --- ÍCONES SVG PROFISSIONAIS ---
@@ -28,11 +27,25 @@ const Icons = {
   Heart: ({ size = 16, color = "currentColor", fill = "none" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>,
     Stop: ({ size = 12, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none"><rect x="6" y="6" width="12" height="12" rx="2" ry="2"></rect></svg>,
     GripVertical: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="19" r="1"></circle></svg>,
+  Expand: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" /></svg>,
   Check: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>,
   Search: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>,
   Users: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>,
   Edit: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
 };
+
+const CAT_ICON_PATHS = {
+  all: <><rect x="3" y="3" width="7" height="7" rx="2" /><rect x="14" y="3" width="7" height="7" rx="2" /><rect x="3" y="14" width="7" height="7" rx="2" /><rect x="14" y="14" width="7" height="7" rx="2" /></>,
+  aviso: <><path d="m3 11 18-5v12L3 14v-3z" /><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" /></>,
+  duvida: <><circle cx="12" cy="12" r="9" /><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" /></>,
+  ideia: <><path d="M9 18h6" /><path d="M10 22h4" /><path d="M15.1 14c.2-1 .7-1.7 1.4-2.5A5.5 5.5 0 1 0 7.5 11.5c.7.8 1.2 1.5 1.4 2.5" /></>,
+  geral: <><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5z" /></>,
+};
+const CatIcon = ({ k, size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    {CAT_ICON_PATHS[k] || CAT_ICON_PATHS.geral}
+  </svg>
+);
 
 const ModalPortal = ({ children }) => createPortal(children, document.body);
 const getChatSeenStorageKey = (userId) => `chat_seen_rooms_${userId}`;
@@ -185,6 +198,11 @@ export default function Forum() {
     const [chatPeopleQuery, setChatPeopleQuery] = useState('');
     const [feedReactPicker, setFeedReactPicker] = useState(null);
     const [lastMessageByRoom, setLastMessageByRoom] = useState({});
+    const [commentLikes, setCommentLikes] = useState({});
+    const [commentLikesAvailable, setCommentLikesAvailable] = useState(true);
+    const [expandedReplies, setExpandedReplies] = useState({});
+    const reactPressTimerRef = useRef(null);
+    const reactLongPressRef = useRef(false);
 
   function scrollChatToBottom(delayMs = 0) {
       const run = () => {
@@ -916,20 +934,22 @@ export default function Forum() {
           else if (type === 'comment') {
               const { error } = await supabase.from("forum_comments").delete().eq("id", id);
               if (error) throw error;
-              setComments(comments.filter(c => c.id !== id));
+              const pool = postId ? (postCommentsByPost[postId] || comments) : comments;
+              const removedCount = 1 + pool.filter((c) => c.parent_id === id).length;
+              setComments(comments.filter(c => c.id !== id && c.parent_id !== id));
 
               if (postId) {
                   setPostCommentsByPost((prev) => ({
                       ...prev,
-                      [postId]: (prev[postId] || []).filter((c) => c.id !== id),
+                      [postId]: (prev[postId] || []).filter((c) => c.id !== id && c.parent_id !== id),
                   }));
               }
 
               setPosts(posts.map(p => {
                   const shouldUpdate = postId ? p.id === postId : p.id === selectedPost?.id;
                   if (shouldUpdate) {
-                      const currCount = p.forum_comments?.[0]?.count || 1;
-                      return { ...p, forum_comments: [{ count: currCount - 1 }] };
+                      const currCount = p.forum_comments?.[0]?.count || removedCount;
+                      return { ...p, forum_comments: [{ count: Math.max(0, currCount - removedCount) }] };
                   }
                   return p;
               }));
@@ -943,6 +963,57 @@ export default function Forum() {
       }
   }
 
+  // --- Gostos em comentários (tabela forum_comment_likes; se não existir, a funcionalidade esconde-se) ---
+  async function loadCommentLikes(commentIds = []) {
+      const ids = commentIds.filter(Boolean);
+      if (!ids.length || !commentLikesAvailable) return;
+      const { data, error } = await supabase
+          .from("forum_comment_likes")
+          .select("comment_id, user_id")
+          .in("comment_id", ids);
+      if (error) {
+          if (["42P01", "PGRST205", "PGRST200"].includes(error.code)) setCommentLikesAvailable(false);
+          return;
+      }
+      setCommentLikes((prev) => {
+          const next = { ...prev };
+          ids.forEach((id) => { next[id] = []; });
+          (data || []).forEach((row) => {
+              next[row.comment_id] = [...(next[row.comment_id] || []), row.user_id];
+          });
+          return next;
+      });
+  }
+
+  async function toggleCommentLike(comment) {
+      if (!comment?.id || !user?.id || !commentLikesAvailable) return;
+      const current = commentLikes[comment.id] || [];
+      const liked = current.includes(user.id);
+      setCommentLikes((prev) => ({
+          ...prev,
+          [comment.id]: liked ? (prev[comment.id] || []).filter((id) => id !== user.id) : [...(prev[comment.id] || []), user.id],
+      }));
+      const { error } = liked
+          ? await supabase.from("forum_comment_likes").delete().eq("comment_id", comment.id).eq("user_id", user.id)
+          : await supabase.from("forum_comment_likes").insert([{ comment_id: comment.id, user_id: user.id }]);
+      if (error) {
+          setCommentLikes((prev) => ({ ...prev, [comment.id]: current }));
+          if (["42P01", "PGRST205"].includes(error.code)) setCommentLikesAvailable(false);
+      }
+  }
+
+  // Insere um comentário; se for resposta, tenta guardar parent_id (cai para o modo antigo se a coluna não existir)
+  async function insertForumComment(postId, conteudo, parentId = null) {
+      const base = { post_id: postId, user_id: user.id, conteudo };
+      const select = `*, profiles ( nome, avatar_url )`;
+      if (parentId) {
+          const res = await supabase.from("forum_comments").insert([{ ...base, parent_id: parentId }]).select(select).single();
+          if (!res.error) return res;
+          if (!["42703", "PGRST204"].includes(res.error.code)) return res;
+      }
+      return supabase.from("forum_comments").insert([base]).select(select).single();
+  }
+
   async function fetchCommentsForPost(postId) {
       if (!postId) return;
       setLoadingInlineComments((prev) => ({ ...prev, [postId]: true }));
@@ -954,6 +1025,7 @@ export default function Forum() {
 
       if (!error) {
           setPostCommentsByPost((prev) => ({ ...prev, [postId]: data || [] }));
+          loadCommentLikes((data || []).map((c) => c.id));
       }
       setLoadingInlineComments((prev) => ({ ...prev, [postId]: false }));
   }
@@ -977,11 +1049,7 @@ export default function Forum() {
 
       setInlineCommentDrafts((prev) => ({ ...prev, [postId]: "" }));
 
-      const { data, error } = await supabase
-          .from("forum_comments")
-          .insert([{ post_id: postId, user_id: user.id, conteudo: payloadText }])
-          .select(`*, profiles ( nome, avatar_url )`)
-          .single();
+      const { data, error } = await insertForumComment(postId, payloadText, replyTarget?.rootId || null);
 
       if (error || !data) {
           setInlineCommentDrafts((prev) => ({ ...prev, [postId]: draft }));
@@ -1006,6 +1074,7 @@ export default function Forum() {
           })
       );
 
+      if (replyTarget?.rootId) setExpandedReplies((prev) => ({ ...prev, [replyTarget.rootId]: true }));
       setReplyTargetByPost((prev) => ({ ...prev, [postId]: null }));
   }
 
@@ -1017,6 +1086,7 @@ export default function Forum() {
       .eq("post_id", post.id)
       .order("created_at", { ascending: true });
     setComments(cData || []);
+    loadCommentLikes((cData || []).map((c) => c.id));
   }
 
   async function handleSendComment(e) {
@@ -1027,14 +1097,11 @@ export default function Forum() {
     const payloadText = modalReplyTarget?.nome ? `@${modalReplyTarget.nome} ${textoComentario}` : textoComentario;
     setNewCommentText(""); 
 
-    const { data, error } = await supabase
-        .from("forum_comments")
-        .insert([{ post_id: selectedPost.id, user_id: user.id, conteudo: payloadText }])
-        .select(`*, profiles ( nome, avatar_url )`)
-        .single();
+    const { data, error } = await insertForumComment(selectedPost.id, payloadText, modalReplyTarget?.rootId || null);
 
     if (!error && data) {
-        setComments([...comments, data]); 
+        setComments([...comments, data]);
+        if (modalReplyTarget?.rootId) setExpandedReplies((prev) => ({ ...prev, [modalReplyTarget.rootId]: true }));
         
         setPosts(posts.map(p => {
             if(p.id === selectedPost.id) {
@@ -2068,6 +2135,30 @@ async function handleSendChat(e) {
       setNewPost({ titulo: '', categoria });
   };
 
+  const myPostsCount = posts.filter((p) => p.user_id === user?.id).length;
+
+  const openNewPostWithImage = () => {
+      openNewPostModal();
+      setPostBlocks([createTextBlock(""), createImageBlock("lg")]);
+  };
+
+  const FEED_REACTIONS = ['👍', '❤️', '💡', '🚀', '😂', '😮', '😢'];
+  const REACTION_LABELS = { '👍': 'Gosto', '❤️': 'Adoro', '💡': 'Inspirador', '🚀': 'Top', '😂': 'Haha', '😮': 'Uau', '😢': 'Triste' };
+  const REACTION_COLORS = { '👍': '#2563eb', '❤️': '#e11d48', '💡': '#d97706', '🚀': '#7c3aed', '😂': '#d97706', '😮': '#d97706', '😢': '#d97706' };
+
+  // Toque longo (telemóvel) abre o seletor de reações sem dar logo "Adoro"
+  const startReactPress = (e, postId) => {
+      if (e.pointerType !== 'touch') return;
+      reactLongPressRef.current = false;
+      clearTimeout(reactPressTimerRef.current);
+      reactPressTimerRef.current = setTimeout(() => {
+          reactLongPressRef.current = true;
+          setFeedReactPicker(postId);
+          if (navigator.vibrate) navigator.vibrate(12);
+      }, 420);
+  };
+  const cancelReactPress = () => clearTimeout(reactPressTimerRef.current);
+
   const closeNewChatDialog = () => {
       setChatPeopleQuery('');
       closeNewChatModal();
@@ -2103,18 +2194,6 @@ async function handleSendChat(e) {
       if (diffDays < 6) return d.toLocaleDateString('pt-PT', { weekday: 'short' }).replace('.', '');
       return d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
   };
-  const getRoomPreview = (room) => {
-      const last = getRoomLastMessage(room);
-      if (!last) return room.display_subtitle || (room.is_group ? 'Grupo' : 'Conversa privada');
-      const body = last.content?.trim() || (last.file_name ? `📎 ${last.file_name}` : 'Mensagem');
-      if (last.sender_id === user?.id) return `Tu: ${body}`;
-      if (room.is_group) {
-          const name = String(getChatSenderDisplayName(last.sender_id) || '').split(' ')[0];
-          return name ? `${name}: ${body}` : body;
-      }
-      return body;
-  };
-
   const getSenderAvatar = (senderId) => chatCollaborators.find((profile) => profile.id === senderId)?.avatar_url || null;
 
   const renderRoomItem = (room) => {
@@ -2137,7 +2216,7 @@ async function handleSendChat(e) {
                       {getRoomLastMessage(room) && <span className="fx-room-time">{formatRoomTime(getRoomLastMessage(room).created_at)}</span>}
                   </span>
                   <span className="fx-room-bottom">
-                      <span className="fx-room-sub">{getRoomPreview(room)}</span>
+                      <span className="fx-room-sub">{room.is_group ? 'Grupo' : 'Conversa privada'}</span>
                       {unreadCount > 0 && <span className="fx-badge">{unreadCount}</span>}
                   </span>
               </span>
@@ -2172,6 +2251,101 @@ async function handleSendChat(e) {
           );
       });
 
+  // --- Comentários estilo Instagram: fio de respostas + gostos ---
+  const timeAgoShort = (iso) => {
+      if (!iso) return '';
+      const mins = Math.max(0, Math.floor((Date.now() - Date.parse(iso)) / 60000));
+      if (mins < 1) return 'agora';
+      if (mins < 60) return `${mins} min`;
+      const hrs = Math.floor(mins / 60);
+      if (hrs < 24) return `${hrs} h`;
+      const days = Math.floor(hrs / 24);
+      if (days < 7) return `${days} d`;
+      const weeks = Math.floor(days / 7);
+      if (weeks < 5) return `${weeks} sem`;
+      return new Date(iso).toLocaleDateString('pt-PT', { day: 'numeric', month: 'short' });
+  };
+
+  // Destaca "@Nome" no início de uma resposta
+  const renderCommentText = (c, names) => {
+      const text = String(c.conteudo || '');
+      const mention = names.find((n) => n && text.startsWith(`@${n} `));
+      if (!mention) return renderWithLinks(text);
+      return (
+          <>
+              <span className="fx-mention">@{mention}</span> {renderWithLinks(text.slice(mention.length + 2))}
+          </>
+      );
+  };
+
+  const renderCommentThread = (list, { limit = null, onReply, onDelete, onToggleMore, showAll = false }) => {
+      const ids = new Set(list.map((c) => c.id));
+      const roots = list.filter((c) => !c.parent_id || !ids.has(c.parent_id));
+      const repliesByRoot = {};
+      list.forEach((c) => {
+          if (c.parent_id && ids.has(c.parent_id)) (repliesByRoot[c.parent_id] = repliesByRoot[c.parent_id] || []).push(c);
+      });
+      const names = Array.from(new Set(list.map((c) => c.profiles?.nome).filter(Boolean))).sort((a, b) => b.length - a.length);
+      const visibleRoots = limit ? roots.slice(0, limit) : roots;
+
+      const row = (c, rootId, isReply) => {
+          const likes = commentLikes[c.id] || [];
+          const liked = likes.includes(user?.id);
+          return (
+              <div key={c.id} className={`fx-ig ${isReply ? 'is-reply' : ''}`} onDoubleClick={() => toggleCommentLike(c)}>
+                  <span className={`fx-avatar ${isReply ? 'fx-avatar-xxs' : 'fx-avatar-xs'}`}>{renderAvatar(c.profiles?.nome, c.profiles?.avatar_url, isReply ? 24 : 32, '0.62rem')}</span>
+                  <div className="fx-ig-body">
+                      <div className="fx-ig-text">
+                          <strong>{c.profiles?.nome}</strong> {renderCommentText(c, names)}
+                      </div>
+                      <div className="fx-ig-meta">
+                          <span title={formatDate(c.created_at)}>{timeAgoShort(c.created_at)}</span>
+                          {likes.length > 0 && <span className="fx-ig-likes">{likes.length} {likes.length === 1 ? 'gosto' : 'gostos'}</span>}
+                          <button type="button" onClick={() => onReply(c, rootId)}>Responder</button>
+                          {canDelete(c.user_id) && <button type="button" className="is-danger" onClick={() => onDelete(c)}>Apagar</button>}
+                      </div>
+                  </div>
+                  {commentLikesAvailable && (
+                      <button type="button" className={`fx-ig-heart ${liked ? 'is-on' : ''}`} onClick={() => toggleCommentLike(c)} aria-label={liked ? 'Retirar gosto' : 'Gostar do comentário'}>
+                          <Icons.Heart size={14} fill={liked ? 'currentColor' : 'none'} />
+                      </button>
+                  )}
+              </div>
+          );
+      };
+
+      return (
+          <div className="fx-ig-list">
+              {visibleRoots.map((root) => {
+                  const replies = repliesByRoot[root.id] || [];
+                  const open = Boolean(expandedReplies[root.id]);
+                  return (
+                      <div key={root.id} className="fx-ig-thread">
+                          {row(root, root.id, false)}
+                          {replies.length > 0 && (
+                              <div className="fx-ig-replies">
+                                  <button type="button" className="fx-ig-toggle" onClick={() => setExpandedReplies((prev) => ({ ...prev, [root.id]: !open }))}>
+                                      <span className="fx-ig-toggle-line" />
+                                      {open ? 'Ocultar respostas' : `Ver ${replies.length === 1 ? 'resposta' : `${replies.length} respostas`}`}
+                                  </button>
+                                  {open && replies.map((r) => row(r, root.id, true))}
+                              </div>
+                          )}
+                      </div>
+                  );
+              })}
+              {limit && roots.length > limit && onToggleMore && (
+                  <button type="button" className="fx-text-btn fx-more-comments" onClick={onToggleMore}>
+                      {showAll ? 'Mostrar menos' : `Ver todos os ${list.length} comentários`}
+                  </button>
+              )}
+              {showAll && onToggleMore && limit === null && roots.length > 3 && (
+                  <button type="button" className="fx-text-btn fx-more-comments" onClick={onToggleMore}>Mostrar menos</button>
+              )}
+          </div>
+      );
+  };
+
   const renderReplyChip = (target, onCancel) => target?.nome && (
       <div className="fx-reply-chip">
           <span>A responder a <strong>{target.nome}</strong></span>
@@ -2182,66 +2356,109 @@ async function handleSendChat(e) {
     return (
         <div className="page-container fx-page">
 
-          {/* --- HERO --- */}
-          <header className="fx-hero">
+          {/* --- HERO (compacto) --- */}
+          <header className="fx-hero fx-hero-compact">
             <div className="fx-hero-bg" aria-hidden="true">
                 <span className="fx-orb fx-orb-a" />
                 <span className="fx-orb fx-orb-b" />
                 <span className="fx-hero-grid" />
             </div>
 
-            <div className="fx-hero-main">
-                <span className="fx-hero-icon"><Icons.Message size={26} /></span>
-                <div className="fx-hero-copy">
-                    <h1 className="fx-hero-title">Comunicação Interna</h1>
-                    <p className="fx-hero-sub">Fórum de partilha de informações e discussões</p>
-                </div>
-            </div>
-
-            <div className="fx-hero-side">
-                <div className="fx-hero-stats">
-                    <span className="fx-stat"><strong>{posts.length}</strong> publicações</span>
-                    <span className="fx-stat"><strong>{chatRooms.length}</strong> conversas</span>
-                    {totalUnreadChats > 0 && <span className="fx-stat is-alert"><strong>{totalUnreadChats}</strong> por ler</span>}
-                </div>
-                {activeLog && (
-                    <div onClick={() => navigate(activeLogRoute || '/dashboard/tarefas')} title="Ir para o item com cronometro em curso" className="fx-live">
-                        <span className="fx-live-dot" />
-                        <span className="fx-live-title">{timerLabel.length > 30 ? `${timerLabel.slice(0, 30)}...` : timerLabel}</span>
-                        <button type="button" onClick={openStopNoteModal} className="fx-live-stop"><Icons.Stop /> Parar</button>
+            <div className="fx-hero-top">
+                <div className="fx-hero-main">
+                    <span className="fx-hero-icon"><Icons.Message size={22} /></span>
+                    <div className="fx-hero-copy">
+                        <h1 className="fx-hero-title">Comunicação Interna</h1>
+                        <p className="fx-hero-sub">Fórum de partilha de informações e discussões</p>
                     </div>
-                )}
+                </div>
+
+                <div className="fx-hero-side">
+                    <div className="fx-hero-stats">
+                        <span className="fx-stat"><strong>{posts.length}</strong> publicações</span>
+                        <span className="fx-stat"><strong>{chatRooms.length}</strong> conversas</span>
+                        {totalUnreadChats > 0 && <span className="fx-stat is-alert"><strong>{totalUnreadChats}</strong> por ler</span>}
+                    </div>
+                    {activeLog && (
+                        <div onClick={() => navigate(activeLogRoute || '/dashboard/tarefas')} title="Ir para o item com cronometro em curso" className="fx-live">
+                            <span className="fx-live-dot" />
+                            <span className="fx-live-title">{timerLabel.length > 30 ? `${timerLabel.slice(0, 30)}...` : timerLabel}</span>
+                            <button type="button" onClick={openStopNoteModal} className="fx-live-stop"><Icons.Stop /> Parar</button>
+                        </div>
+                    )}
+                </div>
             </div>
           </header>
 
-          {selectedUserFilter && (
-             <div className="fx-filter-banner">
-                 <span className="fx-filter-icon"><Icons.User /></span>
-                 <span className="fx-filter-text">A ver as publicações de <strong>{selectedUserFilter.nome}</strong></span>
-                 <button type="button" onClick={() => setSelectedUserFilter(null)} className="fx-btn fx-btn-ghost fx-btn-sm">Ver tudo</button>
-             </div>
-          )}
+      {/* --- 3 COLUNAS: perfil + filtros | feed | chats --- */}
+      <div className="fx-layout fx-layout-3">
 
-      {/* --- FEED DE PUBLICAÇÕES + CHAT LATERAL --- */}
-      <div className="fx-layout">
+      <aside className="fx-left">
+          <div className="fx-me">
+              <div className="fx-me-cover" aria-hidden="true" />
+              <span className="fx-avatar fx-me-avatar">{renderAvatar(userProfile?.nome, userProfile?.avatar_url, 64, '1.2rem')}</span>
+              <strong className="fx-me-name">{userProfile?.nome || 'Utilizador'}</strong>
+              {userProfile?.funcao && <span className="fx-me-role">{userProfile.funcao}</span>}
+              <div className="fx-me-stats">
+                  <div><strong>{myPostsCount}</strong><span>publicações</span></div>
+                  <div><strong>{chatRooms.length}</strong><span>conversas</span></div>
+              </div>
+              <button
+                  type="button"
+                  className={`fx-me-link ${selectedUserFilter?.id === user?.id ? 'is-on' : ''}`}
+                  onClick={() => (selectedUserFilter?.id === user?.id ? setSelectedUserFilter(null) : setSelectedUserFilter({ id: user?.id, nome: userProfile?.nome || 'Tu' }))}
+              >
+                  <Icons.User size={15} /> {selectedUserFilter?.id === user?.id ? 'Ver todas as publicações' : 'As minhas publicações'}
+              </button>
+          </div>
+
+          <nav className="fx-nav" aria-label="Filtrar publicações">
+              <p className="fx-nav-title">Feed</p>
+              {feedTabs.map((tab) => (
+                  <button
+                      key={tab.id}
+                      type="button"
+                      className={`fx-nav-item ${tab.id !== 'all' ? `fx-cat-${tab.id}` : ''} ${categoryFilter === tab.id ? 'is-on' : ''}`}
+                      onClick={() => setCategoryFilter(tab.id)}
+                      aria-pressed={categoryFilter === tab.id}
+                  >
+                      <span className={`fx-nav-icon fx-tile fx-tile-${tab.id}`} aria-hidden="true"><CatIcon k={tab.id} size={16} /></span>
+                      <span className="fx-nav-label">{tab.label}</span>
+                      <span className="fx-nav-count">{tab.count}</span>
+                  </button>
+              ))}
+          </nav>
+      </aside>
+
       <div className="fx-feed">
 
-        <div className="fx-composer-card">
+        {/* Compositor */}
+        <div className="fx-composer-card fx-composer-v4">
             <span className="fx-avatar fx-avatar-md">{renderAvatar(userProfile?.nome, userProfile?.avatar_url, 44, '1rem')}</span>
             <button type="button" className="fx-composer-fake" onClick={openNewPostModal}>
-                Partilha algo com a equipa{firstName ? `, ${firstName}` : ''}…
+                Em que estás a pensar{firstName ? `, ${firstName}` : ''}?
             </button>
             <div className="fx-composer-quick">
+                <button type="button" className="fx-quick fx-quick-photo" onClick={openNewPostWithImage}>
+                    <span className="fx-tile fx-tile-sm fx-tile-photo"><Icons.Image size={13} /></span> Foto
+                </button>
                 {['aviso', 'duvida', 'ideia'].map((key) => (
                     <button key={key} type="button" className={`fx-quick fx-cat-${key}`} onClick={() => openNewPostWithCategory(key)}>
-                        <span aria-hidden="true">{FORUM_CATEGORIES[key].emoji}</span> {FORUM_CATEGORIES[key].label}
+                        <span className={`fx-tile fx-tile-sm fx-tile-${key}`}><CatIcon k={key} size={13} /></span> {FORUM_CATEGORIES[key].label}
                     </button>
                 ))}
-                <button type="button" className="btn-cta fx-composer-cta" onClick={openNewPostModal}><Icons.Plus /> Novo post</button>
             </div>
         </div>
 
-        <SlidingTabs tabs={feedTabs} value={categoryFilter} onChange={setCategoryFilter} ariaLabel="Filtrar publicações" className="fx-feed-tabs" />
+
+
+        {selectedUserFilter && (
+           <div className="fx-filter-banner">
+               <span className="fx-filter-icon"><Icons.User /></span>
+               <span className="fx-filter-text">A ver as publicações de <strong>{selectedUserFilter.nome}</strong></span>
+               <button type="button" onClick={() => setSelectedUserFilter(null)} className="fx-btn fx-btn-ghost fx-btn-sm">Ver tudo</button>
+           </div>
+        )}
 
         {loading && posts.length === 0 && (
             <div className="fx-skeletons" aria-label="A carregar publicações">
@@ -2272,13 +2489,19 @@ async function handleSendChat(e) {
             const commentsLoaded = Boolean(postCommentsByPost[post.id]);
             const showCommentBox = Boolean(inlineCommentOpen[post.id]);
             const showAllComments = Boolean(inlineCommentExpanded[post.id]);
-            const visibleComments = showAllComments ? postComments : postComments.slice(0, 3);
             const catKey = getCategoryKey(post.categoria);
             const commentCount = post.forum_comments?.[0]?.count || 0;
             const openAuthor = (e) => { e.stopPropagation(); setSelectedUserFilter({ id: post.user_id, nome: post.profiles?.nome }); };
+            const reactions = post.forum_reactions || [];
+            const reactionCounts = getReactionCounts(reactions);
+            const topEmojis = Object.entries(reactionCounts).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([emoji]) => emoji);
+            const myReaction = reactions.find((r) => r.user_id === user.id)?.reaction_type || null;
 
             return (
-            <article key={post.id} className={`fx-post fx-post-${catKey}`} style={{ '--i': Math.min(postIndex, 6) }}>
+            <article key={post.id} className={`fx-post fx-post-${catKey} ${catKey === 'aviso' ? 'is-highlight' : ''}`} style={{ '--i': Math.min(postIndex, 6) }}>
+                {catKey === 'aviso' && (
+                    <div className="fx-post-ribbon"><span className="fx-tile fx-tile-sm fx-tile-aviso"><CatIcon k="aviso" size={12} /></span> Aviso importante</div>
+                )}
 
                 {/* CABEÇALHO DO POST */}
                 <header className="fx-post-head">
@@ -2286,11 +2509,11 @@ async function handleSendChat(e) {
                         {renderAvatar(post.profiles?.nome, post.profiles?.avatar_url, 44, '0.95rem')}
                     </button>
                     <div className="fx-post-meta">
-                        <div className="fx-post-author">
-                            <button type="button" onClick={openAuthor} className="fx-link-name">{post.profiles?.nome}</button>
-                            {getCategoryBadge(post.categoria)}
+                        <button type="button" onClick={openAuthor} className="fx-link-name">{post.profiles?.nome}</button>
+                        <div className="fx-post-sub">
+                            <span className="fx-post-time">{formatDate(post.created_at)}</span>
+                            {catKey !== 'aviso' && <><span className="fx-dot-sep" aria-hidden="true" />{getCategoryBadge(post.categoria)}</>}
                         </div>
-                        <span className="fx-post-time">{formatDate(post.created_at)}</span>
                     </div>
 
                     <div className="fx-post-tools">
@@ -2312,39 +2535,80 @@ async function handleSendChat(e) {
                     <h3 className="fx-post-title">
                         <button type="button" onClick={() => handleOpenPost(post)} title="Abrir discussão">{post.titulo}</button>
                     </h3>
-                    {renderPostBlocks(post, { imageMaxHeight: 560 })}
+                    {renderPostBlocks(post, { imageMaxHeight: 620 })}
                 </div>
 
-                {/* RODAPÉ DO POST */}
-                <footer className="fx-post-foot">
-                    <div className="fx-reactions">
-                        {renderReactionButtons(post, ['👍', '❤️', '💡', '🚀'], { showEmpty: false })}
-                        <div className="fx-react-more">
-                            <button type="button" className="fx-react fx-react-add" onClick={() => setFeedReactPicker((prev) => (prev === post.id ? null : post.id))} title="Mais reações" aria-label="Mais reações">
-                                <Icons.Smile size={16} /><span className="fx-react-plus">+</span>
+                {/* RESUMO: reações e comentários */}
+                {(reactions.length > 0 || commentCount > 0) && (
+                    <div className="fx-post-summary">
+                        {reactions.length > 0 ? (
+                            <span className="fx-summary-reacts" title={Object.entries(reactionCounts).map(([emoji, n]) => `${emoji} ${n}`).join('   ')}>
+                                <span className="fx-summary-emojis">
+                                    {topEmojis.map((emoji) => <span key={emoji}>{emoji}</span>)}
+                                </span>
+                                {myReaction
+                                    ? (reactions.length > 1 ? `Tu e mais ${reactions.length - 1}` : 'Tu')
+                                    : reactions.length}
+                            </span>
+                        ) : <span />}
+                        {commentCount > 0 && (
+                            <button type="button" className="fx-summary-comments" onClick={() => toggleInlineComments(post.id)}>
+                                {commentCount} {commentCount === 1 ? 'comentário' : 'comentários'}
                             </button>
-                            {feedReactPicker === post.id && (
-                                <>
-                                    <div className="fx-click-away" onClick={() => setFeedReactPicker(null)} />
-                                    <div className="fx-react-menu">
-                                        {['👍', '❤️', '💡', '🚀'].map((emoji) => (
-                                            <button key={emoji} type="button" onClick={() => { setFeedReactPicker(null); handleReact(emoji, post.id, post.forum_reactions); }}>{emoji}</button>
-                                        ))}
-                                    </div>
-                                </>
-                            )}
+                        )}
+                    </div>
+                )}
+
+                {/* BARRA DE AÇÕES */}
+                <div className="fx-post-bar">
+                    <div
+                        className={`fx-like-wrap ${feedReactPicker === post.id ? 'is-open' : ''}`}
+                        onMouseLeave={() => { if (feedReactPicker === post.id) setFeedReactPicker(null); }}
+                    >
+                        <button
+                            type="button"
+                            className={`fx-bar-btn fx-like-btn ${myReaction ? 'is-on' : ''}`}
+                            style={myReaction ? { '--react-color': REACTION_COLORS[myReaction] } : undefined}
+                            onPointerDown={(e) => startReactPress(e, post.id)}
+                            onPointerUp={cancelReactPress}
+                            onPointerLeave={cancelReactPress}
+                            onContextMenu={(e) => e.preventDefault()}
+                            onClick={() => {
+                                if (reactLongPressRef.current) { reactLongPressRef.current = false; return; }
+                                setFeedReactPicker(null);
+                                handleReact(myReaction || '❤️', post.id, reactions);
+                            }}
+                        >
+                            {myReaction
+                                ? <span className="fx-like-emoji" key={myReaction}>{myReaction}<span className="fx-like-burst" aria-hidden="true" /></span>
+                                : <Icons.Heart size={19} />}
+                            <span>{myReaction ? (REACTION_LABELS[myReaction] || 'Reagiste') : 'Gostar'}</span>
+                        </button>
+                        <div className="fx-react-dock" role="menu" aria-label="Escolher reação">
+                            {FEED_REACTIONS.map((emoji, i) => (
+                                <button
+                                    key={emoji}
+                                    type="button"
+                                    style={{ '--k': i }}
+                                    className={myReaction === emoji ? 'is-on' : ''}
+                                    data-label={REACTION_LABELS[emoji]}
+                                    aria-label={REACTION_LABELS[emoji]}
+                                    onClick={() => { setFeedReactPicker(null); handleReact(emoji, post.id, reactions); }}
+                                >
+                                    <span>{emoji}</span>
+                                </button>
+                            ))}
                         </div>
+                        {feedReactPicker === post.id && <div className="fx-click-away" onClick={() => setFeedReactPicker(null)} />}
                     </div>
 
-                    <div className="fx-post-actions">
-                        <button type="button" onClick={() => toggleInlineComments(post.id)} className={`fx-pill-btn ${showCommentBox ? 'is-on' : ''}`}>
-                            <Icons.Message size={15} /> {commentCount} <span className="fx-hide-sm">{commentCount === 1 ? 'comentário' : 'comentários'}</span>
-                        </button>
-                        <button type="button" onClick={() => handleOpenPost(post)} className="fx-pill-btn" title="Abrir discussão">
-                            Abrir <span aria-hidden="true">↗</span>
-                        </button>
-                    </div>
-                </footer>
+                    <button type="button" onClick={() => toggleInlineComments(post.id)} className={`fx-bar-btn ${showCommentBox ? 'is-active' : ''}`}>
+                        <Icons.Message size={17} /> <span>Comentar</span>
+                    </button>
+                    <button type="button" onClick={() => handleOpenPost(post)} className="fx-bar-btn">
+                        <Icons.Expand size={16} /> <span>Abrir discussão</span>
+                    </button>
+                </div>
 
                 {showCommentBox && (
                     <div className="fx-comments">
@@ -2356,40 +2620,13 @@ async function handleSendChat(e) {
                             <div className="fx-comments-note">Ainda sem comentários. Começa tu a conversa.</div>
                         )}
 
-                        {!loadingInlineComments[post.id] && visibleComments.length > 0 && (
-                            <div className="fx-comment-list">
-                                {visibleComments.map((c) => (
-                                    <div key={c.id} className="fx-comment">
-                                        <span className="fx-avatar fx-avatar-xs">{renderAvatar(c.profiles?.nome, c.profiles?.avatar_url, 30, '0.68rem')}</span>
-                                        <div className="fx-comment-main">
-                                            <div className="fx-comment-bubble">
-                                                <div className="fx-comment-head">
-                                                    <strong>{c.profiles?.nome}</strong>
-                                                    <span>{formatDate(c.created_at)}</span>
-                                                </div>
-                                                <div className="fx-comment-text">{renderWithLinks(c.conteudo)}</div>
-                                            </div>
-                                            <div className="fx-comment-actions">
-                                                <button type="button" className="fx-text-btn" onClick={() => setReplyTargetByPost((prev) => ({ ...prev, [post.id]: { id: c.id, nome: c.profiles?.nome || 'Utilizador' } }))}>
-                                                    Responder
-                                                </button>
-                                                {canDelete(c.user_id) && (
-                                                    <button type="button" onClick={() => requestDelete(c.id, 'comment', post.id)} className="fx-text-btn is-danger" title="Apagar Comentário">
-                                                        Apagar
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-
-                                {postComments.length > 3 && (
-                                    <button type="button" className="fx-text-btn fx-more-comments" onClick={() => setInlineCommentExpanded((prev) => ({ ...prev, [post.id]: !showAllComments }))}>
-                                        {showAllComments ? 'Mostrar menos comentários' : `Ver mais ${postComments.length - 3} comentário(s)`}
-                                    </button>
-                                )}
-                            </div>
-                        )}
+                        {!loadingInlineComments[post.id] && postComments.length > 0 && renderCommentThread(postComments, {
+                            limit: showAllComments ? null : 3,
+                            onReply: (c, rootId) => setReplyTargetByPost((prev) => ({ ...prev, [post.id]: { id: c.id, nome: c.profiles?.nome || 'Utilizador', rootId } })),
+                            onDelete: (c) => requestDelete(c.id, 'comment', post.id),
+                            onToggleMore: () => setInlineCommentExpanded((prev) => ({ ...prev, [post.id]: !showAllComments })),
+                            showAll: showAllComments,
+                        })}
 
                         {renderReplyChip(replyTargetByPost[post.id], () => setReplyTargetByPost((prev) => ({ ...prev, [post.id]: null })))}
 
@@ -2502,147 +2739,147 @@ async function handleSendChat(e) {
           </ModalPortal>
       )}
 
-      {/* --- MODAL NOVO POST --- */}
+      {/* --- MODAL NOVO POST (estilo rede social) --- */}
       {showNewPostModal && (
         <ModalPortal>
             <div className="fx-overlay" style={{ zIndex: 99999 }}>
-                <div className="fx-modal fx-modal-composer" role="dialog" aria-label="Compositor de publicação">
-                    <div className="fx-modal-head">
-                        <div>
-                            <p className={`fx-kicker ${editingPost ? 'is-warn' : ''}`}>{editingPost ? 'Modo de edição' : 'Nova publicação'}</p>
-                            <h3>{editingPost ? 'A editar publicação' : 'Compositor de publicação'}</h3>
-                        </div>
+                <div className={`fx-modal fx-modal-post ${editingPost ? 'is-editing' : ''}`} role="dialog" aria-label={editingPost ? 'Editar publicação' : 'Criar publicação'}>
+                    <div className="fx-pm-head">
+                        <span className="fx-pm-head-spacer" />
+                        <h3>{editingPost ? 'Editar publicação' : 'Criar publicação'}</h3>
                         <button type="button" onClick={closeNewPostModal} className="fx-close" aria-label="Fechar"><Icons.Close size={18} /></button>
                     </div>
 
-                    <form onSubmit={handleCreatePost} onPaste={handleComposerPaste} className="fx-composer">
-                        <aside className="fx-composer-side custom-scrollbar">
-                            <div className="fx-guide">
-                                <p className="fx-kicker">Guia rápido</p>
-                                <ol>
-                                    <li>Define o título e a categoria.</li>
-                                    <li>Junta blocos de texto e imagem.</li>
-                                    <li>Arrasta os blocos para os reordenar.</li>
-                                </ol>
-                            </div>
-
-                            <p className="fx-label">Adicionar bloco</p>
-                            <div className="fx-add-blocks">
-                                <button type="button" onClick={addTextBlock} className="fx-add-block">
-                                    <span className="fx-add-icon">¶</span>
-                                    <span><strong>Texto</strong><small>Parágrafo livre</small></span>
-                                </button>
-                                <button type="button" onClick={addImageBlock} className="fx-add-block">
-                                    <span className="fx-add-icon"><Icons.Image size={18} /></span>
-                                    <span><strong>Imagem</strong><small>Ou cola com Ctrl+V</small></span>
-                                </button>
-                            </div>
-
-                            <p className="fx-side-foot">Blocos atuais: <strong>{postBlocks.length}</strong></p>
-                        </aside>
-
-                        <div className="fx-composer-main">
-                            <div className="fx-composer-fields">
-                                <label className="fx-field">
-                                    <span className="fx-label">Título *</span>
-                                    <input type="text" value={newPost.titulo} onChange={e => setNewPost({...newPost, titulo: e.target.value})} required className="fx-input fx-input-lg" placeholder="Ex: Nova atualização do sistema..." />
-                                </label>
-                                <div className="fx-field">
-                                    <span className="fx-label">Categoria *</span>
-                                    <div className="fx-cat-picker">
+                    <form
+                        onSubmit={handleCreatePost}
+                        onPaste={handleComposerPaste}
+                        className="fx-pm"
+                        onDragOver={(event) => {
+                            event.preventDefault();
+                            event.dataTransfer.dropEffect = "copy";
+                        }}
+                        onDrop={handleComposerDrop}
+                    >
+                        <div className="fx-pm-scroll custom-scrollbar">
+                            <div className="fx-pm-author">
+                                <span className="fx-avatar fx-avatar-md">{renderAvatar(userProfile?.nome, userProfile?.avatar_url, 44, '1rem')}</span>
+                                <div className="fx-pm-author-text">
+                                    <strong>{userProfile?.nome || 'Utilizador'}</strong>
+                                    <div className="fx-pm-cats" role="radiogroup" aria-label="Categoria">
                                         {['geral', 'aviso', 'duvida', 'ideia'].map((key) => (
-                                            <button key={key} type="button" className={`fx-cat-option fx-cat-${key} ${newPost.categoria === key ? 'is-on' : ''}`} onClick={() => setNewPost({ ...newPost, categoria: key })}>
-                                                <span aria-hidden="true">{FORUM_CATEGORIES[key].emoji}</span> {FORUM_CATEGORIES[key].label}
+                                            <button
+                                                key={key}
+                                                type="button"
+                                                role="radio"
+                                                aria-checked={newPost.categoria === key}
+                                                className={`fx-pm-cat fx-cat-${key} ${newPost.categoria === key ? 'is-on' : ''}`}
+                                                onClick={() => setNewPost({ ...newPost, categoria: key })}
+                                            >
+                                                <span className={`fx-tile fx-tile-sm fx-tile-${key}`}><CatIcon k={key} size={13} /></span> {FORUM_CATEGORIES[key].label}
                                             </button>
                                         ))}
                                     </div>
                                 </div>
                             </div>
 
-                            <div
-                                className="fx-composer-canvas custom-scrollbar"
-                                onDragOver={(event) => {
-                                    event.preventDefault();
-                                    event.dataTransfer.dropEffect = "copy";
-                                }}
-                                onDrop={handleComposerDrop}
-                            >
-                                <div className="fx-dropzone">
-                                    <Icons.Image size={18} /> Solta imagens aqui ou cola capturas com <kbd>Ctrl</kbd> + <kbd>V</kbd>
-                                </div>
+                            <input
+                                type="text"
+                                value={newPost.titulo}
+                                onChange={e => setNewPost({ ...newPost, titulo: e.target.value })}
+                                required
+                                className="fx-pm-title"
+                                placeholder="Dá um título à publicação"
+                                autoFocus
+                            />
 
-                                <div className="fx-block-list">
-                                    {postBlocks.map((block, idx) => (
+                            <div className="fx-pm-blocks">
+                                {postBlocks.map((block, idx) => {
+                                    const imageUrl = block.previewUrl || block.uploadedUrl;
+                                    return (
                                         <div
                                             key={block.id}
-                                            draggable
+                                            draggable={postBlocks.length > 1}
                                             onDragStart={() => handleBlockDragStart(idx)}
                                             onDragOver={(event) => handleBlockDragOver(event, idx)}
                                             onDrop={(event) => handleBlockDrop(event, idx)}
                                             onDragEnd={handleBlockDragEnd}
-                                            className={`fx-block ${dragOverBlockIndex === idx ? 'is-over' : ''} ${draggedBlockIndex === idx ? 'is-dragging' : ''}`}
+                                            className={`fx-pm-block is-${block.type} ${dragOverBlockIndex === idx && draggedBlockIndex !== null ? 'is-over' : ''} ${draggedBlockIndex === idx ? 'is-dragging' : ''}`}
                                         >
-                                            <div className="fx-block-head">
-                                                <span className="fx-grip" title="Arrastar para reordenar"><Icons.GripVertical size={14} /></span>
-                                                <span className="fx-block-tag">
-                                                    {block.type === 'text' ? '¶' : <Icons.Image size={13} />} Bloco {idx + 1} · {block.type === 'text' ? 'Texto' : 'Imagem'}
-                                                </span>
-                                                <div className="fx-block-tools">
-                                                    {block.type === 'text' ? (
-                                                        <select value={block.align || 'left'} onChange={(e) => updateTextBlockAlignment(block.id, e.target.value)} className="fx-select-sm" title="Alinhamento">
-                                                            {TEXT_ALIGNMENT_OPTIONS.map((option) => (
-                                                                <option key={option.value} value={option.value}>{option.label}</option>
-                                                            ))}
-                                                        </select>
-                                                    ) : (
-                                                        <select value={block.size || 'lg'} onChange={(e) => updateImageBlockSize(block.id, e.target.value)} className="fx-select-sm" title="Tamanho">
-                                                            {IMAGE_SIZE_OPTIONS.map((option) => (
-                                                                <option key={option.value} value={option.value}>{option.label}</option>
-                                                            ))}
-                                                        </select>
-                                                    )}
-                                                    <button type="button" onClick={() => removeBlock(idx)} className="fx-icon-btn is-danger" title="Remover bloco"><Icons.Trash size={15} /></button>
-                                                </div>
+                                            <div className="fx-pm-tools">
+                                                {postBlocks.length > 1 && (
+                                                    <span className="fx-pm-grip" title="Arrastar para reordenar"><Icons.GripVertical size={13} /></span>
+                                                )}
+                                                {block.type === 'text' ? (
+                                                    <select value={block.align || 'left'} onChange={(e) => updateTextBlockAlignment(block.id, e.target.value)} className="fx-pm-select" title="Alinhamento">
+                                                        {TEXT_ALIGNMENT_OPTIONS.map((option) => (
+                                                            <option key={option.value} value={option.value}>{option.label}</option>
+                                                        ))}
+                                                    </select>
+                                                ) : (
+                                                    <select value={block.size || 'lg'} onChange={(e) => updateImageBlockSize(block.id, e.target.value)} className="fx-pm-select" title="Tamanho">
+                                                        {IMAGE_SIZE_OPTIONS.map((option) => (
+                                                            <option key={option.value} value={option.value}>{option.label}</option>
+                                                        ))}
+                                                    </select>
+                                                )}
+                                                {(postBlocks.length > 1 || block.type === 'image') && (
+                                                    <button type="button" onClick={() => removeBlock(idx)} className="fx-pm-tool-btn" title="Remover bloco" aria-label="Remover bloco">
+                                                        <Icons.Close size={13} />
+                                                    </button>
+                                                )}
                                             </div>
 
                                             {block.type === 'text' ? (
                                                 <textarea
-                                                    rows="4"
+                                                    rows={idx === 0 ? 4 : 2}
                                                     value={block.text}
                                                     onChange={(e) => updateTextBlock(block.id, e.target.value)}
                                                     style={{ textAlign: block.align || 'left' }}
-                                                    className="fx-input fx-textarea"
-                                                    placeholder="Escreve o texto deste bloco..."
+                                                    className={`fx-pm-text ${idx === 0 && postBlocks.length === 1 && block.text.length < 90 ? 'is-big' : ''}`}
+                                                    placeholder={idx === 0 ? `Em que estás a pensar${firstName ? `, ${firstName}` : ''}?` : 'Continua a escrever...'}
                                                 />
-                                            ) : (
-                                                <div className="fx-image-block">
-                                                    {(block.previewUrl || block.uploadedUrl) ? (
-                                                        <div className="fx-image-preview" style={{ maxWidth: getImageSizeConfig(block.size).maxWidth }}>
-                                                            <img src={block.previewUrl || block.uploadedUrl} alt="Preview do bloco" />
-                                                        </div>
-                                                    ) : null}
-                                                    <label className={`fx-image-pick ${(block.previewUrl || block.uploadedUrl) ? 'is-compact' : ''}`}>
-                                                        <Icons.Image size={20} />
-                                                        <span>{(block.previewUrl || block.uploadedUrl) ? 'Trocar imagem' : 'Selecionar imagem'}</span>
+                                            ) : imageUrl ? (
+                                                <div className="fx-pm-image" style={{ maxWidth: getImageSizeConfig(block.size).maxWidth }}>
+                                                    <img src={imageUrl} alt="Pré-visualização" />
+                                                    <label className="fx-pm-image-swap">
+                                                        <Icons.Image size={14} /> Trocar
                                                         <input type="file" accept="image/*" onChange={(e) => updateImageBlockFile(block.id, e.target.files?.[0])} style={{ display: 'none' }} />
                                                     </label>
                                                 </div>
+                                            ) : (
+                                                <label className="fx-pm-drop">
+                                                    <span className="fx-pm-drop-icon"><Icons.Image size={22} /></span>
+                                                    <strong>Adicionar foto</strong>
+                                                    <small>ou arrasta para aqui · cola com Ctrl+V</small>
+                                                    <input type="file" accept="image/*" onChange={(e) => updateImageBlockFile(block.id, e.target.files?.[0])} style={{ display: 'none' }} />
+                                                </label>
                                             )}
                                         </div>
-                                    ))}
-                                </div>
+                                    );
+                                })}
                             </div>
+                        </div>
 
-                            <div className="fx-modal-foot">
-                                <button type="button" onClick={closeNewPostModal} className="fx-btn fx-btn-ghost">Cancelar</button>
-                                <button type="submit" disabled={isUploading} className="fx-btn fx-btn-primary">
-                                    {isUploading ? (
-                                        <><span className="fx-spinner" /> {editingPost ? "A guardar..." : "A publicar..."}</>
-                                    ) : (
-                                        <><Icons.Send size={16} /> {editingPost ? "Guardar alterações" : "Publicar"}</>
-                                    )}
+                        <div className="fx-pm-add">
+                            <span>Adicionar à publicação</span>
+                            <div className="fx-pm-add-btns">
+                                <button type="button" onClick={addImageBlock} className="fx-pm-add-btn is-photo" title="Foto">
+                                    <Icons.Image size={20} />
+                                </button>
+                                <button type="button" onClick={addTextBlock} className="fx-pm-add-btn is-text" title="Novo parágrafo">
+                                    ¶
                                 </button>
                             </div>
+                        </div>
+
+                        <div className="fx-pm-foot">
+                            <button type="submit" disabled={isUploading || !newPost.titulo.trim()} className="fx-btn fx-btn-primary fx-btn-block fx-pm-submit">
+                                {isUploading ? (
+                                    <><span className="fx-spinner" /> {editingPost ? "A guardar..." : "A publicar..."}</>
+                                ) : (
+                                    editingPost ? "Guardar alterações" : "Publicar"
+                                )}
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -2694,26 +2931,11 @@ async function handleSendChat(e) {
                         </div>
 
                         <div className="fx-thread-list custom-scrollbar">
-                            {comments.map(c => (
-                                <div key={c.id} className="fx-comment">
-                                    <span className="fx-avatar fx-avatar-xs">{renderAvatar(c.profiles?.nome, c.profiles?.avatar_url, 30, '0.7rem')}</span>
-                                    <div className="fx-comment-main">
-                                        <div className="fx-comment-bubble is-white">
-                                            <div className="fx-comment-head">
-                                                <strong>{c.profiles?.nome}</strong>
-                                                <span>{formatDate(c.created_at)}</span>
-                                            </div>
-                                            <div className="fx-comment-text">{renderWithLinks(c.conteudo)}</div>
-                                        </div>
-                                        <div className="fx-comment-actions">
-                                            <button type="button" onClick={() => setModalReplyTarget({ id: c.id, nome: c.profiles?.nome || 'Utilizador' })} className="fx-text-btn">Responder</button>
-                                            {canDelete(c.user_id) && (
-                                                <button type="button" onClick={() => requestDelete(c.id, 'comment', selectedPost?.id || null)} className="fx-text-btn is-danger" title="Apagar Comentário">Apagar</button>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
+                            {comments.length > 0 && renderCommentThread(comments, {
+                                limit: null,
+                                onReply: (c, rootId) => setModalReplyTarget({ id: c.id, nome: c.profiles?.nome || 'Utilizador', rootId }),
+                                onDelete: (c) => requestDelete(c.id, 'comment', selectedPost?.id || null),
+                            })}
                             {comments.length === 0 && (
                                 <div className="fx-thread-empty">
                                     <span className="fx-empty-icon"><Icons.Message size={26} /></span>
