@@ -91,6 +91,10 @@
 .dashboard-main {
   flex: 1;
   min-height: 0;
+  /* Dentro da coluna flex, width:100% + padding transbordava (cortava à direita) */
+  width: auto !important;
+  min-width: 0;
+  box-sizing: border-box;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
   transition: background 0.4s ease;
@@ -439,7 +443,7 @@ textarea:focus {
 .sidebar-user-status {
   position: absolute;
   right: -1px;
-  bottom: -1px;
+  bottom: 0;
   width: 10px;
   height: 10px;
   border-radius: 50%;
@@ -477,6 +481,247 @@ textarea:focus {
 .sidebar.closed:not(.is-mobile) .sidebar-user-info {
   opacity: 0;
   width: 0;
+}
+
+/* O cartão passou a botão que abre o menu da conta */
+button.sidebar-user-card {
+  width: calc(100% - 24px);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.sidebar.closed:not(.is-mobile) button.sidebar-user-card {
+  width: calc(100% - 20px);
+}
+.sidebar-user-card.is-open {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+.sidebar-user-card:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.sidebar-user-chevron {
+  margin-left: auto;
+  display: flex;
+  flex-shrink: 0;
+  opacity: 0.55;
+  transition: opacity 0.2s ease;
+}
+.sidebar-user-card:hover .sidebar-user-chevron,
+.sidebar-user-card.is-open .sidebar-user-chevron {
+  opacity: 1;
+}
+.sidebar.closed:not(.is-mobile) .sidebar-user-chevron {
+  display: none;
+}
+
+/* ---------------------------------------------------------------------
+   MENU DA CONTA (portal — <AccountMenu />)
+   --------------------------------------------------------------------- */
+.bz-account-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10040;
+}
+
+.bz-account-menu {
+  position: fixed;
+  z-index: 10050;
+  box-sizing: border-box;
+  padding: 6px;
+  border-radius: 16px;
+  background: #fff;
+  color: #0f172a;
+  border: 1px solid var(--color-borderColorLight, #e2e8f0);
+  box-shadow: 0 24px 48px -12px rgba(15, 23, 42, 0.35), 0 2px 6px rgba(15, 23, 42, 0.06);
+  transform-origin: bottom left;
+  animation: bzAccountIn 0.26s var(--bz-ease-out);
+}
+.bz-account-menu.placement-right {
+  transform-origin: bottom left;
+  animation-name: bzAccountInRight;
+}
+
+@keyframes bzAccountIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes bzAccountInRight {
+  from { opacity: 0; transform: translateX(-8px) scale(0.97); }
+  to   { opacity: 1; transform: none; }
+}
+
+.bz-account-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px 12px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--color-borderColorLight, #e2e8f0);
+}
+
+.bz-account-avatar {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--color-btnPrimary), var(--color-btnPrimaryDark));
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.8rem;
+}
+.bz-account-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.bz-account-id {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+.bz-account-name {
+  font-weight: 800;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bz-account-email {
+  font-size: 0.74rem;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bz-account-role {
+  flex-shrink: 0;
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 800;
+  color: var(--color-btnPrimary);
+  background: var(--color-bgSecondary);
+}
+
+.bz-account-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 2px 0;
+}
+.bz-account-group + .bz-account-group {
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--color-borderColorLight, #e2e8f0);
+}
+
+.bz-account-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: #334155;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease !important;
+}
+.bz-account-item svg {
+  flex-shrink: 0;
+  color: #94a3b8;
+  transition: color 0.15s ease;
+}
+.bz-account-item:hover {
+  background: var(--color-bgSecondary);
+  color: var(--color-btnPrimary);
+}
+.bz-account-item:hover svg {
+  color: var(--color-btnPrimary);
+}
+.bz-account-item:active:not(:disabled) {
+  transform: none;
+}
+
+.bz-account-item.is-danger {
+  color: #dc2626;
+}
+.bz-account-item.is-danger svg {
+  color: #f87171;
+}
+.bz-account-item.is-danger:hover {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+.bz-account-item.is-danger:hover svg {
+  color: #dc2626;
+}
+
+.bz-account-theme {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 50%;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bz-account-theme-dot {
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 3px var(--color-borderColorLight, #e2e8f0);
+}
+
+/* Modal de temas */
+.bz-theme-modal {
+  position: relative;
+  width: min(760px, 100%);
+  max-height: 85vh;
+  overflow: auto;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.25);
+}
+.bz-theme-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 1;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  border: 1px solid var(--color-borderColorLight, #e2e8f0);
+  background: #fff;
+  color: #64748b;
+  cursor: pointer;
+}
+.bz-theme-close:hover {
+  color: #0f172a;
 }
 
 /* ---------------------------------------------------------------------
@@ -834,6 +1079,169 @@ body.bz-drawer-open {
 }
 
 /* ---------------------------------------------------------------------
+   ABAS DESLIZANTES (componente <SlidingTabs />)
+   --------------------------------------------------------------------- */
+.bz-sliding-tabs {
+  position: relative;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--color-bgSecondary);
+  border: 1px solid var(--color-borderColorLight, #e2e8f0);
+  overflow-x: auto;
+  scrollbar-width: none;
+  isolation: isolate;
+}
+.bz-sliding-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.bz-sliding-tabs-pill {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  right: auto;
+  z-index: 0;
+  opacity: 0;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 6px 16px -6px rgba(15, 23, 42, 0.18);
+  pointer-events: none;
+}
+.bz-sliding-tabs-pill::after {
+  content: "";
+  position: absolute;
+  left: 22%;
+  right: 22%;
+  bottom: 3px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--color-btnPrimary);
+  opacity: 0.85;
+}
+
+.bz-sliding-tab {
+  position: relative;
+  z-index: 1;
+  flex: 1 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 14px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: #64748b;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.25s ease !important;
+}
+.bz-sliding-tab:hover {
+  color: #334155;
+}
+.bz-sliding-tab.active {
+  color: var(--color-btnPrimary);
+}
+.bz-sliding-tab:active:not(:disabled) {
+  transform: none;
+}
+
+.bz-sliding-tab-icon {
+  display: inline-flex;
+  transition: transform 0.35s var(--bz-ease-spring);
+}
+.bz-sliding-tab.active .bz-sliding-tab-icon {
+  transform: scale(1.12);
+}
+
+.bz-sliding-tab-count {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #64748b;
+  background: rgba(100, 116, 139, 0.12);
+  transition: background 0.25s ease, color 0.25s ease;
+}
+.bz-sliding-tab.active .bz-sliding-tab-count {
+  color: #fff;
+  background: var(--color-btnPrimary);
+}
+.bz-sliding-tab-count.tone-danger {
+  color: #dc2626;
+  background: #fee2e2;
+}
+.bz-sliding-tab.active .bz-sliding-tab-count.tone-danger {
+  color: #fff;
+  background: #ef4444;
+}
+.bz-sliding-tab-count.tone-pink {
+  color: #be185d;
+  background: #fce7f3;
+}
+.bz-sliding-tab.active .bz-sliding-tab-count.tone-pink {
+  color: #fff;
+  background: #ec4899;
+}
+
+/* Variante sublinhada: só texto, com uma barra fina que desliza */
+.bz-sliding-tabs--underline {
+  gap: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  border-bottom: 1px solid var(--color-borderColorLight, #e2e8f0);
+}
+.bz-sliding-tabs--underline .bz-sliding-tabs-pill {
+  top: auto;
+  bottom: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--color-btnPrimary);
+  box-shadow: none;
+}
+.bz-sliding-tabs--underline .bz-sliding-tabs-pill::after {
+  display: none;
+}
+.bz-sliding-tabs--underline .bz-sliding-tab {
+  flex: 0 0 auto;
+  padding: 10px 0 12px;
+  border-radius: 0;
+  font-weight: 600;
+}
+.bz-sliding-tabs--underline .bz-sliding-tab.active {
+  color: var(--color-textPrimary, #0f172a);
+}
+.bz-sliding-tabs--underline .bz-sliding-tab-count {
+  min-width: 0;
+  height: auto;
+  padding: 0;
+  background: transparent !important;
+  color: #94a3b8;
+  font-weight: 600;
+}
+.bz-sliding-tabs--underline .bz-sliding-tab.active .bz-sliding-tab-count {
+  color: #94a3b8;
+}
+.bz-sliding-tabs--underline .bz-sliding-tab-count.tone-danger,
+.bz-sliding-tabs--underline .bz-sliding-tab.active .bz-sliding-tab-count.tone-danger {
+  color: #dc2626;
+}
+
+/* ---------------------------------------------------------------------
    6. TRANSIÇÃO ENTRE TEMAS (View Transitions API)
    --------------------------------------------------------------------- */
 ::view-transition-old(root),
@@ -854,5 +1262,28 @@ body.bz-drawer-open {
     animation-iteration-count: 1 !important;
     transition-duration: 1ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* ---------------------------------------------------------------------
+   ECRÃS TÁTEIS — evita estados de hover "presos" depois de um toque
+   --------------------------------------------------------------------- */
+@media (hover: none) {
+  .sidebar-group-header:hover {
+    background: transparent;
+  }
+  .sidebar-group-header:hover > span:first-child::after {
+    width: 18px;
+  }
+  .sidebar nav ul li:not(.active) a:hover {
+    transform: none;
+    background: transparent;
+    border-color: transparent;
+  }
+  .sidebar nav ul li a:hover .icon {
+    transform: none;
+  }
+  .sidebar-user-card:hover {
+    transform: none;
   }
 }

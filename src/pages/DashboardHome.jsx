@@ -1,18 +1,20 @@
 ﻿import { Link, useNavigate } from "react-router-dom";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext"; 
-import { useTheme } from "../context/ThemeContext";
 import WidgetAssiduidade from "../components/WidgetAssiduidade";
 import TimerSwitchModal from "../components/TimerSwitchModal";
 import StopTimerNoteModal from "../components/StopTimerNoteModal";
 import { frasesMotivacionais } from "../data/frases"; 
-import { THEMES } from "../constants/themes";
 import { concludeActivityWithChildren } from "../utils/activityStatusCascade";
 import { buildDependencyMaps, getActivityBlockReason, getTaskBlockReason } from "../utils/dependencyGuards";
 import { applyStopStatusUpdateForLogTarget } from "../utils/taskTimerLifecycle";
 import "./../styles/dashboard.css";
+import "./../styles/home.css";
+import SlidingTabs from "../components/SlidingTabs";
+import ProfilePeek from "../components/ProfilePeek";
+import NotificationsPanel from "../components/NotificationsPanel";
 
 // --- MEGA ÍCONES SVG PROFISSIONAIS ---
 const Icons = {
@@ -50,13 +52,73 @@ const Icons = {
   IdCard: ({ size = 20, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="2" ry="2"></rect><line x1="7" y1="15" x2="17" y2="15"></line><line x1="7" y1="11" x2="11" y2="11"></line><line x1="7" y1="7" x2="11" y2="7"></line></svg>
 };
 
+// --- Helpers visuais do novo dashboard ---
+const TASKS_PER_TAB = 6;
+
+const getDeadlineTone = (dateString) => {
+  if (!dateString) return 'none';
+  const d = new Date(dateString);
+  if (isNaN(d.getTime())) return 'none';
+  d.setHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diffDays = Math.ceil((d.getTime() - today.getTime()) / 86400000);
+  if (diffDays < 0) return 'late';
+  if (diffDays === 0) return 'today';
+  if (diffDays <= 3) return 'soon';
+  return 'later';
+};
+
+// Número que "conta" até ao valor final
+function CountUp({ value, duration = 900 }) {
+  const target = Number(value) || 0;
+  const [display, setDisplay] = useState(0);
+  const fromRef = useRef(0);
+
+  useEffect(() => {
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const from = fromRef.current;
+    if (from === target) return;
+    const total = reduce ? 0 : duration;
+    let raf;
+    const start = performance.now();
+    const tick = (now) => {
+      const p = total === 0 ? 1 : Math.min(1, (now - start) / total);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setDisplay(Math.round(from + (target - from) * eased));
+      if (p < 1) raf = requestAnimationFrame(tick);
+      else fromRef.current = target;
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, duration]);
+
+  return <>{display}</>;
+}
+
+// Cronómetro em tempo real do timer ativo
+function ElapsedTimer({ startTime }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const start = startTime ? new Date(startTime).getTime() : NaN;
+  if (isNaN(start)) return <span className="hx-elapsed">--:--</span>;
+  const total = Math.max(0, Math.floor((now - start) / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const sec = total % 60;
+  const pad = (n) => String(n).padStart(2, '0');
+  return <span className="hx-elapsed">{h > 0 ? `${h}:` : ''}{pad(m)}:{pad(sec)}</span>;
+}
+
 const ModalPortal = ({ children }) => {
   return createPortal(children, document.body);
 };
 
 export default function DashboardHome() {
-    const { user, signOut } = useAuth(); 
-    const { currentTheme, changeTheme } = useTheme();
+    const { user } = useAuth(); 
     const navigate = useNavigate();
   
     const [tarefasHoje, setTarefasHoje] = useState([]);
@@ -72,8 +134,6 @@ export default function DashboardHome() {
 
     const [activeLog, setActiveLog] = useState(null);
 
-    const [showMenu, setShowMenu] = useState(false);
-    const [showThemeModal, setShowThemeModal] = useState(false);
     const [frase, setFrase] = useState("");
     const [horaAtual, setHoraAtual] = useState("");
     const [showBirthdayPopup, setShowBirthdayPopup] = useState(false); 
@@ -90,12 +150,15 @@ export default function DashboardHome() {
     const [addForm, setAddForm] = useState({ data: "", hora_entrada: "", hora_saida: "", tempo_pausa: 0, observacoes: "", motivo_alteracao: "" });
 
     const [recentWorkLogs, setRecentWorkLogs] = useState([]);
-    const [recentTasksVisibleCount, setRecentTasksVisibleCount] = useState(2);
     const [alertModal, setAlertModal] = useState({ show: false, message: "" });
     const [notification, setNotification] = useState(null);
     const [projectNotifications, setProjectNotifications] = useState([]);
     const [notificationsLoading, setNotificationsLoading] = useState(false);
     const [showBellDropdown, setShowBellDropdown] = useState(false);
+    const [homeTab, setHomeTab] = useState('hoje');
+    const [horasMesAtual, setHorasMesAtual] = useState({ h: 0, m: 0 });
+    const closeProfilePeek = useCallback(() => setSelectedOnlineUser(null), []);
+    const closeBellPanel = useCallback(() => setShowBellDropdown(false), []);
     const bellDropdownRef = useRef(null);
     
     const [timerSwitchModal, setTimerSwitchModal] = useState({
@@ -1035,9 +1098,6 @@ export default function DashboardHome() {
     setStats({ projetos: countProjetos || 0, clientes: countClientes || 0, forum: countForum || 0 });
   }
 
-  async function handleLogout() {
-    await signOut();
-  }
 
   async function loadFullHistory() {
       const y = historyDate.getFullYear();
@@ -1154,21 +1214,6 @@ export default function DashboardHome() {
       return <span style={{fontWeight: 'bold', color: 'var(--color-btnPrimary)'}}>{horas}h{minutos.toString().padStart(2, '0')}</span>;
   };
 
-  const renderTaskDeadline = (dateString) => {
-      if (!dateString) return <span style={{fontSize: '0.65rem', color: '#94a3b8', background: '#f8fafc', padding: '2px 6px', borderRadius: '4px'}}>Sem Prazo</span>;
-      const d = new Date(dateString); 
-      if (isNaN(d.getTime())) return <span style={{fontSize: '0.65rem', color: '#94a3b8', background: '#f8fafc', padding: '2px 6px', borderRadius: '4px'}}>Sem Prazo</span>;
-      
-      d.setHours(0,0,0,0);
-      const t = new Date(); t.setHours(0,0,0,0);
-      const diffTime = d.getTime() - t.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
-      if (diffDays < 0) return <span style={{background: '#fee2e2', color: '#ef4444', padding: '2px 8px', borderRadius: '12px', fontSize: '0.65rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.AlertTriangle size={10} /> Atrasada</span>;
-      if (diffDays === 0) return <span style={{background: '#fefce8', color: '#d97706', padding: '2px 8px', borderRadius: '12px', fontSize: '0.65rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.Flame size={10} /> Hoje</span>;
-      return <span style={{background: '#f1f5f9', color: '#64748b', padding: '2px 8px', borderRadius: '12px', fontSize: '0.65rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.Calendar size={10} /> {d.toLocaleDateString('pt-PT').slice(0,5)}</span>;
-  };
-
   const inputEditStyle = { width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.85rem' };
 
   const formatLastWorked = (dateStr) => {
@@ -1234,9 +1279,6 @@ export default function DashboardHome() {
       return result;
   })();
 
-  useEffect(() => {
-      setRecentTasksVisibleCount(2);
-  }, [tarefasRecentesCards.length]);
 
   const userFirstName = getSafeFirstName(userProfile?.nome, userProfile?.email);
   const greetingByHour = (() => {
@@ -1251,6 +1293,59 @@ export default function DashboardHome() {
       : tarefasHoje.length > 0
           ? { label: `${tarefasHoje.length} prioridade${tarefasHoje.length === 1 ? '' : 's'} para hoje`, detail: "Começa pela tarefa com maior urgência.", action: "Abrir prioridades", tone: "urgent" }
           : { label: "Dia sem urgências", detail: "Podes avançar para uma das próximas tarefas.", action: "Ver tarefas", tone: "clear" };
+
+  // Horas registadas no mês atual (KPI do topo)
+  useEffect(() => {
+      if (!user?.id) return;
+      let cancelled = false;
+      const hoje = new Date();
+      const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().split('T')[0];
+      supabase
+          .from("assiduidade")
+          .select("hora_entrada, hora_saida, tempo_pausa_acumulado")
+          .eq("user_id", user.id)
+          .gte("data_registo", primeiroDia)
+          .then(({ data, error }) => {
+              if (cancelled || error || !data) return;
+              const total = data.reduce((acc, r) => acc + calcularSegundosExatos(r.hora_entrada, r.hora_saida, r.tempo_pausa_acumulado), 0);
+              setHorasMesAtual({ h: Math.floor(total / 3600), m: Math.floor((total % 3600) / 60) });
+          });
+      return () => { cancelled = true; };
+  }, [user?.id, activeLog?.id]);
+
+  // --- NOVO DASHBOARD: dados derivados para o layout ---
+  const dataHojeLabel = (() => {
+      const label = new Date().toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long' });
+      return label.charAt(0).toUpperCase() + label.slice(1);
+  })();
+
+  const currentTaskList = homeTab === 'hoje'
+      ? tarefasHoje
+      : homeTab === 'proximas'
+          ? tarefasGerais
+          : tarefasEmAnalise;
+
+  const emptyTaskMessage = {
+      hoje: { title: 'Tudo limpo por agora', detail: 'Não tens tarefas urgentes nem atrasadas.' },
+      proximas: { title: 'Sem tarefas pendentes', detail: 'Não tens mais tarefas agendadas.' },
+      analise: { title: 'Nada em análise', detail: 'Nenhuma tarefa está à espera de revisão.' },
+  }[homeTab];
+
+  const kpis = [
+      { id: 'horas', label: 'Horas este mês', value: horasMesAtual.h, suffix: 'h', extra: horasMesAtual.m > 0 ? `${String(horasMesAtual.m).padStart(2, '0')}m` : null, tone: 'amber', Icon: Icons.Clock, onClick: () => setShowHistoryModal(true) },
+      { id: 'projetos', label: 'Projetos ativos', value: stats.projetos, tone: 'primary', Icon: Icons.Rocket, onClick: () => navigate("/dashboard/projetos") },
+      { id: 'clientes', label: 'Entidades', value: stats.clientes, tone: 'teal', Icon: Icons.Users, onClick: () => navigate("/dashboard/clientes") },
+      { id: 'forum', label: 'Publicações', value: stats.forum, tone: 'violet', Icon: Icons.Message, onClick: () => navigate("/dashboard/forum") },
+  ];
+
+  const renderDeadlineChip = (dateString) => {
+      const tone = getDeadlineTone(dateString);
+      if (tone === 'none') return <span className="hx-deadline hx-deadline-none">Sem prazo</span>;
+      if (tone === 'late') return <span className="hx-deadline hx-deadline-late"><Icons.AlertTriangle size={11} /> Atrasada</span>;
+      if (tone === 'today') return <span className="hx-deadline hx-deadline-today"><Icons.Flame size={11} /> Hoje</span>;
+      const d = new Date(dateString);
+      return <span className={`hx-deadline hx-deadline-${tone}`}><Icons.Calendar size={11} /> {d.toLocaleDateString('pt-PT').slice(0, 5)}</span>;
+  };
 
   const handleFocusAction = () => {
       if (activeLog) {
@@ -1267,595 +1362,336 @@ export default function DashboardHome() {
   };
 
   return (
-    <div className="dashboard-home modern-boom factorial-like">
-      
-      {/* HEADER ESTÁTICO (Sem bugs no scroll) */}
-    <div className="dashboard-hero boom-reveal" style={{ '--d': '20ms', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', background: 'white', padding: '18px 24px', borderRadius: '16px', boxShadow: '0 2px 10px rgba(15,23,42,0.04)', border: '1px solid #ebe7df', flexWrap: 'wrap', gap: '16px', position: 'relative', zIndex: 40, overflow: 'visible' }}>
-        <div>
-           <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
-               <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: '800', letterSpacing: '-0.02em', color: '#22242a' }}>{greetingByHour}, {userFirstName}</h1>
-               <span style={{background: '#f7f4ee', color: '#6b7280', padding: '4px 10px', borderRadius: '10px', fontWeight: '700', fontSize: '0.84rem', display: 'flex', alignItems: 'center', gap: '6px', border: '1px solid #ebe7df'}}>
-                   <Icons.Clock /> {horaAtual}
-               </span>
-           </div>
-           <p style={{ margin: '7px 0 0 0', color: '#6b7280', fontStyle: 'italic', fontSize: '0.92rem', lineHeight: 1.45, maxWidth: '760px' }}>"{frase}"</p>
-        </div>
+    <div className="hx-home">
 
-        <div style={{display: 'flex', alignItems: 'center', gap: '20px'}}>
-            
-            {activeLog && (
-                <div 
-                    onClick={navigateToActiveTask}
-                    className="hover-shadow"
-                    style={{
-                        background: 'linear-gradient(to right, #ef4444, #b91c1c)', color: 'white', padding: '10px 20px', 
-                        borderRadius: '30px', display: 'flex', alignItems: 'center', gap: '15px', 
-                        cursor: 'pointer', boxShadow: '0 4px 10px rgba(239, 68, 68, 0.4)', transition: '0.2s',
-                        border: '2px solid #fecaca'
-                    }}
-                    title="Clica para ir para a Tarefa"
-                >
-                    <div style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', fontSize: '0.95rem'}}>
-                        <span className="pulse-dot-white"></span> 
-                        {getActiveTaskName().length > 30 ? getActiveTaskName().slice(0, 30) + '...' : getActiveTaskName()}
-                    </div>
-                    <div style={{width: '1px', height: '20px', background: 'rgba(255,255,255,0.3)'}}></div>
-                    <button 
-                        onClick={openStopNoteModal} 
-                        style={{
-                            background: 'white', color: '#ef4444', border: 'none', borderRadius: '20px', 
-                            padding: '6px 12px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.8rem', 
-                            display: 'flex', alignItems: 'center', gap: '4px', transition: '0.2s'
-                        }}
-                        onMouseOver={(e) => e.currentTarget.style.background = '#fef2f2'}
-                        onMouseOut={(e) => e.currentTarget.style.background = 'white'}
-                        title="Parar o tempo"
-                    >
-                        <Icons.Stop /> Parar
-                    </button>
-                </div>
-            )}
+      {/* ================= HERO ================= */}
+      <header className="hx-hero">
+        <span className="hx-hero-bg" aria-hidden="true">
+          <span className="hx-hero-orb hx-hero-orb-a" />
+          <span className="hx-hero-orb hx-hero-orb-b" />
+          <span className="hx-hero-orb hx-hero-orb-c" />
+          <span className="hx-hero-grid" />
+        </span>
 
-            {/* 🔔 SINO DE NOTIFICAÇÕES DE PROJETOS */}
-            <div ref={bellDropdownRef} style={{ position: 'relative' }}>
-                <button
-                    onClick={() => setShowBellDropdown(v => !v)}
-                    style={{
-                        position: 'relative', background: showBellDropdown ? '#f1f5f9' : 'transparent',
-                        border: '1px solid #e2e8f0', borderRadius: '10px', padding: '8px', cursor: 'pointer',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s',
-                        color: '#64748b'
-                    }}
-                    title="Notificações de projetos"
-                >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                        <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-                    </svg>
-                    {projectNotifications.length > 0 && (
-                        <span style={{
-                            position: 'absolute', top: '-5px', right: '-5px',
-                            background: '#ef4444', color: 'white', borderRadius: '999px',
-                            fontSize: '0.65rem', fontWeight: '800', minWidth: '18px', height: '18px',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            padding: '0 3px', border: '2px solid white', lineHeight: 1
-                        }}>
-                            {projectNotifications.length > 9 ? '9+' : projectNotifications.length}
-                        </span>
-                    )}
-                </button>
+        <div className="hx-hero-body">
+          <div className="hx-hero-copy">
+            <div className="hx-hero-meta">
+              <span className="hx-chip hx-chip-glass">
+                <Icons.Calendar size={13} /> {dataHojeLabel}
+              </span>
+              <span className="hx-chip hx-chip-glass hx-chip-clock">
+                <Icons.Clock size={13} /> {horaAtual}
+              </span>
+
+              {/* 🔔 NOTIFICAÇÕES DE PROJETOS */}
+              <button
+                ref={bellDropdownRef}
+                type="button"
+                className={`hx-chip hx-chip-glass hx-chip-bell ${showBellDropdown ? 'is-open' : ''} ${projectNotifications.length > 0 ? 'has-new' : ''}`}
+                onClick={() => setShowBellDropdown(v => !v)}
+                title="Notificações de projetos"
+                aria-label="Notificações de projetos"
+                aria-expanded={showBellDropdown}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                </svg>
+                {projectNotifications.length > 0 ? (
+                  <span>{projectNotifications.length > 9 ? '9+' : projectNotifications.length} {projectNotifications.length === 1 ? 'nova' : 'novas'}</span>
+                ) : (
+                  <span className="hx-chip-bell-label">Notificações</span>
+                )}
+              </button>
             </div>
 
-            {/* Modal popup de notificações de projetos */}
-            {showBellDropdown && (
-                <ModalPortal>
+            <h1 className="hx-hero-title">
+              {greetingByHour}, <span className="hx-hero-name">{userFirstName}</span>
+              <span className="hx-wave" aria-hidden="true">👋</span>
+            </h1>
+            {frase && <p className="hx-hero-quote">“{frase}”</p>}
+          </div>
+
+          {/* FOCO DE HOJE / TIMER ATIVO */}
+          {activeLog ? (
+            <div className="hx-focus hx-focus-live" onClick={navigateToActiveTask} title="Clica para ir para a tarefa">
+              <div className="hx-focus-head">
+                <span className="hx-live-dot" />
+                <span className="hx-focus-kicker">A trabalhar agora</span>
+              </div>
+              <div className="hx-focus-title" title={getActiveTaskName()}>{getActiveTaskName()}</div>
+              <div className="hx-focus-foot">
+                <ElapsedTimer startTime={activeLog.start_time} />
+                <button type="button" className="hx-stop-btn" onClick={openStopNoteModal} title="Parar o tempo">
+                  <Icons.Stop size={11} /> Parar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className={`hx-focus hx-focus-${focoDeHoje.tone}`}>
+              <div className="hx-focus-head">
+                <Icons.Flame size={14} />
+                <span className="hx-focus-kicker">Foco de hoje</span>
+              </div>
+              <div className="hx-focus-title">{focoDeHoje.label}</div>
+              <div className="hx-focus-detail">{focoDeHoje.detail}</div>
+              <button type="button" className="hx-focus-btn" onClick={handleFocusAction}>
+                {focoDeHoje.action} <Icons.ArrowRight size={15} />
+              </button>
+            </div>
+          )}
+        </div>
+      </header>
+
+      {/* ================= NÚMEROS ================= */}
+      <section className="hx-kpis" aria-label="Resumo">
+        {kpis.map((kpi) => (
+          <button
+            key={kpi.id}
+            type="button"
+            className={`hx-kpi hx-kpi-${kpi.tone}`}
+            onClick={kpi.onClick}
+          >
+            <span className="hx-kpi-icon"><kpi.Icon size={18} /></span>
+            <span className="hx-kpi-body">
+              <span className="hx-kpi-value">
+            <CountUp value={kpi.value} />
+            {kpi.suffix && <span className="hx-kpi-suffix">{kpi.suffix}</span>}
+            {kpi.extra && <span className="hx-kpi-extra">{kpi.extra}</span>}
+          </span>
+              <span className="hx-kpi-label">{kpi.label}</span>
+            </span>
+            <span className="hx-kpi-arrow"><Icons.ChevronRight size={14} /></span>
+          </button>
+        ))}
+      </section>
+
+      {/* ================= GRID PRINCIPAL ================= */}
+      <div className="hx-grid">
+
+        {/* -------- COLUNA DIREITA: TRABALHO -------- */}
+        <div className="hx-col hx-col-main">
+
+          {/* 🕐 CONTINUAR ONDE PARASTE */}
+          {tarefasRecentesCards.length > 0 && (
+            <section className="hx-card hx-resume">
+              <div className="hx-card-head">
+                <h2 className="hx-card-title">
+                  <span className="hx-title-icon tone-violet"><Icons.Clock size={15} /></span>
+                  Continuar onde paraste
+                </h2>
+                <span className="hx-card-sub">Últimas atividades</span>
+              </div>
+
+              <div className="hx-resume-rail">
+                {tarefasRecentesCards.slice(0, 4).map((t) => {
+                  const isRunning = isTaskCardRunning(t);
+                  return (
                     <div
-                        onClick={() => setShowBellDropdown(false)}
-                        style={{
-                            position: 'fixed', inset: 0,
-                            background: 'rgba(15,23,42,0.45)', backdropFilter: 'blur(3px)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            zIndex: 99999, padding: '24px'
-                        }}
+                      key={`recent_${t.id}`}
+                      className={`hx-resume-item ${isRunning ? 'is-running' : ''}`}
+                      onClick={() => navigateToTaskCard(t)}
                     >
-                        <div
-                            onClick={e => e.stopPropagation()}
-                            style={{
-                                background: 'white', borderRadius: '20px',
-                                boxShadow: '0 24px 64px rgba(15,23,42,0.18)',
-                                width: '100%', maxWidth: '480px',
-                                overflow: 'hidden', animation: 'fadeIn 0.18s ease-out'
-                            }}
+                      <div className="hx-resume-top">
+                        <span className="hx-resume-client" title={t.clientLabel}>{t.clientLabel}</span>
+                        <span className="hx-resume-when">{formatLastWorked(t.last_worked)}</span>
+                      </div>
+                      <div className="hx-resume-title" title={t.titulo}>{t.titulo}</div>
+                      <div className="hx-resume-bottom">
+                        <span className="hx-resume-parent" title={t.parentTitle}>{t.parentTitle}</span>
+                        <button
+                          type="button"
+                          className={`hx-play ${isRunning ? 'is-running' : ''}`}
+                          onClick={(e) => handleStartTaskFromHome(t, e)}
+                          title={isRunning ? 'Parar temporizador' : 'Retomar temporizador'}
                         >
-                            {/* Header */}
-                            <div style={{ padding: '20px 24px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                    <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: '#f0f4ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                        <Icons.Rocket size={18} color="var(--color-btnPrimary)" />
-                                    </div>
-                                    <div>
-                                        <div style={{ fontWeight: '800', fontSize: '1rem', color: '#0f172a' }}>Notificações de Projetos</div>
-                                        {projectNotifications.length > 0 && (
-                                            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                                                {projectNotifications.length} nova{projectNotifications.length === 1 ? '' : 's'}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={() => setShowBellDropdown(false)}
-                                    style={{ background: '#f1f5f9', border: 'none', borderRadius: '8px', padding: '6px', cursor: 'pointer', display: 'flex', color: '#64748b' }}
-                                >
-                                    <Icons.Close size={16} />
-                                </button>
-                            </div>
-
-                            {/* Body */}
-                            <div style={{ maxHeight: '460px', overflowY: 'auto' }}>
-                                {notificationsLoading ? (
-                                    <div style={{ padding: '40px 24px', textAlign: 'center', color: '#64748b', fontSize: '0.9rem' }}>
-                                        A carregar notificações...
-                                    </div>
-                                ) : projectNotifications.length === 0 ? (
-                                    <div style={{ padding: '48px 24px', textAlign: 'center' }}>
-                                        <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>✅</div>
-                                        <div style={{ fontWeight: '700', color: '#1e293b', fontSize: '1rem', marginBottom: '6px' }}>Tudo em dia!</div>
-                                        <div style={{ color: '#64748b', fontSize: '0.88rem' }}>Não tens projetos novos por ver.</div>
-                                    </div>
-                                ) : (
-                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                        {projectNotifications.map((notificationItem, idx) => (
-                                            <div
-                                                key={notificationItem.id}
-                                                style={{
-                                                    padding: '16px 24px',
-                                                    borderBottom: idx < projectNotifications.length - 1 ? '1px solid #f8fafc' : 'none',
-                                                    display: 'flex', flexDirection: 'column', gap: '10px'
-                                                }}
-                                            >
-                                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                                                    <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'var(--color-bgSecondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: '2px' }}>
-                                                        <Icons.Rocket size={14} color="var(--color-btnPrimary)" />
-                                                    </div>
-                                                    <div style={{ minWidth: 0, flex: 1 }}>
-                                                        <div style={{ fontWeight: '700', color: '#0f172a', fontSize: '0.9rem', marginBottom: '3px' }}>
-                                                            {notificationItem.titulo}
-                                                        </div>
-                                                        <div style={{ fontSize: '0.83rem', color: '#475569', lineHeight: 1.45 }}>
-                                                            {notificationItem.mensagem}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div style={{ display: 'flex', gap: '8px', paddingLeft: '44px' }}>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => { setShowBellDropdown(false); openProjectNotification(notificationItem); }}
-                                                        style={{ flex: 1, padding: '8px 14px', borderRadius: '9px', border: 'none', background: 'var(--color-btnPrimary)', color: 'white', fontWeight: '700', fontSize: '0.8rem', cursor: 'pointer' }}
-                                                    >
-                                                        Abrir projeto
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => markProjectNotificationAsRead(notificationItem.id)}
-                                                        style={{ padding: '8px 12px', borderRadius: '9px', border: '1px solid #e2e8f0', background: 'white', color: '#64748b', fontWeight: '600', fontSize: '0.8rem', cursor: 'pointer' }}
-                                                        title="Marcar como lida"
-                                                    >
-                                                        ✓ Lida
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Footer */}
-                            {projectNotifications.length > 0 && (
-                                <div style={{ padding: '14px 24px', borderTop: '1px solid #f1f5f9', background: '#fafafa' }}>
-                                    <button
-                                        onClick={async () => {
-                                            await Promise.all(projectNotifications.map(n => markProjectNotificationAsRead(n.id)));
-                                            setShowBellDropdown(false);
-                                        }}
-                                        style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1px solid #e2e8f0', background: 'white', color: '#64748b', fontWeight: '600', fontSize: '0.82rem', cursor: 'pointer' }}
-                                    >
-                                        Marcar todas como lidas
-                                    </button>
-                                </div>
-                            )}
-                        </div>
+                          {isRunning ? <Icons.Stop size={11} /> : <Icons.Play size={11} />}
+                        </button>
+                      </div>
                     </div>
-                </ModalPortal>
-            )}
-
-
-            <div style={{ position: 'relative' }}>
-                <div onClick={() => setShowMenu(!showMenu)} style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', padding: '8px 12px', borderRadius: '8px', background: showMenu ? '#f1f5f9' : 'transparent', transition: 'all 0.2s' }}>
-                    <div style={{textAlign: 'right', display: 'flex', flexDirection: 'column'}}>
-                         <span style={{fontWeight: 'bold', fontSize: '0.9rem', color: '#334151'}}>{userFirstName}</span>
-                         <span style={{fontSize: '0.75rem', color: 'var(--color-btnPrimary)', fontWeight: '500'}}>{userProfile?.empresa_interna || 'Empresa'}</span>
-                    </div>
-                    
-                    <div style={{ width: '42px', height: '42px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--color-btnPrimary), var(--color-btnPrimaryDark))', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.1rem', boxShadow: '0 2px 4px rgba(37, 99, 235, 0.3)', overflow: 'hidden' }}>
-                        {userProfile?.avatar_url ? (
-                            <img src={userProfile.avatar_url} alt="User" style={{width:'100%', height:'100%', objectFit:'cover'}} />
-                        ) : (
-                            getInitials(userProfile?.nome)
-                        )}
-                    </div>
-                </div>
-
-
-                {showMenu && (
-                  <div style={{ position: 'absolute', top: '110%', right: 0, background: 'white', border: '1px solid #e2e8f0', borderRadius: '10px', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', minWidth: '220px', zIndex: 9999, overflow: 'hidden', animation: 'fadeIn 0.2s ease-out' }}>
-                    <div style={{padding: '12px 15px', borderBottom: '1px solid #f1f5f9', background: '#f8fafc'}}><span style={{fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 'bold', letterSpacing: '0.5px'}}>A Minha Conta</span></div>
-                    <button className="menu-item" onClick={() => navigate("/dashboard/perfil")}><Icons.User /> O Meu Perfil</button>
-                    <button className="menu-item" onClick={() => navigate("/dashboard/ferias")}><Icons.Sun /> Férias & Ausências</button>
-                                        <button className="menu-item" onClick={() => navigate("/dashboard/pedido-km")}><Icons.Calendar /> Pedido de Deslocação</button>
-                                        <button
-                                            className="menu-item"
-                                            onClick={() => {
-                                                setShowMenu(false);
-                                                setShowThemeModal(true);
-                                            }}
-                                        >
-                                            <Icons.Sun /> Temas da app
-                                        </button>
-                    <button className="menu-item logout" onClick={handleLogout} style={{borderTop: '1px solid #f1f5f9'}}><Icons.LogOut /> Terminar Sessão</button>
-                  </div>
-                )}
-            </div>
-        </div>
-      </div>
-
-            <section className={`dashboard-focus-strip dashboard-focus-${focoDeHoje.tone} boom-reveal`} style={{ '--d': '60ms' }} aria-label="Foco de hoje">
-                <div className="dashboard-focus-copy">
-                    <span className="dashboard-focus-kicker"><Icons.Flame size={14} /> Foco de hoje</span>
-                    <strong>{focoDeHoje.label}</strong>
-                    <span className="dashboard-focus-detail" title={focoDeHoje.detail}>{focoDeHoje.detail}</span>
-                </div>
-                <div className="dashboard-focus-metrics" aria-label="Resumo de tarefas">
-                    <span><strong>{tarefasHoje.length}</strong> urgentes</span>
-                    <span><strong>{tarefasGerais.length}</strong> próximas</span>
-                    <span><strong>{tarefasEmAnalise.length}</strong> em análise</span>
-                </div>
-                <button type="button" className="dashboard-focus-action" onClick={handleFocusAction}>
-                    {focoDeHoje.action} <Icons.ArrowRight size={15} />
-                </button>
+                  );
+                })}
+              </div>
             </section>
+          )}
 
-      {/* GRID PRINCIPAL (2 COLUNAS 100% FOCADAS E ARRUMADAS) */}
-    <div className="dashboard-grid" style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: '28px', alignItems: 'start' }}>
-        
-        {/* COLUNA ESQUERDA: Stats, Assiduidade, Histórico, Equipa & Aniversários */}
-        <div style={{display: 'flex', flexDirection: 'column', gap: '24px'}}>
-
-            
-
-            {/* --- OS 3 CARTÕES DE RESUMO --- */}
-            <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
-                <div className="card stat-card neo-stat boom-reveal" onClick={() => navigate("/dashboard/projetos")} style={{ '--d': '90ms', borderLeft: '3px solid #a8b7d1', cursor: 'pointer', transition: '0.2s', padding: '16px' }}>
-                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
-                        <div><h3 style={{fontSize: '0.8rem', color: '#64748b', margin: '0 0 5px 0'}}>Projetos Ativos</h3><p style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#1e293b', margin: 0 }}>{stats.projetos}</p></div>
-                        <span style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '6px', borderRadius: '8px', display: 'flex'}}><Icons.Rocket size={18}/></span>
-                    </div>
-                </div>
-
-                <div className="card stat-card neo-stat boom-reveal" onClick={() => navigate("/dashboard/clientes")} style={{ '--d': '140ms', borderLeft: '3px solid var(--color-borderColorLight)', cursor: 'pointer', transition: '0.2s', padding: '16px' }}>
-                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
-                        <div><h3 style={{fontSize: '0.8rem', color: '#64748b', margin: '0 0 5px 0'}}>Total Clientes</h3><p style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#1e293b', margin: 0 }}>{stats.clientes}</p></div>
-                        <span style={{background: 'var(--color-borderColorLight)', color: 'var(--color-btnPrimary)', padding: '6px', borderRadius: '8px', display: 'flex'}}><Icons.Users size={18}/></span>
-                    </div>
-                </div>
-
-                <div className="card stat-card neo-stat boom-reveal" onClick={() => navigate("/dashboard/forum")} style={{ '--d': '190ms', borderLeft: '3px solid #d4b48f', cursor: 'pointer', transition: '0.2s', padding: '16px' }}>
-                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
-                        <div><h3 style={{fontSize: '0.8rem', color: '#64748b', margin: '0 0 5px 0'}}>Publicações</h3><p style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#1e293b', margin: 0 }}>{stats.forum}</p></div>
-                        <span style={{background: '#fef3c7', color: '#d97706', padding: '6px', borderRadius: '8px', display: 'flex'}}><Icons.Message size={18}/></span>
-                    </div>
-                </div>
+          {/* 📋 AS MINHAS TAREFAS (ABAS DESLIZANTES) */}
+          <section className="hx-card hx-tasks">
+            <div className="hx-card-head hx-tasks-head">
+              <h2 className="hx-card-title">
+                <span className="hx-title-icon"><Icons.Check size={15} /></span>
+                As minhas tarefas
+              </h2>
+              <button type="button" className="hx-link-btn" onClick={() => navigate("/dashboard/tarefas")}>
+                Ver todas <Icons.ArrowRight size={14} />
+              </button>
             </div>
 
-            {/* PONTO / ASSIDUIDADE */}
-            <div className="boom-reveal" style={{ '--d': '230ms' }}>
-                <WidgetAssiduidade onViewHistory={() => setShowHistoryModal(true)} />
-            </div>
+            <SlidingTabs
+              className="hx-tabs"
+              ariaLabel="Tipo de tarefas"
+              value={homeTab}
+              onChange={setHomeTab}
+              tabs={[
+                { id: 'hoje', label: 'Para hoje', count: tarefasHoje.length, tone: tarefasHoje.length > 0 ? 'danger' : undefined, icon: <Icons.Flame size={14} /> },
+                { id: 'proximas', label: 'Próximas', count: tarefasGerais.length, icon: <Icons.Clipboard size={14} /> },
+                { id: 'analise', label: 'Em análise', count: tarefasEmAnalise.length, tone: tarefasEmAnalise.length > 0 ? 'pink' : undefined, icon: <Icons.Activity size={14} /> },
+              ]}
+            />
 
-            {/* 💡 EQUIPA E ANIVERSÁRIOS EM STACK VERTICAL */}
-            <div className="bottom-split-grid" style={{display: 'flex', flexDirection: 'column', gap: '18px'}}>
-                
-                {/* ── EQUIPA ONLINE ── */}
-                <div ref={onlineCardRef} className="card online-showcase boom-reveal" style={{ '--d': '280ms', padding: '20px', background: '#ffffff', borderRadius: '16px', display: 'flex', flexDirection: 'column', border: '1px solid #dbe6f5', boxShadow: '0 4px 16px rgba(15, 23, 42, 0.04)'}}>
-                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px'}}>
-                        <h4 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Activity size={18} color="var(--color-btnPrimary)" /> Equipa Online</h4>
-                        <span style={{background: '#f8fbff', color: '#64748b', padding: '3px 10px', borderRadius: '999px', fontSize: '0.72rem', fontWeight: '700', border: '1px solid #dbe6f5'}}>{usersOnline.length} online</span>
-                    </div>
-                    
-                    {usersOnline.length > 0 ? (
-                        <div style={{display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px'}}>
-                        {usersOnline.map(u => {
-                            const uNome = getSafeFirstName(u.profiles?.nome, "");
-                            return (
-                            <div key={u.id} onClick={() => setSelectedOnlineUser(u)}
-                                title={`${u.profiles?.nome || ''} · entrou às ${u.hora_entrada?.slice(0,5)}`}
-                                style={{display:'flex', flexDirection:'column', alignItems:'center', gap:'4px', cursor:'pointer', padding:'8px 4px', borderRadius:'14px', transition:'all 0.2s ease', background:'rgba(255,255,255,0.7)', boxShadow:'0 2px 8px rgba(15,23,42,0.05)'}}
-                                onMouseEnter={e => { e.currentTarget.style.background='rgba(255,255,255,0.95)'; e.currentTarget.style.boxShadow='0 4px 12px rgba(15,23,42,0.1)'; e.currentTarget.style.transform='translateY(-1px)'; }}
-                                onMouseLeave={e => { e.currentTarget.style.background='rgba(255,255,255,0.7)'; e.currentTarget.style.boxShadow='0 2px 8px rgba(15,23,42,0.05)'; e.currentTarget.style.transform='translateY(0)'; }}>
-                                <div style={{position:'relative'}}>
-                                    <div style={{width:'38px', height:'38px', borderRadius:'50%', background:'var(--color-btnPrimary)', color:'white', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:'700', fontSize:'0.7rem', overflow:'hidden', border:'2px solid #ffffff', boxShadow:'0 2px 6px rgba(59,130,246,0.15)'}}>
-                                        {u.profiles?.avatar_url
-                                            ? <img src={u.profiles.avatar_url} alt="U" style={{width:'100%', height:'100%', objectFit:'cover', objectPosition:'center', display:'block'}} />
-                                            : getInitials(u.profiles?.nome)}
-                                    </div>
-                                    <span style={{position:'absolute', bottom:'0px', right:'0px', width:'8px', height:'8px', background:'var(--color-btnPrimary)', borderRadius:'50%', border:'1.5px solid white', display:'block'}}></span>
-                                </div>
-                                <span style={{fontSize:'0.65rem', fontWeight:'600', color:'#334155', textAlign:'center', width:'100%', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{uNome}</span>
-                                <span style={{fontSize:'0.6rem', color:'#94a3b8'}}>{u.hora_entrada?.slice(0,5)}</span>
-                            </div>
-                        )})}
+            <div key={homeTab} className="hx-task-list bz-tab-panel">
+              {currentTaskList.length === 0 ? (
+                <div className="hx-empty">
+                  <span className="hx-empty-icon"><Icons.CheckCircle size={28} /></span>
+                  <strong>{emptyTaskMessage.title}</strong>
+                  <span>{emptyTaskMessage.detail}</span>
+                </div>
+              ) : (
+                <>
+                  {currentTaskList.slice(0, TASKS_PER_TAB).map((t, idx) => {
+                    const isRunning = isTaskCardRunning(t);
+                    const tone = homeTab === 'analise' ? 'review' : getDeadlineTone(t.computedDeadline);
+                    return (
+                      <div
+                        key={t.id}
+                        className={`hx-task hx-task-${tone} ${isRunning ? 'is-running' : ''}`}
+                        style={{ '--i': idx }}
+                        onClick={() => navigateToTaskCard(t)}
+                      >
+                        <span className="hx-task-bar" aria-hidden="true" />
+                        <div className="hx-task-main">
+                          <div className="hx-task-title" title={t.titulo}>{t.titulo}</div>
+                          <div className="hx-task-meta">
+                            <span className={`hx-task-client ${t.clientLabel === 'GERAL / AVULSA' ? 'is-general' : ''}`} title={t.clientLabel}>
+                              {t.clientLabel}
+                            </span>
+                            {t.parentTitle && (
+                              <>
+                                <span className="hx-dot-sep" />
+                                <span className="hx-task-parent" title={t.parentTitle}>{t.parentTitle}</span>
+                              </>
+                            )}
+                          </div>
                         </div>
-                    ) : (
-                        <div style={{textAlign: 'center', padding: '20px', color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic', flex:1, display:'flex', alignItems:'center', justifyContent:'center'}}>Ninguém online.</div>
-                    )}
-                </div>
-
-                {/* ── ANIVERSÁRIOS ── */}
-                <div className="card birthday-showcase boom-reveal" style={{ '--d': '330ms', padding: '20px', background: '#ffffff', borderRadius: '16px', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid #ebe7df', boxShadow: '0 4px 16px rgba(15, 23, 42, 0.04)'}}>
-                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px'}}>
-                        <h4 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Cake size={18} color="#f59e0b" /> Aniversários</h4>
-                    </div>
-                    {proximosAniversarios.length > 0 ? (
-                        <div style={{display: 'grid', gridTemplateColumns: `repeat(${proximosAniversarios.length}, 1fr)`, gap: '12px'}}>
-                        {proximosAniversarios.map(a => {
-                            const isHoje = a.proximoAniversario.getDate() === new Date().getDate() && a.proximoAniversario.getMonth() === new Date().getMonth();
-                            const aNome = getSafeFirstName(a.nome, "");
-                            const day = String(a.proximoAniversario.getDate()).padStart(2, '0');
-                            const monthShort = a.proximoAniversario.toLocaleDateString('pt-PT', { month: 'short' }).replace('.', '').toUpperCase();
-                            return (
-                            <div key={a.id} style={{display:'flex', flexDirection:'column', alignItems:'center', gap:'8px', padding:'16px 12px', borderRadius:'16px', background: isHoje ? 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)' : '#fcfcfb', border: isHoje ? '1px solid #fdba74' : '1px solid #e7e5e4', boxShadow: isHoje ? '0 10px 22px rgba(251,146,60,0.18)' : '0 4px 12px rgba(15,23,42,0.05)', textAlign:'center', position:'relative'}}>
-                                {/* Avatar */}
-                                <div style={{width:'72px', height:'72px', borderRadius:'50%', background: isHoje ? '#f97316' : '#f59e0b', color:'white', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:'700', fontSize:'1rem', overflow:'hidden', flexShrink:0, border:'3px solid #fff', boxShadow:'0 4px 12px rgba(0,0,0,0.12)'}}>
-                                    {a.avatar_url
-                                        ? <img src={a.avatar_url} alt="U" style={{width:'100%', height:'100%', objectFit:'cover', objectPosition:'center', display:'block'}} />
-                                        : getInitials(a.nome)}
-                                </div>
-                                {/* Nome */}
-                                <div style={{fontWeight:'700', color:'#1e293b', fontSize:'0.9rem', lineHeight:1.2}}>{aNome}</div>
-                                {/* Tipo */}
-                                <div style={{fontSize:'0.75rem', color: isHoje ? '#c2410c' : '#64748b', fontWeight:'600', display:'flex', alignItems:'center', gap:'4px'}}>
-                                    {isHoje
-                                        ? <><Icons.Gift size={14} color="#c2410c" /> Hoje!</>
-                                        : <><Icons.Cake size={14} color="#64748b" /> Aniversário</>}
-                                </div>
-                                {/* Badge da data */}
-                                <div style={{display:'flex', flexDirection:'column', alignItems:'center', background: isHoje ? '#fb923c' : '#f1f5f9', borderRadius:'10px', padding:'5px 14px', marginTop:'2px'}}>
-                                    <span style={{fontSize:'0.6rem', fontWeight:'800', color: isHoje ? 'rgba(255,255,255,0.85)' : '#94a3b8', letterSpacing:'0.08em'}}>{monthShort}</span>
-                                    <span style={{fontSize:'1.1rem', fontWeight:'800', color: isHoje ? '#fff' : '#334155', lineHeight:1}}>{day}</span>
-                                </div>
-                            </div>
-                        )})}
+                        <div className="hx-task-side">
+                          {homeTab === 'analise'
+                            ? <span className="hx-deadline hx-deadline-review">Em análise</span>
+                            : renderDeadlineChip(t.computedDeadline)}
+                          {homeTab !== 'analise' && (
+                            <button
+                              type="button"
+                              className={`hx-play ${isRunning ? 'is-running' : ''}`}
+                              onClick={(e) => handleStartTaskFromHome(t, e)}
+                              title={isRunning ? 'Parar temporizador' : 'Iniciar temporizador'}
+                            >
+                              {isRunning ? <Icons.Stop size={11} /> : <Icons.Play size={11} />}
+                            </button>
+                          )}
+                          <span className="hx-task-chevron"><Icons.ChevronRight size={15} /></span>
                         </div>
-                    ) : (
-                        <div style={{textAlign: 'center', padding: '20px', color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>Nenhum aniversário.</div>
-                    )}
-                </div>
-
+                      </div>
+                    );
+                  })}
+                  {currentTaskList.length > TASKS_PER_TAB && (
+                    <button type="button" className="hx-more-btn" onClick={() => navigate("/dashboard/tarefas")}>
+                      Ver mais {currentTaskList.length - TASKS_PER_TAB} <Icons.ArrowRight size={14} />
+                    </button>
+                  )}
+                </>
+              )}
             </div>
+          </section>
         </div>
 
-        {/* COLUNA DIREITA: SÓ TAREFAS */}
-        <div style={{display: 'flex', flexDirection: 'column', gap: '24px'}}>
+        {/* -------- COLUNA ESQUERDA: PONTO & PESSOAS -------- */}
+        <aside className="hx-col hx-col-side">
 
-            {/* 🕐 RETOMAR - ÚLTIMAS TAREFAS TRABALHADAS */}
-            <div className="card dashboard-resume-card boom-reveal" style={{ '--d': '280ms', padding: '20px', background: 'white', borderRadius: '16px' }}>
-                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px'}}>
-                    <h4 style={{margin: 0, color: '#1e293b', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px'}}>
-                        <Icons.Clock size={18} color="#8b5cf6" /> Retomar Trabalho
-                    </h4>
-                    <span style={{fontSize:'0.72rem', color:'#94a3b8', fontStyle:'italic'}}>Últimas atividades</span>
-                </div>
-                {tarefasRecentesCards.length > 0 ? (
-                    <>
-                        <div className="dashboard-resume-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px' }}>
-                        {tarefasRecentesCards.slice(0, recentTasksVisibleCount).map((t) => {
-                            const isRunning = isTaskCardRunning(t);
-                            return (
-                            <div key={`recent_${t.id}`} onClick={() => navigateToTaskCard(t)} className="task-hover-card" style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                    <span style={{ fontSize: '0.65rem', color: '#64748b', textTransform: 'uppercase', background: '#f8fafc', padding: '2px 6px', borderRadius: '6px', maxWidth: '120px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={t.clientLabel}>
-                                        {t.clientLabel === 'GERAL / AVULSA' ? (
-                                            <strong style={{color: '#1e293b', fontWeight: '800'}}>GERAL / AVULSA</strong>
-                                        ) : (
-                                            <>{t.clientLabel}</>
-                                        )}
-                                    </span>
-                                    <span style={{fontSize:'0.65rem', color:'#64748b', background:'#f8fafc', padding:'2px 8px', borderRadius:'12px', fontWeight:'600', display:'flex', alignItems:'center', gap:'3px'}}>
-                                        <Icons.Clock size={9} /> {formatLastWorked(t.last_worked)}
-                                    </span>
-                                </div>
-                                <h4 style={{ margin: '5px 0 0 0', fontSize: '0.9rem', color: '#1e293b', lineHeight: '1.3' }}>{t.titulo}</h4>
-                                <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '1px solid #f1f5f9', gap: '8px' }}>
-                                    <span style={{ fontSize: '0.75rem', color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px' }}>{t.parentTitle}</span>
-                                    <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                                        <button
-                                            onClick={(e) => handleStartTaskFromHome(t, e)}
-                                            title={isRunning ? 'Parar temporizador' : 'Retomar temporizador'}
-                                            style={{border: 'none', background: isRunning ? '#fee2e2' : 'var(--color-bgSecondary)', color: isRunning ? '#ef4444' : 'var(--color-btnPrimary)', borderRadius: '999px', width: '26px', height: '26px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'}}
-                                        >
-                                            {isRunning ? <Icons.Stop size={10} /> : <Icons.Play size={10} />}
-                                        </button>
-                                        <span style={{ fontSize: '0.9rem', color: '#cbd5e1' }}><Icons.ChevronRight size={14} /></span>
-                                    </div>
-                                </div>
-                            </div>
-                        )})}
-                        </div>
-                        {(recentTasksVisibleCount < tarefasRecentesCards.length || recentTasksVisibleCount > 2) && (
-                            <div style={{display: 'flex', justifyContent: 'center', marginTop: '14px', gap: '8px'}}>
-                                {recentTasksVisibleCount < tarefasRecentesCards.length && (
-                                    <button
-                                        className="btn-small hover-shadow"
-                                        style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', fontWeight: '700'}}
-                                        onClick={() => setRecentTasksVisibleCount((prev) => Math.min(prev + 2, tarefasRecentesCards.length))}
-                                    >
-                                        Ver mais
-                                    </button>
-                                )}
-                                {recentTasksVisibleCount > 2 && (
-                                    <button
-                                        className="btn-small hover-shadow"
-                                        style={{background: '#f8fafc', color: '#64748b', fontWeight: '700', border: '1px solid #e2e8f0'}}
-                                        onClick={() => setRecentTasksVisibleCount(2)}
-                                    >
-                                        Recolher
-                                    </button>
-                                )}
-                            </div>
-                        )}
-                    </>
-                ) : (
-                    <div style={{textAlign: 'center', padding: '20px 0', color: '#94a3b8', fontSize: '0.9rem', background: '#f8fafc', borderRadius: '12px'}}>
-                        Ainda não tens tarefas recentes para retomar.
-                    </div>
-                )}
+          {/* PONTO / ASSIDUIDADE */}
+          <section className="hx-attendance">
+            <WidgetAssiduidade onViewHistory={() => setShowHistoryModal(true)} />
+          </section>
+
+          {/* ── EQUIPA ONLINE ── */}
+          <section ref={onlineCardRef} className="hx-card hx-team">
+            <div className="hx-card-head">
+              <h2 className="hx-card-title">
+                <span className="hx-title-icon tone-green"><Icons.Activity size={15} /></span>
+                Equipa online
+              </h2>
+              <span className="hx-pill-count"><span className="hx-live-dot small" /> {usersOnline.length}</span>
             </div>
 
-            {/* 🔥 TAREFAS URGENTES / PARA HOJE */}
-            <div className="card boom-reveal" style={{ '--d': '280ms', padding: '20px', background: 'white', borderRadius: '16px' }}>
-                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px'}}>
-                    <h4 style={{margin: 0, color: '#1e293b', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Flame color="#ef4444" /> Para Hoje / Atrasadas</h4>
-                    {tarefasHoje.length > 6 && (
-                        <button className="btn-small hover-shadow" style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', fontWeight: 'bold'}} onClick={() => navigate("/dashboard/tarefas")}>
-                            Ver as {tarefasHoje.length} <Icons.ChevronRight />
-                        </button>
-                    )}
-                </div>
-                
-                {tarefasHoje.length === 0 ? (
-                    <div className="dashboard-empty-state" style={{textAlign: 'center', padding: '20px 0', color: '#94a3b8', fontSize: '0.9rem', background: '#f8fafc', borderRadius: '12px'}}>
-                        Tudo limpo por agora
-                    </div>
-                ) : (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
-                    {tarefasHoje.slice(0, 6).map((t) => {
-                        const isRunning = isTaskCardRunning(t);
-                        return (
-                        <div key={t.id} onClick={() => navigateToTaskCard(t)} className="task-hover-card" style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                {/* 💡 LABEL EMPRESA - PROJETO ou GERAL/AVULSA */}
-                                <span style={{ fontSize: '0.65rem', color: '#64748b', textTransform: 'uppercase', background: '#f8fafc', padding: '2px 6px', borderRadius: '6px', maxWidth: '120px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={t.clientLabel}>
-                                    {t.clientLabel === 'GERAL / AVULSA' ? (
-                                        <strong style={{color: '#1e293b', fontWeight: '800'}}>GERAL / AVULSA</strong>
-                                    ) : (
-                                        <>{t.clientLabel}</>
-                                    )}
-                                </span>
-                                {renderTaskDeadline(t.computedDeadline)}
-                            </div>
-                            
-                            <h4 style={{ margin: '5px 0 0 0', fontSize: '0.9rem', color: '#1e293b', lineHeight: '1.3' }}>{t.titulo}</h4>
-                            
-                            <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '1px solid #f1f5f9', gap: '8px' }}>
-                                <span style={{ fontSize: '0.75rem', color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px' }}>{t.parentTitle}</span>
-                                <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                                    <button
-                                        onClick={(e) => handleStartTaskFromHome(t, e)}
-                                        title={isRunning ? 'Parar temporizador' : 'Iniciar temporizador'}
-                                        style={{border: 'none', background: isRunning ? '#fee2e2' : 'var(--color-bgSecondary)', color: isRunning ? '#ef4444' : 'var(--color-btnPrimary)', borderRadius: '999px', width: '26px', height: '26px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'}}
-                                    >
-                                        {isRunning ? <Icons.Stop size={10} /> : <Icons.Play size={10} />}
-                                    </button>
-                                    <span style={{ fontSize: '0.9rem', color: '#cbd5e1' }}><Icons.ChevronRight size={14} /></span>
-                                </div>
-                            </div>
-                        </div>
-                    )})}
-                    </div>
-                )}
+            {usersOnline.length > 0 ? (
+              <div className="hx-team-grid">
+                {usersOnline.map((u, idx) => (
+                  <button
+                    key={u.id}
+                    type="button"
+                    className="hx-person"
+                    style={{ '--i': idx }}
+                    onClick={() => setSelectedOnlineUser(u)}
+                    title={`${u.profiles?.nome || ''} · entrou às ${u.hora_entrada?.slice(0, 5)}`}
+                  >
+                    <span className="hx-avatar hx-avatar-lg">
+                      {u.profiles?.avatar_url
+                        ? <img src={u.profiles.avatar_url} alt="" />
+                        : getInitials(u.profiles?.nome)}
+                      <span className="hx-avatar-status" />
+                    </span>
+                    <span className="hx-person-name">{getSafeFirstName(u.profiles?.nome, "")}</span>
+                    <span className="hx-person-sub">{u.hora_entrada?.slice(0, 5)}</span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="hx-empty hx-empty-sm">
+                <span>Ninguém online de momento.</span>
+              </div>
+            )}
+          </section>
+
+          {/* ── ANIVERSÁRIOS ── */}
+          <section className="hx-card hx-birthdays">
+            <div className="hx-card-head">
+              <h2 className="hx-card-title">
+                <span className="hx-title-icon tone-amber"><Icons.Cake size={15} /></span>
+                Aniversários
+              </h2>
             </div>
 
-            {/* 📋 OUTRAS TAREFAS E ATIVIDADES (FUTURO) */}
-            <div className="card boom-reveal" style={{ '--d': '330ms', padding: '20px', background: 'white', borderRadius: '16px' }}>
-                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px'}}>
-                    <h4 style={{margin: 0, color: '#1e293b', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Clipboard color="var(--color-btnPrimary)" /> Próximas Tarefas / Blocos</h4>
-                    {tarefasGerais.length > 8 && (
-                        <button className="btn-small hover-shadow" style={{background: '#f8fafc', color: '#64748b', fontWeight: 'bold'}} onClick={() => navigate("/dashboard/tarefas")}>
-                            Ver as {tarefasGerais.length} <Icons.ChevronRight />
-                        </button>
-                    )}
-                </div>
-                
-                {tarefasGerais.length === 0 ? (
-                    <div className="dashboard-empty-state" style={{textAlign: 'center', padding: '20px 0', color: '#94a3b8', fontSize: '0.9rem', background: '#f8fafc', borderRadius: '12px'}}>
-                        Não tens mais tarefas pendentes
+            {proximosAniversarios.length > 0 ? (
+              <div className="hx-bday-list">
+                {proximosAniversarios.map((a) => {
+                  const hoje = new Date();
+                  const isHoje = a.proximoAniversario.getDate() === hoje.getDate() && a.proximoAniversario.getMonth() === hoje.getMonth();
+                  const day = String(a.proximoAniversario.getDate()).padStart(2, '0');
+                  const monthShort = a.proximoAniversario.toLocaleDateString('pt-PT', { month: 'short' }).replace('.', '').toUpperCase();
+                  return (
+                    <div key={a.id} className={`hx-bday ${isHoje ? 'is-today' : ''}`}>
+                      <span className="hx-avatar hx-avatar-md">
+                        {a.avatar_url ? <img src={a.avatar_url} alt="" /> : getInitials(a.nome)}
+                      </span>
+                      <div className="hx-bday-info">
+                        <span className="hx-bday-name">{getSafeFirstName(a.nome, "")}</span>
+                        <span className="hx-bday-sub">
+                          {isHoje ? <><Icons.Gift size={12} /> Faz anos hoje!</> : 'Próximo aniversário'}
+                        </span>
+                      </div>
+                      <div className="hx-date-badge">
+                        <span className="hx-date-month">{monthShort}</span>
+                        <span className="hx-date-day">{day}</span>
+                      </div>
                     </div>
-                ) : (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
-                    {tarefasGerais.slice(0, 6).map((t) => {
-                        const isRunning = isTaskCardRunning(t);
-                        return (
-                        <div key={t.id} onClick={() => navigateToTaskCard(t)} className="task-hover-card" style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                {/* 💡 LABEL EMPRESA - PROJETO ou GERAL/AVULSA */}
-                                <span style={{ fontSize: '0.65rem', color: '#64748b', textTransform: 'uppercase', background: '#f8fafc', padding: '2px 6px', borderRadius: '6px', maxWidth: '140px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={t.clientLabel}>
-                                    {t.clientLabel === 'GERAL / AVULSA' ? (
-                                        <strong style={{color: '#1e293b', fontWeight: '800'}}>GERAL / AVULSA</strong>
-                                    ) : (
-                                        <>{t.clientLabel}</>
-                                    )}
-                                </span>
-                                {renderTaskDeadline(t.computedDeadline)}
-                            </div>
-                            
-                            <h4 style={{ margin: '5px 0 0 0', fontSize: '0.9rem', color: '#1e293b', lineHeight: '1.3' }}>{t.titulo}</h4>
-                            
-                            <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '1px solid #f1f5f9', gap: '8px' }}>
-                                <span style={{ fontSize: '0.75rem', color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px' }}>{t.parentTitle}</span>
-                                <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                                    <button
-                                        onClick={(e) => handleStartTaskFromHome(t, e)}
-                                        title={isRunning ? 'Parar temporizador' : 'Iniciar temporizador'}
-                                        style={{border: 'none', background: isRunning ? '#fee2e2' : 'var(--color-bgSecondary)', color: isRunning ? '#ef4444' : 'var(--color-btnPrimary)', borderRadius: '999px', width: '26px', height: '26px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'}}
-                                    >
-                                        {isRunning ? <Icons.Stop size={10} /> : <Icons.Play size={10} />}
-                                    </button>
-                                    <span style={{ fontSize: '0.9rem', color: '#cbd5e1' }}><Icons.ChevronRight size={14} /></span>
-                                </div>
-                            </div>
-                        </div>
-                    )})}
-                    </div>
-                )}
-            </div>
-
-            {/* 🔍 ATIVIDADES EM ANÁLISE */}
-            <div className="card boom-reveal" style={{ '--d': '380ms', padding: '20px', background: 'white', borderRadius: '16px' }}>
-                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px'}}>
-                    <h4 style={{margin: 0, color: '#1e293b', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Activity color="#ec4899" /> Em Análise / Revisão</h4>
-                    {tarefasEmAnalise.length > 0 && <span style={{fontSize: '0.8rem', background: '#fce7f3', color: '#be123c', padding: '4px 10px', borderRadius: '999px', fontWeight: 'bold'}}>{tarefasEmAnalise.length}</span>}
-                </div>
-                {tarefasEmAnalise.length === 0 ? (
-                    <div className="dashboard-empty-state" style={{textAlign: 'center', padding: '20px 0', color: '#94a3b8', fontSize: '0.9rem', background: '#f8fafc', borderRadius: '12px'}}>Nenhuma tarefa em análise neste momento</div>
-                ) : (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
-                    {tarefasEmAnalise.map((t) => (
-                        <div key={t.id} onClick={() => navigateToTaskCard(t)} style={{ background: 'white', border: '2px solid #fce7f3', borderRadius: '12px', padding: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                <span style={{ fontSize: '0.65rem', color: '#be123c', textTransform: 'uppercase', background: '#fce7f3', padding: '2px 6px', borderRadius: '6px', fontWeight: 'bold' }}>{t.clientLabel}</span>
-                                <span style={{ fontSize: '0.65rem', color: '#ec4899', background: '#fce7f3', padding: '2px 8px', borderRadius: '12px', fontWeight: '600', fontStyle: 'italic' }}>Em Análise</span>
-                            </div>
-                            <h4 style={{ margin: '5px 0 0 0', fontSize: '0.9rem', color: '#1e293b', lineHeight: '1.3' }}>{t.titulo}</h4>
-                            <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '1px solid #fce7f3', gap: '8px' }}>
-                                <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{t.parentTitle}</span>
-                                <span style={{ fontSize: '0.9rem', color: '#cbd5e1' }}><Icons.ChevronRight size={14} /></span>
-                            </div>
-                        </div>
-                    ))}
-                    </div>
-                )}
-            </div>
-
-        </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="hx-empty hx-empty-sm">
+                <span>Nenhum aniversário próximo.</span>
+              </div>
+            )}
+          </section>
+        </aside>
       </div>
 
       {/* ========================================================================= */}
@@ -2151,281 +1987,19 @@ export default function DashboardHome() {
                 onConfirm={confirmStopWithNote}
             />
 
-            {showThemeModal && (
-                <ModalPortal>
-                    <div
-                        onClick={() => setShowThemeModal(false)}
-                        style={{
-                            position: 'fixed',
-                            inset: 0,
-                            background: 'rgba(15, 23, 42, 0.55)',
-                            backdropFilter: 'blur(4px)',
-                            zIndex: 10000,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            padding: '24px'
-                        }}
-                    >
-                        <div
-                            onClick={(e) => e.stopPropagation()}
-                            style={{
-                                width: 'min(760px, 95vw)',
-                                maxHeight: '85vh',
-                                overflow: 'auto',
-                                background: 'white',
-                                borderRadius: '16px',
-                                border: '1px solid #e2e8f0',
-                                boxShadow: '0 24px 48px rgba(15, 23, 42, 0.22)',
-                                animation: 'fadeIn 0.2s ease-out'
-                            }}
-                        >
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 18px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
-                                <div>
-                                    <h3 style={{ margin: 0, fontSize: '1.05rem', color: '#0f172a', fontWeight: '800' }}>Temas da app</h3>
-                                    <p style={{ margin: '4px 0 0 0', fontSize: '0.82rem', color: '#64748b' }}>Escolhe um tema. A app aplica na hora e guarda automaticamente.</p>
-                                </div>
-                                <button
-                                    onClick={() => setShowThemeModal(false)}
-                                    style={{ background: '#fff', border: '1px solid #cbd5e1', width: '34px', height: '34px', borderRadius: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#475569' }}
-                                    className="hover-shadow"
-                                >
-                                    <Icons.Close />
-                                </button>
-                            </div>
-
-                            <div style={{ padding: '16px' }}>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
-                                    {Object.entries(THEMES).map(([key, theme]) => {
-                                        const isActive = currentTheme === key;
-                                        return (
-                                            <button
-                                                key={key}
-                                                onClick={() => changeTheme(key)}
-                                                title={theme.description}
-                                                style={{
-                                                    textAlign: 'left',
-                                                    border: isActive ? '2px solid var(--color-btnPrimary)' : '1px solid #dbe2ea',
-                                                    background: '#ffffff',
-                                                    borderRadius: '12px',
-                                                    padding: '10px',
-                                                    cursor: 'pointer',
-                                                    transition: 'all 0.2s',
-                                                    boxShadow: isActive ? '0 8px 18px -14px rgba(37, 99, 235, 0.55)' : 'none'
-                                                }}
-                                            >
-                                                <div style={{ height: '54px', borderRadius: '9px', background: theme.bgGradient, border: '1px solid #e2e8f0' }} />
-                                                <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
-                                                    <span style={{ color: '#1e293b', fontWeight: '700', fontSize: '0.9rem' }}>{theme.name}</span>
-                                                    {isActive && <span style={{ fontSize: '0.72rem', color: 'var(--color-btnPrimary)', fontWeight: '700' }}>Ativo</span>}
-                                                </div>
-                                                <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '0.76rem', lineHeight: 1.3 }}>{theme.description}</p>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </ModalPortal>
-            )}
 
       <style>{`
-                .dashboard-home {
-                    background: linear-gradient(180deg, var(--color-bgSecondary) 0%, var(--color-bgPrimary) 100%);
-                    border-radius: 20px;
-                    padding: 14px;
-                    font-family: "Manrope", "Sora", "Segoe UI", sans-serif;
-                }
-
-                .dashboard-home .card {
-                    border: 1px solid var(--color-borderColorLight);
-                    box-shadow: 0 6px 18px rgba(17, 24, 39, 0.04);
-                    backdrop-filter: blur(8px);
-                }
-
-                .dashboard-hero {
-                    background: linear-gradient(120deg, var(--color-bgTertiary), var(--color-bgSecondary)) !important;
-                    border: 1px solid var(--color-borderColorLight) !important;
-                    box-shadow: 0 12px 28px rgba(17, 24, 39, 0.05) !important;
-                    backdrop-filter: blur(12px);
-                }
-
-                .dashboard-focus-strip {
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                    gap: 18px;
-                    margin-bottom: 24px;
-                    padding: 14px 18px;
-                    background: linear-gradient(105deg, var(--color-bgTertiary) 0%, var(--color-bgSecondary) 52%, var(--color-bgPrimary) 100%);
-                    border: 1px solid var(--color-borderColorLight);
-                    border-radius: 14px;
-                    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
-                }
-
-                .dashboard-focus-active {
-                    box-shadow: 0 8px 20px var(--color-btnPrimaryShadow);
-                }
-
-                .dashboard-focus-clear {
-                    background: linear-gradient(105deg, var(--color-bgSecondary) 0%, var(--color-bgTertiary) 52%, var(--color-bgPrimary) 100%);
-                }
-
-                .dashboard-focus-active .dashboard-focus-kicker,
-                .dashboard-focus-clear .dashboard-focus-kicker {
-                    color: var(--color-btnPrimary);
-                }
-
-                .dashboard-focus-active .dashboard-focus-action,
-                .dashboard-focus-clear .dashboard-focus-action {
-                    border-color: var(--color-borderColor);
-                    color: var(--color-btnPrimary);
-                }
-
-                .dashboard-focus-active .dashboard-focus-action:hover,
-                .dashboard-focus-clear .dashboard-focus-action:hover {
-                    background: var(--color-bgSecondary);
-                }
-
-                .dashboard-focus-copy {
-                    display: flex;
-                    align-items: center;
-                    gap: 10px;
-                    min-width: 0;
-                    color: #64748b;
-                    font-size: 0.82rem;
-                }
-
-                .dashboard-focus-copy strong {
-                    color: #1e293b;
-                    font-size: 0.94rem;
-                    white-space: nowrap;
-                }
-
-                .dashboard-focus-detail {
-                    max-width: 340px;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                    white-space: nowrap;
-                }
-
-                .dashboard-focus-kicker {
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 5px;
-                    color: var(--color-btnPrimary);
-                    font-size: 0.72rem;
-                    font-weight: 800;
-                    text-transform: uppercase;
-                    letter-spacing: 0.04em;
-                    white-space: nowrap;
-                }
-
-                .dashboard-focus-metrics {
-                    display: flex;
-                    align-items: center;
-                    gap: 14px;
-                    color: #64748b;
-                    font-size: 0.75rem;
-                    white-space: nowrap;
-                }
-
-                .dashboard-focus-metrics strong {
-                    color: #1e293b;
-                    font-size: 0.95rem;
-                }
-
-                .dashboard-focus-action {
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 6px;
-                    flex-shrink: 0;
-                    border: 1px solid var(--color-borderColor);
-                    border-radius: 9px;
-                    padding: 8px 12px;
-                    background: #fff;
-                    color: var(--color-btnPrimary);
-                    font-size: 0.78rem;
-                    font-weight: 800;
-                    cursor: pointer;
-                    transition: background 0.2s ease, transform 0.2s ease;
-                }
-
-                .dashboard-focus-action:hover {
-                    background: var(--color-bgSecondary);
-                    transform: translateY(-1px);
-                }
-
-                .dashboard-resume-grid > .task-hover-card:only-child {
-                    grid-column: 1 / -1;
-                    max-width: none;
-                }
-
-                .dashboard-empty-state {
-                    min-height: 42px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    padding: 12px 16px !important;
-                    border: 1px dashed var(--color-borderColorLight);
-                    background: var(--color-bgSecondary) !important;
-                    color: var(--color-textLight) !important;
-                    font-size: 0.82rem !important;
-                    letter-spacing: 0.01em;
-                }
-
-                .neo-stat {
-                    background: linear-gradient(180deg, var(--color-bgTertiary) 0%, var(--color-bgSecondary) 100%);
-                    box-shadow: 0 6px 14px rgba(15, 23, 42, 0.04);
-                }
-
-                .online-showcase,
-                .birthday-showcase {
-                    position: relative;
-                    overflow: hidden;
-                }
-
-                .boom-reveal {
-                    opacity: 0;
-                    transform: translateY(10px) scale(0.995);
-                    animation: boomIn 560ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
-                    animation-delay: var(--d, 0ms);
-                    will-change: transform, opacity;
-                }
-
-                .online-showcase::before,
-                .birthday-showcase::before {
-                    content: "";
-                    position: absolute;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    height: 3px;
-                    opacity: 0.95;
-                }
-
-                .online-showcase::before {
-                    background: linear-gradient(90deg, var(--color-btnPrimary), var(--color-btnPrimaryDark));
-                }
-
-                .birthday-showcase::before {
-                    background: linear-gradient(90deg, var(--color-borderColor), var(--color-borderColorLight));
-                }
-
         .menu-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 15px; text-align: left; background: none; border: none; cursor: pointer; font-size: 0.9rem; color: var(--color-textSecondary); transition: background 0.2s; }
         .menu-item:hover { background: var(--color-bgSecondary); color: var(--color-btnPrimary); }
         .menu-item.logout { color: #dc2626; }
         .menu-item.logout:hover { background: #fef2f2; color: #b91c1c; }
         
-        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 12px 24px -14px rgba(15,23,42,0.25); }
         .table-row-hover:hover { background-color: var(--color-bgSecondary) !important; }
         .hover-shadow:hover { transform: translateY(-1px); box-shadow: 0 8px 14px -10px rgba(15,23,42,0.28); }
         .hover-text-blue:hover { color: var(--color-btnPrimary) !important; }
         .hover-red-text:hover { color: #ef4444 !important; }
         
         /* Estilos dos Cartões de Tarefa */
-        .task-hover-card:hover { border-color: var(--color-borderColor) !important; box-shadow: 0 14px 24px -18px rgba(15,23,42,0.35); transform: translateY(-2px); transition: all 0.2s; }
         
         .input-focus:focus { border-color: var(--color-btnPrimary) !important; box-shadow: 0 0 0 2px var(--color-btnPrimaryShadow); }
         .input-focus-alert:focus { border-color: #f59e0b !important; box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.1); }
@@ -2436,83 +2010,24 @@ export default function DashboardHome() {
 
         @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-                @keyframes boomIn { from { opacity: 0; transform: translateY(10px) scale(0.995); } to { opacity: 1; transform: translateY(0) scale(1); } }
 
-                @media (prefers-reduced-motion: reduce) {
-                    .boom-reveal { animation: none !important; opacity: 1 !important; transform: none !important; }
-                }
-
-        /* Responsividade Extrema */
-        @media (max-width: 1200px) {
-            .dashboard-grid { grid-template-columns: 1fr !important; }
-        }
-        @media (max-width: 768px) {
-            .stats-grid { grid-template-columns: 1fr !important; }
-            .bottom-split-grid { grid-template-columns: 1fr !important; }
-            .dashboard-focus-strip { align-items: flex-start; flex-direction: column; gap: 12px; }
-            .dashboard-focus-copy { flex-wrap: wrap; }
-            .dashboard-focus-metrics { width: 100%; justify-content: space-between; gap: 8px; }
-            .dashboard-focus-action { width: 100%; justify-content: center; }
-            .dashboard-focus-detail { max-width: 100%; width: 100%; }
-            .dashboard-resume-card { min-height: 0; }
-            .dashboard-resume-grid { grid-template-columns: 1fr !important; }
-            .dashboard-resume-grid > .task-hover-card:only-child { max-width: none; }
-        }
       `}</style>
 
-      {/* 👤 POPOVER EQUIPA ONLINE */}
+      {/* 🔔 PAINEL DE NOTIFICAÇÕES */}
+      <NotificationsPanel
+        open={showBellDropdown}
+        onClose={closeBellPanel}
+        anchorRef={bellDropdownRef}
+        items={projectNotifications}
+        loading={notificationsLoading}
+        onOpenItem={openProjectNotification}
+        onMarkRead={markProjectNotificationAsRead}
+        onMarkAll={() => Promise.all(projectNotifications.map(n => markProjectNotificationAsRead(n.id)))}
+      />
+
+      {/* 👤 PERFIL DE UM COLEGA (EQUIPA ONLINE) */}
       {selectedOnlineUser && (
-        <div onClick={() => setSelectedOnlineUser(null)} style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center'}}>
-          <div onClick={e => e.stopPropagation()} style={{background:'white', borderRadius:'20px', padding:'36px 32px', width:'360px', maxWidth:'90vw', boxShadow:'0 20px 60px rgba(0,0,0,0.25)', display:'flex', flexDirection:'column', alignItems:'center', gap:'14px', position:'relative'}}>
-            <button onClick={() => setSelectedOnlineUser(null)} style={{position:'absolute', top:'12px', right:'14px', background:'none', border:'none', fontSize:'1.2rem', cursor:'pointer', color:'#94a3b8', lineHeight:1}}>✕</button>
-            <div style={{width:'140px', height:'140px', borderRadius:'50%', overflow:'hidden', background:'var(--color-btnPrimary)', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:'bold', fontSize:'2.4rem', color:'white', flexShrink:0, border:'4px solid #dcfce7', boxShadow:'0 6px 20px rgba(59,130,246,0.25)'}}>
-              {selectedOnlineUser.profiles?.avatar_url
-                ? <img src={selectedOnlineUser.profiles.avatar_url} alt="avatar" style={{width:'100%', height:'100%', objectFit:'cover', objectPosition:'center', display:'block'}} />
-                : getInitials(selectedOnlineUser.profiles?.nome)}
-            </div>
-            <div style={{textAlign:'center'}}>
-              <div style={{fontWeight:'700', fontSize:'1.1rem', color:'#1e293b'}}>{selectedOnlineUser.profiles?.nome || '—'}</div>
-              {selectedOnlineUser.profiles?.funcao && <div style={{fontSize:'0.85rem', color:'#64748b', marginTop:'2px'}}>{selectedOnlineUser.profiles.funcao}</div>}
-              {selectedOnlineUser.profiles?.empresa_interna && <div style={{fontSize:'0.78rem', color:'#94a3b8', marginTop:'2px'}}>{selectedOnlineUser.profiles.empresa_interna}</div>}
-            </div>
-            <div style={{display:'flex', flexDirection:'column', gap:'8px', width:'100%', marginTop:'4px'}}>
-                            <div style={{display:'flex', alignItems:'center', gap:'8px', background:'var(--color-bgSecondary)', borderRadius:'10px', padding:'8px 12px'}}>
-                                <Icons.CircleDot size={10} color="var(--color-btnPrimary)" />
-                                <span style={{fontSize:'0.82rem', color:'var(--color-btnPrimaryDark)', fontWeight:'600'}}>Online agora · entrou às {selectedOnlineUser.hora_entrada?.slice(0,5)}</span>
-              </div>
-              {selectedOnlineUser.profiles?.telemovel && (
-                <div style={{display:'flex', alignItems:'center', gap:'8px', background:'#f8fafc', borderRadius:'10px', padding:'8px 12px'}}>
-                  <Icons.Phone size={15} color="#64748b" />
-                  <span style={{fontSize:'0.82rem', color:'#334155'}}>{selectedOnlineUser.profiles.telemovel}</span>
-                </div>
-              )}
-                            {selectedOnlineUser.profiles?.email && (
-                                <div style={{display:'flex', alignItems:'center', gap:'8px', background:'#f8fafc', borderRadius:'10px', padding:'8px 12px'}}>
-                                    <Icons.Mail size={15} color="#64748b" />
-                                    <div style={{display:'flex', flexDirection:'column', gap:'2px', minWidth: 0}}>
-                                        <span style={{fontSize:'0.7rem', color:'#64748b', fontWeight:'700', textTransform:'uppercase'}}>Email Empresa</span>
-                                        <span style={{fontSize:'0.82rem', color:'#334155', wordBreak:'break-all'}}>{selectedOnlineUser.profiles.email}</span>
-                                    </div>
-                                </div>
-                            )}
-                            {selectedOnlineUser.profiles?.email_pessoal && (
-                                <div style={{display:'flex', alignItems:'center', gap:'8px', background:'#f8fafc', borderRadius:'10px', padding:'8px 12px'}}>
-                                    <Icons.Mail size={15} color="#64748b" />
-                                    <div style={{display:'flex', flexDirection:'column', gap:'2px', minWidth: 0}}>
-                                        <span style={{fontSize:'0.7rem', color:'#64748b', fontWeight:'700', textTransform:'uppercase'}}>Email Pessoal</span>
-                                        <span style={{fontSize:'0.82rem', color:'#334155', wordBreak:'break-all'}}>{selectedOnlineUser.profiles.email_pessoal}</span>
-                                    </div>
-                                </div>
-                            )}
-              {selectedOnlineUser.profiles?.data_nascimento && (
-                <div style={{display:'flex', alignItems:'center', gap:'8px', background:'#fff7ed', borderRadius:'10px', padding:'8px 12px'}}>
-                  <Icons.Cake size={15} color="#c2410c" />
-                  <span style={{fontSize:'0.82rem', color:'#9a3412'}}>{new Date(selectedOnlineUser.profiles.data_nascimento + 'T00:00:00').toLocaleDateString('pt-PT', {day:'numeric', month:'long'})}</span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        <ProfilePeek entry={selectedOnlineUser} onClose={closeProfilePeek} />
       )}
     </div>
   );

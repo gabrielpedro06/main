@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../services/supabase"; 
 import WidgetCalendar from "./WidgetCalendar"; 
+import AccountMenu from "./AccountMenu";
 import "./../styles/dashboard.css";
 
 const logoFull = "/logo4.png"; 
@@ -262,10 +263,16 @@ export default function Sidebar({ menuOpen, setMenuOpen, isMobile = false }) {
       return;
     }
 
-    const listRect = list.getBoundingClientRect();
-    const linkRect = activeLink.getBoundingClientRect();
-    const top = linkRect.top - listRect.top;
-    const bottom = listRect.bottom - linkRect.bottom;
+    // offsetTop/offsetHeight ignoram transforms: assim a medição não é
+    // afetada pelas animações de entrada dos itens (ex.: gaveta no mobile).
+    // O offsetParent do link é a própria lista (position: relative).
+    let top = 0;
+    let node = activeLink;
+    while (node && node !== list) {
+      top += node.offsetTop;
+      node = node.offsetParent;
+    }
+    const bottom = list.clientHeight - (top + activeLink.offsetHeight);
     const prev = lastPillPos.current;
 
     if (!animate || !prev) {
@@ -307,6 +314,11 @@ export default function Sidebar({ menuOpen, setMenuOpen, isMobile = false }) {
   useEffect(() => {
     positionPill(false);
   }, [openGroups, menuOpen, isMobile, userProfile?.role, positionPill]);
+
+  // --- MENU DA CONTA ---
+  const accountCardRef = useRef(null);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const closeAccountMenu = useCallback(() => setAccountOpen(false), []);
 
   const displayName = userProfile?.nome || userProfile?.nome_completo || user?.email?.split('@')[0] || 'Utilizador';
   const initials = displayName.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
@@ -518,11 +530,15 @@ export default function Sidebar({ menuOpen, setMenuOpen, isMobile = false }) {
           </ul>
         </nav>
 
-        {/* --- CARTÃO DO UTILIZADOR --- */}
-        <Link
-          to="/dashboard/perfil"
-          className={`sidebar-user-card ${isActive('/dashboard/perfil')}`}
+        {/* --- CARTÃO DO UTILIZADOR (abre o menu da conta) --- */}
+        <button
+          type="button"
+          ref={accountCardRef}
+          className={`sidebar-user-card ${accountOpen ? 'is-open' : ''} ${isActive('/dashboard/perfil')}`}
           title={getSidebarTooltip(displayName)}
+          onClick={() => setAccountOpen((v) => !v)}
+          aria-haspopup="menu"
+          aria-expanded={accountOpen}
         >
           <span className="sidebar-user-avatar">
             {userProfile?.avatar_url
@@ -534,7 +550,20 @@ export default function Sidebar({ menuOpen, setMenuOpen, isMobile = false }) {
             <span className="sidebar-user-name">{displayName}</span>
             {roleLabel && <span className="sidebar-user-role">{roleLabel}</span>}
           </span>
-        </Link>
+          <span className="sidebar-user-chevron" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m7 15 5 5 5-5" /><path d="m7 9 5-5 5 5" /></svg>
+          </span>
+        </button>
+
+        <AccountMenu
+          open={accountOpen}
+          onClose={closeAccountMenu}
+          anchorRef={accountCardRef}
+          placement={showFull ? 'up' : 'right'}
+          displayName={displayName}
+          initials={initials}
+          roleLabel={roleLabel}
+        />
 
         <style>{`
     /* Novo container clicável para o Logo */
