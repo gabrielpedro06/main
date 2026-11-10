@@ -137,7 +137,6 @@ const FESTIVE_CATALOG = [
   ["festa_carnaval", "Carnaval", "Confettis e serpentinas", "#f8f4ff", "#6d28d9", "carnaval", ["02-01", "03-10"]],
   ["festa_valentim", "S. Valentim", "Corações a flutuar", "#fff3f5", "#be123c", "valentim", ["02-01", "02-15"]],
   ["festa_pascoa", "Páscoa", "Ovos pintados e pétalas", "#fdf6f3", "#8a3f7c", "pascoa", ["03-15", "04-30"]],
-  ["festa_liberdade", "25 de Abril", "Cravos vermelhos", "#fdf4f2", "#b4161b", "cravos", ["04-15", "04-30"]],
   ["festa_primavera", "Primavera em Flor", "Pétalas e flores", "#f5fbf2", "#2e7a3d", "primavera", ["03-20", "05-31"]],
   ["festa_santos", "Santos Populares", "Bandeirinhas, manjericos e sardinhas", "#f2faf5", "#0d6a49", "santos", ["06-01", "06-30"]],
   ["festa_verao", "Verão na Praia", "Sol, ondas e gaivotas", "#eff8fc", "#0b6a96", "verao", ["06-21", "09-15"]],

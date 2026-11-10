@@ -148,8 +148,8 @@ export function Heart({ i = 0 }) {
   const c = pick(["#e11d48", "#f43f5e", "#fb7185", "#be123c", "#f9a8d4"], i);
   return <svg viewBox="0 0 24 24"><path d="M12 21s-8-5.2-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.8-8 11-8 11z" fill={c} /></svg>;
 }
-export function Petal({ i = 0, red = false }) {
-  const c = red ? pick(["#dc2626", "#ef4444", "#b91c1c"], i) : pick(PETALS, i);
+export function Petal({ i = 0 }) {
+  const c = pick(PETALS, i);
   return <svg viewBox="0 0 20 20"><path d="M10 1c5 4 6 12 0 18C4 13 5 5 10 1z" fill={c} /></svg>;
 }
 export function Blossom({ i = 0 }) {
@@ -177,18 +177,6 @@ export function Flower({ color = "#f472b6" }) {
       <path d="M20 60c-8-2-12-8-12-12 6 0 11 5 12 12zM20 52c8-2 12-8 12-12-6 0-11 5-12 12z" fill="#3f9b52" />
       {[0, 60, 120, 180, 240, 300].map((a) => <ellipse key={a} cx="20" cy="12" rx="6" ry="9" fill={color} transform={`rotate(${a} 20 20)`} />)}
       <circle cx="20" cy="20" r="5" fill="#facc15" />
-    </svg>
-  );
-}
-export function Carnation() {
-  return (
-    <svg viewBox="0 0 50 110">
-      <path d="M25 40v68" stroke="#3f7d3a" strokeWidth="3" />
-      <path d="M25 80c-10-4-14-12-14-16 8 1 13 8 14 16z" fill="#4c9a45" />
-      <path d="M16 38l9 8 9-8-3-6H19z" fill="#4c9a45" />
-      <path d="M8 22c2-10 8-16 17-16s15 6 17 16c-3 6-8 12-17 12S11 28 8 22z" fill="#d1121a" />
-      <path d="M8 22l5-4 3 5 4-6 5 5 5-5 4 6 3-5 5 4" stroke="#8f0b11" strokeWidth="1.6" fill="none" strokeLinejoin="round" />
-      <path d="M12 14l4 3 3-5 6 4 6-4 3 5 4-3" stroke="#ff4d55" strokeWidth="1.4" fill="none" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -234,7 +222,7 @@ export function Gull() {
 const SHAPES = {
   snow: Snow, flake: Flake, confetti: Confetti, gold: (p) => <Confetti {...p} palette={GOLD} />,
   leaf: Leaf, chestnut: Chestnut, bat: Bat, heart: Heart, petal: Petal,
-  petalRed: (p) => <Petal {...p} red />, blossom: Blossom, gull: Gull,
+  blossom: Blossom, gull: Gull,
 };
 
 const DECOR = {
@@ -247,7 +235,6 @@ const DECOR = {
   carnaval: { particles: { shapes: ["confetti"], count: 38, motion: "spin", size: [6, 11] }, top: "serpentinas" },
   valentim: { particles: { shapes: ["heart"], count: 16, motion: "rise", size: [12, 26] } },
   pascoa: { particles: { shapes: ["petal", "blossom"], count: 12, motion: "spin", size: [10, 18] }, corner: "eggs" },
-  cravos: { particles: { shapes: ["petalRed"], count: 12, motion: "spin", size: [10, 16] }, corner: "cravos" },
   primavera: { particles: { shapes: ["petal", "blossom", "petal"], count: 18, motion: "spin", size: [10, 18] }, corner: "flowers" },
   santos: { particles: null, top: "bunting", corner: "santos" },
   verao: { particles: { shapes: ["gull"], count: 4, motion: "fly", size: [22, 32] }, topRight: "sun", bottom: "waves" },
@@ -349,9 +336,6 @@ function Corner({ kind }) {
       {["#f472b6", "#fb923c", "#a78bfa", "#facc15", "#f472b6"].map((c, k) => <span key={k} style={{ "--k": k }}><Flower color={c} /></span>)}
     </div>
   );
-  if (kind === "cravos") return (
-    <div className="bz-decor-corner is-cravos">{[0, 1, 2].map((k) => <span key={k} style={{ "--k": k }}><Carnation /></span>)}</div>
-  );
   if (kind === "santos") return (
     <div className="bz-decor-corner is-santos"><span className="bz-c-manj"><Manjerico /></span><span className="bz-c-sard"><Sardine /></span></div>
   );
@@ -430,7 +414,6 @@ export function DecorEmblem({ decor }) {
     case "carnaval": return <div className="bz-emb is-confetti">{Array.from({ length: 14 }).map((_, i) => <span key={i} style={{ left: `${rnd(i, 1) * 90}%`, top: `${rnd(i, 2) * 80}%`, transform: `rotate(${rnd(i, 3) * 180}deg)` }}><Confetti i={i} /></span>)}</div>;
     case "valentim": return <div className="bz-emb is-row"><Heart i={0} /><Heart i={2} /><Heart i={1} /></div>;
     case "pascoa": return <div className="bz-emb is-row"><Egg /><Egg color="#bae6fd" stripe="#f59e0b" /><Egg color="#fde68a" stripe="#10b981" /></div>;
-    case "cravos": return <div className="bz-emb is-row is-tall"><Carnation /><Carnation /></div>;
     case "primavera": return <div className="bz-emb is-row"><Blossom i={0} /><Blossom i={2} /><Blossom i={4} /></div>;
     case "santos": return <div className="bz-emb is-row is-tall"><Manjerico /><span className="bz-emb-sard"><Sardine /></span></div>;
     case "verao": return <div className="bz-emb is-verao"><Sun /></div>;

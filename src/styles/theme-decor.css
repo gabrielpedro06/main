@@ -176,9 +176,6 @@ body.bz-intro-active .bz-decor { opacity: 0; }
 .bz-decor-corner.is-flowers > span { width: 34px; right: calc(var(--k) * 34px + 4px); transform-origin: bottom center; animation: bzSway 3.2s ease-in-out infinite alternate; animation-delay: calc(var(--k) * 0.4s); }
 .bz-decor-corner.is-flowers > span:nth-child(even) { width: 28px; }
 
-.bz-decor-corner.is-cravos { width: 130px; height: 120px; }
-.bz-decor-corner.is-cravos > span { width: 42px; right: calc(var(--k) * 34px + 6px); transform-origin: bottom center; animation: bzSway 3.6s ease-in-out infinite alternate; animation-delay: calc(var(--k) * 0.5s); }
-.bz-decor-corner.is-cravos > span:nth-child(2) { width: 50px; }
 
 .bz-decor-corner.is-santos { width: 200px; height: 110px; }
 .bz-decor-corner.is-santos .bz-c-manj { right: 8px; width: 78px; animation: bzSway 4s ease-in-out infinite alternate; transform-origin: bottom center; }
