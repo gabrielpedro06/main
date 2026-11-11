@@ -180,7 +180,8 @@ export default function Sidebar({ menuOpen, setMenuOpen, isMobile = false }) {
     if (!user?.id) return;
 
     const channel = supabase
-      .channel(`sidebar_chat_badges_${user.id}`)
+      // nome único: recriar um canal com o mesmo nome devolvia o antigo a fechar
+      .channel(`sidebar_chat_badges_${user.id}_${Math.random().toString(36).slice(2, 10)}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'chat_messages' },

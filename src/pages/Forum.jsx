@@ -207,6 +207,58 @@ function ChatComposer({ disabled, busy, stagedFile, onStageFile, onPaste, onSend
   );
 }
 
+// ---------- TEMPO REAL ----------
+// Pedir ao Supabase um canal com um nome que ainda existe devolve o canal ANTIGO (que pode
+// estar a fechar); quando este fecha, leva o "novo" com ele e deixam de chegar mensagens até F5.
+// Por isso: canais só de base de dados usam um nome único por subscrição; os canais das salas
+// (que precisam do mesmo nome em todos os clientes por causa do "a escrever...") são criados
+// uma vez por sala e reaproveitados, encaminhando os eventos para o Forum montado.
+const uniqueTopic = (base) => `${base}_${Math.random().toString(36).slice(2, 10)}`;
+const ROOM_CHANNELS = new Map();
+const forumBridge = { current: null };
+
+function ensureRoomChannel(roomId) {
+  if (ROOM_CHANNELS.has(roomId)) return ROOM_CHANNELS.get(roomId);
+  const channel = supabase
+    .channel(`room_${roomId}`)
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "chat_messages", filter: `room_id=eq.${roomId}` },
+      (payload) => {
+        const bridge = forumBridge.current;
+        if (!bridge || !bridge.chatModalShow || bridge.activeChatRoomId !== roomId) return;
+        const incoming = payload.new;
+        // Evita duplicados se o insert local chegar antes do realtime
+        bridge.setChatMessages((prev) => (prev.some((m) => m.id === incoming.id) ? prev : [...prev, incoming]));
+      }
+    )
+    .on("broadcast", { event: "typing" }, ({ payload }) => {
+      const bridge = forumBridge.current;
+      if (!bridge || bridge.activeChatRoomId !== roomId) return;
+      const typingUserId = payload?.userId;
+      if (!typingUserId || typingUserId === bridge.userId) return;
+      if (payload?.isTyping) {
+        bridge.markUserAsTyping(typingUserId);
+        return;
+      }
+      bridge.removeTypingUser(typingUserId);
+      bridge.clearTypingTimer(typingUserId);
+    })
+    .on("broadcast", { event: "read_receipt" }, ({ payload }) => {
+      const bridge = forumBridge.current;
+      const readerId = payload?.userId;
+      const lastReadAt = payload?.lastReadAt;
+      if (!bridge || !payload?.roomId || !readerId || !lastReadAt) return;
+      bridge.setReadReceiptsByRoom((prev) => ({
+        ...prev,
+        [payload.roomId]: { ...(prev[payload.roomId] || {}), [readerId]: lastReadAt },
+      }));
+    })
+    .subscribe();
+  ROOM_CHANNELS.set(roomId, channel);
+  return channel;
+}
+
 export default function Forum() {
   const { user, userProfile } = useAuth(); 
     const navigate = useNavigate();
@@ -249,6 +301,8 @@ export default function Forum() {
     const chatMessagesRef = useRef([]);
     const activeRoomChannelRef = useRef(null);
     const typingTimersRef = useRef({});
+    // Valores/funções mais recentes para os handlers de tempo real (sem recriar canais)
+    const latestRef = useRef({});
     const typingLastSentAtRef = useRef(0);
     const chatMessagesContainerRef = useRef(null);
     const [chatLoading, setChatLoading] = useState(false);
@@ -357,69 +411,52 @@ export default function Forum() {
         };
     }, [activeLog]);
 
+    // Setters do React são estáveis: guardados uma vez para os canais de tempo real
+    const stableSettersRef = useRef({ setChatMessages, setReadReceiptsByRoom });
+
+    // Mantém o "bridge" e o latestRef atualizados a cada render
     useEffect(() => {
-        if (!chatModal.show || !activeChatRoom?.id) return;
-
-        // Criamos o canal para a sala específica
-        const channel = supabase
-            .channel(`room_${activeChatRoom.id}`)
-            .on(
-                "postgres_changes",
-                {
-                    event: "INSERT",
-                    schema: "public",
-                    table: "chat_messages",
-                    filter: `room_id=eq.${activeChatRoom.id}`,
-                },
-                (payload) => {
-                    const incoming = payload.new;
-                    setChatMessages((prev) => {
-                        // Verifica se a mensagem já existe no estado (evita duplicados se o insert retornar antes do realtime)
-                        if (prev.some((m) => m.id === incoming.id)) return prev;
-                        return [...prev, incoming];
-                    });
-                }
-            )
-            .on("broadcast", { event: "typing" }, ({ payload }) => {
-                const typingUserId = payload?.userId;
-                const isTyping = Boolean(payload?.isTyping);
-                if (!typingUserId || typingUserId === user?.id) return;
-
-                if (isTyping) {
-                    markUserAsTyping(typingUserId);
-                    return;
-                }
-
-                removeTypingUser(typingUserId);
+        const latest = {
+            userId: user?.id,
+            chatRooms,
+            activeChatRoomId: activeChatRoom?.id || null,
+            chatModalShow: chatModal.show,
+            chatRlsNeedsFix,
+            ...stableSettersRef.current,
+            markUserAsTyping,
+            removeTypingUser,
+            clearTypingTimer: (typingUserId) => {
                 if (typingTimersRef.current[typingUserId]) {
                     clearTimeout(typingTimersRef.current[typingUserId]);
                     delete typingTimersRef.current[typingUserId];
                 }
-            })
-            .on("broadcast", { event: "read_receipt" }, ({ payload }) => {
-                const roomId = payload?.roomId;
-                const readerId = payload?.userId;
-                const lastReadAt = payload?.lastReadAt;
+            },
+            rememberLastMessages,
+            markRoomAsSeen,
+            getSeenRoomsMap,
+            loadMyChatRooms,
+            refreshUnreadCounts,
+            getChatSenderDisplayName,
+        };
+        latestRef.current = latest;
+        forumBridge.current = latest;
+    });
 
-                if (!roomId || !readerId || !lastReadAt) return;
+    useEffect(() => () => {
+        forumBridge.current = null;
+    }, []);
 
-                setReadReceiptsByRoom((prev) => ({
-                    ...prev,
-                    [roomId]: {
-                        ...(prev[roomId] || {}),
-                        [readerId]: lastReadAt,
-                    },
-                }));
-            })
-            .subscribe();
+    useEffect(() => {
+        if (!chatModal.show || !activeChatRoom?.id) return;
 
+        // Canal da sala: criado uma vez e reaproveitado (ver ensureRoomChannel)
+        const channel = ensureRoomChannel(activeChatRoom.id);
         activeRoomChannelRef.current = channel;
 
         return () => {
-            activeRoomChannelRef.current = null;
-            supabase.removeChannel(channel);
+            if (activeRoomChannelRef.current === channel) activeRoomChannelRef.current = null;
         };
-    }, [chatModal.show, activeChatRoom?.id, user?.id]);
+    }, [chatModal.show, activeChatRoom?.id]);
 
     useEffect(() => {
         chatMessagesRef.current = chatMessages;
@@ -448,7 +485,7 @@ export default function Forum() {
         if (!chatModal.show || !activeChatRoom?.id) return;
 
         const channel = supabase
-            .channel(`chat_room_reads_${activeChatRoom.id}`)
+            .channel(uniqueTopic(`chat_room_reads_${activeChatRoom.id}`))
             .on(
                 "postgres_changes",
                 {
@@ -508,8 +545,9 @@ export default function Forum() {
 
         let noticeTimeoutId = null;
 
+        // Criado uma vez por utilizador; lê o estado atual através do latestRef
         const channel = supabase
-            .channel(`chat_notice_${user.id}`)
+            .channel(uniqueTopic(`chat_notice_${user.id}`))
             .on(
                 "postgres_changes",
                 {
@@ -520,14 +558,14 @@ export default function Forum() {
                 async (payload) => {
                     const incoming = payload.new;
                     if (!incoming?.room_id) return;
-                    rememberLastMessages([incoming]);
+                    const L = latestRef.current;
+                    L.rememberLastMessages?.([incoming]);
                     if (incoming.sender_id === user.id) return;
 
-                    const roomIdSet = new Set(chatRooms.map((room) => room.id));
-                    let canSeeRoom = roomIdSet.has(incoming.room_id);
+                    let canSeeRoom = (L.chatRooms || []).some((room) => room.id === incoming.room_id);
 
                     if (!canSeeRoom) {
-                        // Always confirm membership when the room is not yet loaded locally.
+                        // Sala ainda não carregada: confirma que pertenço a ela e recarrega a lista
                         const { data: membership, error: membershipError } = await supabase
                             .from("chat_participants")
                             .select("room_id")
@@ -537,19 +575,17 @@ export default function Forum() {
 
                         if (membershipError || !membership?.room_id) return;
                         canSeeRoom = true;
-                        if (!chatRlsNeedsFix) {
-                            loadMyChatRooms();
-                        }
+                        if (!latestRef.current.chatRlsNeedsFix) latestRef.current.loadMyChatRooms?.();
                     }
 
                     if (!canSeeRoom) return;
 
-                    if (activeChatRoom?.id === incoming.room_id) {
-                        markRoomAsSeen(incoming.room_id);
+                    if (latestRef.current.activeChatRoomId === incoming.room_id) {
+                        latestRef.current.markRoomAsSeen?.(incoming.room_id);
                         return;
                     }
 
-                    const seenMap = getSeenRoomsMap();
+                    const seenMap = latestRef.current.getSeenRoomsMap?.() || {};
                     const localSeenAt = seenMap[incoming.room_id] || null;
 
                     const { data: roomRead } = await supabase
@@ -577,13 +613,21 @@ export default function Forum() {
                         [incoming.room_id]: (prev[incoming.room_id] || 0) + 1,
                     }));
 
-                    const roomName = chatRooms.find((room) => room.id === incoming.room_id)?.display_title || "Chat";
-                    setChatNotice({ show: true, text: `Nova mensagem em ${roomName}` });
+                    // Aviso com quem enviou e um excerto da mensagem
+                    const latest = latestRef.current;
+                    const room = (latest.chatRooms || []).find((r) => r.id === incoming.room_id);
+                    const sender = latest.getChatSenderDisplayName?.(incoming.sender_id) || "Alguém";
+                    const rawPreview = incoming.content
+                        ? String(incoming.content).replace(/\s+/g, " ").trim()
+                        : incoming.file_name ? `📎 ${incoming.file_name}` : "enviou uma mensagem";
+                    const preview = rawPreview.length > 70 ? `${rawPreview.slice(0, 70)}…` : rawPreview;
+                    const where = room?.is_group ? ` em ${room.display_title || room.nome || "grupo"}` : "";
+                    setChatNotice({ show: true, text: `${sender}${where}: ${preview}` });
 
                     if (noticeTimeoutId) clearTimeout(noticeTimeoutId);
                     noticeTimeoutId = setTimeout(() => {
                         setChatNotice({ show: false, text: "" });
-                    }, 3000);
+                    }, 4000);
                 }
             )
             .subscribe();
@@ -592,16 +636,13 @@ export default function Forum() {
             if (noticeTimeoutId) clearTimeout(noticeTimeoutId);
             supabase.removeChannel(channel);
         };
-    }, [user?.id, chatRooms, activeChatRoom?.id, chatRlsNeedsFix]);
+    }, [user?.id]);
 
     useEffect(() => {
-        if (!user?.id || !chatRooms.length) return;
-
-        const roomIds = chatRooms.map((room) => room.id).filter(Boolean);
-        if (!roomIds.length) return;
+        if (!user?.id) return;
 
         const channel = supabase
-            .channel(`chat_unread_reads_${user.id}`)
+            .channel(uniqueTopic(`chat_unread_reads_${user.id}`))
             .on(
                 "postgres_changes",
                 {
@@ -611,7 +652,8 @@ export default function Forum() {
                     filter: `user_id=eq.${user.id}`,
                 },
                 () => {
-                    refreshUnreadCounts(roomIds);
+                    const roomIds = (latestRef.current.chatRooms || []).map((room) => room.id).filter(Boolean);
+                    if (roomIds.length) latestRef.current.refreshUnreadCounts?.(roomIds);
                 }
             )
             .subscribe();
@@ -619,13 +661,13 @@ export default function Forum() {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [user?.id, chatRooms]);
+    }, [user?.id]);
 
     useEffect(() => {
         if (!user?.id || chatRlsNeedsFix) return;
 
         const channel = supabase
-            .channel(`chat_membership_${user.id}`)
+            .channel(uniqueTopic(`chat_membership_${user.id}`))
             .on(
                 "postgres_changes",
                 {
