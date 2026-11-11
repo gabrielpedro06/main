@@ -94,6 +94,7 @@ export default function MinhasTarefas() {
 
   // DRAG & DROP STATE (Kanban)
   const [draggedTask, setDraggedTask] = useState(null);
+  const [completingIds, setCompletingIds] = useState(() => new Set());
   const [dragOverCol, setDragOverCol] = useState(null);
 
   useEffect(() => {
@@ -636,12 +637,22 @@ export default function MinhasTarefas() {
   }
 
   async function handleCompleteTask(task) {
+      if (completingIds.has(task.id)) return;
       const novoEstado = task.estado === 'concluido' ? 'pendente' : 'concluido';
       const dataConclusao = novoEstado === 'concluido' ? new Date().toISOString() : null;
+      const celebrate = novoEstado === 'concluido';
 
-      await supabase.from("tarefas").update({ estado: novoEstado, data_conclusao: dataConclusao }).eq("id", task.id);
-      showToast(novoEstado === 'concluido' ? "Boa! Tarefa concluída." : "Tarefa reaberta.");
-      fetchMyTasks();
+      // Animação de "concluído" corre enquanto a BD é atualizada
+      if (celebrate) setCompletingIds((prev) => new Set(prev).add(task.id));
+      const reduceMotion = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      const [{ error }] = await Promise.all([
+          supabase.from("tarefas").update({ estado: novoEstado, data_conclusao: dataConclusao }).eq("id", task.id),
+          celebrate && !reduceMotion ? new Promise((r) => setTimeout(r, 1050)) : null,
+      ]);
+      if (error) showToast("Erro: " + error.message, "error");
+      else showToast(celebrate ? "Boa! Tarefa concluída." : "Tarefa reaberta.");
+      await fetchMyTasks();
+      if (celebrate) setCompletingIds((prev) => { const next = new Set(prev); next.delete(task.id); return next; });
   }
 
   async function handleCreatePessoal(e) {
@@ -903,6 +914,7 @@ export default function MinhasTarefas() {
       const isTimerActive = activeLog?.task_id === task.id;
       const timeSpent = getTaskTime(task.id);
       const isCompleted = task.estado === 'concluido';
+      const isCompleting = completingIds.has(task.id);
       const taskDeadline = task.data_fim || task.data_limite;
 
       let deadlineTone = 'neutral';
@@ -929,22 +941,27 @@ export default function MinhasTarefas() {
               draggable
               onDragStart={() => setDraggedTask(task)}
               onDragEnd={() => setDraggedTask(null)}
-              className={`ag-card ${isTimerActive ? 'is-running' : ''} ${isCompleted ? 'is-done' : ''} ${draggedTask?.id === task.id ? 'is-dragging' : ''}`}
+              className={`ag-card ${isTimerActive ? 'is-running' : ''} ${isCompleted ? 'is-done' : ''} ${isCompleting ? 'is-completing' : ''} ${isCompleting && !mostrarConcluidos ? 'is-leaving' : ''} ${draggedTask?.id === task.id ? 'is-dragging' : ''}`}
               style={{ '--i': Math.min(index, 8) }}
           >
               <button
                 type="button"
                 onClick={() => handleCompleteTask(task)}
-                className={`ag-check ${isCompleted ? 'is-on' : ''}`}
+                className={`ag-check ${isCompleted || isCompleting ? 'is-on' : ''} ${isCompleting ? 'is-burst' : ''}`}
                 title="Marcar como concluído"
                 aria-label="Marcar como concluído"
               >
                   <Icons.Check size={12} />
+                  {isCompleting && (
+                      <span className="ag-burst" aria-hidden="true">
+                          {Array.from({ length: 8 }, (_, i) => <i key={i} style={{ '--a': `${i * 45}deg` }} />)}
+                      </span>
+                  )}
               </button>
 
               <div className="ag-card-body">
                   <h4 onClick={() => openEditModal(task)} className="ag-card-title">
-                      {task.titulo}
+                      <span className="ag-card-title-text">{task.titulo}</span>
                   </h4>
 
                   <div className={`ag-card-context ${proj ? '' : 'is-loose'}`}>
