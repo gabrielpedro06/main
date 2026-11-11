@@ -1,19 +1,41 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
+import FancySelect from "../components/FancySelect";
+import "../styles/ativos-ti.css";
 
 /* ------------------------------------------------------------------ */
 /* Ícones SVG                                                         */
 /* ------------------------------------------------------------------ */
+function IconBase({ size = 16, color = "currentColor", children, strokeWidth = 2 }) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">{children}</svg>;
+}
+
 const Icons = {
   Search: (p) => <IconBase {...p}><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></IconBase>,
   Plus: (p) => <IconBase {...p}><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></IconBase>,
-  Folder: (p) => <IconBase {...p}><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></IconBase>,
-  Laptop: (p) => <IconBase {...p}><rect x="2" y="3" width="20" height="14" rx="2" ry="2" /><line x1="2" y1="20" x2="22" y2="20" /></IconBase>,
+  Laptop: (p) => <IconBase {...p}><path d="M4 5h16a1 1 0 0 1 1 1v10H3V6a1 1 0 0 1 1-1z" /><path d="M1 19h22" /></IconBase>,
+  Desktop: (p) => <IconBase {...p}><rect x="3" y="4" width="13" height="10" rx="1.5" /><path d="M7 18h5M9.5 14v4" /><rect x="18" y="4" width="3.5" height="14" rx="1" /></IconBase>,
+  Monitor: (p) => <IconBase {...p}><rect x="2" y="3" width="20" height="14" rx="2" ry="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" /></IconBase>,
+  Phone: (p) => <IconBase {...p}><rect x="6" y="2" width="12" height="20" rx="2.5" /><line x1="11" y1="18" x2="13" y2="18" /></IconBase>,
+  Router: (p) => <IconBase {...p}><path d="M5 12.55a11 11 0 0 1 14.08 0" /><path d="M1.42 9a16 16 0 0 1 21.16 0" /><path d="M8.53 16.11a6 6 0 0 1 6.95 0" /><line x1="12" y1="20" x2="12.01" y2="20" /></IconBase>,
+  Switch: (p) => <IconBase {...p}><rect x="2" y="7" width="20" height="10" rx="2" /><path d="M6 12h.01M10 12h.01M14 12h.01M18 12h.01" /></IconBase>,
+  Cable: (p) => <IconBase {...p}><path d="M9 3v5a3 3 0 0 0 3 3v0a3 3 0 0 0 3-3V3" /><path d="M12 11v6" /><circle cx="12" cy="20" r="2" /></IconBase>,
+  Keyboard: (p) => <IconBase {...p}><rect x="2" y="6" width="20" height="12" rx="2" /><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10" /></IconBase>,
+  Mouse: (p) => <IconBase {...p}><rect x="6" y="3" width="12" height="18" rx="6" /><line x1="12" y1="7" x2="12" y2="11" /></IconBase>,
+  Camera: (p) => <IconBase {...p}><circle cx="12" cy="10" r="6" /><circle cx="12" cy="10" r="2" /><path d="M8 20h8M12 16v4" /></IconBase>,
+  Headphones: (p) => <IconBase {...p}><path d="M3 18v-6a9 9 0 0 1 18 0v6" /><path d="M21 19a2 2 0 0 1-2 2h-1v-6h3zM3 19a2 2 0 0 0 2 2h1v-6H3z" /></IconBase>,
+  Printer: (p) => <IconBase {...p}><polyline points="6 9 6 2 18 2 18 9" /><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><rect x="6" y="14" width="12" height="8" /></IconBase>,
+  Plug: (p) => <IconBase {...p}><path d="M9 2v6M15 2v6M6 8h12v4a6 6 0 0 1-12 0z" /><path d="M12 18v4" /></IconBase>,
+  Stand: (p) => <IconBase {...p}><rect x="4" y="3" width="16" height="10" rx="1.5" /><path d="M12 13v5M7 21h10" /></IconBase>,
+  Box: (p) => <IconBase {...p}><path d="M21 8v13H3V8" /><path d="M1 3h22v5H1z" /><line x1="10" y1="12" x2="14" y2="12" /></IconBase>,
   Lock: (p) => <IconBase {...p}><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></IconBase>,
+  Shield: (p) => <IconBase {...p}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></IconBase>,
+  ShieldCheck: (p) => <IconBase {...p}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><polyline points="9 12 11 14 15 10" /></IconBase>,
+  Windows: (p) => <IconBase {...p}><rect x="3" y="3" width="8" height="8" /><rect x="13" y="3" width="8" height="8" /><rect x="3" y="13" width="8" height="8" /><rect x="13" y="13" width="8" height="8" /></IconBase>,
   Activity: (p) => <IconBase {...p}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></IconBase>,
   Eye: (p) => <IconBase {...p}><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></IconBase>,
   EyeOff: (p) => <IconBase {...p}><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><line x1="1" y1="1" x2="23" y2="23" /></IconBase>,
@@ -22,17 +44,25 @@ const Icons = {
   Save: (p) => <IconBase {...p}><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></IconBase>,
   Edit: (p) => <IconBase {...p}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z" /></IconBase>,
   Power: (p) => <IconBase {...p}><path d="M18.36 6.64a9 9 0 1 1-12.73 0" /><line x1="12" y1="2" x2="12" y2="12" /></IconBase>,
-  ChevronDown: (p) => <IconBase {...p}><polyline points="6 9 12 15 18 9" /></IconBase>,
   AlertTriangle: (p) => <IconBase {...p}><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></IconBase>,
   Check: (p) => <IconBase {...p}><polyline points="20 6 9 17 4 12" /></IconBase>,
   Inbox: (p) => <IconBase {...p}><polyline points="22 12 16 12 14 15 10 15 8 12 2 12" /><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" /></IconBase>,
-  Monitor: (p) => <IconBase {...p}><rect x="2" y="3" width="20" height="14" rx="2" ry="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" /></IconBase>,
-  Box: (p) => <IconBase {...p}><path d="M21 8v13H3V8" /><path d="M1 3h22v5H1z" /><line x1="10" y1="12" x2="14" y2="12" /></IconBase>,
-  Router: (p) => <IconBase {...p}><path d="M5 12.55a11 11 0 0 1 14.08 0" /><path d="M1.42 9a16 16 0 0 1 21.16 0" /><path d="M8.53 16.11a6 6 0 0 1 6.95 0" /><line x1="12" y1="20" x2="12.01" y2="20" /></IconBase>,
   Download: (p) => <IconBase {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></IconBase>,
-  Cable: (p) => <IconBase {...p}><path d="M9 3v5a3 3 0 0 0 3 3v0a3 3 0 0 0 3-3V3" /><path d="M12 11v6" /><circle cx="12" cy="20" r="2" /></IconBase>,
-  ChartBar: (p) => <IconBase {...p}><line x1="12" y1="20" x2="12" y2="10" /><line x1="18" y1="20" x2="18" y2="4" /><line x1="6" y1="20" x2="6" y2="16" /></IconBase>,
   Table: (p) => <IconBase {...p}><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="9" y1="21" x2="9" y2="9" /></IconBase>,
+  Grid: (p) => <IconBase {...p}><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></IconBase>,
+  List: (p) => <IconBase {...p}><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" /></IconBase>,
+  Users: (p) => <IconBase {...p}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></IconBase>,
+  UserPlus: (p) => <IconBase {...p}><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="8.5" cy="7" r="4" /><line x1="20" y1="8" x2="20" y2="14" /><line x1="23" y1="11" x2="17" y2="11" /></IconBase>,
+  Undo: (p) => <IconBase {...p}><polyline points="9 14 4 9 9 4" /><path d="M20 20v-7a4 4 0 0 0-4-4H4" /></IconBase>,
+  Filter: (p) => <IconBase {...p}><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" /></IconBase>,
+  Calendar: (p) => <IconBase {...p}><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></IconBase>,
+  ChevronRight: (p) => <IconBase {...p}><polyline points="9 18 15 12 9 6" /></IconBase>,
+  External: (p) => <IconBase {...p}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></IconBase>,
+  Sort: (p) => <IconBase {...p}><path d="M3 6h13M3 12h9M3 18h5" /><polyline points="17 15 20 18 23 15" /><line x1="20" y1="6" x2="20" y2="18" /></IconBase>,
+  Receipt: (p) => <IconBase {...p}><path d="M4 2v20l3-2 3 2 3-2 3 2 3-2 1 1V2l-1 1-3-2-3 2-3-2-3 2-3-2z" /><path d="M8 8h8M8 12h8M8 16h5" /></IconBase>,
+  Building: (p) => <IconBase {...p}><rect x="4" y="2" width="16" height="20" rx="2" /><path d="M9 22v-4h6v4M8 6h.01M16 6h.01M12 6h.01M12 10h.01M12 14h.01M16 10h.01M16 14h.01M8 10h.01M8 14h.01" /></IconBase>,
+  Truck: (p) => <IconBase {...p}><rect x="1" y="3" width="15" height="13" /><polygon points="16 8 20 8 23 11 23 16 16 16 16 8" /><circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" /></IconBase>,
+  Key: (p) => <IconBase {...p}><circle cx="7.5" cy="15.5" r="5.5" /><path d="M21 2l-9.6 9.6M15.5 7.5l3 3L22 7l-3-3" /></IconBase>,
 };
 
 /* ------------------------------------------------------------------ */
@@ -41,7 +71,7 @@ const Icons = {
 const AVATAR_CORES = ["#d97706", "#2563eb", "#059669", "#7c3aed", "#db2777", "#0d9488", "#ea580c", "#4f46e5"];
 
 function getIniciais(nome) {
-  const partes = nome.trim().split(/\s+/).filter(Boolean);
+  const partes = String(nome || "").trim().split(/\s+/).filter(Boolean);
   if (partes.length === 0) return "?";
   if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
   return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
@@ -49,15 +79,12 @@ function getIniciais(nome) {
 
 function corAvatar(nome) {
   let hash = 0;
-  for (let i = 0; i < nome.length; i++) hash = nome.charCodeAt(i) + ((hash << 5) - hash);
+  const s = String(nome || "");
+  for (let i = 0; i < s.length; i++) hash = s.charCodeAt(i) + ((hash << 5) - hash);
   return AVATAR_CORES[Math.abs(hash) % AVATAR_CORES.length];
 }
 
-function IconBase({ size = 16, color = "currentColor", children }) {
-  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{children}</svg>;
-}
-
-const ModalPortal = ({ children }) => createPortal(<div className="page-container">{children}</div>, document.body);
+const ModalPortal = ({ children }) => createPortal(children, document.body);
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                            */
@@ -98,38 +125,44 @@ const SOFTWARE_TIPOS = [
 ];
 
 const CATEGORIAS_EQUIP = [
-  { id: "computadores", label: "Computadores", icon: "Laptop", tipos: ["Computador", "Portátil", "Monitor", "Telemóvel"] },
-  { id: "rede", label: "Rede", icon: "Router", tipos: ["Router", "Switch", "Access Point", "Cabo Ethernet", "Adaptadores"] },
-  { id: "perifericos", label: "Periféricos e cabos", icon: "Cable", tipos: ["Teclado", "Rato", "Webcam", "Fones","Impressora", "Cabo HDMI", "Cabo de alimentação", "Carregador", "Base PC", "Base Monitor", "Cabos USB" ] },
-  { id: "outro", label: "Outro", icon: "Box", tipos: ["Outro"] },
+  { id: "computadores", label: "Computadores", icon: "Laptop", color: "#0ea5e9", tipos: ["Computador", "Portátil", "Monitor", "Telemóvel"] },
+  { id: "rede", label: "Rede", icon: "Router", color: "#8b5cf6", tipos: ["Router", "Switch", "Access Point", "Cabo Ethernet", "Adaptadores"] },
+  { id: "perifericos", label: "Periféricos e cabos", icon: "Keyboard", color: "#f59e0b", tipos: ["Teclado", "Rato", "Webcam", "Fones","Impressora", "Cabo HDMI", "Cabo de alimentação", "Carregador", "Base PC", "Base Monitor", "Cabos USB" ] },
+  { id: "outro", label: "Outro", icon: "Box", color: "#64748b", tipos: ["Outro"] },
 ];
+
+const TIPO_ICON = {
+  "Computador": "Desktop", "Portátil": "Laptop", "Monitor": "Monitor", "Telemóvel": "Phone",
+  "Router": "Router", "Switch": "Switch", "Access Point": "Router", "Cabo Ethernet": "Cable", "Adaptadores": "Plug",
+  "Teclado": "Keyboard", "Rato": "Mouse", "Webcam": "Camera", "Fones": "Headphones", "Impressora": "Printer",
+  "Cabo HDMI": "Cable", "Cabo de alimentação": "Plug", "Carregador": "Plug", "Base PC": "Stand", "Base Monitor": "Stand", "Cabos USB": "Cable",
+  "Outro": "Box",
+};
 
 function getCategoriaEquip(tipo) {
   return CATEGORIAS_EQUIP.find((c) => c.tipos.includes(tipo)) || CATEGORIAS_EQUIP[CATEGORIAS_EQUIP.length - 1];
 }
 
 function getIconeTipo(tipo) {
-  const cat = getCategoriaEquip(tipo);
-  if (cat.id === "computadores") return tipo === "Monitor" ? Icons.Monitor : Icons.Laptop;
-  return Icons[cat.icon];
+  return Icons[TIPO_ICON[tipo]] || Icons[getCategoriaEquip(tipo).icon] || Icons.Box;
 }
 
 const ESTADO_MAP_EQUIP = {
-  em_uso: { txt: "Em uso", cls: "badge-green" },
-  em_stock: { txt: "Em stock", cls: "badge-grey" },
-  em_reparacao: { txt: "Em reparação", cls: "badge-amber" },
-  reservado: { txt: "Reservado", cls: "badge-purple" },
-  abatido: { txt: "Abatido", cls: "badge-red" },
+  em_uso: { txt: "Em uso", cls: "is-green", color: "#16a34a" },
+  em_stock: { txt: "Em stock", cls: "is-blue", color: "#0284c7" },
+  em_reparacao: { txt: "Em reparação", cls: "is-amber", color: "#d97706" },
+  reservado: { txt: "Reservado", cls: "is-purple", color: "#7c3aed" },
+  abatido: { txt: "Abatido", cls: "is-red", color: "#dc2626" },
 };
 const ESTADO_MAP_ACESSO = {
-  ativo: { txt: "Ativo", cls: "badge-green" },
-  expirado: { txt: "Expirado", cls: "badge-red" },
-  inativo: { txt: "Inativo", cls: "badge-grey" },
+  ativo: { txt: "Ativo", cls: "is-green" },
+  expirado: { txt: "Expirado", cls: "is-red" },
+  inativo: { txt: "Inativo", cls: "is-grey" },
 };
 const ESTADO_MAP_SOFTWARE = {
-  ativo: { txt: "Ativo", cls: "badge-green" },
-  licenca_expirada: { txt: "Licença expirada", cls: "badge-amber" },
-  arquivado: { txt: "Arquivado", cls: "badge-grey" },
+  ativo: { txt: "Ativo", cls: "is-green" },
+  licenca_expirada: { txt: "Licença expirada", cls: "is-amber" },
+  arquivado: { txt: "Arquivado", cls: "is-grey" },
 };
 
 function getCategoriaSoftware(tipo) {
@@ -138,54 +171,50 @@ function getCategoriaSoftware(tipo) {
 
 function getIconeSoftware(tipo) {
   const categoria = getCategoriaSoftware(tipo);
-  if (categoria.id === "sistema_operativo") return Icons.Monitor;
-  if (categoria.id === "suite_produtividade") return Icons.Box;
-  if (categoria.id === "seguranca") return Icons.Lock;
+  if (categoria.id === "sistema_operativo") return Icons.Windows;
+  if (categoria.id === "suite_produtividade") return Icons.Grid;
+  if (categoria.id === "seguranca") return Icons.Shield;
   return Icons.Box;
+}
+
+const SOFTWARE_COR = { sistema_operativo: "#0ea5e9", suite_produtividade: "#f97316", seguranca: "#16a34a", outro: "#64748b" };
+
+const norm = (v) => String(v || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+const fmtData = (v) => (v ? new Date(v).toLocaleDateString("pt-PT") : "—");
+
+function diasAte(dateValue) {
+  if (!dateValue) return null;
+  const d = new Date(`${String(dateValue).slice(0, 10)}T23:59:59`);
+  if (Number.isNaN(d.getTime())) return null;
+  return Math.ceil((d.getTime() - Date.now()) / 86400000);
+}
+
+function garantiaInfo(equip) {
+  const fim = equip.prazo_garantia || equip.data_garantia;
+  const dias = diasAte(fim);
+  if (dias === null) return { tone: "none", label: "Sem garantia", dias: null, fim: null, pct: null };
+  let pct = null;
+  if (equip.data_aquisicao) {
+    const ini = new Date(equip.data_aquisicao).getTime();
+    const end = new Date(fim).getTime();
+    if (end > ini) pct = Math.max(0, Math.min(100, ((Date.now() - ini) / (end - ini)) * 100));
+  }
+  if (dias < 0) return { tone: "expired", label: "Garantia expirada", dias, fim, pct: 100 };
+  if (dias <= 90) return { tone: "soon", label: `Garantia: ${dias} dia${dias === 1 ? "" : "s"}`, dias, fim, pct };
+  const meses = Math.round(dias / 30);
+  return { tone: "ok", label: meses >= 12 ? `Garantia: ${(dias / 365).toFixed(1).replace(".", ",")} anos` : `Garantia: ${meses} meses`, dias, fim, pct };
 }
 
 /* ------------------------------------------------------------------ */
 /* Subcomponentes                                                     */
 /* ------------------------------------------------------------------ */
-function StatCard({ label, valor, icon, accent, onClick }) {
+function StatusPill({ estado, map }) {
+  const info = map[estado] || { txt: "—", cls: "is-grey" };
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="stat-card"
-      style={{ "--stat-accent": accent }}
-    >
-      <div className="stat-card-top">
-        <span className="stat-card-label">{label}</span>
-        <span className="stat-card-icon">{icon}</span>
-      </div>
-      <div className="stat-card-valor">{valor}</div>
-    </button>
-  );
-}
-
-function StatusDot({ estado, map }) {
-  const info = map[estado] || { txt: "—", cls: "badge-grey" };
-  return (
-    <span className={`status-pill ${info.cls}`}>
-      <span className="status-dot" />
+    <span className={`ti-pill ${info.cls}`}>
+      <i />
       {info.txt}
     </span>
-  );
-}
-
-function RowActions({ onEdit, onToggle, isAtivo, labelAtivar, labelInativar }) {
-  return (
-    <div className="row-actions">
-      <button className="action-btn" title="Editar" onClick={onEdit}><Icons.Edit size={14} /></button>
-      <button
-        className={`action-btn ${isAtivo ? "action-btn-danger" : "action-btn-success"}`}
-        title={isAtivo ? labelInativar : labelAtivar}
-        onClick={onToggle}
-      >
-        <Icons.Power size={14} />
-      </button>
-    </div>
   );
 }
 
@@ -197,236 +226,68 @@ function Avatar({ nome, url, size = 24 }) {
       <img
         src={url}
         alt={nome || "Colaborador"}
-        className="avatar avatar-img"
+        className="ti-avatar is-img"
         style={{ width: size, height: size }}
         onError={() => setErro(true)}
       />
     );
   }
   if (!nome) {
-    return <span className="avatar avatar-empty" style={{ width: size, height: size }}><Icons.Box size={size * 0.5} /></span>;
+    return <span className="ti-avatar is-empty" style={{ width: size, height: size }}><Icons.Box size={Math.round(size * 0.5)} /></span>;
   }
   return (
-    <span className="avatar" style={{ background: corAvatar(nome), width: size, height: size }}>
+    <span className="ti-avatar" style={{ background: corAvatar(nome), width: size, height: size, fontSize: Math.max(9, Math.round(size * 0.36)) }}>
       {getIniciais(nome)}
     </span>
   );
 }
 
-function DonutChart({ data, size = 132, thickness = 16 }) {
-  const total = data.reduce((s, d) => s + d.value, 0);
-  const radius = (size - thickness) / 2;
-  const circumference = 2 * Math.PI * radius;
-  let cumulative = 0;
-
+function TipoTile({ tipo, size = 38 }) {
+  const cat = getCategoriaEquip(tipo);
+  const renderIcon = getIconeTipo(tipo);
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="donut-svg">
-      <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#f1f5f9" strokeWidth={thickness} />
-      <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>
-        {total > 0 && data.map((d) => {
-          const frac = d.value / total;
-          const dash = frac * circumference;
-          const offset = -cumulative * circumference;
-          cumulative += frac;
-          return (
-            <circle
-              key={d.label}
-              cx={size / 2}
-              cy={size / 2}
-              r={radius}
-              fill="none"
-              style={{ stroke: d.color }}
-              strokeWidth={thickness}
-              strokeDasharray={`${dash} ${circumference - dash}`}
-              strokeDashoffset={offset}
-              strokeLinecap={data.length > 1 ? "butt" : "round"}
-            />
-          );
-        })}
-      </g>
-      <text x="50%" y="48%" textAnchor="middle" className="donut-total">{total}</text>
-      <text x="50%" y="64%" textAnchor="middle" className="donut-total-label">total</text>
-    </svg>
+    <span className="ti-tile" style={{ "--c": cat.color, width: size, height: size }}>
+      {renderIcon({ size: Math.round(size * 0.48) })}
+    </span>
   );
 }
 
-function AtribuidosOverview({ data }) {
-  const [expandido, setExpandido] = useState(false);
-  const visiveis = expandido ? data : data.slice(0, 9);
-  const max = Math.max(...data.map((d) => d.itens.length), 1);
-
+function GarantiaChip({ equip, compact = false }) {
+  const g = garantiaInfo(equip);
+  if (g.tone === "none") return compact ? <span className="ti-nil">—</span> : null;
   return (
-    <div className="atribuidos-chart-wrap">
-      <div className="atribuidos-chart">
-        {visiveis.map((pessoa) => (
-          <div key={pessoa.nome} className="atribuidos-col" tabIndex={0}>
-            <div className="atribuidos-tooltip">
-              <strong>{pessoa.nome} · {pessoa.itens.length} {pessoa.itens.length === 1 ? "equipamento" : "equipamentos"}</strong>
-              <ul>
-                {pessoa.itens.map((e) => (
-                  <li key={e.id}>
-                    <span className="asset-tag asset-tag-sm">{e.num_inventario}</span>
-                    <span>{e.modelo}</span>
-                    <span className="atribuidos-tipo">{e.tipo}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+    <span className={`ti-gchip is-${g.tone}`} title={`Garantia até ${fmtData(g.fim)}`}>
+      <Icons.ShieldCheck size={12} />
+      {compact ? (g.tone === "expired" ? "Expirada" : g.tone === "soon" ? `${g.dias}d` : fmtData(g.fim)) : g.label}
+    </span>
+  );
+}
 
-            <span className="atribuidos-valor">{pessoa.itens.length}</span>
-            <div className="atribuidos-bar-track">
-              <div className="atribuidos-bar" style={{ height: `${(pessoa.itens.length / max) * 100}%` }} />
-            </div>
-            <Avatar nome={pessoa.nome} url={pessoa.avatar_url} size={26} />
-            <span className="atribuidos-nome" title={pessoa.nome}>{pessoa.nome.split(" ")[0]}</span>
-          </div>
+function StackBar({ data, onPick }) {
+  const total = data.reduce((s, d) => s + d.value, 0) || 1;
+  return (
+    <div className="ti-stack">
+      <div className="ti-stack-bar">
+        {data.map((d) => (
+          <button
+            key={d.key}
+            type="button"
+            className="ti-stack-seg"
+            style={{ flexGrow: d.value, background: d.color }}
+            title={`${d.label}: ${d.value}`}
+            onClick={() => onPick && onPick(d.key)}
+          />
         ))}
       </div>
-      {data.length > 10 && (
-        <button type="button" className="link-btn atribuidos-vermais" onClick={() => setExpandido((v) => !v)}>
-          {expandido ? "Ver menos" : `Ver mais (${data.length - 10})`}
-        </button>
-      )}
-    </div>
-  );
-}
-
-function EquipCard({ equipamento, colaboradorNome, colaboradorAvatarUrl, onEdit, onToggle }) {
-  const ativo = equipamento.estado !== "abatido";
-  const TipoIcon = getIconeTipo(equipamento.tipo);
-
-  return (
-    <div className={`equip-card ${!ativo ? "equip-card-inativo" : ""}`}>
-      <div className="equip-card-head">
-        <div className="equip-card-icon"><TipoIcon size={17} /></div>
-        <StatusDot estado={equipamento.estado} map={ESTADO_MAP_EQUIP} />
-      </div>
-
-      <div className="equip-card-tag-row">
-        <span className="asset-tag">{equipamento.num_inventario}</span>
-        <span className="equip-card-tipo">{equipamento.tipo}</span>
-      </div>
-
-      <h3 className="equip-card-modelo">{equipamento.modelo}</h3>
-      {equipamento.nome_pc && <p className="equip-card-pc">{equipamento.nome_pc}</p>}
-
-      <div className="equip-card-meta">
-        {equipamento.entidade && <span title="Entidade">{equipamento.entidade}</span>}
-        {equipamento.fornecedor && <span title="Fornecedor">{equipamento.fornecedor}</span>}
-        {equipamento.fatura && <span title="Fatura">Fatura {equipamento.fatura}</span>}
-        {equipamento.data_aquisicao && <span title="Data de aquisição">Aquisição {new Date(equipamento.data_aquisicao).toLocaleDateString("pt-PT")}</span>}
-        {(equipamento.prazo_garantia || equipamento.data_garantia) && (
-          <span title="Prazo de garantia">
-            Garantia {new Date(equipamento.prazo_garantia || equipamento.data_garantia).toLocaleDateString("pt-PT")}
-          </span>
-        )}
-      </div>
-
-      <div className="equip-card-footer">
-        <div className="equip-card-colaborador">
-          <Avatar nome={colaboradorNome} url={colaboradorAvatarUrl} />
-          <span>{colaboradorNome || "Em stock"}</span>
-        </div>
-        <RowActions
-          onEdit={onEdit}
-          onToggle={onToggle}
-          isAtivo={ativo}
-          labelAtivar="Reativar equipamento"
-          labelInativar="Abater equipamento"
-        />
-      </div>
-    </div>
-  );
-}
-
-function SoftwareCard({ software, onEdit, onToggle }) {
-  const ativo = (software.estado || "ativo") === "ativo";
-  const TipoIcon = getIconeSoftware(software.tipo);
-
-  return (
-    <div className={`equip-card ${!ativo ? "equip-card-inativo" : ""}`}>
-      <div className="equip-card-head">
-        <div className="equip-card-icon"><TipoIcon size={17} /></div>
-        <StatusDot estado={software.estado || "ativo"} map={ESTADO_MAP_SOFTWARE} />
-      </div>
-
-      <div className="equip-card-tag-row">
-        <span className="asset-tag">{software.codigo || software.nome}</span>
-        <span className="equip-card-tipo">{software.tipo}</span>
-      </div>
-
-      <h3 className="equip-card-modelo">{software.nome}</h3>
-      {software.versao && <p className="equip-card-pc">Versão {software.versao}</p>}
-
-      <div className="equip-card-meta">
-        {software.entidade && <span title="Entidade">{software.entidade}</span>}
-        {software.fornecedor && <span title="Fornecedor">{software.fornecedor}</span>}
-        {software.fatura && <span title="Fatura">Fatura {software.fatura}</span>}
-        {software.data_aquisicao && <span title="Data de aquisição">Aquisição {new Date(software.data_aquisicao).toLocaleDateString("pt-PT")}</span>}
-        {software.data_expiracao && <span title="Licença / validade">Vence {new Date(software.data_expiracao).toLocaleDateString("pt-PT")}</span>}
-      </div>
-
-      <div className="equip-card-footer">
-        <div className="equip-card-colaborador">
-          <span>{software.fornecedor || "Sem fornecedor"}</span>
-        </div>
-        <RowActions
-          onEdit={onEdit}
-          onToggle={onToggle}
-          isAtivo={ativo}
-          labelAtivar="Reativar software"
-          labelInativar="Arquivar software"
-        />
-      </div>
-    </div>
-  );
-}
-
-function AcessoCard({ acesso, onEdit, onToggle, onCopy }) {
-  const [visible, setVisible] = useState(false);
-  const inativo = acesso.estado === "expirado" || acesso.estado === "inativo";
-
-  return (
-    <div className={`acesso-card ${inativo ? "acesso-card-inativo" : ""}`}>
-      <div className="acesso-card-head">
-        <div className="acesso-card-heading">
-          <h3 className="acesso-card-title">{acesso.nome_plataforma}</h3>
-          {acesso.url && (
-            <a href={acesso.url} target="_blank" rel="noopener noreferrer" className="acesso-card-link">
-              {acesso.url.replace(/^https?:\/\//, "")}
-            </a>
-          )}
-        </div>
-        <StatusDot estado={acesso.estado || "ativo"} map={ESTADO_MAP_ACESSO} />
-      </div>
-
-      <div className="acesso-card-body">
-        <div className="acesso-card-field">
-          <span className="acesso-card-field-label">Utilizador</span>
-          <span className="acesso-card-field-value">{acesso.username}</span>
-        </div>
-        <div className="acesso-card-field">
-          <span className="acesso-card-field-label">Palavra-passe</span>
-          <span className="acesso-card-field-value acesso-card-pass">{visible ? acesso.password : "••••••••••••"}</span>
-          <div className="acesso-card-field-actions">
-            <button onClick={() => setVisible((v) => !v)} className="action-btn" title={visible ? "Ocultar" : "Mostrar"}>
-              {visible ? <Icons.EyeOff size={14} /> : <Icons.Eye size={14} />}
-            </button>
-            <button className="action-btn" title="Copiar palavra-passe" onClick={() => onCopy(acesso.password)}>
-              <Icons.Copy size={14} />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="acesso-card-footer">
-        <RowActions
-          onEdit={onEdit}
-          onToggle={onToggle}
-          isAtivo={!inativo}
-          labelAtivar="Reativar acesso"
-          labelInativar="Marcar como inativo"
-        />
+      <div className="ti-stack-legend">
+        {data.map((d) => (
+          <button key={d.key} type="button" onClick={() => onPick && onPick(d.key)}>
+            <i style={{ background: d.color }} />
+            <span>{d.label}</span>
+            <b>{d.value}</b>
+            <em>{Math.round((d.value / total) * 100)}%</em>
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -442,6 +303,24 @@ export default function AtivosTIDashboard() {
   const [filtroEstadoAcesso, setFiltroEstadoAcesso] = useState("todos");
   const [filtroEstadoSoftware, setFiltroEstadoSoftware] = useState("todos");
 
+  // Explorador de equipamentos
+  const [equipView, setEquipView] = useState(() => {
+    try { return localStorage.getItem("ti_equip_view") || "lista"; } catch { return "lista"; }
+  });
+  const [pessoaSel, setPessoaSel] = useState("");
+  const [kitCat, setKitCat] = useState("");
+  const [kitExpand, setKitExpand] = useState({});
+  const [fCat, setFCat] = useState("");
+  const [fTipo, setFTipo] = useState("");
+  const [fEntidade, setFEntidade] = useState("");
+  const [fColab, setFColab] = useState("");
+  const [fGarantia, setFGarantia] = useState("");
+  const [sortBy, setSortBy] = useState("inv_desc");
+  const [detailId, setDetailId] = useState(null);
+  const [assignOpen, setAssignOpen] = useState(false);
+  const searchRef = useRef(null);
+  const pendingDetailRef = useRef(null);
+
   const [equipamentos, setEquipamentos] = useState([]);
   const [software, setSoftware] = useState([]);
   const [acessos, setAcessos] = useState([]);
@@ -452,6 +331,8 @@ export default function AtivosTIDashboard() {
   const [notification, setNotification] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null);
   const [isConfirming, setIsConfirming] = useState(false);
+  const [revealed, setRevealed] = useState({});
+  const [showFormPass, setShowFormPass] = useState(false);
 
   const notify = (message, type = "success") => {
     setNotification({ message, type, key: Date.now() });
@@ -464,6 +345,15 @@ export default function AtivosTIDashboard() {
       notify("Palavra-passe copiada.");
     } catch {
       notify("Não foi possível copiar a palavra-passe.", "error");
+    }
+  };
+
+  const handleCopyText = async (text, label) => {
+    try {
+      await navigator.clipboard.writeText(text || "");
+      notify(`${label} copiado.`);
+    } catch {
+      notify(`Não foi possível copiar ${label.toLowerCase()}.`, "error");
     }
   };
 
@@ -505,7 +395,6 @@ export default function AtivosTIDashboard() {
   const [formAcesso, setFormAcesso] = useState(initAcesso);
 
   const carregarDados = useCallback(async () => {
-    setIsLoading(true);
     try {
       const [equipResult, softwareResult, acessosResult, perfisResult] = await Promise.all([
         supabase.from("equipamentos").select("*").order("created_at", { ascending: false }),
@@ -531,11 +420,16 @@ export default function AtivosTIDashboard() {
 
   useEffect(() => { carregarDados(); }, [carregarDados]);
 
+  useEffect(() => {
+    try { localStorage.setItem("ti_equip_view", equipView); } catch { /* sem armazenamento */ }
+  }, [equipView]);
+
   async function handleNovo() {
     const tipo = tab === "acessos" ? "acesso" : tab === "software" ? "software" : "equipamento";
     if (tab === "equip_inativos") setTab("equip_ativos");
     setModalType(tipo);
     setEditingId(null);
+    setShowFormPass(false);
     setFormEquip({ ...initEquip });
     setFormSoftware({ ...initSoftware });
     setFormAcesso({ ...initAcesso });
@@ -550,9 +444,21 @@ export default function AtivosTIDashboard() {
     setShowModal(true);
   }
 
+  async function switchModalType(tipo) {
+    setModalType(tipo);
+    if (tipo === "equipamento" && !formEquip.num_inventario) {
+      const proximo = await gerarProximoInventario();
+      setFormEquip((prev) => ({ ...prev, num_inventario: proximo }));
+    }
+    if (tipo === "software" && !formSoftware.codigo) {
+      setFormSoftware((prev) => ({ ...prev, codigo: `SW-${String(Date.now()).slice(-6)}` }));
+    }
+  }
+
   function handleEditar(tipo, registo) {
     setModalType(tipo);
     setEditingId(registo.id);
+    setShowFormPass(false);
     if (tipo === "equipamento") {
       setFormEquip({
         num_inventario: registo.num_inventario || "",
@@ -601,7 +507,7 @@ export default function AtivosTIDashboard() {
       setShowModal(false);
       setIsClosingPanel(false);
       setEditingId(null);
-    }, 360);
+    }, 300);
   }
 
   function handleToggleEstado(tipo, registo) {
@@ -638,6 +544,23 @@ export default function AtivosTIDashboard() {
       notify(err.message, "error");
     } finally {
       setIsConfirming(false);
+    }
+  }
+
+  // Atribuição rápida a partir do detalhe
+  async function atribuirEquipamento(equip, colabId) {
+    try {
+      const payload = colabId
+        ? { colaborador: colabId, estado: "em_uso" }
+        : { colaborador: null, estado: "em_stock" };
+      const { error } = await supabase.from("equipamentos").update(payload).eq("id", equip.id);
+      if (error) throw error;
+      const nomeColab = colabId ? (colaboradoresMap[colabId]?.nome || "colaborador") : null;
+      notify(colabId ? `${equip.modelo || equip.num_inventario} atribuído a ${nomeColab}.` : `${equip.modelo || equip.num_inventario} devolvido ao stock.`);
+      setAssignOpen(false);
+      await carregarDados();
+    } catch (err) {
+      notify("Erro ao atualizar: " + err.message, "error");
     }
   }
 
@@ -696,26 +619,19 @@ export default function AtivosTIDashboard() {
     [utilizadores]
   );
 
+  const utilizadoresOrdenados = useMemo(
+    () => [...utilizadores].sort((a, b) => String(a.nome || "").localeCompare(String(b.nome || ""), "pt-PT")),
+    [utilizadores]
+  );
+
+  /* ---------------- Software / Acessos ---------------- */
   const softwareFiltrado = useMemo(() => software
     .filter((item) => {
       if (filtroEstadoSoftware === "todos") return true;
       return (item.estado || "ativo") === filtroEstadoSoftware;
     })
-    .filter((item) => (
-      `${item.codigo || ""}${item.nome || ""}${item.versao || ""}${item.entidade || ""}${item.fornecedor || ""}`
-        .toLowerCase()
-        .includes(query.toLowerCase())
-    )), [software, filtroEstadoSoftware, query]);
-
-  const equipFiltrados = useMemo(() => equipamentos
-    .filter((e) => {
-      if (tab === "equip_ativos") return e.estado !== "abatido";
-      if (tab === "equip_inativos") return e.estado === "abatido";
-      return true;
-    })
-    .filter((e) => filtroEstadoEquip === "todos" || e.estado === filtroEstadoEquip)
-    .filter((e) => (e.num_inventario + e.modelo + (colaboradoresMap[e.colaborador]?.nome || "")).toLowerCase().includes(query.toLowerCase())),
-  [equipamentos, filtroEstadoEquip, query, tab, colaboradoresMap]);
+    .filter((item) => norm(`${item.codigo || ""} ${item.nome || ""} ${item.versao || ""} ${item.entidade || ""} ${item.fornecedor || ""} ${item.tipo || ""}`).includes(norm(query))),
+  [software, filtroEstadoSoftware, query]);
 
   const acessosFiltrados = useMemo(() => acessos
     .filter((a) => {
@@ -723,24 +639,14 @@ export default function AtivosTIDashboard() {
       if (filtroEstadoAcesso === "revisao") return a.estado === "expirado" || a.estado === "inativo";
       return (a.estado || "ativo") === filtroEstadoAcesso;
     })
-    .filter((a) => (a.nome_plataforma + a.url + a.username).toLowerCase().includes(query.toLowerCase())),
+    .filter((a) => norm(`${a.nome_plataforma || ""} ${a.url || ""} ${a.username || ""}`).includes(norm(query))),
   [acessos, filtroEstadoAcesso, query]);
-
-  const equipPorCategoria = useMemo(() => {
-    const grupos = {};
-    equipFiltrados.forEach((e) => {
-      const cat = getCategoriaEquip(e.tipo);
-      if (!grupos[cat.id]) grupos[cat.id] = { label: cat.label, itens: [] };
-      grupos[cat.id].itens.push(e);
-    });
-    return CATEGORIAS_EQUIP.map((c) => grupos[c.id]).filter(Boolean);
-  }, [equipFiltrados]);
 
   const softwarePorCategoria = useMemo(() => {
     const grupos = {};
     softwareFiltrado.forEach((item) => {
       const cat = getCategoriaSoftware(item.tipo);
-      if (!grupos[cat.id]) grupos[cat.id] = { label: cat.label, itens: [] };
+      if (!grupos[cat.id]) grupos[cat.id] = { id: cat.id, label: cat.label, itens: [] };
       grupos[cat.id].itens.push(item);
     });
     return SOFTWARE_TIPOS.map((c) => grupos[c.id]).filter(Boolean);
@@ -750,59 +656,213 @@ export default function AtivosTIDashboard() {
     const grupos = {};
     acessosFiltrados.forEach((a) => {
       const key = a.estado === "expirado" || a.estado === "inativo" ? "revisao" : "ativo";
-      if (!grupos[key]) grupos[key] = { label: key === "ativo" ? "Ativos" : "A rever (expirado / inativo)", itens: [] };
+      if (!grupos[key]) grupos[key] = { key, label: key === "ativo" ? "Ativos" : "A rever (expirado / inativo)", itens: [] };
       grupos[key].itens.push(a);
     });
     return ["ativo", "revisao"].map((k) => grupos[k]).filter(Boolean);
   }, [acessosFiltrados]);
 
+  /* ---------------- Equipamentos: explorador ---------------- */
+  const isEquipTab = tab === "equip_ativos" || tab === "equip_inativos";
+  const equipBase = useMemo(() => equipamentos.filter((e) => (tab === "equip_inativos" ? e.estado === "abatido" : e.estado !== "abatido")), [equipamentos, tab]);
+
+  const equipPesquisa = useMemo(() => {
+    const q = norm(query.trim());
+    if (!q) return equipBase;
+    return equipBase.filter((e) => norm(`${e.num_inventario || ""} ${e.modelo || ""} ${e.nome_pc || ""} ${e.tipo || ""} ${colaboradoresMap[e.colaborador]?.nome || ""} ${e.entidade || ""} ${e.fornecedor || ""} ${e.fatura || ""}`).includes(q));
+  }, [equipBase, query, colaboradoresMap]);
+
+  const passaFiltros = useCallback((e, ignorar = "") => {
+    if (ignorar !== "cat" && fCat && getCategoriaEquip(e.tipo).id !== fCat) return false;
+    if (ignorar !== "tipo" && fTipo && e.tipo !== fTipo) return false;
+    if (ignorar !== "estado" && filtroEstadoEquip !== "todos" && e.estado !== filtroEstadoEquip) return false;
+    if (ignorar !== "entidade" && fEntidade && (fEntidade === "__none__" ? !!e.entidade : e.entidade !== fEntidade)) return false;
+    if (ignorar !== "colab" && fColab) {
+      if (fColab === "__none__") { if (e.colaborador) return false; }
+      else if (e.colaborador !== fColab) return false;
+    }
+    if (ignorar !== "garantia" && fGarantia) {
+      const g = garantiaInfo(e).tone;
+      if (fGarantia === "soon" && g !== "soon") return false;
+      if (fGarantia === "expired" && g !== "expired") return false;
+      if (fGarantia === "ok" && g !== "ok") return false;
+      if (fGarantia === "none" && g !== "none") return false;
+    }
+    return true;
+  }, [fCat, fTipo, filtroEstadoEquip, fEntidade, fColab, fGarantia]);
+
+  const equipFiltrados = useMemo(() => {
+    const list = equipPesquisa.filter((e) => passaFiltros(e));
+    const byInv = (a, b) => String(a.num_inventario || "").localeCompare(String(b.num_inventario || ""), "pt-PT", { numeric: true });
+    const sorters = {
+      inv_desc: (a, b) => byInv(b, a),
+      inv_asc: byInv,
+      modelo: (a, b) => String(a.modelo || "").localeCompare(String(b.modelo || ""), "pt-PT"),
+      colab: (a, b) => String(colaboradoresMap[a.colaborador]?.nome || "~").localeCompare(String(colaboradoresMap[b.colaborador]?.nome || "~"), "pt-PT"),
+      garantia: (a, b) => (garantiaInfo(a).dias ?? 99999) - (garantiaInfo(b).dias ?? 99999),
+      recentes: (a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")),
+    };
+    return [...list].sort(sorters[sortBy] || sorters.inv_desc);
+  }, [equipPesquisa, passaFiltros, sortBy, colaboradoresMap]);
+
+  // Contagens das facetas (cada faceta ignora o seu próprio filtro)
+  const facet = useMemo(() => {
+    const count = (ignorar, keyFn) => {
+      const m = {};
+      equipPesquisa.forEach((e) => {
+        if (!passaFiltros(e, ignorar)) return;
+        const k = keyFn(e);
+        m[k] = (m[k] || 0) + 1;
+      });
+      return m;
+    };
+    return {
+      cat: count("cat", (e) => getCategoriaEquip(e.tipo).id),
+      tipo: count("tipo", (e) => e.tipo),
+      estado: count("estado", (e) => e.estado),
+      entidade: count("entidade", (e) => e.entidade || "__none__"),
+      colab: count("colab", (e) => e.colaborador || "__none__"),
+      garantia: count("garantia", (e) => garantiaInfo(e).tone),
+    };
+  }, [equipPesquisa, passaFiltros]);
+
+  const filtrosAtivos = [
+    fCat && { key: "cat", label: CATEGORIAS_EQUIP.find((c) => c.id === fCat)?.label, clear: () => { setFCat(""); setFTipo(""); } },
+    fTipo && { key: "tipo", label: fTipo, clear: () => setFTipo("") },
+    filtroEstadoEquip !== "todos" && { key: "estado", label: ESTADO_MAP_EQUIP[filtroEstadoEquip]?.txt, clear: () => setFiltroEstadoEquip("todos") },
+    fEntidade && { key: "entidade", label: fEntidade === "__none__" ? "Sem entidade" : fEntidade, clear: () => setFEntidade("") },
+    fColab && { key: "colab", label: fColab === "__none__" ? "Sem colaborador" : (colaboradoresMap[fColab]?.nome || "Colaborador"), clear: () => setFColab("") },
+    fGarantia && { key: "garantia", label: { soon: "Garantia a expirar", expired: "Garantia expirada", ok: "Com garantia", none: "Sem garantia" }[fGarantia], clear: () => setFGarantia("") },
+  ].filter(Boolean);
+
+  const limparFiltros = () => {
+    setFCat(""); setFTipo(""); setFiltroEstadoEquip("todos"); setFEntidade(""); setFColab(""); setFGarantia(""); setQuery("");
+  };
+
+  const abrirExplorador = ({ cat = "", estado = "todos", colab = "", garantia = "", tipo = "", entidade = "" } = {}) => {
+    setTab("equip_ativos");
+    setFCat(cat); setFTipo(tipo); setFiltroEstadoEquip(estado); setFColab(colab); setFGarantia(garantia); setFEntidade(entidade);
+    setTimeout(() => setQuery(""), 0);
+  };
+
+  const equipPorPessoa = useMemo(() => {
+    const grupos = {};
+    equipFiltrados.forEach((e) => {
+      const key = e.colaborador && colaboradoresMap[e.colaborador] ? e.colaborador : "__none__";
+      if (!grupos[key]) {
+        grupos[key] = key === "__none__"
+          ? { key, nome: null, avatar_url: null, itens: [] }
+          : { key, nome: colaboradoresMap[key].nome, avatar_url: colaboradoresMap[key].avatar_url, itens: [] };
+      }
+      grupos[key].itens.push(e);
+    });
+    return Object.values(grupos).sort((a, b) => {
+      if (a.key === "__none__") return 1;
+      if (b.key === "__none__") return -1;
+      return String(a.nome).localeCompare(String(b.nome), "pt-PT");
+    });
+  }, [equipFiltrados, colaboradoresMap]);
+
+  const pessoaAtiva = useMemo(() => {
+    if (!equipPorPessoa.length) return null;
+    return equipPorPessoa.find((g) => g.key === (fColab || pessoaSel))
+      || equipPorPessoa.find((g) => g.key === "__none__")
+      || equipPorPessoa[0];
+  }, [equipPorPessoa, pessoaSel, fColab]);
+
+  const kitGrupos = useMemo(() => {
+    if (!pessoaAtiva) return [];
+    // Stock: agrupado por tipo (muitos itens). Pessoa: agrupado por categoria (kit curto).
+    const porTipo = pessoaAtiva.key === "__none__";
+    const grupos = {};
+    pessoaAtiva.itens.forEach((e) => {
+      const cat = getCategoriaEquip(e.tipo);
+      if (kitCat && cat.id !== kitCat) return;
+      const k = porTipo ? (e.tipo || "Outro") : cat.id;
+      if (!grupos[k]) grupos[k] = { key: k, label: porTipo ? k : cat.label, porTipo, cat, itens: [] };
+      grupos[k].itens.push(e);
+    });
+    const ordemCat = CATEGORIAS_EQUIP.map((c) => c.id);
+    return Object.values(grupos).sort((a, b) =>
+      (ordemCat.indexOf(a.cat.id) - ordemCat.indexOf(b.cat.id))
+      || (b.itens.length - a.itens.length)
+      || a.label.localeCompare(b.label, "pt-PT"));
+  }, [pessoaAtiva, kitCat]);
+
+  const contarCategorias = (itens) => CATEGORIAS_EQUIP
+    .map((c) => ({ c, n: itens.filter((e) => getCategoriaEquip(e.tipo).id === c.id).length }))
+    .filter((x) => x.n > 0);
+
+  const stockDisponivel = useMemo(
+    () => equipamentos
+      .filter((e) => e.estado === "em_stock")
+      .sort((a, b) => String(b.num_inventario || "").localeCompare(String(a.num_inventario || ""), "pt-PT", { numeric: true })),
+    [equipamentos]
+  );
+
+  const escolherPessoa = (key) => {
+    setPessoaSel(key);
+    setKitCat("");
+    setKitExpand({});
+    if (fColab && fColab !== key) setFColab("");
+  };
+
+  const detailEquip = useMemo(() => equipamentos.find((e) => e.id === detailId) || null, [equipamentos, detailId]);
+
+  useEffect(() => {
+    const onKey = (ev) => {
+      const tag = (ev.target?.tagName || "").toLowerCase();
+      const typing = tag === "input" || tag === "textarea" || tag === "select" || ev.target?.isContentEditable;
+      if (ev.key === "/" && !typing && (isEquipTab || tab === "software" || tab === "acessos")) {
+        ev.preventDefault();
+        searchRef.current?.focus();
+      }
+      if (ev.key === "Escape" && detailId && !showModal && !confirmModal) {
+        setDetailId(null);
+        setAssignOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isEquipTab, tab, detailId, showModal, confirmModal]);
+
+  /* ---------------- Totais / painel ---------------- */
   const totalAtivos = equipamentos.filter((e) => e.estado !== "abatido").length;
+  const totalEmUso = equipamentos.filter((e) => e.estado === "em_uso").length;
+  const totalEmStock = equipamentos.filter((e) => e.estado === "em_stock").length;
   const totalSoftwareAtivos = software.filter((item) => (item.estado || "ativo") === "ativo").length;
   const totalSoftwareExpirados = software.filter((item) => item.estado === "licenca_expirada").length;
   const totalAcessosProblema = acessos.filter((a) => a.estado === "expirado" || a.estado === "inativo").length;
+  const garantiasAExpirar = useMemo(() => equipamentos
+    .filter((e) => e.estado !== "abatido")
+    .map((e) => ({ e, g: garantiaInfo(e) }))
+    .filter(({ g }) => g.tone === "soon" || g.tone === "expired")
+    .sort((a, b) => a.g.dias - b.g.dias), [equipamentos]);
+  const licencasAExpirar = useMemo(() => software
+    .filter((s) => (s.estado || "ativo") === "ativo" && s.data_expiracao)
+    .map((s) => ({ s, dias: diasAte(s.data_expiracao) }))
+    .filter(({ dias }) => dias !== null && dias <= 60)
+    .sort((a, b) => a.dias - b.dias), [software]);
 
-  const COR = {
-    brand: "var(--color-btnPrimary, #3b82f6)",
-    brandDark: "var(--color-btnPrimaryDark, var(--color-btnPrimary, #1d4ed8))",
-    neutral: "#b8e2a0",
-    amber: "#d97706",
-    purple: "#7c3aed",
-    red: "#dc2626",
-    black: "#000000",
-  };
-  const pastel = (cor, pct = 45) => `color-mix(in srgb, ${cor} ${pct}%, white)`;
-
-  const kpisDinamic = [
-    { label: "Equipamentos ativos", valor: totalAtivos, icon: <Icons.Laptop size={18} />, accent: COR.brand, onClick: () => setTab("equip_ativos") },
-    { label: "Equipamentos abatidos", valor: equipamentos.length - totalAtivos, icon: <Icons.Power size={18} />, accent: COR.brandDark, onClick: () => setTab("equip_inativos") },
-    { label: "Software ativos", valor: totalSoftwareAtivos, icon: <Icons.Box size={18} />, accent: COR.brand, onClick: () => setTab("software") },
-    { label: "Software com licença expirada", valor: totalSoftwareExpirados, icon: <Icons.AlertTriangle size={18} />, accent: totalSoftwareExpirados > 0 ? COR.amber : COR.brandDark, onClick: () => setTab("software") },
-    { label: "Acessos registados", valor: acessos.length, icon: <Icons.Lock size={18} />, accent: COR.brand, onClick: () => { setTab("acessos"); setFiltroEstadoAcesso("todos"); } },
-    { label: "Acessos a rever", valor: totalAcessosProblema, icon: <Icons.AlertTriangle size={18} />, accent: totalAcessosProblema > 0 ? COR.amber : COR.brandDark, onClick: () => { setTab("acessos"); setFiltroEstadoAcesso("revisao"); } },
-  ];
-
-  const CORES_ESTADO_EQUIP = { em_uso: COR.brand, em_stock: COR.neutral, em_reparacao: COR.amber, reservado: COR.purple, abatido: COR.black };
   const estadoEquipData = useMemo(
     () => ESTADOS_EQUIP
-      .map((s) => ({ label: s.label, value: equipamentos.filter((e) => e.estado === s.value).length, color: pastel(CORES_ESTADO_EQUIP[s.value]) }))
+      .map((s) => ({ key: s.value, label: s.label, value: equipamentos.filter((e) => e.estado === s.value).length, color: ESTADO_MAP_EQUIP[s.value].color }))
       .filter((d) => d.value > 0),
     [equipamentos]
   );
 
-  const CORES_ESTADO_ACESSO = { ativo: COR.brand, expirado: COR.red, inativo: COR.neutral };
-  const estadoAcessoData = useMemo(
-    () => ESTADOS_ACESSO
-      .map((s) => ({ label: s.label, value: acessos.filter((a) => (a.estado || "ativo") === s.value).length, color: pastel(CORES_ESTADO_ACESSO[s.value]) }))
-      .filter((d) => d.value > 0),
-    [acessos]
-  );
-
-  const estadoSoftwareData = useMemo(
-    () => ESTADOS_SOFTWARE
-      .map((s) => ({ label: s.label, value: software.filter((item) => (item.estado || "ativo") === s.value).length, color: pastel(s.value === "ativo" ? COR.brand : s.value === "licenca_expirada" ? COR.amber : COR.neutral) }))
-      .filter((d) => d.value > 0),
-    [software]
-  );
+  const categoriasResumo = useMemo(() => CATEGORIAS_EQUIP.map((c) => {
+    const itens = equipamentos.filter((e) => e.estado !== "abatido" && getCategoriaEquip(e.tipo).id === c.id);
+    const tipos = {};
+    itens.forEach((e) => { tipos[e.tipo] = (tipos[e.tipo] || 0) + 1; });
+    return {
+      ...c,
+      total: itens.length,
+      emUso: itens.filter((e) => e.estado === "em_uso").length,
+      emStock: itens.filter((e) => e.estado === "em_stock").length,
+      topTipos: Object.entries(tipos).sort((a, b) => b[1] - a[1]).slice(0, 3),
+    };
+  }), [equipamentos]);
 
   const atribuidosPorPessoa = useMemo(() => {
     const grupos = {};
@@ -811,7 +871,7 @@ export default function AtivosTIDashboard() {
       .forEach((e) => {
         const info = colaboradoresMap[e.colaborador];
         if (!info) return;
-        if (!grupos[e.colaborador]) grupos[e.colaborador] = { nome: info.nome, avatar_url: info.avatar_url, itens: [] };
+        if (!grupos[e.colaborador]) grupos[e.colaborador] = { id: e.colaborador, nome: info.nome, avatar_url: info.avatar_url, itens: [] };
         grupos[e.colaborador].itens.push(e);
       });
     return Object.values(grupos).sort((a, b) => b.itens.length - a.itens.length);
@@ -857,7 +917,7 @@ export default function AtivosTIDashboard() {
           startY: 35,
           head: [["Nº Inv.", "Tipo", "Modelo", "Descrição", "Estado"]],
           body: tableData,
-          headStyles: { fillColor: [59, 130, 246] }, // Azul
+          headStyles: { fillColor: [59, 130, 246] },
           styles: { fontSize: 10, cellPadding: 4 },
           alternateRowStyles: { fillColor: [248, 250, 252] }
         });
@@ -865,7 +925,6 @@ export default function AtivosTIDashboard() {
 
       // 2. GERAR PÁGINA DE STOCK (se existirem equipamentos em stock)
       if (equipamentosEmStock.length > 0) {
-        // Só adicionamos uma nova página se já tivermos impresso páginas de colaboradores
         if (adicionouPagina) {
           doc.addPage();
         }
@@ -890,16 +949,15 @@ export default function AtivosTIDashboard() {
           startY: 35,
           head: [["Nº Inv.", "Tipo", "Modelo", "Descrição", "Estado"]],
           body: tableDataStock,
-          headStyles: { fillColor: [100, 116, 139] }, // Cinzento-azulado para distinguir do Azul dos colaboradores
+          headStyles: { fillColor: [100, 116, 139] },
           styles: { fontSize: 10, cellPadding: 4 },
           alternateRowStyles: { fillColor: [248, 250, 252] }
         });
       }
 
-      // Mudei o nome do ficheiro para ser mais genérico, já que agora inclui o stock
       doc.save("inventario_ativos_ti.pdf");
       notify("PDF gerado e transferido com sucesso!");
-      
+
     } catch (error) {
       console.error("Erro ao gerar o PDF:", error);
       notify("Erro ao gerar PDF. Verifica a consola.", "error");
@@ -929,28 +987,20 @@ export default function AtivosTIDashboard() {
         "Estado": ESTADO_MAP_EQUIP[item.estado]?.txt || item.estado
       }));
 
-      // Validação
       if (dadosAtribuidos.length === 0 && dadosStock.length === 0) {
         notify("Não existem equipamentos para exportar.", "error");
         return;
       }
 
-      // 3. Criar um novo livro de Excel (Workbook)
       const wb = XLSX.utils.book_new();
-
-      // 4. Adicionar a aba (Worksheet) de Atribuídos se houver dados
       if (dadosAtribuidos.length > 0) {
         const wsAtribuidos = XLSX.utils.json_to_sheet(dadosAtribuidos);
         XLSX.utils.book_append_sheet(wb, wsAtribuidos, "Atribuídos");
       }
-
-      // 5. Adicionar a aba (Worksheet) de Stock se houver dados
       if (dadosStock.length > 0) {
         const wsStock = XLSX.utils.json_to_sheet(dadosStock);
         XLSX.utils.book_append_sheet(wb, wsStock, "Em Stock");
       }
-
-      // 6. Guardar o ficheiro
       XLSX.writeFile(wb, "inventario_ativos_ti.xlsx");
       notify("Excel gerado e transferido com sucesso!");
 
@@ -960,572 +1010,1208 @@ export default function AtivosTIDashboard() {
     }
   };
 
-  const recentes = useMemo(() => [...equipamentos].slice(0, 5), [equipamentos]);
+  const recentes = useMemo(() => [...equipamentos].slice(0, 6), [equipamentos]);
 
-  useEffect(() => { setQuery(""); }, [tab]);
+  useEffect(() => {
+    setQuery("");
+    setAssignOpen(false);
+    setDetailId(pendingDetailRef.current);
+    pendingDetailRef.current = null;
+  }, [tab]);
+
+  const abrirDetalhe = (equip) => {
+    const alvo = equip.estado === "abatido" ? "equip_inativos" : "equip_ativos";
+    if (tab === alvo) { setDetailId(equip.id); return; }
+    pendingDetailRef.current = equip.id;
+    setTab(alvo);
+  };
+
+  /* ---------------- Render helpers ---------------- */
+  const renderColab = (e, size = 26) => {
+    const info = colaboradoresMap[e.colaborador];
+    if (!info) {
+      return (
+        <span className="ti-colab is-none">
+          <span className="ti-avatar is-empty" style={{ width: size, height: size }}><Icons.Box size={Math.round(size * 0.5)} /></span>
+          <span>{e.estado === "em_stock" ? "Em stock" : "Sem colaborador"}</span>
+        </span>
+      );
+    }
+    return (
+      <span className="ti-colab">
+        <Avatar nome={info.nome} url={info.avatar_url} size={size} />
+        <span>{info.nome}</span>
+      </span>
+    );
+  };
+
+  const facetRow = (key, label, count, active, onClick, extra = null) => (
+    <button key={key} type="button" className={`ti-facet-row ${active ? "is-on" : ""} ${!count && !active ? "is-zero" : ""}`} onClick={onClick}>
+      {extra}
+      <span className="ti-facet-label">{label}</span>
+      <em>{count || 0}</em>
+    </button>
+  );
+
+  const TABS = [
+    { id: "painel", label: "Painel", icon: Icons.Activity },
+    { id: "equip_ativos", label: "Equipamentos", icon: Icons.Laptop, n: totalAtivos },
+    { id: "equip_inativos", label: "Abatidos", icon: Icons.Power, n: equipamentos.length - totalAtivos },
+    { id: "software", label: "Software", icon: Icons.Box, n: software.length },
+    { id: "acessos", label: "Acessos", icon: Icons.Lock, n: acessos.length, alert: totalAcessosProblema > 0 },
+  ];
+
+  const modalAccent = modalType === "equipamento" ? getCategoriaEquip(formEquip.tipo).color : modalType === "software" ? SOFTWARE_COR[getCategoriaSoftware(formSoftware.tipo).id] : "#7c3aed";
 
   return (
-    <div className="page-container">
+    <div className="page-container ti-page">
       {notification && (
-        <div className={`ativosti-toast ${notification.type}`} key={notification.key}>
-          <span className="toast-icon">{notification.type === "success" ? <Icons.Check size={14} /> : <Icons.AlertTriangle size={14} />}</span>
+        <div className={`ti-toast ${notification.type === "error" ? "is-error" : ""}`} key={notification.key}>
+          {notification.type === "success" ? <Icons.Check size={15} /> : <Icons.AlertTriangle size={15} />}
           {notification.message}
         </div>
       )}
 
-      {/* CABEÇALHO */}
-      <div className="page-header">
-        <div className="page-header-left">
-          <div className="page-header-icon"><Icons.Folder size={24} /></div>
-          <div>
-            <h1 className="page-title">Ativos TI</h1>
-            <p className="page-subtitle">Gestão simples de equipamentos e acessos web.</p>
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          {/* Exportar Excel */}
-          <button onClick={handleExportExcel} className="btn-secondary btn-with-icon" title="Exportar para Excel">
-            <Icons.Table size={16} /> Exportar Excel
-          </button>
-
-          {/* Exportar PDF */}
-          <button onClick={handleExportPDF} className="btn-secondary btn-with-icon" title="Exportar ativos por pessoa">
-            <Icons.Download size={16} /> Exportar PDF
-          </button>
-          
-          <button onClick={handleNovo} className="btn-primary btn-with-icon">
-            <Icons.Plus /> Novo Registo
-          </button>
-        </div>
-      </div>
-
-      {/* NAVEGAÇÃO */}
-      <div className="nav-row">
-        <div className="tabs-segmented">
-          <button onClick={() => setTab("painel")} className={`tab-btn ${tab === "painel" ? "tab-btn-active" : ""}`}>
-            <Icons.Activity size={15} /> Painel
-          </button>
-          <button onClick={() => setTab("equip_ativos")} className={`tab-btn ${tab === "equip_ativos" ? "tab-btn-active" : ""}`}>
-            <Icons.Laptop size={15} /> Equipamentos
-          </button>
-          <button onClick={() => setTab("equip_inativos")} className={`tab-btn ${tab === "equip_inativos" ? "tab-btn-active" : ""}`}>
-            <Icons.Power size={15} /> Abatidos
-          </button>
-          <button onClick={() => setTab("software")} className={`tab-btn ${tab === "software" ? "tab-btn-active" : ""}`}>
-            <Icons.Box size={15} /> Software
-          </button>
-          <button onClick={() => setTab("acessos")} className={`tab-btn ${tab === "acessos" ? "tab-btn-active" : ""}`}>
-            <Icons.Lock size={15} /> Acessos
-          </button>
-        </div>
-
-        {(tab.startsWith("equip") || tab === "software" || tab === "acessos") && (
-          <div className="toolbar-inline">
-            <div className="search-box">
-              <span className="search-icon"><Icons.Search size={15} /></span>
-              <input
-                type="text"
-                placeholder={tab.startsWith("equip") ? "Procurar por inventário, modelo ou colaborador…" : tab === "software" ? "Procurar por software, entidade ou fornecedor…" : "Procurar por plataforma, URL ou utilizador…"}
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="search-input"
-              />
-              {query && (
-                <button className="search-clear" onClick={() => setQuery("")} title="Limpar pesquisa">
-                  <Icons.Close size={12} />
-                </button>
-              )}
+      {/* HERO */}
+      <header className="ti-hero">
+        <div className="ti-hero-bg"><span className="ti-orb ti-orb-a" /><span className="ti-orb ti-orb-b" /><span className="ti-grid-pattern" /></div>
+        <div className="ti-hero-row">
+          <div className="ti-hero-main">
+            <span className="ti-hero-icon"><Icons.Laptop size={26} /></span>
+            <div>
+              <h1>Ativos TI</h1>
+              <p>Equipamentos, software e acessos da organização num só sítio.</p>
             </div>
-
-            {tab === "equip_ativos" && (
-              <select className="filter-select" value={filtroEstadoEquip} onChange={(e) => setFiltroEstadoEquip(e.target.value)}>
-                <option value="todos">Todos os estados</option>
-                {ESTADOS_EQUIP.filter((s) => s.value !== "abatido").map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-              </select>
-            )}
-            {tab === "equip_inativos" && (
-              <span className="filter-static">Filtrado por: Abatido</span>
-            )}
-            {tab === "software" && (
-              <select className="filter-select" value={filtroEstadoSoftware} onChange={(e) => setFiltroEstadoSoftware(e.target.value)}>
-                <option value="todos">Todos os estados</option>
-                {ESTADOS_SOFTWARE.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-              </select>
-            )}
-            {tab === "acessos" && (
-              <select className="filter-select" value={filtroEstadoAcesso} onChange={(e) => setFiltroEstadoAcesso(e.target.value)}>
-                <option value="todos">Todos os estados</option>
-                {ESTADOS_ACESSO.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-                <option value="revisao">A rever (expirado / inativo)</option>
-              </select>
+          </div>
+          <div className="ti-hero-actions">
+            <button type="button" onClick={handleExportExcel} className="ti-hero-btn" title="Exportar para Excel">
+              <Icons.Table size={16} /> Excel
+            </button>
+            <button type="button" onClick={handleExportPDF} className="ti-hero-btn" title="Exportar ativos por pessoa">
+              <Icons.Download size={16} /> PDF
+            </button>
+            <button type="button" onClick={handleNovo} className="ti-cta">
+              <Icons.Plus size={16} /> Novo Registo
+            </button>
+          </div>
+        </div>
+        <div className="ti-hero-tools">
+          <div className="ti-scope" role="tablist">
+            {TABS.map((t) => {
+              const TabIcon = t.icon;
+              return (
+                <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} className={tab === t.id ? "is-on" : ""} onClick={() => setTab(t.id)}>
+                  <TabIcon size={15} /> {t.label}
+                  {t.n !== undefined && <em className={t.alert ? "is-alert" : ""}>{t.n}</em>}
+                </button>
+              );
+            })}
+          </div>
+          <div className="ti-hero-stats">
+            <span className="ti-stat"><strong>{totalEmUso}</strong> em uso</span>
+            <span className="ti-stat"><strong>{totalEmStock}</strong> em stock</span>
+            {garantiasAExpirar.length > 0 && (
+              <button type="button" className="ti-stat is-alert" onClick={() => abrirExplorador({ garantia: "soon" })}>
+                <strong>{garantiasAExpirar.length}</strong> garantias a rever
+              </button>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      </header>
 
       {/* CONTEÚDO */}
       {isLoading ? (
-        <div className="loading-wrap">
-          <div className="pulse-dot" />
-          <span>A carregar dados…</span>
-        </div>
+        <div className="ti-loading"><span className="ti-spinner" /> A carregar dados…</div>
       ) : (
         <>
           {tab === "painel" && (
-            <div className="painel-layout">
-              <div className="kpi-grid">
-                {kpisDinamic.map((k) => <StatCard key={k.label} {...k} />)}
+            <div className="ti-painel">
+              {/* Categorias */}
+              <div className="ti-cats">
+                {categoriasResumo.map((c, i) => {
+                  const CatIcon = Icons[c.icon] || Icons.Box;
+                  return (
+                    <button key={c.id} type="button" className="ti-cat" style={{ "--c": c.color, "--i": i }} onClick={() => abrirExplorador({ cat: c.id })}>
+                      <span className="ti-cat-ico"><CatIcon size={22} /></span>
+                      <span className="ti-cat-main">
+                        <span className="ti-cat-label">{c.label}</span>
+                        <strong>{c.total}</strong>
+                      </span>
+                      <span className="ti-cat-split">
+                        <span className="ti-cat-bar"><i style={{ width: `${c.total ? (c.emUso / c.total) * 100 : 0}%` }} /></span>
+                        <small><b>{c.emUso}</b> em uso · <b>{c.emStock}</b> em stock</small>
+                      </span>
+                      {c.topTipos.length > 0 && (
+                        <span className="ti-cat-tipos">
+                          {c.topTipos.map(([tipo, n]) => <span key={tipo}>{tipo} <b>{n}</b></span>)}
+                        </span>
+                      )}
+                      <span className="ti-cat-go"><Icons.ChevronRight size={16} /></span>
+                    </button>
+                  );
+                })}
               </div>
 
-              <div className="charts-row">
-                <div className="panel-card chart-card">
-                  <div className="panel-card-head">
-                    <h2>Software por estado</h2>
-                  </div>
-                  {estadoSoftwareData.length === 0 ? (
-                    <p className="panel-card-empty">Ainda não há software registado.</p>
-                  ) : (
-                    <div className="donut-layout">
-                      <DonutChart data={estadoSoftwareData} />
-                      <ul className="chart-legend">
-                        {estadoSoftwareData.map((d) => (
-                          <li key={d.label}>
-                            <span className="legend-dot" style={{ background: d.color }} />
-                            <span className="legend-label">{d.label}</span>
-                            <span className="legend-value">{d.value}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-
-                <div className="panel-card">
-                  <div className="panel-card-head">
-                    <h2>Software recentes</h2>
-                    <button className="link-btn" onClick={() => setTab("software")}>Ver todos</button>
-                  </div>
-                  {software.length === 0 ? (
-                    <p className="panel-card-empty">Ainda não há software registado.</p>
-                  ) : (
-                    <ul className="recentes-list">
-                      {software.slice(0, 5).map((item) => (
-                        <li key={item.id} className="recentes-item">
-                          <div className="recentes-item-main">
-                            <span className="asset-tag asset-tag-sm">{item.codigo || item.nome}</span>
-                            <span className="cell-strong">{item.nome}</span>
-                            <span className="cell-muted">· {item.entidade || "sem entidade"}</span>
-                          </div>
-                          <StatusDot estado={item.estado || "ativo"} map={ESTADO_MAP_SOFTWARE} />
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </div>
-
-              <div className="charts-row">
-                <div className="panel-card chart-card">
-                  <div className="panel-card-head">
-                    <h2>Equipamentos por estado</h2>
+              <div className="ti-row">
+                <section className="ti-card is-grow">
+                  <div className="ti-card-head">
+                    <div><h2>Estado do parque</h2><p>Clica num estado para ver os equipamentos.</p></div>
+                    <span className="ti-big-num">{equipamentos.length}<small>equipamentos</small></span>
                   </div>
                   {estadoEquipData.length === 0 ? (
-                    <p className="panel-card-empty">Ainda não há equipamentos registados.</p>
+                    <p className="ti-card-empty">Ainda não há equipamentos registados.</p>
                   ) : (
-                    <div className="donut-layout">
-                      <DonutChart data={estadoEquipData} />
-                      <ul className="chart-legend">
-                        {estadoEquipData.map((d) => (
-                          <li key={d.label}>
-                            <span className="legend-dot" style={{ background: d.color }} />
-                            <span className="legend-label">{d.label}</span>
-                            <span className="legend-value">{d.value}</span>
-                          </li>
-                        ))}
-                      </ul>
+                    <StackBar data={estadoEquipData} onPick={(k) => (k === "abatido" ? setTab("equip_inativos") : abrirExplorador({ estado: k }))} />
+                  )}
+                  {totalAtivos > 0 && (
+                    <div className="ti-ent">
+                      <h3>Por entidade</h3>
+                      {[...ENTIDADES_EMPRESA, "__none__"].map((en) => {
+                        const n = equipamentos.filter((e) => e.estado !== "abatido" && (en === "__none__" ? !e.entidade : e.entidade === en)).length;
+                        if (!n && en === "__none__") return null;
+                        return (
+                          <button key={en} type="button" className="ti-ent-row" onClick={() => abrirExplorador({ entidade: en })}>
+                            <span className="ti-ent-name"><Icons.Building size={13} /> {en === "__none__" ? "Sem entidade" : en}</span>
+                            <span className="ti-ent-bar"><i style={{ width: `${(n / totalAtivos) * 100}%`, background: corAvatar(en) }} /></span>
+                            <b>{n}</b>
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
-                </div>
+                </section>
 
-                <div className="panel-card chart-card">
-                  <div className="panel-card-head">
-                    <h2>Acessos por estado</h2>
+                <section className="ti-card">
+                  <div className="ti-card-head">
+                    <div><h2>Garantias</h2><p>A expirar nos próximos 90 dias ou já expiradas.</p></div>
+                    {garantiasAExpirar.length > 0 && <button type="button" className="ti-link" onClick={() => abrirExplorador({ garantia: "soon" })}>Ver todas</button>}
                   </div>
-                  {estadoAcessoData.length === 0 ? (
-                    <p className="panel-card-empty">Ainda não há acessos registados.</p>
+                  {garantiasAExpirar.length === 0 ? (
+                    <div className="ti-ok-box"><Icons.ShieldCheck size={18} /> Nenhuma garantia a expirar em breve.</div>
                   ) : (
-                    <div className="donut-layout">
-                      <DonutChart data={estadoAcessoData} />
-                      <ul className="chart-legend">
-                        {estadoAcessoData.map((d) => (
-                          <li key={d.label}>
-                            <span className="legend-dot" style={{ background: d.color }} />
-                            <span className="legend-label">{d.label}</span>
-                            <span className="legend-value">{d.value}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="charts-row">
-                <div className="panel-card">
-                  <div className="panel-card-head">
-                    <h2>Equipamento atribuído por colaborador</h2>
-                    <span className="panel-card-hint">Apenas equipamento em uso</span>
-                  </div>
-                  {atribuidosPorPessoa.length === 0 ? (
-                    <p className="panel-card-empty">Ainda não há equipamento atribuído a colaboradores.</p>
-                  ) : (
-                    <AtribuidosOverview data={atribuidosPorPessoa} />
-                  )}
-                </div>
-
-                <div className="panel-card">
-                  <div className="panel-card-head">
-                    <h2>Equipamentos recentes</h2>
-                    <button className="link-btn" onClick={() => setTab("equip_ativos")}>Ver todos</button>
-                  </div>
-                  {recentes.length === 0 ? (
-                    <p className="panel-card-empty">Ainda não há equipamentos registados.</p>
-                  ) : (
-                    <ul className="recentes-list">
-                      {recentes.map((e) => (
-                        <li key={e.id} className="recentes-item">
-                          <div className="recentes-item-main">
-                            <span className="asset-tag asset-tag-sm">{e.num_inventario}</span>
-                            <span className="cell-strong">{e.modelo}</span>
-                            <span className="cell-muted">· {colaboradoresMap[e.colaborador]?.nome || "em stock"}</span>
-                          </div>
-                          <StatusDot estado={e.estado} map={ESTADO_MAP_EQUIP} />
+                    <ul className="ti-mini-list">
+                      {garantiasAExpirar.slice(0, 5).map(({ e, g }) => (
+                        <li key={e.id}>
+                          <button type="button" onClick={() => abrirDetalhe(e)}>
+                            <TipoTile tipo={e.tipo} size={30} />
+                            <span className="ti-mini-main"><strong>{e.modelo}</strong><small>{e.num_inventario} · {fmtData(g.fim)}</small></span>
+                            <span className={`ti-gchip is-${g.tone}`}>{g.tone === "expired" ? "Expirada" : `${g.dias} dias`}</span>
+                          </button>
                         </li>
                       ))}
                     </ul>
                   )}
+                </section>
+              </div>
+
+              <div className="ti-row">
+                <section className="ti-card is-grow">
+                  <div className="ti-card-head">
+                    <div><h2>Equipamento por colaborador</h2><p>Apenas equipamento em uso · clica para ver o kit de cada pessoa.</p></div>
+                  </div>
+                  {atribuidosPorPessoa.length === 0 ? (
+                    <p className="ti-card-empty">Ainda não há equipamento atribuído a colaboradores.</p>
+                  ) : (
+                    <div className="ti-people">
+                      {atribuidosPorPessoa.map((pessoa, i) => {
+                        const max = atribuidosPorPessoa[0].itens.length || 1;
+                        return (
+                          <button key={pessoa.id} type="button" className="ti-person" style={{ "--i": Math.min(i, 14) }} onClick={() => { abrirExplorador(); escolherPessoa(pessoa.id); setEquipView("pessoas"); }}>
+                            <Avatar nome={pessoa.nome} url={pessoa.avatar_url} size={32} />
+                            <span className="ti-person-main">
+                              <strong>{pessoa.nome}</strong>
+                              <span className="ti-person-icons">
+                                {pessoa.itens.slice(0, 6).map((e) => {
+                                  const TI = getIconeTipo(e.tipo);
+                                  return <span key={e.id} title={`${e.tipo} · ${e.modelo}`} style={{ "--c": getCategoriaEquip(e.tipo).color }}><TI size={12} /></span>;
+                                })}
+                                {pessoa.itens.length > 6 && <span className="is-more">+{pessoa.itens.length - 6}</span>}
+                              </span>
+                            </span>
+                            <span className="ti-person-bar"><i style={{ width: `${(pessoa.itens.length / max) * 100}%` }} /></span>
+                            <b>{pessoa.itens.length}</b>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </section>
+
+                <div className="ti-col">
+                  <section className="ti-card">
+                    <div className="ti-card-head">
+                      <div><h2>Software & licenças</h2></div>
+                      <button type="button" className="ti-link" onClick={() => setTab("software")}>Ver todos</button>
+                    </div>
+                    <div className="ti-mini-kpis">
+                      <button type="button" onClick={() => { setTab("software"); setFiltroEstadoSoftware("ativo"); }}><span>Ativos</span><strong>{totalSoftwareAtivos}</strong></button>
+                      <button type="button" className={totalSoftwareExpirados > 0 ? "is-amber" : ""} onClick={() => { setTab("software"); setFiltroEstadoSoftware("licenca_expirada"); }}><span>Licença expirada</span><strong>{totalSoftwareExpirados}</strong></button>
+                    </div>
+                    {licencasAExpirar.length > 0 && (
+                      <ul className="ti-mini-list is-tight">
+                        {licencasAExpirar.slice(0, 3).map(({ s, dias }) => (
+                          <li key={s.id}>
+                            <button type="button" onClick={() => handleEditar("software", s)}>
+                              <span className="ti-tile" style={{ "--c": SOFTWARE_COR[getCategoriaSoftware(s.tipo).id], width: 28, height: 28 }}>{(() => { const SI = getIconeSoftware(s.tipo); return <SI size={14} />; })()}</span>
+                              <span className="ti-mini-main"><strong>{s.nome}</strong><small>Vence {fmtData(s.data_expiracao)}</small></span>
+                              <span className={`ti-gchip ${dias < 0 ? "is-expired" : "is-soon"}`}>{dias < 0 ? "Expirada" : `${dias} dias`}</span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </section>
+
+                  <section className="ti-card">
+                    <div className="ti-card-head">
+                      <div><h2>Acessos</h2></div>
+                      <button type="button" className="ti-link" onClick={() => { setTab("acessos"); setFiltroEstadoAcesso("todos"); }}>Ver todos</button>
+                    </div>
+                    <div className="ti-mini-kpis">
+                      <button type="button" onClick={() => { setTab("acessos"); setFiltroEstadoAcesso("todos"); }}><span>Registados</span><strong>{acessos.length}</strong></button>
+                      <button type="button" className={totalAcessosProblema > 0 ? "is-amber" : ""} onClick={() => { setTab("acessos"); setFiltroEstadoAcesso("revisao"); }}><span>A rever</span><strong>{totalAcessosProblema}</strong></button>
+                    </div>
+                  </section>
                 </div>
+              </div>
+
+              <section className="ti-card">
+                <div className="ti-card-head">
+                  <div><h2>Equipamentos recentes</h2></div>
+                  <button type="button" className="ti-link" onClick={() => { abrirExplorador(); setSortBy("recentes"); }}>Ver todos</button>
+                </div>
+                {recentes.length === 0 ? (
+                  <p className="ti-card-empty">Ainda não há equipamentos registados.</p>
+                ) : (
+                  <div className="ti-recent">
+                    {recentes.map((e) => (
+                      <button key={e.id} type="button" className="ti-recent-item" onClick={() => abrirDetalhe(e)}>
+                        <TipoTile tipo={e.tipo} size={36} />
+                        <span className="ti-mini-main">
+                          <strong>{e.modelo}</strong>
+                          <small>{e.num_inventario} · {colaboradoresMap[e.colaborador]?.nome || "em stock"}</small>
+                        </span>
+                        <StatusPill estado={e.estado} map={ESTADO_MAP_EQUIP} />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </section>
+            </div>
+          )}
+
+          {isEquipTab && (
+            <div className="ti-explorer">
+              {/* FILTROS LATERAIS */}
+              <aside className="ti-facets">
+                <div className="ti-facets-head">
+                  <span><Icons.Filter size={14} /> Filtros</span>
+                  {filtrosAtivos.length > 0 && <button type="button" className="ti-link" onClick={limparFiltros}>Limpar</button>}
+                </div>
+
+                <div className="ti-facet">
+                  <h4>Categoria</h4>
+                  {CATEGORIAS_EQUIP.map((c) => {
+                    const CatIcon = Icons[c.icon] || Icons.Box;
+                    return facetRow(
+                      c.id, c.label, facet.cat[c.id], fCat === c.id,
+                      () => { setFCat(fCat === c.id ? "" : c.id); setFTipo(""); },
+                      <span className="ti-facet-ico" style={{ "--c": c.color }}><CatIcon size={13} /></span>
+                    );
+                  })}
+                  {fCat && (
+                    <div className="ti-facet-tipos">
+                      {CATEGORIAS_EQUIP.find((c) => c.id === fCat)?.tipos.filter((t) => facet.tipo[t] || fTipo === t).map((t) => (
+                        <button key={t} type="button" className={fTipo === t ? "is-on" : ""} onClick={() => setFTipo(fTipo === t ? "" : t)}>
+                          {t} <em>{facet.tipo[t] || 0}</em>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {tab === "equip_ativos" && (
+                  <div className="ti-facet">
+                    <h4>Estado</h4>
+                    {ESTADOS_EQUIP.filter((s) => s.value !== "abatido").map((s) => facetRow(
+                      s.value, s.label, facet.estado[s.value], filtroEstadoEquip === s.value,
+                      () => setFiltroEstadoEquip(filtroEstadoEquip === s.value ? "todos" : s.value),
+                      <i className="ti-facet-dot" style={{ background: ESTADO_MAP_EQUIP[s.value].color }} />
+                    ))}
+                  </div>
+                )}
+
+                <div className="ti-facet">
+                  <h4>Garantia</h4>
+                  {[
+                    { k: "soon", label: "A expirar (90 dias)", c: "#d97706" },
+                    { k: "expired", label: "Expirada", c: "#dc2626" },
+                    { k: "ok", label: "Válida", c: "#16a34a" },
+                    { k: "none", label: "Sem data", c: "#cbd5e1" },
+                  ].map((g) => facetRow(g.k, g.label, facet.garantia[g.k], fGarantia === g.k, () => setFGarantia(fGarantia === g.k ? "" : g.k), <i className="ti-facet-dot" style={{ background: g.c }} />))}
+                </div>
+
+                <div className="ti-facet">
+                  <h4>Entidade</h4>
+                  {ENTIDADES_EMPRESA.map((en) => facetRow(en, en, facet.entidade[en], fEntidade === en, () => setFEntidade(fEntidade === en ? "" : en), <Icons.Building size={13} />))}
+                  {facet.entidade.__none__ ? facetRow("__none__", "Sem entidade", facet.entidade.__none__, fEntidade === "__none__", () => setFEntidade(fEntidade === "__none__" ? "" : "__none__"), <Icons.Building size={13} />) : null}
+                </div>
+              </aside>
+
+              {/* RESULTADOS */}
+              <div className="ti-results">
+                <div className="ti-toolbar">
+                  <label className="ti-search">
+                    <Icons.Search size={16} />
+                    <input
+                      ref={searchRef}
+                      type="text"
+                      placeholder="Procurar por inventário, modelo, descrição, colaborador, fornecedor, fatura…"
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                    />
+                    {query ? (
+                      <button type="button" className="ti-search-clear" onClick={() => setQuery("")} title="Limpar pesquisa"><Icons.Close size={12} /></button>
+                    ) : (
+                      <kbd>/</kbd>
+                    )}
+                  </label>
+                  <div className="ti-sort">
+                    <Icons.Sort size={15} />
+                    <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} aria-label="Ordenar">
+                      <option value="inv_desc">Inventário (recente primeiro)</option>
+                      <option value="inv_asc">Inventário (antigo primeiro)</option>
+                      <option value="modelo">Modelo A–Z</option>
+                      <option value="colab">Colaborador A–Z</option>
+                      <option value="garantia">Garantia a terminar</option>
+                      <option value="recentes">Adicionados recentemente</option>
+                    </select>
+                  </div>
+                  <div className="ti-seg">
+                    <button type="button" className={equipView === "lista" ? "is-on" : ""} onClick={() => setEquipView("lista")} title="Lista"><Icons.List size={15} /><span>Lista</span></button>
+                    <button type="button" className={equipView === "cartoes" ? "is-on" : ""} onClick={() => setEquipView("cartoes")} title="Cartões"><Icons.Grid size={15} /><span>Cartões</span></button>
+                    <button type="button" className={equipView === "pessoas" ? "is-on" : ""} onClick={() => setEquipView("pessoas")} title="Por colaborador"><Icons.Users size={15} /><span>Pessoas</span></button>
+                  </div>
+                </div>
+
+                <div className="ti-resultbar">
+                  <span className="ti-count"><b>{equipFiltrados.length}</b> de {equipBase.length} {tab === "equip_inativos" ? "abatidos" : "equipamentos"}</span>
+                  {filtrosAtivos.map((f) => (
+                    <button key={f.key} type="button" className="ti-chip" onClick={f.clear}>
+                      {f.label} <Icons.Close size={11} />
+                    </button>
+                  ))}
+                  {filtrosAtivos.length > 1 && <button type="button" className="ti-link" onClick={limparFiltros}>Limpar tudo</button>}
+                </div>
+
+                {equipFiltrados.length === 0 ? (
+                  <div className="ti-empty">
+                    <span className="ti-empty-ico"><Icons.Inbox size={30} /></span>
+                    <h3>{query || filtrosAtivos.length ? "Nenhum equipamento corresponde à pesquisa." : tab === "equip_inativos" ? "Não há equipamentos abatidos." : "Ainda não há equipamentos registados."}</h3>
+                    {(query || filtrosAtivos.length > 0) ? (
+                      <button type="button" className="ti-btn is-soft" onClick={limparFiltros}>Limpar pesquisa e filtros</button>
+                    ) : tab === "equip_ativos" ? (
+                      <>
+                        <p>Comece por adicionar o primeiro computador, monitor ou outro equipamento.</p>
+                        <button type="button" className="ti-btn is-primary" onClick={handleNovo}><Icons.Plus /> Adicionar equipamento</button>
+                      </>
+                    ) : null}
+                  </div>
+                ) : equipView === "lista" ? (
+                  <div className="ti-list">
+                    <div className="ti-list-head">
+                      <span>Equipamento</span>
+                      <span>Colaborador</span>
+                      <span>Entidade</span>
+                      <span>Garantia</span>
+                      <span>Estado</span>
+                      <span />
+                    </div>
+                    {equipFiltrados.map((e, i) => (
+                      <div
+                        key={e.id}
+                        role="button"
+                        tabIndex={0}
+                        className={`ti-list-row ${detailId === e.id ? "is-selected" : ""}`}
+                        style={{ "--i": Math.min(i, 20) }}
+                        onClick={() => { setDetailId(e.id); setAssignOpen(false); }}
+                        onKeyDown={(ev) => { if (ev.key === "Enter") { setDetailId(e.id); setAssignOpen(false); } }}
+                      >
+                        <span className="ti-list-main">
+                          <TipoTile tipo={e.tipo} size={36} />
+                          <span className="ti-list-text">
+                            <strong>{e.modelo}</strong>
+                            <small><span className="ti-tag">{e.num_inventario}</span>{e.tipo}{e.nome_pc ? ` · ${e.nome_pc}` : ""}</small>
+                          </span>
+                        </span>
+                        <span className="ti-list-cell">{renderColab(e)}</span>
+                        <span className="ti-list-cell is-muted">{e.entidade || <span className="ti-nil">—</span>}</span>
+                        <span className="ti-list-cell"><GarantiaChip equip={e} compact /></span>
+                        <span className="ti-list-cell"><StatusPill estado={e.estado} map={ESTADO_MAP_EQUIP} /></span>
+                        <span className="ti-list-actions">
+                          <button type="button" className="ti-icon-btn" title="Editar" onClick={(ev) => { ev.stopPropagation(); handleEditar("equipamento", e); }}><Icons.Edit size={15} /></button>
+                          <Icons.ChevronRight size={16} />
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : equipView === "cartoes" ? (
+                  <div className="ti-cards">
+                    {equipFiltrados.map((e, i) => {
+                      const cat = getCategoriaEquip(e.tipo);
+                      return (
+                        <button key={e.id} type="button" className={`ti-ecard ${e.estado === "abatido" ? "is-off" : ""}`} style={{ "--c": cat.color, "--i": Math.min(i, 20) }} onClick={() => { setDetailId(e.id); setAssignOpen(false); }}>
+                          <span className="ti-ecard-top">
+                            <TipoTile tipo={e.tipo} size={44} />
+                            <StatusPill estado={e.estado} map={ESTADO_MAP_EQUIP} />
+                          </span>
+                          <span className="ti-ecard-tag"><span className="ti-tag">{e.num_inventario}</span>{e.tipo}</span>
+                          <strong className="ti-ecard-model">{e.modelo}</strong>
+                          {e.nome_pc && <span className="ti-ecard-desc">{e.nome_pc}</span>}
+                          <span className="ti-ecard-meta">
+                            {e.entidade && <span><Icons.Building size={11} /> {e.entidade}</span>}
+                            <GarantiaChip equip={e} />
+                          </span>
+                          <span className="ti-ecard-foot">{renderColab(e, 24)}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="ti-people-view">
+                    {/* Lista de pessoas */}
+                    <nav className="ti-roster" aria-label="Colaboradores">
+                      {[...equipPorPessoa.filter((g) => g.key === "__none__"), ...equipPorPessoa.filter((g) => g.key !== "__none__")].map((grupo, gi) => {
+                        const isStock = grupo.key === "__none__";
+                        const on = pessoaAtiva?.key === grupo.key;
+                        const cats = contarCategorias(grupo.itens);
+                        return (
+                          <button
+                            key={grupo.key}
+                            type="button"
+                            className={`ti-roster-row ${on ? "is-on" : ""} ${isStock ? "is-stock" : ""}`}
+                            style={{ "--i": Math.min(gi, 16) }}
+                            onClick={() => escolherPessoa(grupo.key)}
+                          >
+                            {isStock
+                              ? <span className="ti-avatar is-empty ti-roster-stock-ico" style={{ width: 36, height: 36 }}><Icons.Box size={16} /></span>
+                              : <Avatar nome={grupo.nome} url={grupo.avatar_url} size={36} />}
+                            <span className="ti-roster-main">
+                              <strong>{isStock ? "Sem colaborador" : grupo.nome}</strong>
+                              <span className="ti-roster-bar">
+                                {cats.map(({ c, n }) => <i key={c.id} style={{ flexGrow: n, background: c.color }} title={`${c.label}: ${n}`} />)}
+                              </span>
+                            </span>
+                            <em className="ti-roster-count">{grupo.itens.length}</em>
+                          </button>
+                        );
+                      })}
+                    </nav>
+
+                    {/* Kit da pessoa selecionada */}
+                    {pessoaAtiva && (() => {
+                      const isStock = pessoaAtiva.key === "__none__";
+                      const cats = contarCategorias(pessoaAtiva.itens);
+                      const esperado = isStock ? "em_stock" : "em_uso";
+                      return (
+                        <section key={pessoaAtiva.key} className={`ti-kitpane ${isStock ? "is-stock" : ""}`}>
+                          <header className="ti-kitpane-head">
+                            {isStock
+                              ? <span className="ti-avatar is-empty" style={{ width: 58, height: 58 }}><Icons.Box size={24} /></span>
+                              : <Avatar nome={pessoaAtiva.nome} url={pessoaAtiva.avatar_url} size={58} />}
+                            <div className="ti-kitpane-title">
+                              <h3>{isStock ? "Sem colaborador" : pessoaAtiva.nome}</h3>
+                              <p>
+                                <b>{pessoaAtiva.itens.length}</b> equipamento{pessoaAtiva.itens.length === 1 ? "" : "s"}
+                                {isStock ? " por atribuir, agrupados por tipo" : " atribuídos"}
+                              </p>
+                            </div>
+                            {!isStock && stockDisponivel.length > 0 && tab === "equip_ativos" && (
+                              <div className="ti-kitpane-assign">
+                                <FancySelect
+                                  value=""
+                                  onChange={(v) => {
+                                    const item = stockDisponivel.find((x) => x.id === v);
+                                    if (item) atribuirEquipamento(item, pessoaAtiva.key);
+                                  }}
+                                  options={stockDisponivel.map((x) => ({
+                                    value: x.id,
+                                    label: x.modelo || x.num_inventario,
+                                    hint: `${x.num_inventario || "—"} · ${x.tipo || "—"}`,
+                                    group: getCategoriaEquip(x.tipo).label,
+                                    icon: <TipoTile tipo={x.tipo} size={24} />,
+                                  }))}
+                                  placeholder="Atribuir do stock…"
+                                  menuWidth={360}
+                                  searchPlaceholder="Procurar no stock..."
+                                  ariaLabel="Atribuir equipamento do stock"
+                                />
+                              </div>
+                            )}
+                          </header>
+
+                          {cats.length > 1 && (
+                            <div className="ti-kitpane-cats">
+                              <button type="button" className={!kitCat ? "is-on" : ""} onClick={() => setKitCat("")}>
+                                Tudo <em>{pessoaAtiva.itens.length}</em>
+                              </button>
+                              {cats.map(({ c, n }) => {
+                                const CI = Icons[c.icon] || Icons.Box;
+                                return (
+                                  <button key={c.id} type="button" className={kitCat === c.id ? "is-on" : ""} style={{ "--c": c.color }} onClick={() => setKitCat(kitCat === c.id ? "" : c.id)}>
+                                    <CI size={13} /> {c.label} <em>{n}</em>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          <div className="ti-kitpane-body">
+                            {kitGrupos.map((g, gi) => {
+                              const LIMITE = g.porTipo ? 6 : Infinity;
+                              const aberto = !!kitExpand[g.key];
+                              const visiveis = aberto ? g.itens : g.itens.slice(0, LIMITE);
+                              const CatIco = Icons[g.cat.icon] || Icons.Box;
+                              return (
+                                <div key={g.key} className="ti-kgroup" style={{ "--c": g.cat.color, "--i": Math.min(gi, 12) }}>
+                                  <div className="ti-kgroup-head">
+                                    {g.porTipo
+                                      ? <TipoTile tipo={g.key} size={30} />
+                                      : <span className="ti-kgroup-ico"><CatIco size={15} /></span>}
+                                    <strong>{g.label}</strong>
+                                    <em>{g.itens.length}</em>
+                                    <span className="ti-kgroup-line" />
+                                  </div>
+                                  <div className="ti-kgroup-grid">
+                                    {visiveis.map((e) => (
+                                      <button
+                                        key={e.id}
+                                        type="button"
+                                        className={`ti-kt ${detailId === e.id ? "is-selected" : ""}`}
+                                        onClick={() => { setDetailId(e.id); setAssignOpen(false); }}
+                                      >
+                                        <span className="ti-kt-top">
+                                          <span className="ti-kt-id">
+                                            {!g.porTipo && <TipoTile tipo={e.tipo} size={24} />}
+                                            <span className="ti-tag">{e.num_inventario}</span>
+                                          </span>
+                                          {e.estado !== esperado
+                                            ? <StatusPill estado={e.estado} map={ESTADO_MAP_EQUIP} />
+                                            : garantiaInfo(e).tone !== "none" && <GarantiaChip equip={e} compact />}
+                                        </span>
+                                        <strong title={e.modelo}>{e.modelo}</strong>
+                                        <small>{[g.porTipo ? null : e.tipo, e.nome_pc, e.entidade].filter(Boolean).join(" · ") || " "}</small>
+                                      </button>
+                                    ))}
+                                    {g.itens.length > LIMITE && (
+                                      <button type="button" className="ti-kt is-more" onClick={() => setKitExpand((p) => ({ ...p, [g.key]: !aberto }))}>
+                                        {aberto ? "Mostrar menos" : <>+{g.itens.length - LIMITE} <small>ver todos</small></>}
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </section>
+                      );
+                    })()}
+                  </div>
+                )}
               </div>
             </div>
           )}
 
-          {(tab === "equip_ativos" || tab === "equip_inativos") && (
-            equipFiltrados.length > 0 ? (
-              <div className="equip-sections">
-                {equipPorCategoria.map((grupo) => (
-                  <div key={grupo.label} className="equip-section">
-                    <div className="equip-section-head">
-                      <h3>{grupo.label}</h3>
-                      <span className="equip-section-count">{grupo.itens.length}</span>
-                    </div>
-                    <div className="equip-grid">
-                      {grupo.itens.map((e) => (
-                        <EquipCard
-                          key={e.id}
-                          equipamento={e}
-                          colaboradorNome={colaboradoresMap[e.colaborador]?.nome}
-                          colaboradorAvatarUrl={colaboradoresMap[e.colaborador]?.avatar_url}
-                          onEdit={() => handleEditar("equipamento", e)}
-                          onToggle={() => handleToggleEstado("equipamento", e)}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="empty-state">
-                <Icons.Inbox size={40} color="#cbd5e1" />
-                <h3>{query ? "Nenhum equipamento corresponde à pesquisa." : tab === "equip_inativos" ? "Não há equipamentos abatidos." : "Ainda não há equipamentos registados."}</h3>
-                {!query && tab === "equip_ativos" && (
-                  <>
-                    <p>Comece por adicionar o primeiro computador, monitor ou outro equipamento.</p>
-                    <button className="btn-primary btn-with-icon" onClick={handleNovo}>
-                      <Icons.Plus /> Adicionar equipamento
-                    </button>
-                  </>
-                )}
-              </div>
-            )
-          )}
-
           {tab === "software" && (
-            softwareFiltrado.length > 0 ? (
-              <div className="equip-sections">
-                {softwarePorCategoria.map((grupo) => (
-                  <div key={grupo.label} className="equip-section">
-                    <div className="equip-section-head">
-                      <h3>{grupo.label}</h3>
-                      <span className="equip-section-count">{grupo.itens.length}</span>
-                    </div>
-                    <div className="equip-grid">
-                      {grupo.itens.map((item) => (
-                        <SoftwareCard
-                          key={item.id}
-                          software={item}
-                          onEdit={() => handleEditar("software", item)}
-                          onToggle={() => handleToggleEstado("software", item)}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="empty-state">
-                <Icons.Box size={40} color="#cbd5e1" />
-                <h3>{query ? "Nenhum software corresponde à pesquisa." : "Ainda não há software registado."}</h3>
-                {!query && (
-                  <>
-                    <p>Registe Windows, Microsoft 365 e outras licenças ou aplicações importantes.</p>
-                    <button className="btn-primary btn-with-icon" onClick={handleNovo}>
-                      <Icons.Plus /> Adicionar software
+            <div className="ti-stack-view">
+              <div className="ti-toolbar">
+                <label className="ti-search">
+                  <Icons.Search size={16} />
+                  <input ref={searchRef} type="text" placeholder="Procurar por software, entidade ou fornecedor…" value={query} onChange={(e) => setQuery(e.target.value)} />
+                  {query ? <button type="button" className="ti-search-clear" onClick={() => setQuery("")} title="Limpar pesquisa"><Icons.Close size={12} /></button> : <kbd>/</kbd>}
+                </label>
+                <div className="ti-seg">
+                  {[{ value: "todos", label: "Todos" }, ...ESTADOS_SOFTWARE].map((s) => (
+                    <button key={s.value} type="button" className={filtroEstadoSoftware === s.value ? "is-on" : ""} onClick={() => setFiltroEstadoSoftware(s.value)}>
+                      {s.label}
+                      <em>{s.value === "todos" ? software.length : software.filter((x) => (x.estado || "ativo") === s.value).length}</em>
                     </button>
-                  </>
-                )}
+                  ))}
+                </div>
               </div>
-            )
+              {softwareFiltrado.length > 0 ? (
+                softwarePorCategoria.map((grupo) => (
+                  <section key={grupo.id} className="ti-group">
+                    <div className="ti-group-head"><h3>{grupo.label}</h3><em>{grupo.itens.length}</em></div>
+                    <div className="ti-sw-grid">
+                      {grupo.itens.map((item, i) => {
+                        const ativo = (item.estado || "ativo") === "ativo";
+                        const SI = getIconeSoftware(item.tipo);
+                        const dias = diasAte(item.data_expiracao);
+                        const cor = SOFTWARE_COR[grupo.id];
+                        return (
+                          <article key={item.id} className={`ti-sw ${!ativo ? "is-off" : ""}`} style={{ "--c": cor, "--i": Math.min(i, 16) }}>
+                            <div className="ti-sw-top">
+                              <span className="ti-tile" style={{ "--c": cor, width: 44, height: 44 }}><SI size={21} /></span>
+                              <div className="ti-sw-title">
+                                <strong>{item.nome}</strong>
+                                <small>{item.tipo}{item.versao ? ` · Versão ${item.versao}` : ""}</small>
+                              </div>
+                              <StatusPill estado={item.estado || "ativo"} map={ESTADO_MAP_SOFTWARE} />
+                            </div>
+                            <div className="ti-sw-meta">
+                              <span className="ti-tag">{item.codigo || item.nome}</span>
+                              {item.entidade && <span><Icons.Building size={11} /> {item.entidade}</span>}
+                              {item.fornecedor && <span><Icons.Truck size={11} /> {item.fornecedor}</span>}
+                              {item.fatura && <span><Icons.Receipt size={11} /> Fatura {item.fatura}</span>}
+                            </div>
+                            {item.data_expiracao ? (
+                              <div className={`ti-sw-exp ${dias < 0 ? "is-expired" : dias <= 60 ? "is-soon" : ""}`}>
+                                <Icons.Calendar size={13} />
+                                <span>Vence {fmtData(item.data_expiracao)}</span>
+                                <b>{dias < 0 ? "Expirada" : `${dias} dias`}</b>
+                              </div>
+                            ) : (
+                              <div className="ti-sw-exp is-none"><Icons.Calendar size={13} /><span>Sem data de expiração</span></div>
+                            )}
+                            {item.licenca_chave && (
+                              <div className="ti-sw-key">
+                                <Icons.Key size={13} />
+                                <code>{revealed[`sw-${item.id}`] ? item.licenca_chave : "•••••-•••••-•••••"}</code>
+                                <button type="button" className="ti-icon-btn is-sm" onClick={() => setRevealed((p) => ({ ...p, [`sw-${item.id}`]: !p[`sw-${item.id}`] }))} title={revealed[`sw-${item.id}`] ? "Ocultar" : "Mostrar"}>{revealed[`sw-${item.id}`] ? <Icons.EyeOff size={13} /> : <Icons.Eye size={13} />}</button>
+                                <button type="button" className="ti-icon-btn is-sm" onClick={() => handleCopyText(item.licenca_chave, "Chave de licença")} title="Copiar chave"><Icons.Copy size={13} /></button>
+                              </div>
+                            )}
+                            <div className="ti-sw-foot">
+                              <span>{item.data_aquisicao ? `Aquisição ${fmtData(item.data_aquisicao)}` : item.fornecedor || "Sem fornecedor"}</span>
+                              <button type="button" className="ti-icon-btn" title="Editar" onClick={() => handleEditar("software", item)}><Icons.Edit size={15} /></button>
+                              <button type="button" className={`ti-icon-btn ${ativo ? "is-danger" : "is-ok"}`} title={ativo ? "Arquivar software" : "Reativar software"} onClick={() => handleToggleEstado("software", item)}><Icons.Power size={15} /></button>
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  </section>
+                ))
+              ) : (
+                <div className="ti-empty">
+                  <span className="ti-empty-ico"><Icons.Box size={30} /></span>
+                  <h3>{query ? "Nenhum software corresponde à pesquisa." : "Ainda não há software registado."}</h3>
+                  {!query && (
+                    <>
+                      <p>Registe Windows, Microsoft 365 e outras licenças ou aplicações importantes.</p>
+                      <button type="button" className="ti-btn is-primary" onClick={handleNovo}><Icons.Plus /> Adicionar software</button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           )}
 
           {tab === "acessos" && (
-            acessosFiltrados.length > 0 ? (
-              <div className="equip-sections">
-                {acessosPorEstado.map((grupo) => (
-                  <div key={grupo.label} className="equip-section">
-                    <div className="equip-section-head">
-                      <h3>{grupo.label}</h3>
-                      <span className="equip-section-count">{grupo.itens.length}</span>
-                    </div>
-                    <div className="acessos-grid">
-                      {grupo.itens.map((a) => (
-                        <AcessoCard
-                          key={a.id}
-                          acesso={a}
-                          onEdit={() => handleEditar("acesso", a)}
-                          onToggle={() => handleToggleEstado("acesso", a)}
-                          onCopy={handleCopyPassword}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                ))}
+            <div className="ti-stack-view">
+              <div className="ti-toolbar">
+                <label className="ti-search">
+                  <Icons.Search size={16} />
+                  <input ref={searchRef} type="text" placeholder="Procurar por plataforma, URL ou utilizador…" value={query} onChange={(e) => setQuery(e.target.value)} />
+                  {query ? <button type="button" className="ti-search-clear" onClick={() => setQuery("")} title="Limpar pesquisa"><Icons.Close size={12} /></button> : <kbd>/</kbd>}
+                </label>
+                <div className="ti-seg">
+                  {[{ value: "todos", label: "Todos", n: acessos.length }, { value: "ativo", label: "Ativos", n: acessos.filter((a) => (a.estado || "ativo") === "ativo").length }, { value: "revisao", label: "A rever", n: totalAcessosProblema }].map((s) => (
+                    <button key={s.value} type="button" className={filtroEstadoAcesso === s.value ? "is-on" : ""} onClick={() => setFiltroEstadoAcesso(s.value)}>
+                      {s.label} <em>{s.n}</em>
+                    </button>
+                  ))}
+                </div>
               </div>
-            ) : (
-              <div className="empty-state">
-                <Icons.Lock size={40} color="#cbd5e1" />
-                <h3>{query ? "Nenhum acesso corresponde à pesquisa." : "Ainda não há acessos registados."}</h3>
-                {!query && <p>Guarde aqui os acessos a plataformas e sistemas web da organização.</p>}
-                {!query && (
-                  <button className="btn-primary btn-with-icon" onClick={handleNovo}>
-                    <Icons.Plus /> Adicionar acesso
-                  </button>
-                )}
-              </div>
-            )
+              {acessosFiltrados.length > 0 ? (
+                acessosPorEstado.map((grupo) => (
+                  <section key={grupo.key} className="ti-group">
+                    <div className="ti-group-head"><h3>{grupo.label}</h3><em>{grupo.itens.length}</em></div>
+                    <div className="ti-ac-grid">
+                      {grupo.itens.map((a, i) => {
+                        const inativo = a.estado === "expirado" || a.estado === "inativo";
+                        const visible = !!revealed[`ac-${a.id}`];
+                        const cor = corAvatar(a.nome_plataforma || "?");
+                        return (
+                          <article key={a.id} className={`ti-ac ${inativo ? "is-off" : ""}`} style={{ "--c": cor, "--i": Math.min(i, 16) }}>
+                            <div className="ti-ac-top">
+                              <span className="ti-ac-logo">{getIniciais(a.nome_plataforma || "?")}</span>
+                              <div className="ti-ac-title">
+                                <strong>{a.nome_plataforma}</strong>
+                                {a.url && <a href={a.url} target="_blank" rel="noopener noreferrer">{a.url.replace(/^https?:\/\//, "")} <Icons.External size={11} /></a>}
+                              </div>
+                              <StatusPill estado={a.estado || "ativo"} map={ESTADO_MAP_ACESSO} />
+                            </div>
+                            <div className="ti-ac-rows">
+                              <div className="ti-ac-row">
+                                <span>Utilizador</span>
+                                <code>{a.username}</code>
+                                <button type="button" className="ti-icon-btn is-sm" title="Copiar utilizador" onClick={() => handleCopyText(a.username, "Utilizador")}><Icons.Copy size={13} /></button>
+                              </div>
+                              <div className="ti-ac-row is-pass">
+                                <span>Palavra-passe</span>
+                                <code>{visible ? a.password : "••••••••••••"}</code>
+                                <button type="button" className="ti-icon-btn is-sm" onClick={() => setRevealed((p) => ({ ...p, [`ac-${a.id}`]: !p[`ac-${a.id}`] }))} title={visible ? "Ocultar" : "Mostrar"}>{visible ? <Icons.EyeOff size={13} /> : <Icons.Eye size={13} />}</button>
+                                <button type="button" className="ti-icon-btn is-sm" title="Copiar palavra-passe" onClick={() => handleCopyPassword(a.password)}><Icons.Copy size={13} /></button>
+                              </div>
+                            </div>
+                            <div className="ti-ac-foot">
+                              {a.url && <a className="ti-btn is-soft is-sm" href={a.url} target="_blank" rel="noopener noreferrer"><Icons.External size={13} /> Abrir</a>}
+                              <span className="ti-spacer" />
+                              <button type="button" className="ti-icon-btn" title="Editar" onClick={() => handleEditar("acesso", a)}><Icons.Edit size={15} /></button>
+                              <button type="button" className={`ti-icon-btn ${inativo ? "is-ok" : "is-danger"}`} title={inativo ? "Reativar acesso" : "Marcar como inativo"} onClick={() => handleToggleEstado("acesso", a)}><Icons.Power size={15} /></button>
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  </section>
+                ))
+              ) : (
+                <div className="ti-empty">
+                  <span className="ti-empty-ico"><Icons.Lock size={30} /></span>
+                  <h3>{query ? "Nenhum acesso corresponde à pesquisa." : "Ainda não há acessos registados."}</h3>
+                  {!query && <p>Guarde aqui os acessos a plataformas e sistemas web da organização.</p>}
+                  {!query && <button type="button" className="ti-btn is-primary" onClick={handleNovo}><Icons.Plus /> Adicionar acesso</button>}
+                </div>
+              )}
+            </div>
           )}
         </>
+      )}
+
+      {/* DETALHE DO EQUIPAMENTO */}
+      {detailEquip && isEquipTab && (
+        <ModalPortal>
+          <div className="ti-detail-overlay" onClick={() => { setDetailId(null); setAssignOpen(false); }}>
+            <aside className="ti-detail" style={{ "--c": getCategoriaEquip(detailEquip.tipo).color }} onClick={(e) => e.stopPropagation()}>
+              {(() => {
+                const e = detailEquip;
+                const cat = getCategoriaEquip(e.tipo);
+                const TI = getIconeTipo(e.tipo);
+                const g = garantiaInfo(e);
+                const info = colaboradoresMap[e.colaborador];
+                const outros = e.colaborador ? equipamentos.filter((x) => x.colaborador === e.colaborador && x.id !== e.id && x.estado !== "abatido") : [];
+                const ativo = e.estado !== "abatido";
+                return (
+                  <>
+                    <div className="ti-detail-head">
+                      <span className="ti-detail-bg"><TI size={160} strokeWidth={1} /></span>
+                      <button type="button" className="ti-detail-close" onClick={() => { setDetailId(null); setAssignOpen(false); }} aria-label="Fechar"><Icons.Close size={18} /></button>
+                      <span className="ti-detail-ico"><TI size={30} /></span>
+                      <span className="ti-detail-kicker"><span className="ti-tag is-light">{e.num_inventario}</span>{cat.label} · {e.tipo}</span>
+                      <h3>{e.modelo}</h3>
+                      {e.nome_pc && <p>{e.nome_pc}</p>}
+                      <div className="ti-detail-pills">
+                        <StatusPill estado={e.estado} map={ESTADO_MAP_EQUIP} />
+                        <GarantiaChip equip={e} />
+                      </div>
+                    </div>
+
+                    <div className="ti-detail-body">
+                      <section className="ti-dcard">
+                        <h4>Atribuído a</h4>
+                        <div className="ti-assign">
+                          {info ? (
+                            <>
+                              <Avatar nome={info.nome} url={info.avatar_url} size={44} />
+                              <div><strong>{info.nome}</strong><small>{ESTADO_MAP_EQUIP[e.estado]?.txt}</small></div>
+                            </>
+                          ) : (
+                            <>
+                              <span className="ti-avatar is-empty" style={{ width: 44, height: 44 }}><Icons.Box size={20} /></span>
+                              <div><strong>{e.estado === "em_stock" ? "Em stock" : "Sem colaborador"}</strong><small>Disponível para atribuir</small></div>
+                            </>
+                          )}
+                        </div>
+                        {ativo && (
+                          assignOpen ? (
+                            <div className="ti-assign-picker">
+                              <FancySelect
+                                value=""
+                                onChange={(v) => { if (v) atribuirEquipamento(e, v); }}
+                                options={utilizadoresOrdenados.filter((u) => u.id !== e.colaborador).map((u) => ({
+                                  value: u.id,
+                                  label: u.nome,
+                                  hint: `${equipamentos.filter((x) => x.colaborador === u.id && x.estado === "em_uso").length} em uso`,
+                                  icon: <Avatar nome={u.nome} url={u.avatar_url} size={22} />,
+                                }))}
+                                placeholder="Escolher colaborador…"
+                                menuWidth={320}
+                                searchPlaceholder="Procurar colaborador..."
+                                ariaLabel="Atribuir a colaborador"
+                              />
+                              <button type="button" className="ti-icon-btn" onClick={() => setAssignOpen(false)} aria-label="Cancelar"><Icons.Close size={14} /></button>
+                            </div>
+                          ) : (
+                            <div className="ti-assign-actions">
+                              <button type="button" className="ti-btn is-primary is-sm" onClick={() => setAssignOpen(true)}>
+                                <Icons.UserPlus size={14} /> {info ? "Reatribuir" : "Atribuir"}
+                              </button>
+                              {info && (
+                                <button type="button" className="ti-btn is-ghost is-sm" onClick={() => atribuirEquipamento(e, null)}>
+                                  <Icons.Undo size={14} /> Devolver ao stock
+                                </button>
+                              )}
+                            </div>
+                          )
+                        )}
+                      </section>
+
+                      <section className="ti-dcard">
+                        <h4>Detalhes</h4>
+                        <div className="ti-dgrid">
+                          <div><span>Nº Inventário</span><b className="is-mono">{e.num_inventario}</b></div>
+                          <div><span>Tipo</span><b>{e.tipo}</b></div>
+                          <div><span>Entidade</span><b>{e.entidade || "—"}</b></div>
+                          <div><span>Fornecedor</span><b>{e.fornecedor || "—"}</b></div>
+                          <div><span>Fatura</span><b>{e.fatura || "—"}</b></div>
+                          <div><span>Data de aquisição</span><b>{fmtData(e.data_aquisicao)}</b></div>
+                        </div>
+                      </section>
+
+                      <section className="ti-dcard">
+                        <h4>Garantia</h4>
+                        {g.tone === "none" ? (
+                          <p className="ti-muted">Sem prazo de garantia registado.</p>
+                        ) : (
+                          <div className={`ti-warranty is-${g.tone}`}>
+                            <div className="ti-warranty-top">
+                              <Icons.ShieldCheck size={18} />
+                              <div>
+                                <strong>{g.tone === "expired" ? `Expirou há ${Math.abs(g.dias)} dias` : `${g.dias} dias restantes`}</strong>
+                                <small>{e.data_aquisicao ? `${fmtData(e.data_aquisicao)} → ` : "Até "}{fmtData(g.fim)}</small>
+                              </div>
+                            </div>
+                            {g.pct !== null && <span className="ti-warranty-bar"><i style={{ width: `${g.pct}%` }} /></span>}
+                          </div>
+                        )}
+                      </section>
+
+                      {outros.length > 0 && (
+                        <section className="ti-dcard">
+                          <h4>Outros equipamentos de {info?.nome?.split(" ")[0]} <em>{outros.length}</em></h4>
+                          <div className="ti-kit-items is-compact">
+                            {outros.map((x) => (
+                              <button key={x.id} type="button" className="ti-kit-item" onClick={() => { setDetailId(x.id); setAssignOpen(false); }}>
+                                <TipoTile tipo={x.tipo} size={28} />
+                                <span className="ti-mini-main"><strong>{x.modelo}</strong><small>{x.num_inventario} · {x.tipo}</small></span>
+                                <Icons.ChevronRight size={14} />
+                              </button>
+                            ))}
+                          </div>
+                        </section>
+                      )}
+                    </div>
+
+                    <div className="ti-detail-foot">
+                      <button type="button" className={`ti-btn ${ativo ? "is-danger-soft" : "is-ok-soft"}`} onClick={() => handleToggleEstado("equipamento", e)}>
+                        <Icons.Power size={15} /> {ativo ? "Abater" : "Reativar"}
+                      </button>
+                      <span className="ti-spacer" />
+                      <button type="button" className="ti-btn is-primary" onClick={() => handleEditar("equipamento", e)}>
+                        <Icons.Edit size={15} /> Editar
+                      </button>
+                    </div>
+                  </>
+                );
+              })()}
+            </aside>
+          </div>
+        </ModalPortal>
       )}
 
       {/* MODAL CRIAR / EDITAR */}
       {showModal && (
         <ModalPortal>
-          <div onClick={closePanel} className="modal-overlay">
+          <div onClick={closePanel} className="ti-overlay">
             <div
-              className="modal-panel"
-              style={{ animation: isClosingPanel ? "sidePanelPullOut 0.3s forwards" : "sidePanelPullIn 0.4s" }}
+              className={`ti-drawer ${isClosingPanel ? "is-closing" : ""}`}
+              style={{ "--c": modalAccent }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="modal-header">
-                <h3>{editingId ? "Editar registo" : "Adicionar registo"}</h3>
-                <button onClick={closePanel} className="modal-close-btn"><Icons.Close /></button>
+              <div className="ti-drawer-head">
+                <span className="ti-drawer-ico">
+                  {modalType === "equipamento" ? (() => { const TI = getIconeTipo(formEquip.tipo); return <TI size={22} />; })() : modalType === "software" ? <Icons.Box size={22} /> : <Icons.Lock size={22} />}
+                </span>
+                <div className="ti-drawer-title">
+                  <span>{editingId ? "Editar registo" : "Adicionar registo"}</span>
+                  <h3>
+                    {modalType === "equipamento" ? (formEquip.modelo || "Equipamento") : modalType === "software" ? (formSoftware.nome || "Software") : (formAcesso.nome_plataforma || "Acesso")}
+                  </h3>
+                </div>
+                <button type="button" onClick={closePanel} className="ti-drawer-close" aria-label="Fechar"><Icons.Close size={18} /></button>
               </div>
 
-              <div className="modal-body custom-scrollbar">
-                {!editingId && (
-                  <div className="type-toggle">
-                    <button type="button" onClick={() => setModalType("equipamento")} className={`type-toggle-btn ${modalType === "equipamento" ? "type-toggle-btn-active" : ""}`}>
-                      <Icons.Laptop size={15} /> Equipamento
-                    </button>
-                    <button type="button" onClick={() => setModalType("software")} className={`type-toggle-btn ${modalType === "software" ? "type-toggle-btn-active" : ""}`}>
-                      <Icons.Box size={15} /> Software
-                    </button>
-                    <button type="button" onClick={() => setModalType("acesso")} className={`type-toggle-btn ${modalType === "acesso" ? "type-toggle-btn-active" : ""}`}>
-                      <Icons.Lock size={15} /> Acesso
-                    </button>
-                  </div>
-                )}
-
-                <form onSubmit={handleSubmitAtivo}>
-                  {modalType === "equipamento" && (
-                    <div className="form-stack">
-                      <div className="form-grid-2">
-                        <div>
-                          <label className="label">Nº Inventário</label>
-                          <input type="text" required value={formEquip.num_inventario} onChange={(e) => setFormEquip({ ...formEquip, num_inventario: e.target.value })} className="input" />
-                        </div>
-                        <div>
-                          <label className="label">Tipo</label>
-                          <select value={formEquip.tipo} onChange={(e) => setFormEquip({ ...formEquip, tipo: e.target.value })} className="input">
-                            {CATEGORIAS_EQUIP.map((cat) => (
-                              <optgroup key={cat.id} label={cat.label}>
-                                {cat.tipos.map((t) => <option key={t} value={t}>{t}</option>)}
-                              </optgroup>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="label">Modelo</label>
-                        <input type="text" required value={formEquip.modelo} onChange={(e) => setFormEquip({ ...formEquip, modelo: e.target.value })} className="input" />
-                      </div>
-                      <div>
-                        <label className="label">Descrição<span className="label-optional">(opcional)</span></label>
-                        <input type="text" value={formEquip.nome_pc} onChange={(e) => setFormEquip({ ...formEquip, nome_pc: e.target.value })} className="input" />
-                      </div>
-                      <div>
-                        <label className="label">Colaborador</label>
-                        <select value={formEquip.colaborador} onChange={(e) => setFormEquip({ ...formEquip, colaborador: e.target.value })} className="input">
-                          <option value="">— Nenhum —</option>
-                          {utilizadores.map((u) => <option key={u.id} value={u.id}>{u.nome}</option>)}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="label">Estado</label>
-                        <select value={formEquip.estado} onChange={(e) => setFormEquip({ ...formEquip, estado: e.target.value })} className="input">
-                          {ESTADOS_EQUIP.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="label">Entidade</label>
-                        <select value={formEquip.entidade} onChange={(e) => setFormEquip({ ...formEquip, entidade: e.target.value })} className="input">
-                          <option value="">— Selecionar —</option>
-                          {ENTIDADES_EMPRESA.map((entidade) => <option key={entidade} value={entidade}>{entidade}</option>)}
-                        </select>
-                      </div>
-                      <div className="form-grid-2">
-                        <div>
-                          <label className="label">Fornecedor</label>
-                          <input type="text" value={formEquip.fornecedor} onChange={(e) => setFormEquip({ ...formEquip, fornecedor: e.target.value })} className="input" />
-                        </div>
-                        <div>
-                          <label className="label">Fatura</label>
-                          <input type="text" value={formEquip.fatura} onChange={(e) => setFormEquip({ ...formEquip, fatura: e.target.value })} className="input" />
-                        </div>
-                      </div>
-                      <div className="form-grid-2">
-                        <div>
-                          <label className="label">Data de aquisição</label>
-                          <input type="date" value={formEquip.data_aquisicao} onChange={(e) => setFormEquip({ ...formEquip, data_aquisicao: e.target.value })} className="input" />
-                        </div>
-                        <div>
-                          <label className="label">Prazo de garantia</label>
-                          <input type="date" value={formEquip.prazo_garantia} onChange={(e) => setFormEquip({ ...formEquip, prazo_garantia: e.target.value })} className="input" />
-                        </div>
-                      </div>
+              <form onSubmit={handleSubmitAtivo} className="ti-drawer-form">
+                <div className="ti-drawer-body custom-scrollbar">
+                  {!editingId && (
+                    <div className="ti-typepick">
+                      {[
+                        { id: "equipamento", label: "Equipamento", icon: Icons.Laptop },
+                        { id: "software", label: "Software", icon: Icons.Box },
+                        { id: "acesso", label: "Acesso", icon: Icons.Lock },
+                      ].map((t) => {
+                        const TIc = t.icon;
+                        return (
+                          <button key={t.id} type="button" className={modalType === t.id ? "is-on" : ""} onClick={() => switchModalType(t.id)}>
+                            <TIc size={20} /> {t.label}
+                          </button>
+                        );
+                      })}
                     </div>
+                  )}
+
+                  {modalType === "equipamento" && (
+                    <>
+                      <section className="ti-fsec">
+                        <h4>Tipo</h4>
+                        {CATEGORIAS_EQUIP.map((cat) => (
+                          <div key={cat.id} className="ti-tipo-group">
+                            <span className="ti-tipo-cat" style={{ "--c": cat.color }}>{cat.label}</span>
+                            <div className="ti-tipo-grid">
+                              {cat.tipos.map((t) => {
+                                const TI = getIconeTipo(t);
+                                return (
+                                  <button key={t} type="button" className={formEquip.tipo === t ? "is-on" : ""} style={{ "--c": cat.color }} onClick={() => setFormEquip({ ...formEquip, tipo: t })}>
+                                    <TI size={18} />
+                                    <span>{t}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </section>
+
+                      <section className="ti-fsec">
+                        <h4>Identificação</h4>
+                        <div className="ti-fgrid" style={{ gridTemplateColumns: "140px minmax(0, 1fr)" }}>
+                          <div className="ti-field">
+                            <label>Nº Inventário</label>
+                            <input type="text" required value={formEquip.num_inventario} onChange={(e) => setFormEquip({ ...formEquip, num_inventario: e.target.value })} className="ti-input is-mono" />
+                          </div>
+                          <div className="ti-field">
+                            <label>Modelo</label>
+                            <input type="text" required value={formEquip.modelo} onChange={(e) => setFormEquip({ ...formEquip, modelo: e.target.value })} className="ti-input" placeholder="Ex: Lenovo ThinkPad T14" />
+                          </div>
+                        </div>
+                        <div className="ti-field">
+                          <label>Descrição<span className="ti-optional">(opcional)</span></label>
+                          <input type="text" value={formEquip.nome_pc} onChange={(e) => setFormEquip({ ...formEquip, nome_pc: e.target.value })} className="ti-input" placeholder="Ex: PC-RECECAO, 16GB RAM…" />
+                        </div>
+                      </section>
+
+                      <section className="ti-fsec">
+                        <h4>Atribuição</h4>
+                        <div className="ti-field">
+                          <label>Colaborador</label>
+                          <FancySelect
+                            className="ti-form-select"
+                            value={formEquip.colaborador}
+                            onChange={(v) => setFormEquip({
+                              ...formEquip,
+                              colaborador: v || "",
+                              estado: v && formEquip.estado === "em_stock" ? "em_uso" : (!v && formEquip.estado === "em_uso" ? "em_stock" : formEquip.estado),
+                            })}
+                            options={[
+                              { value: "", label: "— Nenhum —", icon: <span className="ti-avatar is-empty" style={{ width: 22, height: 22 }}><Icons.Box size={11} /></span> },
+                              ...utilizadoresOrdenados.map((u) => ({ value: u.id, label: u.nome, icon: <Avatar nome={u.nome} url={u.avatar_url} size={22} /> })),
+                            ]}
+                            menuWidth={320}
+                            searchPlaceholder="Procurar colaborador..."
+                            ariaLabel="Colaborador"
+                          />
+                        </div>
+                        <div className="ti-field">
+                          <label>Estado</label>
+                          <div className="ti-pills-pick">
+                            {ESTADOS_EQUIP.map((s) => (
+                              <button key={s.value} type="button" className={formEquip.estado === s.value ? "is-on" : ""} style={{ "--s": ESTADO_MAP_EQUIP[s.value].color }} onClick={() => setFormEquip({ ...formEquip, estado: s.value })}>
+                                <i /> {s.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="ti-field">
+                          <label>Entidade</label>
+                          <div className="ti-pills-pick is-plain">
+                            <button type="button" className={!formEquip.entidade ? "is-on" : ""} onClick={() => setFormEquip({ ...formEquip, entidade: "" })}>— Selecionar —</button>
+                            {ENTIDADES_EMPRESA.map((entidade) => (
+                              <button key={entidade} type="button" className={formEquip.entidade === entidade ? "is-on" : ""} onClick={() => setFormEquip({ ...formEquip, entidade })}>{entidade}</button>
+                            ))}
+                          </div>
+                        </div>
+                      </section>
+
+                      <section className="ti-fsec">
+                        <h4>Compra & garantia</h4>
+                        <div className="ti-fgrid is-2">
+                          <div className="ti-field">
+                            <label>Fornecedor</label>
+                            <input type="text" value={formEquip.fornecedor} onChange={(e) => setFormEquip({ ...formEquip, fornecedor: e.target.value })} className="ti-input" />
+                          </div>
+                          <div className="ti-field">
+                            <label>Fatura</label>
+                            <input type="text" value={formEquip.fatura} onChange={(e) => setFormEquip({ ...formEquip, fatura: e.target.value })} className="ti-input" />
+                          </div>
+                          <div className="ti-field">
+                            <label>Data de aquisição</label>
+                            <input type="date" value={formEquip.data_aquisicao} onChange={(e) => setFormEquip({ ...formEquip, data_aquisicao: e.target.value })} className="ti-input" />
+                          </div>
+                          <div className="ti-field">
+                            <label>Prazo de garantia</label>
+                            <input type="date" value={formEquip.prazo_garantia} onChange={(e) => setFormEquip({ ...formEquip, prazo_garantia: e.target.value })} className="ti-input" />
+                          </div>
+                        </div>
+                        {formEquip.data_aquisicao && (
+                          <div className="ti-quick">
+                            <span>Garantia rápida:</span>
+                            {[1, 2, 3].map((anos) => (
+                              <button key={anos} type="button" onClick={() => {
+                                const d = new Date(formEquip.data_aquisicao);
+                                d.setFullYear(d.getFullYear() + anos);
+                                setFormEquip({ ...formEquip, prazo_garantia: d.toISOString().slice(0, 10) });
+                              }}>+{anos} ano{anos > 1 ? "s" : ""}</button>
+                            ))}
+                          </div>
+                        )}
+                      </section>
+                    </>
                   )}
 
                   {modalType === "software" && (
-                    <div className="form-stack">
-                      <div className="form-grid-2">
-                        <div>
-                          <label className="label">Código</label>
-                          <input type="text" required value={formSoftware.codigo} onChange={(e) => setFormSoftware({ ...formSoftware, codigo: e.target.value })} className="input" />
+                    <>
+                      <section className="ti-fsec">
+                        <h4>Tipo</h4>
+                        {SOFTWARE_TIPOS.map((cat) => (
+                          <div key={cat.id} className="ti-tipo-group">
+                            <span className="ti-tipo-cat" style={{ "--c": SOFTWARE_COR[cat.id] }}>{cat.label}</span>
+                            <div className="ti-tipo-grid">
+                              {cat.nomes.map((nome) => {
+                                const SI = getIconeSoftware(nome);
+                                return (
+                                  <button key={nome} type="button" className={formSoftware.tipo === nome ? "is-on" : ""} style={{ "--c": SOFTWARE_COR[cat.id] }} onClick={() => setFormSoftware({ ...formSoftware, tipo: nome })}>
+                                    <SI size={18} /><span>{nome}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </section>
+                      <section className="ti-fsec">
+                        <h4>Identificação</h4>
+                        <div className="ti-fgrid" style={{ gridTemplateColumns: "150px minmax(0, 1fr)" }}>
+                          <div className="ti-field">
+                            <label>Código</label>
+                            <input type="text" required value={formSoftware.codigo} onChange={(e) => setFormSoftware({ ...formSoftware, codigo: e.target.value })} className="ti-input is-mono" />
+                          </div>
+                          <div className="ti-field">
+                            <label>Nome</label>
+                            <input type="text" required value={formSoftware.nome} onChange={(e) => setFormSoftware({ ...formSoftware, nome: e.target.value })} placeholder="Ex: Windows 11 Pro" className="ti-input" />
+                          </div>
                         </div>
-                        <div>
-                          <label className="label">Tipo</label>
-                          <select value={formSoftware.tipo} onChange={(e) => setFormSoftware({ ...formSoftware, tipo: e.target.value })} className="input">
-                            {SOFTWARE_TIPOS.flatMap((cat) => cat.nomes.map((nome) => <option key={nome} value={nome}>{nome}</option>))}
-                          </select>
+                        <div className="ti-fgrid is-2">
+                          <div className="ti-field">
+                            <label>Versão<span className="ti-optional">(opcional)</span></label>
+                            <input type="text" value={formSoftware.versao} onChange={(e) => setFormSoftware({ ...formSoftware, versao: e.target.value })} className="ti-input" />
+                          </div>
+                          <div className="ti-field">
+                            <label>Chave de licença<span className="ti-optional">(opcional)</span></label>
+                            <input type="text" value={formSoftware.licenca_chave} onChange={(e) => setFormSoftware({ ...formSoftware, licenca_chave: e.target.value })} className="ti-input is-mono" />
+                          </div>
                         </div>
-                      </div>
-                      <div>
-                        <label className="label">Nome</label>
-                        <input type="text" required value={formSoftware.nome} onChange={(e) => setFormSoftware({ ...formSoftware, nome: e.target.value })} placeholder="Ex: Windows 11 Pro" className="input" />
-                      </div>
-                      <div>
-                        <label className="label">Versão<span className="label-optional">(opcional)</span></label>
-                        <input type="text" value={formSoftware.versao} onChange={(e) => setFormSoftware({ ...formSoftware, versao: e.target.value })} className="input" />
-                      </div>
-                      <div>
-                        <label className="label">Entidade</label>
-                        <select value={formSoftware.entidade} onChange={(e) => setFormSoftware({ ...formSoftware, entidade: e.target.value })} className="input">
-                          <option value="">— Selecionar —</option>
-                          {ENTIDADES_EMPRESA.map((entidade) => <option key={entidade} value={entidade}>{entidade}</option>)}
-                        </select>
-                      </div>
-                      <div className="form-grid-2">
-                        <div>
-                          <label className="label">Fornecedor</label>
-                          <input type="text" value={formSoftware.fornecedor} onChange={(e) => setFormSoftware({ ...formSoftware, fornecedor: e.target.value })} className="input" />
+                        <div className="ti-field">
+                          <label>Entidade</label>
+                          <div className="ti-pills-pick is-plain">
+                            <button type="button" className={!formSoftware.entidade ? "is-on" : ""} onClick={() => setFormSoftware({ ...formSoftware, entidade: "" })}>— Selecionar —</button>
+                            {ENTIDADES_EMPRESA.map((entidade) => (
+                              <button key={entidade} type="button" className={formSoftware.entidade === entidade ? "is-on" : ""} onClick={() => setFormSoftware({ ...formSoftware, entidade })}>{entidade}</button>
+                            ))}
+                          </div>
                         </div>
-                        <div>
-                          <label className="label">Fatura</label>
-                          <input type="text" value={formSoftware.fatura} onChange={(e) => setFormSoftware({ ...formSoftware, fatura: e.target.value })} className="input" />
+                        <div className="ti-field">
+                          <label>Estado</label>
+                          <div className="ti-pills-pick">
+                            {ESTADOS_SOFTWARE.map((s) => (
+                              <button key={s.value} type="button" className={formSoftware.estado === s.value ? "is-on" : ""} style={{ "--s": s.value === "ativo" ? "#16a34a" : s.value === "licenca_expirada" ? "#d97706" : "#64748b" }} onClick={() => setFormSoftware({ ...formSoftware, estado: s.value })}>
+                                <i /> {s.label}
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                      <div className="form-grid-2">
-                        <div>
-                          <label className="label">Data de aquisição</label>
-                          <input type="date" value={formSoftware.data_aquisicao} onChange={(e) => setFormSoftware({ ...formSoftware, data_aquisicao: e.target.value })} className="input" />
+                      </section>
+                      <section className="ti-fsec">
+                        <h4>Compra & licença</h4>
+                        <div className="ti-fgrid is-2">
+                          <div className="ti-field">
+                            <label>Fornecedor</label>
+                            <input type="text" value={formSoftware.fornecedor} onChange={(e) => setFormSoftware({ ...formSoftware, fornecedor: e.target.value })} className="ti-input" />
+                          </div>
+                          <div className="ti-field">
+                            <label>Fatura</label>
+                            <input type="text" value={formSoftware.fatura} onChange={(e) => setFormSoftware({ ...formSoftware, fatura: e.target.value })} className="ti-input" />
+                          </div>
+                          <div className="ti-field">
+                            <label>Data de aquisição</label>
+                            <input type="date" value={formSoftware.data_aquisicao} onChange={(e) => setFormSoftware({ ...formSoftware, data_aquisicao: e.target.value })} className="ti-input" />
+                          </div>
+                          <div className="ti-field">
+                            <label>Data de expiração</label>
+                            <input type="date" value={formSoftware.data_expiracao} onChange={(e) => setFormSoftware({ ...formSoftware, data_expiracao: e.target.value })} className="ti-input" />
+                          </div>
                         </div>
-                        <div>
-                          <label className="label">Data de expiração</label>
-                          <input type="date" value={formSoftware.data_expiracao} onChange={(e) => setFormSoftware({ ...formSoftware, data_expiracao: e.target.value })} className="input" />
-                        </div>
-                      </div>
-                      <div className="form-grid-2">
-                        <div>
-                          <label className="label">Chave de licença<span className="label-optional">(opcional)</span></label>
-                          <input type="text" value={formSoftware.licenca_chave} onChange={(e) => setFormSoftware({ ...formSoftware, licenca_chave: e.target.value })} className="input" />
-                        </div>
-                        <div>
-                          <label className="label">Estado</label>
-                          <select value={formSoftware.estado} onChange={(e) => setFormSoftware({ ...formSoftware, estado: e.target.value })} className="input">
-                            {ESTADOS_SOFTWARE.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-                          </select>
-                        </div>
-                      </div>
-                    </div>
+                      </section>
+                    </>
                   )}
 
                   {modalType === "acesso" && (
-                    <div className="form-stack">
-                      <div>
-                        <label className="label">Nome da plataforma / sistema</label>
-                        <input type="text" required value={formAcesso.nome_plataforma} onChange={(e) => setFormAcesso({ ...formAcesso, nome_plataforma: e.target.value })} placeholder="Ex: WordPress Empresa" className="input" />
+                    <section className="ti-fsec">
+                      <h4>Acesso</h4>
+                      <div className="ti-field">
+                        <label>Nome da plataforma / sistema</label>
+                        <input type="text" required value={formAcesso.nome_plataforma} onChange={(e) => setFormAcesso({ ...formAcesso, nome_plataforma: e.target.value })} placeholder="Ex: WordPress Empresa" className="ti-input" />
                       </div>
-                      <div>
-                        <label className="label">URL de acesso</label>
-                        <input type="url" required value={formAcesso.url} onChange={(e) => setFormAcesso({ ...formAcesso, url: e.target.value })} placeholder="Ex: https://site.pt/admin" className="input" />
+                      <div className="ti-field">
+                        <label>URL de acesso</label>
+                        <input type="url" required value={formAcesso.url} onChange={(e) => setFormAcesso({ ...formAcesso, url: e.target.value })} placeholder="Ex: https://site.pt/admin" className="ti-input" />
                       </div>
-                      <div className="form-grid-2">
-                        <div>
-                          <label className="label">Utilizador / Email</label>
-                          <input type="text" required value={formAcesso.username} onChange={(e) => setFormAcesso({ ...formAcesso, username: e.target.value })} placeholder="admin@…" className="input" />
+                      <div className="ti-fgrid is-2">
+                        <div className="ti-field">
+                          <label>Utilizador / Email</label>
+                          <input type="text" required value={formAcesso.username} onChange={(e) => setFormAcesso({ ...formAcesso, username: e.target.value })} placeholder="admin@…" className="ti-input" />
                         </div>
-                        <div>
-                          <label className="label">Palavra-passe</label>
-                          <input type="text" required value={formAcesso.password} onChange={(e) => setFormAcesso({ ...formAcesso, password: e.target.value })} placeholder="Introduza a palavra-passe" className="input" />
+                        <div className="ti-field">
+                          <label>Palavra-passe</label>
+                          <div className="ti-input-wrap">
+                            <input type={showFormPass ? "text" : "password"} required value={formAcesso.password} onChange={(e) => setFormAcesso({ ...formAcesso, password: e.target.value })} placeholder="Introduza a palavra-passe" className="ti-input is-mono" />
+                            <button type="button" className="ti-icon-btn is-sm" onClick={() => setShowFormPass((v) => !v)} title={showFormPass ? "Ocultar" : "Mostrar"}>{showFormPass ? <Icons.EyeOff size={14} /> : <Icons.Eye size={14} />}</button>
+                          </div>
                         </div>
                       </div>
-                      <div>
-                        <label className="label">Estado</label>
-                        <select value={formAcesso.estado} onChange={(e) => setFormAcesso({ ...formAcesso, estado: e.target.value })} className="input">
-                          {ESTADOS_ACESSO.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-                        </select>
+                      <div className="ti-field">
+                        <label>Estado</label>
+                        <div className="ti-pills-pick">
+                          {ESTADOS_ACESSO.map((s) => (
+                            <button key={s.value} type="button" className={formAcesso.estado === s.value ? "is-on" : ""} style={{ "--s": s.value === "ativo" ? "#16a34a" : s.value === "expirado" ? "#dc2626" : "#64748b" }} onClick={() => setFormAcesso({ ...formAcesso, estado: s.value })}>
+                              <i /> {s.label}
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
+                    </section>
                   )}
+                </div>
 
-                  <div className="modal-footer">
-                    <button type="button" onClick={closePanel} className="btn-secondary">Cancelar</button>
-                    <button type="submit" className="btn-primary btn-with-icon" disabled={isSaving}>
-                      <Icons.Save /> {isSaving ? "A gravar…" : "Guardar"}
-                    </button>
-                  </div>
-                </form>
-              </div>
+                <div className="ti-drawer-foot">
+                  <button type="button" onClick={closePanel} className="ti-btn is-ghost">Cancelar</button>
+                  <button type="submit" className="ti-btn is-primary is-lg" disabled={isSaving}>
+                    <Icons.Save size={16} /> {isSaving ? "A gravar…" : "Guardar"}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </ModalPortal>
@@ -1534,26 +2220,20 @@ export default function AtivosTIDashboard() {
       {/* MODAL CONFIRMAÇÃO */}
       {confirmModal && (
         <ModalPortal>
-          <div className="confirm-overlay" onClick={() => !isConfirming && setConfirmModal(null)}>
-            <div className="confirm-card" onClick={(e) => e.stopPropagation()}>
-              <div className={`confirm-icon ${confirmModal.perigoso ? "confirm-icon-danger" : "confirm-icon-brand"}`}>
-                <Icons.AlertTriangle size={20} />
-              </div>
-              <h3 className="confirm-title">
-                {confirmModal.acao === "inativar" ? "Inativar registo?" : "Reativar registo?"}
-              </h3>
-              <p className="confirm-desc">
+          <div className="ti-confirm-overlay" onClick={() => !isConfirming && setConfirmModal(null)}>
+            <div className="ti-confirm" onClick={(e) => e.stopPropagation()}>
+              <span className={`ti-confirm-ico ${confirmModal.perigoso ? "is-danger" : "is-ok"}`}>
+                {confirmModal.perigoso ? <Icons.Power size={26} /> : <Icons.Check size={26} />}
+              </span>
+              <h3>{confirmModal.acao === "inativar" ? "Inativar registo?" : "Reativar registo?"}</h3>
+              <p>
                 {confirmModal.acao === "inativar"
                   ? <>Tem a certeza que pretende inativar <strong>{confirmModal.nome}</strong>? Pode reverter esta ação mais tarde.</>
                   : <>Tem a certeza que pretende reativar <strong>{confirmModal.nome}</strong>?</>}
               </p>
-              <div className="confirm-footer">
-                <button className="btn-secondary" onClick={() => setConfirmModal(null)} disabled={isConfirming}>Cancelar</button>
-                <button
-                  className={confirmModal.perigoso ? "btn-danger" : "btn-primary"}
-                  onClick={confirmarToggleEstado}
-                  disabled={isConfirming}
-                >
+              <div className="ti-confirm-actions">
+                <button type="button" className="ti-btn is-ghost" onClick={() => setConfirmModal(null)} disabled={isConfirming}>Cancelar</button>
+                <button type="button" className={`ti-btn ${confirmModal.perigoso ? "is-danger" : "is-primary"}`} onClick={confirmarToggleEstado} disabled={isConfirming}>
                   {isConfirming ? "A processar…" : confirmModal.acao === "inativar" ? "Inativar" : "Reativar"}
                 </button>
               </div>
@@ -1561,232 +2241,6 @@ export default function AtivosTIDashboard() {
           </div>
         </ModalPortal>
       )}
-
-      <style>{`
-        .page-container { max-width: 1500px; margin: 0 auto; }
-
-        /* ---------- HEADER (inalterado) ---------- */
-        .page-container .page-header { background: white; padding: 20px 25px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; gap: 15px; flex-wrap: wrap; }
-        .page-container .page-header-left { display: flex; align-items: center; gap: 15px; }
-        .page-container .page-header-icon { background: var(--color-bgSecondary); color: var(--color-btnPrimary); padding: 12px; border-radius: 12px; display: flex; }
-        .page-container .page-title { margin: 0; color: #0f172a; font-size: 1.8rem; font-weight: 900; letter-spacing: -0.02em; }
-        .page-container .page-subtitle { color: #64748b; margin: 0; font-weight: 500; font-size: 0.9rem; }
-
-        .page-container .btn-primary { background: linear-gradient(135deg, var(--color-btnPrimary, #3b82f6), var(--color-btnPrimaryDark, #1d4ed8)); color: white; border: none; border-radius: 10px; cursor: pointer; transition: 0.2s; padding: 12px 20px; font-weight: bold; font-size: 0.9rem; }
-        .page-container .btn-primary:hover { box-shadow: 0 4px 10px rgba(0,0,0,0.08); transform: translateY(-2px); }
-        .page-container .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
-        .page-container .btn-with-icon { display: flex; align-items: center; gap: 8px; }
-        .page-container .btn-secondary { padding: 12px 24px; background: white; border: 1px solid #cbd5e1; border-radius: 10px; cursor: pointer; font-weight: 600; color: #475569; font-size: 0.9rem; }
-        .page-container .btn-secondary:hover { background: #f8fafc; }
-        .page-container .btn-secondary:disabled { opacity: 0.6; cursor: not-allowed; }
-        .page-container .btn-danger { padding: 12px 24px; background: #ef4444; border: none; border-radius: 10px; cursor: pointer; font-weight: 700; color: white; font-size: 0.9rem; }
-        .page-container .btn-danger:hover { background: #dc2626; }
-        .page-container .btn-danger:disabled { opacity: 0.6; cursor: not-allowed; }
-        .page-container .link-btn { background: none; border: none; color: var(--color-btnPrimary); font-weight: 700; font-size: 0.85rem; cursor: pointer; padding: 4px; }
-        .page-container .link-btn:hover { text-decoration: underline; }
-
-        /* ---------- NAVEGAÇÃO ---------- */
-        .page-container .nav-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
-        .page-container .tabs-segmented { display: inline-flex; gap: 2px; background: #eef1f5; padding: 4px; border-radius: 12px; }
-        .page-container .tab-btn { padding: 9px 16px; background: transparent; color: #64748b; border: none; border-radius: 9px; font-weight: 700; font-size: 0.85rem; cursor: pointer; transition: 0.15s; display: flex; align-items: center; gap: 7px; }
-        .page-container .tab-btn:hover { color: #334155; }
-        .page-container .tab-btn-active { background: white; color: var(--color-btnPrimaryDark, var(--color-btnPrimary)); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
-
-        .page-container .toolbar-inline { display: flex; gap: 10px; align-items: center; flex: 1; min-width: 260px; justify-content: flex-end; }
-        .page-container .search-box { position: relative; flex: 1 1 auto; min-width: 200px; }
-        .page-container .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; display: flex; }
-        .page-container .search-input { width: 100%; padding: 9px 32px 9px 36px; border-radius: 10px; border: 1px solid #dfe4ea; outline: none; box-sizing: border-box; font-size: 0.85rem; background: white; transition: 0.15s; }
-        .page-container .search-input:focus { border-color: var(--color-btnPrimary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-btnPrimary) 15%, transparent); }
-        .page-container .search-clear { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: #eef1f5; border: none; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #64748b; }
-        .page-container .search-clear:hover { background: #e2e8f0; }
-        .page-container .filter-select { appearance: none; -webkit-appearance: none; -moz-appearance: none; flex: 0 0 auto; width: 190px; border: 1px solid #dfe4ea; background-color: white; background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; background-size: 14px; border-radius: 10px; padding: 9px 32px 9px 14px; outline: none; font-size: 0.85rem; color: #334155; font-weight: 600; cursor: pointer; line-height: normal; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
-        .page-container .filter-select:focus { border-color: var(--color-btnPrimary); }
-        .page-container .filter-static { font-size: 0.83rem; color: #94a3b8; font-weight: 600; padding: 9px 4px; white-space: nowrap; }
-
-        /* ---------- ASSET TAG (elemento assinatura) ---------- */
-        .page-container .asset-tag { position: relative; display: inline-flex; align-items: center; font-family: 'SF Mono', Menlo, monospace; font-weight: 800; font-size: 0.72rem; letter-spacing: 0.03em; color: var(--color-btnPrimaryDark, var(--color-btnPrimary)); background: var(--color-bgSecondary); padding: 5px 10px 5px 21px; border-radius: 5px; }
-        .page-container .asset-tag::before { content: ''; position: absolute; left: 8px; top: 50%; transform: translateY(-50%); width: 5px; height: 5px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 1.4px currentColor; }
-        .page-container .asset-tag-sm { font-size: 0.68rem; padding: 3px 8px 3px 17px; }
-        .page-container .asset-tag-sm::before { left: 6px; width: 4px; height: 4px; }
-
-        /* ---------- CARDS DE EQUIPAMENTO ---------- */
-        .page-container .equip-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; }
-        .page-container .equip-card { background: white; border: 1px solid #e9edf2; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 12px; transition: 0.15s; }
-        .page-container .equip-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.06); transform: translateY(-1px); }
-        .page-container .equip-card-inativo { opacity: 0.6; }
-        .page-container .equip-card-head { display: flex; justify-content: space-between; align-items: center; }
-        .page-container .equip-card-icon { width: 34px; height: 34px; border-radius: 9px; background: var(--color-bgSecondary); color: var(--color-btnPrimary); display: flex; align-items: center; justify-content: center; }
-        .page-container .equip-card-tag-row { display: flex; align-items: center; gap: 8px; }
-        .page-container .equip-card-tipo { font-size: 0.75rem; color: #94a3b8; font-weight: 600; }
-        .page-container .equip-card-modelo { margin: 0; font-size: 1rem; font-weight: 800; color: #0f172a; line-height: 1.25; }
-        .page-container .equip-card-pc { margin: -6px 0 0 0; font-size: 0.8rem; color: #94a3b8; }
-        .page-container .equip-card-meta { display: flex; flex-wrap: wrap; gap: 6px 8px; margin-top: -2px; }
-        .page-container .equip-card-meta span { background: #f8fafc; border: 1px solid #eef2f7; color: #64748b; border-radius: 999px; padding: 3px 8px; font-size: 0.7rem; font-weight: 600; }
-        .page-container .equip-card-footer { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 12px; margin-top: 2px; }
-        .page-container .equip-card-colaborador { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #475569; font-weight: 600; min-width: 0; }
-        .page-container .equip-card-colaborador span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-        .page-container .avatar { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.62rem; font-weight: 800; color: white; flex-shrink: 0; }
-        .page-container .avatar-empty { background: #eef1f5 !important; color: #94a3b8; }
-        .page-container .avatar-img { object-fit: cover; flex-shrink: 0; }
-
-        /* ---------- PAINEL ---------- */
-        .page-container .painel-layout { display: flex; flex-direction: column; gap: 22px; }
-        .page-container .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
-        .page-container .stat-card { background: white; border-radius: 14px; padding: 16px 18px; border: 1px solid #e9edf2; border-left: 4px solid var(--stat-accent, #cbd5e1); cursor: pointer; display: flex; flex-direction: column; gap: 10px; transition: all 0.15s; text-align: left; }
-        .page-container .stat-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.07); transform: translateY(-1px); }
-        .page-container .stat-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
-        .page-container .stat-card-label { font-size: 0.82rem; color: #475569; font-weight: 700; }
-        .page-container .stat-card-icon { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: color-mix(in srgb, var(--stat-accent, #94a3b8) 16%, white); color: var(--stat-accent, #64748b); }
-        .page-container .stat-card-valor { font-size: 1.6rem; font-weight: 900; color: #0f172a; line-height: 1.1; }
-
-        .page-container .panel-card { background: white; border-radius: 14px; border: 1px solid #e9edf2; padding: 20px 22px; }
-        .page-container .panel-card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
-        .page-container .panel-card-head h2 { margin: 0; font-size: 1rem; color: #1e293b; font-weight: 800; }
-        .page-container .panel-card-hint { font-size: 0.75rem; color: #94a3b8; font-weight: 600; }
-        .page-container .panel-card-empty { color: #94a3b8; font-size: 0.88rem; margin: 0; }
-        .page-container .recentes-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-        .page-container .recentes-item { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f1f5f9; }
-        .page-container .recentes-item:last-child { border-bottom: none; }
-        .page-container .recentes-item-main { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; flex-wrap: wrap; row-gap: 2px; }
-
-        /* ---------- GRÁFICOS ---------- */
-        .page-container .charts-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
-        .page-container .chart-card { display: flex; flex-direction: column; }
-        .page-container .donut-layout { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
-        .page-container .donut-svg { flex-shrink: 0; }
-        .page-container .donut-total { font-size: 1.5rem; font-weight: 900; fill: #0f172a; }
-        .page-container .donut-total-label { font-size: 0.62rem; fill: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
-        .page-container .chart-legend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; flex: 1; min-width: 140px; }
-        .page-container .chart-legend li { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: #475569; font-weight: 600; }
-        .page-container .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-        .page-container .legend-label { flex: 1; }
-        .page-container .legend-value { font-weight: 800; color: #0f172a; }
-
-        .page-container .atribuidos-chart-wrap { display: flex; flex-direction: column; }
-        .page-container .atribuidos-chart { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 22px 20px; padding: 30px 4px 0; }
-        .page-container .atribuidos-col { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; width: 52px; cursor: default; }
-        .page-container .atribuidos-valor { font-size: 0.78rem; font-weight: 800; color: #0f172a; }
-        .page-container .atribuidos-bar-track { height: 130px; width: 26px; display: flex; align-items: flex-end; background: #f1f5f9; border-radius: 7px; overflow: hidden; }
-        .page-container .atribuidos-bar { width: 100%; min-height: 4px; border-radius: 7px 7px 0 0; background: linear-gradient(180deg, var(--color-btnPrimary, #3b82f6), var(--color-btnPrimaryDark, #1d4ed8)); transition: height 0.3s ease; }
-        .page-container .atribuidos-col:hover .atribuidos-bar-track, .page-container .atribuidos-col:focus-visible .atribuidos-bar-track { background: #e9edf2; }
-        .page-container .atribuidos-nome { font-size: 0.72rem; font-weight: 700; color: #475569; max-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .page-container .atribuidos-tooltip { display: none; position: absolute; z-index: 30; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%); min-width: 220px; max-width: 300px; background: #0f172a; color: white; border-radius: 12px; padding: 12px 14px; box-shadow: 0 14px 30px rgba(0,0,0,0.28); }
-        .page-container .atribuidos-tooltip::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 6px solid transparent; border-top-color: #0f172a; }
-        .page-container .atribuidos-col:hover .atribuidos-tooltip, .page-container .atribuidos-col:focus-visible .atribuidos-tooltip { display: block; }
-        .page-container .atribuidos-tooltip strong { display: block; font-size: 0.78rem; font-weight: 700; margin-bottom: 8px; color: #e2e8f0; white-space: normal; }
-        .page-container .atribuidos-tooltip ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; max-height: 200px; overflow-y: auto; }
-        .page-container .atribuidos-tooltip li { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #e2e8f0; }
-        .page-container .atribuidos-tooltip .asset-tag { background: rgba(255,255,255,0.14); color: #fff; }
-        .page-container .atribuidos-tooltip .asset-tag::before { background: #0f172a; }
-        .page-container .atribuidos-tipo { color: #94a3b8; font-size: 0.76rem; margin-left: auto; }
-        .page-container .atribuidos-vermais { margin-top: 10px; align-self: center; }
-
-        /* ---------- SECÇÕES (divisórias por categoria / estado) ---------- */
-        .page-container .equip-sections { display: flex; flex-direction: column; gap: 26px; }
-        .page-container .equip-section-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-        .page-container .equip-section-head h3 { margin: 0; font-size: 0.78rem; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; }
-        .page-container .equip-section-head::after { content: ''; flex: 1; height: 1px; background: #e9edf2; }
-        .page-container .equip-section-count { background: #f1f5f9; color: #64748b; font-size: 0.7rem; font-weight: 800; padding: 2px 8px; border-radius: 10px; }
-
-        /* ---------- BADGES / STATUS ---------- */
-        .page-container .status-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 0.72rem; padding: 5px 11px; border-radius: 20px; font-weight: 700; }
-        .page-container .status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-        .page-container .badge-green { background: #ecfdf3; color: #15803d; }
-        .page-container .badge-grey { background: #f1f5f9; color: #475569; }
-        .page-container .badge-amber { background: #fffbeb; color: #b45309; }
-        .page-container .badge-purple { background: #f3e8ff; color: #7e22ce; }
-        .page-container .badge-red { background: #fef2f2; color: #dc2626; }
-
-        .page-container .row-actions { display: flex; gap: 4px; }
-        .page-container .action-btn { background: transparent; border: none; cursor: pointer; opacity: 0.6; transition: 0.15s; display: flex; align-items: center; justify-content: center; padding: 6px; border-radius: 7px; color: #334155; }
-        .page-container .action-btn:hover { opacity: 1; background: #f1f5f9; }
-        .page-container .action-btn-danger:hover { background: #fef2f2; color: #ef4444; }
-        .page-container .action-btn-success:hover { background: #ecfdf3; color: #16a34a; }
-
-        .page-container .cell-muted { color: #94a3b8; }
-        .page-container .cell-strong { font-weight: 700; color: #1e293b; }
-
-        /* ---------- ACESSOS ---------- */
-        .page-container .acessos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
-        .page-container .acesso-card { background: white; border: 1px solid #e9edf2; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 14px; transition: 0.15s; }
-        .page-container .acesso-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.06); }
-        .page-container .acesso-card-inativo { opacity: 0.65; }
-        .page-container .acesso-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
-        .page-container .acesso-card-heading { min-width: 0; }
-        .page-container .acesso-card-title { margin: 0 0 3px 0; color: #0f172a; font-size: 1rem; font-weight: 800; }
-        .page-container .acesso-card-link { color: var(--color-btnPrimary); font-size: 0.78rem; text-decoration: none; word-break: break-all; }
-        .page-container .acesso-card-link:hover { text-decoration: underline; }
-        .page-container .acesso-card-body { background: #fafbfc; border-radius: 10px; padding: 12px 14px; border: 1px solid #f1f5f9; display: flex; flex-direction: column; gap: 10px; }
-        .page-container .acesso-card-field { display: flex; align-items: center; gap: 8px; font-size: 0.83rem; }
-        .page-container .acesso-card-field-label { color: #94a3b8; font-weight: 600; width: 92px; flex-shrink: 0; }
-        .page-container .acesso-card-field-value { color: #334155; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .page-container .acesso-card-pass { font-family: 'SF Mono', Menlo, monospace; flex: 1; }
-        .page-container .acesso-card-field-actions { display: flex; gap: 2px; margin-left: auto; }
-        .page-container .acesso-card-footer { display: flex; justify-content: flex-end; border-top: 1px solid #f1f5f9; padding-top: 10px; }
-
-        .page-container .empty-state { grid-column: 1 / -1; text-align: center; padding: 56px 30px; background: white; border-radius: 16px; border: 1px dashed #d8dee6; display: flex; flex-direction: column; align-items: center; gap: 6px; }
-        .page-container .empty-state h3 { color: #1e293b; margin: 10px 0 2px 0; font-size: 1rem; }
-        .page-container .empty-state p { color: #94a3b8; margin: 0 0 12px 0; font-size: 0.87rem; max-width: 320px; }
-
-        /* ---------- LOADING ---------- */
-        .page-container .loading-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 40vh; gap: 12px; color: #94a3b8; font-size: 0.85rem; font-weight: 600; }
-        .page-container .pulse-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--color-btnPrimary, #3b82f6); animation: pulse 1.5s infinite; }
-
-        /* ---------- TOAST ---------- */
-        .page-container .ativosti-toast { position: fixed; top: 20px; right: 20px; z-index: 100000; width: max-content; max-width: min(90vw, 380px); height: auto; box-sizing: border-box; background: #0f172a; color: white; padding: 12px 18px; border-radius: 10px; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); animation: toastIn 0.25s ease-out; }
-        .page-container .ativosti-toast.error { background: #dc2626; }
-        .page-container .toast-icon { display: flex; }
-
-        /* ---------- MODAL (drawer) ---------- */
-        .page-container .modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.5); backdrop-filter: blur(2px); display: flex; align-items: stretch; justify-content: flex-end; z-index: 99999; }
-        .page-container .modal-panel { background: #fff; width: min(98vw, 560px); height: 100vh; border-radius: 18px 0 0 18px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35); display: flex; flex-direction: column; }
-        .page-container .modal-header { padding: 20px 28px; border-bottom: 1px solid #eef1f5; display: flex; justify-content: space-between; align-items: center; }
-        .page-container .modal-header h3 { margin: 0; color: #0f172a; font-size: 1.2rem; font-weight: 800; }
-        .page-container .modal-close-btn { background: #f1f5f9; border: none; width: 34px; height: 34px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #475569; }
-        .page-container .modal-close-btn:hover { background: #e2e8f0; }
-        .page-container .modal-body { padding: 26px 28px 30px; overflow-y: auto; flex: 1; }
-        .page-container .modal-footer { margin-top: 28px; padding-top: 18px; border-top: 1px solid #eef1f5; display: flex; justify-content: flex-end; gap: 12px; }
-
-        .page-container .type-toggle { display: flex; background: #f1f5f9; padding: 4px; border-radius: 11px; margin-bottom: 26px; }
-        .page-container .type-toggle-btn { flex: 1; padding: 10px; border: none; background: transparent; color: #64748b; border-radius: 8px; font-weight: 700; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; }
-        .page-container .type-toggle-btn-active { background: white; color: var(--color-btnPrimaryDark, var(--color-btnPrimary)); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
-
-        .page-container .form-stack { display: flex; flex-direction: column; gap: 18px; }
-        .page-container .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-        .page-container .label { display: block; margin-bottom: 6px; font-size: 0.82rem; font-weight: 700; color: #334155; }
-        .page-container .label-optional { font-weight: 500; color: #94a3b8; }
-        .page-container .input { width: 100%; padding: 10px 12px; border-radius: 9px; border: 1px solid #dfe4ea; background: #fff; font-size: 0.9rem; outline: none; box-sizing: border-box; color: #1e293b; transition: 0.15s; }
-        .page-container .input:focus { border-color: var(--color-btnPrimary) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-btnPrimary) 15%, transparent); }
-
-        .page-container .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
-        .page-container .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .page-container .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
-
-        /* ---------- MODAL CONFIRMAÇÃO ---------- */
-        .page-container .confirm-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.55); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; z-index: 100001; padding: 20px; }
-        .page-container .confirm-card { background: white; border-radius: 16px; padding: 26px; width: min(92vw, 380px); box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35); animation: confirmIn 0.2s ease-out; }
-        .page-container .confirm-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 14px; }
-        .page-container .confirm-icon-danger { background: #fef2f2; color: #dc2626; }
-        .page-container .confirm-icon-brand { background: var(--color-bgSecondary); color: var(--color-btnPrimary); }
-        .page-container .confirm-title { margin: 0 0 8px 0; font-size: 1.05rem; font-weight: 800; color: #0f172a; }
-        .page-container .confirm-desc { margin: 0 0 22px 0; font-size: 0.87rem; color: #64748b; line-height: 1.5; }
-        .page-container .confirm-footer { display: flex; justify-content: flex-end; gap: 10px; }
-
-        @keyframes pulse { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-btnPrimary) 60%, transparent); } 70% { transform: scale(1); box-shadow: 0 0 0 10px transparent; } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 transparent; } }
-        @keyframes toastIn { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        @keyframes confirmIn { from { transform: scale(0.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-        @keyframes sidePanelPullIn { 0% { transform: translateX(100%); opacity: 0.72; } 72% { transform: translateX(-10px); opacity: 1; } 100% { transform: translateX(0); opacity: 1; } }
-        @keyframes sidePanelPullOut { 0% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(100%); opacity: 0.78; } }
-
-        @media (max-width: 640px) {
-          .page-container .nav-row { flex-direction: column; align-items: stretch; }
-          .page-container .toolbar-inline { justify-content: stretch; flex-wrap: wrap; }
-          .page-container .search-box { min-width: 0; }
-          .page-container .filter-select { width: 100%; }
-          .page-container .form-grid-2 { grid-template-columns: 1fr; }
-        }
-      `}</style>
     </div>
   );
 }
