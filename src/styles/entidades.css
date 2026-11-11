@@ -648,3 +648,8 @@ li:hover .en-item-actions, .en-item-actions:focus-within { opacity: 1; }
   .en-plans { grid-template-columns: minmax(0, 1fr); }
   .en-pcard-facts { grid-template-columns: 1fr 1fr; }
 }
+
+/* Exportar */
+.en-export { display: inline-flex; align-items: center; gap: 7px; height: 42px; padding: 0 14px; border-radius: 12px; border: 1px solid #bbf7d0; background: #f0fdf4; color: #15803d; font: inherit; font-size: 0.84rem; font-weight: 800; cursor: pointer; white-space: nowrap; transition: background 0.2s ease, transform 0.2s var(--en-spring), box-shadow 0.2s ease; }
+.en-export:hover:not(:disabled) { background: #dcfce7; transform: translateY(-1px); box-shadow: 0 8px 16px -12px #16a34a; }
+.en-export:disabled { opacity: 0.6; cursor: not-allowed; }

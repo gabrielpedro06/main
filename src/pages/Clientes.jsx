@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import "../styles/entidades.css";
+import * as XLSX from "xlsx";
 import { useNavigate, useLocation } from "react-router-dom"; 
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
@@ -46,6 +47,7 @@ const Icons = {
 
 Icons.Check = ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>;
 Icons.EyeOff = ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"></path><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"></path><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>;
+Icons.Download = ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>;
 Icons.Grid = ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>;
 Icons.ListIcon = ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>;
 
@@ -188,6 +190,7 @@ export default function Clientes() {
   const [showAddCae, setShowAddCae] = useState(false);
   const [showAddAcesso, setShowAddAcesso] = useState(false);
   const [revealedPass, setRevealedPass] = useState({});
+  const [isExporting, setIsExporting] = useState(false);
 
   // FORMULÁRIO GERAL 
   const initialForm = {
@@ -1989,6 +1992,97 @@ export default function Clientes() {
       />
     </div>
   );
+  async function handleExportEntidades() {
+    if (isExporting) return;
+    const lista = [...processedClientes];
+    if (lista.length === 0) {
+      showToast('Não há entidades para exportar.', 'warning');
+      return;
+    }
+    setIsExporting(true);
+    try {
+      const ids = lista.map((c) => c.id);
+      let contactosRows = [];
+      const PAGE = 1000;
+      // Busca os contactos completos só no momento da exportação (em blocos, por causa do limite do Supabase)
+      for (let i = 0; i < ids.length; i += 200) {
+        const chunkIds = ids.slice(i, i + 200);
+        let from = 0;
+        let more = true;
+        while (more) {
+          const { data, error } = await supabase
+            .from('contactos_cliente')
+            .select('*')
+            .in('cliente_id', chunkIds)
+            .range(from, from + PAGE - 1);
+          if (error) throw error;
+          contactosRows = contactosRows.concat(data || []);
+          more = (data || []).length === PAGE;
+          from += PAGE;
+        }
+      }
+
+      const contactosPorCliente = contactosRows.reduce((acc, ct) => {
+        const key = String(ct.cliente_id);
+        (acc[key] = acc[key] || []).push(ct);
+        return acc;
+      }, {});
+      const clienteById = new Map(lista.map((c) => [String(c.id), c]));
+
+      const folhaEntidades = lista.map((c) => {
+        const morada = c.moradas_cliente && c.moradas_cliente.length > 0 ? c.moradas_cliente[0] : null;
+        return {
+          'Marca': c.marca || '',
+          'Sigla': c.sigla?.trim() || '',
+          'NIF': c.nif || '',
+          'Entidade Legal': c.entidade || '',
+          'Website': c.website || '',
+          'Localidade': morada?.localidade || '',
+          'Concelho': morada?.concelho || '',
+          'Estado': c.ativo === false ? 'Arquivado' : (c.eh_organismo ? 'Organismo' : 'Ativo'),
+          'Nº Contactos': (contactosPorCliente[String(c.id)] || []).length,
+          'Nº Projetos': (c.projetos || []).length,
+        };
+      });
+
+      const folhaContactos = contactosRows
+        .map((ct) => {
+          const c = clienteById.get(String(ct.cliente_id)) || {};
+          return {
+            'Entidade': c.marca || '',
+            'NIF': c.nif || '',
+            'Nome': ct.nome_contacto || '',
+            'Cargo': ct.cargo || '',
+            'Email': ct.email || '',
+            'Telefone': ct.telefone || '',
+            'Faz propostas': ct.faz_propostas ? 'Sim' : 'Não',
+          };
+        })
+        .sort((a, b) => a['Entidade'].localeCompare(b['Entidade'], 'pt-PT') || a['Nome'].localeCompare(b['Nome'], 'pt-PT'));
+
+      const wb = XLSX.utils.book_new();
+      const wsEnt = XLSX.utils.json_to_sheet(folhaEntidades);
+      wsEnt['!cols'] = [{ wch: 34 }, { wch: 10 }, { wch: 12 }, { wch: 34 }, { wch: 24 }, { wch: 18 }, { wch: 18 }, { wch: 11 }, { wch: 12 }, { wch: 11 }];
+      wsEnt['!autofilter'] = { ref: `A1:J${folhaEntidades.length + 1}` };
+      XLSX.utils.book_append_sheet(wb, wsEnt, 'Entidades');
+
+      const wsCon = XLSX.utils.json_to_sheet(folhaContactos.length ? folhaContactos : [{ 'Entidade': '', 'NIF': '', 'Nome': '', 'Cargo': '', 'Email': '', 'Telefone': '', 'Faz propostas': '' }]);
+      wsCon['!cols'] = [{ wch: 34 }, { wch: 12 }, { wch: 26 }, { wch: 22 }, { wch: 30 }, { wch: 18 }, { wch: 13 }];
+      wsCon['!autofilter'] = { ref: `A1:G${Math.max(folhaContactos.length, 1) + 1}` };
+      XLSX.utils.book_append_sheet(wb, wsCon, 'Contactos');
+
+      const separador = statusTab === 'organismos' ? 'Organismos' : statusTab === 'arquivados' ? 'Arquivados' : 'Entidades';
+      const hoje = new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(wb, `${separador}_${hoje}.xlsx`);
+      showToast(`${lista.length} entidades e ${contactosRows.length} contactos exportados.`, 'success');
+    } catch (err) {
+      console.error('Erro ao exportar entidades:', err);
+      showToast('Não foi possível exportar as entidades.', 'error');
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
   const ENT_PROJ_STATES = [
     { key: 'em_curso', label: 'em curso', color: '#16a34a', match: (e) => e === 'em_curso' || e === 'ativo' },
     { key: 'em_analise', label: 'em análise', color: '#8b5cf6', match: (e) => e === 'em_analise' || e === 'analise' },
@@ -2079,6 +2173,9 @@ export default function Clientes() {
           {busca ? <button type="button" className="en-search-clear" onClick={() => setBusca('')} aria-label="Limpar"><Icons.Close size={13} /></button> : null}
         </label>
         <span className="en-count">{processedClientes.length} {processedClientes.length === 1 ? 'resultado' : 'resultados'}</span>
+        <button type="button" className="en-export" onClick={handleExportEntidades} disabled={isExporting || processedClientes.length === 0} title="Exportar as entidades visíveis e os respetivos contactos para Excel">
+          {isExporting ? <span className="en-spinner is-sm" /> : <Icons.Download size={15} />} {isExporting ? 'A exportar...' : 'Exportar Excel'}
+        </button>
         <div className="en-seg">
           <button type="button" onClick={() => setViewMode("cards")} className={viewMode === "cards" ? "is-on" : ""}>
             <Icons.Grid size={15} /> Cards
