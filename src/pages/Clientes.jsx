@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import "../styles/entidades.css";
 import { useNavigate, useLocation } from "react-router-dom"; 
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
@@ -42,6 +43,11 @@ const Icons = {
   Stop: ({ size = 12, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none"><rect x="6" y="6" width="12" height="12" rx="2" ry="2"></rect></svg>,
   Landmark: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="22" x2="21" y2="22"></line><line x1="6" y1="18" x2="6" y2="11"></line><line x1="10" y1="18" x2="10" y2="11"></line><line x1="14" y1="18" x2="14" y2="11"></line><line x1="18" y1="18" x2="18" y2="11"></line><polygon points="12 2 20 7 4 7"></polygon></svg>
 };
+
+Icons.Check = ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>;
+Icons.EyeOff = ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"></path><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"></path><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>;
+Icons.Grid = ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>;
+Icons.ListIcon = ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>;
 
 const ModalPortal = ({ children }) => {
   return createPortal(children, document.body);
@@ -181,6 +187,7 @@ export default function Clientes() {
   const [showAddMorada, setShowAddMorada] = useState(false);
   const [showAddCae, setShowAddCae] = useState(false);
   const [showAddAcesso, setShowAddAcesso] = useState(false);
+  const [revealedPass, setRevealedPass] = useState({});
 
   // FORMULÁRIO GERAL 
   const initialForm = {
@@ -1914,14 +1921,13 @@ export default function Clientes() {
     }
   }
 
-  const clientColors = ['var(--color-btnPrimary)', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#f43f5e', '#14b8a6', '#0ea5e9'];
+  const clientColors = ['#0ea5e9', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#f43f5e', '#14b8a6', '#0ea5e9'];
   const getColorForClient = (nif) => {
       if (!nif) return '#94a3b8'; 
       const hash = String(nif).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
       return clientColors[hash % clientColors.length];
   };
 
-  const sectionTitleStyle = { fontSize: '0.8rem', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '15px', marginTop: '20px', borderBottom: '1px solid #e2e8f0', paddingBottom: '5px' };
   const labelStyle = { display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' };
   const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', marginBottom: '10px', color: '#1e293b' };
   const modalTabs = [
@@ -1937,240 +1943,223 @@ export default function Clientes() {
     ...(form.eh_empresa_consultora ? [{ id: 'configuracoes', label: 'Configurações', icon: Icons.FileText }] : [])
   ];
 
-  if (loading) return <div className="page-container" style={{display:'flex', justifyContent:'center', alignItems:'center', height:'80vh'}}><div className="pulse-dot-white" style={{background:'var(--color-btnPrimary)'}}></div></div>;
+  if (loading) return <div className="page-container en-loading"><span className="en-spinner" /> A carregar entidades...</div>;
+
+  const entCounts = {
+    ativos: clientes.filter((c) => c.ativo === true && !c.eh_organismo).length,
+    organismos: clientes.filter((c) => c.eh_organismo === true && c.ativo === true).length,
+    arquivados: clientes.filter((c) => c.ativo === false).length,
+  };
+  const entProjetosAtivos = clientes.reduce((total, c) => total + (c.ativo === false ? 0 : (c.projetos || []).filter((p) => p.estado === 'em_curso' || p.estado === 'ativo').length), 0);
+  const ENT_SCOPES = [
+    { id: 'ativos', label: 'Entidades', icon: Icons.Building },
+    { id: 'organismos', label: 'Organismos', icon: Icons.Landmark },
+    { id: 'arquivados', label: 'Arquivados', icon: Icons.Archive },
+  ];
+  const entInitials = (nome) => {
+    const parts = String(nome || '').trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return '?';
+    return ((parts[0][0] || '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
+  };
+  const entMonogram = (c) => {
+    const sigla = String(c?.sigla || '').trim();
+    if (sigla && sigla.length <= 4 && !/\s/.test(sigla)) return sigla.toUpperCase();
+    return entInitials(c?.marca);
+  };
+  const entEuro = (val) => new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(Number(val) || 0);
+  const entDocStatus = (value) => {
+    if (!value) return { label: 'Sem validade', tone: 'none' };
+    const end = new Date(`${String(value).slice(0, 10)}T23:59:59`);
+    if (Number.isNaN(end.getTime())) return { label: 'Sem validade', tone: 'none' };
+    const days = Math.ceil((end.getTime() - Date.now()) / 86400000);
+    if (days < 0) return { label: `Expirada há ${Math.abs(days)} dia${Math.abs(days) === 1 ? '' : 's'}`, tone: 'bad' };
+    if (days <= 30) return { label: `Expira em ${days} dia${days === 1 ? '' : 's'}`, tone: 'warn' };
+    return { label: `Válida até ${end.toLocaleDateString('pt-PT')}`, tone: 'ok' };
+  };
+  const cfgArea = (label, key, rows, placeholder) => (
+    <div className="en-field" key={`${key}-${label}`}>
+      <label>{label}</label>
+      <textarea
+        className="en-textarea"
+        rows={rows}
+        value={entidadeConfig[key] || ""}
+        onChange={e => setEntidadeConfig({ ...entidadeConfig, [key]: e.target.value })}
+        placeholder={placeholder}
+        disabled={isViewOnly}
+      />
+    </div>
+  );
+  const ENT_PROJ_STATES = [
+    { key: 'em_curso', label: 'em curso', color: '#16a34a', match: (e) => e === 'em_curso' || e === 'ativo' },
+    { key: 'em_analise', label: 'em análise', color: '#8b5cf6', match: (e) => e === 'em_analise' || e === 'analise' },
+    { key: 'pendente', label: 'pend.', color: '#f59e0b', match: (e) => e === 'pendente' },
+    { key: 'concluido', label: 'concl.', color: '#2563eb', match: (e) => e === 'concluido' },
+    { key: 'cancelado', label: 'canc.', color: '#94a3b8', match: (e) => e === 'cancelado' },
+    { key: 'encerrado', label: 'encerr.', color: '#475569', match: (e) => e === 'encerrado' },
+  ];
+  const renderEntProjetos = (c, compact = false) => {
+    const projList = c.projetos || [];
+    if (projList.length === 0) return compact ? <span className="en-nil">—</span> : null;
+    const parts = ENT_PROJ_STATES.map((s) => ({ ...s, n: projList.filter((p) => s.match(p.estado)).length })).filter((s) => s.n > 0);
+    return (
+      <div className={`en-proj ${compact ? 'is-compact' : ''}`} title={parts.map((s) => `${s.n} ${s.label}`).join(' · ')}>
+        <div className="en-proj-head">
+          <Icons.Rocket size={13} />
+          <strong>{projList.length}</strong> {projList.length === 1 ? 'Proj.' : 'Projs.'}
+          {!compact && parts.map((s) => <span key={s.key} className="en-proj-tag" style={{ '--s': s.color }}>{s.n} {s.label}</span>)}
+        </div>
+        <div className="en-proj-bar">
+          {parts.map((s) => <span key={s.key} style={{ flexGrow: s.n, background: s.color }} />)}
+        </div>
+      </div>
+    );
+  };
+  const renderEntAvatar = (c, color, size = 'md') => (
+    <span className={`en-avatar is-${size}`} style={{ '--c': color }}>
+      {c.avatar_url ? <img src={c.avatar_url} alt="" /> : entMonogram(c)}
+    </span>
+  );
+  const entEmpty = (
+    <div className="en-empty">
+      <span className="en-empty-ico"><Icons.Inbox size={34} color="currentColor" /></span>
+      <h3>Vazio por aqui.</h3>
+      <p>Nenhuma Entidade encontrada com os filtros atuais.</p>
+      {busca ? <button type="button" className="en-btn is-soft" onClick={() => setBusca('')}>Limpar pesquisa</button> : null}
+    </div>
+  );
 
   return (
-    <div className="page-container" style={{maxWidth: '1500px', margin: '0 auto'}}>
-      <div className="page-header" style={{background: 'white', padding: '20px 25px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '15px', flexWrap: 'wrap'}}>
-        <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
-            <div style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '12px', borderRadius: '12px', display: 'flex'}}><Icons.Building size={24} /></div>
+    <div className="page-container en-page">
+      <header className="en-hero">
+        <div className="en-hero-bg"><span className="en-orb en-orb-a" /><span className="en-orb en-orb-b" /></div>
+        <div className="en-hero-row">
+          <div className="en-hero-main">
+            <span className="en-hero-icon"><Icons.Building size={24} /></span>
             <div>
-                <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>Entidades</h1>
-                <p style={{color: '#64748b', margin: 0, fontWeight: '500', fontSize: '0.9rem'}}>{statusTab === "ativos" ? "Carteira de Entidades Ativas" : statusTab === "organismos" ? "Carteira de Organismos" : "Arquivo de Entidades"}</p>
+              <h1>Entidades</h1>
+              <p>{statusTab === "ativos" ? "Carteira de Entidades Ativas" : statusTab === "organismos" ? "Carteira de Organismos" : "Arquivo de Entidades"}</p>
             </div>
-        </div>
-        <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
-          {activeLog && (
-            <div
-              onClick={() => navigate(activeLogRoute || '/dashboard/tarefas')}
-              title="Ir para o item com cronómetro em curso"
-              className="hover-shadow"
-              style={{background: 'linear-gradient(to right, #ef4444, #b91c1c)', color: 'white', padding: '10px 20px', borderRadius: '30px', display: 'flex', alignItems: 'center', gap: '15px', border: '2px solid #fecaca', boxShadow: '0 4px 10px rgba(239, 68, 68, 0.4)', transition: '0.2s', whiteSpace: 'nowrap', cursor: 'pointer'}}
-            >
-              <div style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700', fontSize: '0.95rem'}}>
-                <span className="pulse-dot-white"></span>
-                {(activeLogTitle || 'Tempo a decorrer...').length > 30 ? `${(activeLogTitle || 'Tempo a decorrer...').slice(0, 30)}...` : (activeLogTitle || 'Tempo a decorrer...')}
+          </div>
+          <div className="en-hero-actions">
+            {activeLog && (
+              <div className="en-live" onClick={() => navigate(activeLogRoute || '/dashboard/tarefas')} title="Ir para o item com cronómetro em curso">
+                <span className="en-live-dot" />
+                <span className="en-live-title">{activeLogTitle || 'Tempo a decorrer...'}</span>
+                <button type="button" className="en-live-stop" onClick={(e) => { e.stopPropagation(); openStopNoteModal(e); }}><Icons.Stop /> Parar</button>
               </div>
-              <div style={{width: '1px', height: '20px', background: 'rgba(255,255,255,0.3)'}}></div>
-              <button type="button" onClick={openStopNoteModal} style={{background: 'white', color:'#ef4444', border:'none', borderRadius:'20px', padding:'6px 12px', cursor:'pointer', fontWeight:'700', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px', transition: '0.2s'}}><Icons.Stop /> Parar</button>
-            </div>
-          )}
-          <button className="btn-cta" onClick={handleNovo}>
+            )}
+            <button type="button" className="en-cta" onClick={handleNovo}>
               <Icons.Plus /> Nova Entidade
-          </button>
+            </button>
+          </div>
         </div>
-      </div>
 
-      <div style={{display:'flex', gap:'5px', paddingLeft: '10px'}}>
-        <button
-          onClick={() => setStatusTab("ativos")}
-          style={{padding: '12px 25px', background: statusTab === 'ativos' ? 'white' : '#e2e8f0', color: statusTab === 'ativos' ? 'var(--color-btnPrimary)' : '#64748b', border: 'none', borderRadius: '12px 12px 0 0', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display:'flex', alignItems:'center', gap:'8px'}}
-        >
-          <Icons.Building /> Entidades
-        </button>
-        <button
-          onClick={() => setStatusTab("organismos")}
-          style={{padding: '12px 25px', background: statusTab === 'organismos' ? 'white' : '#e2e8f0', color: statusTab === 'organismos' ? 'var(--color-btnPrimary)' : '#64748b', border: 'none', borderRadius: '12px 12px 0 0', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display:'flex', alignItems:'center', gap:'8px'}}
-        >
-          <Icons.Landmark /> Organismos
-        </button>
-        <button
-          onClick={() => setStatusTab("arquivados")}
-          style={{padding: '12px 25px', background: statusTab === 'arquivados' ? 'white' : '#e2e8f0', color: statusTab === 'arquivados' ? 'var(--color-btnPrimary)' : '#64748b', border: 'none', borderRadius: '12px 12px 0 0', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display:'flex', alignItems:'center', gap:'8px'}}
-        >
-          <Icons.Archive /> Arquivados
-        </button>
-      </div>
-
-      <div style={{background: 'white', padding: '12px 20px', borderRadius: '0 10px 10px 10px', border: '1px solid #e2e8f0', marginBottom: '25px', display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap'}}>
-        <div style={{flex: 1, minWidth: '250px', position: 'relative'}}>
-            <span style={{position: 'absolute', left: '12px', top: '10px', color: '#94a3b8'}}><Icons.Search /></span>
-          <input type="text" placeholder="Procurar por Entidade, Sigla, NIF ou Nome de Pessoa..." value={busca} onChange={(e) => setBusca(e.target.value)} style={{width: '100%', padding: '8px 12px 8px 38px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.85rem', boxSizing: 'border-box'}} />
+        <div className="en-hero-tools">
+          <div className="en-scope" role="tablist">
+            {ENT_SCOPES.map((scope) => {
+              const ScopeIcon = scope.icon;
+              return (
+                <button key={scope.id} type="button" role="tab" aria-selected={statusTab === scope.id} className={statusTab === scope.id ? 'is-on' : ''} onClick={() => setStatusTab(scope.id)}>
+                  <ScopeIcon size={15} /> {scope.label} <em>{entCounts[scope.id]}</em>
+                </button>
+              );
+            })}
+          </div>
+          <div className="en-hero-stats">
+            <span className="en-stat"><strong>{entCounts.ativos + entCounts.organismos}</strong> ativas</span>
+            <span className="en-stat"><strong>{entProjetosAtivos}</strong> projetos em curso</span>
+          </div>
         </div>
-        <div style={{display: 'inline-flex', alignItems: 'center', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '4px', marginLeft: 'auto'}}>
-          <button
-            type="button"
-            onClick={() => setViewMode("cards")}
-            className={viewMode === "cards" ? "marketing-view-toggle-btn active" : "marketing-view-toggle-btn"}
-          >
-            Cards
+      </header>
+
+      <div className="en-toolbar">
+        <label className="en-search">
+          <Icons.Search size={16} />
+          <input type="text" placeholder="Procurar por Entidade, Sigla, NIF ou Nome de Pessoa..." value={busca} onChange={(e) => setBusca(e.target.value)} />
+          {busca ? <button type="button" className="en-search-clear" onClick={() => setBusca('')} aria-label="Limpar"><Icons.Close size={13} /></button> : null}
+        </label>
+        <span className="en-count">{processedClientes.length} {processedClientes.length === 1 ? 'resultado' : 'resultados'}</span>
+        <div className="en-seg">
+          <button type="button" onClick={() => setViewMode("cards")} className={viewMode === "cards" ? "is-on" : ""}>
+            <Icons.Grid size={15} /> Cards
           </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("list")}
-            className={viewMode === "list" ? "marketing-view-toggle-btn active" : "marketing-view-toggle-btn"}
-          >
-            Lista
+          <button type="button" onClick={() => setViewMode("list")} className={viewMode === "list" ? "is-on" : ""}>
+            <Icons.ListIcon size={15} /> Lista
           </button>
         </div>
       </div>
 
       {viewMode === "cards" ? (
-        <div className="client-grid">
-            {processedClientes.length > 0 ? processedClientes.map(c => {
-                const isInactive = c.ativo === false;
-                const color = getColorForClient(c.nif);
-                const moradaRef = c.moradas_cliente && c.moradas_cliente.length > 0 ? c.moradas_cliente[0] : null;
-                const contactoRef = c.contactos_cliente && c.contactos_cliente.length > 0 ? c.contactos_cliente[0] : null;
+        processedClientes.length > 0 ? (
+          <div className="en-grid" key={`${statusTab}-cards`}>
+            {processedClientes.map((c, index) => {
+              const isInactive = c.ativo === false;
+              const color = getColorForClient(c.nif);
+              const moradaRef = c.moradas_cliente && c.moradas_cliente.length > 0 ? c.moradas_cliente[0] : null;
+              const contactoRef = c.contactos_cliente && c.contactos_cliente.length > 0 ? c.contactos_cliente[0] : null;
 
-                return (
-                    <div 
-                        key={c.id} 
-                        className="client-card hover-shadow"
-                        style={{
-                            background: isInactive ? '#f8fafc' : 'white', borderRadius: '16px', border: '1px solid #e2e8f0', 
-                            display: 'flex', flexDirection: 'column', 
-                            opacity: isInactive ? 0.6 : 1, position: 'relative', overflow: 'hidden',
-                            borderTop: `5px solid ${isInactive ? '#94a3b8' : color}`, transition: 'all 0.2s'
-                        }}
-                    >
-                        <div style={{padding: '20px', flex: 1}}>
-                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px'}}>
-                                <span style={{background: '#f1f5f9', color: '#64748b', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', fontFamily: 'monospace'}}>{c.nif || 'S/ NIF'}</span>
-                                  {isInactive && <span style={{fontSize: '0.65rem', background: '#fee2e2', color: '#ef4444', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold'}}>ARQUIVADO</span>}
-                            </div>
-
-                              <div style={{display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px', marginBottom: '10px'}}>
-                                <h2 style={{margin: 0, fontSize: '1.25rem', color: '#1e293b', fontWeight: '800', lineHeight: '1.2'}}>{c.marca || "Sem nome"}</h2>
-                                {c.sigla?.trim() && <span style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimaryDark)', border: '1px solid var(--color-borderColor)', padding: '3px 8px', borderRadius: '999px', fontSize: '0.68rem', fontWeight: '800', letterSpacing: '0.04em'}}>{c.sigla}</span>}
-                              </div>
-
-                            {/* --- NOVA FLAG COMPACTA E MINIMALISTA DE PROJETOS --- */}
-                            {(() => {
-                              const projList = c.projetos || [];
-                              const totalProjetos = projList.length;
-
-                              if (totalProjetos === 0) return null;
-
-                              // Mapeamento exato segundo a imagem image_2a1e3d.png
-                              const totalPendentes = projList.filter(p => p.estado === 'pendente').length;
-                              const totalEmAnalise = projList.filter(p => p.estado === 'em_analise' || p.estado === 'analise').length;
-                              const totalEmCurso = projList.filter(p => p.estado === 'em_curso' || p.estado === 'ativo').length;
-                              const totalConcluidos = projList.filter(p => p.estado === 'concluido').length;
-                              const totalCancelados = projList.filter(p => p.estado === 'cancelado').length;
-
-                              return (
-                                <div style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  flexWrap: 'wrap',
-                                  gap: '6px',
-                                  marginTop: '6px',
-                                  fontSize: '0.72rem',
-                                  fontWeight: '700',
-                                  color: '#64748b'
-                                }}>
-                                  <span>💼 {totalProjetos} {totalProjetos === 1 ? 'Proj.' : 'Projs.'} (</span>
-                                  
-                                  {totalEmCurso > 0 && (
-                                    <span style={{ color: '#16a34a' }}>{totalEmCurso} em curso · </span>
-                                  )}
-                                  
-                                  {totalEmAnalise > 0 && (
-                                    <span style={{ color: '#8b5cf6' }}>{totalEmAnalise} em análise · </span>
-                                  )}
-                                  
-                                  {totalPendentes > 0 && (
-                                    <span style={{ color: '#f59e0b' }}>{totalPendentes} pend. · </span>
-                                  )}
-                                  
-                                  {totalConcluidos > 0 && (
-                                    <span style={{ color: '#2563eb' }}>{totalConcluidos} concl. · </span>
-                                  )}
-
-                                  {totalCancelados > 0 && (
-                                    <span style={{ color: '#94a3b8', textDecoration: 'line-through' }}>{totalCancelados} canc. · </span>
-                                  )}
-                                  
-                                  {/* Remove o último ponto decorativo retirando o espaço final da string ou fechando o parêntesis */}
-                                  <span style={{ marginLeft: '-4px' }}>)</span>
-                                </div>
-                              );
-                            })()}
-                            
-                            <div style={{display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '15px'}}>
-                                {moradaRef ? (
-                                    <div style={{fontSize: '0.85rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px'}}>
-                                        <Icons.MapPin /> {moradaRef.concelho ? `${moradaRef.localidade} (${moradaRef.concelho})` : moradaRef.localidade}
-                                    </div>
-                                ) : (
-                                    <div style={{fontSize: '0.85rem', color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.MapPin /> Sem morada registada</div>
-                                )}
-
-                                {contactoRef ? (
-                                    <div style={{fontSize: '0.85rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px'}}>
-                                        <Icons.User /> {contactoRef.nome_contacto} {contactoRef.telefone && `- ${contactoRef.telefone}`}
-                                    </div>
-                                ) : (
-                                    <div style={{fontSize: '0.85rem', color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.User /> Sem contacto registado</div>
-                                )}
-                            </div>
-                        </div>
-
-                        <div style={{display: 'flex', borderTop: '1px solid #f1f5f9', background: isInactive ? 'transparent' : '#fafaf9'}}>
-                            <button 
-                                onClick={() => handleView(c)} 
-                                style={{flex: 1, padding: '12px', border: 'none', borderRight: '1px solid #f1f5f9', background: 'transparent', color: 'var(--color-btnPrimary)', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', transition: '0.2s', display:'flex', alignItems:'center', justifyContent:'center', gap:'6px'}}
-                                className="hover-blue-text"
-                            >
-                                <Icons.Eye /> Ver Perfil
-                            </button>
-                            
-                            {!isInactive ? (
-                            <div style={{display: 'flex', alignItems: 'center'}}>
-                              <button 
-                                onClick={() => handleEdit(c)} 
-                                style={{padding: '12px 12px', border: 'none', background: 'transparent', color: '#f59e0b', cursor: 'pointer', transition: '0.2s'}}
-                                className="hover-orange-text"
-                                title="Edição Rápida"
-                              >
-                                <Icons.Edit />
-                              </button>
-                              <button 
-                                onClick={() => handleToggleAtivo(c.id, c.ativo)} 
-                                style={{padding: '12px 12px', border: 'none', background: 'transparent', color: '#ef4444', cursor: 'pointer', transition: '0.2s'}}
-                                className="hover-red-text"
-                                title="Arquivar Entidade"
-                              >
-                                <Icons.Archive />
-                              </button>
-                            </div>
-                            ) : (
-                                <button 
-                                    onClick={() => handleToggleAtivo(c.id, c.ativo)} 
-                                    style={{padding: '12px 20px', border: 'none', background: 'transparent', color: '#16a34a', cursor: 'pointer', transition: '0.2s'}}
-                                    className="hover-green-text"
-                                    title="Reativar Entidade"
-                                >
-                                    <Icons.Restore />
-                                </button>
-                            )}
-                        </div>
+              return (
+                <article
+                  key={c.id}
+                  className={`en-card ${isInactive ? 'is-off' : ''}`}
+                  style={{ '--c': isInactive ? '#94a3b8' : color, animationDelay: `${Math.min(index, 14) * 30}ms` }}
+                  onDoubleClick={() => handleView(c)}
+                >
+                  <div className="en-card-top">
+                    {renderEntAvatar(c, isInactive ? '#94a3b8' : color)}
+                    <div className="en-card-title">
+                      <h2 title={c.marca}>{c.marca || "Sem nome"}</h2>
+                      <div className="en-card-meta">
+                        <span className="en-nif">{c.nif || 'S/ NIF'}</span>
+                        {c.sigla?.trim() && <span className="en-sigla">{c.sigla}</span>}
+                        {isInactive && <span className="en-badge is-off">ARQUIVADO</span>}
+                        {!isInactive && c.eh_organismo && <span className="en-badge is-org">ORGANISMO</span>}
+                      </div>
                     </div>
-                );
-            }) : (
-                <div style={{gridColumn: '1 / -1', textAlign: 'center', padding: '60px', background: 'white', borderRadius: '16px', border: '1px dashed #cbd5e1'}}>
-                    <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px', color: '#cbd5e1'}}><Icons.Inbox size={60} /></div>
-                    <h3 style={{color: '#1e293b', margin: '0 0 5px 0', fontSize: '1.2rem'}}>Vazio por aqui.</h3>
-                    <p style={{color: '#64748b', margin: 0}}>Nenhuma Entidade encontrado com os filtros atuais.</p>
-                </div>
-            )}
-        </div>
+                  </div>
+
+                  {renderEntProjetos(c)}
+
+                  <div className="en-card-info">
+                    {moradaRef ? (
+                      <div><Icons.MapPin /> <span>{moradaRef.concelho ? `${moradaRef.localidade} (${moradaRef.concelho})` : moradaRef.localidade}</span></div>
+                    ) : (
+                      <div className="is-empty"><Icons.MapPin /> <span>Sem morada registada</span></div>
+                    )}
+                    {contactoRef ? (
+                      <div>
+                        <Icons.User /> <span>{contactoRef.nome_contacto}</span>
+                        {contactoRef.telefone && <a className="en-mini-link" href={`tel:${contactoRef.telefone}`} onClick={(e) => e.stopPropagation()} title={contactoRef.telefone}><Icons.Phone size={12} /></a>}
+                        {contactoRef.email && <a className="en-mini-link" href={`mailto:${contactoRef.email}`} onClick={(e) => e.stopPropagation()} title={contactoRef.email}><Icons.Mail size={12} /></a>}
+                      </div>
+                    ) : (
+                      <div className="is-empty"><Icons.User /> <span>Sem contacto registado</span></div>
+                    )}
+                  </div>
+
+                  <div className="en-card-foot">
+                    <button type="button" className="en-card-main" onClick={() => handleView(c)}>
+                      <Icons.Eye /> Ver Perfil
+                    </button>
+                    {!isInactive ? (
+                      <>
+                        <button type="button" className="en-icon-btn is-edit" onClick={() => handleEdit(c)} title="Edição Rápida"><Icons.Edit size={15} /></button>
+                        <button type="button" className="en-icon-btn is-archive" onClick={() => handleToggleAtivo(c.id, c.ativo)} title="Arquivar Entidade"><Icons.Archive size={15} /></button>
+                      </>
+                    ) : (
+                      <button type="button" className="en-icon-btn is-restore" onClick={() => handleToggleAtivo(c.id, c.ativo)} title="Reativar Entidade"><Icons.Restore size={15} /></button>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        ) : entEmpty
       ) : (
-        <div className="clients-list-wrapper">
-          {processedClientes.length > 0 ? (
-            <div className="table-responsive" style={{borderRadius: '14px'}}>
-              <table className="data-table clients-list-table" style={{minWidth: '980px'}}>
+        processedClientes.length > 0 ? (
+          <div className="en-table-card" key={`${statusTab}-list`}>
+            <div className="en-table-wrap custom-scrollbar">
+              <table className="en-table">
                 <thead>
                   <tr>
                     <th>Entidade</th>
@@ -2178,8 +2167,9 @@ export default function Clientes() {
                     <th>NIF</th>
                     <th>Localidade</th>
                     <th>Contacto</th>
+                    <th>Projetos</th>
                     <th>Estado</th>
-                    <th style={{textAlign: 'right'}}>Ações</th>
+                    <th style={{ textAlign: 'right' }}>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2190,46 +2180,38 @@ export default function Clientes() {
                     const contactoRef = c.contactos_cliente && c.contactos_cliente.length > 0 ? c.contactos_cliente[0] : null;
                     const localidade = moradaRef
                       ? (moradaRef.concelho ? `${moradaRef.localidade} (${moradaRef.concelho})` : moradaRef.localidade)
-                      : "Sem morada";
+                      : null;
 
                     return (
-                      <tr
-                        key={c.id}
-                        className={isInactive ? "row-inactive clients-list-row" : "clients-list-row"}
-                        style={{boxShadow: `inset 4px 0 0 ${color}`}}
-                        onDoubleClick={() => handleView(c)}
-                      >
-                        <td style={{fontWeight: '700'}}>
-                          <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
-                            <span className="client-color-dot" style={{background: color, opacity: isInactive ? 0.55 : 1}}></span>
-                            <span>{c.marca || "Sem nome"}</span>
+                      <tr key={c.id} className={isInactive ? 'is-off' : ''} style={{ '--c': isInactive ? '#94a3b8' : color }} onDoubleClick={() => handleView(c)}>
+                        <td>
+                          <div className="en-row-name">
+                            {renderEntAvatar(c, isInactive ? '#94a3b8' : color, 'sm')}
+                            <strong>{c.marca || "Sem nome"}</strong>
                           </div>
                         </td>
-                        <td>{c.sigla?.trim() || "-"}</td>
-                        <td style={{fontFamily: 'monospace'}}>{c.nif || "S/ NIF"}</td>
-                        <td>{localidade}</td>
+                        <td>{c.sigla?.trim() ? <span className="en-sigla">{c.sigla}</span> : <span className="en-nil">—</span>}</td>
+                        <td><span className="en-nif">{c.nif || "S/ NIF"}</span></td>
+                        <td>{localidade || <span className="en-nil">Sem morada</span>}</td>
                         <td>
                           {contactoRef
-                            ? `${contactoRef.nome_contacto || "Sem nome"}${contactoRef.telefone ? ` - ${contactoRef.telefone}` : ""}`
-                            : "Sem contacto"}
+                            ? <span className="en-row-contact"><strong>{contactoRef.nome_contacto || "Sem nome"}</strong>{contactoRef.telefone ? <small>{contactoRef.telefone}</small> : null}</span>
+                            : <span className="en-nil">Sem contacto</span>}
+                        </td>
+                        <td>{renderEntProjetos(c, true)}</td>
+                        <td>
+                          {isInactive ? <span className="en-badge is-off">ARQUIVADO</span> : <span className="en-badge is-on">ATIVO</span>}
                         </td>
                         <td>
-                          {isInactive ? (
-                            <span className="archive-badge">ARQUIVADO</span>
-                          ) : (
-                            <span className="active-badge">ATIVO</span>
-                          )}
-                        </td>
-                        <td>
-                          <div className="list-actions-cell">
-                            <button type="button" onClick={() => handleView(c)} className="list-action-btn view" title="Ver Perfil"><Icons.Eye size={14} /></button>
+                          <div className="en-row-actions">
+                            <button type="button" onClick={() => handleView(c)} className="en-icon-btn is-view" title="Ver Perfil"><Icons.Eye size={15} /></button>
                             {!isInactive ? (
                               <>
-                                <button type="button" onClick={() => handleEdit(c)} className="list-action-btn edit" title="Editar"><Icons.Edit size={14} /></button>
-                                <button type="button" onClick={() => handleToggleAtivo(c.id, c.ativo)} className="list-action-btn archive" title="Arquivar"><Icons.Archive size={14} /></button>
+                                <button type="button" onClick={() => handleEdit(c)} className="en-icon-btn is-edit" title="Editar"><Icons.Edit size={15} /></button>
+                                <button type="button" onClick={() => handleToggleAtivo(c.id, c.ativo)} className="en-icon-btn is-archive" title="Arquivar"><Icons.Archive size={15} /></button>
                               </>
                             ) : (
-                              <button type="button" onClick={() => handleToggleAtivo(c.id, c.ativo)} className="list-action-btn restore" title="Reativar"><Icons.Restore size={14} /></button>
+                              <button type="button" onClick={() => handleToggleAtivo(c.id, c.ativo)} className="en-icon-btn is-restore" title="Reativar"><Icons.Restore size={15} /></button>
                             )}
                           </div>
                         </td>
@@ -2239,14 +2221,8 @@ export default function Clientes() {
                 </tbody>
               </table>
             </div>
-          ) : (
-            <div style={{textAlign: 'center', padding: '60px', background: 'white', borderRadius: '16px', border: '1px dashed #cbd5e1'}}>
-              <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px', color: '#cbd5e1'}}><Icons.Inbox size={60} /></div>
-              <h3 style={{color: '#1e293b', margin: '0 0 5px 0', fontSize: '1.2rem'}}>Vazio por aqui.</h3>
-              <p style={{color: '#64748b', margin: 0}}>Nenhuma Entidade encontrada com os filtros atuais.</p>
-            </div>
-          )}
-        </div>
+          </div>
+        ) : entEmpty
       )}
 
       {notification && (
@@ -2431,41 +2407,47 @@ export default function Clientes() {
       {/* --- MEGA MODAL 360º DO CLIENTE --- */}
       {showModal && (
         <ModalPortal>
-          <div onClick={closeClientePanel} style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(15, 23, 42, 0.58)', backdropFilter:'blur(3px)', display:'flex', alignItems:'stretch', justifyContent:'flex-end', zIndex:99999}}>
-            <div style={{background:'#fff', width:'min(98vw, 1180px)', height:'100vh', margin:'0', borderRadius:'18px 0 0 18px', boxShadow:'0 25px 50px -12px rgba(0, 0, 0, 0.35)', overflow:'hidden', display:'flex', flexDirection:'column', maxHeight:'100vh', animation: isClosingPanel ? 'sidePanelPullOut 0.36s cubic-bezier(0.4, 0, 0.2, 1) forwards' : 'sidePanelPullIn 0.56s cubic-bezier(0.2, 0.9, 0.2, 1)'}} onClick={e => e.stopPropagation()}>
-              
+          <div className="en-overlay" onClick={closeClientePanel}>
+            <div className={`en-panel ${isClosingPanel ? 'is-closing' : ''}`} onClick={e => e.stopPropagation()}>
+
               {/* CABEÇALHO DO MODAL */}
-              <div style={{padding:'20px 30px', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center', background:'#f8fafc'}}>
-                <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
-                    <div style={{width:'48px', height:'48px', borderRadius:'50%', overflow:'hidden', border:'1px solid var(--color-borderColor)', background:'var(--color-bgSecondary)', display:'flex', alignItems:'center', justifyContent:'center'}}>
-                      {form.avatar_url ? (
-                        <img src={form.avatar_url} alt="Logo Entidade" style={{width:'100%', height:'100%', objectFit:'cover'}} />
-                      ) : (
-                        <Icons.Building size={22} color="var(--color-btnPrimary)" />
-                      )}
-                    </div>
-                    <h3 style={{margin:0, color:'#1e293b', fontSize:'1.4rem', fontWeight:'800'}}>
-                        {isViewOnly ? `Perfil: ${form.marca}` : (editId ? `Editar: ${form.marca}` : "Nova Entidade")}
-                    </h3>
-                    {form.ativo === false && <span style={{background: '#e2e8f0', color: '#475569', fontSize: '0.75rem', padding: '4px 10px', borderRadius: '6px', fontWeight: 'bold'}}>INATIVO</span>}
+              <div className="en-panel-head" style={{ '--c': editId ? getColorForClient(form.nif) : 'var(--color-btnPrimary)' }}>
+                <div className="en-panel-head-bg" />
+                <div className="en-panel-id">
+                  <span className="en-avatar is-lg" style={{ '--c': editId ? getColorForClient(form.nif) : '#0ea5e9' }}>
+                    {form.avatar_url ? <img src={form.avatar_url} alt="Logo Entidade" /> : (form.marca ? entMonogram(form) : <Icons.Building size={22} />)}
+                  </span>
+                  <div className="en-panel-title">
+                    <span className="en-panel-kicker">{isViewOnly ? 'Perfil' : (editId ? 'Editar' : 'Nova Entidade')}</span>
+                    <h3>{editId ? (form.marca || 'Sem nome') : "Nova Entidade"}</h3>
+                    {editId ? (
+                      <div className="en-panel-chips">
+                        {form.nif && <span className="en-nif is-light">{form.nif}</span>}
+                        {form.sigla?.trim() && <span className="en-sigla is-light">{form.sigla}</span>}
+                        {form.eh_organismo && <span className="en-badge is-light">ORGANISMO</span>}
+                        {form.eh_empresa_consultora && <span className="en-badge is-light">CONSULTORA</span>}
+                        {form.ativo === false && <span className="en-badge is-off">INATIVO</span>}
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
-                <div style={{display:'flex', gap:'15px', alignItems:'center'}}>
-                    {editId && !isViewOnly && (
-                        <button 
-                            onClick={() => handleToggleAtivo(editId, form.ativo)} 
-                            style={{ background: form.ativo === false ? '#dcfce7' : '#fee2e2', color: form.ativo === false ? '#16a34a' : '#ef4444', border:'none', padding:'8px 16px', borderRadius:'8px', cursor:'pointer', fontWeight:'bold', transition:'0.2s', display:'flex', alignItems:'center', gap:'6px' }}
-                            className="hover-shadow"
-                        >
-                            {form.ativo === false ? <><Icons.Restore/> Reativar</> : <><Icons.Archive/> Desativar</>}
-                        </button>
-                    )}
-                    <button onClick={closeClientePanel} style={{background:'#e2e8f0', border:'none', width:'36px', height:'36px', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#475569', transition:'0.2s'}} className="hover-shadow"><Icons.Close/></button>
+                <div className="en-panel-actions">
+                  {editId && !isViewOnly && (
+                    <button
+                      type="button"
+                      onClick={() => handleToggleAtivo(editId, form.ativo)}
+                      className={`en-panel-btn ${form.ativo === false ? 'is-restore' : 'is-archive'}`}
+                    >
+                      {form.ativo === false ? <><Icons.Restore size={15} /> Reativar</> : <><Icons.Archive size={15} /> Desativar</>}
+                    </button>
+                  )}
+                  <button type="button" onClick={closeClientePanel} className="en-panel-close" aria-label="Fechar"><Icons.Close /></button>
                 </div>
               </div>
 
-              <div style={{display:'flex', flex:1, minHeight:0, background:'#f8fafc'}}>
+              <div className="en-panel-main">
                 {editId && (
-                  <aside style={{width:'215px', borderRight:'1px solid #e2e8f0', background:'#ffffff', padding:'16px 10px', overflowY:'auto'}}>
+                  <aside className="en-nav custom-scrollbar">
                     {modalTabs
                       .filter((tab) => (!tab.requiresAcessos || podeVerAcessos) && (!tab.onlyConsultora || form.eh_empresa_consultora))
                       .map((tab) => {
@@ -2476,27 +2458,9 @@ export default function Clientes() {
                             key={tab.id}
                             type="button"
                             onClick={() => {setActiveTab(tab.id); fecharTodosSubForms();}}
-                            style={{
-                              width:'100%',
-                              border:'none',
-                              borderRadius:'10px',
-                              padding:'10px 12px',
-                              marginBottom:'6px',
-                              display:'flex',
-                              alignItems:'center',
-                              gap:'8px',
-                              cursor:'pointer',
-                              textAlign:'left',
-                              fontSize:'0.95rem',
-                              fontWeight:isActive ? '800' : '700',
-                              color:isActive ? 'var(--color-btnPrimaryDark)' : '#64748b',
-                              background:isActive ? 'var(--color-bgSecondary)' : 'transparent',
-                              borderLeft:isActive ? '3px solid var(--color-btnPrimary)' : '3px solid transparent',
-                              transition:'0.18s'
-                            }}
-                            className="hover-shadow"
+                            className={isActive ? 'is-on' : ''}
                           >
-                            <TabIcon size={15} color={isActive ? 'var(--color-btnPrimary)' : '#64748b'} />
+                            <span className="en-nav-ico"><TabIcon size={15} color="currentColor" /></span>
                             {tab.label}
                           </button>
                         );
@@ -2504,226 +2468,208 @@ export default function Clientes() {
                   </aside>
                 )}
 
-                <div style={{padding:'30px', overflowY:'auto', background:'#f8fafc', flex:1}} className="custom-scrollbar">
-                
+                <div className="en-panel-body custom-scrollbar">
+
                 {/* --- ABA GERAL --- */}
                 {activeTab === 'geral' && (
-                  <form className="bz-tab-panel" onSubmit={handleSubmitGeral}>
-                     <fieldset disabled={isViewOnly} style={{border: 'none', padding: 0, margin: 0}}>
-                      <div style={{display:'flex', alignItems:'center', gap:'14px', marginBottom:'18px'}}>
-                        {isViewOnly ? (
-                          <div style={{width:'64px', height:'64px', borderRadius:'50%', overflow:'hidden', border:'2px solid var(--color-borderColorLight)', background:'#f1f5f9', display:'flex', alignItems:'center', justifyContent:'center'}}>
-                            {form.avatar_url ? (
-                              <img src={form.avatar_url} alt="Foto Entidade" style={{width:'100%', height:'100%', objectFit:'cover'}} />
-                            ) : (
-                              <span style={{fontSize:'1.5rem', color:'#94a3b8'}}>🏢</span>
-                            )}
+                  <form className="bz-tab-panel en-form" onSubmit={handleSubmitGeral}>
+                    <fieldset disabled={isViewOnly} className={isViewOnly ? 'is-reading' : ''}>
+                      <section className="en-fcard">
+                        <div className="en-fcard-title"><span className="en-fcard-ico"><Icons.ClipboardList size={15} /></span> Dados Base</div>
+                        <div className="en-identity">
+                          {isViewOnly ? (
+                            <span className="en-logo-pick is-static">
+                              {form.avatar_url ? <img src={form.avatar_url} alt="Foto Entidade" /> : <Icons.Building size={26} color="#94a3b8" />}
+                            </span>
+                          ) : (
+                            <label title="Clique para alterar foto" className={`en-logo-pick ${uploading ? 'is-busy' : ''}`}>
+                              {form.avatar_url ? <img src={form.avatar_url} alt="Foto Entidade" /> : <Icons.Building size={26} color="#94a3b8" />}
+                              <span className="en-logo-edit"><Icons.Edit size={13} /></span>
+                              <input type="file" accept="image/*" hidden onChange={handleAvatarUpload} disabled={uploading} />
+                            </label>
+                          )}
+
+                          <div className="en-field" style={{ flex: 1 }}>
+                            <label>Marca / Nome Comercial *</label>
+                            <input
+                              type="text"
+                              className="en-input is-big"
+                              value={form.marca}
+                              onChange={e => setForm({...form, marca: e.target.value})}
+                              required
+                              disabled={isViewOnly}
+                            />
                           </div>
-                        ) : (
-                          <label title="Clique para alterar foto" style={{width:'64px', height:'64px', borderRadius:'50%', overflow:'hidden', border:'2px solid var(--color-borderColorLight)', background:'#f1f5f9', display:'flex', alignItems:'center', justifyContent:'center', cursor: uploading ? 'wait' : 'pointer'}}>
-                            {form.avatar_url ? (
-                              <img src={form.avatar_url} alt="Foto Entidade" style={{width:'100%', height:'100%', objectFit:'cover'}} />
-                            ) : (
-                              <span style={{fontSize:'1.5rem', color:'#94a3b8'}}>🏢</span>
-                            )}
-                            <input type="file" accept="image/*" hidden onChange={handleAvatarUpload} disabled={uploading} />
-                          </label>
-                        )}
-
-                        <div style={{flex: 1, maxWidth: '420px'}}>
-                          <label style={labelStyle}>Marca / Nome Comercial *</label>
-                          <input
-                            type="text"
-                            value={form.marca}
-                            onChange={e => setForm({...form, marca: e.target.value})}
-                            required
-                            style={{...inputStyle, marginBottom: 0}}
-                            className="input-focus"
-                            disabled={isViewOnly}
-                          />
                         </div>
-                      </div>
 
-                      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px'}}>
-                        <div>
-                            <label style={labelStyle}>NIF * <span style={{fontSize:'0.7rem', color:'var(--color-btnPrimary)', textTransform: 'none'}}>(Pesquisa Auto)</span></label>
-                            <div style={{position: 'relative'}}>
-                                <input type="text" maxLength="9" value={form.nif} onChange={handleNifChange} required style={{...inputStyle, borderColor: 'var(--color-btnPrimary)', background: 'var(--color-bgSecondary)', paddingLeft: '35px'}} placeholder="Ex: 500000000" className="input-focus" />
-                                <span style={{position: 'absolute', left: '12px', top: '10px', color: 'var(--color-btnPrimary)'}}><Icons.Search /></span>
+                        <div className="en-grid is-2">
+                          <div className="en-field">
+                            <label>NIF * <span className="en-hint-inline">(Pesquisa Auto)</span></label>
+                            <div className="en-input-icon is-accent">
+                              <Icons.Search />
+                              <input type="text" className="en-input" maxLength="9" value={form.nif} onChange={handleNifChange} required placeholder="Ex: 500000000" />
                             </div>
-                        </div>
-                        <div>
-                            <label style={labelStyle}>Sigla</label>
-                            <input type="text" value={form.sigla || ""} onChange={e => setForm({...form, sigla: e.target.value})} maxLength="20" placeholder="Ex: UAlg" style={inputStyle} className="input-focus" />
-                        </div>
-                      </div>
-
-                      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px', marginTop:'10px'}}>
-                        <div><label style={labelStyle}>Entidade Legal</label><input type="text" value={form.entidade} onChange={e => setForm({...form, entidade: e.target.value})} style={inputStyle} className="input-focus" /></div>
-                        <div>
-                            <label style={labelStyle}>Website</label>
-                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                <input type="text" value={form.website} onChange={e => setForm({...form, website: e.target.value})} placeholder="www.entidade.pt" style={{ ...inputStyle, marginBottom: 0, flex: 1 }} className="input-focus" />
-                                {form.website && (
-                                    <a href={form.website.startsWith('http') ? form.website : `https://${form.website}`} target="_blank" rel="noopener noreferrer" title="Abrir Website" className="btn-icon-link">
-                                        <Icons.ExternalLink />
-                                    </a>
-                                )}
+                          </div>
+                          <div className="en-field">
+                            <label>Sigla</label>
+                            <input type="text" className="en-input" value={form.sigla || ""} onChange={e => setForm({...form, sigla: e.target.value})} maxLength="20" placeholder="Ex: UAlg" />
+                          </div>
+                          <div className="en-field">
+                            <label>Entidade Legal</label>
+                            <input type="text" className="en-input" value={form.entidade} onChange={e => setForm({...form, entidade: e.target.value})} />
+                          </div>
+                          <div className="en-field">
+                            <label>Website</label>
+                            <div className="en-input-row">
+                              <input type="text" className="en-input" value={form.website} onChange={e => setForm({...form, website: e.target.value})} placeholder="www.entidade.pt" />
+                              {form.website && (
+                                <a href={form.website.startsWith('http') ? form.website : `https://${form.website}`} target="_blank" rel="noopener noreferrer" title="Abrir Website" className="en-link-btn">
+                                  <Icons.ExternalLink />
+                                </a>
+                              )}
                             </div>
+                          </div>
                         </div>
-                      </div>
+                      </section>
 
-                      {!isViewOnly && <button type="submit" className="btn-primary hover-shadow" style={{width:'100%', marginTop:'20px', padding:'15px', fontSize:'1.05rem', fontWeight: 'bold'}}>Guardar Dados Base</button>}
+                      {!isViewOnly && <div className="en-savebar"><button type="submit" className="en-btn is-primary is-lg"><Icons.Save /> Guardar Dados Base</button></div>}
                     </fieldset>
                   </form>
                 )}
 
                 {/* --- ABA FUNÇÕES --- */}
                 {activeTab === 'funcoes' && (
-                  <form className="bz-tab-panel" onSubmit={handleSubmitGeral}>
-                    <fieldset disabled={isViewOnly} style={{border: 'none', padding: 0, margin: 0}}>
-                      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'20px', marginTop:'10px'}}>
-                        <div>
-                          <label style={labelStyle}>Entidade Consultora</label>
-                          <ToggleSwitch
-                            checked={Boolean(form.eh_empresa_consultora)}
-                            onChange={(value) => setForm({ ...form, eh_empresa_consultora: value })}
-                            disabled={isViewOnly}
-                          />
-                          <p style={{margin:'6px 0 0 0', fontSize:'0.78rem', color:'#64748b'}}>Ativa a área de configurações extra da entidade se for uma empresa consultora.</p>
-                        </div>
-                        <div>
-                          <label style={labelStyle}>É Entidade Financiadora?</label>
-                          <ToggleSwitch
-                            checked={Boolean(form.eh_organismo)}
-                            onChange={(value) => setForm({ ...form, eh_organismo: value })}
-                            disabled={isViewOnly}
-                          />
-                          <p style={{margin:'6px 0 0 0', fontSize:'0.78rem', color:'#64748b'}}>Usa esta opção quando a é uma entidade financiadora.</p>
-                        </div>
-                        <div>
-                          <label style={labelStyle}>Disponibiliza Cursos?</label>
-                          <ToggleSwitch
-                            checked={Boolean(form.tem_cursos)}
-                            onChange={(value) => setForm({ ...form, tem_cursos: value })}
-                            disabled={isViewOnly}
-                          />
-                          <p style={{margin:'6px 0 0 0', fontSize:'0.78rem', color:'#64748b'}}>Marca se a entidade promove formação ou cursos próprios.</p>
-                        </div>
+                  <form className="bz-tab-panel en-form" onSubmit={handleSubmitGeral}>
+                    <fieldset disabled={isViewOnly}>
+                      <div className="en-roles">
+                        {[
+                          { key: 'eh_empresa_consultora', label: 'Entidade Consultora', text: 'Ativa a área de configurações extra da entidade se for uma empresa consultora.', icon: Icons.Diamond, color: '#8b5cf6' },
+                          { key: 'eh_organismo', label: 'É Entidade Financiadora?', text: 'Usa esta opção quando a é uma entidade financiadora.', icon: Icons.Landmark, color: '#0ea5e9' },
+                          { key: 'tem_cursos', label: 'Disponibiliza Cursos?', text: 'Marca se a entidade promove formação ou cursos próprios.', icon: Icons.Users, color: '#10b981' },
+                        ].map((role) => {
+                          const RoleIcon = role.icon;
+                          const on = Boolean(form[role.key]);
+                          return (
+                            <div key={role.key} className={`en-role ${on ? 'is-on' : ''}`} style={{ '--r': role.color }}>
+                              <span className="en-role-ico"><RoleIcon size={18} color="currentColor" /></span>
+                              <label>{role.label}</label>
+                              <p>{role.text}</p>
+                              <ToggleSwitch
+                                checked={on}
+                                onChange={(value) => setForm({ ...form, [role.key]: value })}
+                                disabled={isViewOnly}
+                              />
+                            </div>
+                          );
+                        })}
                       </div>
 
-                      {!isViewOnly && <button type="submit" className="btn-primary hover-shadow" style={{width:'100%', marginTop:'20px', padding:'15px', fontSize:'1.05rem', fontWeight: 'bold'}}>Guardar Funções</button>}
+                      {!isViewOnly && <div className="en-savebar"><button type="submit" className="en-btn is-primary is-lg"><Icons.Save /> Guardar Funções</button></div>}
                     </fieldset>
                   </form>
                 )}
 
                 {/* --- ABA DE PROJETOS DOZ CLIENTE --- */}
                 {activeTab === 'projetos' && (
-                    <div className="bz-tab-panel">
-                        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px', background:'white', padding:'20px', borderRadius:'12px', border:'1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)'}}>
+                    <div className="bz-tab-panel en-tab">
+                        <div className="en-sec-head">
                             <div>
-                                <h4 style={{margin:0, fontSize: '1.2rem', color: '#1e293b'}}>Histórico de Projetos</h4>
-                                <p style={{margin:'5px 0 0 0', color:'#64748b', fontSize:'0.9rem'}}>Todos os trabalhos associados a {form.marca}.</p>
+                                <h4>Histórico de Projetos</h4>
+                                <p>Todos os trabalhos associados a {form.marca}.</p>
                             </div>
-                            
-                          <button 
-                              onClick={() => navigate('/dashboard/projetos', { state: { prefillClienteId: editId, openNewProjectModal: true } })} 
-                              className="btn-primary hover-shadow" 
-                              style={{fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '6px'}}
-                          >
-                              <Icons.Plus /> Novo Projeto
-                          </button>
+                            <button
+                                type="button"
+                                onClick={() => navigate('/dashboard/projetos', { state: { prefillClienteId: editId, openNewProjectModal: true } })}
+                                className="en-btn is-primary"
+                            >
+                                <Icons.Plus /> Novo Projeto
+                            </button>
                         </div>
 
+                        {projetosCliente.length > 0 && (
+                          <div className="en-mini-kpis">
+                            <div><span>Projetos</span><strong>{projetosCliente.length}</strong></div>
+                            <div><span>Em curso</span><strong>{projetosCliente.filter((p) => p.estado === 'em_curso' || p.estado === 'ativo').length}</strong></div>
+                            <div><span>Investimento</span><strong>{entEuro(projetosCliente.reduce((t, p) => t + (Number(p.investimento) || 0), 0))}</strong></div>
+                            <div className="is-green"><span>Incentivo</span><strong>{entEuro(projetosCliente.reduce((t, p) => t + (Number(p.incentivo) || 0), 0))}</strong></div>
+                          </div>
+                        )}
+
                         {projetosCliente.length > 0 ? (
-                            <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: '15px'}}>
+                            <div className="en-pcards">
                                 {projetosCliente.map(p => {
                                   const isDone = p.estado === 'concluido';
                                   const tipoProjetoNome = p.tipos_projeto?.nome || 'Sem tipo';
-                                  
+                                  const estadoMeta = ENT_PROJ_STATES.find((s) => s.match(p.estado)) || { color: '#64748b' };
+
                                   // Configuração visual das tags com base no campo is_parceria real
-                                  let relacaoInfo = { label: 'Entidade Única', bg: 'var(--color-borderColorLight)', color: 'var(--color-btnPrimaryDark)' };
+                                  let relacaoInfo = { label: 'Entidade Única', tone: 'neutral' };
 
                                   if (p.is_parceria === true) {
                                       // Se a entidade atual for o cliente_id principal do projeto, ele lidera a parceria
                                       if (p.relacao_cliente === 'cliente_unico' || p.relacao_cliente === 'cliente_unico_e_parceiro') {
-                                          relacaoInfo = { label: 'Parceria (Líder)', bg: '#fef3c7', color: '#d97706' }; // Dourado
+                                          relacaoInfo = { label: 'Parceria (Líder)', tone: 'gold' };
                                       } else {
                                           // Se ele for um dos IDs no array parceiros_ids
-                                          relacaoInfo = { label: 'Parceiro', bg: '#f3e8ff', color: '#7e22ce' }; // Roxo
+                                          relacaoInfo = { label: 'Parceiro', tone: 'purple' };
                                       }
                                   } else if (p.relacao_cliente === 'parceiro') {
-                                      relacaoInfo = { label: 'Parceiro', bg: '#f3e8ff', color: '#7e22ce' };
+                                      relacaoInfo = { label: 'Parceiro', tone: 'purple' };
                                   }
 
-                                  // Formatação de valores monetários Euro (€)
-                                  const formatCurrency = (val) => {
-                                    if (val === null || val === undefined) return '-';
-                                    return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(val);
-                                  };
-
                                   return (
-                                      <div key={p.id} onClick={() => navigate(`/dashboard/projetos/${p.id}`)} style={{background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', flexDirection:'column', justifyContent: 'space-between', opacity: isDone ? 0.6 : 1, cursor:'pointer', transition:'0.2s'}} className="hover-shadow hover-blue-border">
-                                          
-                                          {/* Cabeçalho do Card */}
-                                          <div style={{display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap'}}>
-                                              <span style={{fontSize: '0.7rem', background: isDone ? '#f1f5f9' : 'var(--color-bgSecondary)', color: isDone ? '#64748b' : 'var(--color-btnPrimary)', padding: '4px 10px', borderRadius: '12px', fontWeight: 'bold', textTransform: 'uppercase'}}>{p.estado.replace('_', ' ')}</span>
-                                              <span style={{fontSize: '0.68rem', background: relacaoInfo.bg, color: relacaoInfo.color, padding: '4px 10px', borderRadius: '12px', fontWeight: 'bold'}}>{relacaoInfo.label}</span>
-                                              <span style={{fontSize: '0.68rem', background: '#eff6ff', color: '#2563eb', padding: '4px 10px', borderRadius: '12px', fontWeight: 'bold'}}>Tipo: {tipoProjetoNome}</span>
-                                              {p.codigo_projeto && <span style={{fontSize: '0.75rem', color: '#94a3b8', fontWeight: 'bold', marginLeft: 'auto'}}>{p.codigo_projeto}</span>}
+                                      <div key={p.id} onClick={() => navigate(`/dashboard/projetos/${p.id}`)} className={`en-pcard ${p.estado === 'encerrado' ? 'is-done' : ''}`} style={{ '--s': estadoMeta.color }}>
+                                          <div className="en-pcard-tags">
+                                              <span className="en-pcard-state"><i />{String(p.estado || '').replace('_', ' ')}</span>
+                                              <span className={`en-rel is-${relacaoInfo.tone}`}>{relacaoInfo.label}</span>
+                                              <span className="en-rel is-blue">Tipo: {tipoProjetoNome}</span>
+                                              {p.codigo_projeto && <span className="en-pcard-code">{p.codigo_projeto}</span>}
                                           </div>
 
-                                          {/* Título do Projeto */}
-                                          <h4 style={{margin: '0 0 15px 0', fontSize: '1.1rem', color: '#1e293b', textDecoration: isDone ? 'line-through' : 'none', lineHeight:'1.3', fontWeight: '800'}}>{p.titulo}</h4>
-                                          
-                                          {/* --- NOVA SECÇÃO: DATAS E VALORES --- */}
-                                          <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', background: '#f8fafc', padding: '12px', borderRadius: '8px', marginBottom: '15px', fontSize: '0.82rem'}}>
+                                          <h4>{p.titulo}</h4>
+
+                                          <div className="en-pcard-facts">
                                               <div>
-                                                <span style={{color: '#64748b', display: 'block', fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', marginBottom: '2px'}}>Duração</span>
-                                                <span style={{fontWeight: '600', color: '#334155', display: 'flex', alignItems: 'center', gap: '4px'}}>
-                                                  📅 {p.data_inicio ? new Date(p.data_inicio).toLocaleDateString('pt-PT', {month: '2-digit', year: 'numeric'}) : '—'} 
-                                                  <span style={{color: '#94a3b8'}}>al</span> 
+                                                <span>Duração</span>
+                                                <strong>
+                                                  <Icons.Calendar size={13} />
+                                                  {p.data_inicio ? new Date(p.data_inicio).toLocaleDateString('pt-PT', {month: '2-digit', year: 'numeric'}) : '—'}
+                                                  <em>al</em>
                                                   {p.data_fim ? new Date(p.data_fim).toLocaleDateString('pt-PT', {month: '2-digit', year: 'numeric'}) : '—'}
-                                                </span>
+                                                </strong>
                                               </div>
                                               <div>
-                                                <span style={{color: '#64748b', display: 'block', fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', marginBottom: '2px'}}>Investimento</span>
-                                                <span style={{fontWeight: '700', color: '#0f172a'}}>{formatCurrency(p.investimento)}</span>
+                                                <span>Investimento</span>
+                                                <strong>{p.investimento === null || p.investimento === undefined ? '-' : entEuro(p.investimento)}</strong>
                                               </div>
-                                              <div style={{gridColumn: '2', marginTop: '-2px'}}>
-                                                <span style={{color: '#64748b', display: 'block', fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', marginBottom: '2px'}}>Incentivo</span>
-                                                <span style={{fontWeight: '700', color: '#16a34a'}}>{formatCurrency(p.incentivo)}</span>
+                                              <div>
+                                                <span>Incentivo</span>
+                                                <strong className="is-green">{p.incentivo === null || p.incentivo === undefined ? '-' : entEuro(p.incentivo)}</strong>
                                               </div>
                                           </div>
-                                          
-                                          {/* Rodapé de Ações */}
-                                          <div style={{display: 'flex', alignItems: 'center', justifyContent:'space-between', borderTop:'1px solid #f1f5f9', paddingTop:'10px'}}>
-                                              <span style={{fontSize: '0.8rem', color: '#94a3b8', fontWeight: '500'}}>
-                                                Criado em {p.created_at ? new Date(p.created_at).toLocaleDateString('pt-PT') : '—'}
-                                              </span>
-                                              <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
-                                                <button
-                                                  type="button"
-                                                  onClick={(e) => openProjectTimerModal(p, e)}
-                                                  disabled={isDone}
-                                                  style={{border: isDone ? '1px solid #cbd5e1' : '1px solid #bbf7d0', background: isDone ? '#f1f5f9' : '#f0fdf4', color: isDone ? '#94a3b8' : '#166534', borderRadius:'999px', padding:'6px 12px', fontWeight:'700', fontSize:'0.78rem', display:'inline-flex', alignItems:'center', gap:'6px', cursor:isDone ? 'not-allowed' : 'pointer'}}
-                                                  className="hover-shadow"
-                                                  title={isDone ? "Projeto concluído: cronómetro indisponível" : "Iniciar cronómetro neste projeto"}
-                                                >
-                                                  <Icons.Play size={11} /> Iniciar
-                                                </button>
-                                                <span style={{fontSize: '0.85rem', color: 'var(--color-btnPrimary)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}}>Abrir <Icons.ArrowRight /></span>
-                                              </div>
+
+                                          <div className="en-pcard-foot">
+                                              <span>Criado em {p.created_at ? new Date(p.created_at).toLocaleDateString('pt-PT') : '—'}</span>
+                                              <button
+                                                type="button"
+                                                onClick={(e) => openProjectTimerModal(p, e)}
+                                                disabled={isDone}
+                                                className="en-play"
+                                                title={isDone ? "Projeto concluído: cronómetro indisponível" : "Iniciar cronómetro neste projeto"}
+                                              >
+                                                <Icons.Play size={10} /> Iniciar
+                                              </button>
+                                              <span className="en-pcard-open">Abrir <Icons.ArrowRight /></span>
                                           </div>
                                       </div>
                                   )
                               })}
                             </div>
                         ) : (
-                            <div style={{textAlign: 'center', padding: '60px', background: 'white', borderRadius: '12px', border: '1px dashed #cbd5e1'}}>
-                                <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px', color: '#cbd5e1'}}><Icons.Inbox size={48} /></div>
-                                <h4 style={{color: '#1e293b', margin: '0 0 5px 0', fontSize:'1.2rem'}}>Esta entidade ainda não tem projetos.</h4>
-                                <p style={{color:'#64748b'}}>Cria um novo projeto e ele aparecerá aqui automaticamente.</p>
+                            <div className="en-empty is-inline">
+                                <span className="en-empty-ico"><Icons.Rocket size={30} color="currentColor" /></span>
+                                <h3>Esta entidade ainda não tem projetos.</h3>
+                                <p>Cria um novo projeto e ele aparecerá aqui automaticamente.</p>
                             </div>
                         )}
                     </div>
@@ -2731,164 +2677,176 @@ export default function Clientes() {
 
                 {/* --- ABA ATIVIDADE E CAES --- */}
                 {activeTab === 'atividade' && (
-                  <div className="bz-tab-panel" style={{display:'flex', flexDirection:'column', gap:'30px'}}>
-                    <div style={{background:'white', padding:'20px', borderRadius:'12px', border:'1px solid #e2e8f0'}}>
-                        <label style={labelStyle}>Objeto Social</label>
-                        <textarea disabled={isViewOnly} rows="5" value={form.objeto_social} onChange={e => setForm({...form, objeto_social: e.target.value})} style={{...inputStyle, resize:'vertical', marginBottom:'15px'}} className="input-focus" />
-                        {!isViewOnly && <button className="btn-primary hover-shadow" onClick={handleSubmitGeral}>Atualizar Objeto Social</button>}
-                    </div>
-                    
-                    <div>
-                        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px'}}>
-                          <h4 style={{margin:0, fontSize:'1.1rem', color:'#1e293b'}}>Lista de CAEs</h4>
-                          {!isViewOnly && (
-                            <div style={{display:'flex', gap:'10px', alignItems:'center'}}>
-                              <button
-                                type="button"
-                                className="btn-small-add hover-shadow"
-                                onClick={handleFetchCaesByNif}
-                                disabled={isFetchingCaeByNif}
-                                style={{display: 'flex', alignItems: 'center', gap: '6px', opacity: isFetchingCaeByNif ? 0.7 : 1}}
-                                title="Consulta automática de CAE com base no NIF"
-                              >
-                                <Icons.Search /> {isFetchingCaeByNif ? "A procurar..." : "Procurar CAE pelo NIF"}
-                              </button>
-                              {!showAddCae && <button className="btn-small-add hover-shadow" onClick={() => {setNovoCae(initCae); setShowAddCae(true)}} style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.Plus /> Adicionar CAE</button>}
-                            </div>
-                          )}
+                  <div className="bz-tab-panel en-tab">
+                    <section className="en-fcard">
+                        <div className="en-fcard-title"><span className="en-fcard-ico"><Icons.FileText size={15} /></span> Objeto Social</div>
+                        <textarea disabled={isViewOnly} rows="5" value={form.objeto_social} onChange={e => setForm({...form, objeto_social: e.target.value})} className="en-textarea" />
+                        {!isViewOnly && <div className="en-row-end"><button type="button" className="en-btn is-primary" onClick={handleSubmitGeral}><Icons.Save /> Atualizar Objeto Social</button></div>}
+                    </section>
+
+                    <div className="en-sec-head">
+                      <div>
+                        <h4>Lista de CAEs <em className="en-count-pill">{caes.length}</em></h4>
+                      </div>
+                      {!isViewOnly && (
+                        <div className="en-sec-actions">
+                          <button
+                            type="button"
+                            className="en-btn is-soft"
+                            onClick={handleFetchCaesByNif}
+                            disabled={isFetchingCaeByNif}
+                            title="Consulta automática de CAE com base no NIF"
+                          >
+                            {isFetchingCaeByNif ? <span className="en-spinner is-sm" /> : <Icons.Search />} {isFetchingCaeByNif ? "A procurar..." : "Procurar CAE pelo NIF"}
+                          </button>
+                          {!showAddCae && <button type="button" className="en-btn is-primary" onClick={() => {setNovoCae(initCae); setShowAddCae(true)}}><Icons.Plus /> Adicionar CAE</button>}
                         </div>
-
-                        {showAddCae && (
-                          <div style={{background:'white', padding:'25px', borderRadius:'12px', border:'1px solid #cbd5e1', marginBottom:'20px', boxShadow:'0 4px 6px -1px rgba(0,0,0,0.05)'}}>
-                            <h5 style={{marginTop:0, fontSize: '1.1rem'}}>{novoCae.id ? 'Editar CAE' : 'Novo CAE'}</h5>
-                            <div style={{display:'grid', gridTemplateColumns:'150px 1fr auto', gap:'15px', alignItems:'center'}}>
-                              <input type="text" placeholder="Código (Ex: 62010)" value={novoCae.codigo} onChange={e => setNovoCae({...novoCae, codigo: e.target.value})} style={inputStyle} className="input-focus" />
-                              <input type="text" placeholder="Descrição" value={novoCae.descricao} onChange={e => setNovoCae({...novoCae, descricao: e.target.value})} style={inputStyle} className="input-focus" />
-                              <label style={{display:'flex', alignItems:'center', gap:'5px', cursor:'pointer', fontWeight: 'bold', color: '#475569'}}><input type="checkbox" checked={novoCae.principal} onChange={e => setNovoCae({...novoCae, principal: e.target.checked})} style={{accentColor: 'var(--color-btnPrimary)', width: '16px', height: '16px'}} /> Principal</label>
-                            </div>
-                            <div style={{display:'flex', gap:'10px', marginTop:'15px'}}>
-                                <button onClick={() => saveSubItem('caes_cliente', novoCae, setCaes, caes, setNovoCae, initCae, setShowAddCae)} className="btn-primary hover-shadow" style={{padding:'10px 20px'}}>{novoCae.id ? 'Atualizar' : 'Guardar CAE'}</button>
-                                <button onClick={() => {setShowAddCae(false); setNovoCae(initCae);}} style={{background:'white', border:'1px solid #cbd5e1', borderRadius: '8px', color:'#64748b', cursor:'pointer', padding: '10px 20px', fontWeight: 'bold'}} className="hover-shadow">Cancelar</button>
-                            </div>
-                          </div>
-                        )}
-
-                        <ul style={{listStyle:'none', padding:0, display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(350px, 1fr))', gap:'15px'}}>
-                          {caes.map(c => (
-                            <li key={c.id} style={{background:'white', padding:'20px', borderRadius:'12px', display:'flex', justifyContent:'space-between', alignItems:'center', border:'1px solid #e2e8f0', transition: '0.2s'}} className="hover-shadow">
-                              <div>
-                                <span style={{fontWeight:'bold', fontSize:'1.1rem', color:'#1e293b'}}>{c.codigo}</span>
-                                {c.principal && <span style={{background:'#dcfce7', color:'#166534', padding:'2px 8px', borderRadius:'10px', fontSize:'0.7rem', marginLeft:'10px', fontWeight:'bold'}}>PRINCIPAL</span>}
-                                <div style={{color:'#64748b', fontSize:'0.9rem', marginTop:'6px'}}>{c.descricao || 'Sem descrição'}</div>
-                              </div>
-                              {!isViewOnly && (
-                                <div style={{display:'flex', flexDirection:'column', gap:'5px'}}>
-                                   <button onClick={() => abrirEdicaoSubItem(c, setNovoCae, setShowAddCae)} className="action-btn hover-blue-text"><Icons.Edit /></button>
-                                   <button onClick={() => deleteItem('caes_cliente', c.id, setCaes, caes)} className="action-btn hover-red-text"><Icons.Trash /></button>
-                                </div>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
+                      )}
                     </div>
+
+                    {showAddCae && (
+                      <section className="en-fcard is-editing">
+                        <div className="en-fcard-title"><span className="en-fcard-ico"><Icons.Edit size={14} /></span> {novoCae.id ? 'Editar CAE' : 'Novo CAE'}</div>
+                        <div className="en-cae-form">
+                          <input type="text" className="en-input" placeholder="Código (Ex: 62010)" value={novoCae.codigo} onChange={e => setNovoCae({...novoCae, codigo: e.target.value})} />
+                          <input type="text" className="en-input" placeholder="Descrição" value={novoCae.descricao} onChange={e => setNovoCae({...novoCae, descricao: e.target.value})} />
+                          <label className={`en-check ${novoCae.principal ? 'is-on' : ''}`}>
+                            <input type="checkbox" checked={novoCae.principal} onChange={e => setNovoCae({...novoCae, principal: e.target.checked})} />
+                            <span className="en-check-box"><Icons.Check size={12} /></span> Principal
+                          </label>
+                        </div>
+                        <div className="en-form-actions">
+                          <button type="button" className="en-btn is-ghost" onClick={() => {setShowAddCae(false); setNovoCae(initCae);}}>Cancelar</button>
+                          <button type="button" className="en-btn is-primary" onClick={() => saveSubItem('caes_cliente', novoCae, setCaes, caes, setNovoCae, initCae, setShowAddCae)}>{novoCae.id ? 'Atualizar' : 'Guardar CAE'}</button>
+                        </div>
+                      </section>
+                    )}
+
+                    {caes.length > 0 ? (
+                      <ul className="en-items">
+                        {[...caes].sort((a, b) => Number(Boolean(b.principal)) - Number(Boolean(a.principal))).map(c => (
+                          <li key={c.id} className={`en-item ${c.principal ? 'is-main' : ''}`}>
+                            <span className="en-cae-code">{c.codigo}</span>
+                            <div className="en-item-body">
+                              {c.principal && <span className="en-tag is-green">PRINCIPAL</span>}
+                              <p>{c.descricao || 'Sem descrição'}</p>
+                            </div>
+                            {!isViewOnly && (
+                              <div className="en-item-actions">
+                                 <button type="button" onClick={() => abrirEdicaoSubItem(c, setNovoCae, setShowAddCae)} className="en-icon-btn is-edit" title="Editar"><Icons.Edit size={15} /></button>
+                                 <button type="button" onClick={() => deleteItem('caes_cliente', c.id, setCaes, caes)} className="en-icon-btn is-archive" title="Eliminar"><Icons.Trash size={15} /></button>
+                              </div>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : !showAddCae && (
+                      <div className="en-empty is-inline is-small"><span className="en-empty-ico"><Icons.Activity size={26} color="currentColor" /></span><p>Ainda não há CAEs registados.</p></div>
+                    )}
                   </div>
                 )}
 
                 {/* --- ABA DOCUMENTOS --- */}
                 {activeTab === 'documentos' && (
-                  <form className="bz-tab-panel" onSubmit={handleSubmitGeral}>
-                     <div style={{border:'none', padding:0, margin: 0}}>
-                      
-                      <div style={{background:'white', padding:'30px', borderRadius:'12px', border:'1px solid #e2e8f0', marginBottom:'20px'}}>
-                          <div style={{display:'grid', gridTemplateColumns:'2fr 1fr', gap:'20px'}}>
-                            <div>
-                                <label style={labelStyle}>Código Certidão Permanente</label>
-                                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                    <input disabled={isViewOnly} type="text" value={form.certidao_permanente} onChange={e => setForm({...form, certidao_permanente: e.target.value})} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} placeholder="Ex: 1234-5678-9012" className="input-focus" />
-                                  <button
-                                    type="button"
-                                    onClick={() => handleCopyCredential(form.certidao_permanente, 'Certidão Permanente')}
-                                    title="Copiar código da certidão"
-                                    className="btn-icon-link"
-                                  >
+                  <form className="bz-tab-panel en-tab en-form" onSubmit={handleSubmitGeral}>
+                    <fieldset>
+                      {[
+                        { title: 'Certidão Permanente', label: 'Código Certidão Permanente', key: 'certidao_permanente', dateKey: 'validade_certidao', placeholder: 'Ex: 1234-5678-9012', copyLabel: 'Certidão Permanente', copyTitle: 'Copiar código da certidão', url: 'https://www2.gov.pt/espaco-empresa/empresa-online/consultar-a-certidao-permanente', urlTitle: 'Abrir Portal da Certidão Permanente', color: '#0ea5e9' },
+                        { title: 'RCBE', label: 'Código RCBE', key: 'rcbe', dateKey: 'validade_rcbe', placeholder: 'Código de acesso RCBE', copyLabel: 'Código RCBE', copyTitle: 'Copiar código RCBE', url: 'https://rcbe.justica.gov.pt', urlTitle: 'Abrir Portal RCBE', color: '#8b5cf6' },
+                      ].map((doc) => {
+                        const status = entDocStatus(form[doc.dateKey]);
+                        return (
+                          <section key={doc.key} className="en-doc" style={{ '--d': doc.color }}>
+                            <div className="en-doc-head">
+                              <span className="en-doc-ico"><Icons.FileText size={20} /></span>
+                              <strong>{doc.title}</strong>
+                              <span className={`en-doc-status is-${status.tone}`}><i />{status.label}</span>
+                            </div>
+                            <div className="en-doc-grid">
+                              <div className="en-field">
+                                <label>{doc.label}</label>
+                                <div className="en-input-row">
+                                  <input type="text" className="en-input is-mono" disabled={isViewOnly} value={form[doc.key]} onChange={e => setForm({...form, [doc.key]: e.target.value})} placeholder={doc.placeholder} />
+                                  <button type="button" onClick={() => handleCopyCredential(form[doc.key], doc.copyLabel)} title={doc.copyTitle} className="en-link-btn">
                                     <Icons.Copy />
                                   </button>
-                                    <a href="https://www2.gov.pt/espaco-empresa/empresa-online/consultar-a-certidao-permanente" target="_blank" rel="noopener noreferrer" title="Abrir Portal da Certidão Permanente" className="btn-icon-link">
-                                        <Icons.ExternalLink />
-                                    </a>
+                                  <a href={doc.url} target="_blank" rel="noopener noreferrer" title={doc.urlTitle} className="en-link-btn">
+                                    <Icons.ExternalLink />
+                                  </a>
                                 </div>
+                              </div>
+                              <div className="en-field">
+                                <label>Data de Validade</label>
+                                <input type="date" className="en-input" disabled={isViewOnly} value={form[doc.dateKey] || ""} onChange={e => setForm({...form, [doc.dateKey]: e.target.value})} />
+                              </div>
                             </div>
-                            <div>
-                                <label style={labelStyle}>Data de Validade</label>
-                                <input disabled={isViewOnly} type="date" value={form.validade_certidao || ""} onChange={e => setForm({...form, validade_certidao: e.target.value})} style={inputStyle} className="input-focus" />
-                            </div>
-                          </div>
-                      </div>
+                          </section>
+                        );
+                      })}
 
-                      <div style={{background:'white', padding:'30px', borderRadius:'12px', border:'1px solid #e2e8f0'}}>
-                          <div style={{display:'grid', gridTemplateColumns:'2fr 1fr', gap:'20px'}}>
-                            <div>
-                                <label style={labelStyle}>Código RCBE</label>
-                                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                    <input disabled={isViewOnly} type="text" value={form.rcbe} onChange={e => setForm({...form, rcbe: e.target.value})} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} placeholder="Código de acesso RCBE" className="input-focus" />
-                                  <button
-                                    type="button"
-                                    onClick={() => handleCopyCredential(form.rcbe, 'Código RCBE')}
-                                    title="Copiar código RCBE"
-                                    className="btn-icon-link"
-                                  >
-                                    <Icons.Copy />
-                                  </button>
-                                    <a href="https://rcbe.justica.gov.pt" target="_blank" rel="noopener noreferrer" title="Abrir Portal RCBE" className="btn-icon-link">
-                                        <Icons.ExternalLink />
-                                    </a>
-                                </div>
-                            </div>
-                            <div>
-                                <label style={labelStyle}>Data de Validade</label>
-                                <input disabled={isViewOnly} type="date" value={form.validade_rcbe || ""} onChange={e => setForm({...form, validade_rcbe: e.target.value})} style={inputStyle} className="input-focus" />
-                            </div>
-                          </div>
-                      </div>
-
-                      {!isViewOnly && <button type="submit" className="btn-primary hover-shadow" style={{width:'100%', marginTop:'20px', padding:'15px', fontSize:'1.05rem', fontWeight: 'bold'}}>Guardar Documentos</button>}
-                    </div>
+                      {!isViewOnly && <div className="en-savebar"><button type="submit" className="en-btn is-primary is-lg"><Icons.Save /> Guardar Documentos</button></div>}
+                    </fieldset>
                   </form>
                 )}
 
                 {/* --- ABA PLANO --- */}
                 {activeTab === 'plano' && (
-                  <div className="bz-tab-panel" style={{background:'white', padding:'40px', borderRadius:'16px', border:'1px solid #e2e8f0', textAlign:'center', maxWidth:'500px', margin:'0 auto', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
-                     <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px', color: 'var(--color-btnPrimary)'}}><Icons.Diamond size={48} /></div>
-                     <h3 style={{marginTop:0, color:'#1e293b', fontSize:'1.5rem'}}>Plano de Subscrição</h3>
-                     <select disabled={isViewOnly} value={form.plano} onChange={e => setForm({...form, plano: e.target.value})} style={{...inputStyle, fontSize:'1.1rem', padding:'15px', margin:'20px auto', display:'block', fontWeight: 'bold', color: 'var(--color-btnPrimary)', background: 'var(--color-bgSecondary)', borderColor: 'var(--color-borderColor)', cursor: 'pointer'}}>
-                        <option value="Standard">Standard</option>
-                        <option value="Premium">Premium</option>
-                        <option value="Enterprise">Enterprise</option>
-                     </select>
-                     {!isViewOnly && <button className="btn-primary hover-shadow" onClick={handleSubmitGeral} style={{width:'100%', padding:'15px', fontSize:'1.05rem', fontWeight: 'bold'}}>Confirmar Plano</button>}
+                  <div className="bz-tab-panel en-tab">
+                     <div className="en-sec-head is-center">
+                       <div>
+                         <h4>Plano de Subscrição</h4>
+                       </div>
+                     </div>
+                     <div className="en-plans">
+                       {[
+                         { value: 'Standard', color: '#64748b', icon: Icons.ClipboardList },
+                         { value: 'Premium', color: '#0ea5e9', icon: Icons.Rocket },
+                         { value: 'Enterprise', color: '#8b5cf6', icon: Icons.Diamond },
+                       ].map((plan) => {
+                         const PlanIcon = plan.icon;
+                         const on = form.plano === plan.value;
+                         return (
+                           <button
+                             key={plan.value}
+                             type="button"
+                             disabled={isViewOnly}
+                             className={`en-plan ${on ? 'is-on' : ''}`}
+                             style={{ '--p': plan.color }}
+                             onClick={() => setForm({...form, plano: plan.value})}
+                           >
+                             <span className="en-plan-ico"><PlanIcon size={22} color="currentColor" /></span>
+                             <strong>{plan.value}</strong>
+                             <span className="en-plan-check">{on ? <Icons.Check size={14} /> : null}</span>
+                           </button>
+                         );
+                       })}
+                     </div>
+                     {!isViewOnly && <div className="en-savebar is-center"><button type="button" className="en-btn is-primary is-lg" onClick={handleSubmitGeral}><Icons.Check size={16} /> Confirmar Plano</button></div>}
                   </div>
                 )}
 
                 {/* --- ABA PESSOAS --- */}
                 {activeTab === 'contactos' && (
-                  <div className="bz-tab-panel">
-                    <div style={{display:'flex', justifyContent:'space-between', marginBottom:'15px', alignItems:'center'}}>
-                      <h4 style={{margin:0, fontSize:'1.1rem', color:'#1e293b'}}>Equipa da Entidade</h4>
-                      {!isViewOnly && !showAddContacto && <button className="btn-small-add hover-shadow" onClick={() => { setNovoContacto(initContacto); setIsOutroCargo(false); setShowAddContacto(true); }} style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.Plus /> Adicionar Pessoa</button>}
+                  <div className="bz-tab-panel en-tab">
+                    <div className="en-sec-head">
+                      <div>
+                        <h4>Equipa da Entidade <em className="en-count-pill">{contactos.length}</em></h4>
+                      </div>
+                      {!isViewOnly && !showAddContacto && <button type="button" className="en-btn is-primary" onClick={() => { setNovoContacto(initContacto); setIsOutroCargo(false); setShowAddContacto(true); }}><Icons.Plus /> Adicionar Pessoa</button>}
                     </div>
-                    
+
                     {showAddContacto && (
-                      <div style={{background:'white', padding:'25px', borderRadius:'12px', border:'1px solid #cbd5e1', marginBottom:'20px', boxShadow:'0 4px 6px -1px rgba(0,0,0,0.05)'}}>
-                        <h5 style={{marginTop:0, fontSize:'1.1rem'}}>{novoContacto.id ? 'Editar Pessoa' : 'Nova Pessoa'}</h5>
-                        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px'}}>
-                          <div>
-                              <label style={labelStyle}>Nome Completo *</label>
-                              <input type="text" placeholder="João Silva" value={novoContacto.nome_contacto} onChange={e => setNovoContacto({...novoContacto, nome_contacto: e.target.value})} style={inputStyle} className="input-focus" required />
+                      <section className="en-fcard is-editing">
+                        <div className="en-fcard-title"><span className="en-fcard-ico"><Icons.User size={15} /></span> {novoContacto.id ? 'Editar Pessoa' : 'Nova Pessoa'}</div>
+                        <div className="en-grid is-2">
+                          <div className="en-field">
+                              <label>Nome Completo *</label>
+                              <input type="text" className="en-input" placeholder="João Silva" value={novoContacto.nome_contacto} onChange={e => setNovoContacto({...novoContacto, nome_contacto: e.target.value})} required />
                           </div>
-                          <div>
-                              <label style={labelStyle}>Cargo</label>
+                          <div className="en-field">
+                              <label>Cargo</label>
                               <select
+                                className="en-input"
                                 value={getCargoSelectValue(novoContacto.cargo)}
                                 onChange={(e) => {
                                   const selected = e.target.value;
@@ -2902,8 +2860,6 @@ export default function Clientes() {
                                     setNovoContacto({ ...novoContacto, cargo: selected });
                                   }
                                 }}
-                                style={inputStyle}
-                                className="input-focus"
                               >
                                 <option value="">Selecionar cargo</option>
                                 {CARGO_OPTIONS.map((cargo) => (
@@ -2914,82 +2870,94 @@ export default function Clientes() {
                               {isOutroCargo && (
                                 <input
                                   type="text"
+                                  className="en-input"
                                   placeholder="Escreve o cargo"
                                   value={novoContacto.cargo || ""}
                                   onChange={e => setNovoContacto({ ...novoContacto, cargo: e.target.value })}
-                                  style={{ ...inputStyle, marginTop: '8px' }}
-                                  className="input-focus"
                                 />
                               )}
                           </div>
-                          <div>
-                              <label style={labelStyle}>Email</label>
-                              <input type="email" placeholder="joao@entidade.pt" value={novoContacto.email} onChange={e => setNovoContacto({...novoContacto, email: e.target.value})} style={inputStyle} className="input-focus" />
+                          <div className="en-field">
+                              <label>Email</label>
+                              <div className="en-input-icon"><Icons.Mail /><input type="email" className="en-input" placeholder="joao@entidade.pt" value={novoContacto.email} onChange={e => setNovoContacto({...novoContacto, email: e.target.value})} /></div>
                           </div>
-                          <div>
-                              <label style={labelStyle}>Telefone / Telemóvel</label>
-                              <input type="text" placeholder="+351 900 000 000" value={novoContacto.telefone} onChange={e => setNovoContacto({...novoContacto, telefone: e.target.value})} style={inputStyle} className="input-focus" />
+                          <div className="en-field">
+                              <label>Telefone / Telemóvel</label>
+                              <div className="en-input-icon"><Icons.Phone /><input type="text" className="en-input" placeholder="+351 900 000 000" value={novoContacto.telefone} onChange={e => setNovoContacto({...novoContacto, telefone: e.target.value})} /></div>
                           </div>
                         </div>
-                        <div style={{display:'flex', alignItems:'center', gap:'10px', marginTop:'15px', marginBottom:'10px', padding:'12px', background:'var(--color-bgSecondary)', borderRadius:'8px', border:'1px solid var(--color-borderColor)'}}>
-                          <input type="checkbox" id="faz_propostas" checked={Boolean(novoContacto.faz_propostas)} onChange={e => setNovoContacto({...novoContacto, faz_propostas: e.target.checked})} style={{width:'18px', height:'18px', cursor:'pointer'}} disabled={isViewOnly} />
-                          <label htmlFor="faz_propostas" style={{cursor: isViewOnly ? 'not-allowed' : 'pointer', margin: 0, fontSize: '0.9rem', fontWeight: '600', color: 'var(--color-btnPrimary)', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                        <label className={`en-check is-block ${novoContacto.faz_propostas ? 'is-on' : ''}`} htmlFor="faz_propostas">
+                          <input type="checkbox" id="faz_propostas" checked={Boolean(novoContacto.faz_propostas)} onChange={e => setNovoContacto({...novoContacto, faz_propostas: e.target.checked})} disabled={isViewOnly} />
+                          <span className="en-check-box"><Icons.Check size={12} /></span>
+                          <span>
                             Pode fazer propostas comerciais
-                            <span style={{fontSize: '0.75rem', color: '#64748b', fontWeight: '500'}}>(Aparecerá em Propostas Comerciais)</span>
-                          </label>
+                            <small>(Aparecerá em Propostas Comerciais)</small>
+                          </span>
+                        </label>
+                        <div className="en-form-actions">
+                          <button type="button" className="en-btn is-ghost" onClick={() => { setShowAddContacto(false); setNovoContacto(initContacto); setIsOutroCargo(false); }}>Cancelar</button>
+                          <button type="button" className="en-btn is-primary" onClick={() => { saveSubItem('contactos_cliente', novoContacto, setContactos, contactos, setNovoContacto, initContacto, setShowAddContacto); setIsOutroCargo(false); }}>{novoContacto.id ? 'Atualizar' : 'Guardar Pessoa'}</button>
                         </div>
-                        <div style={{display:'flex', gap:'10px', marginTop:'15px'}}>
-                          <button onClick={() => { saveSubItem('contactos_cliente', novoContacto, setContactos, contactos, setNovoContacto, initContacto, setShowAddContacto); setIsOutroCargo(false); }} className="btn-primary hover-shadow" style={{padding:'10px 20px', fontWeight: 'bold'}}>{novoContacto.id ? 'Atualizar' : 'Guardar Pessoa'}</button>
-                          <button onClick={() => { setShowAddContacto(false); setNovoContacto(initContacto); setIsOutroCargo(false); }} style={{background:'white', border:'1px solid #cbd5e1', borderRadius: '8px', color:'#64748b', cursor:'pointer', padding: '10px 20px', fontWeight: 'bold'}} className="hover-shadow">Cancelar</button>
-                        </div>
-                      </div>
+                      </section>
                     )}
 
-                    <ul style={{listStyle:'none', padding:0, display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(350px, 1fr))', gap:'15px'}}>
-                      {contactos.map(c => (
-                        <li key={c.id} style={{background:'white', padding:'20px', borderRadius:'12px', display:'flex', justifyContent:'space-between', alignItems:'flex-start', border:'1px solid #e2e8f0', transition: '0.2s'}} className="hover-shadow">
-                          <div>
-                            <span style={{fontWeight:'bold', color:'#1e293b', fontSize:'1.1rem'}}>{c.nome_contacto}</span> {c.cargo && <span style={{color:'#64748b', fontSize:'0.9rem', marginLeft:'5px'}}>({c.cargo})</span>}
-                            <div style={{fontSize:'0.9rem', color:'#475569', marginTop:'8px', display:'flex', flexDirection:'column', gap:'6px'}}>
-                                {c.email && <span style={{display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-btnPrimary)'}}><Icons.Mail /> <a href={`mailto:${c.email}`} style={{color: 'inherit', textDecoration: 'none'}}>{c.email}</a></span>}
-                                {c.telefone && <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.Phone /> {c.telefone}</span>}
+                    {contactos.length > 0 ? (
+                      <ul className="en-people">
+                        {contactos.map((c, index) => (
+                          <li key={c.id} className="en-person" style={{ '--c': clientColors[(index + 1) % clientColors.length] }}>
+                            <span className="en-avatar is-md">{entInitials(c.nome_contacto)}</span>
+                            <div className="en-person-body">
+                              <strong>{c.nome_contacto}</strong>
+                              {c.cargo && <span className="en-person-role">{c.cargo}</span>}
+                              {c.faz_propostas && <span className="en-tag is-blue">Faz propostas</span>}
+                              <div className="en-person-links">
+                                {c.email && <a href={`mailto:${c.email}`}><Icons.Mail /> {c.email}</a>}
+                                {c.telefone && <a href={`tel:${c.telefone}`}><Icons.Phone /> {c.telefone}</a>}
+                              </div>
                             </div>
-                          </div>
-                          {!isViewOnly && (
-                            <div style={{display:'flex', flexDirection:'column', gap:'6px'}}>
-                               <button onClick={() => { setNovoContacto(c); setIsOutroCargo(Boolean(c.cargo) && !isKnownCargo(c.cargo)); setShowAddContacto(true); }} className="action-btn hover-blue-text"><Icons.Edit /></button>
-                               <button onClick={() => deleteItem('contactos_cliente', c.id, setContactos, contactos)} className="action-btn hover-red-text"><Icons.Trash /></button>
-                            </div>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
+                            {!isViewOnly && (
+                              <div className="en-item-actions">
+                                 <button type="button" onClick={() => { setNovoContacto(c); setIsOutroCargo(Boolean(c.cargo) && !isKnownCargo(c.cargo)); setShowAddContacto(true); }} className="en-icon-btn is-edit" title="Editar"><Icons.Edit size={15} /></button>
+                                 <button type="button" onClick={() => deleteItem('contactos_cliente', c.id, setContactos, contactos)} className="en-icon-btn is-archive" title="Eliminar"><Icons.Trash size={15} /></button>
+                              </div>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : !showAddContacto && (
+                      <div className="en-empty is-inline is-small"><span className="en-empty-ico"><Icons.Users size={26} color="currentColor" /></span><p>Ainda não há pessoas registadas.</p></div>
+                    )}
                   </div>
                 )}
 
                 {/* --- ABA MORADAS --- */}
                 {activeTab === 'moradas' && (
-                  <div className="bz-tab-panel">
-                    <div style={{display:'flex', justifyContent:'space-between', marginBottom:'15px', alignItems:'center'}}>
-                      <h4 style={{margin:0, fontSize:'1.1rem', color:'#1e293b'}}>Moradas Registadas</h4>
-                      {!isViewOnly && !showAddMorada && <button className="btn-small-add hover-shadow" onClick={() => {setNovaMorada(initMorada); setShowAddMorada(true)}} style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.Plus /> Adicionar Morada</button>}
+                  <div className="bz-tab-panel en-tab">
+                    <div className="en-sec-head">
+                      <div>
+                        <h4>Moradas Registadas <em className="en-count-pill">{moradas.length}</em></h4>
+                      </div>
+                      {!isViewOnly && !showAddMorada && <button type="button" className="en-btn is-primary" onClick={() => {setNovaMorada(initMorada); setShowAddMorada(true)}}><Icons.Plus /> Adicionar Morada</button>}
                     </div>
 
                     {showAddMorada && (
-                      <div style={{background:'white', padding:'25px', borderRadius:'12px', border:'1px solid #cbd5e1', marginBottom:'20px', boxShadow:'0 4px 6px -1px rgba(0,0,0,0.05)'}}>
-                        <h5 style={{marginTop:0, fontSize:'1.1rem'}}>{novaMorada.id ? 'Editar Morada' : 'Nova Morada'}</h5>
-                        
-                        <label style={labelStyle}>Rua / Lote / Porta</label>
-                        <input type="text" placeholder="Ex: Rua Direita, nº 10" value={novaMorada.morada} onChange={e => setNovaMorada({...novaMorada, morada: e.target.value})} style={inputStyle} className="input-focus" />
-                        
-                        <div style={{display:'grid', gridTemplateColumns:'1fr 2fr', gap:'20px'}}>
-                            <div>
-                                <label style={labelStyle}>Cód. Postal <span style={{fontSize:'0.7rem', color:'var(--color-btnPrimary)', textTransform: 'none'}}>(Preenchimento Auto)</span></label>
-                                <input 
-                                    type="text" 
-                                    placeholder="Ex: 8000-000" 
+                      <section className="en-fcard is-editing">
+                        <div className="en-fcard-title"><span className="en-fcard-ico"><Icons.MapPin size={15} /></span> {novaMorada.id ? 'Editar Morada' : 'Nova Morada'}</div>
+
+                        <div className="en-field">
+                          <label>Rua / Lote / Porta</label>
+                          <input type="text" className="en-input" placeholder="Ex: Rua Direita, nº 10" value={novaMorada.morada} onChange={e => setNovaMorada({...novaMorada, morada: e.target.value})} />
+                        </div>
+
+                        <div className="en-grid" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 2fr)' }}>
+                            <div className="en-field">
+                                <label>Cód. Postal <span className="en-hint-inline">(Preenchimento Auto)</span></label>
+                                <input
+                                    type="text"
+                                    className="en-input is-accent"
+                                    placeholder="Ex: 8000-000"
                                     maxLength="8"
-                                    value={novaMorada.codigo_postal || ""} 
+                                    value={novaMorada.codigo_postal || ""}
                                     onChange={e => {
                                         let val = e.target.value;
                                         // Auto-formatação: mete o tracinho sozinho
@@ -2997,450 +2965,235 @@ export default function Clientes() {
                                             val += '-';
                                         }
                                         setNovaMorada({...novaMorada, codigo_postal: val});
-                                        
+
                                         // Dispara a pesquisa mal chega aos 8 caracteres
                                         if (val.length === 8 && val.includes('-')) {
                                             fetchMoradaByCodigoPostal(val);
                                         }
-                                    }} 
-                                    style={{...inputStyle, borderColor: 'var(--color-btnPrimary)', background: 'var(--color-bgSecondary)'}} 
-                                    className="input-focus" 
+                                    }}
                                 />
                             </div>
-                            <div>
-                                <label style={labelStyle}>Localidade</label>
-                                <input type="text" placeholder="Ex: Faro" value={novaMorada.localidade} onChange={e => setNovaMorada({...novaMorada, localidade: e.target.value})} style={inputStyle} className="input-focus" />
+                            <div className="en-field">
+                                <label>Localidade</label>
+                                <input type="text" className="en-input" placeholder="Ex: Faro" value={novaMorada.localidade} onChange={e => setNovaMorada({...novaMorada, localidade: e.target.value})} />
                             </div>
                         </div>
-                        
-                        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'20px'}}>
-                            <div>
-                                <label style={labelStyle}>Concelho <span style={{fontSize:'0.7rem', color:'var(--color-btnPrimary)', textTransform: 'none'}}>(Preenche o resto)</span></label>
-                                <input 
-                                    type="text" 
-                                    value={novaMorada.concelho || ""} 
-                                    onChange={e => setNovaMorada({...novaMorada, concelho: e.target.value})} 
+
+                        <div className="en-grid is-3">
+                            <div className="en-field">
+                                <label>Concelho <span className="en-hint-inline">(Preenche o resto)</span></label>
+                                <input
+                                    type="text"
+                                    className="en-input is-accent"
+                                    value={novaMorada.concelho || ""}
+                                    onChange={e => setNovaMorada({...novaMorada, concelho: e.target.value})}
                                     onBlur={e => fetchDadosByConcelho(e.target.value)}
                                     placeholder="Ex: Albufeira"
-                                    style={{...inputStyle, borderColor: 'var(--color-btnPrimary)', background: 'var(--color-bgSecondary)'}} 
-                                    className="input-focus" 
                                 />
                             </div>
-                            <div>
-                                <label style={labelStyle}>Distrito</label>
-                                <input type="text" value={novaMorada.distrito} onChange={e => setNovaMorada({...novaMorada, distrito: e.target.value})} style={inputStyle} className="input-focus" />
+                            <div className="en-field">
+                                <label>Distrito</label>
+                                <input type="text" className="en-input" value={novaMorada.distrito} onChange={e => setNovaMorada({...novaMorada, distrito: e.target.value})} />
                             </div>
-                            <div>
-                                <label style={labelStyle}>Região</label>
-                                <input type="text" value={novaMorada.regiao} onChange={e => setNovaMorada({...novaMorada, regiao: e.target.value})} style={inputStyle} className="input-focus" />
+                            <div className="en-field">
+                                <label>Região</label>
+                                <input type="text" className="en-input" value={novaMorada.regiao} onChange={e => setNovaMorada({...novaMorada, regiao: e.target.value})} />
                             </div>
                         </div>
 
-                        <label style={labelStyle}>Tipo / Notas Opcionais</label>
-                        <input type="text" placeholder="Ex: Sede, Armazém, Local de Faturação..." value={novaMorada.notas} onChange={e => setNovaMorada({...novaMorada, notas: e.target.value})} style={{...inputStyle, marginBottom:0}} className="input-focus" />
-                        
-                        <div style={{display:'flex', gap:'10px', marginTop:'20px'}}>
-                            <button onClick={() => saveSubItem('moradas_cliente', novaMorada, setMoradas, moradas, setNovaMorada, initMorada, setShowAddMorada)} className="btn-primary hover-shadow" style={{padding:'10px 20px', fontWeight: 'bold'}}>{novaMorada.id ? 'Atualizar' : 'Guardar Morada'}</button>
-                            <button onClick={() => {setShowAddMorada(false); setNovaMorada(initMorada);}} style={{background:'white', border:'1px solid #cbd5e1', borderRadius: '8px', color:'#64748b', cursor:'pointer', padding: '10px 20px', fontWeight: 'bold'}} className="hover-shadow">Cancelar</button>
+                        <div className="en-field">
+                          <label>Tipo / Notas Opcionais</label>
+                          <input type="text" className="en-input" placeholder="Ex: Sede, Armazém, Local de Faturação..." value={novaMorada.notas} onChange={e => setNovaMorada({...novaMorada, notas: e.target.value})} />
                         </div>
-                      </div>
+
+                        <div className="en-form-actions">
+                            <button type="button" className="en-btn is-ghost" onClick={() => {setShowAddMorada(false); setNovaMorada(initMorada);}}>Cancelar</button>
+                            <button type="button" className="en-btn is-primary" onClick={() => saveSubItem('moradas_cliente', novaMorada, setMoradas, moradas, setNovaMorada, initMorada, setShowAddMorada)}>{novaMorada.id ? 'Atualizar' : 'Guardar Morada'}</button>
+                        </div>
+                      </section>
                     )}
 
-                    <ul style={{listStyle:'none', padding:0, display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(350px, 1fr))', gap:'15px'}}>
-                      {moradas.map(m => (
-                        <li key={m.id} style={{background:'white', padding:'20px', borderRadius:'12px', display:'flex', justifyContent:'space-between', alignItems:'flex-start', border:'1px solid #e2e8f0', transition: '0.2s'}} className="hover-shadow">
-                          <div>
-                            {m.notas && <span style={{display:'inline-block', marginBottom:'8px', textTransform:'uppercase', fontSize: '0.75rem', background:'var(--color-bgTertiary)', color:'var(--color-btnPrimary)', padding:'4px 8px', borderRadius:'6px', fontWeight:'bold'}}>{m.notas}</span>}
-                            <div style={{fontWeight:'bold', color:'#334155', fontSize:'1.05rem', marginBottom:'4px'}}>{m.morada}</div>
-                            <div style={{color:'#64748b', fontSize:'0.9rem'}}>{m.codigo_postal} {m.localidade}</div>
-                            <div style={{color:'#94a3b8', fontSize:'0.85rem', marginTop:'4px'}}>{[m.concelho, m.distrito, m.regiao].filter(Boolean).join(' • ')}</div>
-                          </div>
-                          {!isViewOnly && (
-                            <div style={{display:'flex', flexDirection:'column', gap:'6px'}}>
-                               <button onClick={() => abrirEdicaoSubItem(m, setNovaMorada, setShowAddMorada)} className="action-btn hover-blue-text"><Icons.Edit /></button>
-                               <button onClick={() => deleteItem('moradas_cliente', m.id, setMoradas, moradas)} className="action-btn hover-red-text"><Icons.Trash /></button>
-                            </div>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
+                    {moradas.length > 0 ? (
+                      <ul className="en-addr-list">
+                        {moradas.map(m => {
+                          const mapQuery = encodeURIComponent([m.morada, m.codigo_postal, m.localidade].filter(Boolean).join(', '));
+                          return (
+                            <li key={m.id} className="en-addr">
+                              <span className="en-addr-pin"><Icons.MapPin size={18} /></span>
+                              <div className="en-item-body">
+                                {m.notas && <span className="en-tag is-brand">{m.notas}</span>}
+                                <strong>{m.morada}</strong>
+                                <span className="en-addr-line">{m.codigo_postal} {m.localidade}</span>
+                                <span className="en-addr-sub">{[m.concelho, m.distrito, m.regiao].filter(Boolean).join(' • ')}</span>
+                                {mapQuery && <a className="en-addr-map" href={`https://www.google.com/maps/search/?api=1&query=${mapQuery}`} target="_blank" rel="noopener noreferrer"><Icons.ExternalLink size={12} /> Ver no mapa</a>}
+                              </div>
+                              {!isViewOnly && (
+                                <div className="en-item-actions">
+                                   <button type="button" onClick={() => abrirEdicaoSubItem(m, setNovaMorada, setShowAddMorada)} className="en-icon-btn is-edit" title="Editar"><Icons.Edit size={15} /></button>
+                                   <button type="button" onClick={() => deleteItem('moradas_cliente', m.id, setMoradas, moradas)} className="en-icon-btn is-archive" title="Eliminar"><Icons.Trash size={15} /></button>
+                                </div>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : !showAddMorada && (
+                      <div className="en-empty is-inline is-small"><span className="en-empty-ico"><Icons.MapPin size={26} color="currentColor" /></span><p>Ainda não há moradas registadas.</p></div>
+                    )}
                   </div>
                 )}
 
                 {/* --- ABA CONFIGURAÇÕES DE ENTIDADE (só para consultoras) --- */}
                 {activeTab === 'configuracoes' && form.eh_empresa_consultora && (
-                  <div className="bz-tab-panel" style={{background:'white', padding:'40px', borderRadius:'16px', border:'1px solid #e2e8f0', maxWidth: 1200, margin: '0 auto', marginBottom: 30, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
-                    <div style={{fontSize: '1.3rem', fontWeight: 800, color: '#0f172a', marginBottom: 30}}>Configurações de Proposta</div>
-                    
-                    <div style={sectionTitleStyle}>Assinatura e Contacto da Proposta</div>
-                    <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', marginBottom: 18}}>
+                  <div className="bz-tab-panel en-tab en-cfg">
+                    <div className="en-sec-head">
                       <div>
-                        <label style={labelStyle}>Nome do Signatário</label>
-                        <input
-                          type="text"
-                          value={entidadeConfig.signatario_nome || ""}
-                          onChange={e => setEntidadeConfig({...entidadeConfig, signatario_nome: e.target.value})}
-                          style={inputStyle}
-                          placeholder="Nome a apresentar na proposta"
-                          disabled={isViewOnly}
-                        />
-                      </div>
-                      <div>
-                        <label style={labelStyle}>Cargo do Signatário</label>
-                        <input
-                          type="text"
-                          value={entidadeConfig.signatario_cargo || ""}
-                          onChange={e => setEntidadeConfig({...entidadeConfig, signatario_cargo: e.target.value})}
-                          style={inputStyle}
-                          placeholder="Cargo/função"
-                          disabled={isViewOnly}
-                        />
-                      </div>
-                      <div>
-                        <label style={labelStyle}>Telefone do Signatário</label>
-                        <input
-                          type="text"
-                          value={entidadeConfig.signatario_telefone || ""}
-                          onChange={e => setEntidadeConfig({...entidadeConfig, signatario_telefone: e.target.value})}
-                          style={inputStyle}
-                          placeholder="+351 900 000 000"
-                          disabled={isViewOnly}
-                        />
-                      </div>
-                      <div>
-                        <label style={labelStyle}>Email do Signatário</label>
-                        <input
-                          type="email"
-                          value={entidadeConfig.signatario_email || ""}
-                          onChange={e => setEntidadeConfig({...entidadeConfig, signatario_email: e.target.value})}
-                          style={inputStyle}
-                          placeholder="email@entidade.pt"
-                          disabled={isViewOnly}
-                        />
+                        <h4>Configurações de Proposta</h4>
+                        <p>{form.tem_cursos ? 'Textos usados nas propostas de formação.' : 'Textos usados nas propostas de financiamento.'}</p>
                       </div>
                     </div>
 
-                    <div style={sectionTitleStyle}>Textos de Introdução</div>
-                    <label style={labelStyle}>Texto de Compromisso</label>
-                    <textarea
-                      value={entidadeConfig.texto_compromisso || ""}
-                      onChange={e => setEntidadeConfig({...entidadeConfig, texto_compromisso: e.target.value})}
-                      rows={3}
-                      style={{...inputStyle, minHeight: 80, resize: 'vertical'}}
-                      placeholder="O nosso compromisso..."
-                      disabled={isViewOnly}
-                    />
+                    <section className="en-fcard">
+                      <div className="en-fcard-title"><span className="en-fcard-ico"><Icons.User size={15} /></span> Assinatura e Contacto da Proposta</div>
+                      <div className="en-grid is-4">
+                        {[
+                          ['Nome do Signatário', 'signatario_nome', 'text', 'Nome a apresentar na proposta'],
+                          ['Cargo do Signatário', 'signatario_cargo', 'text', 'Cargo/função'],
+                          ['Telefone do Signatário', 'signatario_telefone', 'text', '+351 900 000 000'],
+                          ['Email do Signatário', 'signatario_email', 'email', 'email@entidade.pt'],
+                        ].map(([label, key, type, placeholder]) => (
+                          <div key={key} className="en-field">
+                            <label>{label}</label>
+                            <input type={type} className="en-input" value={entidadeConfig[key] || ""} onChange={e => setEntidadeConfig({...entidadeConfig, [key]: e.target.value})} placeholder={placeholder} disabled={isViewOnly} />
+                          </div>
+                        ))}
+                      </div>
+                    </section>
 
-                    <label style={labelStyle}>Texto para Aprovação</label>
-                    <textarea
-                      value={entidadeConfig.texto_para_aprovacao || ""}
-                      onChange={e => setEntidadeConfig({...entidadeConfig, texto_para_aprovacao: e.target.value})}
-                      rows={2}
-                      style={{...inputStyle, minHeight: 60, resize: 'vertical'}}
-                      placeholder="Texto a apresentar para aprovação..."
-                      disabled={isViewOnly}
-                    />
-
-                    <label style={labelStyle}>Esperamos que Corresponda</label>
-                    <textarea
-                      value={entidadeConfig.texto_esperamos_que_corresponda || ""}
-                      onChange={e => setEntidadeConfig({...entidadeConfig, texto_esperamos_que_corresponda: e.target.value})}
-                      rows={2}
-                      style={{...inputStyle, minHeight: 60, resize: 'vertical'}}
-                      placeholder="Mensagem de fechamento..."
-                      disabled={isViewOnly}
-                    />
+                    <section className="en-fcard">
+                      <div className="en-fcard-title"><span className="en-fcard-ico"><Icons.FileText size={15} /></span> Textos de Introdução</div>
+                      {cfgArea('Texto de Compromisso', 'texto_compromisso', 3, 'O nosso compromisso...')}
+                      {cfgArea('Texto para Aprovação', 'texto_para_aprovacao', 2, 'Texto a apresentar para aprovação...')}
+                      {cfgArea('Esperamos que Corresponda', 'texto_esperamos_que_corresponda', 2, 'Mensagem de fechamento...')}
+                    </section>
 
                     {/* NEOMARCA - Campos de Financiamento */}
                     {!form.tem_cursos && (
                       <>
-                        <div style={sectionTitleStyle}>Apresentação da Empresa</div>
-                        <label style={labelStyle}>Texto de Apresentação Empresa</label>
-                        <textarea
-                          value={entidadeConfig.texto_apresentacao_empresa || ""}
-                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_apresentacao_empresa: e.target.value})}
-                          rows={4}
-                          style={{...inputStyle, minHeight: 100, resize: 'vertical'}}
-                          placeholder="Texto de apresentação da empresa..."
-                          disabled={isViewOnly}
-                        />
-                        
-                        <label style={labelStyle}>Texto de Compromisso</label>
-                        <textarea
-                          value={entidadeConfig.texto_compromisso || ""}
-                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_compromisso: e.target.value})}
-                          rows={3}
-                          style={{...inputStyle, minHeight: 80, resize: 'vertical'}}
-                          placeholder="Nosso compromisso..."
-                          disabled={isViewOnly}
-                        />
+                        <section className="en-fcard">
+                          <div className="en-fcard-title"><span className="en-fcard-ico"><Icons.Building size={15} /></span> Apresentação da Empresa</div>
+                          {cfgArea('Texto de Apresentação Empresa', 'texto_apresentacao_empresa', 4, 'Texto de apresentação da empresa...')}
+                          {cfgArea('Texto de Compromisso', 'texto_compromisso', 3, 'Nosso compromisso...')}
+                        </section>
 
-                        <div style={sectionTitleStyle}>Documentação</div>
-                        <label style={labelStyle}>Documentos da Empresa</label>
-                        <textarea
-                          value={entidadeConfig.texto_documentos_empresa || ""}
-                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_documentos_empresa: e.target.value})}
-                          rows={3}
-                          style={{...inputStyle, minHeight: 80, resize: 'vertical'}}
-                          placeholder="Descreva os documentos fornecidos pela empresa..."
-                          disabled={isViewOnly}
-                        />
+                        <section className="en-fcard">
+                          <div className="en-fcard-title"><span className="en-fcard-ico"><Icons.ClipboardList size={15} /></span> Documentação</div>
+                          <div className="en-grid is-2">
+                            {cfgArea('Documentos da Empresa', 'texto_documentos_empresa', 3, 'Descreva os documentos fornecidos pela empresa...')}
+                            {cfgArea('Documentos de Incentivo', 'texto_documentos_incentivo', 3, 'Informações sobre incentivos...')}
+                          </div>
+                        </section>
 
-                        <label style={labelStyle}>Documentos de Incentivo</label>
-                        <textarea
-                          value={entidadeConfig.texto_documentos_incentivo || ""}
-                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_documentos_incentivo: e.target.value})}
-                          rows={3}
-                          style={{...inputStyle, minHeight: 80, resize: 'vertical'}}
-                          placeholder="Informações sobre incentivos..."
-                          disabled={isViewOnly}
-                        />
+                        <section className="en-fcard">
+                          <div className="en-fcard-title"><span className="en-fcard-ico"><Icons.Rocket size={15} /></span> Processo e Financiamento</div>
+                          <div className="en-grid is-2">
+                            {cfgArea('Demonstração de Financiamento', 'texto_demonstracao_financiamento', 3, 'Como o financiamento funciona...')}
+                            {cfgArea('Como Ajudamos', 'texto_como_ajudamos', 3, 'Descreva como a empresa ajuda os clientes...')}
+                            {cfgArea('Processo de Trabalho', 'texto_processo_trabalho', 3, 'Descreva o processo de trabalho...')}
+                            {cfgArea('Plano de Pagamento', 'texto_plano_pagamento', 3, 'Condições de pagamento...')}
+                            {cfgArea('Exclusões/Condições Especiais', 'texto_exclusoes', 3, 'Exclusões ou condições especiais...')}
+                            {cfgArea('Nota dos Honorários', 'texto_nota_honorarios', 3, 'Os valores apresentados estão isentos de IVA. Proposta para um máx. 15 pax')}
+                          </div>
+                        </section>
 
-                        <div style={sectionTitleStyle}>Processo e Financiamento</div>
-                        <label style={labelStyle}>Demonstração de Financiamento</label>
-                        <textarea
-                          value={entidadeConfig.texto_demonstracao_financiamento || ""}
-                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_demonstracao_financiamento: e.target.value})}
-                          rows={3}
-                          style={{...inputStyle, minHeight: 80, resize: 'vertical'}}
-                          placeholder="Como o financiamento funciona..."
-                          disabled={isViewOnly}
-                        />
-
-                        <label style={labelStyle}>Como Ajudamos</label>
-                        <textarea
-                          value={entidadeConfig.texto_como_ajudamos || ""}
-                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_como_ajudamos: e.target.value})}
-                          rows={3}
-                          style={{...inputStyle, minHeight: 80, resize: 'vertical'}}
-                          placeholder="Descreva como a empresa ajuda os clientes..."
-                          disabled={isViewOnly}
-                        />
-
-                        <label style={labelStyle}>Processo de Trabalho</label>
-                        <textarea
-                          value={entidadeConfig.texto_processo_trabalho || ""}
-                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_processo_trabalho: e.target.value})}
-                          rows={3}
-                          style={{...inputStyle, minHeight: 80, resize: 'vertical'}}
-                          placeholder="Descreva o processo de trabalho..."
-                          disabled={isViewOnly}
-                        />
-
-                        <label style={labelStyle}>Plano de Pagamento</label>
-                        <textarea
-                          value={entidadeConfig.texto_plano_pagamento || ""}
-                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_plano_pagamento: e.target.value})}
-                          rows={3}
-                          style={{...inputStyle, minHeight: 80, resize: 'vertical'}}
-                          placeholder="Condições de pagamento..."
-                          disabled={isViewOnly}
-                        />
-
-                        <label style={labelStyle}>Exclusões/Condições Especiais</label>
-                        <textarea
-                          value={entidadeConfig.texto_exclusoes || ""}
-                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_exclusoes: e.target.value})}
-                          rows={3}
-                          style={{...inputStyle, minHeight: 80, resize: 'vertical'}}
-                          placeholder="Exclusões ou condições especiais..."
-                          disabled={isViewOnly}
-                        />
-
-                        <label style={labelStyle}>Nota dos Honorários</label>
-                        <textarea
-                          value={entidadeConfig.texto_nota_honorarios || ""}
-                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_nota_honorarios: e.target.value})}
-                          rows={3}
-                          style={{...inputStyle, minHeight: 80, resize: 'vertical'}}
-                          placeholder='Os valores apresentados estão isentos de IVA. Proposta para um máx. 15 pax'
-                          disabled={isViewOnly}
-                        />
-
-                        <div style={sectionTitleStyle}>Aprovação</div>
-                        <label style={labelStyle}>Texto para Aprovação</label>
-                        <textarea
-                          value={entidadeConfig.texto_para_aprovacao || ""}
-                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_para_aprovacao: e.target.value})}
-                          rows={2}
-                          style={{...inputStyle, minHeight: 60, resize: 'vertical'}}
-                          placeholder="Texto a apresentar para aprovação..."
-                          disabled={isViewOnly}
-                        />
-
-                        <label style={labelStyle}>Esperamos que Corresponda</label>
-                        <textarea
-                          value={entidadeConfig.texto_esperamos_que_corresponda || ""}
-                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_esperamos_que_corresponda: e.target.value})}
-                          rows={2}
-                          style={{...inputStyle, minHeight: 60, resize: 'vertical'}}
-                          placeholder="Mensagem de fechamento..."
-                          disabled={isViewOnly}
-                        />
+                        <section className="en-fcard">
+                          <div className="en-fcard-title"><span className="en-fcard-ico"><Icons.Check size={15} /></span> Aprovação</div>
+                          {cfgArea('Texto para Aprovação', 'texto_para_aprovacao', 2, 'Texto a apresentar para aprovação...')}
+                          {cfgArea('Esperamos que Corresponda', 'texto_esperamos_que_corresponda', 2, 'Mensagem de fechamento...')}
+                        </section>
                       </>
                     )}
 
                     {/* 2SIGLAS - Campos de Formação */}
                     {form.tem_cursos && (
                       <>
-                        <div style={sectionTitleStyle}>Apresentação (Formação)</div>
-                        <label style={labelStyle}>Apresentação da Empresa - Formação</label>
-                        <textarea
-                          value={entidadeConfig.texto_apresentacao_empresa_formacao || ""}
-                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_apresentacao_empresa_formacao: e.target.value})}
-                          rows={4}
-                          style={{...inputStyle, minHeight: 100, resize: 'vertical'}}
-                          placeholder="Apresentação da empresa para propostas de formação..."
-                          disabled={isViewOnly}
-                        />
+                        <section className="en-fcard">
+                          <div className="en-fcard-title"><span className="en-fcard-ico"><Icons.Building size={15} /></span> Apresentação (Formação)</div>
+                          {cfgArea('Apresentação da Empresa - Formação', 'texto_apresentacao_empresa_formacao', 4, 'Apresentação da empresa para propostas de formação...')}
+                          {cfgArea('Áreas de Formação', 'texto_areas_formacao', 3, 'Principais áreas de formação oferecidas...')}
+                        </section>
 
-                        <label style={labelStyle}>Áreas de Formação</label>
-                        <textarea
-                          value={entidadeConfig.texto_areas_formacao || ""}
-                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_areas_formacao: e.target.value})}
-                          rows={3}
-                          style={{...inputStyle, minHeight: 80, resize: 'vertical'}}
-                          placeholder="Principais áreas de formação oferecidas..."
-                          disabled={isViewOnly}
-                        />
+                        <section className="en-fcard">
+                          <div className="en-fcard-title"><span className="en-fcard-ico"><Icons.FileText size={15} /></span> Proposta</div>
+                          <div className="en-grid is-2">
+                            {cfgArea('Proposta de Formação', 'texto_proposta_formacao', 3, 'Descrição geral da proposta de formação...')}
+                            {cfgArea('Descrição do Serviço', 'texto_descricao_servico', 3, 'Descrição detalhada do serviço de formação...')}
+                          </div>
+                        </section>
 
-                        <div style={sectionTitleStyle}>Proposta</div>
-                        <label style={labelStyle}>Proposta de Formação</label>
-                        <textarea
-                          value={entidadeConfig.texto_proposta_formacao || ""}
-                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_proposta_formacao: e.target.value})}
-                          rows={3}
-                          style={{...inputStyle, minHeight: 80, resize: 'vertical'}}
-                          placeholder="Descrição geral da proposta de formação..."
-                          disabled={isViewOnly}
-                        />
+                        <section className="en-fcard">
+                          <div className="en-fcard-title"><span className="en-fcard-ico"><Icons.Users size={15} /></span> Obrigações</div>
+                          <div className="en-grid is-2">
+                            {cfgArea('Obrigações da Consultora', 'texto_obrigacoes_consultora', 3, 'Compromissos e obrigações da consultora...')}
+                            {cfgArea('Obrigações do Cliente', 'texto_obrigacoes_cliente', 3, 'Compromissos e obrigações do cliente...')}
+                          </div>
+                        </section>
 
-                        <label style={labelStyle}>Descrição do Serviço</label>
-                        <textarea
-                          value={entidadeConfig.texto_descricao_servico || ""}
-                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_descricao_servico: e.target.value})}
-                          rows={3}
-                          style={{...inputStyle, minHeight: 80, resize: 'vertical'}}
-                          placeholder="Descrição detalhada do serviço de formação..."
-                          disabled={isViewOnly}
-                        />
+                        <section className="en-fcard">
+                          <div className="en-fcard-title"><span className="en-fcard-ico"><Icons.Calendar size={15} /></span> Realização e Coordenação</div>
+                          <div className="en-grid is-2">
+                            {cfgArea('Condições de Realização', 'texto_condicoes_realizacao', 3, 'Horários, locais, e outras condições de realização...')}
+                            {cfgArea('Coordenação de Formação', 'texto_coordenacao_formacao', 3, 'Informações sobre quem coordena a formação...')}
+                          </div>
+                        </section>
 
-                        <div style={sectionTitleStyle}>Obrigações</div>
-                        <label style={labelStyle}>Obrigações da Consultora</label>
-                        <textarea
-                          value={entidadeConfig.texto_obrigacoes_consultora || ""}
-                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_obrigacoes_consultora: e.target.value})}
-                          rows={3}
-                          style={{...inputStyle, minHeight: 80, resize: 'vertical'}}
-                          placeholder="Compromissos e obrigações da consultora..."
-                          disabled={isViewOnly}
-                        />
-
-                        <label style={labelStyle}>Obrigações do Cliente</label>
-                        <textarea
-                          value={entidadeConfig.texto_obrigacoes_cliente || ""}
-                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_obrigacoes_cliente: e.target.value})}
-                          rows={3}
-                          style={{...inputStyle, minHeight: 80, resize: 'vertical'}}
-                          placeholder="Compromissos e obrigações do cliente..."
-                          disabled={isViewOnly}
-                        />
-
-                        <div style={sectionTitleStyle}>Realização e Coordenação</div>
-                        <label style={labelStyle}>Condições de Realização</label>
-                        <textarea
-                          value={entidadeConfig.texto_condicoes_realizacao || ""}
-                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_condicoes_realizacao: e.target.value})}
-                          rows={3}
-                          style={{...inputStyle, minHeight: 80, resize: 'vertical'}}
-                          placeholder="Horários, locais, e outras condições de realização..."
-                          disabled={isViewOnly}
-                        />
-
-                        <label style={labelStyle}>Coordenação de Formação</label>
-                        <textarea
-                          value={entidadeConfig.texto_coordenacao_formacao || ""}
-                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_coordenacao_formacao: e.target.value})}
-                          rows={3}
-                          style={{...inputStyle, minHeight: 80, resize: 'vertical'}}
-                          placeholder="Informações sobre quem coordena a formação..."
-                          disabled={isViewOnly}
-                        />
-                      </>
-                    )}
-
-                    {form.tem_cursos && (
-                      <>
-                        <div style={sectionTitleStyle}>Condições Comerciais</div>
-                        <label style={labelStyle}>Plano de Pagamento Padrão</label>
-                        <textarea
-                          value={entidadeConfig.texto_plano_pagamento || ""}
-                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_plano_pagamento: e.target.value})}
-                          rows={3}
-                          style={{...inputStyle, minHeight: 80, resize: 'vertical'}}
-                          placeholder="Condições de pagamento a usar por defeito nas propostas de formação..."
-                          disabled={isViewOnly}
-                        />
-
-                        <label style={labelStyle}>Exclusões / Notas</label>
-                        <textarea
-                          value={entidadeConfig.texto_exclusoes || ""}
-                          onChange={e => setEntidadeConfig({...entidadeConfig, texto_exclusoes: e.target.value})}
-                          rows={3}
-                          style={{...inputStyle, minHeight: 80, resize: 'vertical'}}
-                          placeholder="Exclusões, notas ou condições especiais..."
-                          disabled={isViewOnly}
-                        />
+                        <section className="en-fcard">
+                          <div className="en-fcard-title"><span className="en-fcard-ico"><Icons.Diamond size={15} /></span> Condições Comerciais</div>
+                          <div className="en-grid is-2">
+                            {cfgArea('Plano de Pagamento Padrão', 'texto_plano_pagamento', 3, 'Condições de pagamento a usar por defeito nas propostas de formação...')}
+                            {cfgArea('Exclusões / Notas', 'texto_exclusoes', 3, 'Exclusões, notas ou condições especiais...')}
+                          </div>
+                        </section>
                       </>
                     )}
 
                     {/* Campos Comuns */}
-                    <div style={sectionTitleStyle}>Certificações</div>
-                    <label style={labelStyle}>Imagem de Certificações</label>
-                    <input
-                      type="text"
-                      value={entidadeConfig.imagem_certificacoes || ""}
-                      onChange={e => setEntidadeConfig({...entidadeConfig, imagem_certificacoes: e.target.value})}
-                      style={inputStyle}
-                      placeholder="URL ou caminho da imagem de certificações"
-                      disabled={isViewOnly}
-                    />
+                    <section className="en-fcard">
+                      <div className="en-fcard-title"><span className="en-fcard-ico"><Icons.Diamond size={15} /></span> Certificações</div>
+                      <div className="en-field">
+                        <label>Imagem de Certificações</label>
+                        <input
+                          type="text"
+                          className="en-input"
+                          value={entidadeConfig.imagem_certificacoes || ""}
+                          onChange={e => setEntidadeConfig({...entidadeConfig, imagem_certificacoes: e.target.value})}
+                          placeholder="URL ou caminho da imagem de certificações"
+                          disabled={isViewOnly}
+                        />
+                      </div>
+                    </section>
 
-                    <div style={sectionTitleStyle}>Termos Gerais</div>
-                    <label style={labelStyle}>Texto Corrido dos Termos Gerais</label>
-                    <textarea
-                      value={form.termos_gerais || ""}
-                      onChange={e => setForm(f => ({ ...f, termos_gerais: e.target.value }))}
-                      rows={16}
-                      style={{ width: '100%', minHeight: 220, fontSize: '1.05rem', borderRadius: 10, border: '1px solid #cbd5e1', padding: '18px', background: '#f8fafc', color: '#1e293b', resize: 'vertical', fontFamily: 'inherit', marginBottom: 16 }}
-                      placeholder="Insira aqui os Termos Gerais ou Condições Gerais da Entidade Consultora..."
-                      disabled={isViewOnly}
-                    />
-                    <div style={{ fontSize: '1rem', color: '#64748b', marginBottom: 10 }}>
-                      Este texto será usado automaticamente nas propostas e pode ser personalizado por Entidade.
-                    </div>
-
-                    <div style={{ marginTop: 12 }}>
-                      <label style={labelStyle}>Nota dos Honorários (visível)</label>
-                      <textarea
-                        value={entidadeConfig.texto_nota_honorarios || ""}
-                        onChange={e => setEntidadeConfig({...entidadeConfig, texto_nota_honorarios: e.target.value})}
-                        rows={3}
-                        style={{...inputStyle, minHeight: 80, resize: 'vertical'}}
-                        placeholder='Os valores apresentados estão isentos de IVA. Proposta para um máx. 15 pax'
-                        disabled={isViewOnly}
-                      />
-                    </div>
+                    <section className="en-fcard">
+                      <div className="en-fcard-title"><span className="en-fcard-ico"><Icons.ClipboardList size={15} /></span> Termos Gerais</div>
+                      <div className="en-field">
+                        <label>Texto Corrido dos Termos Gerais</label>
+                        <textarea
+                          className="en-textarea is-doc"
+                          value={form.termos_gerais || ""}
+                          onChange={e => setForm(f => ({ ...f, termos_gerais: e.target.value }))}
+                          rows={16}
+                          placeholder="Insira aqui os Termos Gerais ou Condições Gerais da Entidade Consultora..."
+                          disabled={isViewOnly}
+                        />
+                        <div className="en-field-note">Este texto será usado automaticamente nas propostas e pode ser personalizado por Entidade.</div>
+                      </div>
+                      {cfgArea('Nota dos Honorários (visível)', 'texto_nota_honorarios', 3, 'Os valores apresentados estão isentos de IVA. Proposta para um máx. 15 pax')}
+                    </section>
 
                     {!isViewOnly && (
-                      <div style={{display:'flex', justifyContent:'flex-end', marginTop:'24px'}}>
-                        <button
-                          type="button"
-                          className="btn-primary hover-shadow"
-                          onClick={handleSubmitGeral}
-                          style={{fontSize: '1.08rem', padding: '13px 32px'}}
-                        >
-                          Guardar Alterações
+                      <div className="en-savebar">
+                        <button type="button" className="en-btn is-primary is-lg" onClick={handleSubmitGeral}>
+                          <Icons.Save /> Guardar Alterações
                         </button>
                       </div>
                     )}
@@ -3449,100 +3202,87 @@ export default function Clientes() {
 
                 {/* --- ABA ACESSOS --- */}
                 {activeTab === 'acessos' && podeVerAcessos && (
-                  <div className="bz-tab-panel">
-                    <div style={{background: '#fffbeb', padding: '20px', borderRadius: '12px', borderLeft: '5px solid #f59e0b', marginBottom: '25px', color:'#b45309', fontWeight:'600', fontSize:'0.95rem', display: 'flex', alignItems: 'center', gap: '10px'}}>
-                      <Icons.Alert size={20} color="#b45309" /> Acesso Restrito para Administração. Não partilhe estas credenciais fora da plataforma.
+                  <div className="bz-tab-panel en-tab">
+                    <div className="en-warn">
+                      <span className="en-warn-ico"><Icons.Lock size={18} /></span>
+                      <span>Acesso Restrito para Administração. Não partilhe estas credenciais fora da plataforma.</span>
                     </div>
-                    
-                    <div style={{display:'flex', justifyContent:'space-between', marginBottom:'20px', alignItems:'center'}}>
+
+                    <div className="en-sec-head">
                       <div>
-                        <h4 style={{margin:0, fontSize:'1.1rem', color: '#1e293b'}}>Credenciais Ativas</h4>
-                        <p style={{margin:'4px 0 0 0', fontSize:'0.85rem', color:'#64748b'}}>Acessos com credenciais registadas</p>
+                        <h4>Credenciais Ativas <em className="en-count-pill">{acessos.length}</em></h4>
+                        <p>Acessos com credenciais registadas</p>
                       </div>
                       {!isViewOnly && (
                         <button
-                          className="hover-shadow"
+                          type="button"
+                          className="en-btn is-primary"
                           onClick={() => {
                             setNovoAcesso(initAcesso);
                             setShowAddAcesso(true);
                           }}
-                          style={{display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-btnPrimary)', color: 'white', border: 'none', borderRadius: '10px', padding: '12px 20px', fontWeight: '700', fontSize: '0.95rem', cursor: 'pointer', transition: '0.2s', boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.3)'}}>
-                          <Icons.Plus size={18} /> Nova Credencial
+                        >
+                          <Icons.Plus /> Nova Credencial
                         </button>
                       )}
                     </div>
 
-                    <ul style={{listStyle:'none', padding:0, display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(400px, 1fr))', gap:'15px'}}>
-                      {[...acessos]
-                        .sort((a, b) => {
-                          const tipoA = a.tipos_acessos || tiposAcessosCatalogo.find((t) => String(t.id) === String(a.tipo_acesso_id)) || {};
-                          const tipoB = b.tipos_acessos || tiposAcessosCatalogo.find((t) => String(t.id) === String(b.tipo_acesso_id)) || {};
-                          return (tipoA.nome || "").localeCompare(tipoB.nome || "", "pt-PT", { sensitivity: "base" });
-                        })
-                        .map((acesso) => {
-                        const tipo = acesso.tipos_acessos || tiposAcessosCatalogo.find((t) => String(t.id) === String(acesso.tipo_acesso_id)) || {};
+                    {acessos.length > 0 ? (
+                      <ul className="en-creds">
+                        {[...acessos]
+                          .sort((a, b) => {
+                            const tipoA = a.tipos_acessos || tiposAcessosCatalogo.find((t) => String(t.id) === String(a.tipo_acesso_id)) || {};
+                            const tipoB = b.tipos_acessos || tiposAcessosCatalogo.find((t) => String(t.id) === String(b.tipo_acesso_id)) || {};
+                            return (tipoA.nome || "").localeCompare(tipoB.nome || "", "pt-PT", { sensitivity: "base" });
+                          })
+                          .map((acesso, index) => {
+                          const tipo = acesso.tipos_acessos || tiposAcessosCatalogo.find((t) => String(t.id) === String(acesso.tipo_acesso_id)) || {};
+                          const shown = Boolean(revealedPass[acesso.id]);
+                          const tipoNome = tipo.nome || "Tipo sem nome";
 
-                        return (
-                          <li
-                            key={acesso.id}
-                            style={{
-                              background:'white',
-                              padding:'20px',
-                              borderRadius:'12px',
-                              display:'flex',
-                              justifyContent:'space-between',
-                              alignItems:'center',
-                              borderLeft:'5px solid var(--color-btnPrimary)',
-                              boxShadow:'0 2px 4px rgba(0,0,0,0.05)',
-                              transition: '0.2s'
-                            }}
-                            className="hover-shadow"
-                          >
-                            <div style={{flex: 1, paddingRight:'15px'}}>
-                              <span style={{fontWeight:'800', color:'#1e293b', fontSize:'1.15rem', display:'block', marginBottom:'10px'}}>{tipo.nome || "Tipo sem nome"}</span>
+                          return (
+                            <li key={acesso.id} className="en-cred" style={{ '--c': clientColors[index % clientColors.length] }}>
+                              <div className="en-cred-head">
+                                <span className="en-cred-ico">{tipoNome.trim().length <= 3 && !tipoNome.trim().includes(" ") ? tipoNome.trim().toUpperCase() : entInitials(tipoNome).slice(0, 2)}</span>
+                                <strong title={tipoNome}>{tipoNome}</strong>
+                                {!isViewOnly && (
+                                  <div className="en-item-actions is-row">
+                                    <button type="button" onClick={() => abrirEdicaoSubItem(acesso, setNovoAcesso, setShowAddAcesso)} className="en-icon-btn is-edit" title="Editar"><Icons.Edit size={15} /></button>
+                                    <button type="button" onClick={() => deleteItem('acessos_cliente', acesso.id, setAcessos, acessos)} className="en-icon-btn is-archive" title="Eliminar"><Icons.Trash size={15} /></button>
+                                  </div>
+                                )}
+                              </div>
 
-                              <div style={{fontFamily:'monospace', background:'#f8fafc', border:'1px solid #e2e8f0', padding:'12px', borderRadius:'8px', color:'#334155', fontSize:'0.95rem'}}>
-                                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:'10px', marginBottom:'8px'}}>
-                                  <span>User: <b style={{color:'var(--color-btnPrimary)'}}>{acesso.utilizador}</b></span>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleCopyCredential(acesso.utilizador, 'Utilizador')}
-                                    style={{border:'1px solid var(--color-borderColor)', background:'var(--color-bgSecondary)', color:'var(--color-btnPrimaryDark)', borderRadius:'6px', padding:'4px 8px', cursor:'pointer', display:'inline-flex', alignItems:'center', gap:'4px', fontWeight:'700', fontSize:'0.75rem'}}
-                                    className="hover-shadow"
-                                    title="Copiar utilizador"
-                                  >
-                                    <Icons.Copy size={12} /> Copiar
+                              <div className="en-cred-rows">
+                                <div className="en-cred-row">
+                                  <span className="en-cred-label"><Icons.User size={13} /> User</span>
+                                  <code>{acesso.utilizador || '—'}</code>
+                                  <button type="button" className="en-copy" onClick={() => handleCopyCredential(acesso.utilizador, 'Utilizador')} title="Copiar utilizador">
+                                    <Icons.Copy size={13} />
                                   </button>
                                 </div>
-                                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:'10px'}}>
-                                  <span>Pass: <b style={{color:'#ef4444'}}>{acesso.codigo}</b></span>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleCopyCredential(acesso.codigo, 'Password')}
-                                    style={{border:'1px solid #fecaca', background:'#fef2f2', color:'#b91c1c', borderRadius:'6px', padding:'4px 8px', cursor:'pointer', display:'inline-flex', alignItems:'center', gap:'4px', fontWeight:'700', fontSize:'0.75rem'}}
-                                    className="hover-shadow"
-                                    title="Copiar password"
-                                  >
-                                    <Icons.Copy size={12} /> Copiar
+                                <div className="en-cred-row is-pass">
+                                  <span className="en-cred-label"><Icons.Lock size={13} /> Pass</span>
+                                  <code>{shown ? (acesso.codigo || '—') : (acesso.codigo ? '•'.repeat(Math.min(12, String(acesso.codigo).length)) : '—')}</code>
+                                  <button type="button" className="en-copy" onClick={() => setRevealedPass((prev) => ({ ...prev, [acesso.id]: !prev[acesso.id] }))} title={shown ? 'Esconder password' : 'Mostrar password'}>
+                                    {shown ? <Icons.EyeOff size={13} /> : <Icons.Eye size={13} />}
+                                  </button>
+                                  <button type="button" className="en-copy is-danger" onClick={() => handleCopyCredential(acesso.codigo, 'Password')} title="Copiar password">
+                                    <Icons.Copy size={13} />
                                   </button>
                                 </div>
                               </div>
 
                               {tipo.url && (
-                                <a href={tipo.url.startsWith('http') ? tipo.url : `https://${tipo.url}`} target="_blank" rel="noreferrer" style={{display:'inline-flex', alignItems: 'center', gap: '6px', marginTop:'12px', fontSize:'0.85rem', color:'var(--color-btnPrimary)', textDecoration:'none', fontWeight:'bold', background:'var(--color-bgSecondary)', padding:'6px 12px', borderRadius:'6px', border: '1px solid var(--color-borderColor)', transition: '0.2s'}} className="hover-shadow"><Icons.ExternalLink size={14} /> Abrir Portal de Login</a>
+                                <a href={tipo.url.startsWith('http') ? tipo.url : `https://${tipo.url}`} target="_blank" rel="noreferrer" className="en-cred-link"><Icons.ExternalLink size={14} /> Abrir Portal de Login</a>
                               )}
-                            </div>
-
-                            {!isViewOnly && (
-                              <div style={{display:'flex', flexDirection:'column', gap:'6px'}}>
-                                <button onClick={() => abrirEdicaoSubItem(acesso, setNovoAcesso, setShowAddAcesso)} className="action-btn hover-blue-text"><Icons.Edit /></button>
-                                <button onClick={() => deleteItem('acessos_cliente', acesso.id, setAcessos, acessos)} className="action-btn hover-red-text"><Icons.Trash /></button>
-                              </div>
-                            )}
-                          </li>
-                        );
-                      })}
-                    </ul>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : (
+                      <div className="en-empty is-inline is-small"><span className="en-empty-ico"><Icons.Lock size={26} color="currentColor" /></span><p>Ainda não há credenciais registadas.</p></div>
+                    )}
                   </div>
                 )}
 
