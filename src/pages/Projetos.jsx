@@ -13,9 +13,11 @@ import { applyStopStatusUpdateForLogTarget } from "../utils/taskTimerLifecycle";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import "./../styles/dashboard.css";
+import "../styles/portfolio.css";
 
 // --- ÍCONES SVG PROFISSIONAIS (SaaS Premium) ---
 const Icons = {
+  Grid: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>,
   Search: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>,
   User: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>,
   Users: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>,
@@ -1495,24 +1497,21 @@ export default function Projetos() {
   });
 
   const renderDeadline = (dateString, estado) => {
-    if (!dateString) return <span style={{fontSize: '0.75rem', color: '#cbd5e1', fontWeight: 'bold'}}>Sem prazo</span>;
+    if (estado === 'encerrado') return <span className="po-due is-closed">🔒 Encerrado</span>;
+    if (estado === 'concluido') return <span className="po-due is-done"><Icons.Check size={12} /> Concluído</span>;
+    if (!dateString) return <span className="po-due is-none">Sem prazo</span>;
     const deadline = new Date(dateString); deadline.setHours(0,0,0,0);
     const today = new Date(); today.setHours(0,0,0,0);
     const diffDays = Math.round((deadline.getTime() - today.getTime()) / (1000 * 3600 * 24));
-    
-    let color = '#64748b'; let bg = '#f1f5f9'; let text = `⏳ ${new Date(dateString).toLocaleDateString('pt-PT')}`;
-    let icon = <Icons.Calendar />;
+    const fmt = deadline.toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', year: deadline.getFullYear() !== today.getFullYear() ? '2-digit' : undefined }).replace('.', '');
 
-    if (estado === 'encerrado') { color = '#94a3b8'; bg = 'transparent'; text = `Encerrado`; icon = <span style={{fontSize:'0.65rem'}}>🔒</span>; } 
-    else if (estado === 'concluido') { color = '#0ea5e9'; bg = '#e0f2fe'; text = `Concluído`; icon = <span style={{fontSize:'0.65rem'}}>✔️</span>; } 
-    else if (diffDays < 0) { color = '#ef4444'; bg = '#fee2e2'; text = `Atrasado (${Math.abs(diffDays)}d)`; icon = <span style={{fontSize:'0.65rem'}}>🔴</span>; }
-    else if (diffDays === 0) { color = '#d97706'; bg = '#fef3c7'; text = `Termina Hoje!`; icon = <span style={{fontSize:'0.65rem'}}>⚠️</span>; } 
-    else if (diffDays <= 5) { color = '#ea580c'; bg = '#ffedd5'; text = `Em ${diffDays} dias`; icon = <span style={{fontSize:'0.65rem'}}>⏳</span>; }
-
-    return <span style={{background: bg, color: color, padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}}>{icon} {text}</span>;
+    if (diffDays < 0) return <span className="po-due is-late" title={`Prazo: ${deadline.toLocaleDateString('pt-PT')}`}><Icons.Alert size={12} color="currentColor" /> {Math.abs(diffDays)}d em atraso</span>;
+    if (diffDays === 0) return <span className="po-due is-today"><Icons.Calendar size={12} /> Termina hoje</span>;
+    if (diffDays <= 5) return <span className="po-due is-soon" title={`Prazo: ${deadline.toLocaleDateString('pt-PT')}`}><Icons.Calendar size={12} /> Em {diffDays} dia{diffDays === 1 ? '' : 's'}</span>;
+    return <span className="po-due" title={`Prazo: ${deadline.toLocaleDateString('pt-PT')}`}><Icons.Calendar size={12} /> {fmt}</span>;
   };
 
-  const projectColors = ['var(--color-btnPrimary)', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#f43f5e', '#14b8a6', 'var(--color-primary)', '#6366f1'];
+  const projectColors = ['var(--color-btnPrimary)', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#f43f5e', '#14b8a6', '#0ea5e9', '#6366f1'];
   const getColorForCategory = (id) => {
       if (!id) return '#94a3b8'; 
       const hash = String(id).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
@@ -1766,71 +1765,75 @@ export default function Projetos() {
       });
   };
 
+  const initialsOf = (txt) => {
+      const clean = String(txt || '').replace(/[[\]()\-–]/g, ' ').trim();
+      if (!clean) return '?';
+      if (/^[A-Za-z0-9]{2,4}$/.test(clean)) return clean.toUpperCase();
+      return clean.split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
+  };
+
   const renderViewModeToggle = () => (
-      <div style={{display: 'inline-flex', alignItems: 'center', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '4px', marginLeft: 'auto'}}>
-          <button
-              type="button"
-              onClick={() => setViewMode("cards")}
-              className={viewMode === "cards" ? "marketing-view-toggle-btn active" : "marketing-view-toggle-btn"}
-          >
-              Cards
+      <div className="po-seg is-small" role="tablist" aria-label="Modo de visualização">
+          <button type="button" role="tab" aria-selected={viewMode === "cards"} onClick={() => setViewMode("cards")} className={viewMode === "cards" ? "is-on" : ""}>
+              <Icons.Grid size={14} /> <span>Cartões</span>
           </button>
-          <button
-              type="button"
-              onClick={() => setViewMode("list")}
-              className={viewMode === "list" ? "marketing-view-toggle-btn active" : "marketing-view-toggle-btn"}
-          >
-              Lista
+          <button type="button" role="tab" aria-selected={viewMode === "list"} onClick={() => setViewMode("list")} className={viewMode === "list" ? "is-on" : ""}>
+              <Icons.ListTree size={14} /> <span>Lista</span>
           </button>
       </div>
   );
 
-  const renderProjectCard = (p) => {
+  const renderTimerButton = (p, isTimerActive, size = "md") => (
+      <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); if (isTimerActive) handleStopLog(e); else handleStartProjeto(e, p); }}
+          className={`po-timer is-${size} ${isTimerActive ? 'is-on' : ''}`}
+          title={isTimerActive ? "Parar cronómetro" : "Iniciar cronómetro"}
+          aria-label={isTimerActive ? "Parar cronómetro" : "Iniciar cronómetro"}
+      >
+          {isTimerActive ? <Icons.Stop /> : <Icons.Play />}
+      </button>
+  );
+
+  const renderProjectCard = (p, index = 0) => {
       const isCompleted = p.estado === 'encerrado' || p.estado === 'cancelado';
       const isTimerActive = activeLog?.projeto_id === p.id;
       const catColor = getColorForCategory(p.tipo_projeto_id);
       const clientInfo = getProjetoClientDisplay(p);
       const clientIcon = p.cliente_texto ? <Icons.FileText size={14} /> : (clientInfo.isParceria ? <Icons.Handshake size={14} /> : <Icons.Building size={14} />);
+      const estado = getEstadoInfo(p.estado);
+      const responsavel = p.profiles?.nome || '';
 
       return (
-          <div key={p.id} onClick={() => navigate(`/dashboard/projetos/${p.id}`)} className="project-card hover-shadow" style={{ background: 'white', borderRadius: '16px', border: isTimerActive ? '2px solid var(--color-btnPrimary)' : '1px solid #e2e8f0', padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px', cursor: 'pointer', transition: 'all 0.2s', opacity: isCompleted ? 0.6 : 1, position: 'relative', overflow: 'hidden' }}>
-              <div style={{position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: isCompleted ? '#cbd5e1' : catColor}}></div>
-              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
-                  <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '5px'}}>
-                      {/* Código do Projeto */}
-                      {p.codigo_projeto && <span style={{fontSize: '0.65rem', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '2px 8px', borderRadius: '6px', fontWeight: '800', border: '1px solid var(--color-borderColor)', fontFamily: 'monospace'}}>{p.codigo_projeto}</span>}
-                      
-                      {/* NOVO: Número do Projeto */}
-                      {p.numero_projeto && <span style={{fontSize: '0.65rem', background: '#f8fafc', color: '#475569', padding: '2px 8px', borderRadius: '6px', fontWeight: '800', border: '1px solid #cbd5e1', fontFamily: 'monospace'}}>Nº {p.numero_projeto}</span>}
-                      
-                      {/* Estado */}
-                      <span style={{fontSize: '0.65rem', background: isCompleted ? '#f1f5f9' : '#f8fafc', color: isCompleted ? '#64748b' : '#475569', padding: '2px 8px', borderRadius: '6px', fontWeight: '800', border: '1px solid #e2e8f0', textTransform: 'uppercase'}}>{(p.estado || '').replace('_', ' ')}</span>
+          <article
+              key={p.id}
+              onClick={() => navigate(`/dashboard/projetos/${p.id}`)}
+              className={`po-card ${isCompleted ? 'is-closed' : ''} ${isTimerActive ? 'is-running' : ''}`}
+              style={{ '--pc': isCompleted ? '#cbd5e1' : catColor, '--ec': estado.color, '--i': Math.min(index, 12) }}
+          >
+              <div className="po-card-top">
+                  <div className="po-card-tags">
+                      {p.codigo_projeto && <span className="po-code">{p.codigo_projeto}</span>}
+                      {p.numero_projeto && <span className="po-code is-num">Nº {p.numero_projeto}</span>}
+                      <span className="po-state"><i />{estado.nome}</span>
                   </div>
-                  {!isCompleted && (
-                      <button onClick={(e) => isTimerActive ? handleStopLog(e) : handleStartProjeto(e, p)} style={{ background: isTimerActive ? '#fee2e2' : 'var(--color-bgSecondary)', color: isTimerActive ? '#ef4444' : 'var(--color-btnPrimary)', border: 'none', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s' }} title={isTimerActive ? "Parar Timer" : "Iniciar Timer"} className={!isTimerActive ? "hover-blue-btn hover-shadow" : "hover-shadow"}>
-                          {isTimerActive ? <Icons.Stop /> : <Icons.Play />}
-                      </button>
-                  )}
+                  {!isCompleted && renderTimerButton(p, isTimerActive)}
               </div>
-              <div>
-                  <h2 style={{margin: '0 0 8px 0', fontSize: '1.2rem', color: '#0f172a', fontWeight: '800', lineHeight: '1.2'}}>{p.titulo}</h2>
-                  <div style={{fontSize: '0.85rem', color: clientInfo.isParceria ? '#8b5cf6' : '#475569', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>
-                      {clientIcon} {clientInfo.text}
-                  </div>
+
+              <h3 className="po-card-title" title={p.titulo}>{p.titulo || 'Sem título'}</h3>
+              <div className={`po-card-client ${clientInfo.isParceria ? 'is-partner' : ''}`} title={clientInfo.text}>
+                  {clientIcon}<span>{clientInfo.text || 'Sem entidade'}</span>
               </div>
-              <div style={{background: '#f8fafc', padding: '10px 12px', borderRadius: '8px', border: '1px solid #f1f5f9'}}>
-                  <div style={{fontSize: '0.65rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '4px'}}>Responsável Global</div>
-                  <div style={{fontSize: '0.85rem', color: '#334155', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>
-                      <Icons.User /> {p.profiles?.nome || '-'}
-                  </div>
-              </div>
-              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingTop: '10px', borderTop: '1px solid #f1f5f9'}}>
+
+              <div className="po-card-foot">
+                  <span className="po-person" title={responsavel ? `Responsável: ${responsavel}` : 'Sem responsável'}>
+                      <span className="po-avatar">{responsavel ? initialsOf(responsavel) : '–'}</span>
+                      <span className="po-person-name">{responsavel || 'Sem responsável'}</span>
+                  </span>
                   {renderDeadline(p.data_fim, p.estado)}
-                  <div style={{display: 'flex', gap: '6px'}}>
-                      <button onClick={(e) => handleEdit(e, p)} style={actionBtnStyle} className="hover-orange-text" title="Editar Projeto"><Icons.Edit /></button>
-                  </div>
+                  <button type="button" onClick={(e) => handleEdit(e, p)} className="po-icon-btn" title="Editar projeto" aria-label="Editar projeto"><Icons.Edit size={15} /></button>
               </div>
-          </div>
+          </article>
       );
   };
 
@@ -1839,78 +1842,83 @@ export default function Projetos() {
       const isTimerActive = activeLog?.projeto_id === p.id;
       const catColor = getColorForCategory(p.tipo_projeto_id);
       const clientInfo = getProjetoClientDisplay(p);
-      const estadoLabel = (p.estado || '').replace('_', ' ');
+      const estado = getEstadoInfo(p.estado);
+      const responsavel = p.profiles?.nome || '';
 
       return (
-          <tr key={p.id} className={isCompleted ? 'project-list-row row-inactive' : 'project-list-row'} onClick={() => navigate(`/dashboard/projetos/${p.id}`)} style={{boxShadow: `inset 4px 0 0 ${isCompleted ? '#94a3b8' : catColor}`, cursor: 'pointer', background: isTimerActive ? 'var(--color-bgSecondary)' : 'white'}}>
+          <tr
+              key={p.id}
+              className={`po-row ${isCompleted ? 'is-closed' : ''} ${isTimerActive ? 'is-running' : ''}`}
+              onClick={() => navigate(`/dashboard/projetos/${p.id}`)}
+              style={{ '--pc': isCompleted ? '#cbd5e1' : catColor, '--ec': estado.color }}
+          >
               <td>
-                  <div style={{display: 'flex', flexDirection: 'column', gap: '4px'}}>
-                      <span style={{fontWeight: '800', color: '#0f172a'}}>{p.titulo || 'Sem título'}</span>
-                      <div style={{display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap'}}>
-                          {/* Código do Projeto */}
-                          {p.codigo_projeto && <span style={{fontSize: '0.7rem', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', border: '1px solid var(--color-borderColor)', borderRadius: '6px', padding: '2px 8px', fontFamily: 'monospace', fontWeight: '700'}}>{p.codigo_projeto}</span>}
-                          
-                          {/* NOVO: Número do Projeto na Lista */}
-                          {p.numero_projeto && <span style={{fontSize: '0.7rem', background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '2px 8px', fontFamily: 'monospace', fontWeight: '700'}}>Nº {p.numero_projeto}</span>}
-
-                          {isTimerActive && <span style={{fontSize: '0.68rem', background: '#fee2e2', color: '#b91c1c', borderRadius: '999px', padding: '2px 8px', fontWeight: '800'}}>TIMER ATIVO</span>}
+                  <div className="po-row-title">
+                      <strong>{p.titulo || 'Sem título'}</strong>
+                      <div className="po-card-tags">
+                          {p.codigo_projeto && <span className="po-code">{p.codigo_projeto}</span>}
+                          {p.numero_projeto && <span className="po-code is-num">Nº {p.numero_projeto}</span>}
+                          {isTimerActive && <span className="po-live-tag">● A contar tempo</span>}
                       </div>
                   </div>
               </td>
-              <td style={{maxWidth: '220px'}}><span style={{display: 'inline-block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%', color: clientInfo.isParceria ? '#7c3aed' : '#475569', fontWeight: '600'}}>{clientInfo.text}</span></td>
-              <td>{p.profiles?.nome || '-'}</td>
-              <td style={{whiteSpace: 'nowrap'}}>{renderDeadline(p.data_fim, p.estado)}</td>
-              <td><span style={{fontSize: '0.7rem', padding: '3px 8px', borderRadius: '999px', fontWeight: '800', textTransform: 'uppercase', background: isCompleted ? '#f1f5f9' : '#eef2ff', color: isCompleted ? '#64748b' : '#3730a3', whiteSpace: 'nowrap'}}>{estadoLabel}</span></td>
+              <td><span className={`po-row-client ${clientInfo.isParceria ? 'is-partner' : ''}`} title={clientInfo.text}>{clientInfo.text || '—'}</span></td>
               <td>
-                  <div style={{display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '6px'}}>
-                      {!isCompleted && (
-                          <button type="button" onClick={(e) => { e.stopPropagation(); if (isTimerActive) handleStopLog(e); else handleStartProjeto(e, p); }} style={{ background: isTimerActive ? '#fee2e2' : 'var(--color-bgSecondary)', color: isTimerActive ? '#ef4444' : 'var(--color-btnPrimary)', border: 'none', width: '30px', height: '30px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s' }} className="hover-shadow" title={isTimerActive ? "Parar Timer" : "Iniciar Timer"}>
-                              {isTimerActive ? <Icons.Stop /> : <Icons.Play />}
-                          </button>
-                      )}
-                      <button type="button" onClick={(e) => handleEdit(e, p)} style={actionBtnStyle} className="hover-orange-text" title="Editar Projeto"><Icons.Edit /></button>
+                  <span className="po-person">
+                      <span className="po-avatar">{responsavel ? initialsOf(responsavel) : '–'}</span>
+                      <span className="po-person-name">{responsavel || '—'}</span>
+                  </span>
+              </td>
+              <td>{renderDeadline(p.data_fim, p.estado)}</td>
+              <td><span className="po-state"><i />{estado.nome}</span></td>
+              <td>
+                  <div className="po-row-actions">
+                      {!isCompleted && renderTimerButton(p, isTimerActive, "sm")}
+                      <button type="button" onClick={(e) => handleEdit(e, p)} className="po-icon-btn" title="Editar projeto" aria-label="Editar projeto"><Icons.Edit size={15} /></button>
                   </div>
               </td>
           </tr>
       );
   };
 
+  const renderEmpty = (title, text) => (
+      <div className="po-empty">
+          <span className="po-empty-icon"><Icons.Inbox size={30} color="currentColor" /></span>
+          <h3>{title}</h3>
+          <p>{text}</p>
+          {(busca || mostrarConcluidos) && (
+              <button type="button" className="po-btn" onClick={() => { setBusca(""); }}>Limpar pesquisa</button>
+          )}
+      </div>
+  );
+
   const renderMenuItems = (items, emptyTitle, emptyText) => {
       const visibleItems = items.filter(item => item.count > 0 || busca || mostrarConcluidos);
 
-      if (visibleItems.length === 0) {
-          return (
-              <div style={{textAlign: 'center', padding: '60px', background: 'white', borderRadius: '16px', border: '1px dashed #cbd5e1'}}>
-                  <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px', color: '#cbd5e1'}}><Icons.Inbox /></div>
-                  <h3 style={{color: '#1e293b', margin: '0 0 5px 0'}}>{emptyTitle}</h3>
-                  <p style={{color: '#64748b', margin: 0}}>{emptyText}</p>
-              </div>
-          );
-      }
+      if (visibleItems.length === 0) return renderEmpty(emptyTitle, emptyText);
 
       if (viewMode === "list") {
           return (
-              <div className="table-responsive" style={{borderRadius: '14px'}}>
-                  <table className="data-table project-list-table" style={{minWidth: '720px'}}>
+              <div className="po-table-wrap">
+                  <table className="po-table">
                       <thead>
                           <tr>
-                              <th>Menu</th>
-                              <th>Total</th>
-                              <th style={{textAlign: 'right'}}>Abrir</th>
+                              <th>{menuPrincipal === 'tipo' ? 'Tipo de projeto' : menuPrincipal === 'estado' ? 'Estado' : 'Programa'}</th>
+                              <th style={{ width: 120 }}>Projetos</th>
+                              <th style={{ width: 140, textAlign: 'right' }}></th>
                           </tr>
                       </thead>
                       <tbody>
                           {visibleItems.map(item => (
-                              <tr key={item.id} className="project-list-row" onClick={item.onClick} style={{cursor: 'pointer', background: 'white', boxShadow: `inset 4px 0 0 ${item.color}`}}>
+                              <tr key={item.id} className="po-row" onClick={item.onClick} style={{ '--pc': item.color }}>
                                   <td>
-                                      <span style={{fontWeight: '800', color: '#0f172a'}}>{item.nome}</span>
+                                      <span className="po-nav-inline">
+                                          <span className="po-nav-icon is-sm">{initialsOf(item.nome)}</span>
+                                          <strong>{item.nome}</strong>
+                                      </span>
                                   </td>
-                                  <td>
-                                      <span style={{background: `${item.color}20`, color: item.color, padding: '4px 12px', borderRadius: '20px', fontWeight: 'bold', fontSize: '0.85rem'}}>{item.count}</span>
-                                  </td>
-                                  <td style={{textAlign: 'right', color: '#94a3b8', fontWeight: '700'}}>
-                                      Abrir <Icons.ArrowRight />
-                                  </td>
+                                  <td><span className="po-count">{item.count}</span></td>
+                                  <td className="po-row-open">{item.actionLabel || 'Abrir'} <Icons.ArrowRight /></td>
                               </tr>
                           ))}
                       </tbody>
@@ -1919,21 +1927,25 @@ export default function Projetos() {
           );
       }
 
+      const maxCount = Math.max(1, ...visibleItems.map((item) => item.count || 0));
       return (
-          <div className="category-grid">
-              {visibleItems.map(item => (
-                  <div
+          <div className="po-nav-grid">
+              {visibleItems.map((item, i) => (
+                  <button
+                      type="button"
                       key={item.id}
                       onClick={item.onClick}
-                      className="category-card"
-                      style={{ borderTop: `5px solid ${item.color}` }}
+                      className={`po-nav-card ${item.count === 0 ? 'is-empty' : ''}`}
+                      style={{ '--nc': item.color, '--i': Math.min(i, 12) }}
                   >
-                      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                          <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.2rem'}}>{item.nome}</h3>
-                          <span style={{background: `${item.color}20`, color: item.color, padding: '4px 12px', borderRadius: '20px', fontWeight: 'bold', fontSize: '0.85rem'}}>{item.count}</span>
-                      </div>
-                      <p style={{margin: '15px 0 0 0', fontSize: '0.85rem', color: '#94a3b8', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px'}}>{item.actionLabel || 'Abrir portfolio'} <Icons.ArrowRight /></p>
-                  </div>
+                      <span className="po-nav-head">
+                          <span className="po-nav-icon">{initialsOf(item.nome)}</span>
+                          <span className="po-nav-count">{item.count}<small>{item.count === 1 ? 'projeto' : 'projetos'}</small></span>
+                      </span>
+                      <strong className="po-nav-name">{item.nome}</strong>
+                      <span className="po-nav-bar"><i style={{ width: `${Math.max(4, ((item.count || 0) / maxCount) * 100)}%` }} /></span>
+                      <span className="po-nav-action">{item.actionLabel || 'Abrir'} <Icons.ArrowRight /></span>
+                  </button>
               ))}
           </div>
       );
@@ -1942,7 +1954,6 @@ export default function Projetos() {
   const sectionTitleStyle = { fontSize: '0.8rem', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '15px', marginTop: '20px', borderBottom: '1px solid #e2e8f0', paddingBottom: '5px', display: 'flex', alignItems: 'center', gap: '6px' };
   const labelStyle = { display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' };
   const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box' };
-  const actionBtnStyle = { background: 'transparent', border: 'none', cursor: 'pointer', padding: '6px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.6, transition: '0.2s' };
 
   const entidadesProjeto = [...new Set(
     [form.cliente_id, ...(form.is_parceria ? (form.parceiros_ids || []) : [])].filter(Boolean).map(String)
@@ -2191,7 +2202,7 @@ export default function Projetos() {
           nome: t.nome,
           count: countsPerCategory[t.id] || 0,
           color: getColorForCategory(t.id),
-          actionLabel: selectedEstado ? 'Escolher tipo' : 'Abrir portfolio',
+          actionLabel: selectedEstado ? 'Escolher tipo' : 'Ver projetos',
           onClick: () => setSelectedCategoria(t.id)
       })),
       ...(countsPerCategory['sem-categoria'] > 0 ? [{
@@ -2257,6 +2268,7 @@ export default function Projetos() {
 
   if (loading) return <div className="page-container" style={{display:'flex', justifyContent:'center', alignItems:'center', height:'80vh'}}><div className="pulse-dot-white" style={{background:'var(--color-btnPrimary)'}}></div></div>;
 
+  let vistaGeralView = null;
   if (isVistaGeral) {
       const overviewProjects = projetosFiltrados.filter(matchesOverviewFilters);
           const isMonthlyTab = overviewTab === "anual" || overviewTab === "incentivo";
@@ -2633,20 +2645,8 @@ const exportCurrentOverviewPdf = () => {
     const footerBase = overviewTab === "incentivo" ? totalOverviewIncentivo : totalOverviewInvestimento;
     const footerTxe = footerBase > 0 ? `${((totalRequestedAllTime / footerBase) * 100).toFixed(1)}%` : "0.0%";
 
-      return (
-          <div className="page-container" style={{maxWidth: '1400px', margin: '0 auto', padding: '15px'}}>
-              <div style={{background: 'white', padding: '20px 25px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', flexWrap: 'wrap', gap: '15px'}}>
-                  <div style={{display:'flex', alignItems:'center', gap:'20px'}}>
-                      <div style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '12px', borderRadius: '12px', display: 'flex'}}><Icons.Folder size={24} /></div>
-                      <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.8rem', fontWeight: '900'}}>Portfólio</h1>
-                      <div style={{display: 'flex', background: '#f1f5f9', borderRadius: '8px', padding: '4px', border: '1px solid #e2e8f0'}}>
-                          <button onClick={() => { setPortfolioView("mine"); setShowOnlyMine(true); }} style={{padding: '6px 16px', border: 'none', borderRadius: '6px', fontWeight: 'bold', background: 'transparent', color: '#64748b', cursor: 'pointer'}}><Icons.User /> Os Meus</button>
-                          <button onClick={() => { setPortfolioView("company"); setShowOnlyMine(false); }} style={{padding: '6px 16px', border: 'none', borderRadius: '6px', fontWeight: 'bold', background: 'transparent', color: '#64748b', cursor: 'pointer'}}><Icons.Globe /> Empresa</button>
-                          <button onClick={() => setPortfolioView("overview")} style={{padding: '6px 16px', border: 'none', borderRadius: '6px', fontWeight: 'bold', background: 'white', color: 'var(--color-btnPrimary)', cursor: 'pointer'}}><Icons.Folder size={14} /> Vista Geral</button>
-                      </div>
-                  </div>
-                  <button className="btn-primary hover-shadow" onClick={handleNovo} style={{display:'flex', alignItems:'center', gap:'8px', fontWeight:'bold'}}><Icons.Plus /> Novo Projeto</button>
-              </div>
+      vistaGeralView = (
+          <div className="po-vg">
               <div style={{display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '12px', flexWrap: 'wrap'}}>
     <div style={{display: 'flex', background: '#f1f5f9', borderRadius: '8px', padding: '4px', border: '1px solid #e2e8f0'}}>
         {[
@@ -3086,213 +3086,162 @@ const exportCurrentOverviewPdf = () => {
           );
   }
 
+  // ---------- Números do topo (respeitam "Os Meus" / "Empresa") ----------
+  const heroToday = new Date(); heroToday.setHours(0, 0, 0, 0);
+  const heroScope = projetos.filter((p) => checkUserInvolvement(p));
+  const heroActive = heroScope.filter((p) => !['encerrado', 'cancelado', 'concluido'].includes(p.estado));
+  const heroDaysTo = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return Math.round((x - heroToday) / 86400000); };
+  const heroLate = heroActive.filter((p) => p.data_fim && heroDaysTo(p.data_fim) < 0).length;
+  const heroSoon = heroActive.filter((p) => p.data_fim && heroDaysTo(p.data_fim) >= 0 && heroDaysTo(p.data_fim) <= 7).length;
+  const heroRunning = heroActive.filter((p) => p.estado === 'em_curso').length;
+  const scopeLabel = isVistaGeral ? 'Vista geral de todos os projetos, por programa.' : showOnlyMine ? 'Os projetos em que estás envolvido.' : 'Todos os projetos da empresa.';
+  const activeLogLabel = activeLogTitle || 'Projeto em curso';
+
   return (
-    <div className="page-container" style={{maxWidth: '1400px', margin: '0 auto', padding: '15px'}}>
-      
-      <div style={{background: 'white', padding: isVistaGeral ? '12px 18px' : '20px 25px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: isVistaGeral ? '12px' : '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', flexWrap: 'wrap', gap: '15px'}}>
-        <div style={{display:'flex', alignItems:'center', gap:'20px'}}>
-            {!isVistaGeral && <div style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '12px', borderRadius: '12px', display: 'flex'}}><Icons.Folder size={24} /></div>}
-            <h1 style={{margin: 0, color: '#0f172a', fontSize: isVistaGeral ? '1.25rem' : '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>{isVistaGeral ? 'Vista Geral' : 'Portfólio'}</h1>
-            
-            <div style={{display: 'flex', background: '#f1f5f9', borderRadius: '8px', padding: '4px', border: '1px solid #e2e8f0'}}>
-                <button 
-                    onClick={() => { setPortfolioView("mine"); setShowOnlyMine(true); resetProjectMenus(); }} 
-                    style={{padding: '6px 16px', borderRadius: '6px', border: 'none', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', transition: '0.2s', background: showOnlyMine ? 'white' : 'transparent', color: showOnlyMine ? 'var(--color-btnPrimary)' : '#64748b', boxShadow: showOnlyMine ? '0 2px 4px rgba(0,0,0,0.05)' : 'none', display:'flex', alignItems:'center', gap:'6px'}}
-                >
-                    <Icons.User /> Os Meus
-                </button>
-                <button 
-                    onClick={() => { setPortfolioView("company"); setShowOnlyMine(false); resetProjectMenus(); }} 
-                    style={{padding: '6px 16px', borderRadius: '6px', border: 'none', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', transition: '0.2s', background: portfolioView === "company" ? 'white' : 'transparent', color: portfolioView === "company" ? 'var(--color-btnPrimary)' : '#64748b', boxShadow: portfolioView === "company" ? '0 2px 4px rgba(0,0,0,0.05)' : 'none', display:'flex', alignItems:'center', gap:'6px'}}
-                >
-                    <Icons.Globe /> Empresa
-                </button>
-                <button 
-                    onClick={() => { setPortfolioView("overview"); setShowOnlyMine(false); resetProjectMenus(); }} 
-                    style={{padding: '6px 16px', borderRadius: '6px', border: 'none', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', transition: '0.2s', background: isVistaGeral ? 'white' : 'transparent', color: isVistaGeral ? 'var(--color-btnPrimary)' : '#64748b', boxShadow: isVistaGeral ? '0 2px 4px rgba(0,0,0,0.05)' : 'none', display:'flex', alignItems:'center', gap:'6px'}}
-                >
-                    <Icons.Folder size={14} /> Vista Geral
-                </button>
-            </div>
-        </div>
+    <div className="page-container po-page">
 
-        {!isVistaGeral && <div style={{display: 'flex', gap: '15px', alignItems: 'center'}}>
-            {activeLog && (
-                <div onClick={() => navigate(activeLogRoute || '/dashboard/projetos')} className="hover-shadow" title="Ir para o item com cronómetro em curso" style={{background: 'linear-gradient(to right, #ef4444, #b91c1c)', color: 'white', padding: '10px 20px', borderRadius: '30px', display: 'flex', alignItems: 'center', gap: '15px', border: '2px solid #fecaca', boxShadow: '0 4px 10px rgba(239, 68, 68, 0.4)', transition: '0.2s', whiteSpace: 'nowrap', cursor: 'pointer'}}>
-                <div style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700', fontSize: '0.95rem'}}>
-                    <span className="pulse-dot-white"></span>
-                    {(activeLogTitle || 'Projeto em curso').length > 30 ? `${(activeLogTitle || 'Projeto em curso').slice(0, 30)}...` : (activeLogTitle || 'Projeto em curso')}
-                </div>
-                <div style={{width: '1px', height: '20px', background: 'rgba(255,255,255,0.3)'}}></div>
-                <button onClick={(e) => handleStopLog(e)} style={{background: 'white', color:'#ef4444', border:'none', borderRadius:'20px', padding:'6px 12px', cursor:'pointer', fontWeight:'700', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px', transition: '0.2s'}}><Icons.Stop /> Parar</button>
-                </div>
-            )}
-            <button className="btn-primary hover-shadow" onClick={handleNovo} style={{display:'flex', alignItems:'center', gap:'8px', fontWeight:'bold'}}><Icons.Plus /> Novo Projeto</button>
-        </div>}
-      </div>
+      {/* HERO */}
+      <header className="po-hero">
+          <div className="po-hero-bg" aria-hidden="true"><span className="po-orb po-orb-a" /><span className="po-orb po-orb-b" /></div>
 
-      {!isVistaGeral && <div style={{background: '#f8fafc', padding: '12px 20px', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '25px', display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap'}}>
-        <div style={{display: 'flex', background: '#e2e8f0', borderRadius: '8px', padding: '4px', border: '1px solid #cbd5e1'}}>
-            <button
-                type="button"
-                onClick={() => switchMenuPrincipal("tipo")}
-                style={{padding: '6px 14px', borderRadius: '6px', border: 'none', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', transition: '0.2s', background: menuPrincipal === "tipo" ? 'white' : 'transparent', color: menuPrincipal === "tipo" ? 'var(--color-btnPrimary)' : '#64748b', boxShadow: menuPrincipal === "tipo" ? '0 2px 4px rgba(0,0,0,0.05)' : 'none'}}
-            >
-                Tipos
-            </button>
-            <button
-                type="button"
-                onClick={() => switchMenuPrincipal("estado")}
-                style={{padding: '6px 14px', borderRadius: '6px', border: 'none', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', transition: '0.2s', background: menuPrincipal === "estado" ? 'white' : 'transparent', color: menuPrincipal === "estado" ? 'var(--color-btnPrimary)' : '#64748b', boxShadow: menuPrincipal === "estado" ? '0 2px 4px rgba(0,0,0,0.05)' : 'none'}}
-            >
-                Estados
-            </button>
-
-            <button
-                type="button"
-                onClick={() => switchMenuPrincipal("programa")}
-                style={{padding: '6px 14px', borderRadius: '6px', border: 'none', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', transition: '0.2s', background: menuPrincipal === "programa" ? 'white' : 'transparent', color: menuPrincipal === "programa" ? 'var(--color-btnPrimary)' : '#64748b', boxShadow: menuPrincipal === "programa" ? '0 2px 4px rgba(0,0,0,0.05)' : 'none'}}
-            >
-                Programas
-            </button>
-
-        </div>
-        <div style={{flex: 1, position: 'relative'}}>
-            <span style={{position: 'absolute', left: '12px', top: '9px', color: '#94a3b8', fontSize: '0.85rem'}}><Icons.Search /></span>
-            <input type="text" placeholder="Procurar projeto, código ou cliente..." value={busca} onChange={e => setBusca(e.target.value)} style={{width: '100%', padding: '8px 12px 8px 36px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.85rem', boxSizing: 'border-box'}} className="input-focus" />
-        </div>
-        <label style={{display:'flex', alignItems:'center', gap:'6px', cursor:'pointer', fontSize:'0.85rem', color: '#475569', fontWeight: 'bold'}}>
-          <input type="checkbox" checked={mostrarConcluidos} onChange={e => setMostrarConcluidos(e.target.checked)} style={{width:'16px', height:'16px', accentColor: '#10b981'}} /> Mostrar Arquivados
-        </label>
-        {!isVistaGeral && renderViewModeToggle()}
-      </div>}
-
-      {/* 1. SE NÃO ESTIVER ABERTO: RENDERIZAR OS MENUS (PASTAS) */}
-      {!isProjectListOpen && (
-          <div className="fade-in" style={{marginTop: '20px'}}>
-              {(() => {
-                  if (menuPrincipal === 'tipo') return renderMenuItems(tipoMenuItems, 'Sem Tipos', 'Não existem tipos de projeto disponíveis.');
-                  if (menuPrincipal === 'estado') return renderMenuItems(estadoMenuItems, 'Sem Estados', 'Não existem estados disponíveis.');
-                  if (menuPrincipal === 'programa') return renderMenuItems(programaMenuItems, 'Sem Programas', 'Não existem programas de financiamento ativos.');
-              })()}
+          <div className="po-hero-row">
+              <div className="po-hero-main">
+                  <span className="po-hero-icon"><Icons.Folder size={22} /></span>
+                  <div>
+                      <h1>{isVistaGeral ? 'Vista Geral' : 'Portfólio'}</h1>
+                      <p>{scopeLabel}</p>
+                  </div>
+              </div>
+              <div className="po-hero-stats">
+                  <span className="po-stat"><strong>{heroActive.length}</strong> ativos</span>
+                  <span className={`po-stat ${heroLate > 0 ? 'is-alert' : ''}`}><strong>{heroLate}</strong> em atraso</span>
+                  <span className="po-stat"><strong>{heroSoon}</strong> terminam em 7 dias</span>
+                  <span className="po-stat"><strong>{heroRunning}</strong> em curso</span>
+              </div>
           </div>
-      )}
 
-      {/* 2. SE ESTIVER ABERTO: RENDERIZAR OS PROJETOS AGRUPADOS */}
-      {isProjectListOpen && (
-          <div className="fade-in">
-              {!isVistaGeral && <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '15px', marginBottom: '30px', borderBottom: '1px solid #cbd5e1', paddingBottom: '15px', flexWrap: 'wrap'}}>
-                  <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
-                      <button 
-                          onClick={handleVoltarProjetos}
-                          style={{background: 'white', border: '1px solid #cbd5e1', padding: '8px 15px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', color: '#475569', display: 'flex', alignItems: 'center', gap: '6px', transition: '0.2s'}}
-                          className="hover-shadow"
-                      >
-                          <Icons.ArrowLeft /> Voltar
-                      </button>
-                      <div>
-                          <h2 style={{margin: 0, fontSize: '1.4rem', color: '#1e293b', fontWeight: '800'}}>{currentMenuTitle}</h2>
-                          <p style={{margin: '4px 0 0 0', color: '#64748b', fontSize: '0.88rem', fontWeight: '600'}}>{currentMenuSubtitle}</p>
+          <div className="po-hero-row po-hero-tools">
+              <div className="po-scope" role="tablist" aria-label="Âmbito">
+                  <button type="button" role="tab" aria-selected={!isVistaGeral && showOnlyMine} className={!isVistaGeral && showOnlyMine ? 'is-on' : ''} onClick={() => { setPortfolioView("mine"); setShowOnlyMine(true); resetProjectMenus(); }}>
+                      <Icons.User size={15} /> Os meus
+                  </button>
+                  <button type="button" role="tab" aria-selected={portfolioView === "company"} className={portfolioView === "company" ? 'is-on' : ''} onClick={() => { setPortfolioView("company"); setShowOnlyMine(false); resetProjectMenus(); }}>
+                      <Icons.Globe size={15} /> Empresa
+                  </button>
+                  <button type="button" role="tab" aria-selected={isVistaGeral} className={isVistaGeral ? 'is-on' : ''} onClick={() => { setPortfolioView("overview"); setShowOnlyMine(false); resetProjectMenus(); }}>
+                      <Icons.Grid size={15} /> Vista geral
+                  </button>
+              </div>
+
+              <div className="po-hero-actions">
+                  {activeLog && (
+                      <div onClick={() => navigate(activeLogRoute || '/dashboard/projetos')} title="Ir para o item com cronómetro em curso" className="po-live">
+                          <span className="po-live-dot" />
+                          <span className="po-live-title">{activeLogLabel.length > 30 ? `${activeLogLabel.slice(0, 30)}...` : activeLogLabel}</span>
+                          <button type="button" onClick={(e) => { e.stopPropagation(); handleStopLog(e); }} className="po-live-stop"><Icons.Stop /> Parar</button>
                       </div>
-                  </div>
-              </div>}
+                  )}
+                  <button type="button" className="po-cta" onClick={handleNovo}><Icons.Plus size={16} /> Novo projeto</button>
+              </div>
+          </div>
+      </header>
 
-              {isVistaGeral ? (
+      {isVistaGeral ? vistaGeralView : (
+        <>
+          {/* BARRA DE NAVEGAÇÃO / FILTROS */}
+          <div className="po-toolbar">
+              <div className="po-seg" role="tablist" aria-label="Navegar por">
+                  {[['tipo', 'Tipos'], ['estado', 'Estados'], ['programa', 'Programas']].map(([key, label]) => (
+                      <button key={key} type="button" role="tab" aria-selected={menuPrincipal === key} className={menuPrincipal === key ? 'is-on' : ''} onClick={() => switchMenuPrincipal(key)}>{label}</button>
+                  ))}
+              </div>
+              <label className="po-search">
+                  <Icons.Search size={15} />
+                  <input type="text" placeholder="Procurar projeto, código ou cliente..." value={busca} onChange={e => setBusca(e.target.value)} />
+                  {busca && <button type="button" className="po-search-clear" onClick={() => setBusca("")} aria-label="Limpar pesquisa"><Icons.Close size={14} /></button>}
+              </label>
+              <button type="button" className={`po-toggle ${mostrarConcluidos ? 'is-on' : ''}`} onClick={() => setMostrarConcluidos(!mostrarConcluidos)} aria-pressed={mostrarConcluidos}>
+                  <span className="po-toggle-track"><span /></span> Arquivados
+              </button>
+              {renderViewModeToggle()}
+          </div>
+
+          {/* CAMINHO (quando há uma lista aberta) */}
+          {isProjectListOpen ? (
+              <div className="po-crumb">
+                  <button type="button" className="po-back" onClick={handleVoltarProjetos}><Icons.ArrowLeft /> {isSearchActive ? 'Limpar pesquisa' : 'Voltar'}</button>
+                  <div className="po-crumb-text">
+                      <h2>{currentMenuTitle}</h2>
+                      <p>{currentMenuSubtitle}</p>
+                  </div>
+              </div>
+          ) : (
+              <div className="po-crumb is-home">
+                  <div className="po-crumb-text">
+                      <h2>{currentMenuTitle}</h2>
+                      <p>{currentMenuSubtitle}</p>
+                  </div>
+              </div>
+          )}
+
+          <div className="po-content" key={`${menuPrincipal}-${isProjectListOpen ? 'list' : 'menu'}-${viewMode}`}>
+              {!isProjectListOpen && (() => {
+                  if (menuPrincipal === 'tipo') return renderMenuItems(tipoMenuItems, 'Sem tipos', 'Não existem tipos de projeto com projetos ativos.');
+                  if (menuPrincipal === 'estado') return renderMenuItems(estadoMenuItems, 'Sem estados', 'Não existem projetos nestes estados.');
+                  return renderMenuItems(programaMenuItems, 'Sem programas', 'Não existem programas de financiamento com projetos.');
+              })()}
+
+              {isProjectListOpen && (
                   Object.keys(groupedProjects).length > 0 ? (
-                      <div className="table-responsive" style={{borderRadius: '4px', border: '1px solid #94a3b8', background: 'white'}}>
-                          <table style={{width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', fontSize: '0.82rem'}}>
-                              <thead>
-                                  <tr>
-                                      <th style={{width: '28%', padding: '7px 10px', border: '1px solid #94a3b8', background: '#dbeafe', color: '#1e293b', textAlign: 'center', fontWeight: '800'}}>Programa</th>
-                                      <th style={{padding: '7px 10px', border: '1px solid #94a3b8', background: '#dbeafe', color: '#1e293b', textAlign: 'left', fontWeight: '800'}}>Projeto</th>
-                                  </tr>
-                              </thead>
-                              <tbody>
-                                  {Object.entries(groupedProjects).map(([groupName, projs], groupIndex) => (
-                                      projs.map((project, projectIndex) => (
-                                          <tr key={project.id} className="overview-project-row">
-                                              {projectIndex === 0 && (
-                                                  <td rowSpan={projs.length} style={{padding: '7px 10px', border: '1px solid #94a3b8', background: groupIndex % 2 === 0 ? '#d9eef7' : '#efd5f0', color: '#1e293b', textAlign: 'center', verticalAlign: 'middle', fontWeight: '700'}}>
-                                                      {groupName}
-                                                  </td>
-                                              )}
-                                              <td style={{padding: '7px 10px', border: '1px solid #94a3b8', background: groupIndex % 2 === 0 ? '#f7fcff' : '#fff7ff', color: '#1e293b'}}>
-                                                  {project.titulo || 'Sem título'}
-                                              </td>
-                                          </tr>
-                                      ))
-                                  ))}
-                              </tbody>
-                          </table>
-                      </div>
-                  ) : (
-                      <div style={{textAlign: 'center', padding: '35px', background: 'white', border: '1px dashed #cbd5e1'}}>
-                          <h3 style={{color: '#1e293b', margin: '0 0 5px 0'}}>Vazio por aqui.</h3>
-                          <p style={{color: '#64748b', margin: 0}}>Não há projetos ativos a corresponder aos critérios.</p>
-                      </div>
-                  )
-              ) : Object.keys(groupedProjects).length > 0 ? (
-                  Object.entries(groupedProjects).map(([groupName, projs]) => (
-                      <div key={groupName} style={{marginBottom: isVistaGeral ? '20px' : '45px'}}>
-                          
-                          {/* --- SEPARADOR DO GRUPO --- */}
-                          <div style={{display: 'flex', alignItems: 'center', gap: '15px', marginBottom: isVistaGeral ? '8px' : '20px'}}>
-                              <span style={{fontWeight: '800', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px'}}>
-                                  {groupName} 
-                                  <span style={{background: '#e2e8f0', color: '#475569', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem'}}>{projs.length}</span>
-                              </span>
-                              <div style={{flex: 1, height: '2px', background: '#e2e8f0', borderRadius: '2px'}}></div>
-                          </div>
-
-                          {/* --- LISTAGEM DE PROJETOS DO GRUPO --- */}
-                          {viewMode === "cards" ? (
-                              <div className="project-grid">
-                                  {projs.map(p => renderProjectCard(p))}
-                              </div>
-                          ) : (
-                              <div className="table-responsive" style={{borderRadius: '14px'}}>
-                                  <table className="data-table project-list-table" style={{minWidth: '1050px'}}>
-                                      <thead>
-                                          <tr>
-                                              <th>Projeto</th>
-                                              <th>Cliente / Entidade</th>
-                                              <th>Responsável</th>
-                                              <th>Prazo</th>
-                                              <th>Estado</th>
-                                              <th style={{textAlign: 'right'}}>Ações</th>
-                                          </tr>
-                                      </thead>
-                                      <tbody>
-                                          {projs.map(p => renderProjectRow(p))}
-                                      </tbody>
-                                  </table>
-                              </div>
-                          )}
-                      </div>
-                  ))
-              ) : (
-                  <div style={{textAlign: 'center', padding: '60px', background: 'white', borderRadius: '16px', border: '1px dashed #cbd5e1'}}>
-                      <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px', color: '#cbd5e1'}}><Icons.Inbox /></div>
-                      <h3 style={{color: '#1e293b', margin: '0 0 5px 0'}}>Vazio por aqui.</h3>
-                      <p style={{color: '#64748b', margin: 0}}>Não há projetos ativos a corresponder aos critérios.</p>
-                  </div>
+                      Object.entries(groupedProjects).map(([groupName, projs], gi) => (
+                          <section key={groupName} className="po-group" style={{ '--i': Math.min(gi, 8) }}>
+                              <header className="po-group-head">
+                                  <h3>{groupName}</h3>
+                                  <span className="po-count">{projs.length}</span>
+                                  <span className="po-group-line" />
+                              </header>
+                              {viewMode === "cards" ? (
+                                  <div className="po-grid">
+                                      {projs.map((p, i) => renderProjectCard(p, i))}
+                                  </div>
+                              ) : (
+                                  <div className="po-table-wrap">
+                                      <table className="po-table is-projects">
+                                          <thead>
+                                              <tr>
+                                                  <th>Projeto</th>
+                                                  <th>Cliente / entidade</th>
+                                                  <th>Responsável</th>
+                                                  <th>Prazo</th>
+                                                  <th>Estado</th>
+                                                  <th style={{ textAlign: 'right' }}>Ações</th>
+                                              </tr>
+                                          </thead>
+                                          <tbody>
+                                              {projs.map(p => renderProjectRow(p))}
+                                          </tbody>
+                                      </table>
+                                  </div>
+                              )}
+                          </section>
+                      ))
+                  ) : renderEmpty('Vazio por aqui', 'Não há projetos a corresponder aos critérios.')
               )}
           </div>
+        </>
       )}
 
       {/* 💡 MODAL DE CONFIRMAÇÃO GLOBAL */}
       {confirmDialog.show && (
           <ModalPortal>
-              <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999}}>
-                  <div style={{background: 'white', padding: '30px', borderRadius: '16px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out'}}>
-                      <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px'}}><Icons.Alert color={confirmDialog.isDanger ? "#ef4444" : "var(--color-btnPrimary)"} /></div>
-                      <h3 style={{margin: '0 0 10px 0', color: '#1e293b', fontSize: '1.25rem'}}>Confirmação</h3>
-                      <p style={{color: '#64748b', fontSize: '0.95rem', marginBottom: '25px', lineHeight: '1.5', whiteSpace: 'pre-line'}}>
-                          {confirmDialog.message}
-                      </p>
-                      <div style={{display: 'flex', gap: '10px'}}>
-                          <button onClick={() => setConfirmDialog({show: false})} style={{flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', background: 'white', color: '#475569', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">Cancelar</button>
-                          <button onClick={() => { confirmDialog.onConfirm(); }} style={{flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: confirmDialog.isDanger ? '#ef4444' : 'var(--color-btnPrimary)', color: 'white', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">{confirmDialog.confirmText}</button>
+              <div className="po-overlay" onClick={() => setConfirmDialog({show: false})}>
+                  <div className="po-dialog" onClick={(e) => e.stopPropagation()} role="alertdialog">
+                      <span className={`po-dialog-icon ${confirmDialog.isDanger ? 'is-danger' : ''}`}><Icons.Alert size={26} color="currentColor" /></span>
+                      <h3>Confirmação</h3>
+                      <p>{confirmDialog.message}</p>
+                      <div className="po-dialog-actions">
+                          <button type="button" onClick={() => setConfirmDialog({show: false})} className="po-btn">Cancelar</button>
+                          <button type="button" onClick={() => { confirmDialog.onConfirm(); }} className={`po-btn ${confirmDialog.isDanger ? 'is-danger' : 'is-primary'}`}>{confirmDialog.confirmText}</button>
                       </div>
                   </div>
               </div>
@@ -3302,15 +3251,13 @@ const exportCurrentOverviewPdf = () => {
       {/* 💡 MODAL DE AVISO (SUBSTITUTO DO ALERT) */}
       {alertDialog.show && (
           <ModalPortal>
-              <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999}}>
-                  <div style={{background: 'white', padding: '30px', borderRadius: '16px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out'}}>
-                      <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px'}}><Icons.Alert color="var(--color-btnPrimary)" /></div>
-                      <h3 style={{margin: '0 0 10px 0', color: '#1e293b', fontSize: '1.25rem'}}>{alertDialog.title || 'Aviso'}</h3>
-                      <p style={{color: '#64748b', fontSize: '0.95rem', marginBottom: '25px', lineHeight: '1.5', whiteSpace: 'pre-line'}}>
-                          {alertDialog.message}
-                      </p>
-                      <div style={{display: 'flex', justifyContent: 'center'}}>
-                          <button onClick={() => setAlertDialog({show: false, message: '', title: ''})} style={{width: '100%', padding: '12px', borderRadius: '10px', border: 'none', background: 'var(--color-btnPrimary)', color: 'white', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">OK</button>
+              <div className="po-overlay" onClick={() => setAlertDialog({show: false, message: '', title: ''})}>
+                  <div className="po-dialog" onClick={(e) => e.stopPropagation()} role="alertdialog">
+                      <span className="po-dialog-icon"><Icons.Alert size={26} color="currentColor" /></span>
+                      <h3>{alertDialog.title || 'Aviso'}</h3>
+                      <p>{alertDialog.message}</p>
+                      <div className="po-dialog-actions">
+                          <button type="button" onClick={() => setAlertDialog({show: false, message: '', title: ''})} className="po-btn is-primary">OK</button>
                       </div>
                   </div>
               </div>
@@ -3348,40 +3295,39 @@ const exportCurrentOverviewPdf = () => {
           onConfirm={confirmStopWithNote}
       />
 
-      {projectTimerModal.show && (
+      {projectTimerModal.show && (() => {
+          const selectedAtividade = projectTimerModal.atividades.find((atividade) => String(atividade.id) === String(projectTimerModal.selectedAtividadeId));
+          const atividadeDone = selectedAtividade?.estado === 'concluido';
+          const projectClosed = projectTimerModal.project?.estado === 'encerrado' || projectTimerModal.project?.estado === 'cancelado';
+          const cannotStart = projectTimerModal.loading || projectTimerModal.atividades.length === 0 || projectClosed;
+          return (
           <ModalPortal>
-              <div
-                  onClick={closeProjectTimerModal}
-                  style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.72)', backdropFilter:'blur(5px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:100001, padding:'20px'}}
-              >
-                  <div
-                      onClick={(e) => e.stopPropagation()}
-                      style={{width:'min(980px, 96vw)', maxHeight:'86vh', overflow:'hidden', borderRadius:'20px', background:'white', border:'1px solid var(--color-borderColorLight)', boxShadow:'0 30px 60px -20px rgba(15, 23, 42, 0.45)', display:'flex', flexDirection:'column'}}
-                  >
-                      <div style={{padding:'22px 24px', borderBottom:'1px solid #e2e8f0', background:'linear-gradient(135deg, var(--color-bgSecondary), #f8fafc)', display:'flex', justifyContent:'space-between', alignItems:'center', gap:'20px'}}>
-                          <div>
-                              <p style={{margin:'0 0 4px 0', fontSize:'0.75rem', fontWeight:'800', letterSpacing:'0.07em', color:'var(--color-btnPrimary)', textTransform:'uppercase'}}>Iniciar Cronómetro</p>
-                              <h3 style={{margin:0, color:'#0f172a', fontSize:'1.35rem', fontWeight:'900'}}>{projectTimerModal.project?.titulo || 'Projeto selecionado'}</h3>
-                              <p style={{margin:'6px 0 0 0', color:'#475569', fontSize:'0.9rem'}}>Escolhe uma atividade e, se precisares, uma tarefa específica.</p>
+              <div className="po-overlay" onClick={closeProjectTimerModal}>
+                  <div className="po-modal" onClick={(e) => e.stopPropagation()}>
+                      <header className="po-modal-head">
+                          <span className="po-modal-icon is-go"><Icons.Play size={18} /></span>
+                          <div className="po-modal-titles">
+                              <small>Iniciar cronómetro</small>
+                              <h3>{projectTimerModal.project?.titulo || 'Projeto selecionado'}</h3>
+                              <p>Escolhe uma atividade e, se precisares, uma tarefa específica.</p>
                           </div>
-                          <button onClick={closeProjectTimerModal} style={{background:'#fff', border:'1px solid #cbd5e1', width:'36px', height:'36px', borderRadius:'10px', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#475569'}} className="hover-shadow">
-                              <Icons.Close size={18} />
-                          </button>
-                      </div>
+                          <button type="button" onClick={closeProjectTimerModal} className="po-close" aria-label="Fechar"><Icons.Close size={18} /></button>
+                      </header>
 
-                      <div style={{padding:'20px', overflowY:'auto', display:'grid', gap:'14px'}}>
+                      <div className="po-modal-body">
                           {projectTimerModal.loading ? (
-                              <div style={{padding:'32px', textAlign:'center', color:'#64748b', fontWeight:'600'}}>A carregar atividades e tarefas...</div>
+                              <div className="po-loading-inline"><span /><span /><span /> A carregar atividades e tarefas...</div>
                           ) : projectTimerModal.atividades.length === 0 ? (
-                              <div style={{padding:'36px', textAlign:'center', border:'1px dashed #cbd5e1', borderRadius:'14px', background:'#f8fafc'}}>
-                                  <h4 style={{margin:'0 0 6px 0', color:'#1e293b'}}>Sem atividades neste projeto</h4>
-                                  <p style={{margin:0, color:'#64748b'}}>Cria atividades no detalhe do projeto para iniciar por item.</p>
+                              <div className="po-empty is-compact">
+                                  <span className="po-empty-icon"><Icons.ClipboardList size={26} /></span>
+                                  <h3>Sem atividades neste projeto</h3>
+                                  <p>Cria atividades no detalhe do projeto para iniciar por item.</p>
                               </div>
                           ) : (
-                              <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px'}}>
-                                  <div style={{border:'1px solid #e2e8f0', borderRadius:'14px', padding:'12px', background:'#f8fafc'}}>
-                                      <p style={{margin:'0 0 10px 0', fontSize:'0.8rem', fontWeight:'800', color:'#64748b', textTransform:'uppercase'}}>Atividades</p>
-                                      <div style={{display:'grid', gap:'8px'}}>
+                              <div className="po-pick">
+                                  <section className="po-pick-col">
+                                      <h4><span>1</span> Atividade</h4>
+                                      <div className="po-pick-list custom-scrollbar">
                                           {projectTimerModal.atividades.map((atividade) => {
                                               const isSelected = String(atividade.id) === String(projectTimerModal.selectedAtividadeId);
                                               const isDone = atividade.estado === 'concluido';
@@ -3391,35 +3337,37 @@ const exportCurrentOverviewPdf = () => {
                                                       type="button"
                                                       disabled={isDone}
                                                       onClick={() => setProjectTimerModal((prev) => ({ ...prev, selectedAtividadeId: atividade.id, selectedTaskId: "" }))}
-                                                      style={{textAlign:'left', border:isSelected ? '1px solid var(--color-btnPrimary)' : '1px solid #e2e8f0', background:isDone ? '#f8fafc' : (isSelected ? 'var(--color-bgSecondary)' : '#fff'), color:isDone ? '#94a3b8' : '#1e293b', borderRadius:'10px', padding:'10px 12px', cursor:isDone ? 'not-allowed' : 'pointer', opacity:isDone ? 0.75 : 1}}
-                                                      className="hover-shadow"
+                                                      className={`po-pick-item ${isSelected ? 'is-on' : ''} ${isDone ? 'is-done' : ''}`}
                                                   >
-                                                      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:'8px'}}>
-                                                          <span style={{fontWeight:'700', fontSize:'0.9rem', textDecoration:isDone ? 'line-through' : 'none'}}>{atividade.titulo || 'Sem título'}</span>
-                                                          <span style={{fontSize:'0.7rem', borderRadius:'999px', padding:'3px 8px', background:isDone ? '#e2e8f0' : 'var(--color-borderColorLight)', color:isDone ? '#64748b' : 'var(--color-btnPrimaryDark)', fontWeight:'800'}}>{isDone ? 'CONCLUÍDA' : 'ATIVA'}</span>
-                                                      </div>
-                                                      <p style={{margin:'6px 0 0 0', fontSize:'0.75rem', color:'#64748b'}}>{(atividade.tarefas || []).length} tarefa(s)</p>
+                                                      <span className="po-pick-radio" />
+                                                      <span className="po-pick-text">
+                                                          <strong>{atividade.titulo || 'Sem título'}</strong>
+                                                          <em>{(atividade.tarefas || []).length} tarefa{(atividade.tarefas || []).length === 1 ? '' : 's'}{isDone ? ' · concluída' : ''}</em>
+                                                      </span>
                                                   </button>
                                               );
                                           })}
                                       </div>
-                                  </div>
+                                  </section>
 
-                                  <div style={{border:'1px solid #e2e8f0', borderRadius:'14px', padding:'12px', background:'#f8fafc'}}>
-                                      <p style={{margin:'0 0 10px 0', fontSize:'0.8rem', fontWeight:'800', color:'#64748b', textTransform:'uppercase'}}>Tarefas</p>
-                                      <div style={{display:'grid', gap:'8px'}}>
+                                  <section className="po-pick-col">
+                                      <h4><span>2</span> Tarefa <em>(opcional)</em></h4>
+                                      <div className="po-pick-list custom-scrollbar">
                                           <button
                                               type="button"
                                               onClick={() => setProjectTimerModal((prev) => ({ ...prev, selectedTaskId: "" }))}
-                                              disabled={(projectTimerModal.atividades.find((atividade) => String(atividade.id) === String(projectTimerModal.selectedAtividadeId))?.estado === 'concluido')}
-                                              style={{textAlign:'left', border:projectTimerModal.selectedTaskId ? '1px solid #e2e8f0' : '1px solid #16a34a', background:(projectTimerModal.atividades.find((atividade) => String(atividade.id) === String(projectTimerModal.selectedAtividadeId))?.estado === 'concluido') ? '#f1f5f9' : (projectTimerModal.selectedTaskId ? '#fff' : '#f0fdf4'), color:(projectTimerModal.atividades.find((atividade) => String(atividade.id) === String(projectTimerModal.selectedAtividadeId))?.estado === 'concluido') ? '#94a3b8' : '#166534', borderRadius:'10px', padding:'10px 12px', cursor:(projectTimerModal.atividades.find((atividade) => String(atividade.id) === String(projectTimerModal.selectedAtividadeId))?.estado === 'concluido') ? 'not-allowed' : 'pointer', fontWeight:'700'}}
-                                              className="hover-shadow"
+                                              disabled={atividadeDone}
+                                              className={`po-pick-item is-level ${!projectTimerModal.selectedTaskId ? 'is-on' : ''} ${atividadeDone ? 'is-done' : ''}`}
                                           >
-                                              Trabalhar ao nível da atividade
+                                              <span className="po-pick-radio" />
+                                              <span className="po-pick-text">
+                                                  <strong>Trabalhar ao nível da atividade</strong>
+                                                  <em>Sem escolher uma tarefa concreta</em>
+                                              </span>
                                           </button>
 
-                                          {(projectTimerModal.atividades.find((atividade) => String(atividade.id) === String(projectTimerModal.selectedAtividadeId))?.tarefas || []).length > 0 ? (
-                                              (projectTimerModal.atividades.find((atividade) => String(atividade.id) === String(projectTimerModal.selectedAtividadeId))?.tarefas || []).map((tarefa) => {
+                                          {(selectedAtividade?.tarefas || []).length > 0 ? (
+                                              selectedAtividade.tarefas.map((tarefa) => {
                                                   const isSelected = String(tarefa.id) === String(projectTimerModal.selectedTaskId);
                                                   const isDone = tarefa.estado === 'concluido';
                                                   return (
@@ -3428,41 +3376,36 @@ const exportCurrentOverviewPdf = () => {
                                                           type="button"
                                                           disabled={isDone}
                                                           onClick={() => setProjectTimerModal((prev) => ({ ...prev, selectedTaskId: tarefa.id }))}
-                                                          style={{textAlign:'left', border:isSelected ? '1px solid var(--color-btnPrimary)' : '1px solid #e2e8f0', background:isDone ? '#f8fafc' : (isSelected ? 'var(--color-bgSecondary)' : '#fff'), color:isDone ? '#94a3b8' : '#1e293b', borderRadius:'10px', padding:'10px 12px', cursor:isDone ? 'not-allowed' : 'pointer', opacity:isDone ? 0.78 : 1}}
-                                                          className="hover-shadow"
+                                                          className={`po-pick-item ${isSelected ? 'is-on' : ''} ${isDone ? 'is-done' : ''}`}
                                                       >
-                                                          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:'8px'}}>
-                                                              <span style={{fontWeight:'700', fontSize:'0.9rem', textDecoration:isDone ? 'line-through' : 'none'}}>{tarefa.titulo || 'Sem título'}</span>
-                                                              <span style={{fontSize:'0.68rem', borderRadius:'999px', padding:'3px 7px', background:isDone ? '#fee2e2' : '#dcfce7', color:isDone ? '#991b1b' : '#166534', fontWeight:'800'}}>{isDone ? 'CONCLUÍDA' : 'ABERTA'}</span>
-                                                          </div>
+                                                          <span className="po-pick-radio" />
+                                                          <span className="po-pick-text">
+                                                              <strong>{tarefa.titulo || 'Sem título'}</strong>
+                                                              <em>{isDone ? 'Concluída' : 'Aberta'}</em>
+                                                          </span>
                                                       </button>
                                                   );
                                               })
                                           ) : (
-                                              <p style={{margin:0, color:'#94a3b8', fontSize:'0.85rem'}}>Esta atividade não tem tarefas registadas.</p>
+                                              <p className="po-pick-empty">Esta atividade não tem tarefas registadas.</p>
                                           )}
                                       </div>
-                                  </div>
+                                  </section>
                               </div>
                           )}
                       </div>
 
-                      <div style={{padding:'16px 20px', borderTop:'1px solid #e2e8f0', display:'flex', justifyContent:'flex-end', gap:'10px', background:'#f8fafc'}}>
-                          <button type="button" onClick={closeProjectTimerModal} style={{padding:'10px 16px', borderRadius:'10px', border:'1px solid #cbd5e1', background:'white', color:'#475569', fontWeight:'700', cursor:'pointer'}} className="hover-shadow">Cancelar</button>
-                          <button
-                              type="button"
-                              onClick={handleStartFromProjectSelection}
-                              disabled={projectTimerModal.loading || projectTimerModal.atividades.length === 0 || projectTimerModal.project?.estado === 'encerrado' || projectTimerModal.project?.estado === 'cancelado'}
-                              style={{padding:'10px 18px', borderRadius:'10px', border:'none', background:projectTimerModal.loading || projectTimerModal.atividades.length === 0 || projectTimerModal.project?.estado === 'encerrado' || projectTimerModal.project?.estado === 'cancelado' ? '#94a3b8' : 'linear-gradient(135deg, #16a34a, #15803d)', color:'white', fontWeight:'800', cursor:projectTimerModal.loading || projectTimerModal.atividades.length === 0 || projectTimerModal.project?.estado === 'encerrado' || projectTimerModal.project?.estado === 'cancelado' ? 'not-allowed' : 'pointer', display:'inline-flex', alignItems:'center', gap:'6px'}}
-                              className="hover-shadow"
-                          >
+                      <footer className="po-modal-foot">
+                          <button type="button" onClick={closeProjectTimerModal} className="po-btn">Cancelar</button>
+                          <button type="button" onClick={handleStartFromProjectSelection} disabled={cannotStart} className="po-btn is-go">
                               <Icons.Play /> Iniciar
                           </button>
-                      </div>
+                      </footer>
                   </div>
               </div>
           </ModalPortal>
-      )}
+          );
+      })()}
 
 {/* --- MODAL CRIAR/EDITAR PROJETO (WIZARD 5 PASSOS) --- */}
       {showModal && (

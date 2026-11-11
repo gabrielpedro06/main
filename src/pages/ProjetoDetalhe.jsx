@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
-import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { useAuth } from "../context/AuthContext";
 import TimerSwitchModal from "../components/TimerSwitchModal";
@@ -12,6 +11,7 @@ import { concludeActivityWithChildren } from "../utils/activityStatusCascade";
 import { buildDependencyMaps, getActivityBlockReason } from "../utils/dependencyGuards";
 import { applyStopStatusUpdateForLogTarget } from "../utils/taskTimerLifecycle";
 import "./../styles/dashboard.css";
+import "../styles/projeto-detalhe.css";
 
 // 💡 IMPORTAÇÃO CORRIGIDA (SEM CHAVETAS):
 import gerarRelatorioProjeto from "../components/pdfGenerator"; 
@@ -263,39 +263,6 @@ export default function ProjetoDetalhe() {
   const [infoTooltip, setInfoTooltip] = useState(null); // { x, y, criadorNome, criadoEm }
 
   const [isExportingGantt, setIsExportingGantt] = useState(false);
-  const ganttRef = useRef(null);
-
-  const exportarGanttParaPDF = async () => {
-      const elemento = ganttRef.current;
-      if (!elemento) return;
-
-      setIsExportingGantt(true); // Bloqueia o botão
-
-      try {
-          const canvas = await html2canvas(elemento, {
-              scale: 2, 
-              useCORS: true, 
-              backgroundColor: "#ffffff",
-          });
-
-          const imgData = canvas.toDataURL("image/png");
-          const pdf = new jsPDF("p", "mm", "a4");
-          
-          const pdfWidth = pdf.internal.pageSize.getWidth();
-          const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-          pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-          pdf.save(`Gantt_${projeto?.titulo || 'Projeto'}.pdf`);
-          
-          showToast("Gantt exportado com sucesso!", "success");
-      } catch (error) {
-          console.error("Erro ao exportar PDF:", error);
-          showToast("Erro ao exportar o Gantt.", "error");
-      } finally {
-          setIsExportingGantt(false); // Desbloqueia o botão
-      }
-  };
-
   const [projectActionLoading, setProjectActionLoading] = useState(false);
   const [confirmModal, setConfirmModal] = useState({
       show: false,
@@ -352,6 +319,10 @@ export default function ProjetoDetalhe() {
   // Estados de Expansão
   const [expandedTasks, setExpandedTasks] = useState({});
   const [collapsedAtivs, setCollapsedAtivs] = useState({}); 
+  const [pdCelebrating, setPdCelebrating] = useState(() => new Set());
+  const [ganttCollapsed, setGanttCollapsed] = useState({});
+  const [relFilterUser, setRelFilterUser] = useState('all');
+  const [relDaysVisible, setRelDaysVisible] = useState(4);
   const [activeSubtarefaComposer, setActiveSubtarefaComposer] = useState(null);
 
   const [novaAtividadeNome, setNovaAtividadeNome] = useState("");
@@ -1163,42 +1134,22 @@ export default function ProjetoDetalhe() {
 
   const renderDeadline = (dateString, isCompleted, isLarge = false) => {
       if (!dateString) return null;
-      
+
       const deadline = new Date(dateString);
       deadline.setHours(0,0,0,0);
       const today = new Date();
       today.setHours(0,0,0,0);
-      
-      const diffTime = deadline.getTime() - today.getTime();
-      const diffDays = Math.round(diffTime / (1000 * 3600 * 24));
-      const dateFormatted = deadline.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
-      
-      let bg = '#f1f5f9';
-      let color = '#64748b';
-      let text = dateFormatted;
-      let icon = <Icons.Calendar size={isLarge ? 14 : 12} />;
-      
-      if (isCompleted) {
-          bg = '#f8fafc'; color = '#94a3b8'; text = dateFormatted; icon = <Icons.Check size={isLarge ? 14 : 12} />;
-      } else if (diffDays < 0) {
-          bg = '#fee2e2'; color = '#ef4444'; text = `${dateFormatted} (Atraso: ${Math.abs(diffDays)}d)`; icon = <Icons.AlertTriangle size={isLarge ? 14 : 12} />;
-      } else if (diffDays === 0) {
-          bg = '#fefce8'; color = '#d97706'; text = `HOJE`; icon = <Icons.Flame size={isLarge ? 14 : 12} />;
-      } else if (diffDays <= 3) {
-          bg = '#ffedd5'; color = '#ea580c'; text = `${dateFormatted} (${diffDays}d)`; icon = <Icons.Clock size={isLarge ? 14 : 12} />;
-      }
 
-      return (
-          <span style={{
-              fontSize: isLarge ? '0.75rem' : '0.65rem', 
-              background: bg, color: color, 
-              padding: isLarge ? '4px 8px' : '2px 6px', 
-              borderRadius: '6px', fontWeight: 'bold',
-              display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap'
-          }}>
-              {icon} {text}
-          </span>
-      );
+      const diffDays = Math.round((deadline.getTime() - today.getTime()) / (1000 * 3600 * 24));
+      const dateFormatted = deadline.toLocaleDateString('pt-PT', { day: '2-digit', month: 'short' }).replace('.', '');
+      const iconSize = isLarge ? 13 : 11;
+      const title = `Prazo: ${deadline.toLocaleDateString('pt-PT')}`;
+
+      if (isCompleted) return <span className={`pd-due is-done ${isLarge ? 'is-lg' : ''}`} title={title}><Icons.Check size={iconSize} /> {dateFormatted}</span>;
+      if (diffDays < 0) return <span className={`pd-due is-late ${isLarge ? 'is-lg' : ''}`} title={title}><Icons.AlertTriangle size={iconSize} /> {dateFormatted} · {Math.abs(diffDays)}d atraso</span>;
+      if (diffDays === 0) return <span className={`pd-due is-today ${isLarge ? 'is-lg' : ''}`} title={title}><Icons.Flame size={iconSize} /> Hoje</span>;
+      if (diffDays <= 3) return <span className={`pd-due is-soon ${isLarge ? 'is-lg' : ''}`} title={title}><Icons.Clock size={iconSize} /> {dateFormatted} · {diffDays}d</span>;
+      return <span className={`pd-due ${isLarge ? 'is-lg' : ''}`} title={title}><Icons.Calendar size={iconSize} /> {dateFormatted}</span>;
   };
 
   const getTaskContext = (taskId) => {
@@ -2211,42 +2162,285 @@ export default function ProjetoDetalhe() {
       ? Math.round((concludedItems / visibleGanttItems.length) * 100)
       : 0;
 
-    const ganttScaleColumns = Math.max(12, Math.ceil(ganttDurationDays / 21));
-  const ganttColumnWidthPct = 100 / ganttScaleColumns;
-    const ganttFrameColumns = '190px minmax(0, 1fr)';
-
-  const monthMarkers = (() => {
-      const marks = [];
-      const cursor = startOfMonth(ganttWindowStart);
-      const visibleMonths = Math.max(1, (ganttWindowEnd.getFullYear() - ganttWindowStart.getFullYear()) * 12 + ganttWindowEnd.getMonth() - ganttWindowStart.getMonth() + 1);
-      const stepMonths = selectedWindow.value === "total"
-          ? Math.max(1, Math.ceil(visibleMonths / 12))
-          : visibleMonths > 5
-              ? 2
-              : 1;
-      let monthIndex = 0;
-      while (cursor <= ganttWindowEnd) {
-          if (monthIndex % stepMonths === 0) {
-              const dayOffset = clamp(dayDiff(ganttWindowStart, cursor), 0, ganttDurationDays);
-              marks.push({
-                  key: `${cursor.getFullYear()}-${cursor.getMonth()}`,
-                  label: cursor.toLocaleDateString("pt-PT", { month: "short", year: "numeric" }),
-                  left: (dayOffset / ganttDurationDays) * 100
-              });
-          }
-          cursor.setMonth(cursor.getMonth() + 1);
-          monthIndex += 1;
-      }
-      return marks;
-  })();
-
   const todayPercent = (() => {
       if (ganttNow < ganttWindowStart || ganttNow > ganttWindowEnd) return null;
       return (clamp(dayDiff(ganttWindowStart, ganttNow), 0, ganttDurationDays) / ganttDurationDays) * 100;
   })();
 
+  // ---------- Exportar Gantt: PDF vetorial desenhado de raiz (não é uma captura de ecrã) ----------
+  const hslToRgb = (h, s, l) => {
+      s /= 100; l /= 100;
+      const k = (n) => (n + h / 30) % 12;
+      const a = s * Math.min(l, 1 - l);
+      const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+      return [Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255)];
+  };
+  const mixWhite = (rgb, t) => rgb.map((c) => Math.round(c + (255 - c) * t));
+
+  const exportGanttPdf = async () => {
+      if (isExportingGantt) return;
+      setIsExportingGantt(true);
+      try {
+          const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+          const PW = pdf.internal.pageSize.getWidth();
+          const PH = pdf.internal.pageSize.getHeight();
+          const M = 12;
+          const LABEL_W = 82;
+          const CX = M + LABEL_W;
+          const CW = PW - M - CX;
+          const HEAD_H = 10;
+          const today = new Date(); today.setHours(0, 0, 0, 0);
+          const ink = [15, 23, 42], muted = [100, 116, 139], faint = [148, 163, 184], line = [226, 232, 240];
+          const fmt = (d) => d.toLocaleDateString("pt-PT");
+          const xOf = (date) => CX + (clamp(dayDiff(ganttWindowStart, date), 0, ganttDurationDays) / ganttDurationDays) * CW;
+          const todayX = todayPercent !== null ? CX + (todayPercent / 100) * CW : null;
+          const clean = (txt) => String(txt || "").replace(/[—–]/g, "-").replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
+          const fit = (txt, maxW) => {
+              let t = clean(txt);
+              if (pdf.getTextWidth(t) <= maxW) return t;
+              while (t.length > 1 && pdf.getTextWidth(`${t}...`) > maxW) t = t.slice(0, -1);
+              return `${t.trim()}...`;
+          };
+
+          // Bandas de meses
+          const bands = [];
+          const cur = startOfMonth(ganttWindowStart);
+          while (cur <= ganttWindowEnd) {
+              const bStart = cur < ganttWindowStart ? ganttWindowStart : new Date(cur);
+              const mEnd = endOfMonth(cur);
+              const bEnd = mEnd > ganttWindowEnd ? ganttWindowEnd : mEnd;
+              bands.push({ x0: xOf(bStart), x1: CX + ((clamp(dayDiff(ganttWindowStart, bEnd) + 1, 0, ganttDurationDays)) / ganttDurationDays) * CW, date: new Date(cur) });
+              cur.setMonth(cur.getMonth() + 1);
+          }
+
+          const drawChartHeader = (y) => {
+              pdf.setFillColor(248, 250, 252);
+              pdf.rect(M, y, PW - 2 * M, HEAD_H, "F");
+              pdf.setFont("helvetica", "bold"); pdf.setFontSize(7); pdf.setTextColor(...muted);
+              pdf.text("ATIVIDADE / TAREFA", M + 2, y + 6.3);
+              bands.forEach((b, i) => {
+                  if (i % 2 === 1) { pdf.setFillColor(241, 245, 249); pdf.rect(b.x0, y, b.x1 - b.x0, HEAD_H, "F"); }
+                  const w = b.x1 - b.x0;
+                  const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+                  const mes = MESES[b.date.getMonth()];
+                  const label = w > 16 ? `${mes} ${b.date.getFullYear()}` : w > 7 ? mes : w > 3 ? mes[0].toUpperCase() : "";
+                  if (label) {
+                      pdf.setFont("helvetica", "bold"); pdf.setFontSize(w > 7 ? 7 : 6); pdf.setTextColor(...muted);
+                      pdf.text(label, b.x0 + w / 2, y + 4.4, { align: "center" });
+                  }
+              });
+              if (todayX !== null) {
+                  pdf.setFillColor(239, 68, 68);
+                  pdf.roundedRect(todayX - 5, y + 5.6, 10, 3.8, 1.5, 1.5, "F");
+                  pdf.setFont("helvetica", "bold"); pdf.setFontSize(5.5); pdf.setTextColor(255, 255, 255);
+                  pdf.text("HOJE", todayX, y + 8.35, { align: "center" });
+              }
+              return y + HEAD_H;
+          };
+
+          const drawGridColumn = (y0, y1) => {
+              pdf.setDrawColor(...line); pdf.setLineWidth(0.15);
+              bands.forEach((b, i) => {
+                  if (i % 2 === 1) { pdf.setFillColor(250, 251, 252); pdf.rect(b.x0, y0, b.x1 - b.x0, y1 - y0, "F"); }
+                  pdf.line(b.x0, y0, b.x0, y1);
+              });
+              pdf.line(CX + CW, y0, CX + CW, y1);
+          };
+
+          const drawToday = (y0, y1) => {
+              if (todayX === null) return;
+              pdf.setDrawColor(239, 68, 68); pdf.setLineWidth(0.35);
+              pdf.setLineDashPattern([1.2, 1], 0);
+              pdf.line(todayX, y0, todayX, y1);
+              pdf.setLineDashPattern([], 0);
+          };
+
+          // ---------- Página 1: cabeçalho do projeto ----------
+          pdf.setFillColor(...ink);
+          pdf.roundedRect(M, M, PW - 2 * M, 26, 3, 3, "F");
+          pdf.setTextColor(255, 255, 255);
+          pdf.setFont("helvetica", "bold"); pdf.setFontSize(7); pdf.setTextColor(203, 213, 225);
+          pdf.text("CRONOGRAMA DO PROJETO (GANTT)", M + 6, M + 7);
+          pdf.setFontSize(15); pdf.setTextColor(255, 255, 255);
+          pdf.text(fit(projeto?.titulo || "Projeto", PW - 2 * M - 80), M + 6, M + 15);
+          pdf.setFont("helvetica", "normal"); pdf.setFontSize(8.5); pdf.setTextColor(203, 213, 225);
+          const sub = [clientEntities.map((e) => e.sigla).join(" · "), projeto?.codigo_projeto, projeto?.numero_projeto ? `Nº ${projeto.numero_projeto}` : null, projeto?.tipos_projeto?.nome].filter(Boolean).join("   |   ");
+          pdf.text(fit(sub, PW - 2 * M - 80), M + 6, M + 21.5);
+          pdf.setFont("helvetica", "bold"); pdf.setFontSize(8); pdf.setTextColor(255, 255, 255);
+          pdf.text(`${fmt(ganttWindowStart)}  a  ${fmt(ganttWindowEnd)}`, PW - M - 6, M + 10, { align: "right" });
+          pdf.setFont("helvetica", "normal"); pdf.setFontSize(7); pdf.setTextColor(203, 213, 225);
+          pdf.text(`Janela: ${selectedWindow.label}`, PW - M - 6, M + 15, { align: "right" });
+          pdf.text(`Gerado em ${fmt(new Date())}`, PW - M - 6, M + 20, { align: "right" });
+
+          // Resumo
+          const overdueN = visibleGanttItems.filter((i) => i.end < today && (i.progress || 0) < 100).length;
+          const stats = [
+              ["ITENS", String(visibleGanttItems.length), ink],
+              ["CONCLUÍDOS", String(concludedItems), [22, 163, 74]],
+              ["EM ATRASO", String(overdueN), overdueN ? [220, 38, 38] : ink],
+              ["PONTO DE SITUAÇÃO", `${visibleCompletion}%`, ink],
+          ];
+          const sy = M + 30, sw = (PW - 2 * M - 9) / 4;
+          stats.forEach(([lab, val, col], i) => {
+              const sx = M + i * (sw + 3);
+              pdf.setFillColor(248, 250, 252); pdf.setDrawColor(...line); pdf.setLineWidth(0.2);
+              pdf.roundedRect(sx, sy, sw, 13, 2, 2, "FD");
+              pdf.setFont("helvetica", "bold"); pdf.setFontSize(6.5); pdf.setTextColor(...faint);
+              pdf.text(lab, sx + 4, sy + 5);
+              pdf.setFontSize(12); pdf.setTextColor(...col);
+              pdf.text(val, sx + 4, sy + 10.8);
+              if (i === 3) {
+                  const bx = sx + 26, bw = sw - 30;
+                  pdf.setFillColor(...line); pdf.roundedRect(bx, sy + 8, bw, 2.4, 1.2, 1.2, "F");
+                  if (visibleCompletion > 0) { pdf.setFillColor(22, 163, 74); pdf.roundedRect(bx, sy + 8, Math.max(2.4, bw * visibleCompletion / 100), 2.4, 1.2, 1.2, "F"); }
+              }
+          });
+
+          // ---------- Tabela / gráfico ----------
+          let y = drawChartHeader(sy + 17);
+          let pageTop = y;
+          const bottomLimit = PH - 14;
+          const rows = visibleGanttItems;
+
+          if (rows.length === 0) {
+              pdf.setFont("helvetica", "normal"); pdf.setFontSize(9); pdf.setTextColor(...faint);
+              pdf.text("Sem atividades/tarefas com datas dentro desta janela.", PW / 2, y + 12, { align: "center" });
+          }
+
+          // desenha primeiro a grelha por página, depois as linhas
+          const pagesRows = [];
+          let current = [];
+          let yy = y;
+          rows.forEach((row) => {
+              const h = row.rowType === "group" ? 9 : 7;
+              if (yy + h > bottomLimit) { pagesRows.push({ top: pageTop, rows: current }); current = []; yy = M + HEAD_H; pageTop = yy; }
+              current.push({ row, y: yy, h });
+              yy += h;
+          });
+          if (current.length) pagesRows.push({ top: pageTop, rows: current });
+
+          pagesRows.forEach((pg, pi) => {
+              if (pi > 0) { pdf.addPage(); drawChartHeader(M); }
+              const last = pg.rows[pg.rows.length - 1];
+              const y1 = last ? last.y + last.h : pg.top;
+              drawGridColumn(pg.top, y1);
+
+              pg.rows.forEach(({ row, y: ry, h }) => {
+                  const isGroup = row.rowType === "group";
+                  const atividade = atividades.find((a) => String(a.id) === row.activityId);
+                  const base = hslToRgb(hashToHue(atividade?.titulo || row.activityId), 70, 45);
+                  const light = mixWhite(base, 0.82);
+                  const late = row.end < today && (row.progress || 0) < 100;
+
+                  if (isGroup) { pdf.setFillColor(...mixWhite(base, 0.94)); pdf.rect(M, ry, LABEL_W, h, "F"); }
+                  pdf.setDrawColor(241, 245, 249); pdf.setLineWidth(0.15);
+                  pdf.line(M, ry + h, PW - M, ry + h);
+                  pdf.setFillColor(...base); pdf.rect(M, ry, 0.9, h, "F");
+
+                  // etiqueta
+                  if (isGroup) {
+                      pdf.setFont("helvetica", "bold"); pdf.setFontSize(8); pdf.setTextColor(...ink);
+                      pdf.text(fit(row.label, LABEL_W - 6), M + 3, ry + 5.8);
+                  } else {
+                      pdf.setFillColor(...base); pdf.circle(M + 5.2, ry + h / 2, 0.8, "F");
+                      pdf.setFont("helvetica", "normal"); pdf.setFontSize(7.2);
+                      pdf.setTextColor(...(row.estado === "concluido" ? faint : [51, 65, 85]));
+                      pdf.text(fit(row.label, LABEL_W - 10), M + 7.5, ry + 4.6);
+                  }
+
+                  // barra
+                  const x0 = xOf(row.start);
+                  const x1 = Math.max(x0 + 1.2, CX + ((clamp(dayDiff(ganttWindowStart, row.end) + 1, 0, ganttDurationDays)) / ganttDurationDays) * CW);
+                  const bh = isGroup ? 4.6 : 3.4;
+                  const by = ry + (h - bh) / 2;
+                  const r = bh / 2;
+                  pdf.setFillColor(...(isGroup ? mixWhite(base, 0.65) : light));
+                  pdf.roundedRect(x0, by, x1 - x0, bh, r, r, "F");
+                  const prog = clamp(row.progress || 0, 0, 100);
+                  if (prog > 0) {
+                      pdf.setFillColor(...(isGroup ? base : mixWhite(base, 0.25)));
+                      pdf.roundedRect(x0, by, Math.max(bh, (x1 - x0) * prog / 100), bh, r, r, "F");
+                  }
+                  if (late) { pdf.setDrawColor(220, 38, 38); pdf.setLineWidth(0.35); pdf.roundedRect(x0, by, x1 - x0, bh, r, r, "S"); }
+
+                  pdf.setFont("helvetica", "bold"); pdf.setFontSize(6);
+                  const pct = `${prog}%${late ? "  atraso" : ""}`;
+                  const pw = pdf.getTextWidth(pct);
+                  if (x1 + 1.5 + pw < CX + CW) { pdf.setTextColor(...(late ? [220, 38, 38] : muted)); pdf.text(pct, x1 + 1.5, by + bh - 0.6); }
+                  else if (x0 - 1.5 - pw > CX) { pdf.setTextColor(...(late ? [220, 38, 38] : muted)); pdf.text(pct, x0 - 1.5, by + bh - 0.6, { align: "right" }); }
+              });
+
+              drawToday(pg.top - HEAD_H + 6, y1);
+          });
+
+          // Legenda + rodapé em todas as páginas
+          const totalPages = pdf.getNumberOfPages();
+          for (let p = 1; p <= totalPages; p += 1) {
+              pdf.setPage(p);
+              const fy = PH - 7;
+              pdf.setFont("helvetica", "normal"); pdf.setFontSize(6.5); pdf.setTextColor(...faint);
+              let lx = M;
+              pdf.setFillColor(100, 116, 139); pdf.roundedRect(lx, fy - 2.2, 7, 2.6, 1.3, 1.3, "F"); lx += 8.5;
+              pdf.text("Progresso", lx, fy); lx += 15;
+              pdf.setFillColor(226, 232, 240); pdf.roundedRect(lx, fy - 2.2, 7, 2.6, 1.3, 1.3, "F"); lx += 8.5;
+              pdf.text("Por fazer", lx, fy); lx += 15;
+              pdf.setDrawColor(220, 38, 38); pdf.setLineWidth(0.35); pdf.roundedRect(lx, fy - 2.2, 7, 2.6, 1.3, 1.3, "S"); lx += 8.5;
+              pdf.text("Em atraso", lx, fy); lx += 16;
+              pdf.setDrawColor(239, 68, 68); pdf.setLineDashPattern([1.2, 1], 0); pdf.line(lx + 1, fy - 2.6, lx + 1, fy + 0.4); pdf.setLineDashPattern([], 0); lx += 3;
+              pdf.text("Hoje", lx, fy);
+              pdf.text(fit(`${projeto?.titulo || "Projeto"}  ·  Página ${p} de ${totalPages}`, 120), PW - M, fy, { align: "right" });
+          }
+
+          const safeName = String(projeto?.titulo || "Projeto").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+          pdf.save(`Gantt_${safeName || "Projeto"}.pdf`);
+          showToast("Gantt exportado com sucesso!", "success");
+      } catch (error) {
+          console.error("Erro ao exportar o Gantt:", error);
+          showToast("Erro ao exportar o Gantt.", "error");
+      } finally {
+          setIsExportingGantt(false);
+      }
+  };
+
+  // Visto com animação de "concluído" (atividades, tarefas e passos)
+  async function celebrateThen(key, completing, action) {
+      if (pdCelebrating.has(key)) return;
+      const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      if (completing && !reduce) {
+          setPdCelebrating((prev) => new Set(prev).add(key));
+          await new Promise((r) => setTimeout(r, 650));
+      }
+      try {
+          await action();
+      } finally {
+          if (completing) setPdCelebrating((prev) => { const next = new Set(prev); next.delete(key); return next; });
+      }
+  }
+
+  const renderPdCheck = ({ key, done, shape = 'round', disabled = false, label, onToggle }) => {
+      const burst = pdCelebrating.has(key);
+      return (
+          <button
+              type="button"
+              className={`pd-check is-${shape} ${done || burst ? 'is-on' : ''} ${burst ? 'is-burst' : ''}`}
+              onClick={(e) => { e.stopPropagation(); if (!disabled) celebrateThen(key, !done, onToggle); }}
+              disabled={disabled}
+              title={disabled ? 'Bloqueada por dependência' : label}
+              aria-label={label}
+              aria-pressed={done}
+          >
+              <Icons.Check size={shape === 'mini' ? 9 : shape === 'square' ? 14 : 12} />
+              {burst && (
+                  <span className="pd-burst" aria-hidden="true">
+                      {Array.from({ length: 8 }, (_, i) => <i key={i} style={{ '--a': `${i * 45}deg` }} />)}
+                  </span>
+              )}
+          </button>
+      );
+  };
+
   return (
-        <div className="page-container" style={{maxWidth: '1200px', margin: '0 auto', paddingBottom: '50px'}}>
+        <div className="page-container pd-page">
 
             {notification && (
                 <div className={`toast-container ${notification.type}`} style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center' }}>
@@ -2255,188 +2449,121 @@ export default function ProjetoDetalhe() {
             )}
       
       {/* =========================================
-          CABEÇALHO DO PROJETO 
+          CABEÇALHO DO PROJETO
       ========================================= */}
-      <div style={{
-          position: 'relative', background: 'white', borderRadius: '24px', border: '1px solid #e2e8f0', 
-          padding: '35px 40px', marginBottom: '35px', boxShadow: '0 10px 30px -10px rgba(0,0,0,0.08)', overflow: 'hidden'
-      }}>
-          <div style={{
-              position: 'absolute', top: '-50%', right: '-10%', width: '60%', height: '200%',
-              background: `radial-gradient(ellipse at right, ${statusTheme.bg} 0%, transparent 70%)`,
-              opacity: 0.8, pointerEvents: 'none'
-          }}></div>
+      {(() => {
+          const ESTADO_LABEL = { pendente: 'Pendente', em_curso: 'Em curso', em_analise: 'Em análise', concluido: 'Concluído', encerrado: 'Encerrado', cancelado: 'Cancelado' };
+          const allTasks = atividades.flatMap((a) => a.tarefas || []);
+          const doneTasks = allTasks.filter((t) => t.estado === 'concluido').length;
+          const doneAtivs = atividades.filter((a) => a.estado === 'concluido').length;
+          const progress = allTasks.length
+              ? Math.round((doneTasks / allTasks.length) * 100)
+              : (atividades.length ? Math.round((doneAtivs / atividades.length) * 100) : 0);
+          const R = 44;
+          const C = 2 * Math.PI * R;
+          const isClosed = ['concluido', 'encerrado', 'cancelado'].includes(projeto.estado);
 
-          <div style={{position: 'relative', zIndex: 1}}>
-              
-              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px', flexWrap: 'wrap', gap: '15px'}}>
-                  <button onClick={() => navigate('/dashboard/projetos')} style={{background: 'transparent', border: 'none', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', fontWeight: '700', cursor: 'pointer', padding: 0}} className="hover-blue-text hover-shadow">
-                      <span style={{background: '#f1f5f9', borderRadius: '8px', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '0.2s'}}>
-                          <Icons.ArrowLeft />
-                      </span> 
-                      Voltar ao Portfólio
-                  </button>
+          let deadlineSub = 'Sem prazo definido';
+          let deadlineTone = '';
+          if (projeto?.data_fim) {
+              const d = new Date(projeto.data_fim); d.setHours(0, 0, 0, 0);
+              const t = new Date(); t.setHours(0, 0, 0, 0);
+              const diff = Math.round((d - t) / 86400000);
+              if (isClosed) deadlineSub = 'Projeto fechado';
+              else if (diff < 0) { deadlineSub = `${Math.abs(diff)} dia${Math.abs(diff) === 1 ? '' : 's'} em atraso`; deadlineTone = 'is-late'; }
+              else if (diff === 0) { deadlineSub = 'Termina hoje'; deadlineTone = 'is-soon'; }
+              else { deadlineSub = `Faltam ${diff} dia${diff === 1 ? '' : 's'}`; if (diff <= 14) deadlineTone = 'is-soon'; }
+          }
 
-                  <div style={{display: 'flex', gap: '12px', alignItems: 'center'}}>
-                      <button onClick={() => gerarRelatorioProjeto(projeto, atividades, logs, staff, clientes)} className="btn-small hover-shadow" style={{display:'flex', alignItems:'center', gap:'6px', background:'white', color:'var(--color-btnPrimaryHover)', border:'1px solid var(--color-borderColor)'}}>
-                          <Icons.Download size={14}/> Gerar PDF
+          return (
+              <header className="pd-hero" style={{ '--sd': statusTheme.dot }}>
+                  <div className="pd-hero-bg" aria-hidden="true"><span className="pd-orb pd-orb-a" /><span className="pd-orb pd-orb-b" /></div>
+
+                  <div className="pd-hero-top">
+                      <button type="button" onClick={() => navigate('/dashboard/projetos')} className="pd-back">
+                          <Icons.ArrowLeft /> Portfólio
                       </button>
-                      
-                      {(projeto?.codigo_projeto) && (
-                          <span style={{background: 'white', border: '1px solid #cbd5e1', color: '#475569', padding: '6px 12px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '800', letterSpacing: '0.05em', boxShadow: '0 2px 4px rgba(0,0,0,0.02)'}}>
-                              {projeto.codigo_projeto}
-                          </span>
-                      )}
-                      <span style={{
-                          background: statusTheme.bg, color: statusTheme.text, border: `1px solid ${statusTheme.border}`,
-                          padding: '6px 14px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em',
-                          display: 'flex', alignItems: 'center', gap: '6px'
-                      }}>
-                          <span style={{width: '6px', height: '6px', borderRadius: '50%', background: statusTheme.dot}}></span>
-                          {(projeto?.estado || '').replace('_', ' ')}
-                      </span>
+                      <button type="button" onClick={() => gerarRelatorioProjeto(projeto, atividades, logs, staff, clientes)} className="pd-glass-btn">
+                          <Icons.Download size={15} /> Gerar PDF
+                      </button>
                   </div>
-              </div>
 
-              <h1 style={{margin: '0 0 30px 0', fontSize: '2.5rem', fontWeight: '900', color: '#0f172a', letterSpacing: '-0.04em', lineHeight: '1.2', maxWidth: '85%'}}>
-                  {projeto?.titulo}
-              </h1>
-
-              <div style={{display: 'flex', gap: '25px', flexWrap: 'wrap', alignItems: 'center'}}>
-                  
-                  {/* 👇 BLOCO DO CLIENTE ATUALIZADO */}
-                  <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
-                      <div style={{width: '40px', height: '40px', borderRadius: '10px', background: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)'}}>
-                          <Icons.Building />
+                  <div className="pd-hero-body">
+                      <div className="pd-hero-text">
+                          <div className="pd-hero-tags">
+                              <span className="pd-status"><i />{ESTADO_LABEL[projeto?.estado] || (projeto?.estado || '').replace('_', ' ')}</span>
+                              {projeto?.codigo_projeto && <span className="pd-tag is-code">{projeto.codigo_projeto}</span>}
+                              {projeto?.numero_projeto && <span className="pd-tag is-code">Nº {projeto.numero_projeto}</span>}
+                              <span className="pd-tag"><Icons.Tag size={12} /> {projeto?.tipos_projeto?.nome || 'Customizado'}</span>
+                          </div>
+                          <h1>{projeto?.titulo}</h1>
+                          <div className="pd-clients">
+                              {clientEntities.map((ent, idx) => (
+                                  <button
+                                      key={idx}
+                                      type="button"
+                                      onClick={() => ent.id ? navigate('/dashboard/clientes', { state: { openClienteId: ent.id } }) : null}
+                                      className={`pd-client ${ent.id ? 'is-link' : ''} ${ent.isParceiro ? 'is-partner' : ''}`}
+                                      title={ent.id ? `Abrir ${ent.nome}` : ent.nome}
+                                  >
+                                      {ent.isParceiro ? <Icons.Handshake size={13} /> : <Icons.Building size={13} />}
+                                      {ent.sigla}
+                                  </button>
+                              ))}
+                              {organismoDisplay && <span className="pd-client is-org"><Icons.Building size={12} /> Organismo: {organismoDisplay}</span>}
+                              {organismoPessoaDisplay && <span className="pd-client is-person"><Icons.User size={12} /> {organismoPessoaDisplay}</span>}
+                          </div>
                       </div>
-                      <div>
-                          <div style={{fontSize: '0.65rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', marginBottom: '2px', letterSpacing: '0.05em'}}>Cliente / Local</div>
-                        <div>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                                {clientEntities.map((ent, idx) => (
-                                    <React.Fragment key={idx}>
-                                        {ent.isParceiro && idx === 1 && <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>🤝</span>}
-                                        <button
-                                            type="button"
-                                            onClick={() => ent.id ? navigate('/dashboard/clientes', { state: { openClienteId: ent.id } }) : null}
-                                            style={{
-                                                fontSize: '0.95rem',
-                                                color: ent.id ? 'var(--color-btnPrimaryDark)' : '#1e293b',
-                                                fontWeight: '700',
-                                                border: 'none',
-                                                background: 'transparent',
-                                                padding: 0,
-                                                cursor: ent.id ? 'pointer' : 'default',
-                                                textDecoration: ent.id ? 'underline' : 'none',
-                                                textUnderlineOffset: '3px'
-                                            }}
-                                            title={ent.nome}
-                                        >
-                                            {ent.sigla}
-                                        </button>
-                                        {idx < clientEntities.length - 1 && <span style={{ color: '#94a3b8' }}>{ent.isParceiro ? ',' : ' |'}</span>}
-                                    </React.Fragment>
-                                ))}
-                            </div>
-                        
-                              {/* 👇 NOVA ETIQUETA COM O NOME DO ORGANISMO */}
-                              {organismoDisplay && (
-                                  <div style={{marginTop: '4px'}}>
-                                      <span style={{fontSize: '0.7rem', background: '#fef3c7', color: '#b45309', padding: '2px 8px', borderRadius: '6px', fontWeight: '800', border: '1px solid #fde68a', display: 'inline-flex', alignItems: 'center', gap: '4px'}}>
-                                          <Icons.Building size={10} /> Organismo: {organismoDisplay}
-                                      </span>
-                                  </div>
-                              )}
-                              {organismoPessoaDisplay && (
-                                  <div style={{marginTop: '4px'}}>
-                                      <span style={{fontSize: '0.7rem', background: '#eff6ff', color: '#1d4ed8', padding: '2px 8px', borderRadius: '6px', fontWeight: '800', border: '1px solid #bfdbfe', display: 'inline-flex', alignItems: 'center', gap: '4px'}}>
-                                          <Icons.User size={10} /> Pessoa: {organismoPessoaDisplay}
-                                      </span>
-                                  </div>
-                              )}
+
+                      <div className="pd-ring" title={`${doneTasks} de ${allTasks.length} tarefas concluídas`}>
+                          <svg viewBox="0 0 110 110" aria-hidden="true">
+                              <circle cx="55" cy="55" r={R} className="pd-ring-track" />
+                              <circle cx="55" cy="55" r={R} className="pd-ring-arc" strokeDasharray={C} strokeDashoffset={C * (1 - progress / 100)} transform="rotate(-90 55 55)" />
+                          </svg>
+                          <div className="pd-ring-center">
+                              <strong>{progress}<small>%</small></strong>
+                              <span>{allTasks.length ? `${doneTasks}/${allTasks.length} tarefas` : `${doneAtivs}/${atividades.length} blocos`}</span>
                           </div>
                       </div>
                   </div>
 
-                  <div style={{width: '1px', height: '35px', background: '#e2e8f0'}}></div>
-
-                  {projeto?.numero_projeto && (
-                      <>
-                          <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
-                              <div style={{width: '40px', height: '40px', borderRadius: '10px', background: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)'}}>
-                                  <Icons.ClipboardList size={16} />
-                              </div>
-                              <div>
-                                  <div style={{fontSize: '0.65rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', marginBottom: '2px', letterSpacing: '0.05em'}}>Número Interno</div>
-                                  <div style={{fontSize: '0.95rem', color: '#1e293b', fontWeight: '800', fontFamily: 'monospace'}}>Nº {projeto.numero_projeto}</div>
-                              </div>
-                          </div>
-                          <div style={{width: '1px', height: '35px', background: '#e2e8f0'}}></div>
-                      </>
-                  )}
-
-                  <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
-                      <div style={{width: '40px', height: '40px', borderRadius: '10px', background: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)'}}>
-                          <Icons.Tag />
+                  <div className="pd-hero-meta">
+                      <div className="pd-meta">
+                          <span className="pd-meta-icon"><Icons.User size={16} /></span>
+                          <div><small>Responsável</small><strong>{projeto?.profiles?.nome || 'Não atribuído'}</strong></div>
                       </div>
-                      <div>
-                          <div style={{fontSize: '0.65rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', marginBottom: '2px', letterSpacing: '0.05em'}}>Tipo / Área</div>
-                          <div style={{fontSize: '0.95rem', color: '#1e293b', fontWeight: '700'}}>{projeto?.tipos_projeto?.nome || 'Customizado'}</div>
+                      <div className={`pd-meta ${deadlineTone}`}>
+                          <span className="pd-meta-icon"><Icons.Target size={16} /></span>
+                          <div><small>Deadline final</small><strong>{projeto?.data_fim ? new Date(projeto.data_fim).toLocaleDateString('pt-PT') : 'Sem prazo'}</strong><em>{deadlineSub}</em></div>
+                      </div>
+                      <div className="pd-meta">
+                          <span className="pd-meta-icon"><Icons.Clock size={16} /></span>
+                          <div><small>Tempo registado</small><strong>{formatTime(getProjectTotalTime())}</strong></div>
+                      </div>
+                      <div className="pd-meta">
+                          <span className="pd-meta-icon"><Icons.Layers size={16} /></span>
+                          <div><small>Blocos de atividades</small><strong>{atividades.length}</strong><em>{doneAtivs} concluído{doneAtivs === 1 ? '' : 's'}</em></div>
                       </div>
                   </div>
-
-                  <div style={{width: '1px', height: '35px', background: '#e2e8f0'}}></div>
-
-                  <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
-                      <div style={{width: '40px', height: '40px', borderRadius: '10px', background: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)'}}>
-                          <Icons.User />
-                      </div>
-                      <div>
-                          <div style={{fontSize: '0.65rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', marginBottom: '2px', letterSpacing: '0.05em'}}>Responsável</div>
-                          <div style={{fontSize: '0.95rem', color: '#1e293b', fontWeight: '700'}}>{projeto?.profiles?.nome || 'Não Atribuído'}</div>
-                      </div>
-                  </div>
-
-                  <div style={{width: '1px', height: '35px', background: '#e2e8f0'}}></div>
-
-                  <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
-                      <div style={{width: '40px', height: '40px', borderRadius: '10px', background: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)'}}>
-                          <Icons.Target />
-                      </div>
-                      <div>
-                          <div style={{fontSize: '0.65rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', marginBottom: '2px', letterSpacing: '0.05em'}}>Deadline Final</div>
-                          <div style={{fontSize: '0.95rem', color: (projeto?.data_fim && new Date(projeto.data_fim) < new Date() && !['concluido', 'encerrado', 'cancelado'].includes(projeto.estado)) ? '#ef4444' : '#1e293b', fontWeight: '700'}}>
-                            {projeto?.data_fim ? new Date(projeto.data_fim).toLocaleDateString('pt-PT') : 'Sem Prazo'}
-                        </div>
-                      </div>
-                  </div>
-              </div>
-          </div>
-      </div>
+              </header>
+          );
+      })()}
 
       {/* NAVEGAÇÃO INTERNA */}
-      <div style={{display: 'flex', gap: '5px', marginBottom: '25px', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px', overflowX: 'auto', whiteSpace: 'nowrap'}} className="custom-scrollbar">
-        <button style={{background: 'none', border: 'none', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: activeTab === 'atividades' ? '800' : '600', color: activeTab === 'atividades' ? 'var(--color-btnPrimary)' : '#64748b', cursor: 'pointer', padding: '10px 20px', position: 'relative', transition: '0.2s'}} onClick={() => setActiveTab('atividades')} className="tab-hover">
-            <Icons.ClipboardList /> Board de Atividades
-            {activeTab === 'atividades' && <div style={{position:'absolute', bottom:'-12px', left:0, right:0, height:'3px', background:'var(--color-btnPrimary)', borderRadius:'3px 3px 0 0'}} />}
-        </button>
-        <button style={{background: 'none', border: 'none', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: activeTab === 'gantt' ? '800' : '600', color: activeTab === 'gantt' ? 'var(--color-btnPrimary)' : '#64748b', cursor: 'pointer', padding: '10px 20px', position: 'relative', transition: '0.2s'}} onClick={() => setActiveTab('gantt')} className="tab-hover">
-            <Icons.Calendar /> Gantt
-            {activeTab === 'gantt' && <div style={{position:'absolute', bottom:'-12px', left:0, right:0, height:'3px', background:'var(--color-btnPrimary)', borderRadius:'3px 3px 0 0'}} />}
-        </button>
-        <button style={{background: 'none', border: 'none', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: activeTab === 'relatorio' ? '800' : '600', color: activeTab === 'relatorio' ? 'var(--color-btnPrimary)' : '#64748b', cursor: 'pointer', padding: '10px 20px', position: 'relative', transition: '0.2s'}} onClick={() => setActiveTab('relatorio')} className="tab-hover">
-            <Icons.Clock /> Relatório de Tempos
-            {activeTab === 'relatorio' && <div style={{position:'absolute', bottom:'-12px', left:0, right:0, height:'3px', background:'var(--color-btnPrimary)', borderRadius:'3px 3px 0 0'}} />}
-        </button>
-        <button style={{background: 'none', border: 'none', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: activeTab === 'execucao' ? '800' : '600', color: activeTab === 'execucao' ? 'var(--color-btnPrimary)' : '#64748b', cursor: 'pointer', padding: '10px 20px', position: 'relative', transition: '0.2s'}} onClick={() => setActiveTab('execucao')} className="tab-hover">
-            <Icons.Dollar /> Execução Financeira
-            {activeTab === 'execucao' && <div style={{position:'absolute', bottom:'-12px', left:0, right:0, height:'3px', background:'var(--color-btnPrimary)', borderRadius:'3px 3px 0 0'}} />}
-        </button>
-        <button style={{background: 'none', border: 'none', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: activeTab === 'geral' ? '800' : '600', color: activeTab === 'geral' ? 'var(--color-btnPrimary)' : '#64748b', cursor: 'pointer', padding: '10px 20px', position: 'relative', transition: '0.2s'}} onClick={() => setActiveTab('geral')} className="tab-hover">
-            <Icons.Settings /> Configurações e Dados
-            {activeTab === 'geral' && <div style={{position:'absolute', bottom:'-12px', left:0, right:0, height:'3px', background:'var(--color-btnPrimary)', borderRadius:'3px 3px 0 0'}} />}
-        </button>
-      </div>
+      <nav className="pd-tabs" role="tablist" aria-label="Secções do projeto">
+          {[
+              ['atividades', 'Atividades', <Icons.ClipboardList size={16} />, atividades.length],
+              ['gantt', 'Gantt', <Icons.Calendar size={16} />],
+              ['relatorio', 'Relatório de tempos', <Icons.Clock size={16} />],
+              ['execucao', 'Execução financeira', <Icons.Dollar size={16} />],
+              ['geral', 'Configurações e dados', <Icons.Settings size={16} />],
+          ].map(([key, label, icon, count]) => (
+              <button key={key} type="button" role="tab" aria-selected={activeTab === key} className={activeTab === key ? 'is-on' : ''} onClick={() => setActiveTab(key)}>
+                  {icon} <span>{label}</span>
+                  {count != null && <em>{count}</em>}
+              </button>
+          ))}
+      </nav>
 
       <div style={{minHeight: '50vh'}}>
 
@@ -2458,246 +2585,281 @@ export default function ProjetoDetalhe() {
             const mediaPmp = pmpValues.length ? pmpValues.reduce((s, v) => s + v, 0) / pmpValues.length : null;
             const investimentoProjeto = investimentoEnt;   // usado no resto do código (TXE)
             const taxaExecucao = investimentoEnt > 0 ? (totalInvestimento / investimentoEnt) * 100 : null;
-            const metricCard = (label, value, color) => (
-                <div style={{background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px'}}>
-                    <div style={{fontSize: '0.7rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', marginBottom: '6px'}}>{label}</div>
-                    <div style={{fontSize: '1.25rem', fontWeight: '800', color}}>{value}</div>
-                </div>
-            );
-            const pedidoInput = (field, label, type = "number") => (
-                <div>
-                    <label style={labelStyle}>{label}</label>
-                    <input
-                        type={type}
-                        value={pedidoReembolsoForm[field] ?? ""}
-                        onChange={(event) => setPedidoReembolsoForm((previous) => ({ ...previous, [field]: event.target.value }))}
-                        style={inputStyle}
-                        step={type === "number" ? "0.01" : undefined}
-                        min={type === "number" ? "0" : undefined}
-                    />
-                </div>
-            );
-            return (
-                
-                <div style={{background: 'white', padding: '30px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0'}}>
-                    {/* --- BLOCO DE RESUMO FINANCEIRO NA ABA DE EXECUÇÃO --- */}
-                    <div style={{display:'flex', gap:'8px', flexWrap:'wrap', marginBottom:'20px', borderBottom:'1px solid #e2e8f0', paddingBottom:'12px'}}>
-                        {entidadesFin.map((eid) => {
-                            const ativa = eid === entidadeAtivaId;
-                            return (
-                                <button key={eid} type="button"
-                                    onClick={() => { setExecEntidadeId(eid); setPedidoReembolsoForm(null); setOrcamentoEdit(null); }}
-                                    style={{
-                                        padding:'8px 16px', borderRadius:'999px', cursor:'pointer', fontWeight:'800', fontSize:'0.82rem',
-                                        border: ativa ? '1px solid var(--color-btnPrimary)' : '1px solid #cbd5e1',
-                                        background: ativa ? 'var(--color-btnPrimary)' : '#fff',
-                                        color: ativa ? '#fff' : '#475569'
-                                    }}>
-                                    {getEntNome(eid)}{eid === liderId && entidadesFin.length > 1 ? ' (líder)' : ''}
-                                </button>
-                            );
-                        })}
+            const taxaFinanciamento = investimentoEnt > 0 ? (incentivoEnt / investimentoEnt) * 100 : null;
+            const pctRecebido = incentivoEnt > 0 ? (totalPago / incentivoEnt) * 100 : null;
+            const pct = (a, b) => (b > 0 ? Math.min(100, Math.max(0, (a / b) * 100)) : 0);
+            const R = 54;
+            const C = 2 * Math.PI * R;
+            const ring = Math.min(100, Math.max(0, taxaExecucao || 0));
+            const today = new Date(); today.setHours(0, 0, 0, 0);
+            const initials = (txt) => String(txt || '?').trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
+            const fmtDate = (iso) => (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString('pt-PT') : '—');
+
+            const pedidoStatus = (pedido) => {
+                const inc = Number(pedido.valor_incentivo) || 0;
+                const pago = Number(pedido.valor_pago) || 0;
+                if (pago > 0 && pago >= inc - 0.005) return { key: 'paid', label: 'Pago' };
+                if (pago > 0) return { key: 'partial', label: 'Pago parcialmente' };
+                if (pedido.data_pedido) {
+                    const dias = Math.max(0, Math.round((today - new Date(`${pedido.data_pedido}T00:00:00`)) / 86400000));
+                    return { key: 'waiting', label: dias === 0 ? 'Submetido hoje' : `A aguardar há ${dias} dia${dias === 1 ? '' : 's'}` };
+                }
+                return { key: 'waiting', label: 'A aguardar pagamento' };
+            };
+
+            const pedidoInput = (field, label, type = "number", extra = {}) => (
+                <div className="pd-field">
+                    <label>{label}</label>
+                    <div className={type === "number" ? "pd-input-eur" : undefined}>
+                        <input
+                            className="pd-input"
+                            type={type}
+                            value={pedidoReembolsoForm[field] ?? ""}
+                            onChange={(event) => setPedidoReembolsoForm((previous) => ({ ...previous, [field]: event.target.value }))}
+                            step={type === "number" ? "0.01" : undefined}
+                            min={type === "number" ? "0" : undefined}
+                            {...extra}
+                        />
+                        {type === "number" && <span>€</span>}
                     </div>
-                    <div style={{ background:'#f8fafc', padding:'20px', borderRadius:'12px', border:'1px solid #e2e8f0', marginBottom:'20px' }}>
-                        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px', gap:'10px', flexWrap:'wrap'}}>
-                            <h3 style={{ margin:0, fontSize:'1rem', color:'#0f172a', fontWeight:'800' }}>
-                                Resumo Financeiro — {getEntNome(entidadeAtivaId)}
-                            </h3>
-                            {!orcamentoEdit && (
-                                <button type="button" className="hover-shadow"
-                                    onClick={() => setOrcamentoEdit({ investimento: investimentoEnt, incentivo: incentivoEnt })}
-                                    style={{display:'flex', alignItems:'center', gap:'6px', background:'white', border:'1px solid #cbd5e1', borderRadius:'8px', padding:'6px 12px', fontWeight:'700', color:'#475569', cursor:'pointer', fontSize:'0.8rem'}}>
-                                    <Icons.Edit size={14} /> Editar valores
-                                </button>
+                </div>
+            );
+
+            return (
+                <div className="bz-tab-panel pd-fin">
+                    {/* ENTIDADES */}
+                    {entidadesFin.length > 1 && (
+                        <div className="pd-fin-ents" role="tablist" aria-label="Entidade">
+                            {entidadesFin.map((eid) => {
+                                const ativa = eid === entidadeAtivaId;
+                                return (
+                                    <button key={eid} type="button" role="tab" aria-selected={ativa} className={ativa ? 'is-on' : ''}
+                                        onClick={() => { setExecEntidadeId(eid); setPedidoReembolsoForm(null); setOrcamentoEdit(null); }}>
+                                        <span className="pd-fin-ent-av">{initials(getEntNome(eid))}</span>
+                                        {getEntNome(eid)}
+                                        {eid === liderId && <em>líder</em>}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
+
+                    {/* RESUMO */}
+                    <section className="pd-fin-overview">
+                        <div className="pd-fin-ring" title="Taxa de execução: investimento pedido face ao investimento elegível">
+                            <svg viewBox="0 0 130 130" aria-hidden="true">
+                                <circle cx="65" cy="65" r={R} className="pd-fin-ring-track" />
+                                <circle cx="65" cy="65" r={R} className="pd-fin-ring-arc" strokeDasharray={C} strokeDashoffset={C * (1 - ring / 100)} transform="rotate(-90 65 65)" />
+                            </svg>
+                            <div className="pd-fin-ring-center">
+                                <strong>{taxaExecucao === null ? '—' : `${formatNumber(taxaExecucao)}%`}</strong>
+                                <span>Taxa de execução</span>
+                            </div>
+                        </div>
+
+                        <div className="pd-fin-budget">
+                            <div className="pd-fin-budget-head">
+                                <h3>Resumo Financeiro <em>— {getEntNome(entidadeAtivaId)}</em></h3>
+                                {!orcamentoEdit && (
+                                    <button type="button" className="pd-icon-btn" title="Editar valores" aria-label="Editar valores"
+                                        onClick={() => setOrcamentoEdit({ investimento: investimentoEnt, incentivo: incentivoEnt })}>
+                                        <Icons.Edit size={15} />
+                                    </button>
+                                )}
+                            </div>
+
+                            {orcamentoEdit ? (
+                                <div className="pd-fin-budget-edit">
+                                    <div className="pd-field">
+                                        <label>Investimento Elegível (€)</label>
+                                        <div className="pd-input-eur">
+                                            <input className="pd-input" type="number" step="0.01" min="0" value={orcamentoEdit.investimento} onChange={(e) => setOrcamentoEdit((p) => ({ ...p, investimento: e.target.value }))} />
+                                            <span>€</span>
+                                        </div>
+                                    </div>
+                                    <div className="pd-field">
+                                        <label>Incentivo Atribuído (€)</label>
+                                        <div className="pd-input-eur">
+                                            <input className="pd-input" type="number" step="0.01" min="0" value={orcamentoEdit.incentivo} onChange={(e) => setOrcamentoEdit((p) => ({ ...p, incentivo: e.target.value }))} />
+                                            <span>€</span>
+                                        </div>
+                                    </div>
+                                    <div className="pd-fin-budget-actions">
+                                        <button type="button" className="pd-btn" onClick={() => setOrcamentoEdit(null)}>Cancelar</button>
+                                        <button type="button" className="pd-btn is-primary" onClick={() => saveOrcamentoEntidade(entidadeAtivaId, entidadesFin)}><Icons.Save size={14} /> Guardar</button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="pd-fin-budget-values">
+                                        <div><small>Investimento Elegível</small><strong>{formatNumber(investimentoEnt)} €</strong></div>
+                                        <div><small>Incentivo Atribuído</small><strong>{formatNumber(incentivoEnt)} €</strong></div>
+                                        <div><small>Taxa de Financiamento</small><strong className="is-accent">{taxaFinanciamento === null ? '—' : `${taxaFinanciamento.toFixed(2)}%`}</strong></div>
+                                    </div>
+                                    <div className="pd-fin-bars">
+                                        <div className="pd-fin-bar">
+                                            <div className="pd-fin-bar-label"><span>Investimento pedido</span><b>{formatNumber(totalInvestimento)} € <em>de {formatNumber(investimentoEnt)} €</em></b></div>
+                                            <div className="pd-fin-bar-track"><i className="is-inv" style={{ width: `${pct(totalInvestimento, investimentoEnt)}%` }} /></div>
+                                        </div>
+                                        <div className="pd-fin-bar">
+                                            <div className="pd-fin-bar-label"><span>Incentivo pedido / Valor pago</span><b>{formatNumber(totalPago)} € <em>pagos de {formatNumber(totalIncentivo)} € pedidos · {formatNumber(incentivoEnt)} € atribuídos</em></b></div>
+                                            <div className="pd-fin-bar-track">
+                                                <i className="is-req" style={{ width: `${pct(totalIncentivo, incentivoEnt)}%` }} />
+                                                <i className="is-paid" style={{ width: `${pct(totalPago, incentivoEnt)}%` }} />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </>
                             )}
                         </div>
 
-                        {orcamentoEdit ? (
-                            <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(200px, 1fr))', gap:'15px', alignItems:'end'}}>
-                                <div>
-                                    <label style={labelStyle}>Investimento Elegível (€)</label>
-                                    <input type="number" step="0.01" min="0" style={{...inputStyle, marginBottom:0}} className="input-focus"
-                                        value={orcamentoEdit.investimento}
-                                        onChange={(e) => setOrcamentoEdit((p) => ({ ...p, investimento: e.target.value }))} />
-                                </div>
-                                <div>
-                                    <label style={labelStyle}>Incentivo Atribuído (€)</label>
-                                    <input type="number" step="0.01" min="0" style={{...inputStyle, marginBottom:0}} className="input-focus"
-                                        value={orcamentoEdit.incentivo}
-                                        onChange={(e) => setOrcamentoEdit((p) => ({ ...p, incentivo: e.target.value }))} />
-                                </div>
-                                <div style={{display:'flex', gap:'8px'}}>
-                                    <button type="button" onClick={() => setOrcamentoEdit(null)} className="hover-shadow"
-                                        style={{padding:'10px 14px', borderRadius:'8px', border:'1px solid #cbd5e1', background:'white', color:'#475569', fontWeight:'700', cursor:'pointer'}}>Cancelar</button>
-                                    <button type="button" onClick={() => saveOrcamentoEntidade(entidadeAtivaId, entidadesFin)} className="btn-primary">
-                                        <Icons.Save size={14} /> Guardar
-                                    </button>
-                                </div>
+                        <div className="pd-fin-kpis">
+                            <div className="pd-fin-kpi is-paid"><small>Valor pago</small><strong>{formatNumber(totalPago)} €</strong><em>{pctRecebido === null ? '—' : `${formatNumber(pctRecebido)}% do incentivo atribuído`}</em></div>
+                            <div className="pd-fin-kpi"><small>Incentivo pedido</small><strong>{formatNumber(totalIncentivo)} €</strong><em>{pedidosEnt.length} pedido{pedidosEnt.length === 1 ? '' : 's'}</em></div>
+                            <div className="pd-fin-kpi"><small>PMP (média)</small><strong>{mediaPmp === null ? '—' : `${Math.round(mediaPmp)} dias`}</strong><em>{pmpValues.length ? `com base em ${pmpValues.length} pagamento${pmpValues.length === 1 ? '' : 's'}` : 'sem pagamentos ainda'}</em></div>
+                        </div>
+                    </section>
+
+                    {/* PEDIDOS */}
+                    <section className="pd-fin-list">
+                        <header className="pd-fin-list-head">
+                            <div>
+                                <h3>Execução Financeira</h3>
+                                <p>Pedidos de reembolso e leitura rápida da execução do projeto.</p>
                             </div>
-                        ) : (
-                            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(200px, 1fr))', gap:'15px' }}>
-                                <div style={{ background:'white', padding:'12px 15px', borderRadius:'8px', border:'1px solid #cbd5e1' }}>
-                                    <span style={{ fontSize:'0.75rem', color:'#64748b', fontWeight:'700', textTransform:'uppercase' }}>Investimento Elegível</span>
-                                    <div style={{ fontSize:'1.1rem', fontWeight:'900', color:'#0f172a', marginTop:'4px' }}>{formatNumber(investimentoEnt)} €</div>
+                            {!pedidoReembolsoForm && (
+                                <button type="button" onClick={() => setPedidoReembolsoForm({ ...newPedidoReembolso(), entidade_id: entidadeAtivaId })} className="pd-btn is-primary">
+                                    <Icons.Plus size={15} /> Novo pedido
+                                </button>
+                            )}
+                        </header>
+
+                        {pedidoReembolsoForm && (
+                            <form onSubmit={savePedidoReembolso} className="pd-fin-form">
+                                <div className="pd-fin-form-head">
+                                    <h4>{pedidoReembolsoForm.id ? 'Editar pedido' : 'Registar pedido'}</h4>
+                                    <button type="button" className="pd-icon-btn" onClick={() => setPedidoReembolsoForm(null)} aria-label="Fechar"><Icons.Close size={16} /></button>
                                 </div>
-                                <div style={{ background:'white', padding:'12px 15px', borderRadius:'8px', border:'1px solid #cbd5e1' }}>
-                                    <span style={{ fontSize:'0.75rem', color:'#64748b', fontWeight:'700', textTransform:'uppercase' }}>Incentivo Atribuído</span>
-                                    <div style={{ fontSize:'1.1rem', fontWeight:'900', color:'#0f172a', marginTop:'4px' }}>{formatNumber(incentivoEnt)} €</div>
-                                </div>
-                                <div style={{ background:'white', padding:'12px 15px', borderRadius:'8px', border:'1px solid #cbd5e1' }}>
-                                    <span style={{ fontSize:'0.75rem', color:'#64748b', fontWeight:'700', textTransform:'uppercase' }}>Taxa de Financiamento</span>
-                                    <div style={{ fontSize:'1.1rem', fontWeight:'900', color:'var(--color-btnPrimary)', marginTop:'4px' }}>
-                                        {investimentoEnt > 0 ? `${((incentivoEnt / investimentoEnt) * 100).toFixed(2)}%` : '0.00%'}
+                                <div className="pd-fin-form-grid">
+                                    <div className="pd-fin-form-group">
+                                        <span className="pd-fin-form-tag">Pedido</span>
+                                        {pedidoInput("pedido", "Pedido", "text", { placeholder: 'Ex: 1º pedido de pagamento' })}
+                                        {pedidoInput("data_pedido", "Data Pedido", "date")}
+                                        {pedidoInput("valor_investimento", "Valor Investimento")}
+                                        {pedidoInput("valor_incentivo", "Valor Incentivo")}
+                                    </div>
+                                    <div className="pd-fin-form-group is-payment">
+                                        <span className="pd-fin-form-tag">Pagamento</span>
+                                        {pedidoInput("valor_pago", "Valor Pago")}
+                                        {pedidoInput("data_pagamento", "Data Pagamento", "date")}
+                                        <div className="pd-field">
+                                            <label>Notas</label>
+                                            <textarea
+                                                className="pd-input is-area"
+                                                rows="2"
+                                                value={pedidoReembolsoForm.notas ?? ""}
+                                                onChange={(event) => setPedidoReembolsoForm((previous) => ({ ...previous, notas: event.target.value }))}
+                                                placeholder="Observações sobre este pedido"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
+                                <div className="pd-fin-form-actions">
+                                    <button type="button" className="pd-btn" onClick={() => setPedidoReembolsoForm(null)}>Cancelar</button>
+                                    <button type="submit" disabled={pedidoReembolsoSaving} className="pd-btn is-primary"><Icons.Save size={14} /> {pedidoReembolsoSaving ? 'A guardar...' : 'Guardar'}</button>
+                                </div>
+                            </form>
+                        )}
+
+                        {pedidosEnt.length === 0 ? (
+                            !pedidoReembolsoForm && (
+                                <div className="pd-empty is-compact">
+                                    <span className="pd-empty-icon"><Icons.Dollar size={26} /></span>
+                                    <h3>Ainda não existem pedidos de reembolso registados.</h3>
+                                    <p>Regista o primeiro pedido para acompanhar a execução e os pagamentos.</p>
+                                </div>
+                            )
+                        ) : (
+                            <div className="pd-ftable-wrap">
+                                <table className="pd-ftable">
+                                    <thead>
+                                        <tr>
+                                            <th>Pedido</th>
+                                            <th>Estado</th>
+                                            <th className="is-num">Valor Investimento</th>
+                                            <th className="is-num">TXE</th>
+                                            <th className="is-num">Valor Incentivo</th>
+                                            <th className="is-num">Valor Pago</th>
+                                            <th className="is-num">PMP</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {pedidosEnt.map((pedido) => {
+                                            const investimento = Number(pedido.valor_investimento) || 0;
+                                            const txe = investimentoProjeto > 0 ? (investimento / investimentoProjeto) * 100 : null;
+                                            const pmp = getPedidoPmp(pedido);
+                                            const criadoEm = pedido.created_at ? new Date(pedido.created_at).toLocaleDateString('pt-PT') : '—';
+                                            const criadorNome = staff.find(s => String(s.id) === String(pedido.user_id))?.nome || 'Utilizador';
+                                            const st = pedidoStatus(pedido);
+
+                                            return (
+                                                <tr key={pedido.id}>
+                                                    <td>
+                                                        <div className="pd-ftable-name">
+                                                            <strong>{pedido.pedido || 'Pedido'}</strong>
+                                                            <span>
+                                                                Data Pedido: {fmtDate(pedido.data_pedido)}
+                                                                {pedido.data_pagamento && <> · Data Pagamento: {fmtDate(pedido.data_pagamento)}</>}
+                                                                <span
+                                                                    className="pd-ftable-info"
+                                                                    onMouseEnter={(e) => {
+                                                                        const rect = e.currentTarget.getBoundingClientRect();
+                                                                        setInfoTooltip({ x: rect.left + rect.width / 2, y: rect.bottom + 8, criadorNome, criadoEm });
+                                                                    }}
+                                                                    onMouseLeave={() => setInfoTooltip(null)}
+                                                                >
+                                                                    <Icons.Info size={13} color="currentColor" />
+                                                                </span>
+                                                            </span>
+                                                            {pedido.notas && (
+                                                                <details className="pd-ftable-notes">
+                                                                    <summary>Ver notas</summary>
+                                                                    <p>{pedido.notas}</p>
+                                                                </details>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td><span className={`pd-fstatus is-${st.key}`}><i />{st.label}</span></td>
+                                                    <td className="is-num">{formatNumber(investimento)} €</td>
+                                                    <td className="is-num is-txe">{txe === null ? '—' : `${formatNumber(txe)}%`}</td>
+                                                    <td className="is-num">{formatNumber(pedido.valor_incentivo)} €</td>
+                                                    <td className="is-num is-paid">{formatNumber(pedido.valor_pago)} €</td>
+                                                    <td className="is-num">{pmp === null ? '—' : `${pmp} dias`}</td>
+                                                    <td className="is-actions">
+                                                        <button type="button" className="pd-icon-btn is-sm" onClick={() => setPedidoReembolsoForm({ ...pedido, entidade_id: pedido.entidade_id || entidadeAtivaId })} title="Editar pedido" aria-label="Editar pedido"><Icons.Edit size={14} /></button>
+                                                        <button type="button" className="pd-icon-btn is-sm is-danger" onClick={() => deletePedidoReembolso(pedido.id)} title="Apagar pedido" aria-label="Apagar pedido"><Icons.Trash size={14} /></button>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr>
+                                            <td>Total / média</td>
+                                            <td></td>
+                                            <td className="is-num">{formatNumber(totalInvestimento)} €</td>
+                                            <td className="is-num is-txe">{taxaExecucao === null ? '—' : `${formatNumber(taxaExecucao)}%`}</td>
+                                            <td className="is-num">{formatNumber(totalIncentivo)} €</td>
+                                            <td className="is-num is-paid">{formatNumber(totalPago)} €</td>
+                                            <td className="is-num">{mediaPmp === null ? '—' : `${Math.round(mediaPmp)} dias`}</td>
+                                            <td></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
                             </div>
                         )}
-                    </div>
-                    
-                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '20px', flexWrap: 'wrap'}}>
-                        <div>
-                            <h2 style={{margin: 0, color: '#0f172a', fontSize: '1.3rem'}}>Execução Financeira</h2>
-                            <p style={{margin: '5px 0 0', color: '#64748b', fontSize: '0.85rem'}}>Pedidos de reembolso e leitura rápida da execução do projeto.</p>
-                        </div>
-                        <button onClick={() => setPedidoReembolsoForm({ ...newPedidoReembolso(), entidade_id: entidadeAtivaId })} className="btn-primary" style={{display: 'flex', alignItems: 'center', gap: '7px'}}>
-                            <Icons.Plus size={15} /> Novo pedido
-                        </button>
-                    </div>
-
-                    <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(155px, 1fr))', gap: '12px', marginBottom: '18px'}}>
-                        {metricCard('Taxa de execução', taxaExecucao === null ? '—' : `${formatNumber(taxaExecucao)}%`, '#0f766e')}
-                        {metricCard('Investimento pedido', `${formatNumber(totalInvestimento)} €`, '#1e293b')}
-                        {metricCard('Incentivo pedido', `${formatNumber(totalIncentivo)} €`, '#2563eb')}
-                        {metricCard('Valor pago', `${formatNumber(totalPago)} €`, '#7c3aed')}
-                                            </div>
-        
-
-                    <div style={{height: '8px', borderRadius: '99px', background: '#e2e8f0', overflow: 'hidden', marginBottom: '24px'}} title="Taxa de execução do investimento">
-                        <div style={{height: '100%', width: `${Math.min(Math.max(taxaExecucao || 0, 0), 100)}%`, background: 'var(--color-btnPrimary)', borderRadius: '99px', transition: 'width 0.3s'}} />
-                    </div>
-
-                    {pedidoReembolsoForm && (
-                        <form onSubmit={savePedidoReembolso} style={{background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '12px', padding: '18px', marginBottom: '22px'}}>
-                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px'}}>
-                                <h3 style={{margin: 0, color: '#1e293b', fontSize: '1rem'}}>{pedidoReembolsoForm.id ? 'Editar pedido' : 'Registar pedido'}</h3>
-                                <button type="button" onClick={() => setPedidoReembolsoForm(null)} style={{border: 0, background: 'none', cursor: 'pointer', color: '#64748b'}}><Icons.Close /></button>
-                            </div>
-                            <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(145px, 1fr))', gap: '12px'}}>
-                                {pedidoInput("pedido", "Pedido", "text")}
-                                {pedidoInput("data_pedido", "Data Pedido", "date")}
-                                {pedidoInput("valor_investimento", "Valor Investimento")}
-                                {pedidoInput("valor_incentivo", "Valor Incentivo")}
-                                {pedidoInput("valor_pago", "Valor Pago")}
-                                {pedidoInput("data_pagamento", "Data Pagamento", "date")}
-                                <div>
-                                    <label style={labelStyle}>Notas</label>
-                                    <textarea
-                                        rows="1"
-                                        value={pedidoReembolsoForm.notas ?? ""}
-                                        onChange={(event) => setPedidoReembolsoForm((previous) => ({ ...previous, notas: event.target.value }))}
-                                        style={{...inputStyle, minHeight: '38px', resize: 'vertical'}}
-                                        placeholder="Observações adicionais sobre este pedido"
-                                    />
-                                </div>
-                                
-                            </div>
-                            <div style={{display: 'flex', justifyContent: 'flex-end', gap: '10px'}}>
-                                <button
-                                    type="button"
-                                    onClick={() => setPedidoReembolsoForm(null)}
-                                    className="hover-shadow"
-                                    style={{
-                                        padding: '10px 16px',
-                                        borderRadius: '10px',
-                                        border: '1px solid #cbd5e1',
-                                        background: '#ffffff',
-                                        color: '#475569',
-                                        fontWeight: '700',
-                                        fontSize: '0.9rem',
-                                        cursor: 'pointer',
-                                        transition: 'all 0.2s ease'
-                                    }}
-                                >
-                                    Cancelar
-                                </button>
-                                <button type="submit" disabled={pedidoReembolsoSaving} className="btn-primary"><Icons.Save size={14} /> {pedidoReembolsoSaving ? 'A guardar...' : 'Guardar'}</button>
-                            </div>
-                        </form>
-                    )}
-
-                    <div style={{overflowX: 'auto'}}>
-                        <table style={{width: '100%', borderCollapse: 'collapse', minWidth: '900px'}}>
-                            <thead><tr style={{background: '#f8fafc'}}>
-                                {['Pedido', 'Data Pedido', 'Valor Investimento', 'TXE', 'Valor Incentivo', 'Valor Pago', 'Data Pagamento', 'PMP', 'Notas', ''].map((heading) => <th key={heading} style={{padding: '11px 10px', textAlign: ['Pedido', 'Notas'].includes(heading) ? 'left' : 'right', color: '#64748b', fontSize: '0.7rem', textTransform: 'uppercase', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap'}}>{heading}</th>)}
-                            </tr></thead>
-                            <tbody>
-                                {pedidosEnt.map((pedido) => {
-    const investimento = Number(pedido.valor_investimento) || 0;
-    const txe = investimentoProjeto > 0 ? (investimento / investimentoProjeto) * 100 : null;
-    const pmp = getPedidoPmp(pedido);
-    
-    // 👇 DECLARAÇÕES ADICIONADAS AQUI PARA EVITAR O ERRO
-    const criadoEm = pedido.created_at ? new Date(pedido.created_at).toLocaleDateString('pt-PT') : '—';
-    const criadorNome = staff.find(s => String(s.id) === String(pedido.user_id))?.nome || 'Utilizador';
-
-    return (
-        <tr key={pedido.id}>
-            <td style={{padding: '12px 10px', fontWeight: '700', color: '#1e293b', borderBottom: '1px solid #f1f5f9'}}>
-                <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                    {pedido.pedido}
-                    
-                    {/* TOOLTIP DE INFO */}
-                    <div
-                        style={{display: 'inline-flex', cursor: 'pointer'}}
-                        onMouseEnter={(e) => {
-                            const rect = e.currentTarget.getBoundingClientRect();
-                            setInfoTooltip({
-                                x: rect.left + rect.width / 2,
-                                y: rect.bottom + 8,
-                                criadorNome,
-                                criadoEm
-                            });
-                        }}
-                        onMouseLeave={() => setInfoTooltip(null)}
-                    >
-                        <Icons.Info size={14} color="#64748b" />
-                    </div>
-                </div>
-            </td>
-            <td style={{padding: '12px 10px', textAlign: 'right', borderBottom: '1px solid #f1f5f9'}}>{pedido.data_pedido ? new Date(`${pedido.data_pedido}T00:00:00`).toLocaleDateString('pt-PT') : '—'}</td>
-            <td style={{padding: '12px 10px', textAlign: 'right', borderBottom: '1px solid #f1f5f9'}}>{formatNumber(investimento)} €</td>
-            <td style={{padding: '12px 10px', textAlign: 'right', fontWeight: '700', color: '#0f766e', borderBottom: '1px solid #f1f5f9'}}>{txe === null ? '—' : `${formatNumber(txe)}%`}</td>
-            <td style={{padding: '12px 10px', textAlign: 'right', borderBottom: '1px solid #f1f5f9'}}>{formatNumber(pedido.valor_incentivo)} €</td>
-            <td style={{padding: '12px 10px', textAlign: 'right', borderBottom: '1px solid #f1f5f9'}}>{formatNumber(pedido.valor_pago)} €</td>
-            <td style={{padding: '12px 10px', textAlign: 'right', borderBottom: '1px solid #f1f5f9'}}>{pedido.data_pagamento ? new Date(`${pedido.data_pagamento}T00:00:00`).toLocaleDateString('pt-PT') : '—'}</td>
-            <td style={{padding: '12px 10px', textAlign: 'right', borderBottom: '1px solid #f1f5f9'}}>{pmp === null ? '—' : `${pmp} dias`}</td>
-            <td style={{padding: '12px 10px', maxWidth: '220px', color: '#475569', borderBottom: '1px solid #f1f5f9'}}>
-                {pedido.notas ? (
-                    <details>
-                        <summary style={{cursor: 'pointer', color: '#0f766e', fontWeight: '700', fontSize: '0.8rem'}}>Ver notas</summary>
-                        <div style={{paddingTop: '6px', whiteSpace: 'pre-wrap', fontSize: '0.8rem', lineHeight: '1.4'}}>{pedido.notas}</div>
-                    </details>
-                ) : '—'}
-            </td>
-            <td style={{padding: '12px 10px', textAlign: 'right', borderBottom: '1px solid #f1f5f9', whiteSpace: 'nowrap'}}>
-                <button onClick={() => setPedidoReembolsoForm({ ...pedido, entidade_id: pedido.entidade_id || entidadeAtivaId })} style={{border: 0, background: 'none', cursor: 'pointer', color: '#2563eb', marginRight: '8px'}} title="Editar"><Icons.Edit size={14} /></button>
-                <button onClick={() => deletePedidoReembolso(pedido.id)} style={{border: 0, background: 'none', cursor: 'pointer', color: '#dc2626'}} title="Apagar"><Icons.Trash size={14} /></button>
-            </td>
-        </tr>
-    );
-})}
-                                <tr style={{background: '#f8fafc', fontWeight: '800'}}>
-                                    <td style={{padding: '12px 10px', color: '#475569'}}>Total / média</td><td></td>
-                                    <td style={{padding: '12px 10px', textAlign: 'right'}}>{formatNumber(totalInvestimento)} €</td>
-                                    <td style={{padding: '12px 10px', textAlign: 'right', color: '#0f766e'}}>{taxaExecucao === null ? '—' : `${formatNumber(taxaExecucao)}%`}</td>
-                                    <td style={{padding: '12px 10px', textAlign: 'right'}}>{formatNumber(totalIncentivo)} €</td>
-                                    <td style={{padding: '12px 10px', textAlign: 'right'}}>{formatNumber(totalPago)} €</td>
-                                    <td></td><td></td><td></td><td></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                        {pedidosEnt.length === 0 && <div style={{padding: '35px 15px', textAlign: 'center', color: '#94a3b8'}}>Ainda não existem pedidos de reembolso registados.</div>}
-                    </div>
+                    </section>
                 </div>
             );
         })()}
@@ -2706,13 +2868,21 @@ export default function ProjetoDetalhe() {
             ABA 1: BOARD DE ATIVIDADES (C/ DRAG & DROP)
         ========================================= */}
         {activeTab === 'atividades' && (
-            <div className="bz-tab-panel" style={{width: '100%'}}>
+            <div className="bz-tab-panel pd-board">
+                {atividades.length === 0 && (
+                    <div className="pd-empty">
+                        <span className="pd-empty-icon"><Icons.Layers size={28} /></span>
+                        <h3>Ainda não há atividades</h3>
+                        <p>Cria o primeiro bloco de atividades em baixo para começar a organizar o projeto.</p>
+                    </div>
+                )}
+
                 {atividades.map((ativ, aIndex) => {
                     const isAtivDone = ativ.estado === 'concluido';
                     const progresso = ativ.tarefas?.length > 0 ? Math.round((ativ.tarefas.filter(t => t.estado === 'concluido').length / ativ.tarefas.length) * 100) : 0;
                     const atividadeDependencyReason = getActivityBlockReason(ativ, activityById);
                     const blockedActivity = isActivityBlocked(ativ);
-                    
+
                     const hasNoTasks = !ativ.tarefas || ativ.tarefas.length === 0;
                     const isAtivTimerActive = activeLog?.atividade_id === ativ.id;
                     const ativTime = getActivityTime(ativ);
@@ -2723,116 +2893,111 @@ export default function ProjetoDetalhe() {
                             .map((cid) => getPersonLabelById(cid))
                             .filter(Boolean)
                     )];
-                    
+                    const tasksDone = (ativ.tarefas || []).filter(t => t.estado === 'concluido').length;
                     const isCollapsed = collapsedAtivs[ativ.id];
+                    const ativCelebrating = pdCelebrating.has(`a-${ativ.id}`);
 
                     return (
-                    <div 
+                    <section
                         id={`atividade-card-${ativ.id}`}
-                        key={ativ.id} 
-                        draggable={!isCollapsed} 
+                        key={ativ.id}
+                        draggable={!isCollapsed}
                         onDragStart={(e) => handleDragStartAtiv(e, aIndex)}
                         onDragEnter={(e) => handleDragEnterAtiv(e, aIndex)}
                         onDragEnd={handleDropAtiv}
                         onDragOver={(e) => e.preventDefault()}
-                        style={{background: 'white', borderRadius: '12px', border: isHighlightedTask('atividade', ativ.id) ? '2px solid var(--color-btnPrimary)' : '1px solid #e2e8f0', marginBottom: '20px', boxShadow: isHighlightedTask('atividade', ativ.id) ? '0 0 0 3px var(--color-bgSecondary), 0 16px 30px rgba(59,130,246,0.18)' : '0 2px 4px rgba(0, 0, 0, 0.02)', overflow: 'hidden', opacity: isAtivDone ? 0.6 : 1, transition: 'opacity 0.3s', animation: isHighlightedTask('atividade', ativ.id) ? 'taskFocusPulse 1.2s ease-in-out 0s 2' : 'none'}}
+                        className={`pd-ativ ${isAtivDone ? 'is-done' : ''} ${blockedActivity ? 'is-blocked' : ''} ${isAtivTimerActive ? 'is-running' : ''} ${isHighlightedTask('atividade', ativ.id) ? 'is-focus' : ''} ${ativCelebrating ? 'is-celebrating' : ''}`}
+                        style={{ '--i': Math.min(aIndex, 10) }}
                     >
-                        
                         {/* CABEÇALHO DA ATIVIDADE */}
-                        <div style={{padding: '15px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: isAtivDone ? '#f8fafc' : 'white', position: 'relative'}}>
-                            <div style={{position: 'absolute', bottom: 0, left: 0, height: '3px', background: '#f1f5f9', width: '100%'}}>
-                                <div style={{height: '100%', background: 'var(--color-btnPrimary)', width: `${progresso}%`, transition: 'width 0.4s ease-in-out'}}></div>
-                            </div>
-                            
-                            <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
-                                <div style={{cursor: 'grab', color: '#cbd5e1', display:'flex'}} title="Arraste para reordenar" className="hover-blue-text"><Icons.GripVertical /></div>
-                                <div onClick={() => !blockedActivity && toggleAtividadeStatus(ativ.id, ativ.estado)} style={{width: '26px', height: '26px', borderRadius: '8px', cursor: blockedActivity ? 'not-allowed' : 'pointer', background: isAtivDone ? 'var(--color-btnPrimary)' : '#f8fafc', border: isAtivDone ? 'none' : '2px solid #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', transition: 'all 0.2s'}}>
-                                    {isAtivDone && <Icons.Check size={16} />}
-                                </div>
-                                <div>
-                                    <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
-                                        <h3 style={{margin: 0, color: isAtivDone ? '#94a3b8' : '#0f172a', textDecoration: isAtivDone ? 'line-through' : 'none', fontSize: '1.1rem', fontWeight: '700'}}>
-                                            {ativ.titulo}
-                                        </h3>
-                                        {renderDeadline(ativ.data_fim, isAtivDone, true)}
-                                        
-                                        <button onClick={() => setAtividadeModal({show: true, data: { ...ativ, colaboradores_extra: Array.isArray(ativ.colaboradores_extra) ? ativ.colaboradores_extra : [] }})} style={{background:'none', border:'none', color:'var(--color-btnPrimary)', cursor:'pointer'}} title="Editar Atividade" className="hover-shadow">
-                                            <Icons.Edit size={16} />
-                                        </button>
-                                    </div>
+                        <header className="pd-ativ-head">
+                            <span className="pd-grip" title="Arraste para reordenar"><Icons.GripVertical /></span>
+                            {renderPdCheck({
+                                key: `a-${ativ.id}`,
+                                done: isAtivDone,
+                                shape: 'square',
+                                disabled: blockedActivity,
+                                label: isAtivDone ? 'Reabrir atividade' : 'Concluir atividade',
+                                onToggle: () => toggleAtividadeStatus(ativ.id, ativ.estado),
+                            })}
 
-                                    <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginTop: '5px', flexWrap: 'wrap'}}>
-                                        <span style={{fontSize: '0.7rem', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimaryDark)', padding: '2px 8px', borderRadius: '999px', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '5px'}}>
-                                            <Icons.User size={11} />
-                                            Resp: {atividadeResponsavelNome || 'Sem responsável / Equipa Externa'}
+                            <div className="pd-ativ-main">
+                                <div className="pd-ativ-title">
+                                    <h3><span className="pd-strike">{ativ.titulo}</span></h3>
+                                    {renderDeadline(ativ.data_fim, isAtivDone, true)}
+                                    <button type="button" onClick={() => setAtividadeModal({show: true, data: { ...ativ, colaboradores_extra: Array.isArray(ativ.colaboradores_extra) ? ativ.colaboradores_extra : [] }})} className="pd-icon-btn" title="Editar atividade" aria-label="Editar atividade">
+                                        <Icons.Edit size={15} />
+                                    </button>
+                                </div>
+                                <div className="pd-chips">
+                                    <span className="pd-chip is-person" title="Responsável">
+                                        <span className="pd-avatar">{atividadeResponsavelNome ? atividadeResponsavelNome.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase() : '–'}</span>
+                                        {atividadeResponsavelNome || 'Sem responsável / equipa externa'}
+                                    </span>
+                                    {atividadeParticipantes.length > 0 && (
+                                        <span className="pd-chip" title={atividadeParticipantes.join(', ')}>
+                                            <Icons.Users size={11} /> {atividadeParticipantes.length === 1 ? atividadeParticipantes[0] : `${atividadeParticipantes.length} participantes`}
                                         </span>
-                                        {atividadeDependencyReason && (
-                                            <span style={{fontSize: '0.7rem', background: '#fff7ed', color: '#c2410c', padding: '2px 8px', borderRadius: '999px', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '5px'}} title={atividadeDependencyReason}>
-                                                <Icons.Lock size={11} /> Bloqueada por dependência
-                                            </span>
-                                        )}
-                                        {atividadeParticipantes.length > 0 && (
-                                            <span style={{fontSize: '0.7rem', background: '#f8fafc', color: '#475569', padding: '2px 8px', borderRadius: '999px', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '5px'}} title={atividadeParticipantes.join(', ')}>
-                                                <Icons.Users size={11} />
-                                                Participantes: {atividadeParticipantes.join(', ')}
-                                            </span>
-                                        )}
-                                    </div>
+                                    )}
+                                    {atividadeDependencyReason && (
+                                        <span className="pd-chip is-lock" title={atividadeDependencyReason}>
+                                            <Icons.Lock size={11} /> Bloqueada por dependência
+                                        </span>
+                                    )}
                                 </div>
                             </div>
 
-                            <div style={{display: 'flex', gap: '15px', alignItems: 'center'}}>
-                                {!isAtivDone && <span style={{fontSize: '0.75rem', color: '#64748b', background: '#f1f5f9', padding: '4px 10px', borderRadius: '12px', fontWeight: '600'}}>{progresso}% Concluído</span>}
-                                
-                                <span style={{fontSize: '0.8rem', color: 'var(--color-btnPrimary)', fontWeight: 'bold', background: 'var(--color-bgSecondary)', padding: '4px 10px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '4px'}}>
-                                    <Icons.Clock size={12} /> {formatTime(ativTime)}
-                                </span>
-                                
+                            <div className="pd-ativ-side">
+                                {!hasNoTasks && (
+                                    <span className="pd-mini-progress" title={`${tasksDone} de ${ativ.tarefas.length} tarefas concluídas`}>
+                                        <span className="pd-mini-bar"><i style={{ width: `${progresso}%` }} /></span>
+                                        <b>{tasksDone}/{ativ.tarefas.length}</b>
+                                    </span>
+                                )}
+                                <span className="pd-chip is-time"><Icons.Clock size={12} /> {formatTime(ativTime)}</span>
+
                                 {hasNoTasks && !isAtivDone && (
-                                    <button onClick={() => !blockedActivity && handleToggleTimer(ativ.id, 'activity')} style={{ background: isAtivTimerActive ? '#fee2e2' : '#f1f5f9', color: isAtivTimerActive ? '#ef4444' : '#64748b', border: 'none', padding: '6px 12px', borderRadius: '20px', cursor: blockedActivity ? 'not-allowed' : 'pointer', fontSize: '0.75rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', animation: isAtivTimerActive ? 'pulse 1.5s infinite' : 'none', opacity: blockedActivity ? 0.6 : 1}} className="hover-shadow">
-                                        {isAtivTimerActive ? <><Icons.Stop size={12} /> Parar</> : <><Icons.Play size={12} /> Play</>}
+                                    <button
+                                        type="button"
+                                        onClick={() => !blockedActivity && handleToggleTimer(ativ.id, 'activity')}
+                                        className={`pd-timer ${isAtivTimerActive ? 'is-on' : ''}`}
+                                        disabled={blockedActivity}
+                                        title={isAtivTimerActive ? 'Parar cronómetro' : 'Iniciar cronómetro'}
+                                        aria-label={isAtivTimerActive ? 'Parar cronómetro' : 'Iniciar cronómetro'}
+                                    >
+                                        {isAtivTimerActive ? <Icons.Stop size={11} /> : <Icons.Play size={12} />}
                                     </button>
                                 )}
 
                                 {blockedActivity && (
                                     <button
+                                        type="button"
                                         onClick={() => unlockActivityForNow(ativ.id)}
-                                        style={{background: '#fff7ed', border: '1px solid #fdba74', color: '#c2410c', width: '32px', height: '32px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'}}
+                                        className="pd-icon-btn is-unlock"
                                         title={atividadeDependencyReason ? `${atividadeDependencyReason}. Clique para desbloquear manualmente.` : 'Desbloquear atividade manualmente'}
                                     >
                                         <Icons.Unlock size={14} />
                                     </button>
                                 )}
 
-                                {/* BOTÃO PARA RECOLHER/EXPANDIR A ATIVIDADE */}
+                                <button type="button" onClick={() => handleReuseActivityBlock(ativ.id)} className="pd-icon-btn" title="Repetir este bloco de atividade" aria-label="Repetir bloco">
+                                    <Icons.Layers size={15} />
+                                </button>
+                                <button type="button" onClick={() => handleDeleteItem("atividades", ativ.id)} className="pd-icon-btn is-danger" title="Apagar atividade" aria-label="Apagar atividade">
+                                    <Icons.Trash size={15} />
+                                </button>
                                 {!hasNoTasks && (
-                                    <button 
-                                        onClick={() => toggleCollapseAtiv(ativ.id)} 
-                                        style={{background: 'transparent', border: '1px solid #cbd5e1', color: '#64748b', padding: '4px 10px', borderRadius: '12px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', transition: '0.2s'}} 
-                                        className="hover-shadow"
-                                    >
-                                        {isCollapsed ? <><Icons.ChevronDown /> Mostrar</> : <><Icons.ChevronUp /> Recolher</>}
+                                    <button type="button" onClick={() => toggleCollapseAtiv(ativ.id)} className={`pd-collapse ${isCollapsed ? 'is-collapsed' : ''}`} title={isCollapsed ? 'Mostrar tarefas' : 'Recolher tarefas'} aria-expanded={!isCollapsed}>
+                                        <Icons.ChevronDown size={16} />
                                     </button>
                                 )}
-
-                                <button
-                                    onClick={() => handleReuseActivityBlock(ativ.id)}
-                                    style={{background: 'var(--color-bgSecondary)', border: '1px solid var(--color-borderColor)', color: 'var(--color-btnPrimaryDark)', cursor: 'pointer', padding: '5px 10px', borderRadius: '12px', fontSize: '0.72rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px'}}
-                                    className="hover-shadow"
-                                    title="Reaproveitar este bloco de atividade"
-                                >
-                                    <Icons.Layers size={12} /> Repetir Bloco
-                                </button>
-
-                                <button onClick={() => handleDeleteItem("atividades", ativ.id)} style={{background:'none', border:'none', color:'#ef4444', cursor:'pointer', opacity:0.4}} className="hover-red">
-                                    <Icons.Trash size={16} />
-                                </button>
                             </div>
-                        </div>
+                            <span className="pd-ativ-bar" aria-hidden="true"><i style={{ width: `${isAtivDone ? 100 : progresso}%` }} /></span>
+                        </header>
 
                         {/* LISTA DE TAREFAS */}
                         {!isCollapsed && (
-                            <div style={{padding: '10px 20px 20px 20px', background: '#f8fafc'}}>
+                            <div className="pd-tasks">
                                 {ativ.tarefas?.map((tar, tIndex) => {
                                     const isTarDone = tar.estado === 'concluido';
                                     const hasSubs = tar.subtarefas?.length > 0;
@@ -2840,7 +3005,7 @@ export default function ProjetoDetalhe() {
                                     const isExpanded = expandedTasks[tar.id];
                                     const dependencyReason = getTaskDependencyReason(tar, ativ);
                                     const blockedByDependency = isTaskBlocked(tar, ativ);
-                                    
+
                                     const isTimerActive = activeLog?.task_id === tar.id;
                                     const taskTime = getTaskTime(tar.id);
                                     const respName = getPersonLabelById(tar.responsavel_id);
@@ -2848,111 +3013,127 @@ export default function ProjetoDetalhe() {
                                     const extraColabsCount = extraColabsIds.length;
                                     const extraColabsNames = extraColabsIds.map(cid => getPersonLabelById(cid)).filter(Boolean).join(', ');
                                     const isComposerOpen = activeSubtarefaComposer === tar.id;
+                                    const tarCelebrating = pdCelebrating.has(`t-${tar.id}`);
+                                    const openTarefa = () => {
+                                        setTarefaFileToUpload(null);
+                                        setTarefaModal({
+                                            show: true,
+                                            data: {
+                                                ...tar,
+                                                colaboradores_extra: Array.isArray(tar.colaboradores_extra) ? tar.colaboradores_extra : [],
+                                                tem_entregavel: Boolean(tar.tem_entregavel),
+                                                nome_entregavel: tar.nome_entregavel || "",
+                                                data_entregavel: tar.data_entregavel || "",
+                                                arquivo_url: tar.arquivo_url || ""
+                                            },
+                                            atividadeNome: ativ.titulo
+                                        });
+                                    };
 
                                     return (
-                                    <div 
+                                    <div
                                         id={`tarefa-card-${tar.id}`}
-                                        key={tar.id} 
+                                        key={tar.id}
                                         draggable
                                         onDragStart={(e) => handleDragStartTar(e, aIndex, tIndex)}
                                         onDragEnter={(e) => handleDragEnterTar(e, aIndex, tIndex)}
                                         onDragEnd={(e) => handleDropTar(e, aIndex)}
                                         onDragOver={(e) => e.preventDefault()}
-                                        style={{background: 'white', border: isHighlightedTask('tarefa', tar.id) ? '2px solid var(--color-btnPrimary)' : (isTimerActive ? '1px solid var(--color-btnPrimary)' : '1px solid #e2e8f0'), borderRadius: '8px', marginBottom: '8px', overflow: 'hidden', boxShadow: isHighlightedTask('tarefa', tar.id) ? '0 0 0 3px var(--color-bgSecondary), 0 12px 24px rgba(59,130,246,0.16)' : (isTimerActive ? '0 0 0 2px rgba(59, 130, 246, 0.2)' : 'none'), transition: 'all 0.2s', animation: isHighlightedTask('tarefa', tar.id) ? 'taskFocusPulse 1.2s ease-in-out 0s 2' : 'none'}}
+                                        className={`pd-task ${isTarDone ? 'is-done' : ''} ${blockedByDependency ? 'is-blocked' : ''} ${isTimerActive ? 'is-running' : ''} ${isHighlightedTask('tarefa', tar.id) ? 'is-focus' : ''} ${tarCelebrating ? 'is-celebrating' : ''} ${isExpanded ? 'is-open' : ''}`}
                                     >
-                                        <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 15px', opacity: tar.estado === 'concluido' ? 0.6 : (blockedByDependency ? 0.75 : 1)}}>
-                                            <div style={{display: 'flex', alignItems: 'center', gap: '12px', flex: 1}}>
-                                                <div style={{cursor: 'grab', color: '#cbd5e1', display:'flex'}} title="Arraste para reordenar"><Icons.GripVertical /></div>
-                                                <div onClick={() => !blockedByDependency && toggleTarefaStatus(tar.id, tar.estado)} style={{ width: '20px', height: '20px', borderRadius: '50%', cursor: blockedByDependency ? 'not-allowed' : 'pointer', border: tar.estado === 'concluido' ? 'none' : '2px solid #cbd5e1', background: tar.estado === 'concluido' ? 'var(--color-btnPrimary)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0 }}>
-                                                    {tar.estado === 'concluido' && <Icons.Check size={12} />}
-                                                </div>
-                                                
-                                                <span onClick={() => {
-                                                    setTarefaFileToUpload(null);
-                                                    setTarefaModal({
-                                                        show: true,
-                                                        data: {
-                                                            ...tar,
-                                                            colaboradores_extra: Array.isArray(tar.colaboradores_extra) ? tar.colaboradores_extra : [],
-                                                            tem_entregavel: Boolean(tar.tem_entregavel),
-                                                            nome_entregavel: tar.nome_entregavel || "",
-                                                            data_entregavel: tar.data_entregavel || "",
-                                                            arquivo_url: tar.arquivo_url || ""
-                                                        },
-                                                        atividadeNome: ativ.titulo
-                                                    });
-                                                }} style={{textDecoration: tar.estado === 'concluido' ? 'line-through' : 'none', color: '#334155', fontWeight: '600', cursor: 'pointer', fontSize: '0.95rem'}} className="hover-underline" title="Clique para editar detalhes">
-                                                    {tar.titulo}
-                                                </span>
-                                                
-                                                <div style={{display: 'flex', gap: '6px', marginLeft: '10px'}}>
-                                                    {tar.prioridade === 'Alta' || tar.prioridade === 'Urgente' ? <span style={{fontSize: '0.65rem', background: '#fee2e2', color: '#ef4444', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold'}}>{tar.prioridade}</span> : null}
-                                                    {respName && <span style={{fontSize: '0.65rem', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold'}}>{respName.split(' ')[0]}</span>}
-                                                    {extraColabsCount > 0 && <span style={{fontSize: '0.65rem', background: '#f3e8ff', color: '#7e22ce', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}} title={extraColabsNames}><Icons.Users size={10} /> +{extraColabsCount}</span>}
+                                        <div className="pd-task-row">
+                                            <span className="pd-grip is-sm" title="Arraste para reordenar"><Icons.GripVertical /></span>
+                                            {renderPdCheck({
+                                                key: `t-${tar.id}`,
+                                                done: isTarDone,
+                                                disabled: blockedByDependency,
+                                                label: isTarDone ? 'Reabrir tarefa' : 'Concluir tarefa',
+                                                onToggle: () => toggleTarefaStatus(tar.id, tar.estado),
+                                            })}
+
+                                            <div className="pd-task-main">
+                                                <button type="button" onClick={openTarefa} className="pd-task-title" title="Clique para editar detalhes">
+                                                    <span className="pd-strike">{tar.titulo}</span>
+                                                </button>
+                                                <div className="pd-chips">
+                                                    {(tar.prioridade === 'Alta' || tar.prioridade === 'Urgente') && <span className={`pd-chip is-prio ${tar.prioridade === 'Urgente' ? 'is-urgent' : ''}`}><Icons.Flame size={10} /> {tar.prioridade}</span>}
+                                                    {respName && <span className="pd-chip is-person" title={`Responsável: ${respName}`}><span className="pd-avatar is-xs">{respName.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()}</span>{respName.split(' ')[0]}</span>}
+                                                    {extraColabsCount > 0 && <span className="pd-chip is-extra" title={extraColabsNames}><Icons.Users size={10} /> +{extraColabsCount}</span>}
                                                     {renderDeadline(tar.data_fim, isTarDone)}
                                                     {dependencyReason && (
-                                                        <span style={{fontSize: '0.65rem', background: '#fff7ed', color: '#c2410c', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '4px'}} title={dependencyReason}>
+                                                        <span className="pd-chip is-lock" title={dependencyReason}>
                                                             <Icons.Lock size={10} /> Dependência
                                                         </span>
                                                     )}
-                                                    {hasSubs && <span style={{fontSize: '0.65rem', background: subsDone === tar.subtarefas.length ? 'var(--color-borderColorLight)' : '#f1f5f9', color: subsDone === tar.subtarefas.length ? 'var(--color-btnPrimary)' : '#64748b', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.ClipboardList size={10} /> {subsDone}/{tar.subtarefas.length}</span>}
+                                                    {hasSubs && (
+                                                        <button type="button" onClick={() => toggleExpand(tar.id)} className={`pd-chip pd-chip-btn ${subsDone === tar.subtarefas.length ? 'is-complete' : ''} ${isExpanded ? 'is-open' : ''}`} title={isExpanded ? 'Esconder passos' : 'Mostrar passos'}>
+                                                            <Icons.ListTree size={10} /> {subsDone}/{tar.subtarefas.length} <Icons.ChevronDown size={10} />
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </div>
 
-                                            <div style={{display: 'flex', gap: '15px', alignItems: 'center'}}>
-                                                <span style={{fontSize: '0.75rem', color: '#64748b', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px'}}><Icons.Clock size={12} /> {formatTime(taskTime)}</span>
-
-                                                <button onClick={() => !blockedByDependency && handleToggleTimer(tar.id, 'task')} style={{ background: isTimerActive ? '#fee2e2' : '#f1f5f9', color: isTimerActive ? '#ef4444' : '#64748b', border: 'none', padding: '4px 10px', borderRadius: '20px', cursor: blockedByDependency ? 'not-allowed' : 'pointer', fontSize: '0.75rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', animation: isTimerActive ? 'pulse 1.5s infinite' : 'none', opacity: blockedByDependency ? 0.6 : 1 }} className="hover-shadow">
-                                                    {isTimerActive ? <><Icons.Stop /> Parar</> : <><Icons.Play /> Play</>}
+                                            <div className="pd-task-side">
+                                                <span className="pd-task-time"><Icons.Clock size={12} /> {formatTime(taskTime)}</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => !blockedByDependency && handleToggleTimer(tar.id, 'task')}
+                                                    className={`pd-timer is-sm ${isTimerActive ? 'is-on' : ''}`}
+                                                    disabled={blockedByDependency}
+                                                    title={isTimerActive ? 'Parar cronómetro' : 'Iniciar cronómetro'}
+                                                    aria-label={isTimerActive ? 'Parar cronómetro' : 'Iniciar cronómetro'}
+                                                >
+                                                    {isTimerActive ? <Icons.Stop size={10} /> : <Icons.Play size={11} />}
                                                 </button>
                                                 {blockedByDependency && (
                                                     <button
+                                                        type="button"
                                                         onClick={() => unlockTaskForNow(tar.id)}
-                                                        style={{background: '#fff7ed', border: '1px solid #fdba74', color: '#c2410c', width: '30px', height: '30px', borderRadius: '999px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'}}
+                                                        className="pd-icon-btn is-unlock is-sm"
                                                         title={dependencyReason ? `${dependencyReason}. Clique para desbloquear manualmente.` : 'Desbloquear tarefa manualmente'}
                                                     >
                                                         <Icons.Unlock size={13} />
                                                     </button>
                                                 )}
                                                 {!isTarDone && (
-                                                    <button onClick={() => toggleSubtarefaComposer(tar.id)} style={{background:'none', border:'none', color: isComposerOpen ? 'var(--color-btnPrimary)' : '#94a3b8', cursor:'pointer', display: 'flex'}} className="hover-blue-text" title={isComposerOpen ? 'Fechar novo passo' : 'Adicionar novo passo'}>
+                                                    <button type="button" onClick={() => toggleSubtarefaComposer(tar.id)} className={`pd-icon-btn is-sm ${isComposerOpen ? 'is-on' : ''}`} title={isComposerOpen ? 'Fechar novo passo' : 'Adicionar novo passo'}>
                                                         {isComposerOpen ? <Icons.Close size={14} /> : <Icons.Plus size={14} />}
                                                     </button>
                                                 )}
-                                                {hasSubs && <button onClick={() => toggleExpand(tar.id)} style={{background:'none', border:'none', color:'#94a3b8', cursor:'pointer', display: 'flex'}} className="hover-blue-text">{isExpanded ? <Icons.ChevronUp /> : <Icons.ChevronDown />}</button>}
-                                                <button onClick={() => handleDeleteItem("tarefas", tar.id)} style={{background:'none', border:'none', color:'#ef4444', cursor:'pointer', opacity:0.4}} className="hover-red"><Icons.Close size={16} /></button>
+                                                <button type="button" onClick={() => handleDeleteItem("tarefas", tar.id)} className="pd-icon-btn is-danger is-sm" title="Apagar tarefa" aria-label="Apagar tarefa"><Icons.Trash size={14} /></button>
                                             </div>
                                         </div>
 
-                                        {/* ÁREA EXPANDIDA (CHECKLISTS) */}
+                                        {/* PASSOS (SUBTAREFAS) */}
                                         {isExpanded && (
-                                            <div style={{padding: '0 15px 10px 45px', background: 'white', borderTop: '1px dashed #f1f5f9'}}>
+                                            <div className="pd-subs">
                                                 {tar.subtarefas?.map(sub => {
                                                     const isSubCompleted = sub.estado === 'concluido';
-                                                    
                                                     return (
-                                                        <div key={sub.id} style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', opacity: sub.estado === 'concluido' ? 0.5 : 1}}>
-                                                            <div style={{display: 'flex', alignItems: 'center', gap: '10px', flex: 1}}>
-                                                                <input type="checkbox" checked={sub.estado === 'concluido'} onChange={() => toggleSubtarefaStatus(sub.id, sub.estado)} style={{width: '14px', height: '14px', cursor: 'pointer', accentColor: 'var(--color-btnPrimary)'}} />
-                                                                
-                                                                <span onClick={() => setSubtarefaModal({show: true, data: sub, tarefaNome: tar.titulo})} style={{fontSize: '0.85rem', color: '#475569', textDecoration: sub.estado === 'concluido' ? 'line-through' : 'none', cursor: 'pointer'}} className="hover-underline" title="Editar Sub-tarefa">
-                                                                    {sub.titulo}
-                                                                </span>
-
-                                                                {renderDeadline(sub.data_fim, isSubCompleted)}
-                                                            </div>
-
-                                                            <button onClick={() => handleDeleteItem("subtarefas", sub.id)} style={{background:'none', border:'none', color:'#ef4444', cursor:'pointer', opacity:0.4, marginLeft: 'auto'}} className="hover-red"><Icons.Close size={14} /></button>
+                                                        <div key={sub.id} className={`pd-sub ${isSubCompleted ? 'is-done' : ''} ${pdCelebrating.has(`s-${sub.id}`) ? 'is-celebrating' : ''}`}>
+                                                            {renderPdCheck({
+                                                                key: `s-${sub.id}`,
+                                                                done: isSubCompleted,
+                                                                shape: 'mini',
+                                                                label: isSubCompleted ? 'Reabrir passo' : 'Concluir passo',
+                                                                onToggle: () => toggleSubtarefaStatus(sub.id, sub.estado),
+                                                            })}
+                                                            <button type="button" onClick={() => setSubtarefaModal({show: true, data: sub, tarefaNome: tar.titulo})} className="pd-sub-title" title="Editar passo">
+                                                                <span className="pd-strike">{sub.titulo}</span>
+                                                            </button>
+                                                            {renderDeadline(sub.data_fim, isSubCompleted)}
+                                                            <button type="button" onClick={() => handleDeleteItem("subtarefas", sub.id)} className="pd-icon-btn is-danger is-xs" title="Apagar passo" aria-label="Apagar passo"><Icons.Close size={12} /></button>
                                                         </div>
-                                                    )
+                                                    );
                                                 })}
                                                 {!isTarDone && (
                                                     isComposerOpen ? (
-                                                        <form onSubmit={(e) => handleAddSubtarefa(e, tar.id)} style={{marginTop: '8px'}}>
-                                                            <input autoFocus type="text" placeholder="+ Novo passo (Enter)" value={novaSubtarefaNome.tarId === tar.id ? novaSubtarefaNome.nome : ""} onChange={e => setNovaSubtarefaNome({ tarId: tar.id, nome: e.target.value })} style={{width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px dashed #cbd5e1', background: '#f8fafc', outline: 'none', fontSize: '0.8rem', color: '#64748b'}} className="input-focus" />
+                                                        <form onSubmit={(e) => handleAddSubtarefa(e, tar.id)} className="pd-add is-step">
+                                                            <Icons.Plus size={12} />
+                                                            <input autoFocus type="text" placeholder="Novo passo (Enter)" value={novaSubtarefaNome.tarId === tar.id ? novaSubtarefaNome.nome : ""} onChange={e => setNovaSubtarefaNome({ tarId: tar.id, nome: e.target.value })} />
                                                         </form>
                                                     ) : (
-                                                        <button type="button" onClick={() => toggleSubtarefaComposer(tar.id)} style={{marginTop: '8px', background: 'transparent', border: '1px dashed #cbd5e1', color: '#64748b', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '6px'}} className="hover-shadow">
+                                                        <button type="button" onClick={() => toggleSubtarefaComposer(tar.id)} className="pd-add-btn">
                                                             <Icons.Plus size={12} /> Novo passo
                                                         </button>
                                                     )
@@ -2963,42 +3144,43 @@ export default function ProjetoDetalhe() {
                                     );
                                 })}
 
-                                <form onSubmit={(e) => handleAddTarefa(e, ativ.id)} style={{marginTop: '10px', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 230px', gap: '8px'}}>
-                                    <input type="text" placeholder="+ Adicionar Tarefa Principal (Enter)..." value={novaTarefaNome.ativId === ativ.id ? novaTarefaNome.nome : ""} onChange={e => setNovaTarefaNome({ ativId: ativ.id, nome: e.target.value, responsavel_id: novaTarefaNome.ativId === ativ.id ? novaTarefaNome.responsavel_id : "" })} style={{width: '100%', padding: '12px 15px', borderRadius: '8px', border: '1px dashed #cbd5e1', background: 'white', outline: 'none', fontSize: '0.9rem', color: '#64748b'}} className="input-focus" />
-                                        <select
-                                            value={novaTarefaNome.ativId === ativ.id ? (novaTarefaNome.responsavel_id || "") : ""}
-                                            onChange={e => setNovaTarefaNome({ ativId: ativ.id, nome: novaTarefaNome.ativId === ativ.id ? novaTarefaNome.nome : "", responsavel_id: e.target.value })}
-                                            style={{...inputStyle, marginBottom: 0, cursor: 'pointer'}}
-                                            className="input-focus"
-                                            title="Responsável da nova tarefa"
-                                        >
-                                            <option value="">Responsável (opcional)</option>
-                                            {/* 👇 ALTERADO AQUI */}
-                                            {renderResponsavelOptions()}
-                                        </select>
-                                    </form>
-                                </div>
-                            )}
-                        </div>
-                    )})}
-
-                        <form onSubmit={handleAddAtividade} style={{marginTop: '25px', background: 'transparent', padding: '0'}}>
-                            <div style={{display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 250px auto', gap: '10px'}}>
-                                <input type="text" placeholder="+ Nome de uma nova Atividade (Agrupador)..." value={novaAtividadeNome} onChange={e => setNovaAtividadeNome(e.target.value)} style={{flex: 1, padding: '14px 15px', borderRadius: '8px', border: '1px dashed #cbd5e1', background: 'white', outline: 'none', fontSize: '0.95rem', color: '#1e293b'}} className="input-focus" />
+                                <form onSubmit={(e) => handleAddTarefa(e, ativ.id)} className="pd-add-row">
+                                    <label className="pd-add">
+                                        <Icons.Plus size={14} />
+                                        <input type="text" placeholder="Adicionar tarefa (Enter)..." value={novaTarefaNome.ativId === ativ.id ? novaTarefaNome.nome : ""} onChange={e => setNovaTarefaNome({ ativId: ativ.id, nome: e.target.value, responsavel_id: novaTarefaNome.ativId === ativ.id ? novaTarefaNome.responsavel_id : "" })} />
+                                    </label>
                                     <select
-                                        value={novaAtividadeResponsavel}
-                                        onChange={e => setNovaAtividadeResponsavel(e.target.value)}
-                                        style={{...inputStyle, marginBottom: 0, cursor: 'pointer'}}
-                                        className="input-focus"
-                                        title="Responsável da nova atividade"
+                                        value={novaTarefaNome.ativId === ativ.id ? (novaTarefaNome.responsavel_id || "") : ""}
+                                        onChange={e => setNovaTarefaNome({ ativId: ativ.id, nome: novaTarefaNome.ativId === ativ.id ? novaTarefaNome.nome : "", responsavel_id: e.target.value })}
+                                        className="pd-select"
+                                        title="Responsável da nova tarefa"
                                     >
-                                    <option value="">Responsável (opcional)</option>
-                                    {renderResponsavelOptions()}
-                                </select>
-                            <button type="submit" className="btn-primary hover-shadow" style={{borderRadius: '8px', padding: '0 25px', fontSize: '0.95rem', background: '#64748b', display: 'flex', alignItems: 'center', gap: '8px'}}>
-                                <Icons.Plus /> Criar Bloco
-                        </button>
-                    </div>
+                                        <option value="">Responsável (opcional)</option>
+                                        {renderResponsavelOptions()}
+                                    </select>
+                                </form>
+                            </div>
+                        )}
+                    </section>
+                    );
+                })}
+
+                {/* NOVO BLOCO DE ATIVIDADES */}
+                <form onSubmit={handleAddAtividade} className="pd-new-ativ">
+                    <span className="pd-new-ativ-icon"><Icons.Layers size={18} /></span>
+                    <input type="text" placeholder="Nome de um novo bloco de atividades..." value={novaAtividadeNome} onChange={e => setNovaAtividadeNome(e.target.value)} />
+                    <select
+                        value={novaAtividadeResponsavel}
+                        onChange={e => setNovaAtividadeResponsavel(e.target.value)}
+                        className="pd-select"
+                        title="Responsável da nova atividade"
+                    >
+                        <option value="">Responsável (opcional)</option>
+                        {renderResponsavelOptions()}
+                    </select>
+                    <button type="submit" className="pd-btn is-primary" disabled={!novaAtividadeNome.trim()}>
+                        <Icons.Plus size={15} /> Criar bloco
+                    </button>
                 </form>
             </div>
         )}
@@ -3006,120 +3188,240 @@ export default function ProjetoDetalhe() {
         {/* =========================================
             ABA 2: RELATÓRIO DE TEMPOS
         ========================================= */}
-        {activeTab === 'relatorio' && (
-            <div className="bz-tab-panel" style={{background: 'white', padding: '30px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0'}}>
-                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '20px'}}>
-                    <h2 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '10px'}}><Icons.Clock size={24} color="var(--color-btnPrimary)" /> Relatório de Execução</h2>
-                    <button onClick={openCreateTimeLogModal} className="btn-primary hover-shadow" style={{display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px'}}>
+        {activeTab === 'relatorio' && (() => {
+            const totalMin = getProjectTotalTime();
+            const validLogs = logs.filter((l) => (l.duration_minutes || 0) > 0);
+            const sortedLogs = [...validLogs].sort((a, b) => String(b.start_time || '').localeCompare(String(a.start_time || '')));
+            const initials = (txt) => String(txt || '?').trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
+            const porColaborador = Object.values(validLogs.reduce((acc, l) => {
+                const key = String(l.user_id || 'x');
+                if (!acc[key]) acc[key] = { nome: l.profiles?.nome || staff.find((s) => String(s.id) === key)?.nome || 'Utilizador', total: 0 };
+                acc[key].total += Number(l.duration_minutes) || 0;
+                return acc;
+            }, {})).sort((a, b) => b.total - a.total);
+            const maxColab = Math.max(1, ...porColaborador.map((c) => c.total));
+            const share = (m) => (totalMin > 0 ? Math.round((m / totalMin) * 100) : 0);
+
+            return (
+            <div className="bz-tab-panel pd-rel">
+                <header className="pd-rel-head">
+                    <h2><Icons.Clock size={20} /> Relatório de Execução</h2>
+                    <button type="button" onClick={openCreateTimeLogModal} className="pd-btn is-primary">
                         <Icons.Plus size={14} /> Adicionar Tempo
                     </button>
-                </div>
-                
-                <div style={{background: 'var(--color-bgSecondary)', padding: '20px', borderRadius: '12px', border: '1px solid var(--color-borderColor)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '30px'}}>
-                    <div>
-                        <h4 style={{margin: 0, color: 'var(--color-btnPrimaryHover)'}}>Tempo Total Gasto no Projeto</h4>
-                        <p style={{margin: '5px 0 0 0', color: 'var(--color-btnPrimary)', fontSize: '0.85rem'}}>Soma de todas as sessões do cronómetro.</p>
-                    </div>
-                    <div style={{fontSize: '2.5rem', fontWeight: '900', color: 'var(--color-btnPrimaryDark)'}}>
-                        {formatTime(getProjectTotalTime())}
-                    </div>
+                </header>
+
+                <div className="pd-rel-top">
+                    <section className="pd-rel-total">
+                        <span className="pd-rel-total-icon"><Icons.Clock size={22} /></span>
+                        <div>
+                            <h4>Tempo Total Gasto no Projeto</h4>
+                            <p>Soma de todas as sessões do cronómetro.</p>
+                        </div>
+                        <strong>{formatTime(totalMin)}</strong>
+                    </section>
+
+                    <section className="pd-rel-people">
+                        <h4>Por colaborador</h4>
+                        {porColaborador.length === 0 ? (
+                            <p className="pd-rel-muted">Ainda não há tempo registado.</p>
+                        ) : (
+                            <ul>
+                                {porColaborador.map((c) => (
+                                    <li key={c.nome}>
+                                        <span className="pd-rel-av">{initials(c.nome)}</span>
+                                        <span className="pd-rel-name">{c.nome}</span>
+                                        <span className="pd-rel-bar"><i style={{ width: `${(c.total / maxColab) * 100}%` }} /></span>
+                                        <b>{formatTime(c.total)}</b>
+                                        <em>{share(c.total)}%</em>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </section>
                 </div>
 
-                <table className="data-table" style={{width: '100%', borderCollapse: 'collapse'}}>
-                    <thead>
-                        <tr style={{background: '#f8fafc', borderBottom: '2px solid #e2e8f0', textAlign: 'left', fontSize: '0.8rem', color: '#64748b', textTransform: 'uppercase'}}>
-                            <th style={{padding: '12px'}}>Atividade / Tarefa</th>
-                            <th style={{padding: '12px'}}>Responsável</th>
-                            <th style={{padding: '12px', textAlign: 'right'}}>Tempo Gasto</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {atividades.map(ativ => (
-                            <React.Fragment key={ativ.id}>
-                                <tr style={{background: '#f1f5f9', borderBottom: '1px solid #e2e8f0'}}>
-                                    <td style={{padding: '12px', fontWeight: 'bold', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Folder size={16} /> {ativ.titulo}</td>
-                                    <td style={{padding: '12px', color: '#64748b', fontSize: '0.85rem'}}>{getStaffNames(ativ.responsavel_id, ativ.colaboradores_extra)}</td>
-                                    <td style={{padding: '12px', textAlign: 'right', fontWeight: 'bold', color: 'var(--color-btnPrimary)'}}>{formatTime(getActivityTime(ativ))}</td>
-                                </tr>
-                                {ativ.tarefas?.map(tar => {
+                {/* TEMPO POR ATIVIDADE / TAREFA */}
+                <section className="pd-rel-table">
+                    <div className="pd-rel-row is-head">
+                        <span>Atividade / Tarefa</span>
+                        <span>Responsável</span>
+                        <span className="is-num">Tempo Gasto</span>
+                    </div>
+                    {atividades.length === 0 && <div className="pd-rel-empty">Sem atividades neste projeto.</div>}
+                    {atividades.map((ativ) => {
+                        const ativTime = getActivityTime(ativ);
+                        const tarefasComTempo = (ativ.tarefas || []).filter((tar) => getTaskTime(tar.id) > 0);
+                        return (
+                            <div key={ativ.id} className="pd-rel-group">
+                                <div className="pd-rel-row is-ativ">
+                                    <span className="pd-rel-cell-name">
+                                        <span className="pd-rel-folder"><Icons.Folder size={14} /></span>
+                                        <strong>{ativ.titulo}</strong>
+                                    </span>
+                                    <span className="pd-rel-cell-resp">{getStaffNames(ativ.responsavel_id, ativ.colaboradores_extra)}</span>
+                                    <span className="is-num pd-rel-cell-time">
+                                        <span className="pd-rel-share" title={`${share(ativTime)}% do tempo total`}><i style={{ width: `${share(ativTime)}%` }} /></span>
+                                        <b>{formatTime(ativTime)}</b>
+                                    </span>
+                                </div>
+                                {tarefasComTempo.map((tar) => {
                                     const time = getTaskTime(tar.id);
-                                    if (time === 0) return null;
                                     const userBreakdown = getTaskTimePerUser(tar.id);
                                     return (
-                                        <React.Fragment key={tar.id}>
-                                            <tr style={{borderBottom: userBreakdown.length > 0 ? 'none' : '1px solid #f1f5f9'}}>
-                                                <td style={{padding: '10px 12px 10px 40px', color: '#475569', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.CornerDownRight size={14} /> {tar.titulo}</td>
-                                                <td style={{padding: '10px 12px', color: '#64748b', fontSize: '0.85rem'}}>{getStaffNames(tar.responsavel_id, tar.colaboradores_extra)}</td>
-                                                <td style={{padding: '10px 12px', textAlign: 'right', color: '#475569', fontSize: '0.9rem', fontWeight: userBreakdown.length > 1 ? '600' : 'normal'}}>{formatTime(time)}</td>
-                                            </tr>
-                                            {userBreakdown.map((u, i) => (
-                                                <tr key={`${tar.id}-u-${i}`} style={{background: '#fafbfc', borderBottom: i === userBreakdown.length - 1 ? '1px solid #f1f5f9' : '1px solid #f8fafc'}}>
-                                                    <td style={{padding: '5px 12px 5px 64px', color: '#94a3b8', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.User size={11} color="#cbd5e1" /> {u.nome}</td>
-                                                    <td style={{padding: '5px 12px'}}></td>
-                                                    <td style={{padding: '5px 12px', textAlign: 'right', color: '#64748b', fontSize: '0.78rem'}}>{formatTime(u.total)}</td>
-                                                </tr>
-                                            ))}
-                                        </React.Fragment>
-                                    )
-                                })}
-                            </React.Fragment>
-                        ))}
-                    </tbody>
-                </table>
-
-                <div style={{marginTop: '28px', borderTop: '1px solid #e2e8f0', paddingTop: '22px'}}>
-                    <h3 style={{margin: '0 0 12px 0', fontSize: '1rem', color: '#334155'}}>Registos Individuais</h3>
-                    <p style={{margin: '0 0 14px 0', color: '#64748b', fontSize: '0.85rem'}}>Se te esqueceres do cronómetro, podes editar quem fez e quantos minutos foram gastos.</p>
-
-                    <table className="data-table" style={{width: '100%', borderCollapse: 'collapse'}}>
-                        <thead>
-                            <tr style={{background: '#f8fafc', borderBottom: '2px solid #e2e8f0', textAlign: 'left', fontSize: '0.78rem', color: '#64748b', textTransform: 'uppercase'}}>
-                                <th style={{padding: '10px'}}>Data</th>
-                                <th style={{padding: '10px'}}>Item</th>
-                                <th style={{padding: '10px'}}>Colaborador</th>
-                                <th style={{padding: '10px', textAlign: 'right'}}>Tempo</th>
-                                <th style={{padding: '10px', textAlign: 'right'}}>Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {logs.filter((l) => (l.duration_minutes || 0) > 0).map((log) => (
-                                <tr key={log.id} style={{borderBottom: '1px solid #f1f5f9'}}>
-                                    <td style={{padding: '10px', color: '#64748b', fontSize: '0.82rem'}}>{log.start_time ? new Date(log.start_time).toLocaleString('pt-PT') : '-'}</td>
-                                    <td style={{padding: '10px', color: '#334155', fontSize: '0.86rem'}}>{getLogTargetLabel(log)}</td>
-                                    <td style={{padding: '10px', color: '#334155', fontSize: '0.86rem'}}>{log.profiles?.nome || 'Utilizador'}</td>
-                                    <td style={{padding: '10px', color: '#1e293b', fontWeight: '700', textAlign: 'right'}}>{formatTime(log.duration_minutes || 0)}</td>
-                                    <td style={{padding: '10px', textAlign: 'right'}}>
-                                        <div style={{display: 'inline-flex', gap: '8px'}}>
-                                            <button onClick={() => openEditTimeLogModal(log)} className="action-btn hover-orange-text" title="Editar registo"><Icons.Edit size={14} /></button>
-                                            <button onClick={() => deleteTimeLog(log.id)} className="action-btn hover-red-text" title="Apagar registo"><Icons.Trash size={14} /></button>
+                                        <div key={tar.id} className="pd-rel-row is-task">
+                                            <span className="pd-rel-cell-name">
+                                                <Icons.CornerDownRight size={13} />
+                                                <span className="pd-rel-task-text">
+                                                    <span>{tar.titulo}</span>
+                                                    {userBreakdown.length > 1 && (
+                                                        <span className="pd-rel-users">
+                                                            {userBreakdown.map((u, i) => (
+                                                                <span key={i} className="pd-rel-user"><i>{initials(u.nome)}</i>{u.nome.split(' ')[0]} · {formatTime(u.total)}</span>
+                                                            ))}
+                                                        </span>
+                                                    )}
+                                                </span>
+                                            </span>
+                                            <span className="pd-rel-cell-resp">{getStaffNames(tar.responsavel_id, tar.colaboradores_extra)}</span>
+                                            <span className="is-num pd-rel-cell-time"><b>{formatTime(time)}</b></span>
                                         </div>
-                                    </td>
-                                </tr>
-                            ))}
-                            {logs.filter((l) => (l.duration_minutes || 0) > 0).length === 0 && (
-                                <tr>
-                                    <td colSpan={5} style={{padding: '18px', textAlign: 'center', color: '#94a3b8'}}>Sem registos individuais com duração.</td>
-                                </tr>
+                                    );
+                                })}
+                            </div>
+                        );
+                    })}
+                </section>
+
+                {/* REGISTOS INDIVIDUAIS — linha do tempo por dia */}
+                {(() => {
+                    const people = Object.entries(validLogs.reduce((acc, l) => {
+                        const key = String(l.user_id || 'x');
+                        if (!acc[key]) acc[key] = { nome: l.profiles?.nome || 'Utilizador', total: 0 };
+                        acc[key].total += Number(l.duration_minutes) || 0;
+                        return acc;
+                    }, {})).sort((a, b) => b[1].total - a[1].total);
+                    const filtered = relFilterUser === 'all' ? sortedLogs : sortedLogs.filter((l) => String(l.user_id || 'x') === relFilterUser);
+
+                    const dayKey = (iso) => (iso ? new Date(iso).toLocaleDateString('sv-SE') : 'sem-data');
+                    const groups = [];
+                    filtered.forEach((log) => {
+                        const k = dayKey(log.start_time);
+                        let g = groups[groups.length - 1];
+                        if (!g || g.key !== k) { g = { key: k, date: log.start_time ? new Date(log.start_time) : null, logs: [], total: 0 }; groups.push(g); }
+                        g.logs.push(log);
+                        g.total += Number(log.duration_minutes) || 0;
+                    });
+                    const visibleGroups = groups.slice(0, relDaysVisible);
+                    const hiddenDays = groups.length - visibleGroups.length;
+
+                    const todayK = new Date().toLocaleDateString('sv-SE');
+                    const yest = new Date(); yest.setDate(yest.getDate() - 1);
+                    const yestK = yest.toLocaleDateString('sv-SE');
+                    const dayLabel = (g) => {
+                        if (!g.date) return 'Sem data';
+                        if (g.key === todayK) return 'Hoje';
+                        if (g.key === yestK) return 'Ontem';
+                        const sameYear = g.date.getFullYear() === new Date().getFullYear();
+                        return g.date.toLocaleDateString('pt-PT', { weekday: 'short', day: 'numeric', month: 'short', year: sameYear ? undefined : 'numeric' }).replace(/\./g, '');
+                    };
+                    const splitItem = (log) => {
+                        const parts = String(getLogTargetLabel(log) || '').split(' > ');
+                        return { title: parts[parts.length - 1] || 'Registo', context: parts.slice(0, -1).join(' › ') };
+                    };
+
+                    return (
+                        <section className="pd-tl">
+                            <header className="pd-tl-head">
+                                <div>
+                                    <h3>Registos Individuais <span className="pd-tl-count">{validLogs.length}</span></h3>
+                                    <p>Esqueceste-te do cronómetro? Edita ou adiciona tempo aqui.</p>
+                                </div>
+                                {people.length > 1 && (
+                                    <div className="pd-tl-filter" role="tablist" aria-label="Filtrar por colaborador">
+                                        <button type="button" role="tab" aria-selected={relFilterUser === 'all'} className={relFilterUser === 'all' ? 'is-on' : ''} onClick={() => setRelFilterUser('all')}>Todos</button>
+                                        {people.map(([id, p]) => (
+                                            <button key={id} type="button" role="tab" aria-selected={relFilterUser === id} className={relFilterUser === id ? 'is-on' : ''} onClick={() => setRelFilterUser(id)} title={`${p.nome} · ${formatTime(p.total)}`}>
+                                                <span className="pd-rel-av is-xs">{initials(p.nome)}</span>
+                                                {p.nome.split(' ')[0]}
+                                                <em>{formatTime(p.total)}</em>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </header>
+
+                            {filtered.length === 0 ? (
+                                <div className="pd-rel-empty">Sem registos individuais com duração.</div>
+                            ) : (
+                                <div className="pd-tl-days">
+                                    {visibleGroups.map((g) => (
+                                        <div key={g.key} className="pd-tl-day">
+                                            <div className="pd-tl-day-head">
+                                                <span className="pd-tl-day-dot" />
+                                                <strong>{dayLabel(g)}</strong>
+                                                <span className="pd-tl-day-line" />
+                                                <span className="pd-tl-day-total"><Icons.Clock size={11} /> {formatTime(g.total)}</span>
+                                            </div>
+                                            <ul className="pd-tl-list">
+                                                {g.logs.map((log) => {
+                                                    const nome = log.profiles?.nome || 'Utilizador';
+                                                    const dt = log.start_time ? new Date(log.start_time) : null;
+                                                    const { title, context } = splitItem(log);
+                                                    return (
+                                                        <li key={log.id} className="pd-tl-item">
+                                                            <span className="pd-tl-time">{dt ? dt.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' }) : '—'}</span>
+                                                            <div className="pd-tl-main">
+                                                                <strong title={title}>{title}</strong>
+                                                                {context && <span title={context}>{context}</span>}
+                                                            </div>
+                                                            <span className="pd-tl-who" title={nome}><span className="pd-rel-av is-sm">{initials(nome)}</span><span>{nome}</span></span>
+                                                            <span className="pd-tl-dur">{formatTime(log.duration_minutes || 0)}</span>
+                                                            <span className="pd-tl-actions">
+                                                                <button type="button" onClick={() => openEditTimeLogModal(log)} className="pd-icon-btn is-xs" title="Editar registo" aria-label="Editar registo"><Icons.Edit size={13} /></button>
+                                                                <button type="button" onClick={() => deleteTimeLog(log.id)} className="pd-icon-btn is-xs is-danger" title="Apagar registo" aria-label="Apagar registo"><Icons.Trash size={13} /></button>
+                                                            </span>
+                                                        </li>
+                                                    );
+                                                })}
+                                            </ul>
+                                        </div>
+                                    ))}
+                                    {(hiddenDays > 0 || relDaysVisible > 4) && (
+                                        <div className="pd-tl-more">
+                                            {hiddenDays > 0 && (
+                                                <button type="button" className="pd-btn" onClick={() => setRelDaysVisible((n) => n + 6)}>
+                                                    <Icons.ChevronDown size={14} /> Ver mais dias <em>({hiddenDays})</em>
+                                                </button>
+                                            )}
+                                            {relDaysVisible > 4 && (
+                                                <button type="button" className="pd-btn is-ghost" onClick={() => setRelDaysVisible(4)}>Mostrar menos</button>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
                             )}
-                        </tbody>
-                    </table>
-                </div>
+                        </section>
+                    );
+                })()}
             </div>
-        )}
+            );
+        })()}
 
         {timeLogModal.show && (
             <ModalPortal>
-                <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(15, 23, 42, 0.7)', backdropFilter:'blur(3px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:99999}} onClick={closeTimeLogModal}>
-                    <div style={{background:'#fff', width:'92%', maxWidth:'560px', borderRadius:'14px', boxShadow:'0 20px 35px rgba(0,0,0,0.2)', overflow:'hidden'}} onClick={(e) => e.stopPropagation()}>
-                        <div style={{padding:'16px 20px', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                            <h3 style={{margin:0, color:'#1e293b', fontSize:'1.05rem'}}>{timeLogModal.mode === 'edit' ? 'Editar Registo de Tempo' : 'Adicionar Registo de Tempo'}</h3>
-                            <button onClick={closeTimeLogModal} style={{background:'transparent', border:'none', cursor:'pointer', color:'#64748b'}}><Icons.Close size={18} /></button>
-                        </div>
+                <div className="pd-overlay" onClick={closeTimeLogModal}>
+                    <div className="pd-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={timeLogModal.mode === 'edit' ? 'Editar Registo de Tempo' : 'Adicionar Registo de Tempo'}>
+                        <header className="pd-modal-head">
+                            <span className="pd-modal-icon"><Icons.Clock size={19} /></span>
+                            <h3>{timeLogModal.mode === 'edit' ? 'Editar Registo de Tempo' : 'Adicionar Registo de Tempo'}</h3>
+                            <button type="button" onClick={closeTimeLogModal} className="pd-icon-btn" aria-label="Fechar"><Icons.Close size={18} /></button>
+                        </header>
 
-                        <form onSubmit={saveTimeLog} style={{padding:'18px 20px', display:'grid', gap:'12px', background:'#f8fafc'}}>
-                            <div>
-                                <label style={{display:'block', marginBottom:'6px', fontSize:'0.8rem', fontWeight:'700', color:'#475569'}}>Colaborador</label>
-                                <select value={timeLogForm.user_id} onChange={(e) => setTimeLogForm((prev) => ({ ...prev, user_id: e.target.value }))} style={{width:'100%', padding:'10px 12px', borderRadius:'8px', border:'1px solid #cbd5e1'}} required>
+                        <form onSubmit={saveTimeLog} className="pd-modal-body">
+                            <div className="pd-field">
+                                <label>Colaborador</label>
+                                <select className="pd-input" value={timeLogForm.user_id} onChange={(e) => setTimeLogForm((prev) => ({ ...prev, user_id: e.target.value }))} required>
                                     <option value="">Selecionar...</option>
                                     {staff
                                         .filter(s => s.ativo !== false || String(s.id) === String(timeLogForm.user_id))
@@ -3127,52 +3429,67 @@ export default function ProjetoDetalhe() {
                                 </select>
                             </div>
 
-                            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px'}}>
-                                <div>
-                                    <label style={{display:'block', marginBottom:'6px', fontSize:'0.8rem', fontWeight:'700', color:'#475569'}}>Data do Registo</label>
-                                    <input type="date" value={timeLogForm.date} onChange={(e) => setTimeLogForm((prev) => ({ ...prev, date: e.target.value }))} style={{width:'100%', padding:'10px 12px', borderRadius:'8px', border:'1px solid #cbd5e1'}} required />
+                            <div className="pd-row-2">
+                                <div className="pd-field">
+                                    <label>Data do Registo</label>
+                                    <input className="pd-input" type="date" value={timeLogForm.date} onChange={(e) => setTimeLogForm((prev) => ({ ...prev, date: e.target.value }))} required />
                                 </div>
-                                <div>
-                                    <label style={{display:'block', marginBottom:'6px', fontSize:'0.8rem', fontWeight:'700', color:'#475569'}}>Hora de Início</label>
-                                    <input type="time" value={timeLogForm.start_time} onChange={(e) => setTimeLogForm((prev) => ({ ...prev, start_time: e.target.value }))} style={{width:'100%', padding:'10px 12px', borderRadius:'8px', border:'1px solid #cbd5e1'}} required />
-                                </div>
-                            </div>
-
-                            <div style={{display:'grid', gridTemplateColumns:'160px 1fr', gap:'10px'}}>
-                                <div>
-                                    <label style={{display:'block', marginBottom:'6px', fontSize:'0.8rem', fontWeight:'700', color:'#475569'}}>Tipo</label>
-                                    <select
-                                        value={timeLogForm.target_type}
-                                        onChange={(e) => {
-                                            const nextType = e.target.value;
-                                            const firstOption = getTargetOptions(nextType)[0]?.id || "";
-                                            setTimeLogForm((prev) => ({ ...prev, target_type: nextType, target_id: firstOption }));
-                                        }}
-                                        style={{width:'100%', padding:'10px 12px', borderRadius:'8px', border:'1px solid #cbd5e1'}}
-                                    >
-                                        <option value="atividade">Atividade</option>
-                                        <option value="tarefa">Tarefa</option>
-                                        <option value="subtarefa">Passo</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label style={{display:'block', marginBottom:'6px', fontSize:'0.8rem', fontWeight:'700', color:'#475569'}}>Item</label>
-                                    <select value={timeLogForm.target_id} onChange={(e) => setTimeLogForm((prev) => ({ ...prev, target_id: e.target.value }))} style={{width:'100%', padding:'10px 12px', borderRadius:'8px', border:'1px solid #cbd5e1'}} required>
-                                        <option value="">Selecionar...</option>
-                                        {getTargetOptions(timeLogForm.target_type).map((opt) => <option key={opt.id} value={opt.id}>{opt.label}</option>)}
-                                    </select>
+                                <div className="pd-field">
+                                    <label>Hora de Início</label>
+                                    <input className="pd-input" type="time" value={timeLogForm.start_time} onChange={(e) => setTimeLogForm((prev) => ({ ...prev, start_time: e.target.value }))} required />
                                 </div>
                             </div>
 
-                            <div>
-                                <label style={{display:'block', marginBottom:'6px', fontSize:'0.8rem', fontWeight:'700', color:'#475569'}}>Tempo (minutos)</label>
-                                <input type="number" min="1" value={timeLogForm.duration_minutes} onChange={(e) => setTimeLogForm((prev) => ({ ...prev, duration_minutes: e.target.value }))} placeholder="Ex: 45" style={{width:'100%', padding:'10px 12px', borderRadius:'8px', border:'1px solid #cbd5e1'}} required />
-                                <div style={{marginTop:'6px', fontSize:'0.78rem', color:'#64748b'}}>Visualização: {formatTime(Math.max(0, parseInt(timeLogForm.duration_minutes || "0", 10) || 0))}</div>
+                            <div className="pd-field">
+                                <label>Tipo</label>
+                                <div className="pd-seg">
+                                    {[['atividade', 'Atividade'], ['tarefa', 'Tarefa'], ['subtarefa', 'Passo']].map(([val, lab]) => (
+                                        <button key={val} type="button" className={timeLogForm.target_type === val ? 'is-on' : ''} onClick={() => {
+                                            const firstOption = getTargetOptions(val)[0]?.id || "";
+                                            setTimeLogForm((prev) => ({ ...prev, target_type: val, target_id: firstOption }));
+                                        }}>{lab}</button>
+                                    ))}
+                                </div>
                             </div>
 
-                            <div style={{display:'flex', justifyContent:'flex-end', gap:'8px', marginTop:'6px'}}>
-                                <button type="button" onClick={closeTimeLogModal} style={{padding:'9px 14px', borderRadius:'8px', border:'1px solid #cbd5e1', background:'white', cursor:'pointer'}}>Cancelar</button>
-                                <button type="submit" disabled={timeLogSaving} className="btn-primary hover-shadow" style={{padding:'9px 14px', display:'flex', alignItems:'center', gap:'6px'}}>
+                            <div className="pd-field">
+                                <label>Item</label>
+                                <select className="pd-input" value={timeLogForm.target_id} onChange={(e) => setTimeLogForm((prev) => ({ ...prev, target_id: e.target.value }))} required>
+                                    <option value="">Selecionar...</option>
+                                    {timeLogForm.target_type === 'atividade'
+                                        ? activityOptions.map((opt) => <option key={opt.id} value={opt.id}>{opt.label}</option>)
+                                        : atividades.map((ativ) => {
+                                            // Agrupado por atividade: a opção mostra só a tarefa (ou "Tarefa > Passo"),
+                                            // para o nome não ficar cortado pelo título comprido da atividade
+                                            const items = timeLogForm.target_type === 'subtarefa'
+                                                ? (ativ.tarefas || []).flatMap((tar) => (tar.subtarefas || []).map((sub) => ({ id: String(sub.id), label: `${tar.titulo} > ${sub.titulo}` })))
+                                                : (ativ.tarefas || []).map((tar) => ({ id: String(tar.id), label: tar.titulo }));
+                                            if (items.length === 0) return null;
+                                            return (
+                                                <optgroup key={ativ.id} label={ativ.titulo}>
+                                                    {items.map((opt) => <option key={opt.id} value={opt.id}>{opt.label}</option>)}
+                                                </optgroup>
+                                            );
+                                        })}
+                                </select>
+                                {timeLogForm.target_type !== 'atividade' && timeLogForm.target_id && (() => {
+                                    const opt = getTargetOptions(timeLogForm.target_type).find((o) => String(o.id) === String(timeLogForm.target_id));
+                                    return opt ? <small className="pd-hint">{opt.label}</small> : null;
+                                })()}
+                            </div>
+
+                            <div className="pd-field">
+                                <label>Tempo (minutos)</label>
+                                <div className="pd-input-eur">
+                                    <input className="pd-input" type="number" min="1" value={timeLogForm.duration_minutes} onChange={(e) => setTimeLogForm((prev) => ({ ...prev, duration_minutes: e.target.value }))} placeholder="Ex: 45" required />
+                                    <span>min</span>
+                                </div>
+                                <small className="pd-hint">Visualização: <b>{formatTime(Math.max(0, parseInt(timeLogForm.duration_minutes || "0", 10) || 0))}</b></small>
+                            </div>
+
+                            <div className="pd-modal-actions">
+                                <button type="button" onClick={closeTimeLogModal} className="pd-btn">Cancelar</button>
+                                <button type="submit" disabled={timeLogSaving} className="pd-btn is-primary">
                                     <Icons.Save size={14} /> {timeLogSaving ? 'A guardar...' : 'Guardar'}
                                 </button>
                             </div>
@@ -3185,152 +3502,146 @@ export default function ProjetoDetalhe() {
         {/* =========================================
             ABA 3: GANTT
         ========================================= */}
-        {activeTab === 'gantt' && (
-            <div className="bz-tab-panel" ref={ganttRef} style={{background: 'white', padding: '20px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0'}}>
-                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '12px', flexWrap: 'wrap'}}>
+        {activeTab === 'gantt' && (() => {
+            const todayD = new Date(); todayD.setHours(0, 0, 0, 0);
+            const overdueCount = visibleGanttItems.filter((i) => i.end < todayD && (i.progress || 0) < 100).length;
+            const ESTADO_LABEL = { pendente: 'Pendente', em_curso: 'Em curso', em_analise: 'Em análise', concluido: 'Concluído', encerrado: 'Encerrado', cancelado: 'Cancelado' };
+
+            // Faixas de meses
+            const bands = [];
+            const cur = startOfMonth(ganttWindowStart);
+            let bi = 0;
+            while (cur <= ganttWindowEnd) {
+                const bStart = cur < ganttWindowStart ? ganttWindowStart : new Date(cur);
+                const mEnd = endOfMonth(cur);
+                const bEnd = mEnd > ganttWindowEnd ? ganttWindowEnd : mEnd;
+                const left = (clamp(dayDiff(ganttWindowStart, bStart), 0, ganttDurationDays) / ganttDurationDays) * 100;
+                const width = ((dayDiff(bStart, bEnd) + 1) / ganttDurationDays) * 100;
+                const showYear = bi === 0 || cur.getMonth() === 0;
+                bands.push({
+                    key: `${cur.getFullYear()}-${cur.getMonth()}`,
+                    left, width, odd: bi % 2 === 1,
+                    label: width > 9 ? cur.toLocaleDateString('pt-PT', { month: 'long' }) : width > 3.2 ? cur.toLocaleDateString('pt-PT', { month: 'short' }).replace('.', '') : cur.toLocaleDateString('pt-PT', { month: 'narrow' }),
+                    year: showYear && width > 3.2 ? cur.getFullYear() : null,
+                });
+                cur.setMonth(cur.getMonth() + 1);
+                bi += 1;
+            }
+
+            const tasksPerActivity = visibleGanttItems.reduce((acc, it) => { if (it.rowType === 'task') acc[it.activityId] = (acc[it.activityId] || 0) + 1; return acc; }, {});
+            const rows = visibleGanttItems.filter((it) => it.rowType === 'group' || !ganttCollapsed[it.activityId]);
+            const allCollapsed = visibleGanttItems.some((it) => it.rowType === 'group') && visibleGanttItems.filter((it) => it.rowType === 'group').every((it) => ganttCollapsed[it.activityId]);
+            const toggleAll = () => {
+                const next = {};
+                if (!allCollapsed) visibleGanttItems.forEach((it) => { if (it.rowType === 'group') next[it.activityId] = true; });
+                setGanttCollapsed(next);
+            };
+
+            return (
+            <div className="bz-tab-panel pd-gantt">
+                <header className="pd-gantt-head">
                     <div>
-                        <h2 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.2rem'}}><Icons.Calendar size={18} color="var(--color-btnPrimary)" /> Gantt do Projeto</h2>
-                        <p style={{margin: '4px 0 0 0', color: '#64748b', fontSize: '0.8rem'}}>
-                            Janela atual: {ganttWindowStart.toLocaleDateString('pt-PT')} ate {ganttWindowEnd.toLocaleDateString('pt-PT')}
-                        </p>
+                        <h2><Icons.Calendar size={18} /> Cronograma</h2>
+                        <p>{ganttWindowStart.toLocaleDateString('pt-PT')} a {ganttWindowEnd.toLocaleDateString('pt-PT')}</p>
                     </div>
-                    <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center'}}>
-                        {/* 💡 4. ADICIONA O BOTÃO DE EXPORTAÇÃO AQUI */}
-                        <button
-                            type="button"
-                            onClick={exportarGanttParaPDF}
-                            disabled={isExportingGantt}
-                            className="btn-small hover-shadow"
-                            style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                background: 'var(--color-btnPrimary)',
-                                color: 'white',
-                                border: 'none',
-                                padding: '6px 12px',
-                                borderRadius: '8px',
-                                cursor: isExportingGantt ? 'not-allowed' : 'pointer',
-                                fontWeight: '700',
-                                fontSize: '0.76rem',
-                                opacity: isExportingGantt ? 0.7 : 1
-                            }}
-                        >
-                            <Icons.Download size={14} />
-                            {isExportingGantt ? "A Exportar..." : "Exportar Gantt PDF"}
+                    <div className="pd-gantt-tools">
+                        <div className="pd-seg" role="tablist" aria-label="Janela temporal">
+                            {GANTT_WINDOW_OPTIONS.map((option) => (
+                                <button key={option.value} type="button" role="tab" aria-selected={option.value === ganttWindow} className={option.value === ganttWindow ? 'is-on' : ''} onClick={() => setGanttWindow(option.value)}>
+                                    {option.value === '1m' ? 'Este mês' : option.label}
+                                </button>
+                            ))}
+                        </div>
+                        <button type="button" className="pd-btn" onClick={toggleAll} disabled={!visibleGanttItems.length}>
+                            <Icons.ChevronDown size={14} /> {allCollapsed ? 'Expandir tudo' : 'Recolher tudo'}
+                        </button>
+                        <button type="button" className="pd-btn is-primary" onClick={exportGanttPdf} disabled={isExportingGantt}>
+                            <Icons.Download size={15} /> {isExportingGantt ? 'A exportar...' : 'Exportar PDF'}
                         </button>
                     </div>
-                    <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap'}}>
-                        {GANTT_WINDOW_OPTIONS.map((option) => (
-                            <button
-                                key={option.value}
-                                type="button"
-                                onClick={() => setGanttWindow(option.value)}
-                                style={{
-                                    border: option.value === ganttWindow ? '1px solid var(--color-btnPrimary)' : '1px solid #cbd5e1',
-                                    background: option.value === ganttWindow ? 'var(--color-bgSecondary)' : '#ffffff',
-                                    color: option.value === ganttWindow ? 'var(--color-btnPrimary)' : '#475569',
-                                    borderRadius: '999px',
-                                    padding: '6px 10px',
-                                    cursor: 'pointer',
-                                    fontWeight: '700',
-                                    fontSize: '0.76rem'
-                                }}
-                            >
-                                {option.label}
-                            </button>
-                        ))}
+                </header>
+
+                <div className="pd-gantt-stats">
+                    <div className="pd-gstat"><small>Itens no período</small><strong>{visibleGanttItems.length}</strong></div>
+                    <div className="pd-gstat is-ok"><small>Concluídos</small><strong>{concludedItems}</strong></div>
+                    <div className={`pd-gstat ${overdueCount ? 'is-late' : ''}`}><small>Em atraso</small><strong>{overdueCount}</strong></div>
+                    <div className="pd-gstat is-progress">
+                        <small>Ponto de situação</small>
+                        <strong>{visibleCompletion}%</strong>
+                        <span className="pd-gstat-bar"><i style={{ width: `${visibleCompletion}%` }} /></span>
                     </div>
                 </div>
 
-                <div style={{display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '8px', marginBottom: '12px'}}>
-                    <div style={{background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '8px 10px'}}>
-                        <div style={{fontSize: '0.67rem', color: '#64748b', textTransform: 'uppercase', fontWeight: '800', marginBottom: '2px'}}>Itens visiveis</div>
-                        <div style={{fontSize: '1.05rem', color: '#0f172a', fontWeight: '900'}}>{visibleGanttItems.length}</div>
+                <div className="pd-gchart">
+                    <div className="pd-g-head">
+                        <div className="pd-g-head-label">Atividade / tarefa</div>
+                        <div className="pd-g-head-time">
+                            {bands.map((b) => (
+                                <div key={b.key} className={`pd-g-month ${b.odd ? 'is-odd' : ''}`} style={{ left: `${b.left}%`, width: `${b.width}%` }}>
+                                    <span>{b.label}{b.year && <em>{b.year}</em>}</span>
+                                </div>
+                            ))}
+                            {todayPercent !== null && <span className="pd-g-today-pill" style={{ left: `${todayPercent}%` }}>Hoje</span>}
+                        </div>
                     </div>
-                    <div style={{background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '8px 10px'}}>
-                        <div style={{fontSize: '0.67rem', color: '#64748b', textTransform: 'uppercase', fontWeight: '800', marginBottom: '2px'}}>Concluidos</div>
-                        <div style={{fontSize: '1.05rem', color: '#0f172a', fontWeight: '900'}}>{concludedItems}</div>
-                    </div>
-                    <div style={{background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '8px 10px'}}>
-                        <div style={{fontSize: '0.67rem', color: '#64748b', textTransform: 'uppercase', fontWeight: '800', marginBottom: '2px'}}>Ponto de situacao</div>
-                        <div style={{fontSize: '1.05rem', color: 'var(--color-btnPrimary)', fontWeight: '900'}}>{visibleCompletion}%</div>
-                    </div>
-                </div>
 
-                <div style={{display: 'flex', gap: '12px', alignItems: 'center', fontSize: '0.72rem', color: '#64748b', marginBottom: '8px', flexWrap: 'wrap'}}>
-                    <span style={{display: 'inline-flex', alignItems: 'center', gap: '6px'}}><span style={{width: '10px', height: '10px', borderRadius: '999px', background: 'var(--color-btnPrimary)'}}></span> Atividade</span>
-                    <span style={{display: 'inline-flex', alignItems: 'center', gap: '6px'}}><span style={{width: '10px', height: '10px', borderRadius: '999px', background: 'var(--color-btnPrimaryHover)'}}></span> Tarefa</span>
-                    <span style={{display: 'inline-flex', alignItems: 'center', gap: '6px'}}><span style={{width: '1px', height: '12px', background: 'var(--color-btnPrimaryDark)'}}></span> Hoje</span>
-                </div>
-
-                <div className="custom-scrollbar gantt-scrollbar" style={{overflow: 'hidden', border: '1px solid #e2e8f0', borderRadius: '12px'}}>
-                    <div style={{width: '100%'}}>
-                        <div style={{display: 'grid', gridTemplateColumns: ganttFrameColumns, borderBottom: '1px solid #e2e8f0', background: '#f8fafc'}}>
-                            <div style={{padding: '8px 10px', color: '#64748b', fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase'}}>Item</div>
-                            <div style={{position: 'relative', padding: '8px 0 8px 0', minHeight: '24px', background: `repeating-linear-gradient(to right, transparent 0, transparent calc(${ganttColumnWidthPct}% - 1px), rgba(226,232,240,0.8) calc(${ganttColumnWidthPct}% - 1px), rgba(226,232,240,0.8) ${ganttColumnWidthPct}%)`}}>
-                                {monthMarkers.map((mark) => (
-                                    <div key={mark.key} style={{position: 'absolute', left: `${mark.left}%`, top: '1px', transform: 'translateX(-1px)', fontSize: '0.68rem', color: '#64748b', whiteSpace: 'nowrap', background: '#f8fafc', padding: '0 3px', maxWidth: '96px', overflow: 'hidden', textOverflow: 'ellipsis'}}>{mark.label}</div>
-                                ))}
-                            </div>
+                    <div className="pd-g-body">
+                        <div className="pd-g-grid" aria-hidden="true">
+                            {bands.map((b) => <span key={b.key} className={b.odd ? 'is-odd' : ''} style={{ left: `${b.left}%`, width: `${b.width}%` }} />)}
+                            {todayPercent !== null && <i className="pd-g-today" style={{ left: `${todayPercent}%` }} />}
                         </div>
 
-                        {visibleGanttItems.length === 0 && (
-                            <div style={{padding: '16px', color: '#94a3b8', textAlign: 'center'}}>Sem atividades/tarefas com datas dentro desta janela.</div>
+                        {rows.length === 0 && (
+                            <div className="pd-g-empty">Sem atividades/tarefas com datas dentro desta janela.</div>
                         )}
 
-                        {visibleGanttItems.map((item) => {
+                        {rows.map((item) => {
                             const rawStart = dayDiff(ganttWindowStart, item.start);
                             const rawEnd = dayDiff(ganttWindowStart, item.end) + 1;
                             const clampedStart = clamp(rawStart, 0, ganttDurationDays);
                             const clampedEnd = clamp(rawEnd, 0, ganttDurationDays);
                             const leftPct = (clampedStart / ganttDurationDays) * 100;
-                            const widthPct = Math.max((clampedEnd - clampedStart) / ganttDurationDays * 100, 0.8);
-                            const isGroupRow = item.rowType === 'group';
-                            const activityColorSet = activityColors[item.activityId] || null;
-                            const fallbackBase = 'var(--color-btnPrimary)';
-                            const fallbackLightSolid = 'rgba(59,130,246,0.12)';
-                            const fallbackGlow = 'rgba(37, 99, 235, 0.28)';
-
-                            const barBase = activityColorSet ? activityColorSet.base : fallbackBase;
-                            const barFill = item.type === 'atividade'
-                                ? barBase
-                                : (activityColorSet ? activityColorSet.lightSolid : fallbackLightSolid);
-                            const barGlow = activityColorSet ? activityColorSet.glow : fallbackGlow;
-                            const barBorder = item.type === 'tarefa' ? (activityColorSet ? `1px solid ${activityColorSet.border}` : '1px solid rgba(59, 130, 246, 0.18)') : 'none';
+                            const widthPct = Math.max(((clampedEnd - clampedStart) / ganttDurationDays) * 100, 0.8);
+                            const isGroup = item.rowType === 'group';
+                            const colors = activityColors[item.activityId] || null;
+                            const base = colors ? colors.base : 'var(--color-btnPrimary)';
+                            const light = colors ? colors.lightSolid : 'color-mix(in srgb, var(--color-btnPrimary) 15%, #fff)';
+                            const prog = clamp(item.progress || 0, 0, 100);
+                            const isDone = prog >= 100;
+                            const isLate = item.end < todayD && !isDone;
+                            const labelInside = leftPct + widthPct > 86;
+                            const collapsed = isGroup && ganttCollapsed[item.activityId];
+                            const dates = `${item.start.toLocaleDateString('pt-PT', { day: '2-digit', month: 'short' }).replace('.', '')} → ${item.end.toLocaleDateString('pt-PT', { day: '2-digit', month: 'short' }).replace('.', '')}`;
 
                             return (
-                                <div key={item.id} style={{display: 'grid', gridTemplateColumns: ganttFrameColumns, borderBottom: '1px solid #f1f5f9', background: isGroupRow ? '#fafcff' : '#ffffff'}}>
-                                    <div style={{padding: '8px 10px', paddingLeft: isGroupRow ? '10px' : '22px', borderLeft: isGroupRow ? `3px solid ${barBase}` : `3px solid ${barBase}`}}>
-                                        <div style={{display: 'flex', alignItems: 'center', gap: '6px', color: '#0f172a', fontWeight: '700', fontSize: isGroupRow ? '0.8rem' : '0.76rem', lineHeight: 1.25}}>
-                                            <span style={{width: '7px', height: '7px', borderRadius: '999px', background: barBase, flexShrink: 0}}></span>
-                                            {item.label}
-                                        </div>
-                                        {isGroupRow && (
-                                            <div style={{fontSize: '0.68rem', color: '#64748b'}}>{(item.estado || '').replace('_', ' ') || 'sem estado'}</div>
+                                <div key={item.id} className={`pd-g-row ${isGroup ? 'is-group' : ''} ${isLate ? 'is-late' : ''} ${isDone ? 'is-done' : ''}`} style={{ '--bc': base, '--bl': light }}>
+                                    <div className="pd-g-label">
+                                        {isGroup ? (
+                                            <button type="button" className={`pd-g-toggle ${collapsed ? 'is-collapsed' : ''}`} onClick={() => setGanttCollapsed((prev) => ({ ...prev, [item.activityId]: !prev[item.activityId] }))} aria-expanded={!collapsed} title={collapsed ? 'Mostrar tarefas' : 'Esconder tarefas'}>
+                                                <Icons.ChevronDown size={14} />
+                                            </button>
+                                        ) : (
+                                            <span className="pd-g-dot" />
                                         )}
+                                        <div className="pd-g-text">
+                                            <strong title={item.label}>{item.label}</strong>
+                                            <em>
+                                                {isGroup
+                                                    ? `${tasksPerActivity[item.activityId] || 0} tarefa${(tasksPerActivity[item.activityId] || 0) === 1 ? '' : 's'} · ${ESTADO_LABEL[item.estado] || 'Sem estado'}`
+                                                    : dates}
+                                            </em>
+                                        </div>
+                                        {isDone && <span className="pd-g-badge is-done"><Icons.Check size={10} /></span>}
+                                        {isLate && <span className="pd-g-badge is-late">atraso</span>}
                                     </div>
-                                    <div style={{position: 'relative', padding: '8px 8px', background: `repeating-linear-gradient(to right, transparent 0, transparent calc(${ganttColumnWidthPct}% - 1px), rgba(226,232,240,0.8) calc(${ganttColumnWidthPct}% - 1px), rgba(226,232,240,0.8) ${ganttColumnWidthPct}%)`}}>
-                                        {todayPercent !== null && <div style={{position: 'absolute', left: `${todayPercent}%`, top: 0, bottom: 0, width: '1px', background: 'var(--color-btnPrimaryDark)', opacity: 0.85}}></div>}
-                                        <div style={{position: 'relative', height: isGroupRow ? '18px' : '16px', borderRadius: '999px', background: '#f8fafc', boxShadow: 'inset 0 0 0 1px rgba(226,232,240,0.7)'}}>
-                                            <div
-                                                className="gantt-bar"
-                                                style={{
-                                                    position: 'absolute',
-                                                    left: `${leftPct}%`,
-                                                    width: `${widthPct}%`,
-                                                    top: '1px',
-                                                    bottom: '1px',
-                                                    borderRadius: '999px',
-                                                    background: barFill,
-                                                    border: barBorder,
-                                                    boxShadow: `0 0 0 1px ${barGlow}, 0 5px 12px ${barGlow}`,
-                                                    opacity: isGroupRow ? 0.95 : 1
-                                                }}
-                                                title={`${item.start.toLocaleDateString('pt-PT')} - ${item.end.toLocaleDateString('pt-PT')}`}
-                                            >
-                                                <span style={{position: 'absolute', right: '6px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.62rem', color: item.type === 'atividade' ? '#ffffff' : '#374151', fontWeight: '800'}}>{item.progress}%</span>
-                                            </div>
+                                    <div className="pd-g-track">
+                                        <div
+                                            className={`pd-g-bar ${labelInside ? 'is-label-inside' : ''}`}
+                                            style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
+                                            title={`${item.label}\n${item.start.toLocaleDateString('pt-PT')} – ${item.end.toLocaleDateString('pt-PT')}\nProgresso: ${prog}%`}
+                                        >
+                                            <i style={{ width: `${prog}%` }} />
+                                            <span>{prog}%</span>
                                         </div>
                                     </div>
                                 </div>
@@ -3338,458 +3649,402 @@ export default function ProjetoDetalhe() {
                         })}
                     </div>
                 </div>
+
+                <div className="pd-g-legend">
+                    <span><i className="is-progress" /> Progresso</span>
+                    <span><i className="is-todo" /> Por fazer</span>
+                    <span><i className="is-late" /> Em atraso</span>
+                    <span><i className="is-today" /> Hoje</span>
+                    <span className="pd-g-legend-note">Cada atividade tem a sua cor; as tarefas usam a cor da atividade.</span>
+                </div>
             </div>
-        )}
+            );
+        })()}
+
 
         {/* =========================================
             ABA 4: VISÃO GERAL (Formulário)
         ========================================= */}
-        {activeTab === 'geral' && (
-            <div className="bz-tab-panel" style={{background: 'white', padding: '35px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0'}}>
-                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', borderBottom: '1px solid #f1f5f9', paddingBottom: '15px'}}>
-                    <h2 style={{margin: 0, color: '#0f172a', fontSize: '1.3rem'}}>Ficha do Projeto</h2>
-                    {!isEditingGeral ? (
-                        <button onClick={() => setIsEditingGeral(true)} className="btn-primary hover-shadow" style={{background: 'white', color: '#1e293b', border: '1px solid #cbd5e1', padding: '8px 16px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px'}}>
-                            <Icons.Edit /> Ativar Edição
-                        </button>
-                    ) : (
-                        <div style={{display: 'flex', gap: '10px'}}>
-                            <button onClick={() => { setIsEditingGeral(false); setFormGeral({ ...projeto, has_organismo: !!projeto.organismo_id, prazos_fases: normalizeProjetoFases(projeto.prazos_fases) }); }} className="btn-small hover-shadow" style={{padding: '8px 16px', borderRadius: '8px', fontSize: '0.9rem', background: 'white', border: '1px solid #cbd5e1', color: '#64748b', fontWeight: 'bold'}}>Cancelar</button>                            <button onClick={handleUpdateProjeto} className="btn-primary hover-shadow" style={{padding: '8px 20px', borderRadius: '8px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px'}}>
-                                <Icons.Save /> Gravar Modificações
-                            </button>
-                        </div>
-                    )}
-                </div>
+        {activeTab === 'geral' && (() => {
+            const ESTADOS = [
+                { val: 'pendente', label: 'Pendente', color: '#f59e0b' },
+                { val: 'em_curso', label: 'Em curso', color: '#10b981' },
+                { val: 'em_analise', label: 'Em análise', color: '#6366f1' },
+                { val: 'concluido', label: 'Concluído', color: '#0ea5e9' },
+                { val: 'encerrado', label: 'Encerrado', color: '#64748b' },
+                { val: 'cancelado', label: 'Cancelado', color: '#ef4444' },
+            ];
+            const editing = isEditingGeral;
+            const tipoSelecionado = tiposProjeto.find(t => String(t.id) === String(formGeral.tipo_projeto_id));
+            const isProjetoFormacao = tipoSelecionado?.eh_formacao === true;
+            const selectedPrograma = getProgramaById(formGeral.programa_id);
+            const avisosDoPrograma = selectedPrograma ? getAvisosForPrograma(selectedPrograma) : [];
+            const cancelEdit = () => { setIsEditingGeral(false); setFormGeral({ ...projeto, has_organismo: !!projeto.organismo_id, prazos_fases: normalizeProjetoFases(projeto.prazos_fases) }); };
 
-                <fieldset disabled={!isEditingGeral} style={{border: 'none', padding: 0, margin: 0, opacity: !isEditingGeral ? 0.8 : 1, transition: 'opacity 0.3s'}}>
-                    
-                    {/* ENQUADRAMENTO (Com Parcerias e Colaboradores em formato Pill) */}
-                    <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '20px'}}>
-                        <div>
-                            <label style={labelStyle}>Tipo de Entidade</label>
-                            <select value={formGeral.is_parceria ? 'parceria' : 'unico'} onChange={e => {
-                                const isParc = e.target.value === 'parceria';
-                                setFormGeral({...formGeral, is_parceria: isParc, parceiros_ids: isParc ? (formGeral.parceiros_ids || []) : []});
-                            }} style={{...inputStyle, cursor: 'pointer'}} className="input-focus">
-                                <option value="unico">👤 Individual </option>
-                                <option value="parceria">🤝 Parceria (Vários)</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label style={labelStyle}>Responsável Global</label>
-                            <select value={formGeral.responsavel_id || ''} onChange={e => {
-                                const newResp = e.target.value || null;
-                                setFormGeral(prev => ({
-                                    ...prev, 
-                                    responsavel_id: newResp,
-                                    colaboradores: (prev.colaboradores || []).filter(id => id !== newResp) 
-                                }));
-                            }} style={{...inputStyle, cursor: 'pointer'}} className="input-focus">
-                                <option value=""> Sem responsável interno (ou Externo) </option>
-                                {renderResponsavelOptions()}
-                            </select>
-                        </div>
-                        <div>
-                            <label style={labelStyle}>Tipo de Projeto</label>
-                            <select value={formGeral.tipo_projeto_id || ''} onChange={e => setFormGeral({...formGeral, tipo_projeto_id: e.target.value || null})} style={{...inputStyle, cursor: 'pointer'}} className="input-focus">
-                                <option value="">— Sem tipo —</option>
-                                {tiposProjeto.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
-                            </select>
-                        </div>
+            // Duração do projeto
+            let duracao = null;
+            if (formGeral.data_inicio && formGeral.data_fim) {
+                const dias = Math.round((new Date(formGeral.data_fim) - new Date(formGeral.data_inicio)) / 86400000);
+                if (dias >= 0) {
+                    const meses = Math.round(dias / 30.4);
+                    duracao = meses >= 2 ? `${meses} meses` : `${dias} dias`;
+                }
+            }
+            const today = new Date(); today.setHours(0, 0, 0, 0);
+
+            const colabIds = (formGeral.colaboradores || []).map(String);
+            const internosVisiveis = internalAssigneeOptions.filter(s => String(s.id) !== String(formGeral.responsavel_id || '')).filter(s => editing || colabIds.includes(String(s.id)));
+            const externosVisiveis = entityAssigneeOptions.filter(s => String(s.id) !== String(formGeral.responsavel_id || '')).filter(s => editing || colabIds.includes(String(s.id)));
+            const initials = (txt) => String(txt || '?').trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
+
+            return (
+            <div className="bz-tab-panel pd-ficha">
+                <header className="pd-ficha-head">
+                    <div>
+                        <h2>Ficha do projeto</h2>
+                        <p>{editing ? 'Estás a editar. As alterações só ficam guardadas quando carregares em "Gravar".' : 'Toda a informação base do projeto, organizada por temas.'}</p>
                     </div>
+                    {!editing ? (
+                        <button type="button" onClick={() => setIsEditingGeral(true)} className="pd-btn is-primary"><Icons.Edit size={15} /> Editar ficha</button>
+                    ) : (
+                        <span className="pd-editing-badge"><i /> Modo de edição</span>
+                    )}
+                </header>
 
-                    <div style={{display: 'grid', gridTemplateColumns: formGeral.is_parceria ? '1fr 1fr' : '1fr', gap: '15px', marginBottom: formGeral.is_parceria ? '10px' : '20px'}}>
-                        <div>
-                            <label style={labelStyle}>Cliente Principal *</label>
-                            <select value={formGeral.cliente_id || ''} onChange={e => {
-                                const selectedId = e.target.value;
-                                setFormGeral(prev => ({
-                                    ...prev,
-                                    cliente_id: selectedId,
-                                    cliente_texto: "",
-                                    parceiros_ids: (prev.parceiros_ids || []).filter(pid => String(pid) !== String(selectedId))
-                                }));
-                            }} style={{...inputStyle, cursor: 'pointer'}} className="input-focus" required>
-                                <option value="">- Selecione -</option>
-                                {clientes.map(c => <option key={c.id} value={c.id}>{getClientDisplayName(c) || c.marca}</option>)}
-                            </select>
-                        </div>
+                <fieldset disabled={!editing} className={`pd-form ${editing ? 'is-editing' : 'is-reading'}`}>
+                    <div className="pd-ficha-grid">
+                        {/* ---------------- COLUNA ESQUERDA ---------------- */}
+                        <div className="pd-ficha-col">
+                            <section className="pd-card">
+                                <h3><span className="pd-card-icon"><Icons.Info size={15} /></span> Identificação</h3>
+                                <div className="pd-field">
+                                    <label>Nome do projeto</label>
+                                    <input className="pd-input is-title" type="text" value={formGeral.titulo || ''} onChange={e => setFormGeral({...formGeral, titulo: e.target.value})} />
+                                </div>
+                                <div className="pd-row-2">
+                                    <div className="pd-field">
+                                        <label>Tipo de projeto</label>
+                                        <select className="pd-input" value={formGeral.tipo_projeto_id || ''} onChange={e => setFormGeral({...formGeral, tipo_projeto_id: e.target.value || null})}>
+                                            <option value="">— Sem tipo —</option>
+                                            {tiposProjeto.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
+                                        </select>
+                                    </div>
+                                    {!isProjetoFormacao && (
+                                        <div className="pd-row-2 is-tight">
+                                            <div className="pd-field">
+                                                <label>Código</label>
+                                                <input className="pd-input is-mono" type="text" value={formGeral.codigo_projeto || ''} placeholder={editing ? 'Ex: NORTE2030-…' : '—'} onChange={e => setFormGeral({...formGeral, codigo_projeto: e.target.value})} />
+                                            </div>
+                                            <div className="pd-field">
+                                                <label>Nº interno</label>
+                                                <input className="pd-input is-mono" type="text" value={formGeral.numero_projeto || ''} placeholder={editing ? 'Ex: 312' : '—'} onChange={e => setFormGeral({...formGeral, numero_projeto: e.target.value})} />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="pd-field">
+                                    <label>Estado do projeto</label>
+                                    <div className="pd-states">
+                                        {ESTADOS.filter((s) => editing || s.val === (formGeral.estado || 'pendente')).map((s) => (
+                                            <button key={s.val} type="button" style={{ '--c': s.color }} className={(formGeral.estado || 'pendente') === s.val ? 'is-on' : ''} onClick={() => setFormGeral({...formGeral, estado: s.val})}>
+                                                <i /> {s.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </section>
 
-                        {formGeral.is_parceria && (
-                            <div>
-                                <label style={labelStyle}>Entidades Parceiras</label>
-                                <select
-                                        value={parceiroSelecionado}
-                                    onChange={e => {
-                                            const selected = e.target.value;
-                                            setParceiroSelecionado(selected);
-                                            if (!selected) return;
+                            <section className="pd-card">
+                                <h3><span className="pd-card-icon"><Icons.Building size={15} /></span> Entidades</h3>
+                                <div className="pd-field">
+                                    <label>Tipo de entidade</label>
+                                    <div className="pd-seg">
+                                        {[['unico', 'Individual', <Icons.User size={13} />], ['parceria', 'Parceria (várias)', <Icons.Handshake size={13} />]]
+                                            .filter(([val]) => editing || (val === 'parceria') === Boolean(formGeral.is_parceria))
+                                            .map(([val, label, icon]) => (
+                                                <button key={val} type="button" className={(formGeral.is_parceria ? 'parceria' : 'unico') === val ? 'is-on' : ''} onClick={() => {
+                                                    const isParc = val === 'parceria';
+                                                    setFormGeral({...formGeral, is_parceria: isParc, parceiros_ids: isParc ? (formGeral.parceiros_ids || []) : []});
+                                                }}>{icon} {label}</button>
+                                            ))}
+                                    </div>
+                                </div>
+                                <div className="pd-field">
+                                    <label>Cliente principal <em>*</em></label>
+                                    <select className="pd-input" value={formGeral.cliente_id || ''} required onChange={e => {
+                                        const selectedId = e.target.value;
                                         setFormGeral(prev => ({
                                             ...prev,
-                                                parceiros_ids: String(selected) === String(prev.cliente_id)
-                                                    ? (prev.parceiros_ids || [])
-                                                    : (prev.parceiros_ids || []).includes(selected)
-                                                        ? (prev.parceiros_ids || [])
-                                                        : [...(prev.parceiros_ids || []), selected]
+                                            cliente_id: selectedId,
+                                            cliente_texto: "",
+                                            parceiros_ids: (prev.parceiros_ids || []).filter(pid => String(pid) !== String(selectedId))
                                         }));
-                                            setParceiroSelecionado("");
-                                    }}
-                                        style={{...inputStyle, cursor: 'pointer'}}
-                                    className="input-focus"
-                                >
-                                        <option value="">-- Adicionar entidade parceira --</option>
-                                    {clientes
-                                        .filter(c => String(c.id) !== String(formGeral.cliente_id || ''))
-                                            .filter(c => !(formGeral.parceiros_ids || []).includes(c.id))
-                                        .map(c => <option key={c.id} value={c.id}>{getClientDisplayName(c) || c.marca}</option>)}
-                                </select>
-                            </div>
-                        )}
-                    </div>
+                                    }}>
+                                        <option value="">- Selecione -</option>
+                                        {clientes.map(c => <option key={c.id} value={c.id}>{getClientDisplayName(c) || c.marca}</option>)}
+                                    </select>
+                                </div>
 
-                    {formGeral.is_parceria && (
-                        <div style={{marginBottom: '20px'}}>
-                            <label style={labelStyle}>Entidades Selecionadas</label>
-                            <div className="pill-container" style={{width: '100%', boxSizing: 'border-box'}}>
-                                {(formGeral.parceiros_ids || []).length === 0 && <span style={{color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic'}}>Sem parceiros selecionados.</span>}
-                                {(formGeral.parceiros_ids || []).map(pid => {
-                                    const parceiro = clientes.find(c => String(c.id) === String(pid));
-                                    if (!parceiro) return null;
-                                    return (
-                                        <div
-                                            key={pid}
-                                            onClick={() => isEditingGeral && handleToggleParceiro(pid)}
-                                            className="pill-checkbox selected"
-                                            title="Remover parceiro"
-                                        >
-                                            {getClientDisplayName(parceiro) || parceiro.marca} ✕
+                                {formGeral.is_parceria && (
+                                    <div className="pd-field">
+                                        <label>Entidades parceiras</label>
+                                        <div className="pd-pills">
+                                            {(formGeral.parceiros_ids || []).length === 0 && <span className="pd-pills-empty">Sem parceiros selecionados.</span>}
+                                            {(formGeral.parceiros_ids || []).map(pid => {
+                                                const parceiro = clientes.find(c => String(c.id) === String(pid));
+                                                if (!parceiro) return null;
+                                                return (
+                                                    <button type="button" key={pid} onClick={() => editing && handleToggleParceiro(pid)} className="pd-pill is-on" title={editing ? 'Remover parceiro' : undefined}>
+                                                        <Icons.Handshake size={12} /> {getClientDisplayName(parceiro) || parceiro.marca}
+                                                        {editing && <Icons.Close size={12} />}
+                                                    </button>
+                                                );
+                                            })}
                                         </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
-
-                    {(() => {
-                        const tipoSelecionado = tiposProjeto.find(t => String(t.id) === String(formGeral.tipo_projeto_id));
-                        const isProjetoFormacao = tipoSelecionado?.eh_formacao === true;
-                        
-                        return (
-                            <>
-                                {!isProjetoFormacao && (
-                                    <>
-                                        <div style={{display: 'grid', gridTemplateColumns: formGeral.has_organismo ? '1fr 1fr' : '1fr', gap: '15px', marginBottom: '20px'}}>
-                                                <div>
-                                                    <label style={labelStyle}>Envolve Entidade Financiadora?</label>
-                                                    <select
-                                                        value={formGeral.has_organismo ? 'sim' : 'nao'}
-                                                        onChange={e => {
-                                                            const hasOrg = e.target.value === 'sim';
-                                                            setFormGeral({...formGeral, has_organismo: hasOrg, organismo_id: hasOrg ? formGeral.organismo_id : null, organismo_contacto_id: hasOrg ? formGeral.organismo_contacto_id : null});
-                                                        }}
-                                                        style={{...inputStyle, cursor: 'pointer'}}
-                                                        className="input-focus"
-                                                    >
-                                                        <option value="nao">Não</option>
-                                                        <option value="sim">Sim</option>
-                                                    </select>
-                                                </div>
-
-                                                {formGeral.has_organismo && (
-                                                    <div>
-                                                        <label style={labelStyle}>Organismo Lider / Principal *</label>
-                                                        <select
-                                                            value={formGeral.organismo_id || ""}
-                                                            onChange={e => setFormGeral({...formGeral, organismo_id: e.target.value, organismo_contacto_id: null})}
-                                                            style={{...inputStyle, cursor: 'pointer', borderColor: 'var(--color-btnPrimary)', background: 'var(--color-bgSecondary)'}}
-                                                            className="input-focus"
-                                                            required={formGeral.has_organismo}
-                                                        >
-                                                            <option value="">-- Selecione o Organismo --</option>
-                                                            {clientes.filter(c => c.eh_organismo).map(c => (
-                                                                <option key={c.id} value={c.id}>{getClientDisplayName(c) || c.marca}</option>
-                                                            ))}
-                                                        </select>
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                        {formGeral.has_organismo && formGeral.organismo_id && (
-                                            <div style={{marginBottom: '20px'}}>
-                                                <label style={labelStyle}>Pessoa do Organismo</label>
-                                                <select
-                                                    value={formGeral.organismo_contacto_id || ""}
-                                                    onChange={e => setFormGeral({...formGeral, organismo_contacto_id: e.target.value})}
-                                                    style={{...inputStyle, cursor: 'pointer'}}
-                                                    className="input-focus"
-                                                >
-                                                    <option value="">-- Sem pessoa definida --</option>
-                                                    {organismoPessoas.map(p => {
-                                                        const nome = p.nome_contacto || p.email || "Contacto";
-                                                        const cargo = p.cargo ? ` (${p.cargo})` : "";
-                                                        return <option key={p.id} value={p.id}>{`${nome}${cargo}`}</option>;
-                                                    })}
-                                                </select>
-                                                {organismoPessoas.length === 0 && (
-                                                    <div style={{marginTop: '6px', color: '#94a3b8', fontSize: '0.8rem', fontStyle: 'italic'}}>Este organismo ainda não tem contactos registados.</div>
-                                                )}
-                                            </div>
-                                        )}
-                                    </>
-                                )}
-                            </>
-                        );
-                    })()}
-
-                    <div style={{marginBottom: '30px'}}>
-                        <label style={labelStyle}>Outros Colaboradores Envolvidos</label>
-                        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px'}}>
-                            <div>
-                                <div style={{fontSize: '0.74rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px'}}>Equipa Interna</div>
-                                <div className="pill-container" style={{minHeight: '60px'}}>
-                                    {internalAssigneeOptions
-                                        .filter(s => String(s.id) !== String(formGeral.responsavel_id || ''))
-                                        .map(s => {
-                                            const isSelected = (formGeral.colaboradores || []).map(id => String(id)).includes(String(s.id));
-                                            return (
-                                                <div 
-                                                    key={`colab-int-${s.id}`}
-                                                    onClick={() => isEditingGeral && handleToggleColaborador(s.id)}
-                                                    className={`pill-checkbox ${isSelected ? 'selected' : ''}`}
-                                                >
-                                                    {s.label}
-                                                </div>
-                                            )
-                                        })}
-                                    {internalAssigneeOptions.filter(s => String(s.id) !== String(formGeral.responsavel_id || '')).length === 0 && (
-                                        <span style={{color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic'}}>Sem pessoas internas disponíveis.</span>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div>
-                                <div style={{fontSize: '0.74rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px'}}>Pessoas das Entidades</div>
-                                <div className="pill-container" style={{minHeight: '60px'}}>
-                                    {entityAssigneeOptions
-                                        .filter(s => String(s.id) !== String(formGeral.responsavel_id || ''))
-                                        .map(s => {
-                                            const isSelected = (formGeral.colaboradores || []).map(id => String(id)).includes(String(s.id));
-                                            return (
-                                                <div 
-                                                    key={`colab-ent-${s.id}`}
-                                                    onClick={() => isEditingGeral && handleToggleColaborador(s.id)}
-                                                    className={`pill-checkbox ${isSelected ? 'selected' : ''}`}
-                                                >
-                                                    {s.label}
-                                                </div>
-                                            )
-                                        })}
-                                    {entityAssigneeOptions.filter(s => String(s.id) !== String(formGeral.responsavel_id || '')).length === 0 && (
-                                        <span style={{color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic'}}>Sem contactos das entidades deste projeto.</span>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div style={{display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '40px'}}>
-                        <div>
-                            <label style={labelStyle}>Nome do Projeto</label>
-                            <input type="text" value={formGeral.titulo || ''} onChange={e => setFormGeral({...formGeral, titulo: e.target.value})} style={{...inputStyle, fontWeight: 'bold', color: '#0f172a'}} className="input-focus" />
-
-                            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginTop: '15px', marginBottom: '15px'}}>
-                                <div>
-                                    <label style={labelStyle}>Data Início</label>
-                                    <input
-                                        type="date"
-                                        value={formGeral.data_inicio || ''}
-                                        onChange={e => setFormGeral({...formGeral, data_inicio: e.target.value})}
-                                        style={{...inputStyle, marginBottom: 0}}
-                                        className="input-focus"
-                                    />
-                                </div>
-                                <div>
-                                    <label style={labelStyle}>Data Fim (Prazo)</label>
-                                    <input
-                                        type="date"
-                                        value={formGeral.data_fim || ''}
-                                        onChange={e => setFormGeral({...formGeral, data_fim: e.target.value})}
-                                        style={{...inputStyle, marginBottom: 0}}
-                                        className="input-focus"
-                                    />
-                                </div>
-                            </div>
-
-                            <div style={{marginTop: '15px', marginBottom: '20px'}}>
-                                <label style={labelStyle}>Estado do Projeto</label>
-                                {renderStatePills(formGeral.estado || 'pendente', (estado) => setFormGeral({...formGeral, estado}), true)}
-                            </div>
-                            
-                            {(() => {
-                                const tipoSelecionadoLocal = tiposProjeto.find(t => String(t.id) === String(formGeral.tipo_projeto_id));
-                                const isFormacaoLocal = tipoSelecionadoLocal?.eh_formacao === true;
-                                if (isFormacaoLocal) {
-                                    return null;
-                                }
-
-                                // Vai buscar as listas para os dropdowns
-                                const selectedPrograma = getProgramaById(formGeral.programa_id);
-                                const avisosDoPrograma = selectedPrograma ? getAvisosForPrograma(selectedPrograma) : [];
-
-                                return (
-                                    <>
-                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
-                                            <div>
-                                                <label style={labelStyle}>Código do Projeto</label>
-                                                <input type="text" value={formGeral.codigo_projeto || ''} onChange={e => setFormGeral({...formGeral, codigo_projeto: e.target.value})} style={inputStyle} className="input-focus" />
-                                            </div>
-                                            <div>
-                                                <label style={labelStyle}>Número do Projeto</label>
-                                                <input type="text" value={formGeral.numero_projeto || ''} onChange={e => setFormGeral({...formGeral, numero_projeto: e.target.value})} style={inputStyle} className="input-focus" />
-                                            </div>
-                                        </div>
-
-                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
-                                            <div>
-                                                <label style={labelStyle}>Programa</label>
-                                                <select
-                                                    value={formGeral.programa_id || ''}
-                                                    onChange={(e) => handleProgramaChange(e.target.value)}
-                                                    style={{...inputStyle, cursor: isEditingGeral ? 'pointer' : 'default'}}
-                                                    className="input-focus"
-                                                >
-                                                    <option value="">-- Sem programa associado --</option>
-                                                    {programas.filter((programa) => programa.ativo !== false || String(programa.id) === String(formGeral.programa_id)).map((programa) => (
-                                                        <option key={programa.id} value={programa.id}>
-                                                            {`${programa.codigo ? `${programa.codigo} - ` : ''}${programa.nome || 'Programa'}`}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            </div>
-
-                                            <div>
-                                                <label style={labelStyle}>Aviso</label>
-                                                <select
-                                                    value={formGeral.aviso_id || ''}
-                                                    onChange={(e) => {
-                                                        const avId = e.target.value;
-                                                        const av = getAvisoById(avId);
-                                                        setFormGeral({
-                                                            ...formGeral, 
-                                                            aviso_id: avId, 
-                                                            aviso: av?.codigo || "", 
-                                                            prazos_fases: av?.fases ? normalizeProjetoFases(av.fases) : formGeral.prazos_fases
-                                                        });
-                                                    }}
-                                                    style={{
-                                                        ...inputStyle, 
-                                                        background: isEditingGeral && avisosDoPrograma.length ? '#fff' : '#f8fafc',
-                                                        cursor: isEditingGeral && avisosDoPrograma.length ? 'pointer' : 'not-allowed'
-                                                    }}
-                                                    className="input-focus"
-                                                    disabled={!isEditingGeral || avisosDoPrograma.length === 0}
-                                                >
-                                                    <option value="">{avisosDoPrograma.length > 0 ? "-- Escolhe o Aviso --" : "Sem avisos associados"}</option>
-                                                    {avisosDoPrograma.map(av => (
-                                                        <option key={av.id} value={av.id}>{av.codigo}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                        </div>
-                                    </>
-                                );
-                            })()}
-
-                            {(() => {
-                                const tipoSelecionadoLocal = tiposProjeto.find(t => String(t.id) === String(formGeral.tipo_projeto_id));
-                                const isFormacaoLocal = tipoSelecionadoLocal?.eh_formacao === true;
-                                const selectedPrograma = getProgramaById(formGeral.programa_id);
-                                const avisosDoPrograma = selectedPrograma ? getAvisosForPrograma(selectedPrograma) : [];
-
-                                if (isFormacaoLocal) return null;
-                                return (
-                                    <div style={{marginTop: '18px', padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0', background: '#f8fafc'}}>
-                                        <label style={labelStyle}>Fases do Programa / Aviso</label>
-                                        {projetoFases.length > 0 ? (
-                                            <div style={{display: 'grid', gap: '10px'}}>
-                                                {projetoFases.map((fase, index) => (
-                                                    <div key={`${fase.nome || 'fase'}-${index}`} style={{display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', padding: '10px 12px', borderRadius: '10px', background: 'white', border: '1px solid #e2e8f0'}}>
-                                                        <div style={{fontWeight: '700', color: '#1e293b'}}>{fase.nome || `Fase ${index + 1}`}</div>
-                                                        <div style={{fontWeight: '800', color: '#475569'}}>{fase.prazo ? new Date(`${fase.prazo}T00:00:00`).toLocaleDateString('pt-PT') : 'Sem data'}</div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <div style={{color: '#94a3b8', fontSize: '0.85rem'}}>Sem fases registadas...</div>
+                                        {editing && (
+                                            <select
+                                                className="pd-input"
+                                                value={parceiroSelecionado}
+                                                onChange={e => {
+                                                    const selected = e.target.value;
+                                                    setParceiroSelecionado(selected);
+                                                    if (!selected) return;
+                                                    setFormGeral(prev => ({
+                                                        ...prev,
+                                                        parceiros_ids: String(selected) === String(prev.cliente_id)
+                                                            ? (prev.parceiros_ids || [])
+                                                            : (prev.parceiros_ids || []).includes(selected)
+                                                                ? (prev.parceiros_ids || [])
+                                                                : [...(prev.parceiros_ids || []), selected]
+                                                    }));
+                                                    setParceiroSelecionado("");
+                                                }}
+                                            >
+                                                <option value="">+ Adicionar entidade parceira…</option>
+                                                {clientes
+                                                    .filter(c => String(c.id) !== String(formGeral.cliente_id || ''))
+                                                    .filter(c => !(formGeral.parceiros_ids || []).includes(c.id))
+                                                    .map(c => <option key={c.id} value={c.id}>{getClientDisplayName(c) || c.marca}</option>)}
+                                            </select>
                                         )}
                                     </div>
-                                );
-                            })()}
+                                )}
+
+                                {!isProjetoFormacao && (
+                                    <div className="pd-subcard">
+                                        <div className="pd-field">
+                                            <label>Envolve entidade financiadora?</label>
+                                            <div className="pd-seg">
+                                                {[['nao', 'Não'], ['sim', 'Sim']]
+                                                    .filter(([val]) => editing || (val === 'sim') === Boolean(formGeral.has_organismo))
+                                                    .map(([val, label]) => (
+                                                        <button key={val} type="button" className={(formGeral.has_organismo ? 'sim' : 'nao') === val ? 'is-on' : ''} onClick={() => {
+                                                            const hasOrg = val === 'sim';
+                                                            setFormGeral({...formGeral, has_organismo: hasOrg, organismo_id: hasOrg ? formGeral.organismo_id : null, organismo_contacto_id: hasOrg ? formGeral.organismo_contacto_id : null});
+                                                        }}>{label}</button>
+                                                    ))}
+                                            </div>
+                                        </div>
+                                        {formGeral.has_organismo && (
+                                            <div className="pd-row-2">
+                                                <div className="pd-field">
+                                                    <label>Organismo líder <em>*</em></label>
+                                                    <select className="pd-input" value={formGeral.organismo_id || ""} required={formGeral.has_organismo} onChange={e => setFormGeral({...formGeral, organismo_id: e.target.value, organismo_contacto_id: null})}>
+                                                        <option value="">-- Selecione o organismo --</option>
+                                                        {clientes.filter(c => c.eh_organismo).map(c => (
+                                                            <option key={c.id} value={c.id}>{getClientDisplayName(c) || c.marca}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                {formGeral.organismo_id && (
+                                                    <div className="pd-field">
+                                                        <label>Pessoa do organismo</label>
+                                                        <select className="pd-input" value={formGeral.organismo_contacto_id || ""} onChange={e => setFormGeral({...formGeral, organismo_contacto_id: e.target.value})}>
+                                                            <option value="">-- Sem pessoa definida --</option>
+                                                            {organismoPessoas.map(p => {
+                                                                const nome = p.nome_contacto || p.email || "Contacto";
+                                                                const cargo = p.cargo ? ` (${p.cargo})` : "";
+                                                                return <option key={p.id} value={p.id}>{`${nome}${cargo}`}</option>;
+                                                            })}
+                                                        </select>
+                                                        {editing && organismoPessoas.length === 0 && <small className="pd-hint">Este organismo ainda não tem contactos registados.</small>}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </section>
+
+                            <section className="pd-card">
+                                <h3><span className="pd-card-icon"><Icons.Users size={15} /></span> Equipa</h3>
+                                <div className="pd-field">
+                                    <label>Responsável global</label>
+                                    <select className="pd-input" value={formGeral.responsavel_id || ''} onChange={e => {
+                                        const newResp = e.target.value || null;
+                                        setFormGeral(prev => ({
+                                            ...prev,
+                                            responsavel_id: newResp,
+                                            colaboradores: (prev.colaboradores || []).filter(cid => cid !== newResp)
+                                        }));
+                                    }}>
+                                        <option value="">Sem responsável interno (ou externo)</option>
+                                        {renderResponsavelOptions()}
+                                    </select>
+                                </div>
+                                <div className="pd-row-2">
+                                    <div className="pd-field">
+                                        <label>Equipa interna</label>
+                                        <div className="pd-pills">
+                                            {internosVisiveis.map(s => {
+                                                const isSelected = colabIds.includes(String(s.id));
+                                                return (
+                                                    <button type="button" key={`colab-int-${s.id}`} onClick={() => editing && handleToggleColaborador(s.id)} className={`pd-pill ${isSelected ? 'is-on' : ''}`} aria-pressed={isSelected}>
+                                                        <span className="pd-pill-av">{isSelected && editing ? <Icons.Check size={10} /> : initials(s.label)}</span>
+                                                        {s.label}
+                                                    </button>
+                                                );
+                                            })}
+                                            {internosVisiveis.length === 0 && <span className="pd-pills-empty">{editing ? 'Sem pessoas internas disponíveis.' : 'Ninguém além do responsável.'}</span>}
+                                        </div>
+                                    </div>
+                                    <div className="pd-field">
+                                        <label>Pessoas das entidades</label>
+                                        <div className="pd-pills">
+                                            {externosVisiveis.map(s => {
+                                                const isSelected = colabIds.includes(String(s.id));
+                                                return (
+                                                    <button type="button" key={`colab-ent-${s.id}`} onClick={() => editing && handleToggleColaborador(s.id)} className={`pd-pill is-ext ${isSelected ? 'is-on' : ''}`} aria-pressed={isSelected}>
+                                                        <span className="pd-pill-av">{isSelected && editing ? <Icons.Check size={10} /> : initials(s.label)}</span>
+                                                        {s.label}
+                                                    </button>
+                                                );
+                                            })}
+                                            {externosVisiveis.length === 0 && <span className="pd-pills-empty">{editing ? 'Sem contactos das entidades deste projeto.' : 'Nenhuma pessoa externa.'}</span>}
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
                         </div>
 
-                        <div>
-                            <label style={labelStyle}>Descrição Pública</label>
-                            <textarea rows="3" value={formGeral.descricao || ''} onChange={e => setFormGeral({...formGeral, descricao: e.target.value})} style={{...inputStyle, resize: 'vertical', fontSize:'0.85rem'}} className="input-focus" />
-                            <label style={{...labelStyle, color: '#b45309', marginTop: '5px'}}>Observações Internas</label>
-                            <textarea rows="3" value={formGeral.observacoes || ''} onChange={e => setFormGeral({...formGeral, observacoes: e.target.value})} style={{...inputStyle, resize: 'vertical', background: '#fffbeb', borderColor: '#fcd34d', fontSize:'0.85rem'}} className="input-focus-alert" />
+                        {/* ---------------- COLUNA DIREITA ---------------- */}
+                        <div className="pd-ficha-col">
+                            <section className="pd-card">
+                                <h3><span className="pd-card-icon"><Icons.Calendar size={15} /></span> Prazos {duracao && <span className="pd-card-badge">{duracao}</span>}</h3>
+                                <div className="pd-row-2">
+                                    <div className="pd-field">
+                                        <label>Data de início</label>
+                                        <input className="pd-input" type="date" value={formGeral.data_inicio || ''} onChange={e => setFormGeral({...formGeral, data_inicio: e.target.value})} />
+                                    </div>
+                                    <div className="pd-field">
+                                        <label>Data de fim (prazo)</label>
+                                        <input className="pd-input" type="date" value={formGeral.data_fim || ''} onChange={e => setFormGeral({...formGeral, data_fim: e.target.value})} />
+                                    </div>
+                                </div>
+                            </section>
+
+                            {!isProjetoFormacao && (
+                                <section className="pd-card">
+                                    <h3><span className="pd-card-icon"><Icons.Target size={15} /></span> Programa e aviso</h3>
+                                    <div className="pd-field">
+                                        <label>Programa</label>
+                                        <select className="pd-input" value={formGeral.programa_id || ''} onChange={(e) => handleProgramaChange(e.target.value)}>
+                                            <option value="">-- Sem programa associado --</option>
+                                            {programas.filter((programa) => programa.ativo !== false || String(programa.id) === String(formGeral.programa_id)).map((programa) => (
+                                                <option key={programa.id} value={programa.id}>
+                                                    {`${programa.codigo ? `${programa.codigo} - ` : ''}${programa.nome || 'Programa'}`}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="pd-field">
+                                        <label>Aviso</label>
+                                        <select
+                                            className="pd-input"
+                                            value={formGeral.aviso_id || ''}
+                                            disabled={!editing || avisosDoPrograma.length === 0}
+                                            onChange={(e) => {
+                                                const avId = e.target.value;
+                                                const av = getAvisoById(avId);
+                                                setFormGeral({
+                                                    ...formGeral,
+                                                    aviso_id: avId,
+                                                    aviso: av?.codigo || "",
+                                                    prazos_fases: av?.fases ? normalizeProjetoFases(av.fases) : formGeral.prazos_fases
+                                                });
+                                            }}
+                                        >
+                                            <option value="">{avisosDoPrograma.length > 0 ? "-- Escolhe o aviso --" : "Sem avisos associados"}</option>
+                                            {avisosDoPrograma.map(av => (
+                                                <option key={av.id} value={av.id}>{av.codigo}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div className="pd-field">
+                                        <label>Fases do programa / aviso</label>
+                                        {projetoFases.length > 0 ? (
+                                            <ol className="pd-fases">
+                                                {projetoFases.map((fase, index) => {
+                                                    const dt = fase.prazo ? new Date(`${fase.prazo}T00:00:00`) : null;
+                                                    const isPast = dt && dt < today;
+                                                    return (
+                                                        <li key={`${fase.nome || 'fase'}-${index}`} className={isPast ? 'is-past' : ''}>
+                                                            <span className="pd-fase-dot">{isPast ? <Icons.Check size={10} /> : index + 1}</span>
+                                                            <span className="pd-fase-name">{fase.nome || `Fase ${index + 1}`}</span>
+                                                            <span className="pd-fase-date">{dt ? dt.toLocaleDateString('pt-PT') : 'Sem data'}</span>
+                                                        </li>
+                                                    );
+                                                })}
+                                            </ol>
+                                        ) : (
+                                            <span className="pd-pills-empty">Sem fases registadas.</span>
+                                        )}
+                                    </div>
+                                </section>
+                            )}
+
+                            <section className="pd-card">
+                                <h3><span className="pd-card-icon"><Icons.FileText size={15} /></span> Notas</h3>
+                                <div className="pd-field">
+                                    <label>Descrição pública</label>
+                                    <textarea className="pd-input is-area" rows="3" value={formGeral.descricao || ''} placeholder={editing ? 'Resumo do projeto…' : 'Sem descrição.'} onChange={e => setFormGeral({...formGeral, descricao: e.target.value})} />
+                                </div>
+                                <div className="pd-field is-internal">
+                                    <label><Icons.Eye size={12} /> Observações internas</label>
+                                    <textarea className="pd-input is-area is-note" rows="3" value={formGeral.observacoes || ''} placeholder={editing ? 'Notas só para a equipa…' : 'Sem observações.'} onChange={e => setFormGeral({...formGeral, observacoes: e.target.value})} />
+                                </div>
+                            </section>
                         </div>
                     </div>
 
-                    <div style={{marginTop: '28px', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: '14px', padding: '18px 20px'}}>
-                        <div style={{display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px', color: '#9a3412', fontWeight: '800'}}>
-                            <Icons.AlertTriangle size={16} /> Zona de Arquivo / Apagar
+                    <section className="pd-danger">
+                        <div className="pd-danger-text">
+                            <strong><Icons.AlertTriangle size={16} /> Arquivar ou apagar</strong>
+                            <p>Arquivar remove o projeto das listas normais sem perder histórico. Apagar elimina permanentemente o projeto e os registos associados.</p>
+                            {!editing && <em>Por segurança, só disponível em modo de edição.</em>}
                         </div>
-                        <p style={{margin: '0 0 16px 0', color: '#9a3412', fontSize: '0.85rem', lineHeight: 1.5}}>
-                            Arquivar remove o projeto das listas normais sem perder histórico. Apagar elimina permanentemente o projeto e os registos associados.
-                        </p>
-                        <div style={{display: 'flex', gap: '12px', flexWrap: 'wrap'}}>
-                            <button
-                                type="button"
-                                onClick={handleArchiveProject}
-                                disabled={projectActionLoading}
-                                style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '8px',
-                                    border: '1px solid #fdba74',
-                                    background: '#fff',
-                                    color: '#c2410c',
-                                    borderRadius: '10px',
-                                    padding: '10px 14px',
-                                    cursor: projectActionLoading ? 'not-allowed' : 'pointer',
-                                    fontWeight: '700',
-                                    opacity: projectActionLoading ? 0.6 : 1
-                                }}
-                                className="hover-shadow"
-                            >
-                                <Icons.Folder size={15} /> Arquivar Projeto
+                        <div className="pd-danger-actions">
+                            <button type="button" onClick={handleArchiveProject} disabled={projectActionLoading} className="pd-btn is-warn">
+                                <Icons.Folder size={15} /> Arquivar
                             </button>
-                            <button
-                                type="button"
-                                onClick={handleHardDeleteProject}
-                                disabled={projectActionLoading}
-                                style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '8px',
-                                    border: '1px solid #ef4444',
-                                    background: '#ef4444',
-                                    color: '#fff',
-                                    borderRadius: '10px',
-                                    padding: '10px 14px',
-                                    cursor: projectActionLoading ? 'not-allowed' : 'pointer',
-                                    fontWeight: '700',
-                                    opacity: projectActionLoading ? 0.6 : 1
-                                }}
-                                className="hover-shadow"
-                            >
-                                <Icons.Trash size={15} color="#ffffff" /> Apagar Permanentemente
+                            <button type="button" onClick={handleHardDeleteProject} disabled={projectActionLoading} className="pd-btn is-danger">
+                                <Icons.Trash size={15} color="currentColor" /> Apagar permanentemente
                             </button>
                         </div>
-                    </div>
+                    </section>
                 </fieldset>
+
+                {editing && (
+                    <div className="pd-savebar" role="region" aria-label="Guardar alterações">
+                        <span><i /> Alterações por gravar</span>
+                        <button type="button" onClick={cancelEdit} className="pd-btn">Cancelar</button>
+                        <button type="button" onClick={handleUpdateProjeto} className="pd-btn is-primary"><Icons.Save size={15} /> Gravar</button>
+                    </div>
+                )}
             </div>
-        )}
+            );
+        })()}
 
       </div>
 

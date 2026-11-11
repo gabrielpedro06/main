@@ -1914,7 +1914,7 @@ export default function Clientes() {
     }
   }
 
-  const clientColors = ['var(--color-btnPrimary)', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#f43f5e', '#14b8a6', 'var(--color-primary)'];
+  const clientColors = ['var(--color-btnPrimary)', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#f43f5e', '#14b8a6', '#0ea5e9'];
   const getColorForClient = (nif) => {
       if (!nif) return '#94a3b8'; 
       const hash = String(nif).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);

@@ -34,7 +34,7 @@ const Icons = {
 const ModalPortal = ({ children }) => createPortal(children, document.body);
 
 // Cores Dinâmicas para Setores
-const setorColors = ['var(--color-btnPrimary)', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#f43f5e', '#14b8a6', 'var(--color-primary)', '#6366f1'];
+const setorColors = ['var(--color-btnPrimary)', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#f43f5e', '#14b8a6', '#0ea5e9', '#6366f1'];
 const getColorForSetor = (nome) => {
     if (!nome) return '#94a3b8';
     const hash = String(nome).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
