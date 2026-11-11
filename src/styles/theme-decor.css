@@ -24,7 +24,7 @@ body.bz-intro-active .bz-decor { opacity: 0; }
 .bz-p > svg { filter: drop-shadow(0 1px 1px rgba(15, 23, 42, 0.12)); }
 .bz-decor-natal .bz-p > svg, .bz-decor-neve .bz-p > svg { filter: drop-shadow(0 0 1px rgba(90, 120, 165, 0.9)) drop-shadow(0 1px 3px rgba(90, 120, 165, 0.45)); }
 .is-spin .bz-p { animation-name: bzFallSpin; }
-.is-rise .bz-p { top: auto; bottom: -40px; animation-name: bzRise; opacity: 0.7; }
+.is-rise .bz-p { top: auto; bottom: -40px; animation-name: bzDecorRise; opacity: 0.7; }
 .is-fly .bz-p { top: var(--top); left: -60px !important; animation-name: bzFly; opacity: 0.75; }
 .is-fly .bz-p:nth-child(odd) { animation-direction: reverse; }
 .is-fly .bz-p:nth-child(odd) > svg { transform: scaleX(-1); }
@@ -39,7 +39,7 @@ body.bz-intro-active .bz-decor { opacity: 0; }
   50% { transform: translate3d(calc(var(--x) * -0.5), 52vh, 0) rotate(calc(var(--r) + 180deg)) rotateY(180deg); }
   100% { transform: translate3d(var(--x), 108vh, 0) rotate(calc(var(--r) + 360deg)) rotateY(360deg); }
 }
-@keyframes bzRise {
+@keyframes bzDecorRise {
   0% { transform: translate3d(0, 0, 0) scale(0.8); opacity: 0; }
   10% { opacity: 0.7; }
   50% { transform: translate3d(var(--x), -52vh, 0) scale(1); }
@@ -181,6 +181,96 @@ body.bz-intro-active .bz-decor { opacity: 0; }
 .bz-decor-corner.is-santos .bz-c-manj { right: 8px; width: 78px; animation: bzSway 4s ease-in-out infinite alternate; transform-origin: bottom center; }
 .bz-decor-corner.is-santos .bz-c-sard { right: 96px; bottom: 10px; width: 90px; animation: bzBob 2.2s ease-in-out infinite alternate; }
 
+/* ---------- PAPEL PICADO / LANTERNAS ---------- */
+.bz-papel {
+  position: absolute;
+  width: 30px; margin-left: -15px;
+  transform-origin: 50% 0;
+  animation: bzSwing var(--sw) ease-in-out infinite alternate;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.15));
+}
+.bz-papel > svg { height: auto; }
+.bz-decor-top.is-lanterns .bz-hang > i { background: #b45309; }
+.bz-lantern-glow { animation: bzTwinkle 2.4s ease-in-out infinite alternate; }
+
+/* ---------- VELAS ---------- */
+.bz-flame { transform-origin: 12px 20px; animation: bzFlicker 1.1s ease-in-out infinite alternate; }
+.bz-flame-glow { transform-origin: 12px 12px; animation: bzGlow 2s ease-in-out infinite alternate; }
+@keyframes bzFlicker {
+  0% { transform: scale(1, 1) skewX(0deg); }
+  30% { transform: scale(0.94, 1.06) skewX(-3deg); }
+  60% { transform: scale(1.04, 0.95) skewX(2deg); }
+  100% { transform: scale(0.97, 1.08) skewX(-1deg); }
+}
+@keyframes bzGlow { from { opacity: 0.3; transform: scale(0.9); } to { opacity: 0.6; transform: scale(1.12); } }
+
+/* ---------- LUZ SUAVE (temas marianos) ---------- */
+.bz-decor-glow {
+  position: absolute; left: 50%; top: -220px;
+  width: 760px; height: 440px; margin-left: -380px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(255, 244, 200, 0.55), rgba(191, 219, 254, 0.25) 55%, transparent 100%);
+  animation: bzGlowPulse 6s ease-in-out infinite alternate;
+}
+@keyframes bzGlowPulse { from { opacity: 0.6; transform: scale(0.96); } to { opacity: 1; transform: scale(1.04); } }
+
+/* ---------- COROA DE 12 ESTRELAS ---------- */
+.bz-decor-stars12 { position: absolute; left: 50%; top: 2px; width: 320px; height: 70px; margin-left: -160px; }
+.bz-decor-stars12 > span {
+  position: absolute; width: 16px; height: 16px; margin: -8px 0 0 -8px;
+  filter: drop-shadow(0 0 4px rgba(246, 195, 67, 0.9));
+  animation: bzStarTw 2.2s ease-in-out infinite alternate;
+  animation-delay: var(--d);
+}
+@keyframes bzStarTw { from { transform: scale(0.8) rotate(0deg); opacity: 0.7; } to { transform: scale(1.15) rotate(18deg); opacity: 1; } }
+
+/* ---------- TERÇO ---------- */
+.bz-decor-terco { position: absolute; right: 56px; top: -4px; width: 104px; height: 180px; transform-origin: 50% 0; animation: bzSwingSoft 5s ease-in-out infinite alternate; }
+.bz-decor-terco svg { filter: drop-shadow(0 3px 3px rgba(30, 58, 110, 0.25)); }
+@keyframes bzSwingSoft { from { transform: rotate(-3deg); } to { transform: rotate(3deg); } }
+
+/* ---------- ESTRELA DE BELÉM ---------- */
+.bz-decor-estrela { position: absolute; right: 20px; top: 8px; width: 190px; height: 112px; }
+.bz-star-big { transform-origin: 172px 68px; animation: bzStar 2.6s ease-in-out infinite; filter: drop-shadow(0 0 8px rgba(246, 195, 67, 0.9)); }
+.bz-star-tail { animation: bzTwinkle 2.6s ease-in-out infinite alternate; }
+
+.bz-decor-corner.is-altar { width: 220px; height: 120px; }
+.bz-decor-corner.is-altar .bz-c-skull { right: 62px; width: 92px; animation: bzBob 3s ease-in-out infinite alternate; }
+.bz-decor-corner.is-altar .bz-c-candle.a { right: 160px; width: 22px; }
+.bz-decor-corner.is-altar .bz-c-candle.b { right: 30px; width: 18px; }
+.bz-decor-corner.is-altar .bz-c-mari { width: 34px; }
+.bz-decor-corner.is-altar .bz-c-mari.a { right: 136px; }
+.bz-decor-corner.is-altar .bz-c-mari.b { right: 4px; width: 30px; }
+.bz-decor-corner.is-altar .bz-c-mari.c { right: 178px; width: 26px; }
+
+.bz-decor-corner.is-velas { width: 200px; height: 110px; }
+.bz-decor-corner.is-velas .bz-c-candle { width: 20px; }
+.bz-decor-corner.is-velas .bz-c-candle.a { right: 120px; width: 18px; }
+.bz-decor-corner.is-velas .bz-c-candle.b { right: 84px; width: 24px; }
+.bz-decor-corner.is-velas .bz-c-candle.c { right: 54px; width: 16px; }
+.bz-decor-corner.is-velas .bz-c-flower { width: 34px; transform-origin: bottom center; animation: bzSway 4s ease-in-out infinite alternate; }
+.bz-decor-corner.is-velas .bz-c-flower.a { right: 150px; }
+.bz-decor-corner.is-velas .bz-c-flower.b { right: 16px; }
+.bz-decor-corner.is-velas .bz-c-flower.c { right: 172px; width: 28px; animation-delay: 1s; }
+
+.bz-decor-corner.is-fatima { width: 190px; height: 110px; }
+.bz-decor-corner.is-fatima .bz-c-rose { width: 34px; transform-origin: bottom center; animation: bzSway 4s ease-in-out infinite alternate; }
+.bz-decor-corner.is-fatima .bz-c-rose.a { right: 130px; }
+.bz-decor-corner.is-fatima .bz-c-rose.b { right: 66px; width: 38px; animation-delay: 0.8s; }
+.bz-decor-corner.is-fatima .bz-c-rose.c { right: 6px; width: 30px; animation-delay: 1.6s; }
+.bz-decor-corner.is-fatima .bz-c-candle.a { right: 104px; width: 20px; }
+.bz-decor-corner.is-fatima .bz-c-candle.b { right: 42px; width: 17px; }
+
+.bz-decor-corner.is-lirios { width: 170px; height: 110px; }
+.bz-decor-corner.is-lirios > span { width: 36px; right: calc(var(--k) * 38px + 6px); transform-origin: bottom center; animation: bzSway 3.6s ease-in-out infinite alternate; animation-delay: calc(var(--k) * 0.5s); }
+.bz-decor-corner.is-lirios > span:nth-child(even) { width: 30px; }
+
+.bz-decor-corner.is-reis { width: 200px; height: 90px; }
+.bz-decor-corner.is-reis .bz-c-bolo { right: 8px; width: 130px; }
+.bz-decor-corner.is-reis .bz-c-crown { width: 46px; animation: bzBob 2.6s ease-in-out infinite alternate; }
+.bz-decor-corner.is-reis .bz-c-crown.a { right: 138px; }
+.bz-decor-corner.is-reis .bz-c-crown.b { right: 52px; bottom: 54px; width: 38px; animation-delay: 0.9s; transform: rotate(-10deg); }
+
 @keyframes bzBob { from { transform: translateY(0); } to { transform: translateY(-5px); } }
 @keyframes bzSway { from { transform: rotate(-4deg); } to { transform: rotate(4deg); } }
 @keyframes bzDecorIn { from { opacity: 0; } to { opacity: 1; } }
@@ -190,6 +280,8 @@ body.bz-intro-active .bz-decor { opacity: 0; }
   .bz-decor-corner { transform: scale(0.65); transform-origin: bottom right; bottom: 64px; }
   .bz-decor-sun { transform: scale(0.7); transform-origin: top right; }
   .bz-decor-web { transform: scale(0.7); transform-origin: top right; }
+  .bz-decor-terco, .bz-decor-estrela { transform: scale(0.65); transform-origin: top right; animation: none; }
+  .bz-decor-glow { width: 420px; margin-left: -210px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .bz-decor * { animation: none !important; }
@@ -220,3 +312,18 @@ body.bz-intro-active .bz-decor { opacity: 0; }
 .bz-emb.is-confetti span { position: absolute; width: 8px; height: 8px; }
 .bz-emb.is-verao { justify-content: flex-end; align-items: flex-start; }
 .bz-emb.is-verao > svg { width: 50px; height: 50px; }
+.bz-emb.is-muertos > svg { width: 26px; height: 26px; align-self: center; }
+.bz-emb.is-muertos .bz-emb-skull { width: 44px; height: 50px; }
+.bz-emb.is-candles .bz-emb-candle { width: 14px; height: 52px; }
+.bz-emb.is-candles .bz-emb-candle.s { height: 40px; }
+.bz-emb.is-conceicao .bz-decor-stars12 { width: 110px; height: 34px; margin-left: -55px; top: 6px; }
+.bz-emb.is-conceicao .bz-decor-stars12 > span { width: 10px; height: 10px; margin: -5px 0 0 -5px; animation: none; }
+.bz-emb.is-conceicao .bz-emb-lily { width: 30px; height: 62px; }
+.bz-emb.is-reis { align-items: flex-end; }
+.bz-emb.is-reis .bz-emb-crown { width: 40px; height: 32px; align-self: center; }
+.bz-emb.is-reis .bz-emb-bolo { width: 80px; height: 44px; }
+.bz-emb.is-lunar { align-items: flex-start; }
+.bz-emb.is-lunar > svg { width: 24px; height: 38px; }
+.bz-emb.is-lunar .bz-emb-lantern { width: 32px; height: 50px; }
+.bz-decor-fieis .is-rise .bz-p { opacity: 0.9; }
+.bz-decor-top.is-lanterns .bz-hang > svg { filter: drop-shadow(0 0 5px rgba(251, 191, 36, 0.75)) drop-shadow(0 3px 3px rgba(0, 0, 0, 0.25)); }

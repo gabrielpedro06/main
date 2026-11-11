@@ -218,11 +218,246 @@ export function Gull() {
   return <svg viewBox="0 0 40 16" fill="none" stroke="#334155" strokeWidth="2.2" strokeLinecap="round"><path className="bz-gull" d="M2 10q9-9 18 0 9-9 18 0" /></svg>;
 }
 
+// ---------- NOVOS: Día de Muertos, Todos-os-Santos, Marianos, Reis, Ano Novo Chinês ----------
+const circ = (cx, cy, r) => `M${cx - r} ${cy}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0z`;
+const PAPEL_COLORS = ["#e11d48", "#f59e0b", "#7c3aed", "#10b981", "#ec4899", "#0ea5e9", "#f97316"];
+const MARIGOLD = ["#f59e0b", "#fb923c", "#f97316", "#fbbf24", "#ea580c"];
+const ROSE_PETALS = ["#ffffff", "#f8fafc", "#dbeafe", "#fef3c7", "#e0e7ff"];
+
+export function PapelPicado({ color = "#e11d48" }) {
+  const outer = "M0 0H36V36q-3 5-6 0q-3 5-6 0q-3 5-6 0q-3 5-6 0q-3 5-6 0q-3 5-6 0Z";
+  const holes = [
+    "M18 5l3.5 3.5L18 12l-3.5-3.5z",
+    circ(8, 9, 2), circ(28, 9, 2),
+    circ(18, 22, 4.2),
+    circ(10, 22, 1.6), circ(26, 22, 1.6), circ(18, 14.5, 1.4), circ(18, 29.5, 1.4),
+    "M5 31l2-3 2 3zM27 31l2-3 2 3z",
+  ].join("");
+  return (
+    <svg viewBox="0 0 36 42">
+      <path d={outer + holes} fill={color} fillRule="evenodd" />
+    </svg>
+  );
+}
+
+export function Cempasuchil() {
+  return (
+    <svg viewBox="0 0 40 40">
+      {Array.from({ length: 12 }).map((_, k) => <ellipse key={`a${k}`} cx="20" cy="9" rx="5" ry="8.5" fill="#f59e0b" transform={`rotate(${k * 30} 20 20)`} />)}
+      {Array.from({ length: 10 }).map((_, k) => <ellipse key={`b${k}`} cx="20" cy="12" rx="4" ry="6.5" fill="#fb923c" transform={`rotate(${k * 36 + 18} 20 20)`} />)}
+      {Array.from({ length: 8 }).map((_, k) => <ellipse key={`c${k}`} cx="20" cy="14.5" rx="3" ry="4.5" fill="#fbbf24" transform={`rotate(${k * 45} 20 20)`} />)}
+      <circle cx="20" cy="20" r="3.5" fill="#c2410c" />
+    </svg>
+  );
+}
+export function MarigoldPetal({ i = 0 }) {
+  return <svg viewBox="0 0 20 20"><path d="M10 2c4 2 6 7 3 12-1 2-5 2-6 0C4 9 6 4 10 2z" fill={pick(MARIGOLD, i)} /></svg>;
+}
+
+export function Calavera() {
+  const eye = (cx, c) => (
+    <g key={cx}>
+      {Array.from({ length: 8 }).map((_, k) => <ellipse key={k} cx={cx} cy="33" rx="2.6" ry="4" fill={c} transform={`rotate(${k * 45} ${cx} 40)`} />)}
+      <circle cx={cx} cy="40" r="7" fill="#2a1b3d" />
+      <circle cx={cx + 2} cy="38" r="1.8" fill="#fff" />
+    </g>
+  );
+  return (
+    <svg viewBox="0 0 80 92">
+      <path d="M40 4C18 4 6 20 6 40c0 12 6 20 14 24v13c0 4 3 7 7 7h26c4 0 7-3 7-7V64c8-4 14-12 14-24C74 20 62 4 40 4z" fill="#fdf8f0" stroke="#e6d6bd" strokeWidth="1.5" />
+      {[0, 60, 120, 180, 240, 300].map((a) => <ellipse key={a} cx="40" cy="12" rx="3" ry="5" fill="#ec4899" transform={`rotate(${a} 40 17)`} />)}
+      <circle cx="40" cy="17" r="2.6" fill="#facc15" />
+      <path d="M22 24q-6 2-7 8M58 24q6 2 7 8" stroke="#10b981" strokeWidth="2" fill="none" strokeLinecap="round" />
+      {eye(27, "#0ea5e9")}
+      {eye(53, "#f59e0b")}
+      <path d="M40 52c-3-4-7-1-5 2l5 5 5-5c2-3-2-6-5-2z" fill="#7c3aed" />
+      <circle cx="16" cy="54" r="2" fill="#f43f5e" /><circle cx="64" cy="54" r="2" fill="#f43f5e" />
+      <path d="M26 68h28" stroke="#2a1b3d" strokeWidth="2" strokeLinecap="round" />
+      {[30, 35, 40, 45, 50].map((x) => <path key={x} d={`M${x} 64v8`} stroke="#2a1b3d" strokeWidth="1.6" strokeLinecap="round" />)}
+    </svg>
+  );
+}
+
+export function Candle({ color = "#fdf6e3" }) {
+  return (
+    <svg viewBox="0 0 24 90">
+      <circle className="bz-flame-glow" cx="12" cy="12" r="11" fill="#fde68a" opacity="0.45" />
+      <g className="bz-flame">
+        <path d="M12 1c4 6 6 9 6 13a6 6 0 0 1-12 0c0-4 2-7 6-13z" fill="#f59e0b" />
+        <path d="M12 7c2 3 3 5 3 7a3 3 0 0 1-6 0c0-2 1-4 3-7z" fill="#fef3c7" />
+      </g>
+      <path d="M12 20v5" stroke="#3f2d1a" strokeWidth="1.5" />
+      <rect x="4" y="24" width="16" height="66" rx="2.5" fill={color} />
+      <path d="M4 27c3 0 3 7 5.5 7S11 27 14 27s3 4 6 4v-4H4z" fill="#fff" opacity="0.7" />
+      <rect x="4" y="24" width="4" height="66" fill="#000" opacity="0.05" />
+    </svg>
+  );
+}
+
+export function Crisantemo({ color = "#fde68a", center = "#d97706" }) {
+  return (
+    <svg viewBox="0 0 40 80">
+      <path d="M20 32v46" stroke="#3f7a3a" strokeWidth="3" />
+      <path d="M20 62c-8-2-12-8-12-12 6 0 11 5 12 12zM20 54c8-2 12-8 12-12-6 0-11 5-12 12z" fill="#4d8f45" />
+      {Array.from({ length: 18 }).map((_, k) => <ellipse key={k} cx="20" cy="8" rx="2.2" ry="9" fill={color} stroke="rgba(0,0,0,.08)" strokeWidth="0.5" transform={`rotate(${k * 20} 20 18)`} />)}
+      {Array.from({ length: 12 }).map((_, k) => <ellipse key={`i${k}`} cx="20" cy="12" rx="1.8" ry="5.5" fill={color} stroke="rgba(0,0,0,.1)" strokeWidth="0.5" transform={`rotate(${k * 30 + 10} 20 18)`} />)}
+      <circle cx="20" cy="18" r="3" fill={center} />
+    </svg>
+  );
+}
+
+export function Rose({ color = "#ffffff", line = "#cbd5e1" }) {
+  return (
+    <svg viewBox="0 0 40 80">
+      <path d="M20 28v50" stroke="#2f6b3a" strokeWidth="3" />
+      <path d="M20 58c-9-1-13-7-13-11 7 0 12 5 13 11zM20 48c9-1 13-7 13-11-7 0-12 5-13 11z" fill="#3f8a4c" />
+      <path d="M8 18c0-8 6-13 12-13s12 5 12 13c0 6-5 11-12 11S8 24 8 18z" fill={color} stroke={line} strokeWidth="1.2" />
+      <path d="M11 17c2-5 6-7 9-7s7 2 9 7" fill="none" stroke={line} strokeWidth="1.2" />
+      <path d="M15 18c0-3 2.5-5 5-5s5 2 5 4.5-2.5 3.5-5 3.5c-2 0-3-1.2-3-2.6 0-1.3 1-2.2 2.3-2.2" fill="none" stroke={line} strokeWidth="1.2" />
+      <path d="M8 18c3 4 7 6 12 6s9-2 12-6" fill="none" stroke={line} strokeWidth="1" />
+    </svg>
+  );
+}
+
+export function Lily() {
+  return (
+    <svg viewBox="0 0 40 90">
+      <path d="M20 30v58" stroke="#3f7a3a" strokeWidth="2.6" />
+      <path d="M20 70C10 66 6 56 7 46c6 6 11 13 13 24zM20 60c9-3 13-11 13-19-6 4-11 10-13 19z" fill="#4d8f45" />
+      <path d="M20 32C10 28 3 17 5 8c7 5 11 11 15 24z" fill="#fff" stroke="#d6d3d1" strokeWidth="1" />
+      <path d="M20 32C30 28 37 17 35 8c-7 5-11 11-15 24z" fill="#fff" stroke="#d6d3d1" strokeWidth="1" />
+      <path d="M20 32C15 22 15 10 20 1c5 9 5 21 0 31z" fill="#fff" stroke="#d6d3d1" strokeWidth="1" />
+      <g stroke="#b45309" strokeWidth="1" strokeLinecap="round"><path d="M20 30L15 17M20 30L20 14M20 30l5-13" /></g>
+      <circle cx="15" cy="17" r="1.6" fill="#d97706" /><circle cx="20" cy="14" r="1.6" fill="#d97706" /><circle cx="25" cy="17" r="1.6" fill="#d97706" />
+    </svg>
+  );
+}
+
+export function Star({ i = 0 }) {
+  return <svg viewBox="0 0 24 24"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z" fill={pick(["#f6c343", "#fcd34d", "#eab308"], i)} /></svg>;
+}
+export function Sparkle({ i = 0 }) {
+  return <svg viewBox="0 0 24 24"><path d="M12 0C13 8 16 11 24 12 16 13 13 16 12 24 11 16 8 13 0 12 8 11 11 8 12 0z" fill={pick(GOLD, i)} /></svg>;
+}
+export function RosePetal({ i = 0 }) {
+  return <svg viewBox="0 0 20 20"><path d="M10 1c5 4 6 12 0 18C4 13 5 5 10 1z" fill={pick(ROSE_PETALS, i)} stroke="#b8c4d9" strokeWidth="0.7" /></svg>;
+}
+export function GlowOrb() {
+  return (
+    <svg viewBox="0 0 20 20">
+      <circle cx="10" cy="10" r="9.5" fill="#f59e0b" opacity="0.18" />
+      <circle cx="10" cy="10" r="6" fill="#f59e0b" opacity="0.35" />
+      <circle cx="10" cy="10" r="3.2" fill="#fbbf24" />
+      <circle cx="10" cy="10" r="1.6" fill="#fffbeb" />
+    </svg>
+  );
+}
+export function Coin() {
+  return (
+    <svg viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="10.5" fill="#f2b705" stroke="#b7860b" strokeWidth="1.5" />
+      <circle cx="12" cy="12" r="7" fill="none" stroke="#fde68a" strokeWidth="1" />
+      <rect x="9" y="9" width="6" height="6" fill="#b7860b" />
+    </svg>
+  );
+}
+
+export function Lantern() {
+  return (
+    <svg viewBox="0 0 40 62">
+      <rect x="13" y="2" width="14" height="5" rx="1.5" fill="#d4a017" />
+      <ellipse cx="20" cy="27" rx="17" ry="19" fill="#dc2626" />
+      <ellipse cx="20" cy="27" rx="11" ry="19" fill="none" stroke="#991b1b" strokeWidth="1.2" />
+      <ellipse cx="20" cy="27" rx="4" ry="19" fill="none" stroke="#991b1b" strokeWidth="1.2" />
+      <ellipse className="bz-lantern-glow" cx="20" cy="27" rx="9" ry="12" fill="#fca5a5" opacity="0.45" />
+      <rect x="13" y="44" width="14" height="5" rx="1.5" fill="#d4a017" />
+      <g stroke="#f59e0b" strokeWidth="1.4" strokeLinecap="round"><path d="M17 50v11M20 50v12M23 50v11" /></g>
+    </svg>
+  );
+}
+
+export function Crown() {
+  return (
+    <svg viewBox="0 0 60 46">
+      <path d="M5 38L3 11l14 12L30 4l13 19 14-12-2 27z" fill="#f2c94c" stroke="#c99a1b" strokeWidth="2" strokeLinejoin="round" />
+      <rect x="4" y="35" width="52" height="9" rx="2.5" fill="#e0b13a" stroke="#c99a1b" strokeWidth="1.5" />
+      <circle cx="30" cy="22" r="4" fill="#dc2626" /><circle cx="17" cy="28" r="3" fill="#2563eb" /><circle cx="43" cy="28" r="3" fill="#16a34a" />
+      <circle cx="3" cy="11" r="2.6" fill="#f2c94c" /><circle cx="30" cy="4" r="2.8" fill="#f2c94c" /><circle cx="57" cy="11" r="2.6" fill="#f2c94c" />
+      {[12, 22, 38, 48].map((x) => <circle key={x} cx={x} cy="39.5" r="1.6" fill="#fff7d6" />)}
+    </svg>
+  );
+}
+
+export function BoloRei() {
+  const fruits = [[22, 26, "#dc2626"], [36, 18, "#16a34a"], [56, 15, "#f97316"], [76, 17, "#dc2626"], [94, 24, "#16a34a"], [100, 34, "#facc15"], [84, 41, "#f97316"], [60, 45, "#dc2626"], [36, 42, "#facc15"], [18, 36, "#16a34a"]];
+  return (
+    <svg viewBox="0 0 120 64">
+      <ellipse cx="60" cy="56" rx="54" ry="6" fill="#000" opacity="0.08" />
+      <ellipse cx="60" cy="38" rx="55" ry="20" fill="#b9732f" />
+      <ellipse cx="60" cy="31" rx="54" ry="19" fill="#e0a458" />
+      <ellipse cx="60" cy="31" rx="18" ry="6" fill="#8a4e1c" />
+      {fruits.map(([x, y, c], k) => <rect key={k} x={x - 3.5} y={y - 2.5} width="7" height="5" rx="1.5" fill={c} transform={`rotate(${k * 37} ${x} ${y})`} />)}
+      {Array.from({ length: 18 }).map((_, k) => <circle key={`s${k}`} cx={14 + rnd(k, 3) * 92} cy={18 + rnd(k, 7) * 26} r="1.1" fill="#fff" opacity="0.9" />)}
+    </svg>
+  );
+}
+
+function ShootingStar() {
+  return (
+    <svg viewBox="0 0 220 130">
+      <defs>
+        <linearGradient id="bzStarTail" x1="0" y1="0" x2="1" y2="0.55">
+          <stop offset="0" stopColor="#f6d365" stopOpacity="0" />
+          <stop offset="1" stopColor="#f6d365" stopOpacity="0.85" />
+        </linearGradient>
+      </defs>
+      <path className="bz-star-tail" d="M6 8L170 62l-6 10z" fill="url(#bzStarTail)" />
+      <g className="bz-star-big">
+        <circle cx="172" cy="68" r="22" fill="#fde68a" opacity="0.3" />
+        <path d="M172 34C174 58 178 64 206 68 178 72 174 78 172 102 170 78 166 72 138 68 166 64 170 58 172 34z" fill="#f6c343" />
+        <path d="M172 52C173 64 175 66 188 68 175 70 173 72 172 84 171 72 169 70 156 68 169 66 171 64 172 52z" fill="#fffbeb" />
+      </g>
+    </svg>
+  );
+}
+
+function Terco() {
+  const quad = (p0, p1, p2, t) => [(1 - t) ** 2 * p0[0] + 2 * t * (1 - t) * p1[0] + t * t * p2[0], (1 - t) ** 2 * p0[1] + 2 * t * (1 - t) * p1[1] + t * t * p2[1]];
+  const beads = [];
+  [[[12, 0], [6, 110], [55, 128]], [[98, 0], [104, 110], [55, 128]]].forEach(([a, b, c], side) => {
+    for (let k = 0; k < 15; k += 1) {
+      const [x, y] = quad(a, b, c, k / 15);
+      beads.push(<circle key={`${side}-${k}`} cx={x} cy={y} r={k % 11 === 0 ? 3.4 : 2.4} fill={k % 11 === 0 ? "#2f5fa8" : "#eef2fb"} stroke="#5b6f99" strokeWidth="1.1" />);
+    }
+  });
+  return (
+    <svg viewBox="0 0 110 190">
+      {beads}
+      <path d="M55 124c-6 0-8 5-8 9 0 5 4 8 8 8s8-3 8-8c0-4-2-9-8-9z" fill="#d4af37" stroke="#a8831c" strokeWidth="1" />
+      {[148, 155, 162].map((y, k) => <circle key={y} cx="55" cy={y} r={k === 0 ? 3.2 : 2.4} fill={k === 0 ? "#2f5fa8" : "#eef2fb"} stroke="#5b6f99" strokeWidth="1.1" />)}
+      <path d="M52.5 166h5v6h6v5h-6v12h-5v-12h-6v-5h6z" fill="#d4af37" stroke="#a8831c" strokeWidth="0.8" />
+    </svg>
+  );
+}
+
+function Stars12() {
+  return (
+    <div className="bz-decor-stars12">
+      {Array.from({ length: 12 }).map((_, k) => {
+        const a = Math.PI * (k / 11);
+        return <span key={k} style={{ left: `${50 + 46 * Math.cos(a)}%`, top: `${8 + 70 * Math.sin(a)}%`, "--d": `${(k % 4) * 0.5}s` }}><Star i={k} /></span>;
+      })}
+    </div>
+  );
+}
+
 // ---------- CONFIGURAÇÃO POR DECORAÇÃO ----------
 const SHAPES = {
   snow: Snow, flake: Flake, confetti: Confetti, gold: (p) => <Confetti {...p} palette={GOLD} />,
   leaf: Leaf, chestnut: Chestnut, bat: Bat, heart: Heart, petal: Petal,
   blossom: Blossom, gull: Gull,
+  marigold: Cempasuchil, mpetal: MarigoldPetal, rpetal: RosePetal, star: Star, sparkle: Sparkle, glow: GlowOrb, coin: Coin,
+  redconfetti: (p) => <Confetti {...p} palette={["#dc2626", "#f59e0b", "#facc15", "#b91c1c"]} />,
 };
 
 const DECOR = {
@@ -238,6 +473,12 @@ const DECOR = {
   primavera: { particles: { shapes: ["petal", "blossom", "petal"], count: 18, motion: "spin", size: [10, 18] }, corner: "flowers" },
   santos: { particles: null, top: "bunting", corner: "santos" },
   verao: { particles: { shapes: ["gull"], count: 4, motion: "fly", size: [22, 32] }, topRight: "sun", bottom: "waves" },
+  muertos: { particles: { shapes: ["marigold", "mpetal", "mpetal"], count: 18, motion: "spin", size: [10, 18] }, top: "papel", corner: "altar" },
+  fieis: { particles: { shapes: ["glow"], count: 16, motion: "rise", size: [16, 28] }, corner: "velas" },
+  fatima: { particles: { shapes: ["rpetal", "rpetal", "star"], count: 16, motion: "spin", size: [9, 16] }, glow: true, topRight: "terco", corner: "fatima" },
+  conceicao: { particles: { shapes: ["rpetal", "star"], count: 14, motion: "fall", size: [8, 14] }, glow: true, top: "stars12", corner: "lirios" },
+  reis: { particles: { shapes: ["sparkle", "gold"], count: 22, motion: "spin", size: [7, 13] }, topRight: "estrela", corner: "reis" },
+  lunar: { particles: { shapes: ["coin", "redconfetti"], count: 18, motion: "spin", size: [9, 15] }, top: "lanterns" },
 };
 
 // Grinalda / bandeirinhas: arcos ao longo do topo
@@ -272,10 +513,36 @@ function TopString({ kind }) {
       }
     }
   }
+  if (kind === "papel") {
+    for (let i = 0; i < ARCS; i += 1) {
+      for (let k = 1; k < 7; k += 1) {
+        const t = k / 7; const idx = i * 7 + k;
+        items.push(
+          <span key={idx} className="bz-papel" style={{ left: `${((i + t) / ARCS) * 100}%`, top: `${arcY(t) - 1}px`, "--sw": `${2 + rnd(idx) * 2}s` }}>
+            <PapelPicado color={pick(PAPEL_COLORS, idx)} />
+          </span>
+        );
+      }
+    }
+  }
+  if (kind === "lanterns") {
+    for (let i = 0; i < ARCS; i += 1) {
+      [0.5, 0.18, 0.82].forEach((t, k) => {
+        if (k > 0 && window.innerWidth < 900) return;
+        const idx = i * 3 + k;
+        items.push(
+          <span key={idx} className="bz-hang" style={{ left: `${((i + t) / ARCS) * 100}%`, top: `${arcY(t) - 2}px`, "--len": `${k === 0 ? 16 : 6}px`, "--sw": `${3 + rnd(idx) * 3}s`, "--w": `${k === 0 ? 34 : 24}px` }}>
+            <i /><Lantern />
+          </span>
+        );
+      });
+    }
+  }
+  const stringColor = kind === "baubles" ? "#2f6b3a" : kind === "lanterns" ? "#b45309" : "#7c5c3b";
   return (
     <div className={`bz-decor-top is-${kind}`}>
       <svg className="bz-decor-string" viewBox="0 0 1000 44" preserveAspectRatio="none" aria-hidden="true">
-        <path d={path} fill="none" stroke={kind === "baubles" ? "#2f6b3a" : "#7c5c3b"} strokeWidth={kind === "baubles" ? 3.2 : 1.6} vectorEffect="non-scaling-stroke" />
+        <path d={path} fill="none" stroke={stringColor} strokeWidth={kind === "baubles" ? 3.2 : 1.6} vectorEffect="non-scaling-stroke" />
         {kind === "baubles" && <path d={path} fill="none" stroke="#f2b134" strokeWidth="1.2" strokeDasharray="2 10" vectorEffect="non-scaling-stroke" />}
       </svg>
       {items}
@@ -339,6 +606,47 @@ function Corner({ kind }) {
   if (kind === "santos") return (
     <div className="bz-decor-corner is-santos"><span className="bz-c-manj"><Manjerico /></span><span className="bz-c-sard"><Sardine /></span></div>
   );
+  if (kind === "altar") return (
+    <div className="bz-decor-corner is-altar">
+      <span className="bz-c-candle a"><Candle color="#fde7d4" /></span>
+      <span className="bz-c-skull"><Calavera /></span>
+      <span className="bz-c-candle b"><Candle color="#f3e3ff" /></span>
+      <span className="bz-c-mari a"><Cempasuchil /></span>
+      <span className="bz-c-mari b"><Cempasuchil /></span>
+      <span className="bz-c-mari c"><Cempasuchil /></span>
+    </div>
+  );
+  if (kind === "velas") return (
+    <div className="bz-decor-corner is-velas">
+      <span className="bz-c-flower a"><Crisantemo color="#fde68a" /></span>
+      <span className="bz-c-candle a"><Candle /></span>
+      <span className="bz-c-candle b"><Candle color="#fff" /></span>
+      <span className="bz-c-candle c"><Candle color="#f5f0e6" /></span>
+      <span className="bz-c-flower b"><Crisantemo color="#e9d5ff" center="#7c3aed" /></span>
+      <span className="bz-c-flower c"><Crisantemo color="#fff" center="#ca8a04" /></span>
+    </div>
+  );
+  if (kind === "fatima") return (
+    <div className="bz-decor-corner is-fatima">
+      <span className="bz-c-rose a"><Rose /></span>
+      <span className="bz-c-candle a"><Candle color="#fff" /></span>
+      <span className="bz-c-rose b"><Rose color="#fff7ed" line="#e7c9a9" /></span>
+      <span className="bz-c-candle b"><Candle color="#fff" /></span>
+      <span className="bz-c-rose c"><Rose /></span>
+    </div>
+  );
+  if (kind === "lirios") return (
+    <div className="bz-decor-corner is-lirios">
+      {[0, 1, 2, 3].map((k) => <span key={k} style={{ "--k": k }}><Lily /></span>)}
+    </div>
+  );
+  if (kind === "reis") return (
+    <div className="bz-decor-corner is-reis">
+      <span className="bz-c-bolo"><BoloRei /></span>
+      <span className="bz-c-crown a"><Crown /></span>
+      <span className="bz-c-crown b"><Crown /></span>
+    </div>
+  );
   return null;
 }
 
@@ -385,7 +693,11 @@ export default function ThemeDecor() {
   return (
     <div className={`bz-decor bz-decor-${decor}`} aria-hidden="true">
       {cfg.particles && <Particles cfg={cfg.particles} />}
-      {(cfg.top === "baubles" || cfg.top === "bunting") && <TopString kind={cfg.top} />}
+      {cfg.glow && <div className="bz-decor-glow" />}
+      {["baubles", "bunting", "papel", "lanterns"].includes(cfg.top) && <TopString kind={cfg.top} />}
+      {cfg.top === "stars12" && <Stars12 />}
+      {cfg.topRight === "terco" && <div className="bz-decor-terco"><Terco /></div>}
+      {cfg.topRight === "estrela" && <div className="bz-decor-estrela"><ShootingStar /></div>}
       {cfg.top === "fireworks" && <Fireworks />}
       {cfg.top === "serpentinas" && <Serpentinas />}
       {cfg.topRight === "web" && <div className="bz-decor-web"><Web /><span className="bz-spider"><i /><Spider /></span></div>}
@@ -417,6 +729,12 @@ export function DecorEmblem({ decor }) {
     case "primavera": return <div className="bz-emb is-row"><Blossom i={0} /><Blossom i={2} /><Blossom i={4} /></div>;
     case "santos": return <div className="bz-emb is-row is-tall"><Manjerico /><span className="bz-emb-sard"><Sardine /></span></div>;
     case "verao": return <div className="bz-emb is-verao"><Sun /></div>;
+    case "muertos": return <div className="bz-emb is-row is-muertos"><Cempasuchil /><span className="bz-emb-skull"><Calavera /></span><Cempasuchil /></div>;
+    case "fieis": return <div className="bz-emb is-row is-tall is-candles"><Crisantemo color="#e9d5ff" center="#7c3aed" /><span className="bz-emb-candle"><Candle /></span><span className="bz-emb-candle s"><Candle color="#fff" /></span><Crisantemo /></div>;
+    case "fatima": return <div className="bz-emb is-row is-tall is-candles"><Rose /><span className="bz-emb-candle"><Candle color="#fff" /></span><Rose color="#fff7ed" line="#e7c9a9" /></div>;
+    case "conceicao": return <div className="bz-emb is-conceicao"><Stars12 /><span className="bz-emb-lily"><Lily /></span></div>;
+    case "reis": return <div className="bz-emb is-row is-reis"><span className="bz-emb-crown"><Crown /></span><span className="bz-emb-bolo"><BoloRei /></span></div>;
+    case "lunar": return <div className="bz-emb is-row is-tall is-lunar"><Lantern /><span className="bz-emb-lantern"><Lantern /></span><Lantern /></div>;
     default: return null;
   }
 }
