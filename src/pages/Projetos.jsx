@@ -1795,6 +1795,19 @@ export default function Projetos() {
       </button>
   );
 
+  const pedidosInvPorProjeto = pedidosReembolso.reduce((acc, request) => {
+      const key = String(request.projeto_id);
+      acc[key] = (acc[key] || 0) + (Number(request.valor_investimento) || 0);
+      return acc;
+  }, {});
+  const getCardExecution = (p) => {
+      const investimento = Number(p.investimento || 0);
+      if (!(investimento > 0)) return null;
+      const pedido = pedidosInvPorProjeto[String(p.id)] || 0;
+      return { pct: (pedido / investimento) * 100, pedido, investimento };
+  };
+  const formatEurCompact = (value) => new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(value || 0);
+
   const renderProjectCard = (p, index = 0) => {
       const isCompleted = p.estado === 'encerrado' || p.estado === 'cancelado';
       const isTimerActive = activeLog?.projeto_id === p.id;
@@ -1824,6 +1837,21 @@ export default function Projetos() {
               <div className={`po-card-client ${clientInfo.isParceria ? 'is-partner' : ''}`} title={clientInfo.text}>
                   {clientIcon}<span>{clientInfo.text || 'Sem entidade'}</span>
               </div>
+
+              {(() => {
+                  const exec = getCardExecution(p);
+                  if (!exec) return null;
+                  const tone = exec.pct >= 100 ? 'is-full' : exec.pct >= 50 ? 'is-mid' : exec.pct > 0 ? 'is-low' : 'is-zero';
+                  return (
+                      <div className={`po-card-exec ${tone}`} title={`Taxa de execução: ${formatEurCompact(exec.pedido)} pedidos de ${formatEurCompact(exec.investimento)} de investimento`}>
+                          <div className="po-card-exec-head">
+                              <span>Taxa de execução</span>
+                              <strong>{exec.pct.toFixed(1)}%</strong>
+                          </div>
+                          <span className="po-card-exec-bar"><i style={{ width: `${Math.min(100, exec.pct)}%` }} /></span>
+                      </div>
+                  );
+              })()}
 
               <div className="po-card-foot">
                   <span className="po-person" title={responsavel ? `Responsável: ${responsavel}` : 'Sem responsável'}>

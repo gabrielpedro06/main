@@ -656,3 +656,15 @@ th.is-num .po-vg-sort { justify-content: flex-end; }
   .po-vg-field select { max-width: none; width: 100%; }
   .po-vg-pager { margin-left: 0; width: 100%; justify-content: space-between; }
 }
+
+/* Taxa de execução no cartão */
+.po-card-exec { display: flex; flex-direction: column; gap: 5px; padding: 8px 10px; border-radius: 12px; background: #f8fafc; border: 1px solid #eef2f6; --x: #94a3b8; }
+.po-card-exec.is-low { --x: #f59e0b; }
+.po-card-exec.is-mid { --x: #0ea5e9; }
+.po-card-exec.is-full { --x: #10b981; }
+.po-card-exec-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.po-card-exec-head span { font-size: 0.66rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--po-faint); }
+.po-card-exec-head strong { font-size: 0.86rem; font-weight: 900; color: color-mix(in srgb, var(--x) 80%, #0f172a); font-variant-numeric: tabular-nums; }
+.po-card-exec-bar { display: block; height: 6px; border-radius: 99px; background: color-mix(in srgb, var(--x) 14%, #eef2f6); overflow: hidden; }
+.po-card-exec-bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, color-mix(in srgb, var(--x) 70%, #fff), var(--x)); transition: width 0.6s var(--po-ease); }
+.po-card.is-closed .po-card-exec { opacity: 0.7; }
