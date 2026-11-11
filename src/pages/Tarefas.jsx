@@ -1426,7 +1426,9 @@ export default function Tarefas() {
   };
 
   const getKanbanColumns = () => {
-      const columns = viewMode === "estados" ? kanbanStateColumns : kanbanDeadlineColumns;
+      const allColumns = viewMode === "estados" ? kanbanStateColumns : kanbanDeadlineColumns;
+      // Colunas de fechadas só fazem sentido com "Concluídas" ligado (senão estão sempre vazias)
+      const columns = mostrarConcluidos ? allColumns : allColumns.filter((c) => !["completed", "concluido", "cancelado"].includes(c.id));
       const items = getKanbanItems();
       return columns.map((column) => ({
           ...column,
@@ -1468,7 +1470,7 @@ export default function Tarefas() {
                   {renderCheck(tabela, item, { taskIdParaTimer: isTaskCard ? item.id : null, noun: isTaskCard ? "tarefa" : "atividade" })}
                   <div className="tk-kcard-main">
                       <button type="button" onClick={() => handleEdit(item, isTaskCard ? "tarefa" : "atividade")} className="tk-kcard-title">
-                          <span className="tk-strike">{item.titulo}</span>
+                          <span className="tk-strike" title={item.titulo}>{item.titulo}</span>
                       </button>
                       <button
                           type="button"
@@ -1927,7 +1929,7 @@ export default function Tarefas() {
         {viewMode !== 'projetos' ? (
             <div className="tk-board">
                 {getKanbanColumns().map((column) => (
-                    <section className="tk-col" key={column.id} style={{ '--c': column.color }}>
+                    <section className={`tk-col ${column.items.length === 0 ? 'is-empty' : ''}`} key={column.id} style={{ '--c': column.color, flexGrow: column.items.length ? Math.sqrt(column.items.length) : 0 }}>
                         <header className="tk-col-head">
                             <span className="tk-col-dot" />
                             <strong>{column.title}</strong>

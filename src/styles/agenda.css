@@ -1697,3 +1697,6 @@
   .ag-burst i, .ag-card.is-completing::after, .ag-card.is-completing .ag-card-title-text, .ag-card.is-leaving { animation: none !important; }
   .ag-burst, .ag-check.is-burst::after { display: none; }
 }
+
+/* Os cartões nunca encolhem dentro da coluna (a coluna faz scroll) */
+.ag-card { flex-shrink: 0; }

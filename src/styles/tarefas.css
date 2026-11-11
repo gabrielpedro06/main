@@ -432,8 +432,9 @@
 /* =========================================================================
    KANBAN
    ========================================================================= */
-.tk-board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(260px, 1fr); gap: 14px; overflow-x: auto; padding-bottom: 12px; align-items: start; }
+.tk-board { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 12px; align-items: flex-start; }
 .tk-col {
+  flex: 1 1 280px; min-width: 260px;
   display: flex; flex-direction: column;
   max-height: calc(100vh - 230px); min-height: 200px;
   border-radius: 20px;
@@ -446,7 +447,9 @@
 .tk-col-head strong { flex: 1; font-size: 0.86rem; font-weight: 900; color: var(--tk-ink); }
 .tk-col-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 4px color-mix(in srgb, var(--c) 18%, transparent); }
 .tk-col-count { min-width: 24px; height: 22px; padding: 0 7px; display: grid; place-items: center; border-radius: 99px; background: #fff; color: var(--c); font-size: 0.72rem; font-weight: 900; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 25%, transparent); }
-.tk-col-body { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 2px 10px 12px; }
+/* Colunas largas arrumam os cartões em várias sub-colunas (mosaico) */
+.tk-col-body { flex: 1; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(250px, 100%), 1fr)); grid-auto-rows: max-content; align-content: start; gap: 8px; padding: 2px 10px 12px; }
+.tk-col-body > .tk-col-empty { grid-column: 1 / -1; }
 .tk-col-empty { margin: 4px 0; padding: 28px 8px; border-radius: 14px; border: 1.5px dashed color-mix(in srgb, var(--c) 22%, #d5dde8); text-align: center; font-size: 0.8rem; color: var(--tk-faint); }
 
 .tk-kcard {
@@ -761,7 +764,6 @@
   .tk-glass-btn span { display: none; }
   .tk-toolbar { position: static; }
   .tk-grid { grid-template-columns: 1fr; }
-  .tk-board { grid-auto-columns: 82%; }
   .tk-row-2, .tk-row-2.is-wide-first, .tk-people { grid-template-columns: 1fr; }
   .tk-states { grid-template-columns: repeat(2, 1fr); }
   .tk-overlay { padding: 0; align-items: flex-end; }
@@ -775,3 +777,15 @@
   .tk-burst, .tk-check.is-burst::after { display: none; }
 }
 .tk-ativ.is-celebrating { overflow: visible; }
+
+/* Kanban: os cartões nunca encolhem (a coluna faz scroll); títulos longos ficam em 3 linhas */
+.tk-kcard { flex-shrink: 0; }
+.tk-kcard-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.tk-col.is-empty { flex: 0 0 170px; min-width: 170px; min-height: 0; }
+.tk-col.is-empty .tk-col-empty { padding: 18px 8px; }
+@media (max-width: 640px) { .tk-col, .tk-col.is-empty { flex: 0 0 82%; min-width: 0; } }
