@@ -10,7 +10,9 @@ import { hasAttendanceStartedToday, startAttendanceNow } from "../utils/attendan
 import { resolveActiveTimerMeta } from "../utils/activeTimerResolver";
 import { buildDependencyMaps, getActivityBlockReason, getTaskBlockReason } from "../utils/dependencyGuards";
 import { applyStopStatusUpdateForLogTarget } from "../utils/taskTimerLifecycle";
+import FancySelect from "../components/FancySelect";
 import "./../styles/dashboard.css";
+import "../styles/tarefas.css";
 
 const ModalPortal = ({ children }) => {
   return createPortal(children, document.body);
@@ -89,6 +91,9 @@ const Icons = {
   AlertTriangle: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>,
   Flame: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"></path></svg>,
   UploadCloud: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 16 12 12 8 16"></polyline><line x1="12" y1="12" x2="12" y2="21"></line><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"></path><polyline points="16 16 12 12 8 16"></polyline></svg>,
+  ExternalLink: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>,
+  ChevronDown: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>,
+  Kanban: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line></svg>,
   Copy: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
 };
 
@@ -150,7 +155,7 @@ export default function Tarefas() {
   const [isUploading, setIsUploading] = useState(false);
     const [isDeliverableDragOver, setIsDeliverableDragOver] = useState(false);
   const [searchAtivText, setSearchAtivText] = useState("");
-  const [showAtivDropdown, setShowAtivDropdown] = useState(false);
+  const [celebrating, setCelebrating] = useState(() => new Set());
 
   const initialForm = {
     titulo: "", descricao: "", atividade_id: "", responsavel_id: "",
@@ -808,31 +813,95 @@ export default function Tarefas() {
       showToast("Registo de tempo apagado.");
   };
 
-  const renderDeadline = (dateString, isCompleted, isLarge = false) => {
+  const getDeadlineTone = (dateString, isCompleted) => {
       if (!dateString) return null;
       const deadline = new Date(dateString); deadline.setHours(0,0,0,0);
       const today = new Date(); today.setHours(0,0,0,0);
       const diffDays = Math.round((deadline.getTime() - today.getTime()) / (1000 * 3600 * 24));
-      const dateFormatted = deadline.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
-      
-      let bg = '#f1f5f9', color = '#64748b', text = `📅 ${dateFormatted}`;
-      if (isCompleted) { bg = 'transparent'; color = '#94a3b8'; text = `✔️ ${dateFormatted}`; } 
-      else if (diffDays < 0) { bg = '#fee2e2'; color = '#ef4444'; text = `🔴 ${dateFormatted}`; } 
-      else if (diffDays === 0) { bg = '#fefce8'; color = '#ca8a04'; text = `⚠️ HOJE`; } 
-      else if (diffDays <= 3) { bg = '#ffedd5'; color = '#ea580c'; text = `⏳ ${dateFormatted}`; } 
+      if (isCompleted) return { tone: 'done', diffDays, deadline };
+      if (diffDays < 0) return { tone: 'late', diffDays, deadline };
+      if (diffDays === 0) return { tone: 'today', diffDays, deadline };
+      if (diffDays <= 3) return { tone: 'soon', diffDays, deadline };
+      return { tone: 'normal', diffDays, deadline };
+  };
 
+  const renderDeadline = (dateString, isCompleted) => {
+      const info = getDeadlineTone(dateString, isCompleted);
+      if (!info) return null;
+      const { tone, diffDays, deadline } = info;
+      const short = deadline.toLocaleDateString('pt-PT', { day: '2-digit', month: 'short' }).replace('.', '');
+      let text = short;
+      if (tone === 'today') text = 'Hoje';
+      else if (tone === 'soon' && diffDays === 1) text = 'Amanhã';
+      else if (tone === 'late') text = `${short} · ${Math.abs(diffDays)}d atraso`;
       return (
-          <span style={{ fontSize: isLarge ? '0.7rem' : '0.65rem', background: bg, color: color, padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', display: 'inline-block', whiteSpace: 'nowrap' }}>
-              {text}
+          <span className={`tk-chip tk-due is-${tone}`} title={`Prazo: ${deadline.toLocaleDateString('pt-PT')}`}>
+              {tone === 'late' ? <Icons.AlertTriangle size={11} /> : <Icons.Calendar size={11} />} {text}
           </span>
       );
   };
 
+  const STATUS_LABELS = { pendente: 'Pendente', em_curso: 'Em curso', em_analise: 'Em análise', concluido: 'Concluído', cancelado: 'Cancelado' };
+
   const renderStatusTag = (estado) => {
-      if (estado === 'em_curso') return <span style={{fontSize: '0.6rem', background: 'var(--color-borderColorLight)', color: 'var(--color-btnPrimary)', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', textTransform: 'uppercase'}}>▶ Em Curso</span>;
-      if (estado === 'pendente') return <span style={{fontSize: '0.6rem', background: '#f1f5f9', color: '#64748b', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', textTransform: 'uppercase'}}>⏳ Pendente</span>;
-      return null;
+      if (!estado || estado === 'pendente' || estado === 'concluido') return null;
+      return <span className={`tk-chip tk-status is-${estado}`}><i />{STATUS_LABELS[estado] || estado}</span>;
   };
+
+  // Visto com animação de "concluído"
+  const prefersReducedMotion = () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+  async function toggleDoneAnimated(tabela, id, estadoAtual, taskIdParaTimer = null) {
+      const key = `${tabela}-${id}`;
+      if (celebrating.has(key)) return;
+      const completing = estadoAtual !== 'concluido';
+      if (completing && !prefersReducedMotion()) {
+          setCelebrating((prev) => new Set(prev).add(key));
+          await new Promise((r) => setTimeout(r, 750));
+      }
+      try {
+          await handleToggleStatus(tabela, id, estadoAtual, taskIdParaTimer);
+      } finally {
+          if (completing) setCelebrating((prev) => { const next = new Set(prev); next.delete(key); return next; });
+      }
+  }
+
+  const isCelebrating = (tabela, id) => celebrating.has(`${tabela}-${id}`);
+
+  const renderCheck = (tabela, item, { taskIdParaTimer = null, shape = 'round', noun = 'tarefa' } = {}) => {
+      const isDone = item.estado === 'concluido';
+      const burst = isCelebrating(tabela, item.id);
+      const label = isDone ? `Reabrir ${noun}` : `Concluir ${noun}`;
+      return (
+          <button
+              type="button"
+              className={`tk-check is-${shape} ${isDone || burst ? 'is-on' : ''} ${burst ? 'is-burst' : ''}`}
+              onClick={(e) => { e.stopPropagation(); toggleDoneAnimated(tabela, item.id, item.estado, taskIdParaTimer); }}
+              title={label}
+              aria-label={label}
+              aria-pressed={isDone}
+          >
+              <Icons.Check size={shape === 'mini' ? 9 : 12} />
+              {burst && (
+                  <span className="tk-burst" aria-hidden="true">
+                      {Array.from({ length: 8 }, (_, i) => <i key={i} style={{ '--a': `${i * 45}deg` }} />)}
+                  </span>
+              )}
+          </button>
+      );
+  };
+
+  const renderTimerBtn = (isActive, onClick, { size = 'md', label = '' } = {}) => (
+      <button
+          type="button"
+          className={`tk-timer is-${size} ${isActive ? 'is-on' : ''}`}
+          onClick={onClick}
+          title={isActive ? `Parar cronómetro${label ? ` · ${label}` : ''}` : `Iniciar cronómetro${label ? ` · ${label}` : ''}`}
+          aria-label={isActive ? 'Parar cronómetro' : 'Iniciar cronómetro'}
+      >
+          {isActive ? <Icons.Stop size={size === 'sm' ? 8 : 10} /> : <Icons.Play size={size === 'sm' ? 9 : 11} />}
+      </button>
+  );
 
   const getContextFromTaskId = (taskId) => {
       for (const ativ of atividadesAgrupadas) {
@@ -1377,64 +1446,77 @@ export default function Tarefas() {
       const { atividade, tarefa } = card;
       const isTaskCard = card.kind === "tarefa";
       const item = tarefa || atividade;
+      const tabela = isTaskCard ? "tarefas" : "atividades";
       const isCompleted = item.estado === "concluido";
       const isTimerActive = isTaskCard
           ? activeTask && String(activeTask.task_id) === String(tarefa.id)
           : activeTask && String(activeTask.atividade_id) === String(atividade.id) && !activeTask.task_id;
-      const tasks = isTaskCard ? [tarefa] : [];
       const subtasks = tarefa?.subtarefas || [];
+      const subsDone = subtasks.filter((s) => s.estado === "concluido").length;
+      const isExpanded = isTaskCard && expandedTasks[tarefa.id];
+      const timeSpent = isTaskCard ? getTaskTime(tarefa.id) : getActivityTime(atividade);
+      const projColor = getColorForProject(atividade.projetoId);
+
       return (
-          <article id={isTaskCard ? `tarefa-card-${tarefa.id}` : `atividade-card-${atividade.id}`} key={`${card.kind}-${item.id}`} className="kanban-activity-card" style={{ borderTopColor: column.color, opacity: isCompleted ? 0.72 : 1 }}>
-              <div className="kanban-card-heading">
-                  <div style={{ minWidth: 0 }}>
-                      <div className="kanban-activity-title-row">
-                          <button type="button" onClick={() => handleToggleStatus(isTaskCard ? "tarefas" : "atividades", item.id, item.estado, isTaskCard ? item.id : null)} className={`kanban-check kanban-activity-check ${isCompleted ? "is-done" : ""}`} title={isCompleted ? `Reabrir ${isTaskCard ? "tarefa" : "atividade"}` : `Concluir ${isTaskCard ? "tarefa" : "atividade"}`}>{isCompleted ? "✓" : ""}</button>
-                          <button type="button" onClick={() => handleEdit(isTaskCard ? tarefa : atividade, isTaskCard ? "tarefa" : "atividade")} className={`kanban-title ${isCompleted ? "is-done" : ""}`} title={isTaskCard ? "Editar tarefa" : "Editar atividade"}>
-                              {isTaskCard ? tarefa.titulo : atividade.titulo}
-                          </button>
-                      </div>
-                      <button type="button" onClick={() => isTaskCard ? handleEdit(atividade, "atividade") : openProjectDetail(atividade.projetoId)} className="kanban-project-link" title={isTaskCard ? "Editar atividade" : "Abrir projeto"}>
-                          {isTaskCard ? `Atividade: ${atividade.titulo} · ${atividade.projetoNome || "Projeto"}` : `${atividade.clienteNome ? `${atividade.clienteNome} · ` : ""}${atividade.projetoNome || "Projeto"}`}
+          <article
+              id={isTaskCard ? `tarefa-card-${tarefa.id}` : `atividade-card-${atividade.id}`}
+              key={`${card.kind}-${item.id}`}
+              className={`tk-kcard ${isCompleted ? "is-done" : ""} ${isTimerActive ? "is-running" : ""} ${isCelebrating(tabela, item.id) ? "is-celebrating" : ""} ${isHighlightedTask(isTaskCard ? "tarefa" : "atividade", item.id) ? "is-focus" : ""}`}
+              style={{ "--pc": projColor, "--c": column.color }}
+          >
+              <div className="tk-kcard-top">
+                  {renderCheck(tabela, item, { taskIdParaTimer: isTaskCard ? item.id : null, noun: isTaskCard ? "tarefa" : "atividade" })}
+                  <div className="tk-kcard-main">
+                      <button type="button" onClick={() => handleEdit(item, isTaskCard ? "tarefa" : "atividade")} className="tk-kcard-title">
+                          <span className="tk-strike">{item.titulo}</span>
+                      </button>
+                      <button
+                          type="button"
+                          onClick={() => isTaskCard ? handleEdit(atividade, "atividade") : openProjectDetail(atividade.projetoId)}
+                          className="tk-kcard-ctx"
+                          title={isTaskCard ? "Editar atividade" : "Abrir projeto"}
+                      >
+                          <span className="tk-kcard-dot" />
+                          <span className="tk-kcard-ctx-text">{isTaskCard ? atividade.titulo : (atividade.clienteNome || "Atividade")} <em>· {atividade.projetoNome || "Projeto"}</em></span>
                       </button>
                   </div>
-                  {!isCompleted && (
-                      <button type="button" onClick={(e) => isTimerActive ? openStopNoteModal(e) : (isTaskCard ? handleStartTask(tarefa, e) : handleStartAtividade(atividade, e))} className={`kanban-timer ${isTimerActive ? "is-active" : ""}`} title={isTimerActive ? "Parar cronómetro" : "Iniciar cronómetro"}>
-                          {isTimerActive ? "⏹" : "▶"}
+                  {!isCompleted && !(isTaskCard && tarefa.is_readonly_parent) && renderTimerBtn(
+                      isTimerActive,
+                      (e) => isTimerActive ? openStopNoteModal(e) : (isTaskCard ? handleStartTask(tarefa, e) : handleStartAtividade(atividade, e)),
+                      { size: "md" }
+                  )}
+              </div>
+
+              <div className="tk-chips">
+                  {renderStatusTag(item.estado)}
+                  {renderDeadline(item.data_fim || item.data_limite, isCompleted)}
+                  {timeSpent > 0 && <span className="tk-chip"><Icons.Clock size={11} /> {formatTime(timeSpent)}</span>}
+                  {item.tem_entregavel && <span className="tk-chip is-doc" title="Tem documento entregável"><Icons.FileText size={11} /> Entregável</span>}
+                  {!isTaskCard && <span className="tk-chip is-ghost">Sem tarefas</span>}
+                  {isTaskCard && subtasks.length > 0 && (
+                      <button type="button" onClick={() => toggleExpand(tarefa.id)} className={`tk-chip tk-chip-btn ${isExpanded ? "is-open" : ""}`} title="Mostrar passos">
+                          <Icons.ListTree size={11} /> {subsDone}/{subtasks.length} <Icons.ChevronDown size={10} />
                       </button>
                   )}
               </div>
-              <div className="kanban-meta">
-                  {renderStatusTag(item.estado)}
-                  {renderDeadline(item.data_fim || item.data_limite, isCompleted)}
-                  <span>{isTaskCard ? "Tarefa" : "Sem tarefas"}</span>
-                  {isTaskCard && subtasks.length > 0 && <button type="button" onClick={() => toggleExpand(tarefa.id)} className="kanban-subtask-count" title="Mostrar subtarefas">Subtarefas {subtasks.filter((subtask) => subtask.estado === "concluido").length}/{subtasks.length}</button>}
-              </div>
-              <div className="kanban-task-list">
-                  {tasks.length === 0 ? <span className="kanban-empty-task">Sem tarefas nesta atividade.</span> : isTaskCard ? (expandedTasks[tarefa.id] && subtasks.length > 0 && <div className="kanban-subtask-list">
-                      {subtasks.map((subtask) => <button key={subtask.id} type="button" onClick={() => handleEdit(subtask, "subtarefa")} className={`kanban-subtask ${subtask.estado === "concluido" ? "is-done" : ""}`}>↳ {subtask.titulo}</button>)}
-                  </div>) : tasks.map((tarefa) => {
-                      const taskCompleted = tarefa.estado === "concluido";
-                      const taskTimerActive = activeTask && String(activeTask.task_id) === String(tarefa.id);
-                      const taskSubtasks = tarefa.subtarefas || [];
-                      const isExpanded = expandedTasks[tarefa.id];
-                      return (
-                          <div id={`tarefa-card-${tarefa.id}`} key={tarefa.id}>
-                              <div className="kanban-task-row">
-                                  <button type="button" onClick={() => handleToggleStatus("tarefas", tarefa.id, tarefa.estado, tarefa.id)} className={`kanban-check ${taskCompleted ? "is-done" : ""}`} title={taskCompleted ? "Reabrir tarefa" : "Concluir tarefa"}>{taskCompleted ? "✓" : ""}</button>
-                                  <button type="button" onClick={() => handleEdit(tarefa, "tarefa")} className={`kanban-task-title ${taskCompleted ? "is-done" : ""}`}>{tarefa.titulo}</button>
-                                  {taskSubtasks.length > 0 && <button type="button" onClick={() => toggleExpand(tarefa.id)} className="kanban-subtask-count" title="Mostrar subtarefas">{taskSubtasks.filter((subtask) => subtask.estado === "concluido").length}/{taskSubtasks.length}</button>}
-                                  {!tarefa.is_readonly_parent && <button type="button" onClick={(e) => taskTimerActive ? openStopNoteModal(e) : handleStartTask(tarefa, e)} className={`kanban-task-timer ${taskTimerActive ? "is-active" : ""}`} title={taskTimerActive ? "Parar cronómetro" : "Iniciar cronómetro"}>{taskTimerActive ? "⏹" : "▶"}</button>}
-                              </div>
-                              {isExpanded && taskSubtasks.length > 0 && <div className="kanban-subtask-list">
-                                  {taskSubtasks.map((subtask) => <button key={subtask.id} type="button" onClick={() => handleEdit(subtask, "subtarefa")} className={`kanban-subtask ${subtask.estado === "concluido" ? "is-done" : ""}`}>↳ {subtask.titulo}</button>)}
-                              </div>}
+
+              {isExpanded && subtasks.length > 0 && (
+                  <div className="tk-subs">
+                      {subtasks.map((sub) => (
+                          <div key={sub.id} className={`tk-sub ${sub.estado === "concluido" ? "is-done" : ""} ${isCelebrating("subtarefas", sub.id) ? "is-celebrating" : ""}`}>
+                              {renderCheck("subtarefas", sub, { taskIdParaTimer: tarefa.id, shape: "mini", noun: "passo" })}
+                              <button type="button" onClick={() => handleEdit(sub, "subtarefa")} className="tk-sub-title"><span className="tk-strike">{sub.titulo}</span></button>
                           </div>
-                      );
-                  })}
-              </div>
-              {!isTaskCard && !isCompleted && <form onSubmit={(e) => handleAddTarefa(e, atividade.id)} className="kanban-add-task">
-                  <input type="text" placeholder="+ Nova tarefa" value={novaTarefaNome.ativId === atividade.id ? novaTarefaNome.nome : ""} onChange={(e) => setNovaTarefaNome({ ativId: atividade.id, nome: e.target.value })} />
-              </form>}
+                      ))}
+                  </div>
+              )}
+
+              {!isTaskCard && !isCompleted && (
+                  <form onSubmit={(e) => handleAddTarefa(e, atividade.id)} className="tk-add is-compact">
+                      <Icons.Plus size={13} />
+                      <input type="text" placeholder="Adicionar tarefa" value={novaTarefaNome.ativId === atividade.id ? novaTarefaNome.nome : ""} onChange={(e) => setNovaTarefaNome({ ativId: atividade.id, nome: e.target.value })} />
+                  </form>
+              )}
           </article>
       );
   };
@@ -1677,273 +1759,311 @@ export default function Tarefas() {
           return { id: String(p.id), label: `${base}${cargo}${marca}` };
       });
 
-  const renderResponsavelOptionsGroups = () => (
-      <>
-          {internalAssigneeOptions.length > 0 && (
-              <optgroup label="Equipa Interna">
-                  {internalAssigneeOptions
-                      .filter(opt => opt.ativo || String(opt.id) === String(form.responsavel_id))
-                      .map((opt) => <option key={`int-${opt.id}`} value={opt.id}>{opt.label}{!opt.ativo ? ' (Inativo)' : ''}</option>)}
-              </optgroup>
-          )}
-          {modalEntityAssigneeOptions.length > 0 && (
-              <optgroup label="Pessoas das Entidades do Projeto">
-                  {modalEntityAssigneeOptions.map((opt) => <option key={`ent-${opt.id}`} value={opt.id}>{opt.label}</option>)}
-              </optgroup>
-          )}
-      </>
+  // ---------- Dados derivados para a UI ----------
+  const progressByActivity = new Map();
+  const progressByProject = new Map();
+  atividadesAgrupadas.forEach((a) => {
+      const total = (a.tarefas || []).length;
+      const done = (a.tarefas || []).filter((t) => t.estado === 'concluido').length;
+      progressByActivity.set(String(a.id), { done, total });
+      const pKey = String(a.projetoId);
+      const prev = progressByProject.get(pKey) || { done: 0, total: 0 };
+      progressByProject.set(pKey, { done: prev.done + done, total: prev.total + total });
+  });
+  const pct = (p) => (p && p.total > 0 ? Math.round((p.done / p.total) * 100) : 0);
+
+  const kanbanItemsAll = getKanbanItems();
+  const openKanbanItems = kanbanItemsAll.filter((it) => !isInactiveStatus(getKanbanItemValue(it, 'estado')));
+  const statLate = openKanbanItems.filter((it) => getDeadlineColumnId(it) === 'overdue').length;
+  const statToday = openKanbanItems.filter((it) => getDeadlineColumnId(it) === 'today').length;
+  const statRunning = openKanbanItems.filter((it) => getKanbanItemValue(it, 'estado') === 'em_curso').length;
+
+  const initialsOf = (txt) => /^[A-Za-z0-9]{2,3}$/.test(String(txt || '').trim()) ? String(txt).trim().toUpperCase() : String(txt || '?').replace(/[[\]()]/g, ' ').trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?';
+
+  const clientFilterOptions = [
+      { value: '', label: 'Todos os clientes', icon: <span className="fs-tile" style={{ '--t1': '#cbd5e1', '--t2': '#64748b' }}><Icons.Users size={13} /></span> },
+      ...clientes.map((c) => ({ value: c.id, label: getClientDisplayName(c) || c.marca || 'Cliente', hint: c.marca && c.sigla ? c.marca : undefined, group: 'Clientes' })),
+  ];
+  const projectFilterOptions = [
+      { value: '', label: 'Todos os projetos', icon: <span className="fs-tile" style={{ '--t1': 'color-mix(in srgb, var(--color-btnPrimary) 55%, #fff)', '--t2': 'var(--color-btnPrimary)' }}><Icons.Folder size={13} /></span> },
+      ...projetosList.map((p) => ({ value: p.id, label: p.titulo || 'Projeto', group: 'Projetos' })),
+  ];
+
+  const parentActivityOptions = (() => {
+      const list = atividadesBase.map((a) => ({ value: a.id, label: a.titulo || 'Atividade', hint: a.projetos?.titulo ? `Projeto: ${a.projetos.titulo}` : undefined }));
+      if (form.atividade_id && !list.some((o) => String(o.value) === String(form.atividade_id))) {
+          list.unshift({ value: form.atividade_id, label: searchAtivText || 'Atividade atual' });
+      }
+      return list;
+  })();
+
+  const responsavelOptions = [
+      ...internalAssigneeOptions
+          .filter((opt) => opt.ativo || String(opt.id) === String(form.responsavel_id))
+          .map((opt) => ({ value: opt.id, label: `${opt.label}${!opt.ativo ? ' (Inativo)' : ''}`, group: 'Equipa interna' })),
+      ...modalEntityAssigneeOptions.map((opt) => ({ value: opt.id, label: opt.label, group: 'Pessoas das entidades do projeto' })),
+  ];
+
+  const staffOptions = staff
+      .filter((s) => s.ativo !== false || String(s.id) === String(timeLogForm.user_id))
+      .map((s) => ({ value: s.id, label: `${s.nome || s.email}${s.ativo === false ? ' (Inativo)' : ''}` }));
+
+  const PRIORITY_OPTIONS = [
+      { value: 'baixa', label: 'Baixa', c: '#22c55e' },
+      { value: 'normal', label: 'Normal', c: '#3b82f6' },
+      { value: 'alta', label: 'Alta', c: '#f97316' },
+      { value: 'urgente', label: 'Urgente', c: '#ef4444' },
+  ];
+  const STATE_OPTIONS = [
+      { value: 'pendente', c: '#94a3b8' },
+      { value: 'em_curso', c: '#3b82f6' },
+      { value: 'em_analise', c: '#a855f7' },
+      { value: 'concluido', c: '#22c55e' },
+      { value: 'cancelado', c: '#ef4444' },
+  ];
+  const editTypeLabel = editType === 'atividade' ? 'Atividade' : editType === 'subtarefa' ? 'Passo' : 'Tarefa';
+
+  const submitModal = (e) => {
+      if (editType === 'tarefa' && !form.atividade_id) { e.preventDefault(); showToast('Escolhe a atividade a que esta tarefa pertence.', 'error'); return; }
+      if (editType !== 'subtarefa' && !form.responsavel_id) { e.preventDefault(); showToast('Escolhe o responsável principal.', 'error'); return; }
+      handleSubmit(e);
+  };
+
+  const timeLogsWithDuration = logs.filter((l) => (l.duration_minutes || 0) > 0);
+  const timerTitle = activeTask ? getActiveTaskTitle() : '';
+
+  if (loading) return (
+      <div className="page-container tk-page">
+          <div className="tk-loading"><span /><span /><span /></div>
+      </div>
   );
 
-  const modalOverlayStyle = { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.5)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999 };
-  const modalStyle = { background: '#fff', width: '95%', maxWidth: '650px', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', display: 'flex', flexDirection: 'column', maxHeight: '90vh', overflow: 'hidden' };
-  const modalHeaderStyle = { padding: '16px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff' };
-  const modalBodyStyle = { padding: '24px', overflowY: 'auto', background: '#f8fafc' };
-  const sectionTitleStyle = { fontSize: '0.75rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '12px', marginTop: '16px', borderBottom: '1px solid #e2e8f0', paddingBottom: '4px' };
-  const inputGroupStyle = { marginBottom: '12px' };
-  const labelStyle = { display: 'block', marginBottom: '4px', fontSize: '0.8rem', fontWeight: '600', color: '#475569' };
-  const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.9rem', color: '#1e293b', outline: 'none', transition: 'border-color 0.2s', boxSizing: 'border-box' };
-    const timeLogActionCellStyle = { padding: '8px', textAlign: 'right' };
-    const timeLogActionsWrapStyle = { display: 'inline-flex', alignItems: 'center', gap: '6px' };
-    const timeLogActionBtnBaseStyle = {
-            width: '30px',
-            height: '30px',
-            borderRadius: '8px',
-            border: '1px solid #d1d5db',
-            background: '#ffffff',
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'all 0.2s ease'
-    };
-    const timeLogEditBtnStyle = { ...timeLogActionBtnBaseStyle, color: '#334155' };
-    const timeLogDeleteBtnStyle = { ...timeLogActionBtnBaseStyle, color: '#b91c1c' };
-
-  if (loading) return <div className="page-container" style={{display:'flex', justifyContent:'center', alignItems:'center', height:'80vh'}}><div className="pulse-dot-white" style={{background:'var(--color-btnPrimary)'}}></div></div>;
-
   return (
-    <div className="page-container" style={{maxWidth: '1400px', margin: '0 auto', padding: '15px'}}>
+    <div className="page-container tk-page">
       {notification && (
           <div className={`toast-container ${notification.type}`}>
               {notification.type === 'success' ? '✅' : '⚠️'} {notification.message}
           </div>
       )}
-      
-      {/* CABEÇALHO */}
-      <div style={{background: 'white', padding: '20px 25px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.02)'}}>
-        <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
-            <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.5rem', fontWeight: '800', letterSpacing: '-0.02em'}}>Tarefas de Projetos</h1>
-        </div>
-        <div style={{display:'flex', gap:'10px', alignItems: 'center'}}>
-            {activeTask && (
-                <div onClick={focusActiveTaskLocation} className="hover-shadow" title="Clica para ir para a tarefa/atividade em curso" style={{background: 'linear-gradient(to right, #ef4444, #b91c1c)', color: 'white', padding: '10px 20px', borderRadius: '30px', display: 'flex', alignItems: 'center', gap: '15px', border: '2px solid #fecaca', boxShadow: '0 4px 10px rgba(239, 68, 68, 0.4)', cursor: 'pointer', transition: '0.2s', whiteSpace: 'nowrap'}}>
-                    <div style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700', fontSize: '0.95rem'}}>
-                        <span className="pulse-dot-white"></span>
-                        {getActiveTaskTitle().length > 30 ? `${getActiveTaskTitle().slice(0, 30)}...` : getActiveTaskTitle()}
-                    </div>
-                    <div style={{width: '1px', height: '20px', background: 'rgba(255,255,255,0.3)'}}></div>
-                    <button type="button" onClick={openStopNoteModal} style={{background: 'white', color:'#ef4444', border:'none', borderRadius:'20px', padding:'6px 12px', cursor:'pointer', fontWeight:'700', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px', transition: '0.2s'}}><Icons.Stop /> Parar</button>
-                </div>
-            )}
-            <button onClick={openTimeCreateModal} className="btn-soft-cta"><Icons.Clock size={16} /> Tempo Manual</button>
-            <button onClick={handleNovo} className="btn-cta">+ Nova Tarefa de Projeto</button>
-        </div>
+
+      {/* HERO */}
+      <header className="tk-hero">
+          <div className="tk-hero-bg" aria-hidden="true"><span className="tk-orb tk-orb-a" /><span className="tk-orb tk-orb-b" /></div>
+
+          <div className="tk-hero-row">
+              <div className="tk-hero-main">
+                  <span className="tk-hero-icon"><Icons.ClipboardList size={22} /></span>
+                  <div>
+                      <h1>Tarefas de Projetos</h1>
+                      <p>Tudo o que está em curso nos projetos, organizado por atividade.</p>
+                  </div>
+              </div>
+              <div className="tk-hero-stats">
+                  <span className={`tk-stat ${statLate > 0 ? 'is-alert' : ''}`}><strong>{statLate}</strong> atrasadas</span>
+                  <span className="tk-stat"><strong>{statToday}</strong> para hoje</span>
+                  <span className="tk-stat"><strong>{statRunning}</strong> em curso</span>
+                  <span className="tk-stat"><strong>{openKanbanItems.length}</strong> abertas</span>
+              </div>
+          </div>
+
+          <div className="tk-hero-row tk-hero-actions-row">
+              <div className="tk-hero-actions">
+                  {activeTask && (
+                      <div onClick={focusActiveTaskLocation} title="Clica para ir para a tarefa/atividade em curso" className="tk-live">
+                          <span className="tk-live-dot" />
+                          <span className="tk-live-title">{timerTitle.length > 32 ? `${timerTitle.slice(0, 32)}...` : timerTitle}</span>
+                          <button type="button" onClick={openStopNoteModal} className="tk-live-stop"><Icons.Stop /> Parar</button>
+                      </div>
+                  )}
+              </div>
+              <div className="tk-hero-actions">
+                  <button type="button" onClick={openTimeCreateModal} className="tk-glass-btn" title="Registar tempo manual">
+                      <Icons.Clock size={16} /> <span>Tempo manual</span>
+                  </button>
+                  <button type="button" onClick={handleNovo} className="tk-cta">
+                      <Icons.Plus size={16} /> Nova tarefa
+                  </button>
+              </div>
+          </div>
+      </header>
+
+      {/* BARRA DE FILTROS */}
+      <div className="tk-toolbar">
+          <label className="tk-search">
+              <Icons.Search size={15} />
+              <input
+                  type="text"
+                  placeholder="Procurar tarefa, atividade, projeto, cliente..."
+                  value={busca}
+                  onChange={(e) => {
+                      setBusca(e.target.value);
+                      if (e.target.value) { const obj = {}; atividadesAgrupadas.forEach(a => a.tarefas.forEach(t => obj[t.id] = true)); setExpandedTasks(obj); }
+                  }}
+              />
+              {busca && <button type="button" className="tk-search-clear" onClick={() => setBusca('')} aria-label="Limpar pesquisa"><Icons.Close size={14} /></button>}
+          </label>
+
+          {isAdmin && (
+              <>
+                  <FancySelect value={filtroCliente} onChange={setFiltroCliente} options={clientFilterOptions} className="tk-filter" searchPlaceholder="Procurar cliente..." ariaLabel="Filtrar por cliente" />
+                  <FancySelect value={filtroProjeto} onChange={setFiltroProjeto} options={projectFilterOptions} className="tk-filter" searchPlaceholder="Procurar projeto..." ariaLabel="Filtrar por projeto" menuWidth={360} />
+              </>
+          )}
+
+          <button type="button" className={`tk-toggle ${mostrarConcluidos ? 'is-on' : ''}`} onClick={() => setMostrarConcluidos(!mostrarConcluidos)} aria-pressed={mostrarConcluidos}>
+              <span className="tk-toggle-track"><span /></span> Concluídas
+          </button>
+
+          <div className="tk-views" role="tablist" aria-label="Modo de visualização">
+              {[['projetos', 'Projetos', <Icons.Folder size={14} />], ['kanban', 'Prazos', <Icons.Calendar size={14} />], ['estados', 'Estados', <Icons.Kanban size={14} />]].map(([mode, label, icon]) => (
+                  <button key={mode} type="button" role="tab" aria-selected={viewMode === mode} onClick={() => saveViewMode(mode)} className={viewMode === mode ? 'is-on' : ''}>
+                      {icon} <span>{label}</span>
+                  </button>
+              ))}
+          </div>
       </div>
 
-      {/* FILTROS */}
-      <div style={{background: '#f8fafc', padding: '12px 20px', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '20px', display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap'}}>
-        <div style={{flex: 2, minWidth: '200px', position: 'relative'}}>
-            <span style={{position: 'absolute', left: '12px', top: '9px', color: '#94a3b8', fontSize: '0.85rem'}}>🔍</span>
-            <input type="text" placeholder="Procurar Tarefa, Projeto, Cliente..." value={busca} onChange={(e) => {setBusca(e.target.value); if(e.target.value){const obj={}; atividadesAgrupadas.forEach(a=>a.tarefas.forEach(t=>obj[t.id]=true)); setExpandedTasks(obj);}}} style={{width: '100%', padding: '8px 12px 8px 32px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.85rem', boxSizing: 'border-box'}} />
-        </div>
-        
-        {isAdmin && (
-            <>
-                <select value={filtroCliente} onChange={(e) => setFiltroCliente(e.target.value)} style={{flex: 1, minWidth: '120px', padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', background: 'white', fontSize: '0.85rem', color: '#475569'}}><option value="">Todos os Clientes</option>{clientes.map(c => <option key={c.id} value={c.id}>{getClientDisplayName(c) || c.marca}</option>)}</select>
-                <select value={filtroProjeto} onChange={(e) => setFiltroProjeto(e.target.value)} style={{flex: 1, minWidth: '120px', padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', background: 'white', fontSize: '0.85rem', color: '#475569'}}><option value="">Todos os Projetos</option>{projetosList.map(p => <option key={p.id} value={p.id}>{p.titulo}</option>)}</select>
-            </>
-        )}
-        <label style={{display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.85rem', color: '#475569', fontWeight: '600', background: 'white', padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1'}}>
-            <input type="checkbox" checked={mostrarConcluidos} onChange={(e) => setMostrarConcluidos(e.target.checked)} style={{width: '14px', height: '14px', accentColor: 'var(--color-btnPrimary)', cursor: 'pointer'}} /> Mostrar Concluídos
-        </label>
-        <div className="task-view-switcher" aria-label="Modo de visualização">
-            {[['projetos', 'Projetos'], ['kanban', 'Kanban · Prazo'], ['estados', 'Kanban · Estados']].map(([mode, label]) => (
-                <button key={mode} type="button" onClick={() => saveViewMode(mode)} className={viewMode === mode ? 'is-selected' : ''}>{label}</button>
-            ))}
-        </div>
-      </div>
-
-      <div>
+      <div className="tk-content" key={viewMode}>
         {viewMode !== 'projetos' ? (
-            <div className="kanban-board">
+            <div className="tk-board">
                 {getKanbanColumns().map((column) => (
-                    <section className="kanban-column" key={column.id}>
-                        <div className="kanban-column-header" style={{ borderTopColor: column.color }}>
-                            <div><span className="kanban-column-dot" style={{ background: column.color }}></span><strong>{column.title}</strong></div>
-                            <span className="kanban-column-count">{column.items.length}</span>
-                        </div>
-                        <div className="kanban-column-content">
-                            {column.items.length > 0 ? column.items.map((item) => renderKanbanActivity(item, column)) : <div className="kanban-column-empty">Nada por aqui</div>}
+                    <section className="tk-col" key={column.id} style={{ '--c': column.color }}>
+                        <header className="tk-col-head">
+                            <span className="tk-col-dot" />
+                            <strong>{column.title}</strong>
+                            <span className="tk-col-count">{column.items.length}</span>
+                        </header>
+                        <div className="tk-col-body">
+                            {column.items.length > 0
+                                ? column.items.map((item) => renderKanbanActivity(item, column))
+                                : <div className="tk-col-empty">Nada por aqui</div>}
                         </div>
                     </section>
                 ))}
             </div>
         ) : projetosRenderList.length > 0 ? (
-            projetosRenderList.map(proj => {
-                const limit = visibleLimits[proj.id] || 5;
+            projetosRenderList.map((proj, pi) => {
+                const limit = visibleLimits[proj.id] || 6;
                 const visibleAtivs = proj.atividades.slice(0, limit);
                 const hasMore = proj.atividades.length > limit;
-                const canCollapse = limit > 5;
+                const canCollapse = limit > 6;
+                const projProgress = progressByProject.get(String(proj.id));
+                const openTasks = proj.atividades.reduce((acc, a) => acc + (a.tarefas || []).filter((t) => !isInactiveStatus(t.estado)).length, 0);
 
                 return (
-                    <div key={proj.id} style={{marginBottom: '45px'}}>
-                        
-                        <div style={{display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px', paddingBottom: '8px', borderBottom: '2px solid var(--color-borderColor)'}}>
-                            <div style={{width: '12px', height: '12px', borderRadius: '50%', backgroundColor: proj.color}}></div>
-                            
-                            <button
-                                type="button"
-                                onClick={() => openProjectDetail(proj.id)}
-                                style={{
-                                    margin: 0,
-                                    padding: 0,
-                                    fontSize: '1.2rem',
-                                    color: '#475569',
-                                    fontWeight: '500',
-                                    background: 'transparent',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    textAlign: 'left'
-                                }}
-                                className="hover-text-blue"
-                                title="Abrir projeto"
-                            >
-                                {proj.cliente ? (
-                                    <><strong style={{color: '#1e293b', fontWeight: '900'}}>{proj.cliente}</strong> - {proj.titulo}</>
-                                ) : (
-                                    <strong style={{color: '#1e293b', fontWeight: '800'}}>{proj.titulo}</strong>
-                                )}
+                    <section key={proj.id} className="tk-proj" style={{ '--pc': proj.color, '--i': Math.min(pi, 8) }}>
+                        <header className="tk-proj-head">
+                            <span className="tk-proj-tile">{initialsOf(proj.cliente || proj.titulo)}</span>
+                            <button type="button" className="tk-proj-name" onClick={() => openProjectDetail(proj.id)} title="Abrir projeto">
+                                {proj.cliente && <small>{proj.cliente}</small>}
+                                <strong>{proj.titulo}</strong>
                             </button>
-                        </div>
+                            <div className="tk-proj-meta">
+                                <span><b>{proj.atividades.length}</b> {proj.atividades.length === 1 ? 'atividade' : 'atividades'}</span>
+                                <span><b>{openTasks}</b> {openTasks === 1 ? 'tarefa aberta' : 'tarefas abertas'}</span>
+                                {projProgress?.total > 0 && (
+                                    <span className="tk-proj-progress" title={`${projProgress.done} de ${projProgress.total} tarefas concluídas`}>
+                                        <span className="tk-bar"><i style={{ width: `${pct(projProgress)}%` }} /></span>
+                                        <b>{pct(projProgress)}%</b>
+                                    </span>
+                                )}
+                            </div>
+                            <button type="button" className="tk-proj-open" onClick={() => openProjectDetail(proj.id)}>
+                                Abrir <Icons.ArrowRight size={14} />
+                            </button>
+                        </header>
 
-                        <div className="project-grid">
-                            {visibleAtivs.map(ativ => {
+                        <div className="tk-grid">
+                            {visibleAtivs.map((ativ, ai) => {
                                 const isAtivCompleted = ativ.estado === 'concluido';
                                 const isAtivTimerActive = activeTask && String(activeTask.atividade_id) === String(ativ.id) && !activeTask.task_id;
                                 const ativTime = getActivityTime(ativ);
+                                const ativProgress = progressByActivity.get(String(ativ.id));
 
                                 return (
-                                    <div id={`atividade-card-${ativ.id}`} key={ativ.id} style={{background: 'white', borderRadius: '10px', border: isHighlightedTask('atividade', ativ.id) ? '2px solid var(--color-btnPrimary)' : (isAtivCompleted ? '1px solid var(--color-borderColorLight)' : '1px solid var(--color-borderColor)'), borderTop: `4px solid ${isAtivCompleted ? 'var(--color-borderColor)' : proj.color}`, boxShadow: isHighlightedTask('atividade', ativ.id) ? '0 0 0 3px var(--color-bgSecondary), 0 16px 30px rgba(59,130,246,0.18)' : '0 2px 5px rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column', opacity: isAtivCompleted ? 0.6 : 1, transition: '0.2s', maxHeight: '400px', animation: isHighlightedTask('atividade', ativ.id) ? 'taskFocusPulse 1.2s ease-in-out 0s 2' : 'none'}}>
-                                        
-                                        <div style={{padding: '12px 15px', background: isAtivCompleted ? '#f8fafc' : 'white', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
-                                            <div style={{flex: 1, paddingRight: '10px'}}>
-                                                <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px'}}>
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handleToggleStatus('atividades', ativ.id, ativ.estado);
-                                                        }}
-                                                        title={isAtivCompleted ? 'Reabrir atividade' : 'Concluir atividade'}
-                                                        style={{width: '18px', height: '18px', borderRadius: '4px', border: isAtivCompleted ? 'none' : '2px solid var(--color-borderColor)', background: isAtivCompleted ? 'var(--color-btnPrimary)' : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', cursor: 'pointer', flexShrink: 0, fontSize: '0.7rem', padding: 0, lineHeight: 1}}
-                                                    >
-                                                        {isAtivCompleted && '✓'}
-                                                    </button>
-                                                    
-                                                    <h3 onClick={() => handleEdit(ativ, 'atividade')} style={{margin: 0, fontSize: '0.9rem', fontWeight: '700', color: isAtivCompleted ? '#94a3b8' : '#1e293b', cursor: 'pointer', textDecoration: isAtivCompleted ? 'line-through' : 'none', lineHeight: '1.2'}} className="hover-text-blue">
-                                                        {ativ.titulo}
-                                                    </h3>
-                                                </div>
-                                                
-                                                <div style={{display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap'}}>
+                                    <article
+                                        id={`atividade-card-${ativ.id}`}
+                                        key={ativ.id}
+                                        className={`tk-ativ ${isAtivCompleted ? 'is-done' : ''} ${isAtivTimerActive ? 'is-running' : ''} ${isHighlightedTask('atividade', ativ.id) ? 'is-focus' : ''} ${isCelebrating('atividades', ativ.id) ? 'is-celebrating' : ''}`}
+                                        style={{ '--i': Math.min(ai, 10) }}
+                                    >
+                                        <header className="tk-ativ-head">
+                                            {renderCheck('atividades', ativ, { shape: 'square', noun: 'atividade' })}
+                                            <div className="tk-ativ-titles">
+                                                <h3 onClick={() => handleEdit(ativ, 'atividade')} title="Editar atividade"><span className="tk-strike">{ativ.titulo}</span></h3>
+                                                <div className="tk-chips">
                                                     {renderStatusTag(ativ.estado)}
                                                     {renderDeadline(ativ.data_fim, isAtivCompleted)}
-                                                    {ativTime > 0 && <span style={{fontSize: '0.65rem', color: '#94a3b8', fontWeight: 'bold'}}>⏱ {formatTime(ativTime)}</span>}
-                                                    {ativ.tem_entregavel && <span title="Tem Documento Entregável" style={{fontSize: '0.7rem', color: 'var(--color-btnPrimary)'}}>📄</span>}
+                                                    {ativTime > 0 && <span className="tk-chip"><Icons.Clock size={11} /> {formatTime(ativTime)}</span>}
+                                                    {ativ.tem_entregavel && <span className="tk-chip is-doc" title="Tem documento entregável"><Icons.FileText size={11} /></span>}
                                                 </div>
                                             </div>
-                                            {!isAtivCompleted && (
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => isAtivTimerActive ? openStopNoteModal(e) : handleStartAtividade(ativ, e)}
-                                                    title={isAtivTimerActive ? 'Parar cronómetro da atividade' : 'Iniciar cronómetro da atividade'}
-                                                    style={{ background: isAtivTimerActive ? '#fee2e2' : '#ecfdf5', color: isAtivTimerActive ? '#ef4444' : '#059669', border: isAtivTimerActive ? '1px solid #fecaca' : '1px solid #d1fae5', borderRadius: '999px', width: '30px', height: '30px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1, flexShrink: 0 }}
-                                                >
-                                                    {isAtivTimerActive ? '⏹' : '▶'}
-                                                </button>
-                                            )}
-                                        </div>
+                                            {!isAtivCompleted && renderTimerBtn(isAtivTimerActive, (e) => isAtivTimerActive ? openStopNoteModal(e) : handleStartAtividade(ativ, e), { label: 'atividade' })}
+                                        </header>
+
+                                        {ativProgress?.total > 0 && (
+                                            <div className="tk-ativ-progress" title={`${ativProgress.done} de ${ativProgress.total} tarefas concluídas`}>
+                                                <span className="tk-bar"><i style={{ width: `${pct(ativProgress)}%` }} /></span>
+                                                <span>{ativProgress.done}/{ativProgress.total}</span>
+                                            </div>
+                                        )}
 
                                         {!isAtivCompleted && (
-                                            <div style={{padding: '10px', overflowY: 'auto', flex: 1}} className="custom-scrollbar">
+                                            <div className="tk-ativ-body custom-scrollbar">
                                                 {(!ativ.tarefas || ativ.tarefas.length === 0) ? (
-                                                    <div style={{fontSize: '0.75rem', color: '#cbd5e1', textAlign: 'center', padding: '10px'}}>Sem tarefas neste bloco.</div>
+                                                    <div className="tk-ativ-empty">Ainda sem tarefas.</div>
                                                 ) : (
-                                                    ativ.tarefas.map(tar => {
+                                                    ativ.tarefas.map((tar) => {
                                                         const isTarCompleted = tar.estado === 'concluido';
                                                         const isTimerActive = activeTask && activeTask.task_id === tar.id;
                                                         const isExpanded = expandedTasks[tar.id];
-                                                        const subsToRender = tar.subtarefas;
+                                                        const subs = tar.subtarefas || [];
+                                                        const subsDone = subs.filter((s) => s.estado === 'concluido').length;
+                                                        const tarTime = getTaskTime(tar.id);
 
                                                         return (
-                                                            <div id={`tarefa-card-${tar.id}`} key={tar.id} style={{background: isTimerActive ? '#fefce8' : '#f8fafc', border: isHighlightedTask('tarefa', tar.id) ? '2px solid var(--color-btnPrimary)' : (isTimerActive ? '1px solid #eab308' : '1px solid transparent'), borderRadius: '6px', padding: '8px', marginBottom: '6px', opacity: isTarCompleted ? 0.6 : 1, transition: '0.2s', boxShadow: isHighlightedTask('tarefa', tar.id) ? '0 0 0 3px var(--color-bgSecondary), 0 12px 24px rgba(59,130,246,0.16)' : 'none', animation: isHighlightedTask('tarefa', tar.id) ? 'taskFocusPulse 1.2s ease-in-out 0s 2' : 'none'}}>
-                                                                <div style={{display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px'}}>
-                                                                    
-                                                                    <div style={{display: 'flex', alignItems: 'flex-start', gap: '6px', flex: 1}}>
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                handleToggleStatus('tarefas', tar.id, tar.estado, tar.id);
-                                                                            }}
-                                                                            title={isTarCompleted ? 'Reabrir tarefa' : 'Concluir tarefa'}
-                                                                            style={{ width: '16px', height: '16px', borderRadius: '50%', cursor: 'pointer', border: isTarCompleted ? 'none' : '2px solid #cbd5e1', background: isTarCompleted ? 'var(--color-btnPrimary)' : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '0.6rem', flexShrink: 0, marginTop: '1px', padding: 0, lineHeight: 1 }}
-                                                                        >
-                                                                            {isTarCompleted && '✓'}
+                                                            <div
+                                                                id={`tarefa-card-${tar.id}`}
+                                                                key={tar.id}
+                                                                className={`tk-task ${isTarCompleted ? 'is-done' : ''} ${isTimerActive ? 'is-running' : ''} ${isHighlightedTask('tarefa', tar.id) ? 'is-focus' : ''} ${isCelebrating('tarefas', tar.id) ? 'is-celebrating' : ''}`}
+                                                            >
+                                                                <div className="tk-task-row">
+                                                                    {renderCheck('tarefas', tar, { taskIdParaTimer: tar.id })}
+                                                                    <div className="tk-task-main">
+                                                                        <button type="button" className="tk-task-title" onClick={() => handleEdit(tar, 'tarefa')}>
+                                                                            <span className="tk-strike">{tar.titulo}</span>
                                                                         </button>
-                                                                        <div style={{flex: 1}}>
-                                                                            <span onClick={() => handleEdit(tar, 'tarefa')} style={{textDecoration: isTarCompleted ? 'line-through' : 'none', color: '#334155', fontWeight: '600', cursor: 'pointer', fontSize: '0.8rem', lineHeight: '1.2', display: 'block', marginBottom: '4px'}} className="hover-underline">
-                                                                                {tar.titulo}
-                                                                            </span>
-                                                                            <div style={{display: 'flex', gap: '4px', flexWrap: 'wrap', alignItems: 'center'}}>
-                                                                                {renderStatusTag(tar.estado)}
-                                                                                {renderDeadline(tar.data_fim || tar.data_limite, isTarCompleted)}
-                                                                                {tar.tem_entregavel && <span title="Tem Documento Entregável" style={{fontSize: '0.7rem', color: 'var(--color-btnPrimary)'}}>📄</span>}
-                                                                                {subsToRender.length > 0 && (
-                                                                                    <span onClick={() => toggleExpand(tar.id)} style={{fontSize: '0.6rem', background: '#e2e8f0', color: '#475569', padding: '2px 4px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold'}}>
-                                                                                        📋 {subsToRender.filter(s=>s.estado==='concluido').length}/{subsToRender.length} {isExpanded ? '▲' : '▼'}
-                                                                                    </span>
-                                                                                )}
-                                                                            </div>
+                                                                        <div className="tk-chips">
+                                                                            {renderStatusTag(tar.estado)}
+                                                                            {renderDeadline(tar.data_fim || tar.data_limite, isTarCompleted)}
+                                                                            {tarTime > 0 && <span className="tk-chip"><Icons.Clock size={11} /> {formatTime(tarTime)}</span>}
+                                                                            {tar.tem_entregavel && <span className="tk-chip is-doc" title="Tem documento entregável"><Icons.FileText size={11} /></span>}
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => toggleExpand(tar.id)}
+                                                                                className={`tk-chip tk-chip-btn ${isExpanded ? 'is-open' : ''} ${subs.length === 0 ? 'is-add' : ''}`}
+                                                                                title={subs.length > 0 ? 'Mostrar passos' : 'Adicionar passos'}
+                                                                            >
+                                                                                {subs.length > 0
+                                                                                    ? <><Icons.ListTree size={11} /> {subsDone}/{subs.length} <Icons.ChevronDown size={10} /></>
+                                                                                    : <><Icons.Plus size={11} /> Passos</>}
+                                                                            </button>
                                                                         </div>
                                                                     </div>
-
-                                                                    <div style={{display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-end'}}>
-                                                                        {!tar.is_readonly_parent && (
-                                                                            <button type="button" onClick={(e) => isTimerActive ? openStopNoteModal(e) : handleStartTask(tar, e)} style={{ background: isTimerActive ? '#fee2e2' : 'white', color: isTimerActive ? '#ef4444' : '#64748b', border: '1px solid #e2e8f0', padding: '2px 6px', borderRadius: '12px', cursor: 'pointer', fontSize: '0.65rem', fontWeight: 'bold', display: 'flex', alignItems: 'center'}}>
-                                                                                {isTimerActive ? '⏹' : '▶'}
-                                                                            </button>
-                                                                        )}
-                                                                    </div>
+                                                                    {!tar.is_readonly_parent && !isTarCompleted && renderTimerBtn(isTimerActive, (e) => isTimerActive ? openStopNoteModal(e) : handleStartTask(tar, e), { size: 'sm', label: 'tarefa' })}
                                                                 </div>
 
-                                                                {isExpanded && subsToRender.length > 0 && (
-                                                                    <div style={{marginTop: '8px', paddingTop: '6px', borderTop: '1px dashed #e2e8f0', paddingLeft: '20px'}}>
-                                                                        {subsToRender.map(sub => {
-                                                                            const isSubCompleted = sub.estado === 'concluido';
-                                                                            return (
-                                                                                <div key={sub.id} style={{display: 'flex', alignItems: 'flex-start', gap: '6px', marginBottom: '4px', opacity: isSubCompleted ? 0.6 : 1}}>
-                                                                                    <input type="checkbox" checked={isSubCompleted} onChange={() => handleToggleStatus('subtarefas', sub.id, sub.estado, tar.id)} style={{width: '12px', height: '12px', cursor: 'pointer', accentColor: 'var(--color-btnPrimary)', marginTop: '2px'}} />
-                                                                                    <div style={{flex: 1}}>
-                                                                                        <span onClick={() => handleEdit(sub, 'subtarefa')} style={{textDecoration: isSubCompleted ? 'line-through' : 'none', color: '#475569', fontWeight: '500', cursor: 'pointer', fontSize: '0.75rem', lineHeight: '1.2', display: 'block'}} className="hover-underline">
-                                                                                            {sub.titulo}
-                                                                                        </span>
-                                                                                    </div>
-                                                                                </div>
-                                                                            )
-                                                                        })}
-                                                                        <form onSubmit={(e) => handleAddSubtarefa(e, tar.id)} style={{marginTop: '6px'}}>
-                                                                            <input type="text" placeholder="+ Passo..." value={novaSubtarefaNome.tarId === tar.id ? novaSubtarefaNome.nome : ""} onChange={e => setNovaSubtarefaNome({ tarId: tar.id, nome: e.target.value })} style={{width: '100%', padding: '4px', background: 'transparent', border: 'none', borderBottom: '1px solid #cbd5e1', outline: 'none', fontSize: '0.7rem', color: '#475569'}} />
+                                                                {isExpanded && (
+                                                                    <div className="tk-subs">
+                                                                        {subs.map((sub) => (
+                                                                            <div key={sub.id} className={`tk-sub ${sub.estado === 'concluido' ? 'is-done' : ''} ${isCelebrating('subtarefas', sub.id) ? 'is-celebrating' : ''}`}>
+                                                                                {renderCheck('subtarefas', sub, { taskIdParaTimer: tar.id, shape: 'mini', noun: 'passo' })}
+                                                                                <button type="button" onClick={() => handleEdit(sub, 'subtarefa')} className="tk-sub-title"><span className="tk-strike">{sub.titulo}</span></button>
+                                                                            </div>
+                                                                        ))}
+                                                                        <form onSubmit={(e) => handleAddSubtarefa(e, tar.id)} className="tk-add is-step">
+                                                                            <Icons.Plus size={12} />
+                                                                            <input type="text" placeholder="Novo passo (Enter)" value={novaSubtarefaNome.tarId === tar.id ? novaSubtarefaNome.nome : ""} onChange={e => setNovaSubtarefaNome({ tarId: tar.id, nome: e.target.value })} />
                                                                         </form>
                                                                     </div>
                                                                 )}
@@ -1951,163 +2071,144 @@ export default function Tarefas() {
                                                         );
                                                     })
                                                 )}
-                                                
-                                                <form onSubmit={(e) => handleAddTarefa(e, ativ.id)} style={{marginTop: '10px'}}>
-                                                    <input type="text" placeholder="+ Tarefa (Enter)..." value={novaTarefaNome.ativId === ativ.id ? novaTarefaNome.nome : ""} onChange={e => setNovaTarefaNome({ ativId: ativ.id, nome: e.target.value })} style={{width: '100%', padding: '8px', borderRadius: '6px', border: '1px dashed #cbd5e1', background: 'transparent', outline: 'none', fontSize: '0.75rem', color: '#64748b', fontWeight: '500'}} />
-                                                </form>
                                             </div>
                                         )}
-                                    </div>
+
+                                        {!isAtivCompleted && (
+                                            <form onSubmit={(e) => handleAddTarefa(e, ativ.id)} className="tk-add">
+                                                <Icons.Plus size={14} />
+                                                <input type="text" placeholder="Adicionar tarefa (Enter)" value={novaTarefaNome.ativId === ativ.id ? novaTarefaNome.nome : ""} onChange={e => setNovaTarefaNome({ ativId: ativ.id, nome: e.target.value })} />
+                                            </form>
+                                        )}
+                                    </article>
                                 );
                             })}
                         </div>
-                        
+
                         {(hasMore || canCollapse) && (
-                            <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginTop: '15px' }}>
+                            <div className="tk-more">
                                 {hasMore && (
-                                    <button onClick={() => setVisibleLimits(prev => ({...prev, [proj.id]: limit + 5}))} style={{ background: 'white', color: proj.color, border: '1px solid var(--color-borderColor)', padding: '8px 20px', borderRadius: '20px', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', transition: '0.2s' }} className="hover-shadow">
-                                        ↓ Ver mais ({proj.atividades.length - limit})
+                                    <button type="button" onClick={() => setVisibleLimits(prev => ({...prev, [proj.id]: limit + 6}))} className="tk-more-btn">
+                                        <Icons.ChevronDown size={14} /> Ver mais {proj.atividades.length - limit}
                                     </button>
                                 )}
                                 {canCollapse && (
-                                    <button onClick={() => setVisibleLimits(prev => ({...prev, [proj.id]: 5}))} style={{ background: '#f8fafc', color: '#64748b', border: `1px solid #cbd5e1`, padding: '8px 20px', borderRadius: '20px', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', transition: '0.2s' }} className="hover-shadow">
-                                        ↑ Recolher
+                                    <button type="button" onClick={() => setVisibleLimits(prev => ({...prev, [proj.id]: 6}))} className="tk-more-btn is-ghost">
+                                        <span className="tk-flip"><Icons.ChevronDown size={14} /></span> Recolher
                                     </button>
                                 )}
                             </div>
                         )}
-
-                    </div>
+                    </section>
                 );
             })
         ) : (
-            <div style={{textAlign: 'center', padding: '50px', background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', color: '#64748b'}}>
-                <span style={{fontSize: '2rem', display: 'block', marginBottom: '10px'}}>🏖️</span>
-                <h3 style={{margin: '0 0 5px 0', color: '#1e293b', fontSize: '1.2rem'}}>Tudo limpo!</h3>
-                <p style={{margin: 0, fontSize: '0.9rem'}}>Não tens tarefas de projeto pendentes com os filtros atuais.</p>
+            <div className="tk-empty">
+                <span className="tk-empty-icon"><Icons.Check size={28} /></span>
+                <h3>Tudo limpo!</h3>
+                <p>{busca || filtroCliente || filtroProjeto ? 'Nada corresponde aos filtros atuais.' : 'Não tens tarefas de projeto pendentes.'}</p>
+                {(busca || filtroCliente || filtroProjeto) && (
+                    <button type="button" className="tk-btn" onClick={() => { setBusca(''); setFiltroCliente(''); setFiltroProjeto(''); }}>Limpar filtros</button>
+                )}
             </div>
         )}
       </div>
 
+      {/* APAGAR */}
       {deleteConfirm.show && (
           <ModalPortal>
-              <div style={modalOverlayStyle} onClick={() => setDeleteConfirm({show:false, tabela:'', id:null, titulo:''})}>
-                  <div style={{background: 'white', padding: '30px', borderRadius: '16px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'}} onClick={e => e.stopPropagation()}>
-                      <div style={{fontSize: '3rem', marginBottom: '10px'}}>⚠️</div>
-                      <h3 style={{margin: '0 0 10px 0', color: '#1e293b', fontSize: '1.2rem'}}>Apagar Item?</h3>
-                      <p style={{color: '#64748b', fontSize: '0.9rem', marginBottom: '25px'}}>
-                          Tens a certeza que queres apagar <strong>"{deleteConfirm.titulo}"</strong>? Esta ação não pode ser desfeita.
-                      </p>
-                      <div style={{display: 'flex', gap: '10px'}}>
-                          <button onClick={() => setDeleteConfirm({show:false, tabela:'', id:null, titulo:''})} style={{flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', background: 'white', color: '#475569', fontWeight: 'bold', cursor: 'pointer'}}>Cancelar</button>
-                          <button onClick={executeDelete} style={{flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: '#ef4444', color: 'white', fontWeight: 'bold', cursor: 'pointer'}}>Sim, Apagar</button>
+              <div className="tk-overlay" onClick={() => setDeleteConfirm({show:false, tabela:'', id:null, titulo:''})}>
+                  <div className="tk-dialog" onClick={e => e.stopPropagation()}>
+                      <span className="tk-dialog-icon is-danger"><Icons.Trash size={24} /></span>
+                      <h3>Apagar item?</h3>
+                      <p>Tens a certeza que queres apagar <strong>"{deleteConfirm.titulo}"</strong>? Esta ação não pode ser desfeita.</p>
+                      <div className="tk-dialog-actions">
+                          <button type="button" className="tk-btn" onClick={() => setDeleteConfirm({show:false, tabela:'', id:null, titulo:''})}>Cancelar</button>
+                          <button type="button" className="tk-btn is-danger" onClick={executeDelete}>Sim, apagar</button>
                       </div>
                   </div>
               </div>
           </ModalPortal>
       )}
 
+      {/* TEMPO MANUAL */}
       {showTimeModal && (
           <ModalPortal>
-              <div style={modalOverlayStyle} onClick={() => !timeLogSaving && setShowTimeModal(false)}>
-                  <div style={{...modalStyle, maxWidth: '760px'}} onClick={e => e.stopPropagation()}>
-                      <div style={modalHeaderStyle}>
-                          <h3 style={{margin: 0, color: '#1e293b'}}>{editingTimeLogId ? 'Editar Registo de Tempo' : 'Novo Registo de Tempo'}</h3>
-                          <button onClick={() => !timeLogSaving && setShowTimeModal(false)} style={{background:'transparent', border:'none', cursor:'pointer', color:'#94a3b8'}}>✕</button>
-                      </div>
-                      <div style={modalBodyStyle}>
-                          <form onSubmit={handleSaveTimeLog} style={{display: 'grid', gap: '12px', marginBottom: '16px'}}>
-                              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px'}}>
-                                  <div>
-                                      <label style={labelStyle}>Colaborador</label>
-                                      <select value={timeLogForm.user_id} onChange={(e) => setTimeLogForm(prev => ({...prev, user_id: e.target.value}))} style={inputStyle} required>
-                                          <option value="">Selecionar...</option>
-                                          {staff
-                                              .filter(s => s.ativo !== false || String(s.id) === String(timeLogForm.user_id))
-                                              .map((s) => <option key={s.id} value={s.id}>{s.nome || s.email}{s.ativo === false ? ' (Inativo)' : ''}</option>)}
-                                      </select>
+              <div className="tk-overlay" onClick={() => !timeLogSaving && setShowTimeModal(false)}>
+                  <div className="tk-modal is-wide" onClick={e => e.stopPropagation()}>
+                      <header className="tk-modal-head">
+                          <span className="tk-modal-icon"><Icons.Clock size={20} /></span>
+                          <div className="tk-modal-titles">
+                              <h3>{editingTimeLogId ? 'Editar registo de tempo' : 'Registar tempo'}</h3>
+                              <p>Adiciona tempo trabalhado a uma atividade, tarefa ou passo.</p>
+                          </div>
+                          <button type="button" className="tk-close" onClick={() => !timeLogSaving && setShowTimeModal(false)} aria-label="Fechar"><Icons.Close size={18} /></button>
+                      </header>
+                      <div className="tk-modal-body">
+                          <form onSubmit={handleSaveTimeLog} className="tk-form">
+                              <div className="tk-row-2">
+                                  <div className="tk-field">
+                                      <label>Colaborador</label>
+                                      <FancySelect value={timeLogForm.user_id} onChange={(v) => setTimeLogForm(prev => ({...prev, user_id: v}))} options={staffOptions} icon={<Icons.User size={14} />} className="tk-fs" placeholder="Selecionar..." searchPlaceholder="Procurar colaborador..." ariaLabel="Colaborador" />
                                   </div>
-                                  <div>
-                                      <label style={labelStyle}>Tempo (minutos)</label>
-                                      <input type="number" min="1" value={timeLogForm.duration_minutes} onChange={(e) => setTimeLogForm(prev => ({...prev, duration_minutes: e.target.value}))} style={inputStyle} required />
-                                  </div>
-                              </div>
-                              <div style={{display: 'grid', gridTemplateColumns: '170px 1fr', gap: '10px'}}>
-                                  <div>
-                                      <label style={labelStyle}>Tipo</label>
-                                      <select value={timeLogForm.target_type} onChange={(e) => {
-                                          const nextType = e.target.value;
-                                          setTimeLogForm(prev => ({ ...prev, target_type: nextType, target_id: getTargetOptions(nextType)[0]?.id || "" }));
-                                      }} style={inputStyle}>
-                                          <option value="atividade">Atividade</option>
-                                          <option value="tarefa">Tarefa</option>
-                                          <option value="subtarefa">Passo</option>
-                                      </select>
-                                  </div>
-                                  <div>
-                                      <label style={labelStyle}>Item</label>
-                                      <select value={timeLogForm.target_id} onChange={(e) => setTimeLogForm(prev => ({...prev, target_id: e.target.value}))} style={inputStyle} required>
-                                          <option value="">Selecionar...</option>
-                                          {getTargetOptions(timeLogForm.target_type).map((opt) => <option key={opt.id} value={opt.id}>{opt.label}</option>)}
-                                      </select>
+                                  <div className="tk-field">
+                                      <label>Tempo</label>
+                                      <div className="tk-input-suffix">
+                                          <input className="tk-input" type="number" min="1" value={timeLogForm.duration_minutes} onChange={(e) => setTimeLogForm(prev => ({...prev, duration_minutes: e.target.value}))} required placeholder="Ex: 45" />
+                                          <span>min</span>
+                                      </div>
+                                      <small className="tk-hint">= {formatTime(Math.max(0, parseInt(timeLogForm.duration_minutes || "0", 10) || 0))}</small>
                                   </div>
                               </div>
-                              <div style={{fontSize: '0.78rem', color: '#64748b'}}>Pré-visualização: {formatTime(Math.max(0, parseInt(timeLogForm.duration_minutes || "0", 10) || 0))}</div>
-                              <div style={{display: 'flex', justifyContent: 'flex-end', gap: '10px'}}>
-                                  <button type="button" onClick={() => setShowTimeModal(false)} style={{padding: '10px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white'}}>Cancelar</button>
-                                  <button type="submit" disabled={timeLogSaving} className="btn-primary hover-shadow" style={{padding: '10px 16px'}}>{timeLogSaving ? 'A guardar...' : 'Guardar'}</button>
+                              <div className="tk-field">
+                                  <label>Onde registar</label>
+                                  <div className="tk-seg">
+                                      {[['atividade', 'Atividade'], ['tarefa', 'Tarefa'], ['subtarefa', 'Passo']].map(([val, lab]) => (
+                                          <button key={val} type="button" className={timeLogForm.target_type === val ? 'is-on' : ''} onClick={() => setTimeLogForm(prev => ({ ...prev, target_type: val, target_id: getTargetOptions(val)[0]?.id || "" }))}>{lab}</button>
+                                      ))}
+                                  </div>
+                              </div>
+                              <div className="tk-field">
+                                  <label>Item</label>
+                                  <FancySelect
+                                      value={timeLogForm.target_id}
+                                      onChange={(v) => setTimeLogForm(prev => ({...prev, target_id: v}))}
+                                      options={getTargetOptions(timeLogForm.target_type).map((opt) => ({ value: opt.id, label: opt.label }))}
+                                      icon={<Icons.ListTree size={14} />}
+                                      className="tk-fs"
+                                      placeholder="Selecionar..."
+                                      menuWidth={480}
+                                      ariaLabel="Item"
+                                  />
+                              </div>
+                              <div className="tk-form-actions">
+                                  <button type="button" className="tk-btn" onClick={() => setShowTimeModal(false)}>Cancelar</button>
+                                  <button type="submit" className="tk-btn is-primary" disabled={timeLogSaving || !timeLogForm.user_id || !timeLogForm.target_id}>
+                                      <Icons.Save size={15} /> {timeLogSaving ? 'A guardar...' : 'Guardar'}
+                                  </button>
                               </div>
                           </form>
 
-                          <div style={{borderTop: '1px solid #e2e8f0', paddingTop: '12px'}}>
-                              <h4 style={{margin: '0 0 10px 0', fontSize: '0.95rem', color: '#334155'}}>Registos</h4>
-                              <div style={{maxHeight: '260px', overflowY: 'auto'}} className="custom-scrollbar">
-                                  <table style={{width: '100%', borderCollapse: 'collapse'}}>
-                                      <thead>
-                                          <tr style={{fontSize: '0.72rem', color: '#64748b', textTransform: 'uppercase', borderBottom: '1px solid #e2e8f0'}}>
-                                              <th style={{padding: '8px', textAlign: 'left'}}>Data</th>
-                                              <th style={{padding: '8px', textAlign: 'left'}}>Item</th>
-                                              <th style={{padding: '8px', textAlign: 'left'}}>Quem</th>
-                                              <th style={{padding: '8px', textAlign: 'right'}}>Tempo</th>
-                                              <th style={{padding: '8px', textAlign: 'right'}}>Ações</th>
-                                          </tr>
-                                      </thead>
-                                      <tbody>
-                                          {logs.filter((l) => (l.duration_minutes || 0) > 0).map((log) => (
-                                              <tr key={log.id} style={{borderBottom: '1px solid #f1f5f9'}}>
-                                                  <td style={{padding: '8px', fontSize: '0.78rem', color: '#64748b'}}>{log.start_time ? new Date(log.start_time).toLocaleString('pt-PT') : '-'}</td>
-                                                  <td style={{padding: '8px', fontSize: '0.8rem', color: '#334155'}}>{getTimeLogTargetLabel(log)}</td>
-                                                  <td style={{padding: '8px', fontSize: '0.8rem', color: '#334155'}}>{staff.find((s) => String(s.id) === String(log.user_id))?.nome || staff.find((s) => String(s.id) === String(log.user_id))?.email || 'Utilizador'}</td>
-                                                  <td style={{padding: '8px', textAlign: 'right', fontWeight: '700'}}>{formatTime(log.duration_minutes || 0)}</td>
-                                                  <td style={timeLogActionCellStyle}>
-                                                      <div style={timeLogActionsWrapStyle}>
-                                                          <button
-                                                              type="button"
-                                                              onClick={() => openTimeEditModal(log)}
-                                                              title="Editar registo"
-                                                              style={timeLogEditBtnStyle}
-                                                              className="time-log-action-btn"
-                                                          >
-                                                              <Icons.Edit size={13} />
-                                                          </button>
-                                                          <button
-                                                              type="button"
-                                                              onClick={() => handleDeleteTimeLog(log.id)}
-                                                              title="Apagar registo"
-                                                              style={timeLogDeleteBtnStyle}
-                                                              className="time-log-action-btn"
-                                                          >
-                                                              <Icons.Trash size={13} />
-                                                          </button>
-                                                      </div>
-                                                  </td>
-                                              </tr>
-                                          ))}
-                                          {logs.filter((l) => (l.duration_minutes || 0) > 0).length === 0 && (
-                                              <tr><td colSpan={5} style={{padding: '12px', textAlign: 'center', color: '#94a3b8'}}>Sem registos de tempo.</td></tr>
-                                          )}
-                                      </tbody>
-                                  </table>
+                          <div className="tk-logs">
+                              <h4>Registos <span>{timeLogsWithDuration.length}</span></h4>
+                              <div className="tk-logs-list custom-scrollbar">
+                                  {timeLogsWithDuration.length === 0 && <div className="tk-logs-empty">Sem registos de tempo.</div>}
+                                  {timeLogsWithDuration.map((log) => {
+                                      const who = staff.find((s) => String(s.id) === String(log.user_id));
+                                      return (
+                                          <div key={log.id} className={`tk-log ${String(editingTimeLogId) === String(log.id) ? 'is-editing' : ''}`}>
+                                              <span className="tk-log-time">{formatTime(log.duration_minutes || 0)}</span>
+                                              <div className="tk-log-main">
+                                                  <strong>{getTimeLogTargetLabel(log)}</strong>
+                                                  <span>{who?.nome || who?.email || 'Utilizador'} · {log.start_time ? new Date(log.start_time).toLocaleString('pt-PT', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-'}</span>
+                                              </div>
+                                              <div className="tk-log-actions">
+                                                  <button type="button" onClick={() => openTimeEditModal(log)} title="Editar registo" aria-label="Editar registo"><Icons.Edit size={13} /></button>
+                                                  <button type="button" className="is-danger" onClick={() => handleDeleteTimeLog(log.id)} title="Apagar registo" aria-label="Apagar registo"><Icons.Trash size={13} /></button>
+                                              </div>
+                                          </div>
+                                      );
+                                  })}
                               </div>
                           </div>
                       </div>
@@ -2147,635 +2248,332 @@ export default function Tarefas() {
                 onConfirm={confirmStopWithNote}
             />
 
-      {/* 💡 MODAL DE EDIÇÃO AVANÇADO (C/ SEARCHABLE SELECT E UPLOAD DE ARQUIVO) */}
+      {/* EDITAR / CRIAR */}
       {showModal && (
         <ModalPortal>
-          <div style={modalOverlayStyle} onClick={(e) => { if(e.target === e.currentTarget) setShowModal(false); }}>
-            <div style={modalStyle}>
-              <div style={modalHeaderStyle}>
-                <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
-                    <span style={{background: 'var(--color-bgSecondary)', padding: '6px', borderRadius: '8px', fontSize: '1.1rem'}}>{isViewOnly ? '👁️' : (editId ? '✎' : '✨')}</span>
-                    <div>
-                        <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.1rem'}}>{isViewOnly ? "Detalhes" : (editId ? `Editar ${editType.charAt(0).toUpperCase() + editType.slice(1)}` : "Nova Tarefa")}</h3>
-                    </div>
-                </div>
-                <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
-                    {editId && !isViewOnly && (
-                        <button onClick={() => { setShowModal(false); openDeleteConfirm(editType === 'atividade' ? 'atividades' : editType === 'tarefa' ? 'tarefas' : 'subtarefas', editId, form.titulo); }} style={{background:'transparent', border:'none', cursor:'pointer', color:'#ef4444', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: 'bold'}} className="hover-red-text" title="Apagar">
-                            <Icons.Trash size={14} /> Apagar
-                        </button>
-                    )}
-                    <button onClick={() => setShowModal(false)} style={{background:'transparent', border:'none', fontSize:'1.2rem', cursor:'pointer', color:'#94a3b8'}}>✕</button>
-                </div>
-              </div>
-              <div style={modalBodyStyle}>
-                <form onSubmit={handleSubmit}>
-                  <fieldset disabled={isViewOnly || isUploading} style={{border:'none', padding:0, margin:0}}>
-                    
-                    <div style={{marginBottom: '15px'}}>
-                        <label style={labelStyle}>Título *</label>
-                        <input type="text" value={form.titulo} onChange={e => setForm({...form, titulo: e.target.value})} required placeholder="Escreva aqui..." style={{...inputStyle, fontWeight: 'bold'}} />
+          <div className="tk-overlay" onClick={(e) => { if (e.target === e.currentTarget) setShowModal(false); }}>
+            <div className="tk-modal">
+              <header className="tk-modal-head">
+                  <span className="tk-modal-icon">{editId ? <Icons.Edit size={19} /> : <Icons.Plus size={20} />}</span>
+                  <div className="tk-modal-titles">
+                      <h3>{isViewOnly ? 'Detalhes' : (editId ? `Editar ${editTypeLabel.toLowerCase()}` : 'Nova tarefa')}</h3>
+                      <p>{editId ? (form.titulo || editTypeLabel) : 'Cria uma tarefa dentro de uma atividade de projeto.'}</p>
+                  </div>
+                  {editId && !isViewOnly && (
+                      <button type="button" className="tk-icon-btn is-danger" title="Apagar" aria-label="Apagar" onClick={() => { setShowModal(false); openDeleteConfirm(editType === 'atividade' ? 'atividades' : editType === 'tarefa' ? 'tarefas' : 'subtarefas', editId, form.titulo); }}>
+                          <Icons.Trash size={16} />
+                      </button>
+                  )}
+                  <button type="button" className="tk-close" onClick={() => setShowModal(false)} aria-label="Fechar"><Icons.Close size={18} /></button>
+              </header>
+
+              <form onSubmit={submitModal} className="tk-modal-form">
+                <div className="tk-modal-body">
+                  <fieldset disabled={isViewOnly || isUploading} className="tk-fieldset">
+
+                    <div className="tk-field">
+                        <label>Título <em>*</em></label>
+                        <input className="tk-input tk-input-title" type="text" value={form.titulo} onChange={e => setForm({...form, titulo: e.target.value})} required placeholder={`Nome ${editType === 'atividade' ? 'da atividade' : editType === 'subtarefa' ? 'do passo' : 'da tarefa'}...`} autoFocus={!editId} />
                     </div>
 
-                    {editType !== 'atividade' && (
-                        <div style={sectionTitleStyle}>📌 Enquadramento</div>
-                    )}
-                    <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
-                        {editType === 'tarefa' && (
-                            <div style={inputGroupStyle}>
-                                <label style={labelStyle}>Atividade / Projeto Pai *</label>
-                                <div style={{ position: 'relative' }}>
-                                    <input 
-                                        type="text" 
-                                        value={searchAtivText}
-                                        onChange={(e) => {
-                                            setSearchAtivText(e.target.value);
-                                            setShowAtivDropdown(true);
-                                            if(e.target.value === "") setForm({...form, atividade_id: ""});
+                    <section className="tk-sec">
+                        <h4><Icons.Users size={14} /> Enquadramento</h4>
+                        <div className="tk-row-2">
+                            {editType === 'tarefa' && (
+                                <div className="tk-field tk-span-2">
+                                    <label>Atividade / projeto <em>*</em></label>
+                                    <FancySelect
+                                        value={form.atividade_id}
+                                        onChange={(v) => {
+                                            const a = atividadesBase.find((x) => String(x.id) === String(v));
+                                            setForm({ ...form, atividade_id: v });
+                                            setSearchAtivText(a ? `${a.titulo} (Proj: ${a.projetos?.titulo || 'Projeto'})` : '');
                                         }}
-                                        onFocus={() => setShowAtivDropdown(true)}
-                                        onBlur={() => setTimeout(() => setShowAtivDropdown(false), 200)}
-                                        placeholder="Pesquisar Atividade..." 
-                                        style={inputStyle}
-                                        required
-                                        disabled={isViewOnly}
+                                        options={parentActivityOptions}
+                                        icon={<Icons.Folder size={14} />}
+                                        className="tk-fs"
+                                        placeholder="Escolher atividade..."
+                                        searchPlaceholder="Procurar atividade ou projeto..."
+                                        menuWidth={520}
+                                        ariaLabel="Atividade"
                                     />
-                                    {showAtivDropdown && !isViewOnly && (
-                                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'white', border: '1px solid #cbd5e1', borderRadius: '6px', maxHeight: '200px', overflowY: 'auto', zIndex: 1000, boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} className="custom-scrollbar">
-                                            {atividadesBase.filter(a => `${a.titulo} ${a.projetos?.titulo}`.toLowerCase().includes(searchAtivText.toLowerCase())).map(a => (
-                                                <div 
-                                                    key={a.id} 
-                                                    onClick={() => { setForm({...form, atividade_id: a.id}); setSearchAtivText(`${a.titulo} (Proj: ${a.projetos?.titulo})`); setShowAtivDropdown(false); }}
-                                                    style={{ padding: '10px 12px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '0.85rem', color: '#334155' }}
-                                                    onMouseOver={(e) => e.currentTarget.style.background = '#f8fafc'}
-                                                    onMouseOut={(e) => e.currentTarget.style.background = 'white'}
-                                                >
-                                                    <span style={{fontWeight: 'bold'}}>{a.titulo}</span> <span style={{color: '#94a3b8'}}>(Proj: {a.projetos?.titulo})</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
                                 </div>
+                            )}
+
+                            <div className="tk-field">
+                                <label>Responsável principal <em>*</em></label>
+                                <FancySelect
+                                    value={form.responsavel_id}
+                                    onChange={(newResp) => {
+                                        const extras = Array.isArray(form.colaboradores_extra) ? form.colaboradores_extra.map((id) => String(id)) : [];
+                                        setForm({...form, responsavel_id: newResp, colaboradores_extra: extras.filter((id) => id !== String(newResp))});
+                                    }}
+                                    options={responsavelOptions}
+                                    icon={<Icons.User size={14} />}
+                                    className="tk-fs"
+                                    placeholder="Selecionar..."
+                                    searchPlaceholder="Procurar pessoa..."
+                                    menuWidth={360}
+                                    ariaLabel="Responsável principal"
+                                />
                             </div>
-                        )}
-                        
-                        <div style={inputGroupStyle}>
-                            <label style={labelStyle}>Responsável Principal *</label>
-                            <select value={form.responsavel_id} onChange={e => {
-                                const newResp = e.target.value;
-                                const extras = Array.isArray(form.colaboradores_extra) ? form.colaboradores_extra.map((id) => String(id)) : [];
-                                setForm({...form, responsavel_id: newResp, colaboradores_extra: extras.filter((id) => id !== String(newResp))});
-                            }} style={inputStyle} required>
-                                <option value="">-- Selecione --</option>
-                                {renderResponsavelOptionsGroups()}
-                            </select>
-                        </div>
 
-                        {editType === 'tarefa' && (
-                            <div style={inputGroupStyle}>
-                                <label style={labelStyle}>Prioridade</label>
-                                <select value={form.prioridade} onChange={e => setForm({...form, prioridade: e.target.value})} style={inputStyle}><option value="baixa">🟢 Baixa</option><option value="normal">🔵 Normal</option><option value="alta">🟠 Alta</option><option value="urgente">🔴 Urgente</option></select>
-                            </div>
-                        )}
-                    </div>
-
-                    {(editType === 'tarefa' || editType === 'atividade') && (
-                        <div style={{marginBottom: '15px'}}>
-                            <label style={labelStyle}>Outros Colaboradores Envolvidos</label>
-                            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px'}}>
-                                <div style={{background: 'white', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', maxHeight: '100px', overflowY: 'auto'}} className="custom-scrollbar">
-                                    <div style={{fontSize: '0.7rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px'}}>Equipa Interna</div>
-                                    <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap'}}>
-                                        {internalAssigneeOptions
-                                            .filter(s => String(s.id) !== String(form.responsavel_id || ''))
-                                            .filter(s => s.ativo || (form.colaboradores_extra || []).map(String).includes(String(s.id)))
-                                            .map(s => {
-                                            const isChecked = Array.isArray(form.colaboradores_extra) && form.colaboradores_extra.map((id) => String(id)).includes(String(s.id));
-                                            return (
-                                                <div 
-                                                    key={`extra-int-${s.id}`} 
-                                                    onClick={() => toggleColaboradorExtra(s.id)}
-                                                    style={{
-                                                        background: isChecked ? 'var(--color-bgSecondary)' : '#f8fafc',
-                                                        color: isChecked ? 'var(--color-btnPrimary)' : '#64748b',
-                                                        border: `1px solid ${isChecked ? 'var(--color-btnPrimary)' : '#e2e8f0'}`,
-                                                        padding: '4px 10px', borderRadius: '15px', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', gap: '4px'
-                                                    }}
-                                                >
-                                                    {isChecked && '✓'} {s.label}{!s.ativo ? ' (Inativo)' : ''}
-                                                </div>
-                                            )
-                                        })}
-                                    </div>
-                                </div>
-
-                                <div style={{background: 'white', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', maxHeight: '100px', overflowY: 'auto'}} className="custom-scrollbar">
-                                    <div style={{fontSize: '0.7rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px'}}>Pessoas das Entidades</div>
-                                    <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap'}}>
-                                        {modalEntityAssigneeOptions.filter(s => String(s.id) !== String(form.responsavel_id || '')).map(s => {
-                                            const isChecked = Array.isArray(form.colaboradores_extra) && form.colaboradores_extra.map((id) => String(id)).includes(String(s.id));
-                                            return (
-                                                <div 
-                                                    key={`extra-ent-${s.id}`} 
-                                                    onClick={() => toggleColaboradorExtra(s.id)}
-                                                    style={{
-                                                        background: isChecked ? 'var(--color-bgSecondary)' : '#f8fafc',
-                                                        color: isChecked ? 'var(--color-btnPrimary)' : '#64748b',
-                                                        border: `1px solid ${isChecked ? 'var(--color-btnPrimary)' : '#e2e8f0'}`,
-                                                        padding: '4px 10px', borderRadius: '15px', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', gap: '4px'
-                                                    }}
-                                                >
-                                                    {isChecked && '✓'} {s.label}
-                                                </div>
-                                            )
-                                        })}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* --- PLANEAMENTO (Sempre visível) & FINANCEIRO CONDICIONAL --- */}
-                    <div style={sectionTitleStyle}><Icons.Calendar /> Planeamento & Financeiro</div>
-                    <div style={{display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '15px'}}>
-                        
-                        {/* 👇 SEM CONDIÇÃO - SEMPRE VISÍVEIS */}
-                        {(editType === 'tarefa' || editType === 'atividade') && (
-                            <div style={{flex: '1 1 150px'}}>
-                                <label style={labelStyle}>Data Início</label>
-                                <input type="date" value={form.data_inicio} onChange={e => setForm({...form, data_inicio: e.target.value})} style={inputStyle} className="input-focus" />
-                            </div>
-                        )}
-                        <div style={{flex: '1 1 150px'}}>
-                            <label style={labelStyle}>Deadline / Prazo Limite</label>
-                            <input type="date" value={form.data_limite} onChange={e => setForm({...form, data_limite: e.target.value})} style={{...inputStyle, borderColor: form.data_limite ? '#fca5a5' : '#cbd5e1'}} className="input-focus" />
-                        </div>
-
-                        {/* 👇 COM CONDIÇÃO - SÓ APARECEM SE EXIGIDOS NO TEMPLATE */}
-                        {deveMostrarCampoItem(form.info_adicional, 'investimento') && (
-                            <div style={{flex: '1 1 150px'}}>
-                                <label style={labelStyle}>Investimento (€)</label>
-                                <input type="number" step="0.01" value={form.investimento} onChange={e => setForm({...form, investimento: e.target.value})} style={inputStyle} className="input-focus" />
-                            </div>
-                        )}
-
-                        {deveMostrarCampoItem(form.info_adicional, 'incentivo') && (
-                            <div style={{flex: '1 1 150px'}}>
-                                <label style={labelStyle}>Incentivo (€)</label>
-                                <input type="number" step="0.01" value={form.incentivo} onChange={e => setForm({...form, incentivo: e.target.value})} style={inputStyle} className="input-focus" />
-                            </div>
-                        )}
-
-                        {deveMostrarCampoItem(form.info_adicional, 'financiamento') && (
-                            <div style={{flex: '1 1 150px'}}>
-                                <label style={labelStyle}>Financiamento (€)</label>
-                                <input type="number" step="0.01" value={form.financiamento} onChange={e => setForm({...form, financiamento: e.target.value})} style={inputStyle} className="input-focus" />
-                            </div>
-                        )}
-
-                        {deveMostrarCampoItem(form.info_adicional, 'data_prevista_aprovacao') && (
-                            <div style={{flex: '1 1 150px'}}>
-                                <label style={labelStyle}>Data Prev. Aprov.</label>
-                                <input type="date" value={form.data_prevista_aprovacao} onChange={e => setForm({...form, data_prevista_aprovacao: e.target.value})} style={inputStyle} className="input-focus" />
-                            </div>
-                        )}
-                    </div>
-
-                    {editType === 'atividade' && editId && (
-                        <>
-                            <div style={sectionTitleStyle}>🗂️ Tarefas Associadas</div>
-                            <div style={{background: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '12px', marginBottom: '15px'}}>
-                                {associatedTasks.length === 0 ? (
-                                    <div style={{fontSize: '0.82rem', color: '#94a3b8', textAlign: 'center', padding: '10px 6px'}}>
-                                        Ainda não existem tarefas ligadas a esta atividade.
-                                    </div>
-                                ) : (
-                                    <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
-                                        {associatedTasks.map((task) => {
-                                            const isTaskInactive = task.estado === 'concluido' || task.estado === 'cancelado';
-                                            const isTaskTimerActive = activeTask && String(activeTask.task_id) === String(task.id);
-                                            const responsavelNome = getPersonLabelById(task.responsavel_id);
-                                            const subtarefasCount = Array.isArray(task.subtarefas) ? task.subtarefas.length : 0;
-
-                                            return (
-                                                <div
-                                                    key={task.id}
-                                                    style={{
-                                                        width: '100%',
-                                                        textAlign: 'left',
-                                                        border: '1px solid #e2e8f0',
-                                                        background: isTaskInactive ? '#f8fafc' : '#ffffff',
-                                                        borderRadius: '10px',
-                                                        padding: '10px 12px',
-                                                        display: 'grid',
-                                                        gridTemplateColumns: 'minmax(0, 1fr) auto',
-                                                        alignItems: 'center',
-                                                        gap: '12px',
-                                                        opacity: isTaskInactive ? 0.75 : 1,
-                                                        boxSizing: 'border-box',
-                                                        overflow: 'hidden'
-                                                    }}
-                                                    className="hover-shadow"
-                                                >
-                                                    <div style={{minWidth: 0, flex: 1}}>
-                                                        <div style={{display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '4px'}}>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handleToggleStatus('tarefas', task.id, task.estado, task.id)}
-                                                                title={task.estado === 'concluido' ? 'Reabrir tarefa' : 'Concluir tarefa'}
-                                                                style={{
-                                                                    width: '20px',
-                                                                    height: '20px',
-                                                                    border: task.estado === 'concluido' ? 'none' : '2px solid #cbd5e1',
-                                                                    background: task.estado === 'concluido' ? 'var(--color-btnPrimary)' : '#ffffff',
-                                                                    color: '#ffffff',
-                                                                    borderRadius: '50%',
-                                                                    padding: 0,
-                                                                    cursor: 'pointer',
-                                                                    fontSize: '0.7rem',
-                                                                    fontWeight: '700',
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    justifyContent: 'center',
-                                                                    lineHeight: 1,
-                                                                    flexShrink: 0,
-                                                                    marginTop: '1px'
-                                                                }}
-                                                            >
-                                                                {task.estado === 'concluido' ? '✓' : ''}
-                                                            </button>
-                                                            <div style={{minWidth: 0, flex: 1}}>
-                                                                <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap'}}>
-                                                                    <strong style={{color: '#1e293b', fontSize: '0.85rem', textDecoration: isTaskInactive ? 'line-through' : 'none'}}>{task.titulo}</strong>
-                                                                    {renderStatusTag(task.estado) || (
-                                                                        <span style={{fontSize: '0.62rem', background: '#f1f5f9', color: '#64748b', padding: '2px 6px', borderRadius: '999px', fontWeight: '700', textTransform: 'uppercase'}}>
-                                                                            {String(task.estado || 'pendente').replace('_', ' ')}
-                                                                        </span>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        <div style={{display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', color: '#64748b', fontSize: '0.75rem'}}>
-                                                            <span>Responsável: {responsavelNome || 'Sem responsável'}</span>
-                                                            {task.data_fim && renderDeadline(task.data_fim, task.estado === 'concluido')}
-                                                            {subtarefasCount > 0 && <span style={{fontWeight: '700', color: '#475569'}}>Subtarefas: {subtarefasCount}</span>}
-                                                        </div>
-                                                    </div>
-                                                    <div style={{display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, paddingLeft: '4px'}}>
-                                                        {!isTaskInactive && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => isTaskTimerActive ? openStopNoteModal() : handleStartTask(task)}
-                                                                title={isTaskTimerActive ? 'Parar cronómetro' : 'Iniciar cronómetro'}
-                                                                style={{
-                                                                    border: isTaskTimerActive ? '1px solid #fecaca' : '1px solid #d1fae5',
-                                                                    background: isTaskTimerActive ? '#fee2e2' : '#ecfdf5',
-                                                                    color: isTaskTimerActive ? '#dc2626' : '#059669',
-                                                                    borderRadius: '999px',
-                                                                    width: '30px',
-                                                                    height: '30px',
-                                                                    cursor: 'pointer',
-                                                                    fontSize: '0.8rem',
-                                                                    fontWeight: '700',
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    justifyContent: 'center',
-                                                                    lineHeight: 1
-                                                                }}
-                                                            >
-                                                                {isTaskTimerActive ? '⏹' : '▶'}
-                                                            </button>
-                                                        )}
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleEdit(task, 'tarefa')}
-                                                            style={{
-                                                                border: '1px solid var(--color-borderColorLight)',
-                                                                background: 'var(--color-bgSecondary)',
-                                                                color: 'var(--color-btnPrimary)',
-                                                                borderRadius: '999px',
-                                                                padding: '6px 10px',
-                                                                cursor: 'pointer',
-                                                                fontSize: '0.72rem',
-                                                                fontWeight: '700',
-                                                                whiteSpace: 'nowrap'
-                                                            }}
-                                                        >
-                                                            Abrir
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                            </div>
-                        </>
-                    )}
-
-                    {/* 💡 NOVA SECÇÃO: ENTREGÁVEIS COM UPLOAD DE PDF/DOCUMENTOS */}
-                    {(editType === 'tarefa' || editType === 'atividade') && (
-                        <div style={{background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '15px', marginBottom: '15px'}}>
-                            <label style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', color: '#1e293b', cursor: 'pointer', fontSize: '0.85rem'}}>
-                                <input type="checkbox" checked={form.tem_entregavel} onChange={e => setForm({...form, tem_entregavel: e.target.checked})} style={{accentColor: 'var(--color-btnPrimary)', width: '16px', height: '16px'}} />
-                                Requer Documento Entregável?
-                            </label>
-                            
-                            {form.tem_entregavel && (
-                                <div style={{marginTop: '15px', animation: 'fadeIn 0.2s'}}>
-                                    <div style={{display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '10px', marginBottom: '15px'}}>
-                                        <div>
-                                            <label style={{...labelStyle, fontSize: '0.75rem', color: '#64748b'}}>Nome / Tipo de Documento</label>
-                                            <input type="text" placeholder="Ex: Relatório Final PDF" value={form.nome_entregavel || ''} onChange={e => setForm({...form, nome_entregavel: e.target.value})} style={{...inputStyle, padding: '8px'}} />
-                                        </div>
-                                        <div>
-                                            <label style={{...labelStyle, fontSize: '0.75rem', color: '#64748b'}}>Data p/ Entrega</label>
-                                            <input type="date" value={form.data_entregavel || ''} onChange={e => setForm({...form, data_entregavel: e.target.value})} style={{...inputStyle, padding: '8px'}} />
-                                        </div>
-                                    </div>
-                                    
-                                    <div
-                                        style={{
-                                            background: isDeliverableDragOver ? 'var(--color-bgSecondary)' : '#f8fafc',
-                                            border: isDeliverableDragOver ? '1px dashed var(--color-btnPrimary)' : '1px dashed #cbd5e1',
-                                            padding: '15px',
-                                            borderRadius: '8px',
-                                            textAlign: 'center',
-                                            transition: 'all 0.15s ease'
-                                        }}
-                                        onDragOver={(e) => {
-                                            e.preventDefault();
-                                            setIsDeliverableDragOver(true);
-                                        }}
-                                        onDragEnter={(e) => {
-                                            e.preventDefault();
-                                            setIsDeliverableDragOver(true);
-                                        }}
-                                        onDragLeave={() => setIsDeliverableDragOver(false)}
-                                        onDrop={(e) => {
-                                            e.preventDefault();
-                                            setIsDeliverableDragOver(false);
-                                            const droppedFile = e.dataTransfer?.files?.[0];
-                                            applyDeliverableFile(droppedFile);
-                                        }}
-                                    >
-                                        {form.arquivo_url ? (
-                                            <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px'}}>
-                                                <a href={form.arquivo_url} target="_blank" rel="noopener noreferrer" style={{display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-btnPrimary)', fontWeight: 'bold', textDecoration: 'none', fontSize: '0.85rem'}}>
-                                                    <Icons.ExternalLink /> Ver Documento Atual
-                                                </a>
-                                                <button type="button" onClick={() => { setForm({...form, arquivo_url: ""}); setFileToUpload(null); }} style={{background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold'}} className="hover-red-text">
-                                                    Remover Ficheiro
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            <div>
-                                                <label style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', cursor: 'pointer'}}>
-                                                    <Icons.UploadCloud size={24} color={fileToUpload ? "var(--color-btnPrimary)" : "#94a3b8"} />
-                                                    <span style={{fontSize: '0.85rem', color: fileToUpload ? 'var(--color-btnPrimary)' : '#64748b', fontWeight: 'bold'}}>
-                                                        {fileToUpload ? fileToUpload.name : "Clique para anexar um documento (PDF, Excel, Word)"}
-                                                    </span>
-                                                    <input 
-                                                        type="file" 
-                                                        onChange={(e) => applyDeliverableFile(e.target.files?.[0] || null)} 
-                                                        style={{display: 'none'}} 
-                                                    />
-                                                </label>
-                                            </div>
-                                        )}
+                            {editType === 'tarefa' && (
+                                <div className="tk-field">
+                                    <label>Prioridade</label>
+                                    <div className="tk-seg is-priority">
+                                        {PRIORITY_OPTIONS.map((p) => (
+                                            <button key={p.value} type="button" style={{ '--c': p.c }} className={form.prioridade === p.value ? 'is-on' : ''} onClick={() => setForm({...form, prioridade: p.value})}>
+                                                <i /> {p.label}
+                                            </button>
+                                        ))}
                                     </div>
                                 </div>
                             )}
                         </div>
+
+                        {(editType === 'tarefa' || editType === 'atividade') && (
+                            <div className="tk-field">
+                                <label>Outros colaboradores envolvidos</label>
+                                <div className="tk-people">
+                                    <div className="tk-people-group">
+                                        <span className="tk-people-label">Equipa interna</span>
+                                        <div className="tk-people-chips">
+                                            {internalAssigneeOptions
+                                                .filter(s => String(s.id) !== String(form.responsavel_id || ''))
+                                                .filter(s => s.ativo || (form.colaboradores_extra || []).map(String).includes(String(s.id)))
+                                                .map(s => {
+                                                    const isChecked = Array.isArray(form.colaboradores_extra) && form.colaboradores_extra.map(String).includes(String(s.id));
+                                                    return (
+                                                        <button type="button" key={`extra-int-${s.id}`} onClick={() => toggleColaboradorExtra(s.id)} className={`tk-person ${isChecked ? 'is-on' : ''}`} aria-pressed={isChecked}>
+                                                            <span className="tk-person-av">{isChecked ? <Icons.Check size={10} /> : initialsOf(s.label).slice(0, 1)}</span>
+                                                            {s.label}{!s.ativo ? ' (Inativo)' : ''}
+                                                        </button>
+                                                    );
+                                                })}
+                                        </div>
+                                    </div>
+                                    <div className="tk-people-group">
+                                        <span className="tk-people-label">Pessoas das entidades</span>
+                                        <div className="tk-people-chips">
+                                            {modalEntityAssigneeOptions.filter(s => String(s.id) !== String(form.responsavel_id || '')).length === 0 && (
+                                                <span className="tk-people-empty">{editType === 'tarefa' && !form.atividade_id ? 'Escolhe primeiro a atividade.' : 'Sem contactos associados ao projeto.'}</span>
+                                            )}
+                                            {modalEntityAssigneeOptions.filter(s => String(s.id) !== String(form.responsavel_id || '')).map(s => {
+                                                const isChecked = Array.isArray(form.colaboradores_extra) && form.colaboradores_extra.map(String).includes(String(s.id));
+                                                return (
+                                                    <button type="button" key={`extra-ent-${s.id}`} onClick={() => toggleColaboradorExtra(s.id)} className={`tk-person is-ext ${isChecked ? 'is-on' : ''}`} aria-pressed={isChecked}>
+                                                        <span className="tk-person-av">{isChecked ? <Icons.Check size={10} /> : initialsOf(s.label).slice(0, 1)}</span>
+                                                        {s.label}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </section>
+
+                    <section className="tk-sec">
+                        <h4><Icons.Calendar size={14} /> Planeamento{(deveMostrarCampoItem(form.info_adicional, 'investimento') || deveMostrarCampoItem(form.info_adicional, 'incentivo') || deveMostrarCampoItem(form.info_adicional, 'financiamento')) ? ' & financeiro' : ''}</h4>
+                        <div className="tk-row-auto">
+                            {(editType === 'tarefa' || editType === 'atividade') && (
+                                <div className="tk-field">
+                                    <label>Data de início</label>
+                                    <input className="tk-input" type="date" value={form.data_inicio} onChange={e => setForm({...form, data_inicio: e.target.value})} />
+                                </div>
+                            )}
+                            <div className="tk-field">
+                                <label>Prazo limite</label>
+                                <input className={`tk-input ${form.data_limite ? 'is-deadline' : ''}`} type="date" value={form.data_limite} onChange={e => setForm({...form, data_limite: e.target.value})} />
+                            </div>
+                            {deveMostrarCampoItem(form.info_adicional, 'investimento') && (
+                                <div className="tk-field">
+                                    <label>Investimento (€)</label>
+                                    <input className="tk-input" type="number" step="0.01" value={form.investimento} onChange={e => setForm({...form, investimento: e.target.value})} />
+                                </div>
+                            )}
+                            {deveMostrarCampoItem(form.info_adicional, 'incentivo') && (
+                                <div className="tk-field">
+                                    <label>Incentivo (€)</label>
+                                    <input className="tk-input" type="number" step="0.01" value={form.incentivo} onChange={e => setForm({...form, incentivo: e.target.value})} />
+                                </div>
+                            )}
+                            {deveMostrarCampoItem(form.info_adicional, 'financiamento') && (
+                                <div className="tk-field">
+                                    <label>Financiamento (€)</label>
+                                    <input className="tk-input" type="number" step="0.01" value={form.financiamento} onChange={e => setForm({...form, financiamento: e.target.value})} />
+                                </div>
+                            )}
+                            {deveMostrarCampoItem(form.info_adicional, 'data_prevista_aprovacao') && (
+                                <div className="tk-field">
+                                    <label>Data prev. aprovação</label>
+                                    <input className="tk-input" type="date" value={form.data_prevista_aprovacao} onChange={e => setForm({...form, data_prevista_aprovacao: e.target.value})} />
+                                </div>
+                            )}
+                        </div>
+                    </section>
+
+                    {editType === 'atividade' && editId && (
+                        <section className="tk-sec">
+                            <h4><Icons.ListTree size={14} /> Tarefas associadas <span className="tk-sec-count">{associatedTasks.length}</span></h4>
+                            {associatedTasks.length === 0 ? (
+                                <div className="tk-assoc-empty">Ainda não existem tarefas ligadas a esta atividade.</div>
+                            ) : (
+                                <div className="tk-assoc">
+                                    {associatedTasks.map((task) => {
+                                        const isTaskInactive = task.estado === 'concluido' || task.estado === 'cancelado';
+                                        const isTaskTimerActive = activeTask && String(activeTask.task_id) === String(task.id);
+                                        const responsavelNome = getPersonLabelById(task.responsavel_id);
+                                        const subtarefasCount = Array.isArray(task.subtarefas) ? task.subtarefas.length : 0;
+                                        return (
+                                            <div key={task.id} className={`tk-assoc-row ${isTaskInactive ? 'is-done' : ''} ${isCelebrating('tarefas', task.id) ? 'is-celebrating' : ''}`}>
+                                                {renderCheck('tarefas', task, { taskIdParaTimer: task.id })}
+                                                <div className="tk-assoc-main">
+                                                    <strong><span className="tk-strike">{task.titulo}</span></strong>
+                                                    <div className="tk-chips">
+                                                        {renderStatusTag(task.estado)}
+                                                        <span className="tk-chip is-ghost"><Icons.User size={11} /> {responsavelNome || 'Sem responsável'}</span>
+                                                        {task.data_fim && renderDeadline(task.data_fim, task.estado === 'concluido')}
+                                                        {subtarefasCount > 0 && <span className="tk-chip"><Icons.ListTree size={11} /> {subtarefasCount}</span>}
+                                                    </div>
+                                                </div>
+                                                {!isTaskInactive && renderTimerBtn(isTaskTimerActive, () => isTaskTimerActive ? openStopNoteModal() : handleStartTask(task), { size: 'sm' })}
+                                                <button type="button" className="tk-assoc-open" onClick={() => handleEdit(task, 'tarefa')}>Abrir</button>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </section>
+                    )}
+
+                    {(editType === 'tarefa' || editType === 'atividade') && (
+                        <section className="tk-sec">
+                            <button type="button" className={`tk-switch ${form.tem_entregavel ? 'is-on' : ''}`} onClick={() => setForm({...form, tem_entregavel: !form.tem_entregavel})} aria-pressed={form.tem_entregavel}>
+                                <span className="tk-switch-track"><span /></span>
+                                <span className="tk-switch-text">
+                                    <strong>Requer documento entregável</strong>
+                                    <em>{form.tem_entregavel ? 'Indica o documento e, se já existir, anexa-o.' : 'Liga se esta tarefa tiver de produzir um documento.'}</em>
+                                </span>
+                            </button>
+
+                            {form.tem_entregavel && (
+                                <div className="tk-deliv">
+                                    <div className="tk-row-2 is-wide-first">
+                                        <div className="tk-field">
+                                            <label>Nome / tipo de documento</label>
+                                            <input className="tk-input" type="text" placeholder="Ex: Relatório final PDF" value={form.nome_entregavel || ''} onChange={e => setForm({...form, nome_entregavel: e.target.value})} />
+                                        </div>
+                                        <div className="tk-field">
+                                            <label>Data p/ entrega</label>
+                                            <input className="tk-input" type="date" value={form.data_entregavel || ''} onChange={e => setForm({...form, data_entregavel: e.target.value})} />
+                                        </div>
+                                    </div>
+
+                                    {form.arquivo_url ? (
+                                        <div className="tk-file">
+                                            <span className="tk-file-icon"><Icons.FileText size={18} /></span>
+                                            <a href={form.arquivo_url} target="_blank" rel="noopener noreferrer">Ver documento atual <Icons.ExternalLink size={13} /></a>
+                                            <button type="button" className="tk-file-remove" onClick={() => { setForm({...form, arquivo_url: ""}); setFileToUpload(null); }}>Remover</button>
+                                        </div>
+                                    ) : (
+                                        <label
+                                            className={`tk-drop ${isDeliverableDragOver ? 'is-over' : ''} ${fileToUpload ? 'has-file' : ''}`}
+                                            onDragOver={(e) => { e.preventDefault(); setIsDeliverableDragOver(true); }}
+                                            onDragEnter={(e) => { e.preventDefault(); setIsDeliverableDragOver(true); }}
+                                            onDragLeave={() => setIsDeliverableDragOver(false)}
+                                            onDrop={(e) => { e.preventDefault(); setIsDeliverableDragOver(false); applyDeliverableFile(e.dataTransfer?.files?.[0]); }}
+                                        >
+                                            <span className="tk-drop-icon">{fileToUpload ? <Icons.FileText size={22} /> : <Icons.UploadCloud size={22} />}</span>
+                                            <span className="tk-drop-text">
+                                                <strong>{fileToUpload ? fileToUpload.name : 'Arrasta um ficheiro ou clica para escolher'}</strong>
+                                                <em>{fileToUpload ? 'Vai ser enviado quando guardares.' : 'PDF, Excel, Word...'}</em>
+                                            </span>
+                                            <input type="file" onChange={(e) => applyDeliverableFile(e.target.files?.[0] || null)} hidden />
+                                        </label>
+                                    )}
+                                </div>
+                            )}
+                        </section>
                     )}
 
                     {editType !== 'subtarefa' && (
-                        <>
-                            <div style={sectionTitleStyle}>📝 Detalhes & Notas</div>
-                            <div style={inputGroupStyle}>
-                                <textarea rows="3" value={form.descricao} onChange={e => setForm({...form, descricao: e.target.value})} placeholder="Links, notas, informações úteis..." style={{...inputStyle, resize: 'vertical', minHeight: '80px', background: '#fffbeb'}} />
-                            </div>
-                        </>
+                        <section className="tk-sec">
+                            <h4><Icons.FileText size={14} /> Detalhes & notas</h4>
+                            <textarea className="tk-input tk-notes" rows="3" value={form.descricao} onChange={e => setForm({...form, descricao: e.target.value})} placeholder="Links, notas, informações úteis..." />
+                        </section>
                     )}
 
-                    <div style={sectionTitleStyle}>🏁 Controlo</div>
-                    <div style={{marginBottom: '15px'}}>
-                        <label style={labelStyle}>Estado Atual</label>
-                        <div style={{display: 'flex', gap: '8px'}}>
-                            {['pendente', 'em_curso', 'em_analise', 'concluido', 'cancelado'].map(st => (
-                                <div key={st} onClick={() => !isViewOnly && setForm({...form, estado: st})} style={{flex: 1, textAlign: 'center', padding: '8px', borderRadius: '6px', cursor: isViewOnly ? 'default' : 'pointer', fontSize: '0.8rem', fontWeight: '700', background: form.estado === st ? 'var(--color-btnPrimary)' : '#fff', color: form.estado === st ? 'white' : '#64748b', border: form.estado === st ? '1px solid var(--color-btnPrimary)' : '1px solid #cbd5e1', transition: 'all 0.2s', textTransform: 'uppercase'}}>
-                                    {st.replace('_', ' ')}
-                                </div>
+                    <section className="tk-sec">
+                        <h4><Icons.Flame size={14} /> Estado</h4>
+                        <div className="tk-states">
+                            {STATE_OPTIONS.map((st) => (
+                                <button key={st.value} type="button" style={{ '--c': st.c }} className={form.estado === st.value ? 'is-on' : ''} onClick={() => setForm({...form, estado: st.value})} aria-pressed={form.estado === st.value}>
+                                    <i /> {STATUS_LABELS[st.value]}
+                                </button>
                             ))}
                         </div>
-                    </div>
 
-                    {editType !== 'subtarefa' && (form.estado === 'em_analise' || form.analise_data_prevista || form.analise_destino) && (
-                        <div style={{marginBottom: '15px', background: 'var(--color-bgSecondary)', border: '1px solid var(--color-borderColor)', borderRadius: '10px', padding: '12px'}}>
-                            <div style={{fontSize: '0.78rem', fontWeight: '800', color: 'var(--color-btnPrimaryDark)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em'}}>
-                                Acompanhamento da Analise
-                            </div>
-                            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px'}}>
-                                <div>
-                                    <label style={{...labelStyle, marginBottom: '4px'}}>Encaminhada para</label>
-                                    <select
-                                        value={form.analise_destino || 'proprio'}
-                                        onChange={(e) => setForm({...form, analise_destino: e.target.value})}
-                                        style={{...inputStyle, marginBottom: 0}}
-                                    >
-                                        {ANALYSIS_DESTINATION_OPTIONS.map((option) => (
-                                            <option key={option.value} value={option.value}>{option.label}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label style={{...labelStyle, marginBottom: '4px'}}>Data expectavel de resposta</label>
-                                    <input
-                                        type="date"
-                                        value={form.analise_data_prevista || ''}
-                                        onChange={(e) => setForm({...form, analise_data_prevista: e.target.value})}
-                                        style={{...inputStyle, marginBottom: 0}}
-                                    />
+                        {editType !== 'subtarefa' && (form.estado === 'em_analise' || form.analise_data_prevista) && (
+                            <div className="tk-analysis">
+                                <div className="tk-analysis-title">Acompanhamento da análise</div>
+                                <div className="tk-row-2">
+                                    <div className="tk-field">
+                                        <label>Encaminhada para</label>
+                                        <div className="tk-seg is-wrap">
+                                            {ANALYSIS_DESTINATION_OPTIONS.map((option) => (
+                                                <button key={option.value} type="button" className={(form.analise_destino || 'proprio') === option.value ? 'is-on' : ''} onClick={() => setForm({...form, analise_destino: option.value})}>
+                                                    {option.value === 'proprio' ? 'Próprio' : option.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="tk-field">
+                                        <label>Data expectável de resposta</label>
+                                        <input className="tk-input" type="date" value={form.analise_data_prevista || ''} onChange={(e) => setForm({...form, analise_data_prevista: e.target.value})} />
+                                    </div>
                                 </div>
                             </div>
+                        )}
+                    </section>
+                  </fieldset>
+                </div>
+
+                <footer className="tk-modal-foot">
+                    <span className="tk-foot-info">{renderInfoAtribuicao()}</span>
+                    {!isViewOnly && (
+                        <div className="tk-foot-actions">
+                            <button type="button" className="tk-btn" onClick={() => setShowModal(false)}>Cancelar</button>
+                            <button type="submit" className="tk-btn is-primary" disabled={isUploading}>
+                                {isUploading ? 'A carregar...' : editId ? <><Icons.Save size={15} /> Guardar alterações</> : <><Icons.Plus size={15} /> Criar</>}
+                            </button>
                         </div>
                     )}
-                  </fieldset>
-
-                  <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #e2e8f0'}}>
-                      <div style={{fontSize: '0.7rem', color: '#94a3b8', fontStyle: 'italic'}}>
-                          {renderInfoAtribuicao()}
-                      </div>
-                      {!isViewOnly && (
-                          <div style={{display: 'flex', gap: '10px'}}>
-                              <button type="button" onClick={() => setShowModal(false)} style={{padding: '10px 20px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white', color: '#64748b', fontWeight: '700', cursor: 'pointer', fontSize: '0.9rem'}} className="hover-shadow">Cancelar</button>
-                              <button type="submit" disabled={isUploading} style={{padding: '10px 20px', borderRadius: '8px', border: 'none', background: 'var(--color-btnPrimary)', color: 'white', fontWeight: '700', cursor: isUploading ? 'wait' : 'pointer', fontSize: '0.9rem', opacity: isUploading ? 0.7 : 1}} className="hover-shadow">
-                                  {isUploading ? "A carregar..." : (editId ? "💾 Guardar Alterações" : "🚀 Criar")}
-                              </button>
-                          </div>
-                      )}
-                  </div>
-                </form>
-              </div>
+                </footer>
+              </form>
             </div>
           </div>
         </ModalPortal>
       )}
 
+      {/* PROJETO CONCLUÍDO → PRÓXIMA ETAPA */}
       {transitionPromptOpen && (
           <ModalPortal>
-              <div
-                  style={{
-                      position: 'fixed',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      background: 'rgba(15, 23, 42, 0.55)',
-                      backdropFilter: 'blur(4px)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      zIndex: 100000,
-                      padding: '16px'
-                  }}
-                  onClick={(e) => {
-                      if (e.target === e.currentTarget) setTransitionPromptOpen(false);
-                  }}
-              >
-                  <div
-                      style={{
-                          width: 'min(520px, 100%)',
-                          background: '#ffffff',
-                          borderRadius: '16px',
-                          border: '1px solid var(--color-borderColor)',
-                          boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.25)',
-                          overflow: 'hidden'
-                      }}
-                  >
-                      <div
-                          style={{
-                              padding: '16px 18px',
-                              background: 'linear-gradient(135deg, var(--color-bgSecondary) 0%, var(--color-borderColorLight) 100%)',
-                              borderBottom: '1px solid var(--color-borderColor)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              gap: '12px'
-                          }}
-                      >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <span style={{ fontSize: '1.2rem' }}>✅</span>
-                              <h3 style={{ margin: 0, color: 'var(--color-textPrimary)', fontSize: '1.05rem', fontWeight: '800' }}>Projeto concluído</h3>
-                          </div>
-                          <button
-                              onClick={() => setTransitionPromptOpen(false)}
-                              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-btnPrimaryDark)' }}
-                              aria-label="Fechar"
-                          >
-                              <Icons.Close size={18} color="currentColor" />
-                          </button>
-                      </div>
-
-                      <div style={{ padding: '20px 18px' }}>
-                          <p style={{ margin: 0, color: '#334155', lineHeight: 1.55 }}>
-                              Queres criar um novo projeto já pré-preenchido com esta informação para iniciar a próxima etapa (ex: Gestão)?
-                          </p>
-
-                          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '18px', flexWrap: 'wrap' }}>
-                              <button
-                                  type="button"
-                                  onClick={() => setTransitionPromptOpen(false)}
-                                  className="btn-small"
-                                  style={{ padding: '10px 14px', borderRadius: '10px', fontWeight: '700' }}
-                              >
-                                  Agora não
-                              </button>
-                              <button
-                                  type="button"
-                                  onClick={() => {
-                                      setTransitionPromptOpen(false);
-                                      handleTransmitirProjeto();
-                                  }}
-                                  className="btn-primary"
-                                  style={{ padding: '10px 14px', borderRadius: '10px', fontWeight: '800' }}
-                              >
-                                  Iniciar próxima etapa
-                              </button>
-                          </div>
+              <div className="tk-overlay" onClick={(e) => { if (e.target === e.currentTarget) setTransitionPromptOpen(false); }}>
+                  <div className="tk-dialog">
+                      <span className="tk-dialog-icon is-success"><Icons.Rocket size={24} /></span>
+                      <h3>Projeto concluído 🎉</h3>
+                      <p>Queres criar um novo projeto já pré-preenchido com esta informação para iniciar a próxima etapa (ex: Gestão)?</p>
+                      <div className="tk-dialog-actions">
+                          <button type="button" className="tk-btn" onClick={() => setTransitionPromptOpen(false)}>Agora não</button>
+                          <button type="button" className="tk-btn is-primary" onClick={() => { setTransitionPromptOpen(false); handleTransmitirProjeto(); }}>Iniciar próxima etapa</button>
                       </div>
                   </div>
               </div>
           </ModalPortal>
       )}
-
-      <style>{`
-          .task-view-switcher { display: inline-flex; gap: 3px; padding: 3px; margin-left: auto; background: #e2e8f0; border-radius: 9px; }
-          .task-view-switcher button { border: 0; border-radius: 7px; background: transparent; color: #64748b; padding: 7px 10px; font-size: 0.75rem; font-weight: 800; cursor: pointer; white-space: nowrap; }
-          .task-view-switcher button.is-selected { background: #fff; color: var(--color-btnPrimary); box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12); }
-          .kanban-board { display: grid; grid-template-columns: repeat(6, minmax(220px, 1fr)); gap: 14px; overflow-x: auto; padding-bottom: 10px; align-items: start; }
-          .kanban-column { min-width: 220px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; }
-          .kanban-column-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 12px; border-top: 3px solid; background: #fff; color: #334155; }
-          .kanban-column-header > div { display: flex; align-items: center; gap: 7px; }
-          .kanban-column-dot { width: 8px; height: 8px; border-radius: 50%; }
-          .kanban-column-count { min-width: 22px; padding: 2px 6px; border-radius: 999px; background: #f1f5f9; color: #64748b; text-align: center; font-size: 0.7rem; font-weight: 800; }
-          .kanban-column-content { display: flex; flex-direction: column; gap: 10px; padding: 10px; min-height: 125px; }
-          .kanban-column-empty { padding: 28px 8px; color: #94a3b8; text-align: center; font-size: 0.78rem; }
-          .kanban-activity-card { background: #fff; border: 1px solid #e2e8f0; border-top: 3px solid; border-radius: 8px; padding: 11px; box-shadow: 0 2px 5px rgba(15, 23, 42, 0.04); }
-          .kanban-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
-          .kanban-activity-title-row { display: flex; align-items: flex-start; gap: 6px; }
-          .kanban-activity-check { margin-top: 1px; }
-          .kanban-title, .kanban-project-link, .kanban-task-title { display: block; border: 0; padding: 0; background: transparent; text-align: left; cursor: pointer; }
-          .kanban-title { width: 100%; color: #1e293b; font-size: 0.86rem; font-weight: 800; line-height: 1.25; }
-          .kanban-title:hover, .kanban-task-title:hover { color: var(--color-btnPrimary); text-decoration: underline; }
-          .kanban-project-link { max-width: 100%; overflow: hidden; color: #94a3b8; font-size: 0.68rem; text-overflow: ellipsis; white-space: nowrap; }
-          .kanban-timer, .kanban-task-timer { flex: 0 0 auto; border: 1px solid #d1fae5; border-radius: 999px; background: #ecfdf5; color: #059669; cursor: pointer; }
-          .kanban-timer { width: 28px; height: 28px; }
-          .kanban-timer.is-active, .kanban-task-timer.is-active { border-color: #fecaca; background: #fee2e2; color: #dc2626; }
-          .kanban-meta { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 8px; color: #94a3b8; font-size: 0.66rem; }
-          .kanban-task-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; padding-top: 8px; border-top: 1px solid #f1f5f9; }
-          .kanban-task-row { display: flex; align-items: flex-start; gap: 6px; }
-          .kanban-check { flex: 0 0 auto; width: 15px; height: 15px; padding: 0; border: 2px solid #cbd5e1; border-radius: 50%; background: #fff; color: #fff; cursor: pointer; font-size: 0.58rem; line-height: 11px; }
-          .kanban-check.is-done { border-color: var(--color-btnPrimary); background: var(--color-btnPrimary); }
-          .kanban-task-title { flex: 1; color: #475569; font-size: 0.74rem; line-height: 1.3; }
-          .kanban-task-title.is-done { color: #94a3b8; text-decoration: line-through; }
-          .kanban-task-timer { width: 20px; height: 20px; font-size: 0.58rem; }
-          .kanban-subtask-count { flex: 0 0 auto; border: 0; border-radius: 4px; padding: 2px 5px; background: #e2e8f0; color: #64748b; cursor: pointer; font-size: 0.62rem; font-weight: 800; }
-          .kanban-subtask-list { display: flex; flex-direction: column; gap: 3px; margin: 5px 0 0 21px; }
-          .kanban-subtask { border: 0; padding: 0; background: transparent; color: #64748b; cursor: pointer; text-align: left; font-size: 0.68rem; }
-          .kanban-subtask:hover { color: var(--color-btnPrimary); text-decoration: underline; }
-          .kanban-subtask.is-done { color: #94a3b8; text-decoration: line-through; }
-          .kanban-empty-task { color: #cbd5e1; font-size: 0.72rem; }
-          .kanban-add-task { margin-top: 9px; }
-          .kanban-add-task input { width: 100%; box-sizing: border-box; padding: 5px 0; border: 0; border-bottom: 1px dashed #cbd5e1; outline: 0; background: transparent; color: #64748b; font-size: 0.72rem; }
-          @media (max-width: 900px) { .task-view-switcher { width: 100%; margin-left: 0; } .task-view-switcher button { flex: 1; } .kanban-board { grid-template-columns: repeat(6, minmax(250px, 1fr)); } }
-
-          .project-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; }
-          @media (max-width: 1300px) { .project-grid { grid-template-columns: repeat(4, 1fr); } }
-          @media (max-width: 1000px) { .project-grid { grid-template-columns: repeat(3, 1fr); } }
-          @media (max-width: 768px)  { .project-grid { grid-template-columns: repeat(2, 1fr); } }
-          @media (max-width: 500px)  { .project-grid { grid-template-columns: 1fr; } }
-
-          .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
-          .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-          .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
-
-          @keyframes taskFocusPulse { 0% { transform: scale(1); } 50% { transform: scale(1.01); } 100% { transform: scale(1); } }
-
-          .hover-shadow:hover { box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); transform: translateY(-1px); }
-
-          @keyframes pulse { 0% {box-shadow:0 0 0 0 rgba(239,68,68,0.7)} 70% {box-shadow:0 0 0 6px rgba(239,68,68,0)} 100% {box-shadow:0 0 0 0 rgba(239,68,68,0)}} 
-          
-          .hover-underline:hover {text-decoration: underline !important; color: var(--color-btnPrimary) !important} 
-          .hover-text-blue:hover { color: var(--color-btnPrimary) !important; }
-
-          .time-log-action-btn:hover { transform: translateY(-1px); box-shadow: 0 2px 6px rgba(15, 23, 42, 0.15); }
-          .time-log-action-btn:active { transform: translateY(0); }
-          .time-log-action-btn:focus-visible { outline: 2px solid var(--color-borderColorLight); outline-offset: 1px; }
-          
-          .icon-btn-red {background: transparent; border: none; cursor: pointer; color: #f87171; font-size: 1.1rem; padding: 2px 6px; border-radius: 4px; transition: 0.2s;}
-          .icon-btn-red:hover {background: #fef2f2; color: #dc2626; transform: scale(1.1);}
-      `}</style>
     </div>
   );
 }
