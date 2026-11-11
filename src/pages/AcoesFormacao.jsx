@@ -3,6 +3,8 @@ import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
 import "./../styles/dashboard.css";
+import "./../styles/formacao.css";
+import FancySelect from "../components/FancySelect";
 import {
   PieChart, Pie,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer,
@@ -45,7 +47,59 @@ const Icons = {
   Settings: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>,
   Alert: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>,
   Download: ({ size = 16, color = "currentColor" }) => ( <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"> <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path> <polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>),
+  Search: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>,
+  Check: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>,
+  Calendar: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>,
+  Cap: ({ size = 20, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5z"></path><path d="M6 12v5c3 3 9 3 12 0v-5"></path><line x1="22" y1="10" x2="22" y2="16"></line></svg>,
+  Badge: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="6"></circle><path d="M15.48 12.89 17 22l-5-3-5 3 1.52-9.11"></path></svg>,
+  Chart: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>,
+  Clock: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>,
+  Users: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>,
+  File: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="9" y1="15" x2="15" y2="15"></line></svg>,
+  Euro: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 7a7 7 0 1 0 0 10"></path><line x1="4" y1="10" x2="14" y2="10"></line><line x1="4" y1="14" x2="13" y2="14"></line></svg>,
 };
+
+const CK_ACTIVITY_COLORS = ["#6366f1", "#0ea5e9", "#10b981", "#f59e0b", "#ec4899", "#8b5cf6", "#14b8a6", "#f97316"];
+
+function normalizeText(value) {
+  return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+function initials(name) {
+  const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  return ((parts[0][0] || "") + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase();
+}
+
+function formatPtDate(value) {
+  const iso = formatDateInput(value);
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+function CheckGlyph({ state }) {
+  if (state === "concluido") return <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>;
+  if (state === "em_falta") return <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>;
+  if (state === "incompleto") return <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 0 1 0 18z" /></svg>;
+  if (state === "falta_assinar") return <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg>;
+  return null;
+}
+
+function YesNo({ value, onChange }) {
+  return (
+    <div className="af-seg-field is-yesno">
+      {SIM_NAO_OPTIONS.map((option) => {
+        const on = option === "Sim" ? Boolean(value) : !value;
+        return (
+          <button key={option} type="button" className={`${on ? "is-on" : ""} ${option === "Sim" ? "is-yes" : "is-no"}`} onClick={() => onChange(option === "Sim")}>
+            {option === "Sim" ? <Icons.Check size={13} /> : <Icons.Close size={13} />} {option}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 const ModalPortal = ({ children }) => createPortal(children, document.body);
 
@@ -215,68 +269,75 @@ async function fetchChecklistTemplate() {
   }));
 }
 
-function Field({ label, children, hint }) {
+function Field({ label, children, hint, span }) {
   return (
-    <div>
-      <label style={{ display: "block", marginBottom: 6, fontSize: "0.85rem", fontWeight: 600, color: "#475569" }}>{label}</label>
+    <div className="af-field" style={span ? { gridColumn: `span ${span}` } : undefined}>
+      <label>{label}</label>
       {children}
-      {hint ? <div style={{ marginTop: 6, fontSize: "0.6rem", color: "#94a3b8" }}>{hint}</div> : null}
+      {hint ? <div className="af-field-hint">{hint}</div> : null}
     </div>
   );
 }
 
-function SectionTitle({ children }) {
-  return <div style={{ fontSize: "0.8rem", fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", margin: "18px 0 14px", borderBottom: "1px solid #e2e8f0", paddingBottom: 6 }}>{children}</div>;
+function SectionTitle({ children, icon = null, tone = "" }) {
+  return (
+    <div className={`af-section-title ${tone ? `is-${tone}` : ""}`}>
+      {icon ? <span className="af-section-ico">{icon}</span> : null}
+      <span>{children}</span>
+    </div>
+  );
 }
 
 function SettingsList({ title, items, createFields, itemFields, emptyLabel, onCreate, onSaveItem, onUpdate, onToggle }) {
+  const ativos = items.filter((item) => item.ativo).length;
   return (
-    <div style={{ border: "1px solid #e2e8f0", borderRadius: 14, overflow: "hidden", background: "#fff" }}>
-      <div style={{ padding: "16px 18px", background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-        <div style={{ fontWeight: 800, color: "#0f172a" }}>{title}</div>
+    <div className="af-set-card">
+      <div className="af-set-head">
+        <strong>{title}</strong>
+        <span className="af-pill">{ativos}/{items.length} ativas</span>
       </div>
-      <div style={{ padding: 18, display: "grid", gap: 16 }}>
-        <div style={{ display: "grid", gap: 10 }}>
-          <div style={{ display: "grid", gap: 10, gridTemplateColumns: createFields.length > 1 ? `repeat(${createFields.length}, minmax(0, 1fr))` : "1fr" }}>
-            {createFields.map((field) => (
-              <input
-                key={field.key}
-                value={field.value}
-                onChange={(event) => field.onChange(event.target.value)}
-                placeholder={field.placeholder}
-                style={{ width: "100%", padding: "11px 12px", borderRadius: 10, border: "1px solid #cbd5e1", fontSize: "0.95rem" }}
-              />
-            ))}
-          </div>
-          <button type="button" onClick={onCreate} style={{ padding: "10px 14px", borderRadius: 10, border: "none", background: "var(--color-btnPrimary)", color: "#fff", fontWeight: 800, cursor: "pointer", width: "fit-content" }}>
-            Adicionar
-          </button>
-        </div>
+      <div className="af-set-create">
+        {createFields.map((field) => (
+          <input
+            key={field.key}
+            className="af-input"
+            value={field.value}
+            onChange={(event) => field.onChange(event.target.value)}
+            onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); onCreate(); } }}
+            placeholder={field.placeholder}
+            style={createFields.length > 1 && field.key.toLowerCase().includes("codigo") ? { flex: "0 0 130px" } : undefined}
+          />
+        ))}
+        <button type="button" className="af-btn is-primary" onClick={onCreate}>
+          <Icons.Plus size={15} /> Adicionar
+        </button>
+      </div>
 
-        <div style={{ display: "grid", gap: 10 }}>
-          {items.length === 0 ? (
-            <div style={{ color: "#94a3b8", fontSize: "0.9rem" }}>{emptyLabel}</div>
-          ) : (
-            items.map((item) => (
-              <div key={item.id} style={{ display: "grid", gridTemplateColumns: `${Array.from({ length: itemFields.length }, () => "1fr").join(" ")} auto auto`, gap: 10, alignItems: "center", padding: 12, border: "1px solid #e2e8f0", borderRadius: 12, background: item.ativo ? "#fff" : "#f8fafc" }}>
-                {itemFields.map((field) => (
-                  <input
-                    key={field.key}
-                    value={item[field.key] || ""}
-                    onChange={(event) => onUpdate(item.id, field.key, event.target.value)}
-                    style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #cbd5e1", background: item.ativo ? "#fff" : "#f8fafc" }}
-                  />
-                ))}
-                <button type="button" onClick={() => onToggle(item.id)} style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #cbd5e1", background: item.ativo ? "#ecfdf5" : "#f8fafc", color: item.ativo ? "#047857" : "#64748b", fontWeight: 800, cursor: "pointer" }}>
-                  {item.ativo ? "Ativa" : "Inativa"}
-                </button>
-                <button type="button" onClick={() => onSaveItem(item)} style={{ padding: "10px 12px", borderRadius: 10, border: "none", background: "var(--color-btnPrimary)", color: "#fff", fontWeight: 800, cursor: "pointer" }}>
-                  Guardar
-                </button>
-              </div>
-            ))
-          )}
-        </div>
+      <div className="af-set-list">
+        {items.length === 0 ? (
+          <div className="af-set-empty">{emptyLabel}</div>
+        ) : (
+          items.map((item) => (
+            <div key={item.id} className={`af-set-row ${item.ativo ? "" : "is-off"}`}>
+              {item.codigo ? <span className="af-homol-chip" data-code={item.codigo}>{item.codigo}</span> : null}
+              {itemFields.map((field) => (
+                <input
+                  key={field.key}
+                  className="af-input is-flat"
+                  value={item[field.key] || ""}
+                  onChange={(event) => onUpdate(item.id, field.key, event.target.value)}
+                />
+              ))}
+              <button type="button" className={`af-switch ${item.ativo ? "is-on" : ""}`} onClick={() => onToggle(item.id)}>
+                <span className="af-switch-track"><span /></span>
+                {item.ativo ? "Ativa" : "Inativa"}
+              </button>
+              <button type="button" className="af-btn is-soft" onClick={() => onSaveItem(item)}>
+                <Icons.Save size={14} /> Guardar
+              </button>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
@@ -295,6 +356,7 @@ function InlineTableCell({
   onSave,
   disabled = false,
   style = {},
+  className = "",
 }) {
   const isEditing = editingCell?.rowId === rowId && editingCell?.field === field;
   const [draft, setDraft] = useState(value ?? "");
@@ -318,21 +380,13 @@ function InlineTableCell({
     closeEditor();
   };
 
-  const baseStyle = {
-    padding: 4, 
-    fontSize: "0.64rem", 
-    textAlign: align,
-    verticalAlign: "middle",
-    cursor: disabled ? "default" : "text",
-    background: isEditing ? "#f8fafc" : "transparent",
-    borderRight: "1px solid #e2e8f0",
-    ...style,
-  };
-  
+  const cellClass = `af-cell is-${align} ${disabled ? "" : "is-editable"} ${isEditing ? "is-editing" : ""} ${className}`;
+
   if (!isEditing) {
     return (
       <td
-        style={baseStyle}
+        className={cellClass}
+        style={style}
         title={disabled ? undefined : "Duplo clique para editar"}
         onDoubleClick={disabled ? undefined : () => {
           setDraft(value ?? "");
@@ -346,16 +400,16 @@ function InlineTableCell({
 
   if (type === "select") {
     return (
-      <td style={baseStyle}>
+      <td className={cellClass} style={style}>
         <select
           ref={inputRef}
+          className="af-cell-input"
           value={draft}
           onChange={(event) => {
             setDraft(event.target.value);
             void commitValue(event.target.value);
           }}
           onBlur={() => closeEditor()}
-          style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid #cbd5e1", background: "white", fontSize: "0.9rem" }}
         >
           {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
         </select>
@@ -364,9 +418,10 @@ function InlineTableCell({
   }
 
   return (
-    <td style={baseStyle}>
+    <td className={cellClass} style={style}>
       <input
         ref={inputRef}
+        className="af-cell-input"
         type={type}
         value={draft}
         onChange={(event) => setDraft(event.target.value)}
@@ -381,7 +436,6 @@ function InlineTableCell({
             closeEditor();
           }
         }}
-        style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid #cbd5e1", background: "white", fontSize: "0.9rem" }}
       />
     </td>
   );
@@ -534,81 +588,109 @@ export function EstatisticasTab({ areasFormacao, selectedYear }) {
   // 2. RENDERIZAÇÃO
   // ----------------------------------------------------------------------
 
-  if (loading) return <div style={{ padding: 50, textAlign: "center", color: "#64748b" }}>A carregar estatísticas e KPIs...</div>;
+  if (loading) return <div className="af-loading"><span className="af-spinner" /> A carregar estatísticas e KPIs...</div>;
+
+  const tooltipStyle = { borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 12px 28px -12px rgba(15,23,42,0.3)", fontSize: 12, fontWeight: 700 };
+  const renderDonut = (dataset, emptyLabel = "Sem dados") => {
+    const total = dataset.reduce((sum, item) => sum + (Number(item.value) || 0), 0);
+    if (dataset.length === 0 || total === 0) return <div className="af-chart-empty" style={{ height: 250 }}>{emptyLabel}</div>;
+    return (
+      <div className="af-donut">
+        <ResponsiveContainer width="100%" height={250}>
+          <PieChart>
+            <Pie data={dataset} cx="50%" cy="44%" innerRadius={62} outerRadius={88} paddingAngle={3} cornerRadius={6} dataKey="value" stroke="none" />
+            <RechartsTooltip contentStyle={tooltipStyle} />
+            <Legend verticalAlign="bottom" height={36} iconType="circle" iconSize={8} wrapperStyle={{ fontSize: "0.76rem", fontWeight: 700 }} />
+          </PieChart>
+        </ResponsiveContainer>
+        <div className="af-donut-center"><strong>{total}</strong><span>total</span></div>
+      </div>
+    );
+  };
+
+  const certTotal = statsCertificados.reduce((sum, item) => sum + item.quantidade, 0);
 
   return (
-    <div style={{ padding: 24, background: "#f8fafc" }}>
-      
+    <div className="af-stats">
+
       {/* ----------------- CARDS DE TOPO (KPIs e Alertas) ----------------- */}
-      <h2 style={{ margin: "0 0 16px 0", color: "#0f172a", fontSize: "1.2rem" }}>Resumo de {selectedYear}</h2>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 24 }}>
-        <div style={{ background: "white", border: "1px solid #e2e8f0", padding: 20, borderRadius: 12, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-          <h4 style={{ margin: "0 0 8px 0", color: "#64748b", fontSize: "0.85rem", textTransform: "uppercase" }}>Total Formações</h4>
-          <div style={{ fontSize: "2rem", fontWeight: 900, color: "#0f172a" }}>{dataAnoSelecionado.length}</div>
+      <div className="af-stats-head">
+        <h2>Resumo de {selectedYear}</h2>
+      </div>
+      <div className="af-kpis">
+        <div className="af-kpi" style={{ "--k": "var(--color-btnPrimary)" }}>
+          <span className="af-kpi-ico"><Icons.Folder size={18} /></span>
+          <h4>Total Formações</h4>
+          <strong>{dataAnoSelecionado.length}</strong>
         </div>
-        <div style={{ background: "white", border: "1px solid #e2e8f0", padding: 20, borderRadius: 12, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-          <h4 style={{ margin: "0 0 8px 0", color: "#64748b", fontSize: "0.85rem", textTransform: "uppercase" }}>Volume (h)</h4>
-          <div style={{ fontSize: "2rem", fontWeight: 900, color: "#1d4ed8" }}>{totais.volume}</div>
+        <div className="af-kpi" style={{ "--k": "#2563eb" }}>
+          <span className="af-kpi-ico"><Icons.Clock size={18} /></span>
+          <h4>Volume (h)</h4>
+          <strong>{totais.volume.toLocaleString("pt-PT")}</strong>
         </div>
-        <div style={{ background: "white", border: "1px solid #e2e8f0", padding: 20, borderRadius: 12, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-          <h4 style={{ margin: "0 0 8px 0", color: "#64748b", fontSize: "0.85rem", textTransform: "uppercase" }}>Formandos Totais</h4>
-          <div style={{ fontSize: "2rem", fontWeight: 900, color: "#047857" }}>{totais.formandos}</div>
+        <div className="af-kpi" style={{ "--k": "#059669" }}>
+          <span className="af-kpi-ico"><Icons.Users size={18} /></span>
+          <h4>Formandos Totais</h4>
+          <strong>{totais.formandos.toLocaleString("pt-PT")}</strong>
         </div>
-        <div style={{ background: "#fff1f2", border: "1px solid #fecdd3", padding: 20, borderRadius: 12, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-          <h4 style={{ margin: "0 0 8px 0", color: "#e11d48", fontSize: "0.85rem", textTransform: "uppercase" }}>Taxa de Desistência</h4>
-          <div style={{ fontSize: "2rem", fontWeight: 900, color: "#be123c" }}>{totais.taxaDesistencia}%</div>
+        <div className="af-kpi is-danger" style={{ "--k": "#e11d48" }}>
+          <span className="af-kpi-ico"><Icons.Alert size={18} /></span>
+          <h4>Taxa de Desistência</h4>
+          <strong>{totais.taxaDesistencia}%</strong>
+          <div className="af-kpi-bar"><span style={{ width: `${Math.min(100, Number(totais.taxaDesistencia) || 0)}%` }} /></div>
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 32 }}>
-        <div style={{ background: "#fffbeb", border: "1px solid #fde68a", padding: 16, borderRadius: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div className="af-alerts">
+        <div className={`af-alert ${totais.docsFalta > 0 ? "is-on" : "is-ok"}`}>
+          <span className="af-alert-ico"><Icons.File size={20} /></span>
           <div>
-            <h4 style={{ margin: 0, color: "#b45309", fontSize: "1rem" }}>Documentos de Formador em Falta</h4>
-            <p style={{ margin: 0, color: "#d97706", fontSize: "0.85rem" }}>Ações com documentação pendente em {selectedYear}</p>
+            <h4>Documentos de Formador em Falta</h4>
+            <p>Ações com documentação pendente em {selectedYear}</p>
           </div>
-          <div style={{ fontSize: "1.8rem", fontWeight: 900, color: "#b45309", background: "#fef3c7", padding: "4px 16px", borderRadius: 8 }}>{totais.docsFalta}</div>
+          <strong>{totais.docsFalta}</strong>
         </div>
-        <div style={{ background: "#fffbeb", border: "1px solid #fde68a", padding: 16, borderRadius: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div className={`af-alert ${totais.pagFalta > 0 ? "is-on" : "is-ok"}`}>
+          <span className="af-alert-ico"><Icons.Euro size={20} /></span>
           <div>
-            <h4 style={{ margin: 0, color: "#b45309", fontSize: "1rem" }}>Pagamentos a Formadores</h4>
-            <p style={{ margin: 0, color: "#d97706", fontSize: "0.85rem" }}>Ações com pagamento pendente em {selectedYear}</p>
+            <h4>Pagamentos a Formadores</h4>
+            <p>Ações com pagamento pendente em {selectedYear}</p>
           </div>
-          <div style={{ fontSize: "1.8rem", fontWeight: 900, color: "#b45309", background: "#fef3c7", padding: "4px 16px", borderRadius: 8 }}>{totais.pagFalta}</div>
+          <strong>{totais.pagFalta}</strong>
         </div>
       </div>
 
       {/* ----------------- LINHA 1: EVOLUÇÃO TEMPORAL (GLOBAL) ----------------- */}
-      <h2 style={{ margin: "0 0 16px 0", color: "#0f172a", fontSize: "1.2rem", borderTop: "1px solid #e2e8f0", paddingTop: 24 }}>Comparativo Histórico</h2>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 24 }}>
-        <div style={{ background: "white", padding: 24, borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-          <h3 style={{ margin: "0 0 20px 0", color: "#0f172a", fontSize: "1.1rem" }}>Evolução do Volume de Formação (h)</h3>
-          <ResponsiveContainer width="100%" height={300}>
+      <div className="af-stats-head"><h2>Comparativo Histórico</h2></div>
+      <div className="af-chart-grid is-2">
+        <div className="af-chart">
+          <h3>Evolução do Volume de Formação (h)</h3>
+          <ResponsiveContainer width="100%" height={280}>
             <BarChart data={statsPorAno}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis dataKey="ano" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
-              <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
-              <RechartsTooltip cursor={{fill: '#f8fafc'}} contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }} />
-              <Legend />
-              {/* Optei por destacar o ano atual com uma cor diferente no gráfico de evolução! */}
-              <Bar dataKey="volume" name="Volume Total" radius={[4, 4, 0, 0]} shape={(props) => {
-                const fill = Number(props.payload.ano) === Number(selectedYear) ? "var(--color-btnPrimary)" : "#cbd5e1";
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef2f6" />
+              <XAxis dataKey="ano" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+              <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+              <RechartsTooltip cursor={{ fill: "#f8fafc" }} contentStyle={tooltipStyle} />
+              <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: "0.76rem", fontWeight: 700 }} />
+              <Bar dataKey="volume" name="Volume Total" radius={[8, 8, 0, 0]} maxBarSize={56} shape={(props) => {
+                const fill = Number(props.payload.ano) === Number(selectedYear) ? "var(--color-btnPrimary)" : "#dbe3ec";
                 return <Rectangle {...props} fill={fill} />;
               }} />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
-        <div style={{ background: "white", padding: 24, borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-          <h3 style={{ margin: "0 0 20px 0", color: "#0f172a", fontSize: "1.1rem" }}>Evolução de Inscritos</h3>
-          <ResponsiveContainer width="100%" height={300}>
+        <div className="af-chart">
+          <h3>Evolução de Inscritos</h3>
+          <ResponsiveContainer width="100%" height={280}>
             <BarChart data={statsPorAno}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis dataKey="ano" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
-              <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
-              <RechartsTooltip cursor={{fill: '#f8fafc'}} contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }} />
-              <Legend />
-              <Bar dataKey="formandos" name="Inscritos" radius={[4, 4, 0, 0]} shape={(props) => {
-                const fill = Number(props.payload.ano) === Number(selectedYear) ? "#10b981" : "#cbd5e1";
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef2f6" />
+              <XAxis dataKey="ano" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+              <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+              <RechartsTooltip cursor={{ fill: "#f8fafc" }} contentStyle={tooltipStyle} />
+              <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: "0.76rem", fontWeight: 700 }} />
+              <Bar dataKey="formandos" name="Inscritos" radius={[8, 8, 0, 0]} maxBarSize={56} shape={(props) => {
+                const fill = Number(props.payload.ano) === Number(selectedYear) ? "#10b981" : "#dbe3ec";
                 return <Rectangle {...props} fill={fill} />;
               }} />
             </BarChart>
@@ -617,104 +699,54 @@ export function EstatisticasTab({ areasFormacao, selectedYear }) {
       </div>
 
       {/* ----------------- LINHA 2: DISTRIBUIÇÃO COMERCIAL E OPERACIONAL (ANO SELECIONADO) ----------------- */}
-      <h2 style={{ margin: "0 0 16px 0", color: "#0f172a", fontSize: "1.2rem", borderTop: "1px solid #e2e8f0", paddingTop: 24 }}>Distribuição Analítica de {selectedYear}</h2>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24, marginBottom: 24 }}>
-        
-        <div style={{ background: "white", padding: 24, borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-          <h3 style={{ margin: "0 0 20px 0", color: "#0f172a", fontSize: "1.1rem", textAlign: "center" }}>Perfil B2B vs B2C</h3>
-          {statsPublico.every(s => s.value === 0) ? (
-             <div style={{height: 250, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8'}}>Sem dados</div>
-          ) : (
-            <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie data={statsPublico} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value" />
-                <RechartsTooltip contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }} />
-                <Legend verticalAlign="bottom" height={36}/>
-              </PieChart>
-            </ResponsiveContainer>
-          )}
+      <div className="af-stats-head"><h2>Distribuição Analítica de {selectedYear}</h2></div>
+      <div className="af-chart-grid is-3">
+        <div className="af-chart">
+          <h3>Perfil B2B vs B2C</h3>
+          {renderDonut(statsPublico)}
         </div>
-
-        <div style={{ background: "white", padding: 24, borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-          <h3 style={{ margin: "0 0 20px 0", color: "#0f172a", fontSize: "1.1rem", textAlign: "center" }}>Distribuição por Regime</h3>
-          {statsRegime.length === 0 ? (
-             <div style={{height: 250, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8'}}>Sem dados</div>
-          ) : (
-            <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie data={statsRegime} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value" />
-                <RechartsTooltip contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }} />
-                <Legend verticalAlign="bottom" height={36}/>
-              </PieChart>
-            </ResponsiveContainer>
-          )}
+        <div className="af-chart">
+          <h3>Distribuição por Regime</h3>
+          {renderDonut(statsRegime)}
         </div>
-
-        <div style={{ background: "white", padding: 24, borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-          <h3 style={{ margin: "0 0 20px 0", color: "#0f172a", fontSize: "1.1rem", textAlign: "center" }}>Estado dos Cursos</h3>
-          {statsStatus.length === 0 ? (
-             <div style={{height: 250, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8'}}>Sem dados</div>
-          ) : (
-            <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie data={statsStatus} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value" />
-                <RechartsTooltip contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }} />
-                <Legend verticalAlign="bottom" height={36}/>
-              </PieChart>
-            </ResponsiveContainer>
-          )}
+        <div className="af-chart">
+          <h3>Estado dos Cursos</h3>
+          {renderDonut(statsStatus)}
         </div>
       </div>
 
       {/* ----------------- LINHA 3: ÁREAS E FUNIL CERTIFICADOS (ANO SELECIONADO) ----------------- */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
-        
-        <div style={{ background: "white", padding: 24, borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-          <h3 style={{ margin: "0 0 20px 0", color: "#0f172a", fontSize: "1.1rem", textAlign: "center" }}>Volume por Área de Formação</h3>
+      <div className="af-chart-grid is-2">
+        <div className="af-chart">
+          <h3>Volume por Área de Formação</h3>
           {statsPorArea.length === 0 ? (
-            <div style={{height: 350, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8'}}>Sem dados para {selectedYear}</div>
+            <div className="af-chart-empty" style={{ height: 300 }}>Sem dados para {selectedYear}</div>
           ) : (
-            <ResponsiveContainer width="100%" height={350}>
-              <PieChart margin={{ top: 10, right: 10, bottom: 20, left: 10 }}>
-                <Pie
-                  data={statsPorArea}
-                  cx="50%" cy="45%"
-                  labelLine={false} /* Remove as linhas */
-                  label={false}     /* Remove o texto das percentagens */
-                  outerRadius={90}
-                  dataKey="value"
-                />
-                <RechartsTooltip contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }} />
-                
-                <Legend 
-                  layout="horizontal" 
-                  verticalAlign="bottom" 
-                  align="center" 
-                  wrapperStyle={{ fontSize: "0.75rem", paddingTop: "10px", lineHeight: "1.4" }} 
-                />
-              </PieChart>
-            </ResponsiveContainer>
+            <div className="af-area-list">
+              {statsPorArea.map((area) => (
+                <div key={area.name} className="af-area-row">
+                  <span className="af-area-dot" style={{ background: area.fill }} />
+                  <span className="af-area-name" title={area.name}>{area.name}</span>
+                  <div className="af-area-bar"><span style={{ width: `${(area.value / statsPorArea[0].value) * 100}%`, background: area.fill }} /></div>
+                  <strong>{area.value}</strong>
+                </div>
+              ))}
+            </div>
           )}
         </div>
 
-        <div style={{ background: "white", padding: 24, borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-          <h3 style={{ margin: "0 0 20px 0", color: "#0f172a", fontSize: "1.1rem" }}>Status de Emissão de Certificados</h3>
-          <p style={{ margin: "0 0 20px 0", color: "#64748b", fontSize: "0.85rem" }}>Acompanhamento do processamento de certificados em {selectedYear}</p>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={statsCertificados} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
-              <XAxis type="number" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
-              <YAxis dataKey="name" type="category" stroke="#0f172a" fontSize={12} fontWeight={700} width={120} tickLine={false} axisLine={false} />
-              <RechartsTooltip cursor={{fill: '#f8fafc'}} contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }} />
-              <Bar 
-                dataKey="quantidade" 
-                barSize={40}
-                shape={(props) => <Rectangle {...props} fill={props.payload.fill} radius={[0, 4, 4, 0]} />}
-              />
-            </BarChart>
-          </ResponsiveContainer>
+        <div className="af-chart">
+          <h3>Status de Emissão de Certificados</h3>
+          <p>Acompanhamento do processamento de certificados em {selectedYear}</p>
+          <div className="af-funnel">
+            {statsCertificados.map((item) => (
+              <div key={item.name} className="af-funnel-row" style={{ "--f": item.fill }}>
+                <div className="af-funnel-label"><span>{item.name}</span><strong>{item.quantidade}</strong></div>
+                <div className="af-funnel-bar"><span style={{ width: `${certTotal ? (item.quantidade / certTotal) * 100 : 0}%` }} /></div>
+              </div>
+            ))}
+          </div>
         </div>
-
       </div>
 
     </div>
@@ -743,6 +775,8 @@ export default function AcoesFormacao() {
   const [newAreaNome, setNewAreaNome] = useState("");
   const [newHomologacaoCodigo, setNewHomologacaoCodigo] = useState("CCDR");
   const [newHomologacaoNome, setNewHomologacaoNome] = useState("");
+  const [search, setSearch] = useState("");
+  const [popCell, setPopCell] = useState(null);
   const toastTimerRef = useRef(null);
   const isSubmittingRef = useRef(false);
 
@@ -969,9 +1003,8 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
     }
   }, [persistInlineField, showToast]);
 
-  const displayBoolean = (value) => (value ? "Sim" : "Não");
-  const displayDate = (value) => formatDateInput(value) || "-";
-  const displayDateTime = (value) => formatDateTimeInput(value) || "-";
+  const displayBoolean = (value) => <span className={`af-bool ${value ? "is-yes" : "is-no"}`}>{value ? "Sim" : "Não"}</span>;
+  const displayDate = (value) => (formatPtDate(value) ? <span className="af-date">{formatPtDate(value)}</span> : <span className="af-nil">—</span>);
 
   const visibleAreasForForm = useMemo(() => areasFormacao.filter((area) => area.ativo || area.id === form.area_formacao_id), [areasFormacao, form.area_formacao_id]);
   const visibleHomologacoesForForm = useMemo(() => homologacoesFormacao.filter((item) => item.ativo || item.id === form.homologacao_id), [form.homologacao_id, homologacoesFormacao]);
@@ -1340,124 +1373,201 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
     showToast(`Excel de ${selectedYear} exportado com sucesso!`);
   };
 
+  const searchTerm = normalizeText(search.trim());
+  const tableFormacoes = useMemo(() => {
+    if (!searchTerm) return visibleFormacoes;
+    return visibleFormacoes.filter((acao) => normalizeText(`${acao.codigo} ${acao.nome_curso} ${acao.nome_formador} ${acao.area_nome} ${acao.local}`).includes(searchTerm));
+  }, [searchTerm, visibleFormacoes]);
+
+  const heroStats = useMemo(() => formacoesComContexto.reduce((acc, acao) => {
+    acc.inscritos += Number(acao.total_inscritos) || 0;
+    acc.volume += (Number(acao.carga_horaria) || 0) * (Number(acao.n_certificados) || 0);
+    acc.certificados += Number(acao.n_certificados) || 0;
+    if (acao.status_curso === "Em Andamento") acc.andamento += 1;
+    return acc;
+  }, { inscritos: 0, volume: 0, certificados: 0, andamento: 0 }), [formacoesComContexto]);
+
+  const tabCounts = useMemo(() => ({
+    formacoes: formacoesComContexto.length,
+    checklist: formacoesComContexto.length,
+    ccdr: formacoesComContexto.filter((item) => item.homologacao_codigo === "CCDR").length,
+    dgadr: formacoesComContexto.filter((item) => item.homologacao_codigo === "DGADR").length,
+  }), [formacoesComContexto]);
+
+  const yearOptions = useMemo(() => YEARS_OPTIONS.map((ano) => ({ value: ano, label: `Ano ${ano}` })), []);
+
+  const renderStatus = (status) => (status
+    ? <span className="af-status" style={{ "--s": STATUS_COLORS[status] || "#64748b" }}><i />{status}</span>
+    : <span className="af-nil">—</span>);
+  const renderRegime = (regime) => (regime
+    ? <span className="af-chip" style={{ "--c": REGIME_COLORS[regime] || "#64748b" }}>{regime}</span>
+    : <span className="af-nil">—</span>);
+  const renderHomol = (acao) => (acao.homologacao_codigo || acao.homologacao_nome
+    ? <span className="af-homol-chip" data-code={acao.homologacao_codigo}>{acao.homologacao_codigo || acao.homologacao_nome}</span>
+    : <span className="af-nil">—</span>);
+  const renderSimNa = (value) => (value === "Sim"
+    ? <span className="af-bool is-yes">Sim</span>
+    : value ? <span className="af-bool is-na">{value}</span> : <span className="af-nil">—</span>);
+  const renderDtp = (value) => (value
+    ? <span className={`af-bool ${value === "Concluído" ? "is-yes" : "is-warn"}`}>{value}</span>
+    : <span className="af-nil">—</span>);
+  const renderNum = (value) => <span className={`af-num ${Number(value) ? "" : "is-zero"}`}>{value ?? 0}</span>;
+  const renderText = (value) => (value ? value : <span className="af-nil">—</span>);
+  const renderCourseCell = (acao) => (
+    <td className="af-cell af-sticky af-course">
+      <div className="af-course-in">
+        <span className="af-code">{acao.codigo}</span>
+        <span className="af-course-name" title={acao.nome_curso}>{acao.nome_curso || "—"}</span>
+      </div>
+    </td>
+  );
+  const emptyRow = (colSpan, label) => (
+    <tr className="af-empty-row">
+      <td colSpan={colSpan}>
+        <div className="af-empty">
+          <span className="af-empty-ico"><Icons.Folder size={26} /></span>
+          <strong>{searchTerm ? "Sem resultados para a pesquisa." : label}</strong>
+          {searchTerm ? <button type="button" className="af-btn is-soft" onClick={() => setSearch("")}>Limpar pesquisa</button> : null}
+        </div>
+      </td>
+    </tr>
+  );
+
+  const TABS = [
+    { id: "formacoes", label: "Formações", icon: <Icons.Folder size={15} /> },
+    { id: "checklist", label: "Checklist", icon: <Icons.Check size={15} /> },
+    { id: "ccdr", label: "CCDR", icon: <Icons.Badge size={15} /> },
+    { id: "dgadr", label: "DGADR", icon: <Icons.Badge size={15} /> },
+    { id: "estatisticas", label: "Estatísticas", icon: <Icons.Chart size={15} /> },
+  ];
+
   return (
-    <div className="page-container" style={{ maxWidth: 1600, margin: "0 auto", padding: 15 }}>
-      {/* CABEÇALHO BRANCO */}
-      <div style={{ background: "white", padding: "20px 25px", borderRadius: 12, border: "1px solid #e2e8f0", marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)", flexWrap: "wrap", gap: 15 }}>
-        
-        {/* LADO ESQUERDO: Título e Seletor de Ano */}
-        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-          <div style={{ background: "var(--color-bgSecondary)", color: "var(--color-btnPrimary)", padding: 12, borderRadius: 12, display: "flex" }}>
-            <Icons.Folder size={24} />
-          </div>
-          <div>
-            <h1 style={{ margin: 0, color: "#0f172a", fontSize: "1.8rem", fontWeight: 900, letterSpacing: "-0.02em" }}>Ações de Formação</h1>
-            <div style={{ marginTop: 8 }}>
-              <select 
-                value={selectedYear} 
-                onChange={(event) => setSelectedYear(Number(event.target.value))}
-                style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #cbd5e1", background: "#f8fafc", color: "#0f172a", fontWeight: 800, fontSize: "0.95rem", cursor: "pointer", outline: "none", width: "130px" }}
-              >
-                {YEARS_OPTIONS.map((ano) => (
-                  <option key={ano} value={ano}>Ano {ano}</option>
-                ))}
-              </select>
+    <div className="page-container af-page">
+      {/* HERO */}
+      <header className="af-hero">
+        <div className="af-hero-bg"><span className="af-orb af-orb-a" /><span className="af-orb af-orb-b" /></div>
+        <div className="af-hero-row">
+          <div className="af-hero-main">
+            <span className="af-hero-icon"><Icons.Cap size={24} /></span>
+            <div>
+              <h1>Ações de Formação</h1>
+              <p>Planeamento, execução, certificados e homologações · {selectedYear}</p>
             </div>
           </div>
+
+          <div className="af-hero-actions">
+            <button type="button" className="af-hero-btn" onClick={exportarParaExcel} title="Exportar ano selecionado para Excel">
+              <Icons.Download size={16} /> Download
+            </button>
+            <button type="button" className="af-hero-btn is-icon" onClick={() => setShowSettingsModal(true)} title="Definições">
+              <Icons.Settings size={17} />
+            </button>
+            <button type="button" className="af-cta" onClick={handleOpenCreate} disabled={!user?.id}>
+              <Icons.Plus /> Nova Formação
+            </button>
+          </div>
         </div>
 
-        {/* LADO DIREITO: Botões */}
-        <div style={{ display: "flex", gap: 15, alignItems: "center" }}>
-          {/* Botão de Exportar Excel */}
-          <button 
-            onClick={exportarParaExcel} 
-            style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "10px 15px", borderRadius: 8, color: "#16a34a", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, fontWeight: 800 }} 
-            title="Exportar ano selecionado para Excel"
-          >
-            <Icons.Download size={16} /> Download
-          </button>
-          
-          <button onClick={() => setShowSettingsModal(true)} style={{ background: "#f8fafc", border: "1px solid #e2e8f0", padding: 10, borderRadius: 8, color: "#475569", cursor: "pointer" }} title="Definições">
-            <Icons.Settings />
-          </button>
-          
-          <button onClick={handleOpenCreate} style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 800, padding: "10px 20px", borderRadius: 8, border: "none", background: "var(--color-btnPrimary)", color: "white", cursor: "pointer" }} disabled={!user?.id}>
-            <Icons.Plus /> Nova Formação
-          </button>
+        <div className="af-hero-stats">
+          <span className="af-stat"><strong>{formacoesComContexto.length}</strong> formações</span>
+          <span className="af-stat"><strong>{heroStats.andamento}</strong> em andamento</span>
+          <span className="af-stat"><strong>{heroStats.inscritos.toLocaleString("pt-PT")}</strong> inscritos</span>
+          <span className="af-stat"><strong>{heroStats.certificados.toLocaleString("pt-PT")}</strong> certificados</span>
+          <span className="af-stat"><strong>{heroStats.volume.toLocaleString("pt-PT")}</strong> h de volume</span>
         </div>
+      </header>
+
+      {/* BARRA */}
+      <div className="af-toolbar">
+        <div className="af-seg" role="tablist">
+          {TABS.map((tab) => (
+            <button key={tab.id} type="button" role="tab" aria-selected={activeTab === tab.id} className={activeTab === tab.id ? "is-on" : ""} onClick={() => setActiveTab(tab.id)}>
+              {tab.icon}{tab.label}
+              {tabCounts[tab.id] !== undefined && tab.id !== "checklist" ? <em>{tabCounts[tab.id]}</em> : null}
+            </button>
+          ))}
+        </div>
+
+        {activeTab !== "estatisticas" ? (
+          <label className="af-search">
+            <Icons.Search size={16} />
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Procurar por código, curso, formador, área..." />
+            {search ? <button type="button" className="af-search-clear" onClick={() => setSearch("")} aria-label="Limpar"><Icons.Close size={13} /></button> : null}
+          </label>
+        ) : <span style={{ flex: 1 }} />}
+
+        <FancySelect
+          className="af-year"
+          value={selectedYear}
+          onChange={(value) => setSelectedYear(Number(value))}
+          options={yearOptions}
+          icon={<Icons.Calendar size={15} />}
+          menuWidth={200}
+          searchPlaceholder="Procurar ano..."
+          ariaLabel="Ano"
+        />
       </div>
 
-      <div style={{ display: "flex", background: "#f1f5f9", padding: 6, borderRadius: 10, marginBottom: 20, border: "1px solid #e2e8f0", width: "fit-content", flexWrap: "wrap", gap: 6 }}>
-        {[
-          { id: "formacoes", label: "Formações" },
-          { id: "checklist", label: "Checklist" },
-          { id: "ccdr", label: "CCDR" },
-          { id: "dgadr", label: "DGADR" },
-          { id: "estatisticas", label: "Estatísticas" },
-        ].map((tab) => (
-          <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{ padding: "8px 20px", borderRadius: 8, border: "none", fontWeight: 800, fontSize: "0.9rem", cursor: "pointer", background: activeTab === tab.id ? "white" : "transparent", color: activeTab === tab.id ? "var(--color-btnPrimary)" : "#64748b", boxShadow: activeTab === tab.id ? "0 2px 4px rgba(0,0,0,0.05)" : "none" }}>
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      {activeTab === "checklist" && !loading ? (
+        <div className="af-legend">
+          {CHECKLIST_ORDER.map((state) => (
+            <span key={state} className="af-legend-item"><i className={`af-ck-dot is-${state}`} />{CHECKLIST_META[state].label}</span>
+          ))}
+          <span className="af-legend-hint">Clica num círculo para mudar o estado</span>
+        </div>
+      ) : null}
 
-      <div key={activeTab} className="bz-tab-panel" style={{ background: "white", borderRadius: 14, border: "1px solid #e2e8f0", overflow: "hidden", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)" }}>
+      <div key={activeTab} className={`af-panel bz-tab-panel ${activeTab === "estatisticas" ? "is-stats" : ""}`}>
         {loading ? (
-          <div style={{ padding: 50, textAlign: "center", color: "#64748b" }}>A carregar dados...</div>
+          <div className="af-loading"><span className="af-spinner" /> A carregar dados...</div>
         ) : activeTab === "estatisticas" ? (
           // Renderiza a nova Tab aqui
           <EstatisticasTab areasFormacao={areasFormacao} selectedYear={selectedYear} />
         ) : (
-          <div className="table-responsive custom-scrollbar" style={{ overflowX: "auto" }}>
-            <table 
-              className="data-table project-list-table" 
-              style={{ 
-                minWidth: activeTab === "formacoes" ? 1950 : activeTab === "checklist" ? 1000 : "100%", 
-                width: "100%", 
-                borderCollapse: "collapse" 
-              }}
-            >
+          <div className="af-table-wrap custom-scrollbar">
+            <table className={`af-table is-${activeTab}`}>
               {activeTab === "formacoes" && (
                 <>
-                  <thead style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
+                  <thead>
                     <tr>
-                      <th style={{ padding: 4, textAlign: "left", color: "#475569", fontSize: "0.6rem", fontWeight: 700, position: "sticky", left: 0, background: "#f8fafc", zIndex: 2, borderRight: "1px solid #e2e8f0", whiteSpace: "nowrap" }}>Código</th>
-                      <th style={{ padding: 4, textAlign: "left", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Nome do Curso</th>
-                      <th style={{ padding: 4, textAlign: "left", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Formador</th>
-                      <th style={{ padding: 4, textAlign: "left", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Área</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Carga (h)</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Data Início</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Data Fim</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Regime</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Homolog.</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Status</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Inscritos</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Empresas</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Particulares</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Desistências</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Certificados</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Volume</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Emitidos</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Enviados</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>A Aguardar</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Docs Formador</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Pag. Formador</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Data Pagamento</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Status DTP</th>
-                      <th style={{ padding: 4, textAlign: "right", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Ações</th>
+                      <th className="af-sticky is-left">Código</th>
+                      <th className="is-left">Nome do Curso</th>
+                      <th className="is-left">Formador</th>
+                      <th className="is-left">Área</th>
+                      <th>Carga (h)</th>
+                      <th>Data Início</th>
+                      <th>Data Fim</th>
+                      <th>Regime</th>
+                      <th>Homolog.</th>
+                      <th>Status</th>
+                      <th className="af-th-group is-start">Inscritos</th>
+                      <th className="af-th-group">Empresas</th>
+                      <th className="af-th-group">Particulares</th>
+                      <th className="af-th-group">Desistências</th>
+                      <th className="af-th-group">Certificados</th>
+                      <th className="af-th-group is-end">Volume</th>
+                      <th>Emitidos</th>
+                      <th>Enviados</th>
+                      <th>A Aguardar</th>
+                      <th>Docs Formador</th>
+                      <th>Pag. Formador</th>
+                      <th>Data Pagamento</th>
+                      <th>Status DTP</th>
+                      <th className="af-sticky-right">Ações</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {visibleFormacoes.length === 0 && <tr><td colSpan="24" style={{ textAlign: "center", padding: 30, color: "#94a3b8" }}>Nenhuma formação registada neste ano.</td></tr>}
-                    {visibleFormacoes.map((acao) => (
-                      <tr key={acao.id} style={{ borderBottom: "1px solid #f1f5f9" }} className="project-list-row">
-                        <td style={{ padding: 4, fontSize: "0.64rem", fontWeight: 800, color: "#1e293b", position: "sticky", left: 0, background: "white", zIndex: 1, borderRight: "1px solid #e2e8f0" }}>{acao.codigo}</td>
+                    {tableFormacoes.length === 0 && emptyRow(24, "Nenhuma formação registada neste ano.")}
+                    {tableFormacoes.map((acao) => (
+                      <tr key={acao.id}>
+                        <td className="af-cell af-sticky"><span className="af-code">{acao.codigo}</span></td>
                         <InlineTableCell
                           key={`${acao.id}-nome_curso-${editingCell?.rowId === acao.id && editingCell?.field === "nome_curso" ? "edit" : "view"}`}
                           rowId={acao.id}
                           field="nome_curso"
                           value={acao.nome_curso}
-                          display={acao.nome_curso || "-"}
+                          display={<span className="af-strong">{acao.nome_curso || "-"}</span>}
+                          className="af-wide"
                           editingCell={editingCell}
                           setEditingCell={setEditingCell}
                           onSave={(nextValue) => handleInlineCellSave(acao, "nome_curso", nextValue)}
@@ -1467,7 +1577,9 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
                           rowId={acao.id}
                           field="nome_formador"
                           value={acao.nome_formador}
-                          display={acao.nome_formador || "-"}
+                          display={acao.nome_formador
+                            ? <span className="af-person"><span className="af-avatar">{initials(acao.nome_formador)}</span>{acao.nome_formador}</span>
+                            : "-"}
                           editingCell={editingCell}
                           setEditingCell={setEditingCell}
                           onSave={(nextValue) => handleInlineCellSave(acao, "nome_formador", nextValue)}
@@ -1477,7 +1589,7 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
                           rowId={acao.id}
                           field="area_formacao_id"
                           value={acao.area_formacao_id || ""}
-                          display={acao.area_nome || "-"}
+                          display={renderText(acao.area_nome)}
                           type="select"
                           options={visibleAreasForForm.map((area) => ({ value: area.id, label: area.nome }))}
                           editingCell={editingCell}
@@ -1489,7 +1601,7 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
                           rowId={acao.id}
                           field="carga_horaria"
                           value={acao.carga_horaria ?? 0}
-                          display={acao.carga_horaria ?? 0}
+                          display={<span className="af-num">{acao.carga_horaria ?? 0}<small>h</small></span>}
                           type="number"
                           align="center"
                           editingCell={editingCell}
@@ -1525,7 +1637,7 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
                           rowId={acao.id}
                           field="regime"
                           value={acao.regime || ""}
-                          display={<span style={{ background: "#f1f5f9", padding: "2px 6px", borderRadius: 4, fontSize: "0.6rem", fontWeight: 800 }}>{acao.regime}</span>}
+                          display={renderRegime(acao.regime)}
                           type="select"
                           options={REGIME_OPTIONS.map((option) => ({ value: option, label: option }))}
                           align="center"
@@ -1538,7 +1650,7 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
                           rowId={acao.id}
                           field="homologacao_id"
                           value={acao.homologacao_id || ""}
-                          display={acao.homologacao_codigo || acao.homologacao_nome || "-"}
+                          display={renderHomol(acao)}
                           type="select"
                           options={visibleHomologacoesForForm.map((item) => ({ value: item.id, label: `${item.codigo} - ${item.nome}` }))}
                           align="center"
@@ -1551,7 +1663,7 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
                           rowId={acao.id}
                           field="status_curso"
                           value={acao.status_curso || ""}
-                          display={<span style={{ fontSize: "0.6rem", padding: "2px 6px", borderRadius: 8, background: "#dcfce7", color: "#166534", fontWeight: 800 }}>{acao.status_curso}</span>}
+                          display={renderStatus(acao.status_curso)}
                           type="select"
                           options={COURSE_STATUS_OPTIONS.map((option) => ({ value: option, label: option }))}
                           align="center"
@@ -1559,22 +1671,22 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
                           setEditingCell={setEditingCell}
                           onSave={(nextValue) => handleInlineCellSave(acao, "status_curso", nextValue)}
                         />
-                        <InlineTableCell key={`${acao.id}-total_inscritos-${editingCell?.rowId === acao.id && editingCell?.field === "total_inscritos" ? "edit" : "view"}`} rowId={acao.id} field="total_inscritos" value={acao.total_inscritos ?? 0} display={acao.total_inscritos ?? 0} type="number" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "total_inscritos", nextValue)} />
-                        <InlineTableCell key={`${acao.id}-n_empresas-${editingCell?.rowId === acao.id && editingCell?.field === "n_empresas" ? "edit" : "view"}`} rowId={acao.id} field="n_empresas" value={acao.n_empresas ?? 0} display={acao.n_empresas ?? 0} type="number" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "n_empresas", nextValue)} />
-                        <InlineTableCell key={`${acao.id}-n_particulares-${editingCell?.rowId === acao.id && editingCell?.field === "n_particulares" ? "edit" : "view"}`} rowId={acao.id} field="n_particulares" value={acao.n_particulares ?? 0} display={acao.n_particulares ?? 0} type="number" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "n_particulares", nextValue)} />
-                        <InlineTableCell key={`${acao.id}-n_desistencias-${editingCell?.rowId === acao.id && editingCell?.field === "n_desistencias" ? "edit" : "view"}`} rowId={acao.id} field="n_desistencias" value={acao.n_desistencias ?? 0} display={acao.n_desistencias ?? 0} type="number" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "n_desistencias", nextValue)} />
-                        <InlineTableCell key={`${acao.id}-n_certificados-${editingCell?.rowId === acao.id && editingCell?.field === "n_certificados" ? "edit" : "view"}`} rowId={acao.id} field="n_certificados" value={acao.n_certificados ?? 0} display={acao.n_certificados ?? 0} type="number" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "n_certificados", nextValue)} />
-                        <td style={{ padding: 4, textAlign: "center", fontSize: "0.64rem", fontWeight: 700 }}>{Number(acao.n_certificados || 0) * Number(acao.carga_horaria || 0)}</td>
-                        <InlineTableCell key={`${acao.id}-certificados_emitidos-${editingCell?.rowId === acao.id && editingCell?.field === "certificados_emitidos" ? "edit" : "view"}`} rowId={acao.id} field="certificados_emitidos" value={acao.certificados_emitidos ?? 0} display={acao.certificados_emitidos ?? 0} type="number" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "certificados_emitidos", nextValue)} />
-                        <InlineTableCell key={`${acao.id}-certificados_enviados-${editingCell?.rowId === acao.id && editingCell?.field === "certificados_enviados" ? "edit" : "view"}`} rowId={acao.id} field="certificados_enviados" value={acao.certificados_enviados ?? 0} display={acao.certificados_enviados ?? 0} type="number" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "certificados_enviados", nextValue)} />
-                        <InlineTableCell key={`${acao.id}-certificados_aguardar-${editingCell?.rowId === acao.id && editingCell?.field === "certificados_aguardar" ? "edit" : "view"}`} rowId={acao.id} field="certificados_aguardar" value={acao.certificados_aguardar ?? 0} display={acao.certificados_aguardar ?? 0} type="number" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "certificados_aguardar", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-total_inscritos-${editingCell?.rowId === acao.id && editingCell?.field === "total_inscritos" ? "edit" : "view"}`} rowId={acao.id} field="total_inscritos" value={acao.total_inscritos ?? 0} display={renderNum(acao.total_inscritos)} type="number" align="center" className="af-group is-start" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "total_inscritos", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-n_empresas-${editingCell?.rowId === acao.id && editingCell?.field === "n_empresas" ? "edit" : "view"}`} rowId={acao.id} field="n_empresas" value={acao.n_empresas ?? 0} display={renderNum(acao.n_empresas)} type="number" align="center" className="af-group" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "n_empresas", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-n_particulares-${editingCell?.rowId === acao.id && editingCell?.field === "n_particulares" ? "edit" : "view"}`} rowId={acao.id} field="n_particulares" value={acao.n_particulares ?? 0} display={renderNum(acao.n_particulares)} type="number" align="center" className="af-group" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "n_particulares", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-n_desistencias-${editingCell?.rowId === acao.id && editingCell?.field === "n_desistencias" ? "edit" : "view"}`} rowId={acao.id} field="n_desistencias" value={acao.n_desistencias ?? 0} display={<span className={`af-num ${Number(acao.n_desistencias) ? "is-bad" : "is-zero"}`}>{acao.n_desistencias ?? 0}</span>} type="number" align="center" className="af-group" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "n_desistencias", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-n_certificados-${editingCell?.rowId === acao.id && editingCell?.field === "n_certificados" ? "edit" : "view"}`} rowId={acao.id} field="n_certificados" value={acao.n_certificados ?? 0} display={renderNum(acao.n_certificados)} type="number" align="center" className="af-group" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "n_certificados", nextValue)} />
+                        <td className="af-cell is-center af-group is-end"><span className="af-volume">{Number(acao.n_certificados || 0) * Number(acao.carga_horaria || 0)}</span></td>
+                        <InlineTableCell key={`${acao.id}-certificados_emitidos-${editingCell?.rowId === acao.id && editingCell?.field === "certificados_emitidos" ? "edit" : "view"}`} rowId={acao.id} field="certificados_emitidos" value={acao.certificados_emitidos ?? 0} display={renderNum(acao.certificados_emitidos)} type="number" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "certificados_emitidos", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-certificados_enviados-${editingCell?.rowId === acao.id && editingCell?.field === "certificados_enviados" ? "edit" : "view"}`} rowId={acao.id} field="certificados_enviados" value={acao.certificados_enviados ?? 0} display={renderNum(acao.certificados_enviados)} type="number" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "certificados_enviados", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-certificados_aguardar-${editingCell?.rowId === acao.id && editingCell?.field === "certificados_aguardar" ? "edit" : "view"}`} rowId={acao.id} field="certificados_aguardar" value={acao.certificados_aguardar ?? 0} display={<span className={`af-num ${Number(acao.certificados_aguardar) ? "is-warn" : "is-zero"}`}>{acao.certificados_aguardar ?? 0}</span>} type="number" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "certificados_aguardar", nextValue)} />
                         <InlineTableCell key={`${acao.id}-doc_formador-${editingCell?.rowId === acao.id && editingCell?.field === "doc_formador" ? "edit" : "view"}`} rowId={acao.id} field="doc_formador" value={acao.doc_formador ? "Sim" : "Não"} display={displayBoolean(acao.doc_formador)} type="select" options={SIM_NAO_OPTIONS.map((option) => ({ value: option, label: option }))} align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "doc_formador", nextValue)} />
                         <InlineTableCell key={`${acao.id}-pag_formador-${editingCell?.rowId === acao.id && editingCell?.field === "pag_formador" ? "edit" : "view"}`} rowId={acao.id} field="pag_formador" value={acao.pag_formador ? "Sim" : "Não"} display={displayBoolean(acao.pag_formador)} type="select" options={SIM_NAO_OPTIONS.map((option) => ({ value: option, label: option }))} align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "pag_formador", nextValue)} />
                         <InlineTableCell key={`${acao.id}-data_pagamento-${editingCell?.rowId === acao.id && editingCell?.field === "data_pagamento" ? "edit" : "view"}`} rowId={acao.id} field="data_pagamento" value={acao.data_pagamento || ""} display={displayDate(acao.data_pagamento)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "data_pagamento", nextValue)} />
-                        <InlineTableCell key={`${acao.id}-status_dtp-${editingCell?.rowId === acao.id && editingCell?.field === "status_dtp" ? "edit" : "view"}`} rowId={acao.id} field="status_dtp" value={acao.status_dtp || ""} display={acao.status_dtp} type="select" options={DTP_OPTIONS.map((option) => ({ value: option, label: option }))} align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "status_dtp", nextValue)} />
-                        <td style={{ padding: 4, textAlign: "right", fontSize: "0.64rem" }}>
-                          <button onClick={() => handleOpenEdit(acao)} title="Abrir edição completa" style={{ background: "transparent", border: "none", cursor: "pointer", color: "#94a3b8" }}>
-                            <Icons.Edit size={16} />
+                        <InlineTableCell key={`${acao.id}-status_dtp-${editingCell?.rowId === acao.id && editingCell?.field === "status_dtp" ? "edit" : "view"}`} rowId={acao.id} field="status_dtp" value={acao.status_dtp || ""} display={renderDtp(acao.status_dtp)} type="select" options={DTP_OPTIONS.map((option) => ({ value: option, label: option }))} align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "status_dtp", nextValue)} />
+                        <td className="af-cell is-right af-sticky-right">
+                          <button type="button" className="af-icon-btn" onClick={() => handleOpenEdit(acao)} title="Abrir edição completa">
+                            <Icons.Edit size={15} />
                           </button>
                         </td>
                       </tr>
@@ -1583,143 +1695,159 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
                 </>
               )}
 
-            {activeTab === "checklist" && (
+              {activeTab === "checklist" && (
                 <>
-                    <thead style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
+                  <thead>
                     {/* LINHA 1: ATIVIDADES */}
                     <tr>
-                      <th rowSpan="3" style={{ padding: 4, textAlign: "left", color: "#475569", position: "sticky", left: 0, background: "#f8fafc", zIndex: 2, minWidth: 130, fontSize: "0.56rem", letterSpacing: "0.04em" }}>Curso</th>
-                      
-                      {checklistActivityGroups.map((atividade) => {
+                      <th rowSpan="3" className="af-sticky is-left af-ck-course-head">Curso</th>
+
+                      {checklistActivityGroups.map((atividade, index) => {
                         const rowSpan = atividade.hasTasks ? 1 : 3;
                         return (
-                          <th key={atividade.id} colSpan={atividade.leafCount} rowSpan={rowSpan} style={{ /* ... teus estilos ... */ }}>
-                            {atividade.nome}
+                          <th key={atividade.id} colSpan={atividade.leafCount} rowSpan={rowSpan} className="af-ck-act" style={{ "--a": CK_ACTIVITY_COLORS[index % CK_ACTIVITY_COLORS.length] }}>
+                            <span>{atividade.nome}</span>
                           </th>
                         );
                       })}
 
                       {/* NOVO CABEÇALHO PARA NOTAS */}
-                      <th rowSpan="3" style={{ padding: "4px 8px", textAlign: "left", color: "#475569", minWidth: 200, fontSize: "0.56rem", fontWeight: 800, background: "#f8fafc", borderLeft: "2px solid #e2e8f0", verticalAlign: "middle" }}>
-                        Notas
-                      </th>
+                      <th rowSpan="3" className="is-left af-ck-notes-head">Notas</th>
                     </tr>
-                    
+
                     {/* LINHA 2: TAREFAS */}
                     <tr>
-                        {checklistActivityGroups
+                      {checklistActivityGroups
                         .filter((atividade) => atividade.hasTasks)
                         .flatMap((atividade) => atividade.tarefas.map((tarefa) => {
-                            const isLastTaskInActivity = atividade.tarefas[atividade.tarefas.length - 1]?.id === tarefa.id;
-                            const hasSubtasks = (tarefa.subtarefas || []).length > 0;
-                            return (
-                            <th key={tarefa.id} colSpan={hasSubtasks ? tarefa.subtarefas.length : 1} rowSpan={hasSubtasks ? 1 : 2} style={{ padding: 4, textAlign: "center", color: "#1e293b", fontSize: "0.5rem", fontWeight: 800, background: hasSubtasks ? "#eff6ff" : "#eef2ff", lineHeight: 1.02, borderRight: isLastTaskInActivity ? "2px solid #94a3b8" : "1px solid #e2e8f0", borderBottom: hasSubtasks ? "1px solid #e2e8f0" : "none", verticalAlign: "middle" }}>
-                                {tarefa.nome}
+                          const isLastTaskInActivity = atividade.tarefas[atividade.tarefas.length - 1]?.id === tarefa.id;
+                          const hasSubtasks = (tarefa.subtarefas || []).length > 0;
+                          return (
+                            <th key={tarefa.id} colSpan={hasSubtasks ? tarefa.subtarefas.length : 1} rowSpan={hasSubtasks ? 1 : 2} className={`af-ck-task ${hasSubtasks ? "has-steps" : ""} ${isLastTaskInActivity ? "is-boundary" : ""}`}>
+                              {tarefa.nome}
                             </th>
-                            );
+                          );
                         }))}
                     </tr>
-                    
+
                     {/* LINHA 3: PASSOS */}
                     <tr>
-                        {checklistStepHeaders.map((leaf, index) => {
+                      {checklistStepHeaders.map((leaf, index) => {
                         // 1. Encontrar a atividade a que este passo pertence
                         const atividade = checklistActivityGroups.find(a => a.id === leaf.atividadeId);
                         // 2. Verificar se a tarefa deste passo é a ÚLTIMA tarefa dessa atividade
                         const isLastTask = atividade && atividade.tarefas[atividade.tarefas.length - 1].id === leaf.tarefaId;
                         // 3. Verificar se é o último passo dentro da sua própria tarefa
                         const isLastStepInTask = index === checklistStepHeaders.length - 1 || checklistStepHeaders[index + 1].tarefaId !== leaf.tarefaId;
-                        
+
                         // A divisória grossa só acontece se estivermos mesmo no limite final da atividade!
                         const isActivityBoundary = isLastTask && isLastStepInTask;
 
                         return (
-                            <th key={`${leaf.tarefaId}-${leaf.passoId}`} style={{ padding: 3, textAlign: "center", color: "#475569", minWidth: 64, fontSize: "0.48rem", fontWeight: 700, background: "#f8fafc", lineHeight: 1.0, borderRight: isActivityBoundary ? "2px solid #94a3b8" : "1px solid #e2e8f0" }}>
+                          <th key={`${leaf.tarefaId}-${leaf.passoId}`} className={`af-ck-step ${isActivityBoundary ? "is-boundary" : ""}`}>
                             {leaf.passoNome}
-                            </th>
+                          </th>
                         );
-                        })}
+                      })}
                     </tr>
-                    </thead>
-                    
-                    <tbody>
-                    {visibleFormacoes.length === 0 && <tr><td colSpan={checklistVisibleCount + 1} style={{ textAlign: "center", padding: 30, color: "#94a3b8" }}>Nenhuma formação para avaliar.</td></tr>}
-                    {visibleFormacoes.map((acao) => (
-                        <tr key={acao.id} style={{ borderBottom: "1px solid #f1f5f9" }} className="project-list-row">
-                        <td style={{ padding: 4, fontSize: "0.64rem", fontWeight: 800, color: "#1e293b", position: "sticky", left: 0, background: "white", zIndex: 1, borderRight: "1px solid #e2e8f0", lineHeight: 1.2 }}>
-                          {acao.codigo}
-                        </td>
-                        
-                        {checklistBodyColumns.map((leaf, index) => {
-                            const isActivityBoundary = checklistActivityGroups.some((atividade) => atividade.endIndex === index);
-                            const borderStyle = isActivityBoundary ? "2px solid #94a3b8" : "1px solid #f1f5f9";
-                            const bgStyle = isActivityBoundary ? "#fafafa" : "transparent";
+                  </thead>
 
+                  <tbody>
+                    {tableFormacoes.length === 0 && emptyRow(checklistVisibleCount + 2, "Nenhuma formação para avaliar.")}
+                    {tableFormacoes.map((acao) => {
+                      const states = checklistBodyColumns.map((leaf) => acao.checklist?.[leaf.storageKey] || "na");
+                      const applicable = states.filter((state) => state !== "na").length;
+                      const done = states.filter((state) => state === "concluido").length;
+                      const pct = applicable ? Math.round((done / applicable) * 100) : 0;
+                      return (
+                        <tr key={acao.id}>
+                          <td className="af-cell af-sticky af-course">
+                            <div className="af-course-in">
+                              <span className="af-code">{acao.codigo}</span>
+                              <span className="af-course-name" title={acao.nome_curso}>{acao.nome_curso || "—"}</span>
+                              <span className="af-ck-progress" title={`${done} de ${applicable} concluídos`}>
+                                <span className="af-ck-progress-bar"><span style={{ width: `${pct}%` }} /></span>
+                                <em>{done}/{applicable}</em>
+                              </span>
+                            </div>
+                          </td>
+
+                          {checklistBodyColumns.map((leaf, index) => {
+                            const isActivityBoundary = checklistActivityGroups.some((atividade) => atividade.endIndex === index);
                             const checklistKey = leaf.storageKey;
                             const state = acao.checklist?.[checklistKey] || "na";
                             const meta = CHECKLIST_META[state] || CHECKLIST_META.na;
-                            
+                            const cellKey = `${acao.id}-${checklistKey}`;
+
                             return (
-                            <td key={`${acao.id}-${leaf.tarefaId}-${leaf.passoId}`} style={{ padding: 3, textAlign: "center", borderRight: borderStyle, background: bgStyle }}>
-                                <button type="button" onClick={() => handleChecklistCellClick(acao.id, leaf, state)} title={`${leaf.atividadeNome} · ${leaf.tarefaNome} · ${leaf.passoNome}: ${meta.label}`} style={{ width: 18, height: 18, borderRadius: "50%", border: "none", background: meta.color, cursor: "pointer", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }} />
-                            </td>
+                              <td key={`${acao.id}-${leaf.tarefaId}-${leaf.passoId}`} className={`af-ck-cell ${isActivityBoundary ? "is-boundary" : ""}`}>
+                                <button
+                                  type="button"
+                                  className={`af-ck-dot is-${state} ${popCell === cellKey ? "is-pop" : ""}`}
+                                  onClick={() => { setPopCell(cellKey); void handleChecklistCellClick(acao.id, leaf, state); }}
+                                  onAnimationEnd={() => setPopCell((current) => (current === cellKey ? null : current))}
+                                  title={`${leaf.atividadeNome} · ${leaf.tarefaNome} · ${leaf.passoNome}: ${meta.label}`}
+                                  aria-label={meta.label}
+                                >
+                                  <CheckGlyph state={state} />
+                                </button>
+                              </td>
                             );
-                        })}
+                          })}
                           <InlineTableCell
                             key={`${acao.id}-notas-${editingCell?.rowId === acao.id && editingCell?.field === "notas" ? "edit" : "view"}`}
                             rowId={acao.id}
                             field="notas"
                             value={acao.notas || ""}
-                            display={acao.notas || <span style={{ color: "#cbd5e1", fontStyle: "italic", fontSize: "0.55rem" }}>Duplo clique para adicionar nota...</span>}
+                            display={acao.notas || <span className="af-nil is-italic">Duplo clique para adicionar nota...</span>}
                             type="text"
                             align="left"
-                            style={{ borderLeft: "2px solid #e2e8f0", minWidth: 200, whiteSpace: "normal", padding: "4px 8px" }}
+                            className="af-ck-notes"
                             editingCell={editingCell}
                             setEditingCell={setEditingCell}
                             onSave={(nextValue) => handleInlineCellSave(acao, "notas", nextValue)}
                           />
                         </tr>
-                    ))}
-                    </tbody>
+                      );
+                    })}
+                  </tbody>
                 </>
-                )}
+              )}
 
               {activeTab === "ccdr" && (
                 <>
-                  <thead style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
+                  <thead>
                     <tr>
-                      <th style={{ padding: 4, textAlign: "left", color: "#475569", fontSize: "0.6rem", fontWeight: 700, position: "sticky", left: 0, background: "#f8fafc", zIndex: 2, borderRight: "1px solid #e2e8f0", whiteSpace: "nowrap" }}>Curso</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Data realização</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Homol. Paga</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Data Envio Homol.</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Nº Homologação</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Comunicação Prévia</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Pagamento Exame</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Data Envio Cert.</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Faturação Cert.</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Receção Cert.</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Envio Formandos</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Modalidade</th>
+                      <th className="af-sticky is-left">Curso</th>
+                      <th>Data realização</th>
+                      <th className="af-th-group is-start">Homol. Paga</th>
+                      <th className="af-th-group">Data Envio Homol.</th>
+                      <th className="af-th-group">Nº Homologação</th>
+                      <th className="af-th-group is-end">Comunicação Prévia</th>
+                      <th>Pagamento Exame</th>
+                      <th className="af-th-group is-start">Data Envio Cert.</th>
+                      <th className="af-th-group">Faturação Cert.</th>
+                      <th className="af-th-group">Receção Cert.</th>
+                      <th className="af-th-group is-end">Envio Formandos</th>
+                      <th>Modalidade</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {visibleFormacoes.length === 0 && <tr><td colSpan="12" style={{ textAlign: "center", padding: 30, color: "#94a3b8" }}>Nenhuma formação CCDR.</td></tr>}
-                    {visibleFormacoes.map((acao) => (
-                      <tr key={acao.id} style={{ borderBottom: "1px solid #f1f5f9" }} className="project-list-row">
-                        <td style={{ padding: 4, fontSize: "0.64rem", fontWeight: 800, color: "#1e293b", position: "sticky", left: 0, background: "white", zIndex: 1, borderRight: "1px solid #e2e8f0", lineHeight: 1.2 }}>
-                          {acao.codigo}
-                        </td>
+                    {tableFormacoes.length === 0 && emptyRow(12, "Nenhuma formação CCDR.")}
+                    {tableFormacoes.map((acao) => (
+                      <tr key={acao.id}>
+                        {renderCourseCell(acao)}
                         <InlineTableCell key={`${acao.id}-data_inicio`} rowId={acao.id} field="data_inicio" value={acao.data_inicio || ""} display={displayDate(acao.data_inicio)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "data_inicio", nextValue)} />
-                        <InlineTableCell key={`${acao.id}-ccdr_paga`} rowId={acao.id} field="ccdr_paga" value={acao.ccdr_paga ? "Sim" : "Não"} display={displayBoolean(acao.ccdr_paga)} type="select" options={SIM_NAO_OPTIONS.map(o => ({ value: o, label: o }))} align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_paga", nextValue)} />
-                        <InlineTableCell key={`${acao.id}-ccdr_data_envio`} rowId={acao.id} field="ccdr_data_envio" value={acao.ccdr_data_envio || ""} display={displayDate(acao.ccdr_data_envio)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_data_envio", nextValue)} />
-                        <InlineTableCell key={`${acao.id}-ccdr_n_homologacao`} rowId={acao.id} field="ccdr_n_homologacao" value={acao.ccdr_n_homologacao || ""} display={acao.ccdr_n_homologacao || "-"} align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_n_homologacao", nextValue)} />
-                        <InlineTableCell key={`${acao.id}-ccdr_data_comunicacao`} rowId={acao.id} field="ccdr_data_comunicacao" value={acao.ccdr_data_comunicacao || ""} display={displayDate(acao.ccdr_data_comunicacao)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_data_comunicacao", nextValue)} />
-                        <InlineTableCell key={`${acao.id}-ccdr_pag_exame`} rowId={acao.id} field="ccdr_pag_exame" value={acao.ccdr_pag_exame || ""} display={acao.ccdr_pag_exame} type="select" options={SIM_NAO_NA_OPTIONS.map(o => ({ value: o, label: o }))} align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_pag_exame", nextValue)} />
-                        <InlineTableCell key={`${acao.id}-ccdr_cert_data_envio`} rowId={acao.id} field="ccdr_cert_data_envio" value={acao.ccdr_cert_data_envio || ""} display={displayDate(acao.ccdr_cert_data_envio)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_cert_data_envio", nextValue)} />
-                        <InlineTableCell key={`${acao.id}-ccdr_cert_faturacao`} rowId={acao.id} field="ccdr_cert_faturacao" value={acao.ccdr_cert_faturacao || ""} display={acao.ccdr_cert_faturacao} type="select" options={SIM_NAO_NA_OPTIONS.map(o => ({ value: o, label: o }))} align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_cert_faturacao", nextValue)} />
-                        <InlineTableCell key={`${acao.id}-ccdr_data_rececao`} rowId={acao.id} field="ccdr_data_rececao" value={acao.ccdr_data_rececao || ""} display={displayDate(acao.ccdr_data_rececao)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_data_rececao", nextValue)} />
-                        <InlineTableCell key={`${acao.id}-ccdr_envio_cert_data`} rowId={acao.id} field="ccdr_envio_cert_data" value={acao.ccdr_envio_cert_data || ""} display={displayDate(acao.ccdr_envio_cert_data)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_envio_cert_data", nextValue)} />
-                        <InlineTableCell key={`${acao.id}-ccdr_modalidade`} rowId={acao.id} field="ccdr_modalidade" value={acao.ccdr_modalidade || ""} display={acao.ccdr_modalidade || "-"} align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_modalidade", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-ccdr_paga`} rowId={acao.id} field="ccdr_paga" value={acao.ccdr_paga ? "Sim" : "Não"} display={displayBoolean(acao.ccdr_paga)} type="select" options={SIM_NAO_OPTIONS.map(o => ({ value: o, label: o }))} align="center" className="af-group is-start" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_paga", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-ccdr_data_envio`} rowId={acao.id} field="ccdr_data_envio" value={acao.ccdr_data_envio || ""} display={displayDate(acao.ccdr_data_envio)} type="date" align="center" className="af-group" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_data_envio", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-ccdr_n_homologacao`} rowId={acao.id} field="ccdr_n_homologacao" value={acao.ccdr_n_homologacao || ""} display={acao.ccdr_n_homologacao ? <span className="af-ref">{acao.ccdr_n_homologacao}</span> : <span className="af-nil">—</span>} align="center" className="af-group" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_n_homologacao", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-ccdr_data_comunicacao`} rowId={acao.id} field="ccdr_data_comunicacao" value={acao.ccdr_data_comunicacao || ""} display={displayDate(acao.ccdr_data_comunicacao)} type="date" align="center" className="af-group is-end" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_data_comunicacao", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-ccdr_pag_exame`} rowId={acao.id} field="ccdr_pag_exame" value={acao.ccdr_pag_exame || ""} display={renderSimNa(acao.ccdr_pag_exame)} type="select" options={SIM_NAO_NA_OPTIONS.map(o => ({ value: o, label: o }))} align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_pag_exame", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-ccdr_cert_data_envio`} rowId={acao.id} field="ccdr_cert_data_envio" value={acao.ccdr_cert_data_envio || ""} display={displayDate(acao.ccdr_cert_data_envio)} type="date" align="center" className="af-group is-start" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_cert_data_envio", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-ccdr_cert_faturacao`} rowId={acao.id} field="ccdr_cert_faturacao" value={acao.ccdr_cert_faturacao || ""} display={renderSimNa(acao.ccdr_cert_faturacao)} type="select" options={SIM_NAO_NA_OPTIONS.map(o => ({ value: o, label: o }))} align="center" className="af-group" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_cert_faturacao", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-ccdr_data_rececao`} rowId={acao.id} field="ccdr_data_rececao" value={acao.ccdr_data_rececao || ""} display={displayDate(acao.ccdr_data_rececao)} type="date" align="center" className="af-group" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_data_rececao", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-ccdr_envio_cert_data`} rowId={acao.id} field="ccdr_envio_cert_data" value={acao.ccdr_envio_cert_data || ""} display={displayDate(acao.ccdr_envio_cert_data)} type="date" align="center" className="af-group is-end" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_envio_cert_data", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-ccdr_modalidade`} rowId={acao.id} field="ccdr_modalidade" value={acao.ccdr_modalidade || ""} display={renderText(acao.ccdr_modalidade)} align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "ccdr_modalidade", nextValue)} />
                       </tr>
                     ))}
                   </tbody>
@@ -1728,43 +1856,41 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
 
               {activeTab === "dgadr" && (
                 <>
-                  <thead style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
+                  <thead>
                     <tr>
-                      <th style={{ padding: 4, textAlign: "left", color: "#475569", fontSize: "0.6rem", fontWeight: 700, position: "sticky", left: 0, background: "#f8fafc", zIndex: 2, borderRight: "1px solid #e2e8f0", whiteSpace: "nowrap" }}>Curso</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Caract. Formandos</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Data realização</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Homol. Paga</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Data Envio Homol.</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Nº Homologação</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Comunicação Prévia</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Pagamento Exame</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Data Envio Cert.</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Faturação Cert.</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Receção Cert.</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Envio Formandos</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Modalidade</th>
-                      <th style={{ padding: 4, textAlign: "center", color: "#475569", fontSize: "0.6rem", fontWeight: 700, whiteSpace: "nowrap" }}>Pedido Cartões</th>
+                      <th className="af-sticky is-left">Curso</th>
+                      <th>Caract. Formandos</th>
+                      <th>Data realização</th>
+                      <th className="af-th-group is-start">Homol. Paga</th>
+                      <th className="af-th-group">Data Envio Homol.</th>
+                      <th className="af-th-group">Nº Homologação</th>
+                      <th className="af-th-group is-end">Comunicação Prévia</th>
+                      <th>Pagamento Exame</th>
+                      <th className="af-th-group is-start">Data Envio Cert.</th>
+                      <th className="af-th-group">Faturação Cert.</th>
+                      <th className="af-th-group">Receção Cert.</th>
+                      <th className="af-th-group is-end">Envio Formandos</th>
+                      <th>Modalidade</th>
+                      <th>Pedido Cartões</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {visibleFormacoes.length === 0 && <tr><td colSpan="14" style={{ textAlign: "center", padding: 30, color: "#94a3b8" }}>Nenhuma formação DGADR.</td></tr>}
-                    {visibleFormacoes.map((acao) => (
-                      <tr key={acao.id} style={{ borderBottom: "1px solid #f1f5f9" }} className="project-list-row">
-                        <td style={{ padding: 4, fontSize: "0.64rem", fontWeight: 800, color: "#1e293b", position: "sticky", left: 0, background: "white", zIndex: 1, borderRight: "1px solid #e2e8f0", lineHeight: 1.2 }}>
-                          {acao.codigo}
-                        </td>
+                    {tableFormacoes.length === 0 && emptyRow(14, "Nenhuma formação DGADR.")}
+                    {tableFormacoes.map((acao) => (
+                      <tr key={acao.id}>
+                        {renderCourseCell(acao)}
                         <InlineTableCell key={`${acao.id}-dgadr_data_caracterizacao`} rowId={acao.id} field="dgadr_data_caracterizacao" value={acao.dgadr_data_caracterizacao || ""} display={displayDate(acao.dgadr_data_caracterizacao)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_data_caracterizacao", nextValue)} />
                         <InlineTableCell key={`${acao.id}-data_inicio`} rowId={acao.id} field="data_inicio" value={acao.data_inicio || ""} display={displayDate(acao.data_inicio)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "data_inicio", nextValue)} />
-                        <InlineTableCell key={`${acao.id}-dgadr_paga`} rowId={acao.id} field="dgadr_paga" value={acao.dgadr_paga ? "Sim" : "Não"} display={displayBoolean(acao.dgadr_paga)} type="select" options={SIM_NAO_OPTIONS.map(o => ({ value: o, label: o }))} align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_paga", nextValue)} />
-                        <InlineTableCell key={`${acao.id}-dgadr_data_envio`} rowId={acao.id} field="dgadr_data_envio" value={acao.dgadr_data_envio || ""} display={displayDate(acao.dgadr_data_envio)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_data_envio", nextValue)} />
-                        <InlineTableCell key={`${acao.id}-dgadr_n_homologacao`} rowId={acao.id} field="dgadr_n_homologacao" value={acao.dgadr_n_homologacao || ""} display={acao.dgadr_n_homologacao || "-"} align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_n_homologacao", nextValue)} />
-                        <InlineTableCell key={`${acao.id}-dgadr_data_comunicacao`} rowId={acao.id} field="dgadr_data_comunicacao" value={acao.dgadr_data_comunicacao || ""} display={displayDate(acao.dgadr_data_comunicacao)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_data_comunicacao", nextValue)} />
-                        <InlineTableCell key={`${acao.id}-dgadr_pag_exame`} rowId={acao.id} field="dgadr_pag_exame" value={acao.dgadr_pag_exame || ""} display={acao.dgadr_pag_exame} type="select" options={SIM_NAO_NA_OPTIONS.map(o => ({ value: o, label: o }))} align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_pag_exame", nextValue)} />
-                        <InlineTableCell key={`${acao.id}-dgadr_cert_data_envio`} rowId={acao.id} field="dgadr_cert_data_envio" value={acao.dgadr_cert_data_envio || ""} display={displayDate(acao.dgadr_cert_data_envio)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_cert_data_envio", nextValue)} />
-                        <InlineTableCell key={`${acao.id}-dgadr_cert_faturacao`} rowId={acao.id} field="dgadr_cert_faturacao" value={acao.dgadr_cert_faturacao || ""} display={acao.dgadr_cert_faturacao} type="select" options={SIM_NAO_NA_OPTIONS.map(o => ({ value: o, label: o }))} align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_cert_faturacao", nextValue)} />
-                        <InlineTableCell key={`${acao.id}-dgadr_data_rececao`} rowId={acao.id} field="dgadr_data_rececao" value={acao.dgadr_data_rececao || ""} display={displayDate(acao.dgadr_data_rececao)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_data_rececao", nextValue)} />
-                        <InlineTableCell key={`${acao.id}-dgadr_envio_cert_data`} rowId={acao.id} field="dgadr_envio_cert_data" value={acao.dgadr_envio_cert_data || ""} display={displayDate(acao.dgadr_envio_cert_data)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_envio_cert_data", nextValue)} />
-                        <InlineTableCell key={`${acao.id}-dgadr_modalidade`} rowId={acao.id} field="dgadr_modalidade" value={acao.dgadr_modalidade || ""} display={acao.dgadr_modalidade || "-"} align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_modalidade", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-dgadr_paga`} rowId={acao.id} field="dgadr_paga" value={acao.dgadr_paga ? "Sim" : "Não"} display={displayBoolean(acao.dgadr_paga)} type="select" options={SIM_NAO_OPTIONS.map(o => ({ value: o, label: o }))} align="center" className="af-group is-start" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_paga", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-dgadr_data_envio`} rowId={acao.id} field="dgadr_data_envio" value={acao.dgadr_data_envio || ""} display={displayDate(acao.dgadr_data_envio)} type="date" align="center" className="af-group" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_data_envio", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-dgadr_n_homologacao`} rowId={acao.id} field="dgadr_n_homologacao" value={acao.dgadr_n_homologacao || ""} display={acao.dgadr_n_homologacao ? <span className="af-ref">{acao.dgadr_n_homologacao}</span> : <span className="af-nil">—</span>} align="center" className="af-group" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_n_homologacao", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-dgadr_data_comunicacao`} rowId={acao.id} field="dgadr_data_comunicacao" value={acao.dgadr_data_comunicacao || ""} display={displayDate(acao.dgadr_data_comunicacao)} type="date" align="center" className="af-group is-end" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_data_comunicacao", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-dgadr_pag_exame`} rowId={acao.id} field="dgadr_pag_exame" value={acao.dgadr_pag_exame || ""} display={renderSimNa(acao.dgadr_pag_exame)} type="select" options={SIM_NAO_NA_OPTIONS.map(o => ({ value: o, label: o }))} align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_pag_exame", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-dgadr_cert_data_envio`} rowId={acao.id} field="dgadr_cert_data_envio" value={acao.dgadr_cert_data_envio || ""} display={displayDate(acao.dgadr_cert_data_envio)} type="date" align="center" className="af-group is-start" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_cert_data_envio", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-dgadr_cert_faturacao`} rowId={acao.id} field="dgadr_cert_faturacao" value={acao.dgadr_cert_faturacao || ""} display={renderSimNa(acao.dgadr_cert_faturacao)} type="select" options={SIM_NAO_NA_OPTIONS.map(o => ({ value: o, label: o }))} align="center" className="af-group" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_cert_faturacao", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-dgadr_data_rececao`} rowId={acao.id} field="dgadr_data_rececao" value={acao.dgadr_data_rececao || ""} display={displayDate(acao.dgadr_data_rececao)} type="date" align="center" className="af-group" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_data_rececao", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-dgadr_envio_cert_data`} rowId={acao.id} field="dgadr_envio_cert_data" value={acao.dgadr_envio_cert_data || ""} display={displayDate(acao.dgadr_envio_cert_data)} type="date" align="center" className="af-group is-end" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_envio_cert_data", nextValue)} />
+                        <InlineTableCell key={`${acao.id}-dgadr_modalidade`} rowId={acao.id} field="dgadr_modalidade" value={acao.dgadr_modalidade || ""} display={renderText(acao.dgadr_modalidade)} align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_modalidade", nextValue)} />
                         <InlineTableCell key={`${acao.id}-dgadr_pedido_cartoes`} rowId={acao.id} field="dgadr_pedido_cartoes" value={acao.dgadr_pedido_cartoes || ""} display={displayDate(acao.dgadr_pedido_cartoes)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "dgadr_pedido_cartoes", nextValue)} />
                       </tr>
                     ))}
@@ -1774,274 +1900,286 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
             </table>
           </div>
         )}
+        {!loading && activeTab !== "estatisticas" ? (
+          <div className="af-panel-foot">
+            <span>{tableFormacoes.length} de {visibleFormacoes.length} formações</span>
+            <span className="af-panel-hint"><Icons.Edit size={12} /> Duplo clique numa célula para editar</span>
+          </div>
+        ) : null}
       </div>
 
       {showModal && (
         <ModalPortal>
-          <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(15, 23, 42, 0.7)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 99999, padding: 16 }} onClick={() => setShowModal(false)}>
-            <div style={{ background: "#fff", width: "95%", maxWidth: 1120, borderRadius: 16, boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)", overflow: "hidden", display: "flex", flexDirection: "column", maxHeight: "92vh" }} onClick={(event) => event.stopPropagation()}>
-              <div style={{ padding: "20px 25px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#f8fafc" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <span style={{ background: "var(--color-bgSecondary)", color: "var(--color-btnPrimary)", padding: 10, borderRadius: 10, display: "flex" }}><Icons.Folder size={20} /></span>
+          <div className="af-overlay" onClick={() => setShowModal(false)}>
+            <div className="af-modal" onClick={(event) => event.stopPropagation()}>
+              <div className="af-modal-head">
+                <span className="af-modal-ico"><Icons.Cap size={22} /></span>
+                <div className="af-modal-title">
+                  <h3>{editId ? "Editar Formação" : "Criar Nova Formação"}</h3>
                   <div>
-                    <h3 style={{ margin: 0, color: "#1e293b", fontSize: "1.25rem", fontWeight: 800 }}>{editId ? "Editar Formação" : "Criar Nova Formação"}</h3>
-                    <div style={{ fontSize: "0.82rem", color: "#64748b" }}>{buildCodigo(selectedYear, form.sequencia)} · ano {selectedYear}</div>
+                    <span className="af-code is-light">{buildCodigo(selectedYear, form.sequencia)}</span>
+                    <span>ano {selectedYear}</span>
+                    {!isCreating && form.status_curso ? renderStatus(form.status_curso) : null}
                   </div>
                 </div>
-                <button onClick={() => setShowModal(false)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "#94a3b8" }}><Icons.Close size={20} /></button>
+                <button type="button" className="af-modal-close" onClick={() => setShowModal(false)} aria-label="Fechar"><Icons.Close size={18} /></button>
               </div>
 
-              <div style={{ padding: 24, overflowY: "auto", background: "white", flex: 1 }} className="custom-scrollbar">
-                <form onSubmit={handleFormSubmit}>
-                  <SectionTitle>Dados Gerais</SectionTitle>
-                  <div style={{ display: "grid", gridTemplateColumns: "160px 1fr", gap: 16, marginBottom: 18 }}>
-                    <Field label="Código *">
-                      <input value={buildCodigo(selectedYear, form.sequencia)} readOnly style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", background: "#f8fafc", fontWeight: 800 }} />
-                    </Field>
-                    <Field label="Nome do Curso *">
-                      <input value={form.nome_curso} onChange={(event) => setForm({ ...form, nome_curso: event.target.value })} required style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
-                    </Field>
-                  </div>
+              <form onSubmit={handleFormSubmit} className="af-modal-form">
+                <div className="af-modal-body custom-scrollbar">
+                  <section className="af-fcard">
+                    <SectionTitle icon={<Icons.Folder size={15} />}>Dados Gerais</SectionTitle>
+                    <div className="af-grid" style={{ gridTemplateColumns: "160px minmax(0, 1fr)" }}>
+                      <Field label="Código *">
+                        <input className="af-input is-readonly" value={buildCodigo(selectedYear, form.sequencia)} readOnly />
+                      </Field>
+                      <Field label="Nome do Curso *">
+                        <input className="af-input" value={form.nome_curso} onChange={(event) => setForm({ ...form, nome_curso: event.target.value })} required />
+                      </Field>
+                    </div>
+                    <div className="af-grid is-3">
+                      <Field label="Nome do Formador *">
+                        <input className="af-input" value={form.nome_formador} onChange={(event) => setForm({ ...form, nome_formador: event.target.value })} required />
+                      </Field>
+                      <Field label="Área de Formação *">
+                        <select className="af-input" value={form.area_formacao_id} onChange={(event) => setForm({ ...form, area_formacao_id: event.target.value })} required>
+                          <option value="">-- Selecione --</option>
+                          {visibleAreasForForm.map((area) => <option key={area.id} value={area.id}>{area.nome}{area.ativo ? "" : " (Inativa)"}</option>)}
+                        </select>
+                      </Field>
+                      <Field label="Homologação *">
+                        <select className="af-input" value={form.homologacao_id} onChange={(event) => setForm({ ...form, homologacao_id: event.target.value })} required>
+                          <option value="">-- Selecione --</option>
+                          {visibleHomologacoesForForm.map((item) => <option key={item.id} value={item.id}>{item.codigo} - {item.nome}{item.ativo ? "" : " (Inativa)"}</option>)}
+                        </select>
+                      </Field>
+                    </div>
 
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 18 }}>
-                    <Field label="Nome do Formador *">
-                      <input value={form.nome_formador} onChange={(event) => setForm({ ...form, nome_formador: event.target.value })} required style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
-                    </Field>
-                    <Field label="Área de Formação *">
-                      <select value={form.area_formacao_id} onChange={(event) => setForm({ ...form, area_formacao_id: event.target.value })} required style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", background: "white" }}>
-                        <option value="">-- Selecione --</option>
-                        {visibleAreasForForm.map((area) => <option key={area.id} value={area.id}>{area.nome}{area.ativo ? "" : " (Inativa)"}</option>)}
-                      </select>
-                    </Field>
-                    <Field label="Homologação *">
-                      <select value={form.homologacao_id} onChange={(event) => setForm({ ...form, homologacao_id: event.target.value })} required style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", background: "white" }}>
-                        <option value="">-- Selecione --</option>
-                        {visibleHomologacoesForForm.map((item) => <option key={item.id} value={item.id}>{item.codigo} - {item.nome}{item.ativo ? "" : " (Inativa)"}</option>)}
-                      </select>
-                    </Field>
-                  </div>
+                    {isCreating ? (
+                      <div className="af-grid" style={{ gridTemplateColumns: "120px minmax(0, 1fr) minmax(0, 1fr)" }}>
+                        <Field label="Carga (h) *">
+                          <input className="af-input" type="number" min="1" value={form.carga_horaria} onChange={(event) => setForm({ ...form, carga_horaria: Number(event.target.value) })} required />
+                        </Field>
+                        <Field label="Local *">
+                          <input className="af-input" value={form.local} onChange={(event) => setForm({ ...form, local: event.target.value })} required />
+                        </Field>
+                        <Field label="Regime *">
+                          <div className="af-seg-field">
+                            {REGIME_OPTIONS.map((option) => (
+                              <button key={option} type="button" className={form.regime === option ? "is-on" : ""} style={{ "--c": REGIME_COLORS[option] }} onClick={() => setForm({ ...form, regime: option })}>{option}</button>
+                            ))}
+                          </div>
+                        </Field>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="af-grid" style={{ gridTemplateColumns: "120px minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr)" }}>
+                          <Field label="Carga (h) *">
+                            <input className="af-input" type="number" min="1" value={form.carga_horaria} onChange={(event) => setForm({ ...form, carga_horaria: Number(event.target.value) })} required />
+                          </Field>
+                          <Field label="Local *">
+                            <input className="af-input" value={form.local} onChange={(event) => setForm({ ...form, local: event.target.value })} required />
+                          </Field>
+                          <Field label="Data início">
+                            <input className="af-input" type="date" value={form.data_inicio} onChange={(event) => setForm({ ...form, data_inicio: event.target.value })} />
+                          </Field>
+                          <Field label="Data fim">
+                            <input className="af-input" type="date" value={form.data_fim} onChange={(event) => setForm({ ...form, data_fim: event.target.value })} />
+                          </Field>
+                        </div>
+                        <div className="af-grid is-4">
+                          <Field label="Regime *">
+                            <div className="af-seg-field">
+                              {REGIME_OPTIONS.map((option) => (
+                                <button key={option} type="button" className={form.regime === option ? "is-on" : ""} style={{ "--c": REGIME_COLORS[option] }} onClick={() => setForm({ ...form, regime: option })}>{option}</button>
+                              ))}
+                            </div>
+                          </Field>
+                          <Field label="Status do Curso *">
+                            <select className="af-input" value={form.status_curso} onChange={(event) => setForm({ ...form, status_curso: event.target.value })} required>
+                              {COURSE_STATUS_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                            </select>
+                          </Field>
+                          <Field label="Status DTP *">
+                            <select className="af-input" value={form.status_dtp} onChange={(event) => setForm({ ...form, status_dtp: event.target.value })} required>
+                              {DTP_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                            </select>
+                          </Field>
+                          <Field label="Homologação rápida">
+                            <div className="af-input is-readonly af-readout">
+                              {homologacoesById.get(form.homologacao_id)?.codigo
+                                ? <span className="af-homol-chip" data-code={homologacoesById.get(form.homologacao_id)?.codigo}>{homologacoesById.get(form.homologacao_id)?.codigo}</span>
+                                : "-"}
+                            </div>
+                          </Field>
+                        </div>
+                      </>
+                    )}
+                  </section>
 
                   {isCreating ? (
-                    <>
-                      <SectionTitle>Dados Iniciais</SectionTitle>
-                      <div style={{ display: "grid", gridTemplateColumns: "100px 1fr 1fr", gap: 16, marginBottom: 18 }}>
-                        <Field label="Carga (h) *">
-                          <input type="number" min="1" value={form.carga_horaria} onChange={(event) => setForm({ ...form, carga_horaria: Number(event.target.value) })} required style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
-                        </Field>
-                        <Field label="Local *">
-                          <input value={form.local} onChange={(event) => setForm({ ...form, local: event.target.value })} required style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
-                        </Field>
-                        <Field label="Regime *">
-                          <select value={form.regime} onChange={(event) => setForm({ ...form, regime: event.target.value })} required style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", background: "white" }}>
-                            {REGIME_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
-                          </select>
-                        </Field>
-                      </div>
-                      <p style={{ margin: 0, color: "#64748b", fontSize: "0.88rem", lineHeight: 1.5 }}>
+                    <div className="af-note">
+                      <Icons.Alert size={16} />
+                      <p>
                         No momento da criação só precisas de preencher os campos obrigatórios. O resto dos dados de planeamento, execução, certificados e homologações fica disponível depois, na edição da formação.
                       </p>
-                    </>
+                    </div>
                   ) : (
                     <>
-                      <div style={{ display: "grid", gridTemplateColumns: "100px 1fr 1fr 1fr", gap: 16, marginBottom: 18 }}>
-                        <Field label="Carga (h) *">
-                          <input type="number" min="1" value={form.carga_horaria} onChange={(event) => setForm({ ...form, carga_horaria: Number(event.target.value) })} required style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
-                        </Field>
-                        <Field label="Local *">
-                          <input value={form.local} onChange={(event) => setForm({ ...form, local: event.target.value })} required style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
-                        </Field>
-                        <Field label="Data início">
-                          <input type="date" value={form.data_inicio} onChange={(event) => setForm({ ...form, data_inicio: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
-                        </Field>
-                        <Field label="Data fim">
-                          <input type="date" value={form.data_fim} onChange={(event) => setForm({ ...form, data_fim: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
-                        </Field>
-                      </div>
-
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16, marginBottom: 18 }}>
-                        <Field label="Regime *">
-                          <select value={form.regime} onChange={(event) => setForm({ ...form, regime: event.target.value })} required style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", background: "white" }}>
-                            {REGIME_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
-                          </select>
-                        </Field>
-                        <Field label="Status do Curso *">
-                          <select value={form.status_curso} onChange={(event) => setForm({ ...form, status_curso: event.target.value })} required style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", background: "white" }}>
-                            {COURSE_STATUS_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
-                          </select>
-                        </Field>
-                        <Field label="Status DTP *">
-                          <select value={form.status_dtp} onChange={(event) => setForm({ ...form, status_dtp: event.target.value })} required style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", background: "white" }}>
-                            {DTP_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
-                          </select>
-                        </Field>
-                        <Field label="Homologação rápida">
-                          <div style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", background: "#f8fafc", fontWeight: 800, color: "#475569" }}>{homologacoesById.get(form.homologacao_id)?.codigo || "-"}</div>
-                        </Field>
-                      </div>
-
-                      <SectionTitle>Participantes e Certificados</SectionTitle>
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 16, marginBottom: 18 }}>
-                        {[
-                          ["Total de Inscritos", "total_inscritos"],
-                          ["Nº de Empresas", "n_empresas"],
-                          ["Nº de Particulares", "n_particulares"],
-                          ["Nº de Desistências", "n_desistencias"],
-                          ["Nº de Certificados", "n_certificados"],
-                        ].map(([label, key]) => (
-                          <Field key={key} label={label}>
-                            <input type="number" min="0" value={form[key]} onChange={(event) => setForm({ ...form, [key]: Number(event.target.value) })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
+                      <section className="af-fcard">
+                        <SectionTitle icon={<Icons.Users size={15} />} tone="green">Participantes e Certificados</SectionTitle>
+                        <div className="af-grid is-5">
+                          {[
+                            ["Total de Inscritos", "total_inscritos"],
+                            ["Nº de Empresas", "n_empresas"],
+                            ["Nº de Particulares", "n_particulares"],
+                            ["Nº de Desistências", "n_desistencias"],
+                            ["Nº de Certificados", "n_certificados"],
+                          ].map(([label, key]) => (
+                            <Field key={key} label={label}>
+                              <input className="af-input is-num" type="number" min="0" value={form[key]} onChange={(event) => setForm({ ...form, [key]: Number(event.target.value) })} />
+                            </Field>
+                          ))}
+                        </div>
+                        <div className="af-grid is-4">
+                          <Field label="Certificados Emitidos">
+                            <input className="af-input is-num" type="number" min="0" value={form.certificados_emitidos} onChange={(event) => setForm({ ...form, certificados_emitidos: Number(event.target.value) })} />
                           </Field>
-                        ))}
-                      </div>
+                          <Field label="Certificados Enviados">
+                            <input className="af-input is-num" type="number" min="0" value={form.certificados_enviados} onChange={(event) => setForm({ ...form, certificados_enviados: Number(event.target.value) })} />
+                          </Field>
+                          <Field label="Certificados A Aguardar">
+                            <input className="af-input is-num" type="number" min="0" value={form.certificados_aguardar} onChange={(event) => setForm({ ...form, certificados_aguardar: Number(event.target.value) })} />
+                          </Field>
+                          <Field label="Volume de Formação">
+                            <div className="af-volume-box"><strong>{selectedTotalVolume.toLocaleString("pt-PT")}</strong><span>h · {form.n_certificados || 0} cert. × {form.carga_horaria || 0} h</span></div>
+                          </Field>
+                        </div>
+                      </section>
 
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16, marginBottom: 18 }}>
-                        <Field label="Certificados Emitidos">
-                          <input type="number" min="0" value={form.certificados_emitidos} onChange={(event) => setForm({ ...form, certificados_emitidos: Number(event.target.value) })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
-                        </Field>
-                        <Field label="Certificados Enviados">
-                          <input type="number" min="0" value={form.certificados_enviados} onChange={(event) => setForm({ ...form, certificados_enviados: Number(event.target.value) })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
-                        </Field>
-                        <Field label="Certificados A Aguardar">
-                          <input type="number" min="0" value={form.certificados_aguardar} onChange={(event) => setForm({ ...form, certificados_aguardar: Number(event.target.value) })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
-                        </Field>
-                        <Field label="Volume de Formação">
-                          <input type="number" readOnly value={selectedTotalVolume} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", background: "#f8fafc", fontWeight: 800 }} />
-                        </Field>
-                      </div>
-
-                      <SectionTitle>Documentos e Pagamento</SectionTitle>
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16, marginBottom: 18 }}>
-                        <Field label="Documentos do Formador">
-                          <select value={form.doc_formador ? "Sim" : "Não"} onChange={(event) => setForm({ ...form, doc_formador: event.target.value === "Sim" })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", background: "white" }}>
-                            {SIM_NAO_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
-                          </select>
-                        </Field>
-                        <Field label="Pagamento Formador">
-                          <select value={form.pag_formador ? "Sim" : "Não"} onChange={(event) => setForm({ ...form, pag_formador: event.target.value === "Sim" })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", background: "white" }}>
-                            {SIM_NAO_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
-                          </select>
-                        </Field>
-                        <Field label="Data de Pagamento">
-                          <input type="date" value={form.data_pagamento} onChange={(event) => setForm({ ...form, data_pagamento: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
-                        </Field>
-                        <Field label="Status DTP">
-                          <div style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", background: "#f8fafc", fontWeight: 800, color: "#475569" }}>{form.status_dtp}</div>
-                        </Field>
-                      </div>
+                      <section className="af-fcard">
+                        <SectionTitle icon={<Icons.Euro size={15} />} tone="amber">Documentos e Pagamento</SectionTitle>
+                        <div className="af-grid is-4">
+                          <Field label="Documentos do Formador">
+                            <YesNo value={form.doc_formador} onChange={(next) => setForm({ ...form, doc_formador: next })} />
+                          </Field>
+                          <Field label="Pagamento Formador">
+                            <YesNo value={form.pag_formador} onChange={(next) => setForm({ ...form, pag_formador: next })} />
+                          </Field>
+                          <Field label="Data de Pagamento">
+                            <input className="af-input" type="date" value={form.data_pagamento} onChange={(event) => setForm({ ...form, data_pagamento: event.target.value })} />
+                          </Field>
+                          <Field label="Status DTP">
+                            <div className="af-input is-readonly af-readout">{renderDtp(form.status_dtp)}</div>
+                          </Field>
+                        </div>
+                      </section>
 
                       {formHomologacaoCodigo === "CCDR" && (
-                        <>
-                          <SectionTitle>CCDR</SectionTitle>
-                          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16, marginBottom: 18 }}>
+                        <section className="af-fcard is-homol" data-code="CCDR">
+                          <SectionTitle icon={<Icons.Badge size={15} />} tone="blue">CCDR</SectionTitle>
+                          <div className="af-grid is-4">
                             <Field label="Ação paga">
-                              <select value={form.ccdr_paga ? "Sim" : "Não"} onChange={(event) => setForm({ ...form, ccdr_paga: event.target.value === "Sim" })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", background: "white" }}>
-                                {SIM_NAO_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
-                              </select>
+                              <YesNo value={form.ccdr_paga} onChange={(next) => setForm({ ...form, ccdr_paga: next })} />
                             </Field>
                             <Field label="Data de envio para CCDR">
-                              <input type="date" value={form.ccdr_data_envio} onChange={(event) => setForm({ ...form, ccdr_data_envio: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
+                              <input className="af-input" type="date" value={form.ccdr_data_envio} onChange={(event) => setForm({ ...form, ccdr_data_envio: event.target.value })} />
                             </Field>
                             <Field label="Nº homologação">
-                              <input value={form.ccdr_n_homologacao} onChange={(event) => setForm({ ...form, ccdr_n_homologacao: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
+                              <input className="af-input" value={form.ccdr_n_homologacao} onChange={(event) => setForm({ ...form, ccdr_n_homologacao: event.target.value })} />
                             </Field>
                             <Field label="Data da comunicação prévia">
-                              <input type="date" value={form.ccdr_data_comunicacao} onChange={(event) => setForm({ ...form, ccdr_data_comunicacao: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
+                              <input className="af-input" type="date" value={form.ccdr_data_comunicacao} onChange={(event) => setForm({ ...form, ccdr_data_comunicacao: event.target.value })} />
                             </Field>
                           </div>
-
-                          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16, marginBottom: 18 }}>
+                          <div className="af-grid is-4">
                             <Field label="Pagamento Exame">
-                              <select value={form.ccdr_pag_exame} onChange={(event) => setForm({ ...form, ccdr_pag_exame: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", background: "white" }}>
+                              <select className="af-input" value={form.ccdr_pag_exame} onChange={(event) => setForm({ ...form, ccdr_pag_exame: event.target.value })}>
                                 {SIM_NAO_NA_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
                               </select>
                             </Field>
                             <Field label="Homologação certificados - Data envio">
-                              <input type="date" value={form.ccdr_cert_data_envio} onChange={(event) => setForm({ ...form, ccdr_cert_data_envio: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
+                              <input className="af-input" type="date" value={form.ccdr_cert_data_envio} onChange={(event) => setForm({ ...form, ccdr_cert_data_envio: event.target.value })} />
                             </Field>
                             <Field label="Dados para faturação">
-                              <select value={form.ccdr_cert_faturacao} onChange={(event) => setForm({ ...form, ccdr_cert_faturacao: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", background: "white" }}>
+                              <select className="af-input" value={form.ccdr_cert_faturacao} onChange={(event) => setForm({ ...form, ccdr_cert_faturacao: event.target.value })}>
                                 {SIM_NAO_NA_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
                               </select>
                             </Field>
                             <Field label="Data de receção dos certificados">
-                              <input type="date" value={form.ccdr_data_rececao} onChange={(event) => setForm({ ...form, ccdr_data_rececao: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
+                              <input className="af-input" type="date" value={form.ccdr_data_rececao} onChange={(event) => setForm({ ...form, ccdr_data_rececao: event.target.value })} />
                             </Field>
                           </div>
-
-                          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 16, marginBottom: 18 }}>
+                          <div className="af-grid is-2">
                             <Field label="Envio Certificados/Cartões - Data de envio">
-                              <input type="date" value={form.ccdr_envio_cert_data} onChange={(event) => setForm({ ...form, ccdr_envio_cert_data: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
+                              <input className="af-input" type="date" value={form.ccdr_envio_cert_data} onChange={(event) => setForm({ ...form, ccdr_envio_cert_data: event.target.value })} />
                             </Field>
                             <Field label="Modalidade">
-                              <input value={form.ccdr_modalidade} onChange={(event) => setForm({ ...form, ccdr_modalidade: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
+                              <input className="af-input" value={form.ccdr_modalidade} onChange={(event) => setForm({ ...form, ccdr_modalidade: event.target.value })} />
                             </Field>
                           </div>
-                        </>
+                        </section>
                       )}
 
                       {formHomologacaoCodigo === "DGADR" && (
-                        <>
-                          <SectionTitle>DGADR</SectionTitle>
-                          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16, marginBottom: 18 }}>
+                        <section className="af-fcard is-homol" data-code="DGADR">
+                          <SectionTitle icon={<Icons.Badge size={15} />} tone="green">DGADR</SectionTitle>
+                          <div className="af-grid is-4">
                             <Field label="Data envio caracterização formandos">
-                              <input type="date" value={form.dgadr_data_caracterizacao} onChange={(event) => setForm({ ...form, dgadr_data_caracterizacao: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
+                              <input className="af-input" type="date" value={form.dgadr_data_caracterizacao} onChange={(event) => setForm({ ...form, dgadr_data_caracterizacao: event.target.value })} />
                             </Field>
                             <Field label="Ação paga">
-                              <select value={form.dgadr_paga ? "Sim" : "Não"} onChange={(event) => setForm({ ...form, dgadr_paga: event.target.value === "Sim" })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", background: "white" }}>
-                                {SIM_NAO_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
-                              </select>
+                              <YesNo value={form.dgadr_paga} onChange={(next) => setForm({ ...form, dgadr_paga: next })} />
                             </Field>
                             <Field label="Data de envio para DGADR">
-                              <input type="date" value={form.dgadr_data_envio} onChange={(event) => setForm({ ...form, dgadr_data_envio: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
+                              <input className="af-input" type="date" value={form.dgadr_data_envio} onChange={(event) => setForm({ ...form, dgadr_data_envio: event.target.value })} />
                             </Field>
                             <Field label="Nº homologação">
-                              <input value={form.dgadr_n_homologacao} onChange={(event) => setForm({ ...form, dgadr_n_homologacao: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
+                              <input className="af-input" value={form.dgadr_n_homologacao} onChange={(event) => setForm({ ...form, dgadr_n_homologacao: event.target.value })} />
                             </Field>
                           </div>
-
-                          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16, marginBottom: 18 }}>
+                          <div className="af-grid is-4">
                             <Field label="Data da comunicação prévia">
-                              <input type="date" value={form.dgadr_data_comunicacao} onChange={(event) => setForm({ ...form, dgadr_data_comunicacao: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
+                              <input className="af-input" type="date" value={form.dgadr_data_comunicacao} onChange={(event) => setForm({ ...form, dgadr_data_comunicacao: event.target.value })} />
                             </Field>
                             <Field label="Pagamento Exame">
-                              <select value={form.dgadr_pag_exame} onChange={(event) => setForm({ ...form, dgadr_pag_exame: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", background: "white" }}>
+                              <select className="af-input" value={form.dgadr_pag_exame} onChange={(event) => setForm({ ...form, dgadr_pag_exame: event.target.value })}>
                                 {SIM_NAO_NA_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
                               </select>
                             </Field>
                             <Field label="Homologação certificados - Data envio">
-                              <input type="date" value={form.dgadr_cert_data_envio} onChange={(event) => setForm({ ...form, dgadr_cert_data_envio: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
+                              <input className="af-input" type="date" value={form.dgadr_cert_data_envio} onChange={(event) => setForm({ ...form, dgadr_cert_data_envio: event.target.value })} />
                             </Field>
                             <Field label="Dados para faturação">
-                              <select value={form.dgadr_cert_faturacao} onChange={(event) => setForm({ ...form, dgadr_cert_faturacao: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", background: "white" }}>
+                              <select className="af-input" value={form.dgadr_cert_faturacao} onChange={(event) => setForm({ ...form, dgadr_cert_faturacao: event.target.value })}>
                                 {SIM_NAO_NA_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
                               </select>
                             </Field>
                           </div>
-
-                          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 16, marginBottom: 18 }}>
+                          <div className="af-grid is-3">
                             <Field label="Data de receção dos certificados">
-                              <input type="date" value={form.dgadr_data_rececao} onChange={(event) => setForm({ ...form, dgadr_data_rececao: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
+                              <input className="af-input" type="date" value={form.dgadr_data_rececao} onChange={(event) => setForm({ ...form, dgadr_data_rececao: event.target.value })} />
                             </Field>
                             <Field label="Envio Certificados/Cartões - Data de envio">
-                              <input type="date" value={form.dgadr_envio_cert_data} onChange={(event) => setForm({ ...form, dgadr_envio_cert_data: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
+                              <input className="af-input" type="date" value={form.dgadr_envio_cert_data} onChange={(event) => setForm({ ...form, dgadr_envio_cert_data: event.target.value })} />
                             </Field>
                             <Field label="Modalidade / Pedido de Cartões">
-                              <input value={form.dgadr_modalidade || form.dgadr_pedido_cartoes} onChange={(event) => setForm({ ...form, dgadr_modalidade: event.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1" }} />
+                              <input className="af-input" value={form.dgadr_modalidade || form.dgadr_pedido_cartoes} onChange={(event) => setForm({ ...form, dgadr_modalidade: event.target.value })} />
                             </Field>
                           </div>
-                        </>
+                        </section>
                       )}
                     </>
                   )}
+                </div>
 
-                  <div style={{ padding: "20px 0 0 0", borderTop: "1px solid #e2e8f0", display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 20 }}>
-                    <button type="button" onClick={() => setShowModal(false)} style={{ padding: "10px 20px", borderRadius: 8, border: "1px solid #cbd5e1", background: "white", color: "#475569", fontWeight: 700, cursor: "pointer" }}>Cancelar</button>
-                    <button type="submit" disabled={isSubmitting} style={{ padding: "10px 20px", borderRadius: 8, border: "none", background: "var(--color-btnPrimary)", color: "white", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
-                      <Icons.Save /> {isSubmitting ? "A guardar..." : "Guardar"}
-                    </button>
-                  </div>
-                </form>
-              </div>
+                <div className="af-modal-foot">
+                  <button type="button" className="af-btn is-ghost" onClick={() => setShowModal(false)}>Cancelar</button>
+                  <button type="submit" className="af-btn is-primary is-lg" disabled={isSubmitting}>
+                    <Icons.Save /> {isSubmitting ? "A guardar..." : "Guardar"}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </ModalPortal>
@@ -2049,24 +2187,19 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
 
       {showSettingsModal && (
         <ModalPortal>
-          <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(15, 23, 42, 0.7)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 99999, padding: 16 }} onClick={() => setShowSettingsModal(false)}>
-            <div style={{ background: "#fff", width: "95%", maxWidth: 980, borderRadius: 16, boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)", overflow: "hidden", display: "flex", flexDirection: "column", maxHeight: "92vh" }} onClick={(event) => event.stopPropagation()}>
-              
-              {/* CABEÇALHO COM FLEX-SHRINK: 0 PARA NÃO SER ESMAGADO */}
-              <div style={{ padding: "20px 25px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#f8fafc", flexShrink: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <Icons.Settings color="#475569" />
-                  <div>
-                    <h3 style={{ margin: 0, color: "#1e293b", fontSize: "1.1rem", fontWeight: 800 }}>Definições do Sistema</h3>
-                    <div style={{ fontSize: "0.82rem", color: "#64748b" }}>Áreas de formação e entidades de homologação</div>
-                  </div>
+          <div className="af-overlay" onClick={() => setShowSettingsModal(false)}>
+            <div className="af-modal is-settings" onClick={(event) => event.stopPropagation()}>
+              <div className="af-modal-head">
+                <span className="af-modal-ico"><Icons.Settings size={20} /></span>
+                <div className="af-modal-title">
+                  <h3>Definições do Sistema</h3>
+                  <div><span>Áreas de formação e entidades de homologação</span></div>
                 </div>
-                <button onClick={() => setShowSettingsModal(false)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "#94a3b8" }}><Icons.Close size={20} /></button>
+                <button type="button" className="af-modal-close" onClick={() => setShowSettingsModal(false)} aria-label="Fechar"><Icons.Close size={18} /></button>
               </div>
 
-              {/* CORPO DO MODAL DIVIDIDO: UMA DIV PARA SCROLL E OUTRA PARA ESPAÇAMENTO */}
-              <div style={{ padding: 24, overflowY: "auto", flex: 1 }} className="custom-scrollbar">
-                <div style={{ display: "grid", gap: 24 }}>
+              <div className="af-modal-body custom-scrollbar">
+                <div className="af-set-grid">
                   <SettingsList
                     title="Áreas de Formação"
                     items={settingsAreas}
@@ -2095,7 +2228,6 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
                   />
                 </div>
               </div>
-              
             </div>
           </div>
         </ModalPortal>
