@@ -2544,22 +2544,6 @@ const exportCurrentOverviewPdf = () => {
               return DEFAULT_OVERVIEW_SORT;
           });
       };
-      const getOverviewSortIndicator = (key) => {
-          if (overviewSort.key !== key) return "↕";
-          return overviewSort.direction === "asc" ? "↑" : "↓";
-      };
-      const overviewHeaderButton = (key, label, extra = "") => (
-          <button
-              type="button"
-              onClick={() => cycleOverviewSort(key)}
-              aria-label={`Ordenar ${label}`}
-              title={`Ordenar por ${label}`}
-              style={{display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '4px', width: '100%', padding: 0, border: 'none', background: 'transparent', color: '#1e293b', font: 'inherit', fontWeight: '800', cursor: 'pointer'}}
-          >
-              <span>{extra || label}</span>
-              <span aria-hidden="true" style={{fontSize: '0.72rem', color: overviewSort.key === key ? '#0369a1' : '#64748b'}}>{getOverviewSortIndicator(key)}</span>
-          </button>
-      );
       const activeOverviewRows = sortOverviewRows(overviewProjects);
       const unassignedOverviewProjects = activeOverviewRows.filter((project) => getProjectProgramName(project) === "Sem Programa Associado");
       const visibleOverviewRows = showUnassignedOverviewProjects
@@ -2645,445 +2629,297 @@ const exportCurrentOverviewPdf = () => {
     const footerBase = overviewTab === "incentivo" ? totalOverviewIncentivo : totalOverviewInvestimento;
     const footerTxe = footerBase > 0 ? `${((totalRequestedAllTime / footerBase) * 100).toFixed(1)}%` : "0.0%";
 
+      // ---------- Dados extra só para a apresentação ----------
+      const vgTodayPos = (() => {
+          const t = new Date(); t.setHours(0, 0, 0, 0);
+          if (t < ganttStart || t > ganttEnd) return null;
+          return ((t - ganttStart) / 86400000) / ganttTotalDays * 100;
+      })();
+      const vgOverdueCount = visibleOverviewRows.filter(hasReimbursementOverdue).length;
+      const vgYearProjects = visibleOverviewRows.filter((p) => sumArray(getMonthlyRequests(p, anualYear)) > 0).length;
+      const vgMaxMonthValue = Math.max(1, ...monthlyBaseRows.flatMap((p) => buildMonthlyRows([p]).flatMap(({ project, entityId }) => getMonthlyRequests(project, anualYear, entityId))));
+      const vgSortIcon = (key) => (overviewSort.key !== key ? '↕' : overviewSort.direction === 'asc' ? '↑' : '↓');
+      const vgHead = (key, label, extra = '') => (
+          <button type="button" onClick={() => cycleOverviewSort(key)} aria-label={`Ordenar ${label}`} title={`Ordenar por ${label}`} className={`po-vg-sort ${overviewSort.key === key ? 'is-on' : ''}`}>
+              <span>{extra || label}</span><i aria-hidden="true">{vgSortIcon(key)}</i>
+          </button>
+      );
+      const vgPagination = (
+          <div className="po-vg-pager">
+              <label className="po-vg-perpage">
+                  <span>Mostrar:</span>
+                  <select value={overviewItemsPerPage} onChange={(e) => setOverviewItemsPerPage(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
+                      <option value={10}>10 projetos</option>
+                      <option value={20}>20 projetos</option>
+                      <option value="all">Todos</option>
+                  </select>
+              </label>
+              {totalOverviewPages > 1 && (
+                  <div className="po-vg-pages">
+                      <button type="button" onClick={() => setOverviewPage((p) => Math.max(1, p - 1))} disabled={overviewPage === 1} aria-label="Página anterior"><Icons.ArrowLeft size={15} /></button>
+                      <span>Página {overviewPage} de {totalOverviewPages}</span>
+                      <button type="button" onClick={() => setOverviewPage((p) => Math.min(totalOverviewPages, p + 1))} disabled={overviewPage === totalOverviewPages} aria-label="Página seguinte"><Icons.ArrowRight size={15} /></button>
+                  </div>
+              )}
+          </div>
+      );
+      const vgProgramChip = (project) => {
+          const name = getProjectProgramName(project);
+          return <span className="po-vg-prog" style={{ '--pc': getOverviewProgramColor(name) }} title={name}>{getOverviewProgramCode(name)}</span>;
+      };
+      const vgCodes = (project) => (project.numero_projeto || project.codigo_projeto) ? (
+          <span className="po-vg-codes">
+              {project.numero_projeto ? `Nº ${project.numero_projeto}` : ''}
+              {project.numero_projeto && project.codigo_projeto ? ' • ' : ''}
+              {project.codigo_projeto || ''}
+          </span>
+      ) : null;
+
       vistaGeralView = (
           <div className="po-vg">
-              <div style={{display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '12px', flexWrap: 'wrap'}}>
-    <div style={{display: 'flex', background: '#f1f5f9', borderRadius: '8px', padding: '4px', border: '1px solid #e2e8f0'}}>
-        {[
-            { id: "overview", label: "Overview" },
-            { id: "anual", label: "Investimento" },
-            { id: "incentivo", label: "Incentivo" }
-            ].map((tab) => (
-            <button
-                key={tab.id}
-                type="button"
-                onClick={() => setOverviewTab(tab.id)}
-                style={{
-                    padding: '6px 18px', borderRadius: '6px', border: 'none', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer',
-                    background: overviewTab === tab.id ? 'white' : 'transparent',
-                    color: overviewTab === tab.id ? 'var(--color-btnPrimary)' : '#64748b',
-                    boxShadow: overviewTab === tab.id ? '0 2px 4px rgba(0,0,0,0.05)' : 'none'
-                }}
-            >
-                {tab.label}
-            </button>
-        ))}
-    </div>
+              {/* INDICADORES */}
+              <div className="po-vg-kpis">
+                  {overviewTab === 'overview' ? (
+                      <>
+                          <div className="po-vg-kpi"><small>Projetos</small><strong>{visibleOverviewRows.length}</strong><em>{isOverviewFiltered ? 'com os filtros atuais' : 'na vista geral'}</em></div>
+                          <div className="po-vg-kpi"><small>Invest. (EUR)</small><strong>{formatOverviewCurrency(totalOverviewInvestimento)} €</strong></div>
+                          <div className="po-vg-kpi"><small>Incentivo (EUR)</small><strong>{formatOverviewCurrency(totalOverviewIncentivo)} €</strong></div>
+                          <div className="po-vg-kpi is-accent"><small>TXE</small><strong>{footerTxe}</strong><span className="po-vg-kpi-bar"><i style={{ width: `${Math.min(100, parseFloat(footerTxe) || 0)}%` }} /></span></div>
+                          <div className={`po-vg-kpi ${vgOverdueCount ? 'is-alert' : ''}`}><small>+3 meses sem pedido</small><strong>{vgOverdueCount}</strong><em>{vgOverdueCount ? 'projetos a precisar de atenção' : 'tudo em dia'}</em></div>
+                      </>
+                  ) : (
+                      <>
+                          <div className="po-vg-kpi"><small>Total {anualYear}</small><strong>{formatOverviewCurrency(anualGrandTotal)} €</strong><em>{monthlyConfig.title}</em></div>
+                          <div className="po-vg-kpi is-accent"><small>TXE</small><strong>{footerTxe}</strong><span className="po-vg-kpi-bar"><i style={{ width: `${Math.min(100, parseFloat(footerTxe) || 0)}%` }} /></span></div>
+                          <div className="po-vg-kpi"><small>Projetos com pedidos em {anualYear}</small><strong>{vgYearProjects}</strong><em>de {visibleOverviewRows.length}</em></div>
+                      </>
+                  )}
+              </div>
 
-    {(overviewTab === "anual" || overviewTab === "incentivo") && (
-        <label style={{display: 'flex', alignItems: 'center', gap: '8px', color: '#475569', fontSize: '0.8rem', fontWeight: '800'}}>
-            Ano
-            <select
-                value={anualYear}
-                onChange={(e) => setAnualYear(Number(e.target.value))}
-                style={{padding: '6px 10px', border: '1px solid #cbd5e1', borderRadius: '7px', background: 'white', color: '#1e293b', fontSize: '0.8rem', fontWeight: '700'}}
-            >
-                {availableYears.map((y) => <option key={y} value={y}>{y}</option>)}
-            </select>
-        </label>
-    )}
-</div>
-              <div style={{display: 'flex', alignItems: 'flex-end', gap: '10px', flexWrap: 'wrap', marginBottom: '12px', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '9px', background: '#f8fafc'}}>
-                  <div style={{display: 'flex', alignItems: 'center', alignSelf: 'center', padding: '6px 10px', borderRadius: '7px', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', fontSize: '0.78rem', fontWeight: '800', whiteSpace: 'nowrap'}}>
-                      {overviewProjectsCount} projeto{overviewProjectsCount === 1 ? '' : 's'}
+              {/* FERRAMENTAS */}
+              <div className="po-vg-toolbar">
+                  <div className="po-seg" role="tablist" aria-label="Vista">
+                      {[{ id: "overview", label: "Overview" }, { id: "anual", label: "Investimento" }, { id: "incentivo", label: "Incentivo" }].map((tab) => (
+                          <button key={tab.id} type="button" role="tab" aria-selected={overviewTab === tab.id} className={overviewTab === tab.id ? 'is-on' : ''} onClick={() => setOverviewTab(tab.id)}>{tab.label}</button>
+                      ))}
                   </div>
-                  
-        
+                  {isMonthlyTab && (
+                      <label className="po-vg-field is-inline">
+                          <span>Ano</span>
+                          <select value={anualYear} onChange={(e) => setAnualYear(Number(e.target.value))}>
+                              {availableYears.map((y) => <option key={y} value={y}>{y}</option>)}
+                          </select>
+                      </label>
+                  )}
+                  <div className="po-vg-exports">
+                      <button type="button" className="po-btn" onClick={exportCurrentOverview}><Icons.FileText size={15} /> Exportar CSV</button>
+                      <button type="button" className="po-btn is-primary" onClick={exportCurrentOverviewPdf}><Icons.FileText size={15} /> Exportar PDF</button>
+                  </div>
+              </div>
 
-                  {/* FILTRO: TIPO DE PROJETO */}
-                  <label style={{display: 'flex', flexDirection: 'column', gap: '4px', color: '#475569', fontSize: '0.74rem', fontWeight: '800'}}>
-                      Tipo de projeto
-                      <select
-                          value={overviewTypeFilter}
-                          onChange={(event) => setOverviewTypeFilter(event.target.value)}
-                          style={{width: '150px', padding: '5px 7px', border: '1px solid #cbd5e1', borderRadius: '7px', background: 'white', color: '#1e293b', fontSize: '0.74rem'}}
-                      >
+              <div className="po-vg-filters">
+                  <span className="po-vg-count">{overviewProjectsCount} projeto{overviewProjectsCount === 1 ? '' : 's'}</span>
+                  <label className="po-vg-field">
+                      <span>Tipo de projeto</span>
+                      <select value={overviewTypeFilter} onChange={(event) => setOverviewTypeFilter(event.target.value)}>
                           <option value="">Todos os tipos</option>
-                          {[...tipos]
-                              .sort((a, b) => String(a.nome || "").localeCompare(String(b.nome || ""), "pt-PT", { sensitivity: "base" }))
-                              .map((tipo) => <option key={tipo.id} value={tipo.id}>{tipo.nome}</option>)}
+                          {[...tipos].sort((a, b) => String(a.nome || "").localeCompare(String(b.nome || ""), "pt-PT", { sensitivity: "base" })).map((tipo) => <option key={tipo.id} value={tipo.id}>{tipo.nome}</option>)}
                           <option value="sem-tipo">Sem tipo de projeto</option>
                       </select>
                   </label>
-
-                  {/* FILTRO: PROGRAMA */}
-                  <label style={{display: 'flex', flexDirection: 'column', gap: '4px', color: '#475569', fontSize: '0.74rem', fontWeight: '800'}}>
-                      Programa
-                      <select
-                          value={overviewProgramFilter}
-                          onChange={(event) => setOverviewProgramFilter(event.target.value)}
-                          style={{width: '185px', padding: '5px 7px', border: '1px solid #cbd5e1', borderRadius: '7px', background: 'white', color: '#1e293b', fontSize: '0.74rem'}}
-                      >
+                  <label className="po-vg-field">
+                      <span>Programa</span>
+                      <select value={overviewProgramFilter} onChange={(event) => setOverviewProgramFilter(event.target.value)}>
                           <option value="">Todos os programas</option>
-                          {[...programas]
-                              .sort((a, b) => String(a.nome || "").localeCompare(String(b.nome || ""), "pt-PT", { sensitivity: "base" }))
-                              .map((program) => <option key={program.id} value={program.id}>{program.codigo ? `${program.codigo} - ${program.nome}` : program.nome}</option>)}
+                          {[...programas].sort((a, b) => String(a.nome || "").localeCompare(String(b.nome || ""), "pt-PT", { sensitivity: "base" })).map((program) => <option key={program.id} value={program.id}>{program.codigo ? `${program.codigo} - ${program.nome}` : program.nome}</option>)}
                           <option value="sem-programa">Sem programa associado</option>
                       </select>
                   </label>
-
-                  {/* 👇 NOVO FILTRO: ESTADO DO PROJETO */}
-                  <label style={{display: 'flex', flexDirection: 'column', gap: '4px', color: '#475569', fontSize: '0.74rem', fontWeight: '800'}}>
-                      Estado
-                      <select
-                          value={overviewStateFilter}
-                          onChange={(event) => setOverviewStateFilter(event.target.value)}
-                          style={{width: '140px', padding: '5px 7px', border: '1px solid #cbd5e1', borderRadius: '7px', background: 'white', color: '#1e293b', fontSize: '0.74rem'}}
-                      >
+                  <label className="po-vg-field">
+                      <span>Estado</span>
+                      <select value={overviewStateFilter} onChange={(event) => setOverviewStateFilter(event.target.value)}>
                           <option value="">Todos os estados</option>
-                          {estadosProjeto.map((est) => (
-                              <option key={est.id} value={est.id}>{est.nome}</option>
-                          ))}
+                          {estadosProjeto.map((est) => <option key={est.id} value={est.id}>{est.nome}</option>)}
                       </select>
                   </label>
-
-                  {/* 👇 NOVO FILTRO: ENTIDADE (LÍDER OU PARCEIRA) */}
-                  <label style={{display: 'flex', flexDirection: 'column', gap: '4px', color: '#475569', fontSize: '0.74rem', fontWeight: '800'}}>
-                      Entidade
-                      <select
-                          value={overviewEntityFilter}
-                          onChange={(event) => setOverviewEntityFilter(event.target.value)}
-                          style={{width: '180px', padding: '5px 7px', border: '1px solid #cbd5e1', borderRadius: '7px', background: 'white', color: '#1e293b', fontSize: '0.74rem'}}
-                      >
+                  <label className="po-vg-field">
+                      <span>Entidade</span>
+                      <select value={overviewEntityFilter} onChange={(event) => setOverviewEntityFilter(event.target.value)}>
                           <option value="">Todas as entidades</option>
                           {[...clientes]
                               .filter((c) => !c.eh_organismo)
                               .sort((a, b) => String(getClientDisplayName(a) || a.marca || "").localeCompare(String(getClientDisplayName(b) || b.marca || ""), "pt-PT", { sensitivity: "base" }))
-                              .map((client) => (
-                                  <option key={client.id} value={client.id}>
-                                      {getClientDisplayName(client) || client.marca}
-                                  </option>
-                              ))}
+                              .map((client) => <option key={client.id} value={client.id}>{getClientDisplayName(client) || client.marca}</option>)}
                       </select>
                   </label>
-
                   {isMonthlyTab && (
-                        <button
-                            type="button"
-                            onClick={() => setHideEmptyProjects((v) => !v)}
-                            style={{padding: '7px 10px', border: '1px solid #94a3b8', borderRadius: '7px', background: hideEmptyProjects ? 'var(--color-btnPrimary)' : 'white', color: hideEmptyProjects ? 'white' : '#475569', fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer'}}
-                        >
-                            {hideEmptyProjects ? "Mostrar a 0's" : "Ocultar a 0's"}
-                        </button>
-                    )}
-
-                  {/* BOTÃO LIMPAR FILTROS ATUALIZADO */}
-                  {(overviewTypeFilter || overviewProgramFilter || overviewStateFilter || overviewEntityFilter) && (
-                      <button
-                          type="button"
-                          onClick={() => {
-                              setOverviewTypeFilter("");
-                              setOverviewProgramFilter("");
-                              setOverviewStateFilter("");
-                              setOverviewEntityFilter("");
-                          }}
-                          style={{padding: '7px 10px', border: '1px solid #94a3b8', borderRadius: '7px', background: 'white', color: '#475569', fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer'}}
-                      >
-                          Limpar filtros
+                      <button type="button" onClick={() => setHideEmptyProjects((v) => !v)} className={`po-toggle ${hideEmptyProjects ? 'is-on' : ''}`} aria-pressed={hideEmptyProjects}>
+                          <span className="po-toggle-track"><span /></span> {hideEmptyProjects ? "Mostrar a 0's" : "Ocultar a 0's"}
                       </button>
                   )}
-
-                  <div style={{display: 'flex', gap: '6px', marginLeft: 'auto'}}>
-                      <button onClick={exportCurrentOverview} style={{padding: '7px 10px', border: '1px solid var(--color-btnPrimaryDark)', borderRadius: '7px', background: 'var(--color-btnPrimary)', color: 'var(--color-textWhite)', fontWeight: '800', fontSize: '0.74rem', cursor: 'pointer', boxShadow: '0 4px 10px var(--color-btnPrimaryShadow)'}}>Exportar CSV</button>
-                      <button onClick={exportCurrentOverviewPdf} style={{padding: '7px 10px', border: '1px solid var(--color-btnPrimaryDark)', borderRadius: '7px', background: 'var(--color-btnPrimaryDark)', color: 'var(--color-textWhite)', fontWeight: '800', fontSize: '0.74rem', cursor: 'pointer', boxShadow: '0 4px 10px var(--color-btnPrimaryShadow)'}}>Exportar PDF</button>
-                  </div>
+                  {(overviewTypeFilter || overviewProgramFilter || overviewStateFilter || overviewEntityFilter) && (
+                      <button type="button" className="po-vg-clear" onClick={() => { setOverviewTypeFilter(""); setOverviewProgramFilter(""); setOverviewStateFilter(""); setOverviewEntityFilter(""); }}>
+                          <Icons.Close size={13} /> Limpar filtros
+                      </button>
+                  )}
               </div>
 
-                  <div style={{background: 'transparent', overflowX: 'auto'}}>
-                    {overviewTab === "overview" && (
-                      <table style={{width: '100%', minWidth: '1100px', border: '1px solid #94a3b8', borderRadius: '12px', borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed', fontSize: '0.8rem', background: 'white', overflow: 'hidden'}}>
-                          <thead>
-                                <tr>
-                                    <th style={{width: '12%', padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("entities", "entidades", "Entidades")}</th>
-                                    <th style={{width: '18%', padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("project", "projeto", "Projetos / Programas")}</th>
-                                    <th style={{width: '31%', padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("execution", "execução", `Execução (${formatOverviewDate(ganttStart)} - ${formatOverviewDate(ganttEnd)})`)}</th>
-                                    <th style={{width: '10%', padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("investment", "investimento", "Invest. (EUR)")}</th>
-                                    <th style={{width: '10%', padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("incentive", "incentivo", "Incentivo (EUR)")}</th>
-                                    <th style={{width: '7%', minWidth: '60px', padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("executionRate", "taxa de execução", "TXE")}</th>
-                                    <th style={{width: '12%', padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("reimbursement", "último pedido de reembolso", "Último pedido")}</th>
-                              </tr>
-                          </thead>
-                          <tbody>{paginatedOverviewRows.map((project) => {
-                              const start = parseOverviewDate(project.data_inicio);
-                              const end = parseOverviewDate(project.data_fim) || start;
-                              const hasInvalidDateRange = !hasValidOverviewDateRange(project);
-                              const left = !hasInvalidDateRange && start ? Math.max(0, ((start - ganttStart) / 86400000) / ganttTotalDays * 100) : 0;
-                              const width = !hasInvalidDateRange && start && end ? Math.max(1, ((end - start) / 86400000) / ganttTotalDays * 100) : 1;
-                              const programColor = getOverviewProgramColor(getProjectProgramName(project));
-                              const daysSinceLastRequest = getDaysSinceLastReimbursement(project);
-                              const reimbursementOverdue = hasReimbursementOverdue(project);
-                              return <tr key={project.id} onClick={() => openProjectDetails(project)} style={{cursor: 'pointer'}}>
-                                <td style={{padding: '6px 8px', border: '1px solid #cbd5e1', borderLeft: `2px solid ${programColor}`, boxShadow: `inset 2px 0 0 ${programColor}`, verticalAlign: 'top'}}>{getProjectInvolvedEntities(project) || "-"}</td>
-                                {/* 👇 CÉLULA ATUALIZADA: Título + Programa + Número + Código */}
-                                          <td style={{padding: '6px 8px', border: '1px solid #cbd5e1', verticalAlign: 'top'}}>
-                                              <b>{project.titulo || 'Sem título'}</b><br />
-                                              <span style={{fontSize: '0.75rem', color: '#64748b', fontWeight: '700'}}>
-                                                  {getOverviewProgramCode(getProjectProgramName(project))}
-                                              </span>
-                                              {(project.numero_projeto || project.codigo_projeto) && (
-                                                  <>
-                                                      <br />
-                                                      <span style={{fontSize: '0.7rem', color: '#94a3b8', fontFamily: 'monospace', fontWeight: '700'}}>
-                                                          {project.numero_projeto ? `Nº ${project.numero_projeto}` : ''}
-                                                          {project.numero_projeto && project.codigo_projeto ? ' • ' : ''}
-                                                          {project.codigo_projeto ? project.codigo_projeto : ''}
-                                                      </span>
-                                                  </>
-                                              )}
-                                          </td>
-                                <td style={{padding: '0', border: `1px solid ${hasInvalidDateRange ? '#ef4444' : '#cbd5e1'}`, verticalAlign: 'top', position: 'relative'}}><div style={{position: 'absolute', inset: 0, background: hasInvalidDateRange ? '#fef2f2' : '#f1f5f9', overflow: 'hidden'}}>{ganttYearMarkers.map((marker) => <span key={marker.year} style={{position: 'absolute', left: `${marker.position}%`, top: 0, bottom: 0, borderLeft: '1px dashed #94a3b8', opacity: 0.7}} title={String(marker.year)} />)}{ganttYearLabels.map((marker) => <span key={`label-${marker.year}`} style={{position: 'absolute', left: `${marker.position}%`, top: 0, transform: 'translateX(3px)', fontSize: '0.65rem', color: '#64748b', fontWeight: '700'}}>{marker.year}</span>)}{hasInvalidDateRange ? <span title="Este projeto precisa de ser retificado: a Data de Início é posterior à Data de Fim." aria-label="Projeto precisa de ser retificado" style={{position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', display: 'inline-flex', color: '#dc2626', zIndex: 2}}><Icons.Alert size={18} color="#dc2626" /></span> : <div style={{position: 'absolute', left: `${left}%`, top: '50%', transform: 'translateY(-50%)', width: `${width}%`, height: '20px', background: programColor, borderRadius: '3px', zIndex: 1}} title={`${formatOverviewDate(project.data_inicio)} - ${formatOverviewDate(project.data_fim)}`} />}</div></td>
-                                <td style={{padding: '6px 8px', border: '1px solid #cbd5e1', whiteSpace: 'nowrap', textAlign: 'right'}}>{formatOverviewCurrency(project.investimento)}</td>
-                                <td style={{padding: '6px 8px', border: '1px solid #cbd5e1', whiteSpace: 'nowrap', textAlign: 'right'}}>{formatOverviewCurrency(project.incentivo)}</td>
-                                <td style={{padding: '6px 8px', border: '1px solid #cbd5e1', whiteSpace: 'nowrap', textAlign: 'center'}}>{getExecutionRate(project)}</td>
-                                <td style={{padding: '6px 8px', border: '1px solid #cbd5e1', whiteSpace: 'nowrap'}}>{formatOverviewDate(getLastReimbursementDate(project))}{daysSinceLastRequest !== null && <div style={{fontSize: '0.7rem', color: reimbursementOverdue ? '#b91c1c' : '#64748b', marginTop: '2px'}}>{daysSinceLastRequest} {daysSinceLastRequest === 1 ? 'dia' : 'dias'}</div>}{reimbursementOverdue && <div title="Já passaram 3 meses desde o último pedido de reembolso." aria-label="Já passaram 3 meses desde o último pedido de reembolso." style={{display: 'inline-flex', alignItems: 'center', gap: '3px', marginTop: '3px', padding: '2px 5px', borderRadius: '4px', background: '#fee2e2', color: '#b91c1c', fontSize: '0.66rem', fontWeight: '800'}}><Icons.Alert size={11} color="#b91c1c" /> +3 meses</div>}</td></tr>;
-                          })}
-                          </tbody>
-                                {/* 👇 NOVO RODAPÉ (TFOOT) - TUDO NUMA ÚNICA LINHA */}
-                                <tfoot>
-                                    <tr>
-                                        {/* CÉLULA 1 (Ocupa 3 colunas): Contém o "Mostrar" à esquerda e o "Total" à direita */}
-                                        <td colSpan="3" style={{ padding: '12px 14px', borderTop: '2px solid #cbd5e1', background: 'white', verticalAlign: 'middle' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                                                {/* Esquerda: Dropdown "Mostrar:" */}
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <span style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: '700' }}>Mostrar:</span>
-                                                    <select 
-                                                        value={overviewItemsPerPage} 
-                                                        onChange={(e) => setOverviewItemsPerPage(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-                                                        style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', color: '#1e293b', fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer', outline: 'none' }}
-                                                    >
-                                                        <option value={10}>10 projetos</option>
-                                                        <option value={20}>20 projetos</option>
-                                                        <option value="all">Todos</option>
-                                                    </select>
-                                                </div>
+              <div className="po-vg-card">
+                  <div className="po-vg-scroll">
+                      {overviewTab === "overview" && (
+                          <table className="po-vg-table is-overview">
+                              <thead>
+                                  <tr>
+                                      <th style={{ width: '13%' }}>{vgHead("entities", "entidades", "Entidades")}</th>
+                                      <th style={{ width: '20%' }}>{vgHead("project", "projeto", "Projetos / Programas")}</th>
+                                      <th style={{ width: '27%' }}>{vgHead("execution", "execução", `Execução (${formatOverviewDate(ganttStart)} - ${formatOverviewDate(ganttEnd)})`)}</th>
+                                      <th style={{ width: '10%' }} className="is-num">{vgHead("investment", "investimento", "Invest. (EUR)")}</th>
+                                      <th style={{ width: '10%' }} className="is-num">{vgHead("incentive", "incentivo", "Incentivo (EUR)")}</th>
+                                      <th style={{ width: '8%' }}>{vgHead("executionRate", "taxa de execução", "TXE")}</th>
+                                      <th style={{ width: '12%' }}>{vgHead("reimbursement", "último pedido de reembolso", "Último pedido")}</th>
+                                  </tr>
+                              </thead>
+                              <tbody>
+                                  {paginatedOverviewRows.map((project) => {
+                                      const start = parseOverviewDate(project.data_inicio);
+                                      const end = parseOverviewDate(project.data_fim) || start;
+                                      const hasInvalidDateRange = !hasValidOverviewDateRange(project);
+                                      const left = !hasInvalidDateRange && start ? Math.max(0, ((start - ganttStart) / 86400000) / ganttTotalDays * 100) : 0;
+                                      const width = !hasInvalidDateRange && start && end ? Math.max(1, ((end - start) / 86400000) / ganttTotalDays * 100) : 1;
+                                      const programColor = getOverviewProgramColor(getProjectProgramName(project));
+                                      const daysSinceLastRequest = getDaysSinceLastReimbursement(project);
+                                      const reimbursementOverdue = hasReimbursementOverdue(project);
+                                      const txe = getExecutionRate(project);
+                                      return (
+                                          <tr key={project.id} onClick={() => openProjectDetails(project)} style={{ '--pc': programColor }}>
+                                              <td className="po-vg-ent">{getProjectInvolvedEntities(project) || "-"}</td>
+                                              <td>
+                                                  <div className="po-vg-proj">
+                                                      <strong>{project.titulo || 'Sem título'}</strong>
+                                                      <span className="po-vg-proj-meta">{vgProgramChip(project)}{vgCodes(project)}</span>
+                                                  </div>
+                                              </td>
+                                              <td className="po-vg-exec">
+                                                  <div className={`po-vg-track ${hasInvalidDateRange ? 'is-invalid' : ''}`}>
+                                                      {ganttYearMarkers.map((marker) => <span key={marker.year} className="po-vg-year" style={{ left: `${marker.position}%` }} title={String(marker.year)} />)}
+                                                      {ganttYearLabels.map((marker) => <em key={`label-${marker.year}`} className="po-vg-year-label" style={{ left: `${marker.position}%` }}>{marker.year}</em>)}
+                                                      {vgTodayPos !== null && <span className="po-vg-today" style={{ left: `${vgTodayPos}%` }} title="Hoje" />}
+                                                      {hasInvalidDateRange ? (
+                                                          <span className="po-vg-invalid" title="Este projeto precisa de ser retificado: a Data de Início é posterior à Data de Fim." aria-label="Projeto precisa de ser retificado"><Icons.Alert size={15} color="currentColor" /> Datas a retificar</span>
+                                                      ) : (
+                                                          <span className="po-vg-bar" style={{ left: `${left}%`, width: `${width}%` }} title={`${formatOverviewDate(project.data_inicio)} - ${formatOverviewDate(project.data_fim)}`} />
+                                                      )}
+                                                  </div>
+                                              </td>
+                                              <td className="is-num">{formatOverviewCurrency(project.investimento)}</td>
+                                              <td className="is-num">{formatOverviewCurrency(project.incentivo)}</td>
+                                              <td>
+                                                  <div className="po-vg-txe">
+                                                      <b>{txe}</b>
+                                                      <span><i style={{ width: `${Math.min(100, parseFloat(txe) || 0)}%` }} /></span>
+                                                  </div>
+                                              </td>
+                                              <td className="po-vg-last">
+                                                  <strong>{formatOverviewDate(getLastReimbursementDate(project))}</strong>
+                                                  {daysSinceLastRequest !== null && <span className={reimbursementOverdue ? 'is-late' : ''}>{daysSinceLastRequest} {daysSinceLastRequest === 1 ? 'dia' : 'dias'}</span>}
+                                                  {reimbursementOverdue && <em title="Já passaram 3 meses desde o último pedido de reembolso." aria-label="Já passaram 3 meses desde o último pedido de reembolso."><Icons.Alert size={11} color="currentColor" /> +3 meses</em>}
+                                              </td>
+                                          </tr>
+                                      );
+                                  })}
+                                  {paginatedOverviewRows.length === 0 && (
+                                      <tr className="is-empty"><td colSpan={7}>Não há projetos a corresponder aos critérios.</td></tr>
+                                  )}
+                              </tbody>
+                              <tfoot>
+                                  <tr>
+                                      <td colSpan={3} className="po-vg-total-label">{isOverviewFiltered ? "Total dos projetos filtrados:" : "Total de todos os projetos:"}</td>
+                                      <td className="is-num">{formatOverviewCurrency(totalOverviewInvestimento)} €</td>
+                                      <td className="is-num">{formatOverviewCurrency(totalOverviewIncentivo)} €</td>
+                                      <td><b className="po-vg-total-txe">{footerTxe}</b></td>
+                                      <td></td>
+                                  </tr>
+                              </tfoot>
+                          </table>
+                      )}
 
-                                                {/* Direita: Label do Total */}
-                                                <div style={{ textAlign: 'right', fontWeight: '900', color: '#0f172a', fontSize: '0.9rem' }}>
-                                                    {isOverviewFiltered ? "Total dos projetos filtrados:" : "Total de todos os projetos:"}
-                                                </div>
-                                            </div>
-                                        </td>
-                                        
-                                        {/* CÉLULA 2: Investimento */}
-                                        <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: '900', color: '#0f172a', background: '#f8fafc', borderTop: '2px solid #cbd5e1', borderLeft: '1px solid #cbd5e1', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
-                                            {formatOverviewCurrency(totalOverviewInvestimento)} €
-                                        </td>
-                                        
-                                        {/* CÉLULA 3: Incentivo */}
-                                        <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: '900', color: '#0f172a', background: '#f8fafc', borderTop: '2px solid #cbd5e1', borderLeft: '1px solid #cbd5e1', borderRight: '1px solid #cbd5e1', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
-                                            {formatOverviewCurrency(totalOverviewIncentivo)} €
-                                        </td>
-                                        
-                                        {/* CÉLULA 4 (Ocupa 2 colunas): Paginação */}
-                                        <td colSpan="2" style={{ padding: '0 12px', borderTop: '2px solid #cbd5e1', background: 'white', verticalAlign: 'middle' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '56px' }}>
-                                                {totalOverviewPages > 1 && (
-                                                    <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
-                                                        <button 
-                                                            onClick={() => setOverviewPage(p => Math.max(1, p - 1))} 
-                                                            disabled={overviewPage === 1}
-                                                            style={{background: overviewPage === 1 ? '#f8fafc' : 'var(--color-bgSecondary)', color: overviewPage === 1 ? '#cbd5e1' : 'var(--color-btnPrimary)', border: 'none', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: overviewPage === 1 ? 'not-allowed' : 'pointer'}}
-                                                        >
-                                                            <Icons.ArrowLeft size={16} />
-                                                        </button>
-                                                        
-                                                        <span style={{fontSize: '0.85rem', fontWeight: '800', color: '#1e293b', whiteSpace: 'nowrap'}}>
-                                                            Página {overviewPage} de {totalOverviewPages}
-                                                        </span>
-                                                        
-                                                        <button 
-                                                            onClick={() => setOverviewPage(p => Math.min(totalOverviewPages, p + 1))} 
-                                                            disabled={overviewPage === totalOverviewPages}
-                                                            style={{background: overviewPage === totalOverviewPages ? '#f8fafc' : 'var(--color-bgSecondary)', color: overviewPage === totalOverviewPages ? '#cbd5e1' : 'var(--color-btnPrimary)', border: 'none', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: overviewPage === totalOverviewPages ? 'not-allowed' : 'pointer'}}
-                                                        >
-                                                            <div style={{transform: 'rotate(180deg)', display: 'flex'}}><Icons.ArrowLeft size={16} /></div>
-                                                        </button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                </tfoot>
-                        </table>
-                    )}
-                    {isMonthlyTab && (
-                        <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse' }}>
-                            <colgroup>
-                                <col style={{width: '220px'}} />
-                                <col style={{width: '150px'}} />
-                                {MESES.map((m) => <col key={m} style={{width: '50px'}} />)}
-                                <col style={{width: '100px'}} />
-                                <col style={{width: '70px'}} />
-                            </colgroup>
-                            <thead>
-                                <tr>
-                                    <th style={{padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("project", "projeto", "Projetos / Programas")}</th>
-                                    <th style={{padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("entities", "entidades", "Entidades")}</th>
-                                    {MESES.map((m) => (
-                                        <th key={m} style={{padding: '4px 2px', fontSize: '0.8rem', textAlign: 'center'}}>{m}</th>
-                                    ))}
-                                    <th style={{padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)', color: '#1e293b', fontWeight: '800'}}>Total {anualYear}</th>
-                                    <th style={{padding: '7px', border: '1px solid var(--color-borderColor)', background: 'var(--color-bgSecondary)'}}>{overviewHeaderButton("executionRate", "taxa de execução", "TXE")}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {(() => {
-                                    const rows = buildMonthlyRows(monthlyPagedRows)
-                                        .filter((r) => !hideEmptyProjects || monthlyRowHasRequests(r));
-                                    return rows.map(({ project, entityId }, idx) => {
-                                        const programColor = getOverviewProgramColor(getProjectProgramName(project));
-                                        const months = getMonthlyRequests(project, anualYear, entityId);
-                                        const isFirstOfProject = idx === 0 || rows[idx - 1].project.id !== project.id;
-                                        const span = isFirstOfProject ? rows.filter((r) => r.project.id === project.id).length : 0;
-                                        return (
-                                            <tr key={`${project.id}-${entityId}`} onClick={() => openProjectDetails(project)} style={{cursor: 'pointer'}}>
-                                                {isFirstOfProject && (
-                                                    <td rowSpan={span} style={{padding: '6px 8px', border: '1px solid #cbd5e1', borderLeft: `2px solid ${programColor}`, boxShadow: `inset 2px 0 0 ${programColor}`, verticalAlign: 'middle', textAlign: 'center', background: 'white'}}>
-                                                        <b>{project.titulo || 'Sem título'}</b><br />
-                                                        <span style={{fontSize: '0.75rem', color: '#64748b', fontWeight: '700'}}>
-                                                            {getOverviewProgramCode(getProjectProgramName(project))}
-                                                        </span>
-                                                        {(project.numero_projeto || project.codigo_projeto) && (
-                                                            <>
-                                                                <br />
-                                                                <span style={{fontSize: '0.7rem', color: '#94a3b8', fontFamily: 'monospace', fontWeight: '700'}}>
-                                                                    {project.numero_projeto ? `Nº ${project.numero_projeto}` : ''}
-                                                                    {project.numero_projeto && project.codigo_projeto ? ' • ' : ''}
-                                                                    {project.codigo_projeto || ''}
-                                                                </span>
-                                                            </>
-                                                        )}
-                                                    </td>
-                                                )}
-                                                <td style={{padding: '6px 8px', border: '1px solid #cbd5e1', verticalAlign: 'top'}}>
-                                                    {getEntityName(entityId, project) || "-"}
-                                                    {project.is_parceria && String(entityId) === String(project.cliente_id) &&
-                                                        <span style={{marginLeft: 6, fontSize: '0.65rem', color: '#64748b', fontWeight: 800}}>LÍDER</span>}
-                                                </td>
-                                                {months.map((value, i) => (
-                                                    <td key={i} style={{
-                                                        padding: '2px 4px',
-                                                        border: '1px solid #cbd5e1',
-                                                        textAlign: 'right',
-                                                        whiteSpace: 'nowrap',
-                                                        color: value > 0 ? '#0f172a' : '#cbd5e1',
-                                                        fontWeight: value > 0 ? '600' : '400',
-                                                        fontSize: '0.75rem',
-                                                        letterSpacing: '-0.5px',
-                                                        background: value > 0 ? '#f0fdf4' : 'white'
-                                                    }}>
-                                                        {value > 0 ? formatOverviewCurrency(value) : "-"}
-                                                    </td>
-                                                ))}
-                                                <td style={{padding: '6px 8px', border: '1px solid #cbd5e1', textAlign: 'right', whiteSpace: 'nowrap', fontWeight: '800', background: '#f8fafc'}}>
-                                                    {formatOverviewCurrency(sumArray(months))}
-                                                </td>
-                                                <td style={{padding: '6px 8px', border: '1px solid #cbd5e1', textAlign: 'center', whiteSpace: 'nowrap'}}>
-                                                    {getMonthlyRate(project, entityId)}
-                                                </td>
-                                            </tr>
-                                        );
-                                    });
-                                })()}
-                            </tbody>
-                            <tfoot>
-                                <tr>
-                                    <td colSpan="2" style={{padding: '10px 14px', borderTop: '2px solid #cbd5e1', background: '#f8fafc', textAlign: 'right', fontWeight: '600', fontSize: '0.85rem', color: '#0f172a'}}>
-                                        {isOverviewFiltered ? "Total dos projetos filtrados:" : "Total de todos os projetos:"}
-                                    </td>
+                      {isMonthlyTab && (
+                          <table className="po-vg-table is-monthly">
+                              <colgroup>
+                                  <col style={{ width: '230px' }} />
+                                  <col style={{ width: '160px' }} />
+                                  {MESES.map((m) => <col key={m} style={{ width: '62px' }} />)}
+                                  <col style={{ width: '110px' }} />
+                                  <col style={{ width: '76px' }} />
+                              </colgroup>
+                              <thead>
+                                  <tr>
+                                      <th>{vgHead("project", "projeto", "Projetos / Programas")}</th>
+                                      <th>{vgHead("entities", "entidades", "Entidades")}</th>
+                                      {MESES.map((m) => <th key={m} className="is-month">{m}</th>)}
+                                      <th className="is-num">Total {anualYear}</th>
+                                      <th>{vgHead("executionRate", "taxa de execução", "TXE")}</th>
+                                  </tr>
+                              </thead>
+                              <tbody>
+                                  {(() => {
+                                      const rows = buildMonthlyRows(monthlyPagedRows).filter((r) => !hideEmptyProjects || monthlyRowHasRequests(r));
+                                      if (rows.length === 0) return <tr className="is-empty"><td colSpan={MESES.length + 4}>Sem pedidos de reembolso para mostrar em {anualYear}.</td></tr>;
+                                      return rows.map(({ project, entityId }, idx) => {
+                                          const programColor = getOverviewProgramColor(getProjectProgramName(project));
+                                          const months = getMonthlyRequests(project, anualYear, entityId);
+                                          const isFirstOfProject = idx === 0 || rows[idx - 1].project.id !== project.id;
+                                          const span = isFirstOfProject ? rows.filter((r) => r.project.id === project.id).length : 0;
+                                          return (
+                                              <tr key={`${project.id}-${entityId}`} onClick={() => openProjectDetails(project)} style={{ '--pc': programColor }} className={isFirstOfProject ? 'is-first' : ''}>
+                                                  {isFirstOfProject && (
+                                                      <td rowSpan={span} className="po-vg-mproj">
+                                                          <div className="po-vg-proj">
+                                                              <strong>{project.titulo || 'Sem título'}</strong>
+                                                              <span className="po-vg-proj-meta">{vgProgramChip(project)}{vgCodes(project)}</span>
+                                                          </div>
+                                                      </td>
+                                                  )}
+                                                  <td className="po-vg-ment">
+                                                      {getEntityName(entityId, project) || "-"}
+                                                      {project.is_parceria && String(entityId) === String(project.cliente_id) && <span className="po-vg-leader">LÍDER</span>}
+                                                  </td>
+                                                  {months.map((value, i) => (
+                                                      <td key={i} className={`po-vg-cell ${value > 0 ? 'has-value' : ''}`} style={value > 0 ? { '--heat': Math.max(0.12, Math.min(1, value / vgMaxMonthValue)) } : undefined}>
+                                                          {value > 0 ? formatOverviewCurrency(value) : "-"}
+                                                      </td>
+                                                  ))}
+                                                  <td className="is-num po-vg-mtotal">{formatOverviewCurrency(sumArray(months))}</td>
+                                                  <td className="po-vg-mtxe">{getMonthlyRate(project, entityId)}</td>
+                                              </tr>
+                                          );
+                                      });
+                                  })()}
+                              </tbody>
+                              <tfoot>
+                                  <tr>
+                                      <td colSpan={2} className="po-vg-total-label">{isOverviewFiltered ? "Total dos projetos filtrados:" : "Total de todos os projetos:"}</td>
+                                      {anualMonthTotals.map((value, i) => <td key={i} className="po-vg-cell is-foot">{value > 0 ? formatOverviewCurrency(value) : "-"}</td>)}
+                                      <td className="is-num po-vg-grand">{formatOverviewCurrency(anualGrandTotal)} €</td>
+                                      <td><b className="po-vg-total-txe">{footerTxe}</b></td>
+                                  </tr>
+                              </tfoot>
+                          </table>
+                      )}
+                  </div>
 
-                                    {anualMonthTotals.map((value, i) => (
-                                        <td key={i} style={{
-                                            padding: '10px 4px', /* Aumentei ligeiramente o padding lateral para respirar mais */
-                                            borderTop: '2px solid #cbd5e1', 
-                                            borderLeft: '1px solid #cbd5e1', 
-                                            background: '#f8fafc', 
-                                            textAlign: 'right', 
-                                            fontWeight: 'normal', /* <-- AQUI: Negrito removido dos números mensais */
-                                            fontSize: '0.65rem', 
-                                            letterSpacing: '-0.2px', /* Suavizei o letter-spacing já que não tem negrito */
-                                            whiteSpace: 'nowrap', 
-                                            overflow: 'hidden', 
-                                            color: '#475569' /* Escurecido ligeiramente, mas menos pesado que o preto total */
-                                        }}>
-                                            {value > 0 ? formatOverviewCurrency(value) : "-"}
-                                        </td>
-                                    ))}
-
-                                    <td style={{
-                                        padding: '10px 4px', 
-                                        borderTop: '2px solid #cbd5e1', 
-                                        borderLeft: '1px solid #cbd5e1', 
-                                        background: '#f1f5f9', 
-                                        textAlign: 'right', 
-                                        fontWeight: '500', /* Ligeiro destaque no total anual geral (opcional) */
-                                        fontSize: '1rem',
-                                        whiteSpace: 'nowrap', 
-                                        color: '#0f172a'
-                                    }}>
-                                        {formatOverviewCurrency(anualGrandTotal)} €
-                                    </td>
-
-                                    <td style={{
-                                        padding: '10px 4px', 
-                                        borderTop: '2px solid #cbd5e1', 
-                                        borderLeft: '1px solid #cbd5e1', 
-                                        background: '#f8fafc', 
-                                        textAlign: 'center', 
-                                        fontWeight: 'normal', /* <-- AQUI: Negrito removido da percentagem final */
-                                        fontSize: '1rem',
-                                        color: '#475569'
-                                    }}>
-                                        {footerTxe}
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td colSpan={MESES.length + 4} style={{padding: '10px 14px', background: 'white', borderTop: '1px solid #cbd5e1'}}>
-                                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                                            <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                                                <span style={{fontSize: '0.78rem', color: '#64748b', fontWeight: '700'}}>Mostrar:</span>
-                                                <select
-                                                    value={overviewItemsPerPage}
-                                                    onChange={(e) => setOverviewItemsPerPage(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-                                                    style={{padding: '6px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', color: '#1e293b', fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer'}}
-                                                >
-                                                    <option value={10}>10 projetos</option>
-                                                    <option value={20}>20 projetos</option>
-                                                    <option value="all">Todos</option>
-                                                </select>
-                                            </div>
-                                            {totalOverviewPages > 1 && (
-                                                <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
-                                                    <button onClick={() => setOverviewPage((p) => Math.max(1, p - 1))} disabled={overviewPage === 1}
-                                                        style={{background: overviewPage === 1 ? '#f8fafc' : 'var(--color-bgSecondary)', color: overviewPage === 1 ? '#cbd5e1' : 'var(--color-btnPrimary)', border: 'none', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: overviewPage === 1 ? 'not-allowed' : 'pointer'}}>
-                                                        <Icons.ArrowLeft size={16} />
-                                                    </button>
-                                                    <span style={{fontSize: '0.85rem', fontWeight: '800', color: '#1e293b', whiteSpace: 'nowrap'}}>Página {overviewPage} de {totalOverviewPages}</span>
-                                                    <button onClick={() => setOverviewPage((p) => Math.min(totalOverviewPages, p + 1))} disabled={overviewPage === totalOverviewPages}
-                                                        style={{background: overviewPage === totalOverviewPages ? '#f8fafc' : 'var(--color-bgSecondary)', color: overviewPage === totalOverviewPages ? '#cbd5e1' : 'var(--color-btnPrimary)', border: 'none', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: overviewPage === totalOverviewPages ? 'not-allowed' : 'pointer'}}>
-                                                        <div style={{transform: 'rotate(180deg)', display: 'flex'}}><Icons.ArrowLeft size={16} /></div>
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    )}
-                      {/* 👇 LEGENDAS DE COR DOS PROGRAMAS */}
-                      <div style={{display: 'flex', flexWrap: 'wrap', gap: '8px 16px', width: '100%', boxSizing: 'border-box', padding: '8px 10px', border: '1px solid #cbd5e1', borderTop: 'none', borderRadius: '0 0 12px 12px', background: '#f8fafc'}}>
+                  <div className="po-vg-foot">
+                      <div className="po-vg-legend">
                           {overviewProgramNames.map((programName) => (
-                              <span key={programName} title={programName} style={{display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#475569', fontSize: '0.75rem', fontWeight: '700'}}>
-                                  <span style={{width: '10px', height: '10px', borderRadius: '2px', background: getOverviewProgramColor(programName)}} />
-                                  {getOverviewProgramCode(programName)}
-                              </span>
+                              <span key={programName} title={programName} style={{ '--pc': getOverviewProgramColor(programName) }}><i />{getOverviewProgramCode(programName)}</span>
                           ))}
+                          {overviewTab === 'overview' && vgTodayPos !== null && <span className="is-today"><i /> Hoje</span>}
                       </div>
+                      {vgPagination}
                   </div>
               </div>
-          );
+          </div>
+      );
   }
 
   // ---------- Números do topo (respeitam "Os Meus" / "Empresa") ----------
