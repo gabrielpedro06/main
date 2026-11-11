@@ -1370,6 +1370,8 @@
 }
 .fx-bubble-react:hover { color: var(--color-btnPrimary); }
 .fx-msg-row.is-mine .fx-bubble-react { right: auto; left: -42px; }
+/* Só aparece com o rato por cima (CSS em vez de estado React: não redesenha o fórum) */
+.fx-msg-row:not(:hover) .fx-bubble-react { display: none; }
 .fx-react-menu-chat { bottom: auto; top: -50px; }
 .fx-msg-row.is-mine .fx-react-menu-chat { left: auto; right: 0; transform-origin: bottom right; }
 

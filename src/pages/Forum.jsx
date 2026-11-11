@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabase";
@@ -123,6 +123,90 @@ const serializeBlocksToContent = (blocks) => {
     return `${BLOCKS_PREFIX}${JSON.stringify(normalized)}`;
 };
 
+// Caixa de escrita do chat. O texto vive AQUI (estado local), para que escrever
+// não obrigue o fórum inteiro (feed, salas, mensagens) a redesenhar-se a cada tecla.
+function ChatComposer({ disabled, busy, stagedFile, onStageFile, onPaste, onSend, onTyping }) {
+  const inputRef = useRef(null);
+  const [draft, setDraft] = useState("");
+  const [showEmoji, setShowEmoji] = useState(false);
+
+  const focusInput = () => setTimeout(() => inputRef.current?.focus(), 50);
+
+  const handleChange = (value) => {
+    setDraft(value);
+    onTyping(Boolean(value.trim()));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const content = draft.trim();
+    if (!content && !stagedFile) return;
+    const ok = await onSend(content);
+    if (ok) {
+      setDraft("");
+      setShowEmoji(false);
+    }
+    focusInput();
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="fx-chat-composer">
+      {showEmoji && (
+        <div className="fx-emoji-pop">
+          <EmojiPicker
+            onEmojiClick={(emojiObject) => {
+              setDraft((prev) => prev + emojiObject.emoji);
+              inputRef.current?.focus();
+            }}
+            autoFocusSearch={false}
+            theme="light"
+            searchPlaceHolder="Procurar emojis..."
+            width={320}
+            height={400}
+          />
+        </div>
+      )}
+
+      <div className="fx-chat-input">
+        <button type="button" onClick={() => setShowEmoji((v) => !v)} className={`fx-icon-btn ${showEmoji ? 'is-on' : ''}`} aria-label="Emojis">
+          <Icons.Smile size={20} />
+        </button>
+        <textarea
+          ref={inputRef}
+          rows={1}
+          value={draft}
+          onChange={(e) => handleChange(e.target.value)}
+          onKeyDown={(e) => {
+            // Enter envia; Shift+Enter muda de linha
+            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+              e.preventDefault();
+              e.currentTarget.form?.requestSubmit();
+            }
+          }}
+          onPaste={(e) => {
+            onPaste(e);
+            if (e.defaultPrevented) setShowEmoji(false);
+          }}
+          onClick={() => setShowEmoji(false)}
+          placeholder={stagedFile ? "Adicionar uma legenda..." : "Escreve uma mensagem..."}
+          disabled={disabled}
+        />
+        <label className={`fx-icon-btn ${disabled ? 'is-disabled' : ''}`} title="Anexar ficheiro">
+          <Icons.Paperclip size={18} />
+          <input type="file" style={{ display: 'none' }} disabled={disabled} onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) { onStageFile(file); setShowEmoji(false); }
+            e.target.value = '';
+          }} />
+        </label>
+      </div>
+      <button type="submit" className="fx-send fx-send-lg" disabled={(!draft.trim() && !stagedFile) || disabled} aria-label="Enviar mensagem">
+        {busy ? <span className="fx-spinner" /> : <Icons.Send size={18} />}
+      </button>
+    </form>
+  );
+}
+
 export default function Forum() {
   const { user, userProfile } = useAuth(); 
     const navigate = useNavigate();
@@ -167,8 +251,6 @@ export default function Forum() {
     const typingTimersRef = useRef({});
     const typingLastSentAtRef = useRef(0);
     const chatMessagesContainerRef = useRef(null);
-    const chatInputRef = useRef(null);
-    const [chatDraft, setChatDraft] = useState("");
     const [chatLoading, setChatLoading] = useState(false);
     const [chatSending, setChatSending] = useState(false);
     const [chatUploadingFile, setChatUploadingFile] = useState(false);
@@ -191,8 +273,11 @@ export default function Forum() {
     const [selectedUsersToAddInGroup, setSelectedUsersToAddInGroup] = useState([]);
     const [addingGroupMembers, setAddingGroupMembers] = useState(false);
     const [chatStagedFile, setChatStagedFile] = useState(null); // <-- NOVO ESTADO
-    const [hoveredMessageId, setHoveredMessageId] = useState(null);
-    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const stagedPreviewUrl = useMemo(
+        () => (chatStagedFile && chatStagedFile.type.startsWith('image/') ? URL.createObjectURL(chatStagedFile) : null),
+        [chatStagedFile]
+    );
+    useEffect(() => () => { if (stagedPreviewUrl) URL.revokeObjectURL(stagedPreviewUrl); }, [stagedPreviewUrl]);
     const [reactionMenuMessageId, setReactionMenuMessageId] = useState(null);
     const [categoryFilter, setCategoryFilter] = useState('all');
     const [chatPeopleQuery, setChatPeopleQuery] = useState('');
@@ -1161,7 +1246,6 @@ export default function Forum() {
       setChatModal({ show: false, target: null });
       setActiveChatRoom(null);
       setChatMessages([]);
-      setChatDraft("");
       setChatError("");
       setChatStagedFile(null); // <--- SÓ FALTAVA ISTO AQUI!
       setShowAddGroupMembersModal(false);
@@ -1278,17 +1362,6 @@ async function handleChatReaction(messageId, emoji) {
       });
 
       return readByOthers ? "✓✓" : "✓";
-  }
-
-  function handleChatDraftChange(value) {
-      setChatDraft(value);
-
-      if (!value.trim()) {
-          emitTypingStatus(false);
-          return;
-      }
-
-      emitTypingStatus(true);
   }
 
   async function loadChatMessages(roomId) {
@@ -1490,13 +1563,13 @@ async function handleChatReaction(messageId, emoji) {
       }
   }
 
-async function handleSendChat(e) {
-      e.preventDefault();
-      const content = String(chatDraft || "").trim();
+async function sendChatMessage(rawContent) {
+      const content = String(rawContent || "").trim();
       
       // Se não houver nem texto nem ficheiro, não faz nada
-      if (!content && !chatStagedFile) return;
-      if (!activeChatRoom?.id) return;
+      if (!content && !chatStagedFile) return false;
+      if (!activeChatRoom?.id) return false;
+      let sent = false;
 
       setChatSending(true);
       try {
@@ -1537,10 +1610,9 @@ async function handleSendChat(e) {
 
           if (error) throw error;
           
-          // 3. Limpa os inputs
-          setChatDraft("");
+          // 3. Limpa o anexo (o texto é limpo pelo ChatComposer)
           setChatStagedFile(null);
-          setShowEmojiPicker(false);
+          sent = true;
           
           if (data) {
               setChatMessages((prev) => (prev.some((m) => m.id === data.id) ? prev : [...prev, data]));
@@ -1552,10 +1624,8 @@ async function handleSendChat(e) {
           setChatUploadingFile(false);
       } finally {
           setChatSending(false);
-          setTimeout(() => {
-            chatInputRef.current?.focus();
-        }, 50);
       }
+      return sent;
   }
 
   const handleChatDragEnter = (e) => {
@@ -2210,7 +2280,6 @@ async function handleSendChat(e) {
           staged = new File([file], `captura-${stamp}.${ext}`, { type: file.type });
       }
       setChatStagedFile(staged);
-      setShowEmojiPicker(false);
   };
 
   const getSenderAvatar = (senderId) => chatCollaborators.find((profile) => profile.id === senderId)?.avatar_url || null;
@@ -3067,8 +3136,6 @@ async function handleSendChat(e) {
                                 <div
                                     key={msg.id}
                                     className={`fx-msg-row ${mine ? 'is-mine' : ''} ${isFirstInGroup ? 'is-first' : ''} ${isLastInGroup ? 'is-last' : ''} ${hasReactions ? 'has-reactions' : ''}`}
-                                    onMouseEnter={() => setHoveredMessageId(msg.id)}
-                                    onMouseLeave={() => setHoveredMessageId(null)}
                                 >
                                     {!mine && isGroup && (
                                         <span className="fx-msg-avatar">
@@ -3079,7 +3146,7 @@ async function handleSendChat(e) {
                                     <div className={`fx-bubble ${isImage && !msg.content ? 'is-media' : ''}`}>
 
                                         {/* BOTÃO FLUTUANTE DE HOVER */}
-                                        {hoveredMessageId === msg.id && reactionMenuMessageId !== msg.id && (
+                                        {reactionMenuMessageId !== msg.id && (
                                             <button
                                                 type="button"
                                                 title="Reagir"
@@ -3160,7 +3227,7 @@ async function handleSendChat(e) {
                         <div className="fx-staged">
                             <div className="fx-staged-thumb">
                                 {chatStagedFile.type.startsWith('image/') ? (
-                                    <img src={URL.createObjectURL(chatStagedFile)} alt="Preview" />
+                                    <img src={stagedPreviewUrl} alt="Preview" />
                                 ) : (
                                     <span><Icons.Paperclip size={22} /></span>
                                 )}
@@ -3173,58 +3240,16 @@ async function handleSendChat(e) {
                         </div>
                     )}
 
-                    {/* FORMULÁRIO UNIFICADO COM O EMOJI PICKER */}
-                    <form onSubmit={handleSendChat} className="fx-chat-composer">
-                        {showEmojiPicker && (
-                            <div className="fx-emoji-pop">
-                                <EmojiPicker
-                                    onEmojiClick={(emojiObject) => {
-                                        setChatDraft(prev => prev + emojiObject.emoji);
-                                        chatInputRef.current?.focus();
-                                    }}
-                                    autoFocusSearch={false}
-                                    theme="light"
-                                    searchPlaceHolder="Procurar emojis..."
-                                    width={320}
-                                    height={400}
-                                />
-                            </div>
-                        )}
-
-                        <div className="fx-chat-input">
-                            <button type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} className={`fx-icon-btn ${showEmojiPicker ? 'is-on' : ''}`} aria-label="Emojis">
-                                <Icons.Smile size={20} />
-                            </button>
-                            <textarea
-                                ref={chatInputRef}
-                                rows={1}
-                                value={chatDraft}
-                                onChange={(e) => handleChatDraftChange(e.target.value)}
-                                onKeyDown={(e) => {
-                                    // Enter envia; Shift+Enter muda de linha
-                                    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
-                                        e.preventDefault();
-                                        e.currentTarget.form?.requestSubmit();
-                                    }
-                                }}
-                                onPaste={handleChatPaste}
-                                onClick={() => setShowEmojiPicker(false)}
-                                placeholder={chatStagedFile ? "Adicionar uma legenda..." : "Escreve uma mensagem..."}
-                                disabled={chatInputDisabled}
-                            />
-                            <label className={`fx-icon-btn ${chatInputDisabled ? 'is-disabled' : ''}`} title="Anexar ficheiro">
-                                <Icons.Paperclip size={18} />
-                                <input type="file" style={{ display: 'none' }} disabled={chatInputDisabled} onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) { setChatStagedFile(file); setShowEmojiPicker(false); }
-                                    e.target.value = '';
-                                }} />
-                            </label>
-                        </div>
-                        <button type="submit" className="fx-send fx-send-lg" disabled={(!chatDraft.trim() && !chatStagedFile) || chatInputDisabled} aria-label="Enviar mensagem">
-                            {chatSending || chatUploadingFile ? <span className="fx-spinner" /> : <Icons.Send size={18} />}
-                        </button>
-                    </form>
+                    {/* CAIXA DE ESCRITA (componente próprio: escrever não redesenha o fórum) */}
+                    <ChatComposer
+                        disabled={chatInputDisabled}
+                        busy={chatSending || chatUploadingFile}
+                        stagedFile={chatStagedFile}
+                        onStageFile={setChatStagedFile}
+                        onPaste={handleChatPaste}
+                        onSend={sendChatMessage}
+                        onTyping={emitTypingStatus}
+                    />
                 </section>
             </div>
         </div>
