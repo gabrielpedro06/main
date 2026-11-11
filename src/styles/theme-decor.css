@@ -327,3 +327,29 @@ body.bz-intro-active .bz-decor { opacity: 0; }
 .bz-emb.is-lunar .bz-emb-lantern { width: 32px; height: 50px; }
 .bz-decor-fieis .is-rise .bz-p { opacity: 0.9; }
 .bz-decor-top.is-lanterns .bz-hang > svg { filter: drop-shadow(0 0 5px rgba(251, 191, 36, 0.75)) drop-shadow(0 3px 3px rgba(0, 0, 0, 0.25)); }
+
+/* ---------- DRAGÃO CHINÊS (canto inferior direito, virado para dentro do ecrã) ---------- */
+.bz-decor-dragon { position: absolute; right: 10px; bottom: 6px; width: 420px; height: 130px; transform: translateX(-567px) scale(-1.35, 1.35); transform-origin: bottom right; }
+.bz-decor-dragon svg { filter: drop-shadow(0 0 3px rgba(253, 224, 71, 0.55)) drop-shadow(0 4px 4px rgba(69, 10, 10, 0.3)); }
+.bz-dragon-seg, .bz-dragon-head, .bz-dragon-tail {
+  position: absolute; bottom: 34px;
+  animation: bzDragonWave 2.6s ease-in-out infinite;
+  animation-delay: calc(var(--k) * -0.2s);
+}
+.bz-dragon-seg { width: 40px; height: 50px; transform-origin: 50% 60%; }
+.bz-dragon-tail { left: 0; width: 34px; height: 34px; bottom: 44px; --s: 0.9; }
+.bz-dragon-head { width: 80px; height: 60px; bottom: 30px; --s: 1; animation-name: bzDragonHead; }
+@keyframes bzDragonWave {
+  0%, 100% { transform: translateY(-16px) scale(var(--s, 1)); }
+  50% { transform: translateY(16px) scale(var(--s, 1)); }
+}
+@keyframes bzDragonHead {
+  0%, 100% { transform: translateY(-16px) rotate(-6deg); }
+  50% { transform: translateY(16px) rotate(5deg); }
+}
+.bz-dragon-whisker { transform-origin: 66px 30px; animation: bzSwingSoft 1.6s ease-in-out infinite alternate; }
+.bz-dragon-whisker.b { animation-duration: 2s; }
+.bz-dragon-pearl { position: absolute; bottom: 58px; width: 28px; height: 28px; animation: bzPearl 3s ease-in-out infinite alternate; }
+.bz-dragon-pearl svg { filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.9)); }
+@keyframes bzPearl { from { transform: translate(0, -10px) rotate(-8deg); } to { transform: translate(6px, 10px) rotate(8deg); } }
+@media (max-width: 760px) { .bz-decor-dragon { transform: translateX(-231px) scale(-0.55, 0.55); bottom: 64px; } }

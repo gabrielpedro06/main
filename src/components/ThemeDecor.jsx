@@ -451,6 +451,61 @@ function Stars12() {
   );
 }
 
+// Dragão chinês (canto inferior direito): corpo em segmentos que ondulam em onda (dança do dragão), cabeça e pérola
+function DragonHead() {
+  return (
+    <svg viewBox="0 0 80 60">
+      <path d="M14 22c-8-6-12-14-10-20 4 6 9 8 14 8-2-6 0-10 4-10 0 6 4 9 8 10" fill="#f2b705" />
+      <path d="M8 34c-6 2-8 8-6 12 3-3 6-4 10-3M10 42c-3 5-2 10 2 12 1-4 3-6 7-7" fill="#f2b705" />
+      <path d="M12 32C12 16 28 9 42 12c12 3 22 8 30 14 3 3 0 8-6 8l2 6c-6 7-17 8-26 4-9 5-24 3-30-12z" fill="#d62828" stroke="#fcd34d" strokeWidth="1.6" strokeLinejoin="round" />
+      <path d="M44 14c10 2 19 7 27 13-6 1-12 0-18-3-4-2-7-5-9-10z" fill="#ef4444" />
+      <path d="M40 41c8 3 17 3 24-2" stroke="#7f1d1d" strokeWidth="1.6" fill="none" strokeLinecap="round" />
+      <path d="M46 40l2 4 2-4zM53 40l2 4 2-4zM60 38l2 4 2-4z" fill="#fff" />
+      <path d="M30 12C26 4 18 0 10 2c6 2 10 6 12 12M38 11c-1-6-5-10-11-11 4 3 6 6 6 11" stroke="#f2b705" strokeWidth="3.2" fill="none" strokeLinecap="round" />
+      <ellipse cx="44" cy="22" rx="6" ry="5" fill="#fff" />
+      <circle cx="46" cy="22" r="3" fill="#111827" /><circle cx="47" cy="21" r="1" fill="#fff" />
+      <path d="M36 16c4-3 10-3 14 0" stroke="#f2b705" strokeWidth="2.4" fill="none" strokeLinecap="round" />
+      <circle cx="69" cy="27" r="1.4" fill="#7f1d1d" />
+      <path className="bz-dragon-whisker" d="M66 31c10 4 12 14 4 20-5 4-12 3-16 0" stroke="#f59e0b" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+      <path className="bz-dragon-whisker b" d="M64 24c8-6 16-6 18 0 1 4-2 7-6 7" stroke="#f59e0b" strokeWidth="1.6" fill="none" strokeLinecap="round" />
+      <path d="M22 44c2 6 6 10 12 11-2-4-2-7 0-10" fill="#fbbf24" />
+    </svg>
+  );
+}
+function DragonSegment({ leg }) {
+  return (
+    <svg viewBox="0 0 40 50">
+      <path d="M20 1l6 11H14z" fill="#f2b705" />
+      {leg && <path d="M14 38l-4 10m4-10l1 11m-1-11l6 9" stroke="#f2b705" strokeWidth="2.6" strokeLinecap="round" />}
+      <circle cx="20" cy="26" r="15" fill="#d62828" stroke="#fcd34d" strokeWidth="1.6" />
+      <path d="M8 31c8 8 16 8 24 0-2 6-7 10-12 10S10 37 8 31z" fill="#fbbf24" />
+      <path d="M9 22c3-4 7-4 11 0 4-4 8-4 11 0M12 28c3-3 5-3 8 0 3-3 5-3 8 0" stroke="#f59e0b" strokeWidth="1.4" fill="none" strokeLinecap="round" />
+    </svg>
+  );
+}
+function Dragon() {
+  const N = 14;
+  return (
+    <div className="bz-decor-dragon">
+      <span className="bz-dragon-tail" style={{ "--k": 0 }}>
+        <svg viewBox="0 0 40 40"><path d="M38 20C28 10 14 4 2 8c8 2 12 6 14 10C8 18 2 24 2 32c8-6 18-8 36-12z" fill="#f2b705" /></svg>
+      </span>
+      {Array.from({ length: N }).map((_, k) => (
+        <span key={k} className="bz-dragon-seg" style={{ left: `${22 + k * 19}px`, "--k": k + 1, "--s": (0.5 + 0.5 * (k / (N - 1))).toFixed(2), zIndex: k }}>
+          <DragonSegment leg={k === 4 || k === 10} />
+        </span>
+      ))}
+      <span className="bz-dragon-head" style={{ left: `${22 + N * 19 - 8}px`, "--k": N + 1, zIndex: N + 1 }}><DragonHead /></span>
+      <span className="bz-dragon-pearl" style={{ left: `${22 + N * 19 + 76}px` }}>
+        <svg viewBox="0 0 30 30">
+          <path d="M15 1c4 5 8 6 8 12a8 8 0 0 1-16 0c0-6 4-7 8-12z" fill="#fb923c" opacity="0.75" />
+          <circle cx="15" cy="17" r="7" fill="#fde68a" /><circle cx="13" cy="15" r="2.4" fill="#fff" opacity="0.9" />
+        </svg>
+      </span>
+    </div>
+  );
+}
+
 // ---------- CONFIGURAÇÃO POR DECORAÇÃO ----------
 const SHAPES = {
   snow: Snow, flake: Flake, confetti: Confetti, gold: (p) => <Confetti {...p} palette={GOLD} />,
@@ -478,7 +533,7 @@ const DECOR = {
   fatima: { particles: { shapes: ["rpetal", "rpetal", "star"], count: 16, motion: "spin", size: [9, 16] }, glow: true, topRight: "terco", corner: "fatima" },
   conceicao: { particles: { shapes: ["rpetal", "star"], count: 14, motion: "fall", size: [8, 14] }, glow: true, top: "stars12", corner: "lirios" },
   reis: { particles: { shapes: ["sparkle", "gold"], count: 22, motion: "spin", size: [7, 13] }, topRight: "estrela", corner: "reis" },
-  lunar: { particles: { shapes: ["coin", "redconfetti"], count: 18, motion: "spin", size: [9, 15] }, top: "lanterns" },
+  lunar: { particles: { shapes: ["coin", "redconfetti"], count: 18, motion: "spin", size: [9, 15] }, top: "lanterns", bottomLeft: "dragon" },
 };
 
 // Grinalda / bandeirinhas: arcos ao longo do topo
@@ -710,6 +765,7 @@ export default function ThemeDecor() {
       )}
       {cfg.bottom === "drift" && <div className="bz-decor-drift" />}
       {cfg.corner && <Corner kind={cfg.corner} />}
+      {cfg.bottomLeft === "dragon" && <Dragon />}
     </div>
   );
 }
