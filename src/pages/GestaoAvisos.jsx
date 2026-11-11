@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
+import "../styles/programas.css";
 
 const Icons = {
   Edit: () => (
@@ -68,6 +69,14 @@ const Icons = {
     </svg>
   )
 };
+
+Icons.Check = ({ size = 15 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>;
+Icons.Close = ({ size = 18 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>;
+Icons.Restore = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>;
+Icons.Clock = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>;
+Icons.Doc = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="8" y1="13" x2="16" y2="13" /><line x1="8" y1="17" x2="13" y2="17" /></svg>;
+Icons.Search = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>;
+Icons.Trash = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>;
 
 const ModalPortal = ({ children }) => createPortal(children, document.body);
 
@@ -139,6 +148,7 @@ export default function GestaoAvisos() {
   
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("ativos");
+  const [viewMode, setViewMode] = useState("cards");
   
   const [programaModalOpen, setProgramaModalOpen] = useState(false);
   const [isViewOnly, setIsViewOnly] = useState(false);
@@ -180,7 +190,7 @@ export default function GestaoAvisos() {
   });
 
   const avisosById = useMemo(
-    () => Object.fromEntries(avisos.map((aviso) => [String(avisos.ids), aviso])),
+    () => Object.fromEntries(avisos.map((aviso) => [String(aviso.id), aviso])),
     [avisos]
   );
 
@@ -188,11 +198,6 @@ export default function GestaoAvisos() {
     () => Object.fromEntries(clientes.map((cliente) => [String(cliente.id), cliente])),
     [clientes]
   );
-
-  const getAvisoFasesById = (avisoId) => {
-    if (!avisoId) return [];
-    return normalizeFases(avisosById[String(avisoId)]?.fases || []);
-  };
 
   const getClientDisplayName = (client) => {
     if (!client) return "";
@@ -290,6 +295,7 @@ export default function GestaoAvisos() {
 
   const handleOpenProgramaModal = (programa = null, viewOnly = false) => {
     setCriarNovoAvisoInline(false);
+    setModoAdicaoAviso(false);
     setNovoAvisoCodigo("");
     setNovoAvisoFases([createBlankFase(0)]);
     setIsViewOnly(viewOnly);
@@ -525,277 +531,382 @@ export default function GestaoAvisos() {
     setConfirmModalOpen(true);
   };
 
-  const styles = {
-    pageContainer: { padding: "24px", background: "#fcfbfa", minHeight: "100vh" },
-    headerWrapper: {
-      background: "#ffffff", padding: "20px 28px", borderRadius: "14px", border: "1px solid #eef0f2",
-      boxShadow: "0 4px 10px rgba(0,0,0,0.02)", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px"
-    },
-    headerLeft: { display: "flex", alignItems: "center", gap: "16px" },
-    iconBox: {
-      background: "#f8fafc", border: "1px solid #e2e8f0", width: "46px", height: "46px", borderRadius: "10px",
-      display: "flex", alignItems: "center", justifyContent: "center"
-    },
-    title: { margin: 0, color: "#1a2530", fontSize: "1.45rem", fontWeight: "800" },
-    subtitle: { margin: "2px 0 0 0", color: "#7f8c8d", fontSize: "0.88rem" },
-    headerActionBtn: {
-      background: "var(--color-btnPrimary, #3b82f6)", color: "#ffffff", border: "none", borderRadius: "50px", padding: "12px 24px",
-      display: "inline-flex", alignItems: "center", gap: "8px", fontSize: "0.92rem", fontWeight: "700",
-      cursor: "pointer", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)", transition: "opacity 0.15s",
-    },
-    tabButton: (isActive) => ({
-      background: isActive ? "#ffffff" : "#e4e7eb", color: isActive ? "var(--color-btnPrimary, #3b82f6)" : "#475569",
-      border: "1px solid #eef0f2", borderBottom: isActive ? "1px solid #ffffff" : "1px solid #eef0f2",
-      padding: "8px 20px", borderTopLeftRadius: "10px", borderTopRightRadius: "10px", fontSize: "0.88rem", fontWeight: "700",
-      cursor: "pointer", transition: "all 0.15s"
-    }),
-    searchToolbar: {
-      background: "#ffffff", padding: "12px 16px", borderRadius: "12px", border: "1px solid #eef0f2",
-      boxShadow: "0 2px 6px rgba(0,0,0,0.01)", display: "flex", alignItems: "center", gap: "12px", marginBottom: "28px"
-    },
-    searchContainer: { flex: 1, position: "relative", display: "flex", alignItems: "center" },
-    searchIconWrapper: { position: "absolute", left: "14px", pointerEvents: "none", display: "flex", alignItems: "center" },
-    searchInput: {
-      width: "100%", padding: "11px 14px 11px 40px", border: "1px solid #cbd5e1", borderRadius: "8px",
-      fontSize: "0.92rem", color: "#1e293b", outline: "none", transition: "border-color 0.15s",
-    },
-    toggleWrapper: { display: "flex", background: "#f1f3f5", padding: "3px", borderRadius: "8px", border: "1px solid #e2e8f0" },
-    toggleBtnActive: {
-      background: "#ffffff", color: "var(--color-btnPrimary, #3b82f6)", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.01)",
-      padding: "6px 14px", borderRadius: "6px", fontSize: "0.82rem", fontWeight: "700", cursor: "default"
-    },
-    toggleBtnInactive: { background: "none", border: "none", color: "#6c757d", padding: "6px 14px", fontSize: "0.82rem", fontWeight: "600", cursor: "pointer" },
-    
-    // CORRIGIDO: Fixado em exatamente 4 colunas em ecrãs largos, descendo para 1 em ecrãs muito pequenos (telemóvel)
-    gridCards: { 
-      display: "grid", 
-      gridTemplateColumns: "repeat(auto-fill, minmax(calc(25% - 20px), 1fr))", 
-      gap: "20px" 
-    },
-    
-    cardContainer: {
-      background: "#ffffff", borderRadius: "14px", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.02), 0 1px 3px rgba(0, 0, 0, 0.01)",
-      border: "1px solid #eef0f2", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden",
-    },
-    cardBody: { padding: "24px 20px 76px 20px", flex: 1 },
-    titleRow: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px", marginBottom: "16px" },
-    cardTitle: { fontSize: "1.12rem", fontWeight: "800", color: "#1a2530", margin: 0, lineHeight: "1.3" },
-    infoLine: { display: "flex", alignItems: "center", gap: "8px", fontSize: "0.88rem", color: "#4a5568", marginBottom: "12px", lineHeight: "1.4" },
-    textMuted: { color: "#a0aec0", fontStyle: "italic" },
-    cardFooter: { position: "absolute", bottom: 0, left: 0, right: 0, height: "52px", borderTop: "1px solid #f0f2f5", background: "#fafbfc", display: "flex" },
-    footerMainBtn: { flex: 1, background: "none", border: "none", borderRight: "1px solid #f0f2f5", color: "var(--color-btnPrimary, #3b82f6)", fontWeight: "700", fontSize: "0.9rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" },
-    footerIconBtn: { width: "52px", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" },
-    modalContent: { background: "#ffffff", borderRadius: "16px", boxShadow: "0 24px 38px 3px rgba(0,0,0,0.14)", display: "flex", flexDirection: "column" },
-    sectionTitle: { fontSize: "0.95rem", fontWeight: "700", color: "var(--color-btnPrimary, #3b82f6)", margin: "24px 0 12px 0", paddingBottom: "6px", borderBottom: "2px solid #f1f5f9" },
-    modalOverlay: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0, 0, 0, 0.5)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 },
-    label: { display: "block", marginBottom: "6px", fontSize: "0.85rem", fontWeight: "600", color: "#4a5568" },
-    input: { width: "100%", padding: "10px 12px", border: "1px solid #cbd5e1", borderRadius: "8px", fontSize: "0.9rem", color: "#1e293b", outline: "none", boxSizing: "border-box" }
+  const getPrazoInfo = (prazo) => {
+    if (!prazo) return { tone: "none", label: "Sem data", days: null };
+    const date = new Date(`${prazo}T23:59:59`);
+    if (Number.isNaN(date.getTime())) return { tone: "none", label: String(prazo), days: null };
+    const days = Math.ceil((date.getTime() - Date.now()) / 86400000);
+    if (days < 0) return { tone: "past", label: "Encerrada", days };
+    if (days === 0) return { tone: "urgent", label: "Hoje", days };
+    if (days <= 7) return { tone: "urgent", label: `${days} dia${days === 1 ? "" : "s"}`, days };
+    if (days <= 30) return { tone: "soon", label: `${days} dias`, days };
+    return { tone: "future", label: `${days} dias`, days };
   };
 
-  return (
-    <div style={styles.pageContainer}>
-      
-      {/* 1. HEADER */}
-      <div style={styles.headerWrapper}>
-        <div style={styles.headerLeft}>
-          <div style={styles.iconBox}>
-            <Icons.Briefcase />
+  const getProgramaAvisos = (programa) => (Array.isArray(programa.avisos_ids) ? programa.avisos_ids : (programa.avisos_ids ? [programa.avisos_ids] : []))
+    .map((id) => avisosById[String(id)] || avisos.find((a) => String(a.id) === String(id)))
+    .filter(Boolean);
+
+  const getProximoPrazo = (programa) => {
+    let best = null;
+    getProgramaAvisos(programa).forEach((aviso) => {
+      normalizeFases(aviso.fases).forEach((fase) => {
+        const info = getPrazoInfo(fase.prazo);
+        if (info.days === null || info.days < 0) return;
+        if (!best || info.days < best.info.days) best = { aviso, fase, info };
+      });
+    });
+    return best;
+  };
+
+  const proximosPrazos = useMemo(() => {
+    const list = [];
+    programas.filter((p) => p.ativo !== false).forEach((programa) => {
+      getProgramaAvisos(programa).forEach((aviso) => {
+        normalizeFases(aviso.fases).forEach((fase) => {
+          const info = getPrazoInfo(fase.prazo);
+          if (info.days === null || info.days < 0 || info.days > 60) return;
+          list.push({ key: `${programa.id}-${aviso.id}-${fase.nome}-${fase.prazo}`, programa, aviso, fase, info });
+        });
+      });
+    });
+    return list.sort((a, b) => a.info.days - b.info.days).slice(0, 8);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [programas, avisos]);
+
+  const totalAtivos = programas.filter((p) => p.ativo).length;
+  const totalInativos = programas.filter((p) => !p.ativo).length;
+  const avisosEmUso = new Set(programas.filter((p) => p.ativo).flatMap((p) => (Array.isArray(p.avisos_ids) ? p.avisos_ids : [])).map(String)).size;
+
+  const handleProgramaRestore = async (id) => {
+    try {
+      const { error } = await supabase
+        .from("programas_financiamento")
+        .update({ ativo: true, updated_at: new Date().toISOString() })
+        .eq("id", id);
+      if (error) throw error;
+      showNotification("Programa reativado com sucesso");
+      await loadData();
+    } catch (error) {
+      console.error("Erro ao reativar programa:", error);
+      showNotification("Erro ao reativar programa", "error");
+    }
+  };
+
+  const renderFaseChip = (fase, idx, compact = false) => {
+    const info = getPrazoInfo(fase.prazo);
+    return (
+      <span key={idx} className={`pa-fase is-${info.tone} ${compact ? "is-compact" : ""}`} title={`${fase.nome}: ${formatDatePt(fase.prazo)}`}>
+        <i />
+        <span className="pa-fase-name">{fase.nome}</span>
+        <strong>{formatDatePt(fase.prazo)}</strong>
+        {!compact && info.days !== null && info.days >= 0 && <em>{info.label}</em>}
+      </span>
+    );
+  };
+
+  const renderEstadoSeg = () => (
+    <div className="pa-seg-field">
+      <button
+        type="button"
+        disabled={isViewOnly}
+        className={programaFormData.ativo ? "is-on is-yes" : ""}
+        onClick={() => handleProgramaInputChange({ target: { name: 'ativo', type: 'checkbox', checked: true } })}
+      >
+        <Icons.Check /> Ativo
+      </button>
+      <button
+        type="button"
+        disabled={isViewOnly}
+        className={!programaFormData.ativo ? "is-on is-no" : ""}
+        onClick={() => handleProgramaInputChange({ target: { name: 'ativo', type: 'checkbox', checked: false } })}
+      >
+        <Icons.Close size={14} /> Inativo
+      </button>
+    </div>
+  );
+
+  const renderFaseEditor = (fases, onChange, onRemove, onAdd, addLabel = "+ Adicionar Fase") => (
+    <div className="pa-fase-editor">
+      {fases.map((fase, idx) => {
+        const info = getPrazoInfo(fase.prazo);
+        return (
+          <div key={idx} className="pa-fase-row">
+            <span className={`pa-fase-num is-${info.tone}`}>{idx + 1}</span>
+            <input
+              type="text"
+              className="pa-input"
+              value={fase.nome}
+              onChange={(e) => onChange(idx, "nome", e.target.value)}
+              placeholder={`Fase ${idx + 1}`}
+            />
+            <input
+              type="date"
+              className="pa-input"
+              value={fase.prazo}
+              onChange={(e) => onChange(idx, "prazo", e.target.value)}
+            />
+            <span className={`pa-fase-badge is-${info.tone}`}>{info.days !== null && info.days >= 0 ? info.label : info.tone === "past" ? "Encerrada" : "—"}</span>
+            <button type="button" className="pa-icon-btn is-danger" onClick={() => onRemove(idx)} disabled={fases.length === 1} title="Remover fase">
+              <Icons.Trash />
+            </button>
           </div>
-          <div>
-            <h1 style={styles.title}>Programas & Avisos</h1>
-            <p style={styles.subtitle}>Gestão de linhas de financiamento ativas e submissão de candidaturas</p>
+        );
+      })}
+      <button type="button" className="pa-add-line" onClick={onAdd}>{addLabel}</button>
+    </div>
+  );
+
+  return (
+    <div className="pa-page">
+
+      {/* 1. HEADER */}
+      <header className="pa-hero">
+        <div className="pa-hero-bg"><span className="pa-orb pa-orb-a" /><span className="pa-orb pa-orb-b" /></div>
+        <div className="pa-hero-row">
+          <div className="pa-hero-main">
+            <span className="pa-hero-icon"><Icons.Briefcase /></span>
+            <div>
+              <h1>Programas & Avisos</h1>
+              <p>Gestão de linhas de financiamento ativas e submissão de candidaturas</p>
+            </div>
+          </div>
+          <button className="pa-cta" type="button" onClick={() => handleOpenProgramaModal(null, false)}>
+            <Icons.Plus /> Novo Programa
+          </button>
+        </div>
+        <div className="pa-hero-tools">
+          {/* 2. ABAS DE FILTRAGEM */}
+          <div className="pa-scope" role="tablist">
+            <button type="button" className={activeTab === "ativos" ? "is-on" : ""} onClick={() => setActiveTab("ativos")}>
+              Ativos <em>{totalAtivos}</em>
+            </button>
+            <button type="button" className={activeTab === "inativos" ? "is-on" : ""} onClick={() => setActiveTab("inativos")}>
+              Inativos <em>{totalInativos}</em>
+            </button>
+          </div>
+          <div className="pa-hero-stats">
+            <span className="pa-stat"><strong>{avisosEmUso}</strong> avisos em uso</span>
+            <span className={`pa-stat ${proximosPrazos.some((p) => p.info.days <= 7) ? "is-alert" : ""}`}><strong>{proximosPrazos.filter((p) => p.info.days <= 30).length}</strong> prazos nos próximos 30 dias</span>
           </div>
         </div>
-        <button 
-          style={styles.headerActionBtn} 
-          type="button" 
-          onClick={() => handleOpenProgramaModal(null, false)}
-          onMouseOver={(e) => e.currentTarget.style.opacity = "0.9"}
-          onMouseOut={(e) => e.currentTarget.style.opacity = "1"}
-        >
-          <Icons.Plus /> Novo Programa
-        </button>
-      </div>
-
-      {/* 2. ABAS DE FILTRAGEM */}
-      <div style={styles.tabsContainer}>
-        <button 
-          style={styles.tabButton(activeTab === "ativos")} 
-          onClick={() => setActiveTab("ativos")}
-        >
-          Ativos ({programas.filter(p => p.ativo).length})
-        </button>
-        <button 
-          style={styles.tabButton(activeTab === "inativos")} 
-          onClick={() => setActiveTab("inativos")}
-        >
-          Inativos ({programas.filter(p => !p.ativo).length})
-        </button>
-      </div>
+      </header>
 
       {/* 3. BARRA DE FERRAMENTAS */}
-      <div style={styles.searchToolbar}>
-        <div style={styles.searchContainer}>
-          <div style={styles.searchIconWrapper}>
-            <Icons.Search />
-          </div>
-          <input 
+      <div className="pa-toolbar">
+        <label className="pa-search">
+          <Icons.Search />
+          <input
             type="text"
             placeholder="Procurar por Programa, Sigla ou Código..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            style={styles.searchInput}
-            onFocus={(e) => e.currentTarget.style.borderColor = "var(--color-btnPrimary, #3b82f6)"}
-            onBlur={(e) => e.currentTarget.style.borderColor = "#cbd5e1"}
           />
-        </div>
-        <div style={styles.toggleWrapper}>
-          <div style={styles.toggleBtnActive}>Cards</div>
-          <button type="button" style={styles.toggleBtnInactive} onClick={() => alert('Modo lista indisponível')}>Lista</button>
+          {searchQuery ? <button type="button" className="pa-search-clear" onClick={() => setSearchQuery("")} aria-label="Limpar"><Icons.Close size={12} /></button> : null}
+        </label>
+        <div className="pa-seg">
+          <button type="button" className={viewMode === "cards" ? "is-on" : ""} onClick={() => setViewMode("cards")}>Cards</button>
+          <button type="button" className={viewMode === "list" ? "is-on" : ""} onClick={() => setViewMode("list")}>Lista</button>
         </div>
       </div>
 
+      {/* PRÓXIMOS PRAZOS */}
+      {!loading && activeTab === "ativos" && proximosPrazos.length > 0 && (
+        <section className="pa-deadlines">
+          <div className="pa-deadlines-head">
+            <span className="pa-deadlines-ico"><Icons.Clock /></span>
+            <strong>Próximos prazos</strong>
+            <span>nos próximos 60 dias</span>
+          </div>
+          <div className="pa-deadlines-list">
+            {proximosPrazos.map((item) => (
+              <button key={item.key} type="button" className={`pa-deadline is-${item.info.tone}`} onClick={() => handleOpenAvisoModal(item.aviso.id)}>
+                <span className="pa-deadline-days"><strong>{item.info.days === 0 ? "Hoje" : item.info.days}</strong>{item.info.days === 0 ? null : <small>{item.info.days === 1 ? "dia" : "dias"}</small>}</span>
+                <span className="pa-deadline-text">
+                  <strong>{item.fase.nome}</strong>
+                  <span>{item.aviso.codigo} · {item.programa.codigo || item.programa.nome}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* LISTAGEM DOS CARDS */}
       {loading ? (
-        <div style={{ textAlign: "center", padding: "60px", color: "#7f8c8d" }}>A carregar programas...</div>
+        <div className="pa-loading"><span className="pa-spinner" /> A carregar programas...</div>
       ) : filteredProgramas.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "60px", background: "#fff", borderRadius: "12px", border: "1px solid #eef0f2" }}>
-          <p style={{ color: "#7f8c8d", margin: 0 }}>Nenhum programa corresponde aos critérios selecionados.</p>
+        <div className="pa-empty">
+          <span className="pa-empty-ico"><Icons.Briefcase /></span>
+          <p>Nenhum programa corresponde aos critérios selecionados.</p>
+          {searchQuery ? <button type="button" className="pa-btn is-soft" onClick={() => setSearchQuery("")}>Limpar pesquisa</button> : null}
+        </div>
+      ) : viewMode === "list" ? (
+        <div className="pa-table-card">
+          <div className="pa-table-wrap">
+            <table className="pa-table">
+              <thead>
+                <tr>
+                  <th>Programa</th>
+                  <th>Entidade Financiadora</th>
+                  <th>Incentivo (%)</th>
+                  <th>Investimento Mínimo (€)</th>
+                  <th>Avisos Associados</th>
+                  <th>Próximo prazo</th>
+                  <th style={{ textAlign: "right" }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredProgramas.map((programa, index) => {
+                  const topColor = CARD_TOP_COLORS[index % CARD_TOP_COLORS.length];
+                  const proximo = getProximoPrazo(programa);
+                  const avisosDoPrograma = getProgramaAvisos(programa);
+                  return (
+                    <tr key={programa.id} className={programa.ativo ? "" : "is-off"} style={{ "--c": topColor }} onDoubleClick={() => handleOpenProgramaModal(programa, true)}>
+                      <td>
+                        <div className="pa-row-name">
+                          <span className="pa-mono">{(programa.codigo || programa.nome || "?").slice(0, 3).toUpperCase()}</span>
+                          <div>
+                            <strong>{programa.nome}</strong>
+                            {programa.codigo && <small>{programa.codigo}</small>}
+                          </div>
+                        </div>
+                      </td>
+                      <td>{programa.entidade_financiadora_id ? getClientDisplayName(clientesById[String(programa.entidade_financiadora_id)]) : <span className="pa-nil">—</span>}</td>
+                      <td><span className="pa-pct">{formatNumber(programa.pct)}%</span></td>
+                      <td>{programa.investimento_minimo > 0 ? `${formatNumber(programa.investimento_minimo)} €` : <span className="pa-nil">—</span>}</td>
+                      <td>
+                        <div className="pa-row-avisos">
+                          {avisosDoPrograma.length === 0 ? <span className="pa-nil">—</span> : avisosDoPrograma.slice(0, 3).map((a) => <span key={a.id} className="pa-aviso-code">{a.codigo}</span>)}
+                          {avisosDoPrograma.length > 3 && <span className="pa-aviso-more">+{avisosDoPrograma.length - 3}</span>}
+                        </div>
+                      </td>
+                      <td>
+                        {proximo ? (
+                          <span className={`pa-next is-${proximo.info.tone}`}><i />{proximo.fase.nome} · {formatDatePt(proximo.fase.prazo)} <em>{proximo.info.label}</em></span>
+                        ) : <span className="pa-nil">—</span>}
+                      </td>
+                      <td>
+                        <div className="pa-row-actions">
+                          <button type="button" className="pa-icon-btn" title="Ver Detalhes" onClick={() => handleOpenProgramaModal(programa, true)}><Icons.CardEye /></button>
+                          <button type="button" className="pa-icon-btn is-edit" title="Editar Programa" onClick={() => handleOpenProgramaModal(programa, false)}><Icons.Edit /></button>
+                          {programa.ativo ? (
+                            <button type="button" className="pa-icon-btn is-danger" title="Arquivar (Mover para Inativos)" onClick={() => handleProgramaArchive(programa.id)}><Icons.Archive /></button>
+                          ) : (
+                            <button type="button" className="pa-icon-btn is-ok" title="Reativar programa" onClick={() => handleProgramaRestore(programa.id)}><Icons.Restore /></button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       ) : (
-        <div style={styles.gridCards}>
+        <div className="pa-grid">
           {filteredProgramas.map((programa, index) => {
             const topColor = CARD_TOP_COLORS[index % CARD_TOP_COLORS.length];
-            const fasesDoAviso = getAvisoFasesById(programa.avisos_ids);
+            const avisosDoPrograma = getProgramaAvisos(programa);
+            const pct = Math.max(0, Math.min(100, Number(programa.pct) || 0));
 
             return (
-              <div 
-                key={programa.id} 
-                style={{ 
-                  ...styles.cardContainer, 
-                  borderTop: `5px solid ${topColor}`,
-                  opacity: programa.ativo ? 1 : 0.6 
-                }}
+              <article
+                key={programa.id}
+                className={`pa-card ${programa.ativo ? "" : "is-off"}`}
+                style={{ "--c": topColor, "--i": Math.min(index, 12) }}
+                onDoubleClick={() => handleOpenProgramaModal(programa, true)}
               >
-                <div style={styles.cardBody}>
-                  <div style={styles.titleRow}>
-                    <h2 style={styles.cardTitle}>{programa.nome}</h2>
+                <div className="pa-card-top">
+                  <div className="pa-ring" style={{ "--p": pct }}>
+                    <svg viewBox="0 0 44 44"><circle cx="22" cy="22" r="18" /><circle cx="22" cy="22" r="18" className="pa-ring-fg" /></svg>
+                    <span>{formatNumber(programa.pct)}<small>%</small></span>
                   </div>
+                  <div className="pa-card-title">
+                    {programa.codigo && <span className="pa-code">{programa.codigo}</span>}
+                    <h2>{programa.nome}</h2>
+                    {!programa.ativo && <span className="pa-badge-off">INATIVO</span>}
+                  </div>
+                </div>
 
-                  {Array.isArray(programa.avisos_ids) && programa.avisos_ids.length > 0 && (
-                    <div style={{ marginTop: "8px", marginBottom: "16px", display: "flex", flexDirection: "column", gap: "8px" }}>
-                      
-                      {/* MOSTRA APENAS OS PRIMEIROS 2 AVISOS (slice(0, 2)) */}
-                      {programa.avisos_ids.slice(0, 2).map(avisoId => {
-                        const idString = String(avisoId);
-                        const avisoObj = avisosById[idString] || avisos.find(a => String(a.id) === idString);
-                        
-                        if (!avisoObj) return null;
-
-                        // Usamos a mesma função à prova de bala que usámos no modal!
-                        const fasesDoAviso = normalizeFases(avisoObj.fases);
-
-                        return (
-                          <div key={idString} style={{ padding: "8px 12px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: fasesDoAviso.length > 0 ? "6px" : "0" }}>
-                              <div style={{ display: "inline-flex", gap: "4px", fontSize: "0.75rem", fontWeight: "700", color: "#64748b", textTransform: "uppercase" }}>
-                                AVISO: <span style={{ color: "var(--color-btnPrimary, #3b82f6)" }}>{avisoObj.codigo}</span>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={(e) => { 
-                                  e.stopPropagation(); // Previne que o clique dispare outras ações do card
-                                  handleOpenAvisoModal(idString); 
-                                }}
-                                style={{ background: "none", border: "none", color: "var(--color-btnPrimary, #3b82f6)", fontSize: "0.75rem", fontWeight: "700", cursor: "pointer", padding: 0, textDecoration: "underline" }}
-                              >
-                                Gerir
-                              </button>
-                            </div>
-                            
-                            {fasesDoAviso.length > 0 && (
-                              <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
-                                {fasesDoAviso.map((fase, idx) => (
-                                  <span key={idx} style={{ background: "#ffffff", padding: "2px 6px", borderRadius: "4px", fontSize: "0.7rem", border: "1px solid #cbd5e1", color: "#334155" }}>
-                                    {fase.nome}: <strong>{formatDatePt(fase.prazo)}</strong>
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-
-                      {/* INDICADOR DE EXCESSO ("+ X avisos") */}
-                      {programa.avisos_ids.length > 2 && (
-                        <div style={{ 
-                          fontSize: "0.75rem", 
-                          fontWeight: "700", 
-                          color: "#64748b", 
-                          background: "#f1f5f9", 
-                          padding: "6px 12px", 
-                          borderRadius: "6px", 
-                          textAlign: "center",
-                          border: "1px dashed #cbd5e1"
-                        }}>
-                          E mais {programa.avisos_ids.length - 2} aviso{programa.avisos_ids.length - 2 > 1 ? 's' : ''} associado{programa.avisos_ids.length - 2 > 1 ? 's' : ''}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  <div style={styles.infoLine}>
-                    <span style={{ display: "flex" }}><Icons.CardIncentivo /></span>
+                <div className="pa-card-info">
+                  <div>
+                    <Icons.CardIncentivo />
                     <span>
-                      Incentivo: <strong style={{ color: "#2a9d8f" }}>{formatNumber(programa.pct)}%</strong>
+                      Incentivo: <strong className="is-green">{formatNumber(programa.pct)}%</strong>
                       {programa.investimento_minimo > 0 && (
-                        <> · Mín: <span style={{ color: "#0077b6", fontWeight: "600" }}>{formatNumber(programa.investimento_minimo)} €</span></>
+                        <> · Mín: <strong className="is-blue">{formatNumber(programa.investimento_minimo)} €</strong></>
                       )}
                     </span>
                   </div>
-
-                  <div style={styles.infoLine}>
-                    <span style={{ display: "flex" }}><Icons.CardUser /></span>
+                  <div>
+                    <Icons.CardUser />
                     {programa.entidade_financiadora_id ? (
                       <span>{getClientDisplayName(clientesById[String(programa.entidade_financiadora_id)])}</span>
                     ) : (
-                      <span style={styles.textMuted}>Sem entidade financiadora</span>
+                      <span className="pa-muted">Sem entidade financiadora</span>
                     )}
                   </div>
                 </div>
 
-                <div style={styles.cardFooter}>
-                  <button 
-                    style={styles.footerMainBtn} 
-                    type="button"
-                    onClick={() => handleOpenProgramaModal(programa, true)}
-                    onMouseOver={(e) => e.currentTarget.style.background = "var(--color-bgSecondary, #f8fafc)"}
-                    onMouseOut={(e) => e.currentTarget.style.background = "none"}
-                  >
-                    <span style={{ display: "flex" }}><Icons.CardEye /></span> Ver Detalhes
+                {avisosDoPrograma.length > 0 && (
+                  <div className="pa-card-avisos">
+                    {/* MOSTRA APENAS OS PRIMEIROS 2 AVISOS */}
+                    {avisosDoPrograma.slice(0, 2).map((avisoObj) => {
+                      const idString = String(avisoObj.id);
+                      const fasesDoAviso = normalizeFases(avisoObj.fases);
+                      return (
+                        <div key={idString} className="pa-aviso">
+                          <div className="pa-aviso-head">
+                            <span className="pa-aviso-label">AVISO: <b>{avisoObj.codigo}</b></span>
+                            <button
+                              type="button"
+                              className="pa-link"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenAvisoModal(idString);
+                              }}
+                            >
+                              Gerir
+                            </button>
+                          </div>
+                          {fasesDoAviso.length > 0 && (
+                            <div className="pa-fases">
+                              {fasesDoAviso.map((fase, idx) => renderFaseChip(fase, idx, true))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+
+                    {/* INDICADOR DE EXCESSO ("+ X avisos") */}
+                    {avisosDoPrograma.length > 2 && (
+                      <div className="pa-aviso-extra">
+                        E mais {avisosDoPrograma.length - 2} aviso{avisosDoPrograma.length - 2 > 1 ? 's' : ''} associado{avisosDoPrograma.length - 2 > 1 ? 's' : ''}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="pa-card-foot">
+                  <button className="pa-card-main" type="button" onClick={() => handleOpenProgramaModal(programa, true)}>
+                    <Icons.CardEye /> Ver Detalhes
                   </button>
-                  <button 
-                    style={{ ...styles.footerIconBtn, borderRight: "1px solid #f0f2f5" }} 
-                    type="button"
-                    title="Editar Programa"
-                    onClick={() => handleOpenProgramaModal(programa, false)}
-                    onMouseOver={(e) => e.currentTarget.style.background = "#fff7ed"}
-                    onMouseOut={(e) => e.currentTarget.style.background = "none"}
-                  >
-                    <span style={{ color: "#c2410c", display: "flex" }}><Icons.Edit /></span>
+                  <button className="pa-icon-btn is-edit" type="button" title="Editar Programa" onClick={() => handleOpenProgramaModal(programa, false)}>
+                    <Icons.Edit />
                   </button>
-                  <button 
-                    style={styles.footerIconBtn} 
-                    type="button"
-                    title="Arquivar (Mover para Inativos)"
-                    onClick={() => handleProgramaArchive(programa.id)}
-                    onMouseOver={(e) => e.currentTarget.style.background = "#fee2e2"}
-                    onMouseOut={(e) => e.currentTarget.style.background = "none"}
-                  >
-                    <span style={{ color: "#ef4444", display: "flex" }}><Icons.Archive /></span>
-                  </button>
+                  {programa.ativo ? (
+                    <button className="pa-icon-btn is-danger" type="button" title="Arquivar (Mover para Inativos)" onClick={() => handleProgramaArchive(programa.id)}>
+                      <Icons.Archive />
+                    </button>
+                  ) : (
+                    <button className="pa-icon-btn is-ok" type="button" title="Reativar programa" onClick={() => handleProgramaRestore(programa.id)}>
+                      <Icons.Restore />
+                    </button>
+                  )}
                 </div>
-              </div>
+              </article>
             );
           })}
         </div>
@@ -804,185 +915,121 @@ export default function GestaoAvisos() {
       {/* MODAL PROGRAMA */}
       {programaModalOpen && (
         <ModalPortal>
-          <div style={{ ...styles.modalOverlay, zIndex: 1050 }} onClick={handleCloseAvisoModal}>
-            <div
-              style={{ ...styles.modalContent, width: "1100px", maxWidth: "95vw", maxHeight: "90vh", overflow: "hidden" }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderBottom: "1px solid #f1f5f9" }}>
-                <h3 style={{ margin: 0, color: "#1e293b" }}>
-                  {isViewOnly ? "Detalhes do Programa de Financiamento" : editingProgramaId ? "Editar Programa de Financiamento" : "Novo Programa de Financiamento"}
-                </h3>
-                <button
-                  type="button"
-                  onClick={handleCloseProgramaModal}
-                  style={{ cursor: "pointer", border: "none", background: "none", fontSize: "1.5rem", color: "#94a3b8" }}
-                >
-                  ×
-                </button>
+          <div className="pa-overlay" onClick={handleCloseProgramaModal}>
+            <div className="pa-modal is-wide" onClick={(e) => e.stopPropagation()}>
+              <div className="pa-modal-head">
+                <span className="pa-modal-ico"><Icons.Briefcase /></span>
+                <div className="pa-modal-title">
+                  <span>{isViewOnly ? "Detalhes" : editingProgramaId ? "Editar" : "Novo"}</span>
+                  <h3>{isViewOnly ? "Detalhes do Programa de Financiamento" : editingProgramaId ? "Editar Programa de Financiamento" : "Novo Programa de Financiamento"}</h3>
+                  {editingProgramaId && (programaFormData.codigo || programaFormData.nome) ? (
+                    <div className="pa-modal-chips">
+                      {programaFormData.codigo && <span>{programaFormData.codigo}</span>}
+                      {programaFormData.pct > 0 && <span>{formatNumber(programaFormData.pct)}% incentivo</span>}
+                      <span className={programaFormData.ativo ? "is-on" : "is-off"}>{programaFormData.ativo ? "Ativo" : "Inativo"}</span>
+                    </div>
+                  ) : null}
+                </div>
+                <button type="button" className="pa-modal-close" onClick={handleCloseProgramaModal} aria-label="Fechar"><Icons.Close /></button>
               </div>
 
-              <div style={{ padding: "24px", overflowY: "auto" }}>
-                <form onSubmit={handleProgramaSubmit}>
-                  
-                  <div style={styles.sectionTitle}>Identificação Geral</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: "16px", marginBottom: "16px" }}>
-                    <div>
-                      <label style={styles.label}>Nome do Programa</label>
-                      <input
-                        type="text"
-                        name="nome"
-                        disabled={isViewOnly}
-                        value={programaFormData.nome}
-                        onChange={handleProgramaInputChange}
-                        placeholder="ex. Compete 2030"
-                        style={styles.input}
-                      />
-                    </div>
-                    <div>
-                      <label style={styles.label}>Sigla / Código</label>
-                      <input
-                        type="text"
-                        name="codigo"
-                        disabled={isViewOnly}
-                        value={programaFormData.codigo}
-                        onChange={handleProgramaInputChange}
-                        placeholder="ex. COMPETE-2025-10"
-                        style={styles.input}
-                      />
-                    </div>
-                    <div>
-                      <label style={styles.label}>Entidade Financiadora</label>
-                      <select
-                        name="entidade_financiadora_id"
-                        disabled={isViewOnly}
-                        value={programaFormData.entidade_financiadora_id}
-                        onChange={handleProgramaInputChange}
-                        style={styles.input}
-                      >
-                        <option value="">— Selecionar organismo —</option>
-                        {organismos.map((organismo) => (
-                          <option key={organismo.id} value={organismo.id}>
-                            {getClientSelectName(organismo)}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
+              <form onSubmit={handleProgramaSubmit} className={`pa-modal-form ${isViewOnly ? "is-reading" : ""}`}>
+                <div className="pa-modal-body">
 
-                  <div style={styles.sectionTitle}>Condições Financeiras & Geográficas</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "16px", marginBottom: "16px" }}>
-                    <div>
-                      <label style={styles.label}>Incentivo (%)</label>
-                      <input
-                        type="text"
-                        name="pct"
-                        disabled={isViewOnly}
-                        value={programaFormData.pct === 0 ? "" : formatNumber(programaFormData.pct)}
-                        onChange={(e) => handleFormattedNumberChange(e, "pct")}
-                        placeholder="0"
-                        style={styles.input}
-                      />
+                  <section className="pa-fcard">
+                    <div className="pa-fcard-title"><span className="pa-fcard-ico"><Icons.Briefcase size={15} /></span> Identificação Geral</div>
+                    <div className="pa-grid-form" style={{ gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr)" }}>
+                      <div className="pa-field">
+                        <label>Nome do Programa</label>
+                        <input type="text" name="nome" className="pa-input" disabled={isViewOnly} value={programaFormData.nome} onChange={handleProgramaInputChange} placeholder="ex. Compete 2030" />
+                      </div>
+                      <div className="pa-field">
+                        <label>Sigla / Código</label>
+                        <input type="text" name="codigo" className="pa-input" disabled={isViewOnly} value={programaFormData.codigo} onChange={handleProgramaInputChange} placeholder="ex. COMPETE-2025-10" />
+                      </div>
+                      <div className="pa-field">
+                        <label>Entidade Financiadora</label>
+                        <select name="entidade_financiadora_id" className="pa-input" disabled={isViewOnly} value={programaFormData.entidade_financiadora_id} onChange={handleProgramaInputChange}>
+                          <option value="">— Selecionar organismo —</option>
+                          {organismos.map((organismo) => (
+                            <option key={organismo.id} value={organismo.id}>
+                              {getClientSelectName(organismo)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
-                    <div>
-                      <label style={styles.label}>Tipo de Incentivo</label>
-                      <select
-                        name="tipo_incentivo"
-                        disabled={isViewOnly}
-                        value={programaFormData.tipo_incentivo}
-                        onChange={handleProgramaInputChange}
-                        style={styles.input}
-                      >
-                        {TIPO_INCENTIVO_OPTIONS.map((tipo) => (
-                          <option key={tipo} value={tipo}>{tipo}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label style={styles.label}>Investimento Mínimo (€)</label>
-                      <input
-                        type="text" 
-                        name="investimento_minimo"
-                        disabled={isViewOnly}
-                        value={programaFormData.investimento_minimo === 0 ? "" : formatNumber(programaFormData.investimento_minimo)}
-                        onChange={(e) => handleFormattedNumberChange(e, "investimento_minimo")}
-                        placeholder="0"
-                        style={styles.input}
-                      />
-                    </div>
-                    <div>
-                      <label style={styles.label}>Área Geográfica</label>
-                      <input
-                        type="text"
-                        name="area_geografica"
-                        disabled={isViewOnly}
-                        value={programaFormData.area_geografica}
-                        onChange={handleProgramaInputChange}
-                        placeholder="Área de aplicação..."
-                        style={styles.input}
-                      />
-                    </div>
-                  </div>
+                  </section>
 
-                  <div style={styles.sectionTitle}>Avisos Associados</div>
-                  <div style={{ background: "#f8fafc", padding: "16px", borderRadius: "12px", border: "1px solid #e2e8f0", marginBottom: "16px" }}>
-                    
-                    {/* LISTA DE AVISOS JÁ SELECIONADOS (MINI-CARDS) */}
-                      <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: Array.isArray(programaFormData.avisos_ids) && programaFormData.avisos_ids.length > 0 ? "16px" : "0" }}>
-                        
-                        {(!Array.isArray(programaFormData.avisos_ids) || programaFormData.avisos_ids.length === 0) && !modoAdicaoAviso && !criarNovoAvisoInline && (
-                          <span style={{ fontSize: "0.85rem", color: "#64748b" }}>Nenhum aviso associado a este programa.</span>
-                        )}
-                        
+                  <section className="pa-fcard">
+                    <div className="pa-fcard-title"><span className="pa-fcard-ico is-green"><Icons.CardIncentivo /></span> Condições Financeiras & Geográficas</div>
+                    <div className="pa-grid-form is-4">
+                      <div className="pa-field">
+                        <label>Incentivo (%)</label>
+                        <div className="pa-input-suffix">
+                          <input type="text" name="pct" className="pa-input" disabled={isViewOnly} value={programaFormData.pct === 0 ? "" : formatNumber(programaFormData.pct)} onChange={(e) => handleFormattedNumberChange(e, "pct")} placeholder="0" />
+                          <span>%</span>
+                        </div>
+                      </div>
+                      <div className="pa-field">
+                        <label>Tipo de Incentivo</label>
+                        <select name="tipo_incentivo" className="pa-input" disabled={isViewOnly} value={programaFormData.tipo_incentivo} onChange={handleProgramaInputChange}>
+                          {TIPO_INCENTIVO_OPTIONS.map((tipo) => (
+                            <option key={tipo} value={tipo}>{tipo}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="pa-field">
+                        <label>Investimento Mínimo (€)</label>
+                        <div className="pa-input-suffix">
+                          <input type="text" name="investimento_minimo" className="pa-input" disabled={isViewOnly} value={programaFormData.investimento_minimo === 0 ? "" : formatNumber(programaFormData.investimento_minimo)} onChange={(e) => handleFormattedNumberChange(e, "investimento_minimo")} placeholder="0" />
+                          <span>€</span>
+                        </div>
+                      </div>
+                      <div className="pa-field">
+                        <label>Área Geográfica</label>
+                        <input type="text" name="area_geografica" className="pa-input" disabled={isViewOnly} value={programaFormData.area_geografica} onChange={handleProgramaInputChange} placeholder="Área de aplicação..." />
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="pa-fcard">
+                    <div className="pa-fcard-title">
+                      <span className="pa-fcard-ico is-blue"><Icons.Clock /></span> Avisos Associados
+                      <em className="pa-count">{(Array.isArray(programaFormData.avisos_ids) ? programaFormData.avisos_ids : []).length}</em>
+                    </div>
+
+                    {/* LISTA DE AVISOS JÁ SELECIONADOS */}
+                    {(!Array.isArray(programaFormData.avisos_ids) || programaFormData.avisos_ids.length === 0) && !modoAdicaoAviso && !criarNovoAvisoInline && (
+                      <div className="pa-inline-empty">Nenhum aviso associado a este programa.</div>
+                    )}
+
+                    {(Array.isArray(programaFormData.avisos_ids) ? programaFormData.avisos_ids : []).length > 0 && (
+                      <div className="pa-avisos-edit">
                         {(Array.isArray(programaFormData.avisos_ids) ? programaFormData.avisos_ids : []).map(id => {
                           const idString = String(id);
                           const aviso = avisosById[idString] || avisos.find(a => String(a.id) === idString);
                           const fasesDoAviso = normalizeFases(aviso?.fases);
-                          
+
                           return (
-                            <div key={idString} style={{ 
-                              background: "#ffffff", 
-                              border: "1px solid #bae6fd", 
-                              borderRadius: "8px", 
-                              padding: "12px 14px", 
-                              display: "flex", 
-                              flexDirection: "column", 
-                              gap: "10px",
-                              boxShadow: "0 1px 2px rgba(0,0,0,0.02)"
-                            }}>
-                              {/* CABEÇALHO DO AVISO */}
-                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                                  <span style={{ background: "#e0f2fe", color: "#0369a1", padding: "4px 8px", borderRadius: "6px", fontSize: "0.8rem", fontWeight: "700" }}>
-                                    {aviso ? aviso.codigo : `Aviso Guardado`}
-                                  </span>
-                                </div>
-                                
+                            <div key={idString} className="pa-aviso is-big">
+                              <div className="pa-aviso-head">
+                                <span className="pa-aviso-code">{aviso ? aviso.codigo : `Aviso Guardado`}</span>
                                 {!isViewOnly && (
-                                  <div style={{ display: "flex", gap: "8px" }}>
-                                    <button 
-                                      type="button" 
-                                      title="Editar/Gerir este aviso"
-                                      onClick={() => handleOpenAvisoModal(idString)}
-                                      style={{ background: "#f8fafc", border: "1px solid #cbd5e1", color: "var(--color-btnPrimary, #3b82f6)", cursor: "pointer", width: "26px", height: "26px", borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center" }}
-                                      onMouseOver={(e) => e.currentTarget.style.background = "#e2e8f0"}
-                                      onMouseOut={(e) => e.currentTarget.style.background = "#f8fafc"}
-                                    >
+                                  <div className="pa-aviso-actions">
+                                    <button type="button" title="Editar/Gerir este aviso" className="pa-icon-btn is-edit" onClick={() => handleOpenAvisoModal(idString)}>
                                       <Icons.Edit />
                                     </button>
-                                    
-                                    <button 
-                                      type="button" 
+                                    <button
+                                      type="button"
                                       title="Remover aviso do programa"
-                                      onClick={() => setProgramaFormData(prev => ({ 
-                                        ...prev, 
+                                      className="pa-icon-btn is-danger"
+                                      onClick={() => setProgramaFormData(prev => ({
+                                        ...prev,
                                         avisos_ids: Array.isArray(prev.avisos_ids) ? prev.avisos_ids.filter(aId => String(aId) !== idString) : []
                                       }))}
-                                      style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#ef4444", cursor: "pointer", width: "26px", height: "26px", borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem", lineHeight: 1 }}
-                                      onMouseOver={(e) => e.currentTarget.style.background = "#fee2e2"}
-                                      onMouseOut={(e) => e.currentTarget.style.background = "#fef2f2"}
                                     >
-                                      ×
+                                      <Icons.Close size={14} />
                                     </button>
                                   </div>
                                 )}
@@ -990,242 +1037,124 @@ export default function GestaoAvisos() {
 
                               {/* FASES DO AVISO */}
                               {fasesDoAviso.length > 0 ? (
-                                <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-                                  {fasesDoAviso.map((fase, idx) => (
-                                    <span key={idx} style={{ background: "#f8fafc", padding: "4px 8px", borderRadius: "6px", fontSize: "0.75rem", border: "1px solid #e2e8f0", color: "#475569" }}>
-                                      {fase.nome}: <strong>{formatDatePt(fase.prazo)}</strong>
-                                    </span>
-                                  ))}
+                                <div className="pa-fases">
+                                  {fasesDoAviso.map((fase, idx) => renderFaseChip(fase, idx))}
                                 </div>
                               ) : (
-                                <span style={{ fontSize: "0.75rem", color: "#94a3b8", fontStyle: "italic" }}>Sem fases configuradas para este aviso.</span>
+                                <span className="pa-muted">Sem fases configuradas para este aviso.</span>
                               )}
                             </div>
                           );
                         })}
                       </div>
+                    )}
 
                     {/* BOTÃO PRINCIPAL: ADICIONAR */}
                     {!isViewOnly && !modoAdicaoAviso && !criarNovoAvisoInline && (
-                      <button 
-                        type="button" 
-                        onClick={() => setModoAdicaoAviso(true)} 
-                        style={{ ...styles.headerActionBtn, background: "#ffffff", color: "var(--color-btnPrimary, #3b82f6)", border: "1px dashed #cbd5e1", boxShadow: "none", width: "100%", justifyContent: "center", padding: "10px" }}
-                      >
+                      <button type="button" className="pa-add-line" onClick={() => setModoAdicaoAviso(true)}>
                         <Icons.Plus /> Adicionar Aviso
                       </button>
                     )}
 
                     {/* MODO 1: SELECIONAR EXISTENTE OU ESCOLHER CRIAR NOVO */}
                     {modoAdicaoAviso && (
-                      <div style={{ display: "flex", gap: "12px", alignItems: "center", padding: "16px", background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "8px", boxShadow: "0 2px 4px rgba(0,0,0,0.02)" }}>
-                        <div style={{ flex: 1 }}>
-                          <select 
-                            style={styles.input} 
-                            value=""
-                            onChange={(e) => {
-                              const selectedId = e.target.value;
-                              if (selectedId) {
-                                setProgramaFormData(prev => ({ ...prev, avisos_ids: [...(prev.avisos_ids || []), selectedId] }));
-                                setModoAdicaoAviso(false);
-                              }
-                            }}
-                          >
-                            <option value="" disabled>Selecione um aviso existente da lista...</option>
-                            {avisos.filter(a => !(programaFormData.avisos_ids || []).includes(a.id)).map((aviso) => (
-                              <option key={aviso.id} value={aviso.id}>{aviso.codigo}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <span style={{ fontSize: "0.85rem", color: "#94a3b8", fontWeight: "700" }}>OU</span>
-                        <button 
-                          type="button" 
-                          onClick={() => { setModoAdicaoAviso(false); setCriarNovoAvisoInline(true); }} 
-                          style={{ ...styles.headerActionBtn, background: "#f1f5f9", color: "#334155", boxShadow: "none", padding: "8px 16px" }}
+                      <div className="pa-add-box">
+                        <select
+                          className="pa-input"
+                          value=""
+                          onChange={(e) => {
+                            const selectedId = e.target.value;
+                            if (selectedId) {
+                              setProgramaFormData(prev => ({ ...prev, avisos_ids: [...(prev.avisos_ids || []), selectedId] }));
+                              setModoAdicaoAviso(false);
+                            }
+                          }}
                         >
-                          Criar Novo de Raiz
+                          <option value="" disabled>Selecione um aviso existente da lista...</option>
+                          {avisos.filter(a => !(programaFormData.avisos_ids || []).map(String).includes(String(a.id))).map((aviso) => (
+                            <option key={aviso.id} value={aviso.id}>{aviso.codigo}</option>
+                          ))}
+                        </select>
+                        <span className="pa-or">OU</span>
+                        <button type="button" className="pa-btn is-soft" onClick={() => { setModoAdicaoAviso(false); setCriarNovoAvisoInline(true); }}>
+                          <Icons.Plus /> Criar Novo de Raiz
                         </button>
-                        <button 
-                          type="button" 
-                          onClick={() => setModoAdicaoAviso(false)} 
-                          style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: "1.5rem", padding: "0 4px" }}
-                        >
-                          ×
+                        <button type="button" className="pa-icon-btn" onClick={() => setModoAdicaoAviso(false)} aria-label="Cancelar">
+                          <Icons.Close size={14} />
                         </button>
                       </div>
                     )}
 
-                    {/* MODO 2: CRIAR NOVO INLINE (O que já tinha, com pequeno ajuste visual) */}
+                    {/* MODO 2: CRIAR NOVO INLINE */}
                     {criarNovoAvisoInline && (
-                      <div style={{ padding: "16px", background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "8px", boxShadow: "0 2px 4px rgba(0,0,0,0.02)" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-                          <h4 style={{ margin: 0, fontSize: "0.95rem", color: "#1e293b", display: "flex", alignItems: "center", gap: "6px" }}>
-                            <span style={{ color: "var(--color-btnPrimary, #3b82f6)" }}>✨</span> A Configurar Novo Aviso Interno
-                          </h4>
-                          <button
-                            type="button"
-                            onClick={() => { setCriarNovoAvisoInline(false); setModoAdicaoAviso(true); }}
-                            style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "0.85rem", fontWeight: 600 }}
-                          >
+                      <div className="pa-add-box is-column">
+                        <div className="pa-add-box-head">
+                          <h4><span>✨</span> A Configurar Novo Aviso Interno</h4>
+                          <button type="button" className="pa-link is-danger" onClick={() => { setCriarNovoAvisoInline(false); setModoAdicaoAviso(true); }}>
                             Cancelar
                           </button>
                         </div>
-                        
-                        {/* O RESTO DO SEU CÓDIGO INLINE FICA IGUAL AQUI */}
-                        <div style={{ marginBottom: "16px" }}>
-                          <label style={styles.label}>Código do Novo Aviso</label>
-                          <input
-                            type="text"
-                            value={novoAvisoCodigo}
-                            onChange={(e) => setNovoAvisoCodigo(e.target.value)}
-                            placeholder="ex. ALGARVE-2025-36"
-                            style={styles.input}
-                          />
+                        <div className="pa-field">
+                          <label>Código do Novo Aviso</label>
+                          <input type="text" className="pa-input" value={novoAvisoCodigo} onChange={(e) => setNovoAvisoCodigo(e.target.value)} placeholder="ex. ALGARVE-2025-36" />
                         </div>
-
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                          <label style={{ ...styles.label, marginBottom: 0 }}>Fases & Prazos do Novo Aviso</label>
-                          <button
-                            type="button"
-                            onClick={addAvisoFaseInline}
-                            style={{ ...styles.headerActionBtn, padding: "4px 10px", fontSize: "0.8rem", background: "#fff", border: "1px solid #cbd5e1", color: "#1e293b", boxShadow: "none", borderRadius: "6px" }}
-                          >
-                            + Adicionar Fase
-                          </button>
-                        </div>
-
-                        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                          {novoAvisoFases.map((fase, idx) => (
-                            <div key={idx} style={{ display: "grid", gridTemplateColumns: "1fr 180px auto", gap: "10px", alignItems: "center", background: "#f8fafc", padding: "10px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
-                              <input type="text" value={fase.nome} onChange={(e) => updateAvisoFaseInline(idx, "nome", e.target.value)} placeholder={`Fase ${idx + 1}`} style={styles.input} />
-                              <input type="date" value={fase.prazo} onChange={(e) => updateAvisoFaseInline(idx, "prazo", e.target.value)} style={styles.input} />
-                              <button type="button" onClick={() => removeAvisoFaseInline(idx)} disabled={novoAvisoFases.length === 1} style={{ background: "none", border: "none", cursor: "pointer" }}><Icons.Trash /></button>
-                            </div>
-                          ))}
+                        <div className="pa-field">
+                          <label>Fases & Prazos do Novo Aviso</label>
+                          {renderFaseEditor(novoAvisoFases, updateAvisoFaseInline, removeAvisoFaseInline, addAvisoFaseInline)}
                         </div>
                       </div>
                     )}
-                  </div>
+                  </section>
 
-                  <div style={styles.sectionTitle}>Textos de Enquadramento</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
-                    <div>
-                      <label style={styles.label}>Objetivos</label>
-                      <textarea
-                        name="objetivos"
-                        disabled={isViewOnly}
-                        value={programaFormData.objetivos}
-                        onChange={handleProgramaInputChange}
-                        placeholder="Objetivos do programa..."
-                        rows="3"
-                        style={{ ...styles.input, resize: "vertical" }}
-                      />
+                  <section className="pa-fcard">
+                    <div className="pa-fcard-title"><span className="pa-fcard-ico is-purple"><Icons.Doc /></span> Textos de Enquadramento</div>
+                    <div className="pa-grid-form is-2">
+                      <div className="pa-field">
+                        <label>Objetivos</label>
+                        <textarea name="objetivos" className="pa-textarea" disabled={isViewOnly} value={programaFormData.objetivos} onChange={handleProgramaInputChange} placeholder="Objetivos do programa..." rows="3" />
+                      </div>
+                      <div className="pa-field">
+                        <label>Entidades Elegíveis</label>
+                        <textarea name="entidades_elegiveis" className="pa-textarea" disabled={isViewOnly} value={programaFormData.entidades_elegiveis} onChange={handleProgramaInputChange} placeholder="Quais as entidades que se podem candidatar..." rows="3" />
+                      </div>
+                      <div className="pa-field">
+                        <label>Ações Elegíveis</label>
+                        <textarea name="acoes_elegiveis" className="pa-textarea" disabled={isViewOnly} value={programaFormData.acoes_elegiveis} onChange={handleProgramaInputChange} placeholder="Ações elegíveis..." rows="3" />
+                      </div>
+                      <div className="pa-field">
+                        <label>Condições Específicas</label>
+                        <textarea name="condicoes_especificas" className="pa-textarea" disabled={isViewOnly} value={programaFormData.condicoes_especificas} onChange={handleProgramaInputChange} placeholder="Condições específicas..." rows="3" />
+                      </div>
                     </div>
-                    <div>
-                      <label style={styles.label}>Entidades Elegíveis</label>
-                      <textarea
-                        name="entidades_elegiveis"
-                        disabled={isViewOnly}
-                        value={programaFormData.entidades_elegiveis}
-                        onChange={handleProgramaInputChange}
-                        placeholder="Quais as entidades que se podem candidatar..."
-                        rows="3"
-                        style={{ ...styles.input, resize: "vertical" }}
-                      />
+                    <div className="pa-field">
+                      <label>Descrição Completa</label>
+                      <textarea name="descricao" className="pa-textarea" disabled={isViewOnly} value={programaFormData.descricao} onChange={handleProgramaInputChange} placeholder="Descrição detalhada do programa..." rows="3" />
                     </div>
-                  </div>
+                  </section>
 
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
-                    <div>
-                      <label style={styles.label}>Ações Elegíveis</label>
-                      <textarea
-                        name="acoes_elegiveis"
-                        disabled={isViewOnly}
-                        value={programaFormData.acoes_elegiveis}
-                        onChange={handleProgramaInputChange}
-                        placeholder="Ações elegíveis..."
-                        rows="3"
-                        style={{ ...styles.input, resize: "vertical" }}
-                      />
+                  <section className="pa-fcard is-row">
+                    <div className="pa-field" style={{ flex: "0 1 360px" }}>
+                      <label>Estado do Programa</label>
+                      {renderEstadoSeg()}
                     </div>
-                    <div>
-                      <label style={styles.label}>Condições Específicas</label>
-                      <textarea
-                        name="condicoes_especificas"
-                        disabled={isViewOnly}
-                        value={programaFormData.condicoes_especificas}
-                        onChange={handleProgramaInputChange}
-                        placeholder="Condições específicas..."
-                        rows="3"
-                        style={{ ...styles.input, resize: "vertical" }}
-                      />
-                    </div>
-                  </div>
+                  </section>
+                </div>
 
-                  <div style={{ marginBottom: "24px" }}>
-                    <label style={styles.label}>Descrição Completa</label>
-                    <textarea
-                      name="descricao"
-                      disabled={isViewOnly}
-                      value={programaFormData.descricao}
-                      onChange={handleProgramaInputChange}
-                      placeholder="Descrição detalhada do programa..."
-                      rows="3"
-                      style={{ ...styles.input, resize: "vertical" }}
-                    />
-                  </div>
-
-                  <div style={{ marginBottom: "24px", width: "50%" }}>
-                    <label style={styles.label}>Estado do Programa</label>
-                    <div style={{ display: "flex", gap: "10px" }}>
-                      <button
-                        type="button"
-                        disabled={isViewOnly}
-                        onClick={() => handleProgramaInputChange({ target: { name: 'ativo', type: 'checkbox', checked: true } })}
-                        style={{
-                          flex: 1, padding: "10px", borderRadius: "8px", cursor: isViewOnly ? "default" : "pointer", transition: "all 0.2s",
-                          border: programaFormData.ativo ? "2px solid var(--color-btnPrimary, #3b82f6)" : "1px solid #cbd5e1",
-                          background: programaFormData.ativo ? "var(--color-bgSecondary, #f8fafc)" : "#ffffff",
-                          color: programaFormData.ativo ? "var(--color-btnPrimary, #3b82f6)" : "#64748b",
-                          fontWeight: programaFormData.ativo ? "600" : "400",
-                        }}
-                      >
-                        {programaFormData.ativo ? "✓" : ""} Ativo
-                      </button>
-                      <button
-                        type="button"
-                        disabled={isViewOnly}
-                        onClick={() => handleProgramaInputChange({ target: { name: 'ativo', type: 'checkbox', checked: false } })}
-                        style={{
-                          flex: 1, padding: "10px", borderRadius: "8px", cursor: isViewOnly ? "default" : "pointer", transition: "all 0.2s",
-                          border: !programaFormData.ativo ? "2px solid #ef4444" : "1px solid #cbd5e1",
-                          background: !programaFormData.ativo ? "#fee2e2" : "#ffffff",
-                          color: !programaFormData.ativo ? "#ef4444" : "#64748b",
-                          fontWeight: !programaFormData.ativo ? "600" : "400",
-                        }}
-                      >
-                        {!programaFormData.ativo ? "✗" : ""} Inativo
-                      </button>
-                    </div>
-                  </div>
-
-                  <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", borderTop: "1px solid #f1f5f9", paddingTop: "20px" }}>
-                    <button
-                      type="button"
-                      onClick={handleCloseProgramaModal}
-                      disabled={isSubmitting}
-                      style={{ ...styles.headerActionBtn, background: "transparent", border: "1px solid #cbd5e1", color: "#1e293b", boxShadow: "none" }}
-                    >
-                      {isViewOnly ? "Fechar" : "Cancelar"}
+                <div className="pa-modal-foot">
+                  <button type="button" className="pa-btn is-ghost" onClick={handleCloseProgramaModal} disabled={isSubmitting}>
+                    {isViewOnly ? "Fechar" : "Cancelar"}
+                  </button>
+                  {isViewOnly ? (
+                    <button key="pa-edit" type="button" className="pa-btn is-primary" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsViewOnly(false); }}>
+                      <Icons.Edit /> Editar
                     </button>
-                    {!isViewOnly && (
-                      <button style={styles.headerActionBtn} type="submit" disabled={isSubmitting}>
-                        {isSubmitting ? "A guardar..." : editingProgramaId ? "Atualizar Programa" : "Criar Programa"}
-                      </button>
-                    )}
-                  </div>
-                </form>
-              </div>
+                  ) : (
+                    <button key="pa-submit" className="pa-btn is-primary" type="submit" disabled={isSubmitting}>
+                      {isSubmitting ? <span className="pa-spinner is-sm" /> : <Icons.Check />} {isSubmitting ? "A guardar..." : editingProgramaId ? "Atualizar Programa" : "Criar Programa"}
+                    </button>
+                  )}
+                </div>
+              </form>
             </div>
           </div>
         </ModalPortal>
@@ -1234,115 +1163,47 @@ export default function GestaoAvisos() {
       {/* MODAL EDITAR AVISOS INDEPENDENTE */}
       {avisoModalOpen && (
         <ModalPortal>
-          {/* 1. OVERLAY (Fundo escuro): Z-index gigante e função correta de fechar */}
-          <div 
-            style={{ ...styles.modalOverlay, zIndex: 99998 }} 
-            onClick={handleCloseAvisoModal}
-          >
-            {/* 2. CAIXA DO MODAL: position relative e z-index ainda maior */}
-            <div
-              style={{ 
-                ...styles.modalContent, 
-                width: "700px", 
-                maxWidth: "90vw", 
-                maxHeight: "85vh", 
-                overflow: "hidden", 
-                position: "relative", 
-                zIndex: 99999 
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* 3. CABEÇALHO */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 24px", borderBottom: "1px solid #f1f5f9" }}>
-                <h3 style={{ margin: 0, color: "#1e293b" }}>Gerir Aviso Interno & Prazos</h3>
-                
-                {/* 4. BOTÃO FECHAR "X" (Agora bonito e sem estilos de ecrã gigante!) */}
-                <button
-                  type="button"
-                  onClick={handleCloseAvisoModal}
-                  style={{ 
-                    cursor: "pointer", 
-                    border: "none", 
-                    background: "none", 
-                    fontSize: "1.5rem", 
-                    color: "#94a3b8",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    padding: "4px"
-                  }}
-                  onMouseOver={(e) => e.currentTarget.style.color = "#ef4444"}
-                  onMouseOut={(e) => e.currentTarget.style.color = "#94a3b8"}
-                >
-                  ×
-                </button>
+          <div className="pa-overlay is-top" onClick={handleCloseAvisoModal}>
+            <div className="pa-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="pa-modal-head">
+                <span className="pa-modal-ico"><Icons.Clock /></span>
+                <div className="pa-modal-title">
+                  <span>Aviso</span>
+                  <h3>Gerir Aviso Interno & Prazos</h3>
+                  {avisoFormData.codigo ? <div className="pa-modal-chips"><span>{avisoFormData.codigo}</span></div> : null}
+                </div>
+                <button type="button" className="pa-modal-close" onClick={handleCloseAvisoModal} aria-label="Fechar"><Icons.Close /></button>
               </div>
 
-              <div style={{ padding: "24px", overflowY: "auto" }}>
-                <form onSubmit={handleAvisoSubmit}>
-                  <div style={{ marginBottom: "16px" }}>
-                    <label style={styles.label}>Código do Aviso</label>
-                    <input
-                      type="text"
-                      value={avisoFormData.codigo}
-                      onChange={(e) => setAvisoFormData(prev => ({ ...prev, codigo: e.target.value }))}
-                      style={styles.input}
-                    />
-                  </div>
+              <form onSubmit={handleAvisoSubmit} className="pa-modal-form">
+                <div className="pa-modal-body">
+                  <section className="pa-fcard">
+                    <div className="pa-field">
+                      <label>Código do Aviso</label>
+                      <input type="text" className="pa-input is-big" value={avisoFormData.codigo} onChange={(e) => setAvisoFormData(prev => ({ ...prev, codigo: e.target.value }))} />
+                    </div>
+                  </section>
 
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-                    <label style={{ ...styles.label, marginBottom: 0 }}>Fases & Datas de Limite</label>
-                    <button
-                      type="button"
-                      onClick={() => setAvisoFormFases(prev => [...prev, createBlankFase(prev.length)])}
-                      style={{ ...styles.headerActionBtn, padding: "4px 10px", fontSize: "0.8rem", background: "#fff", border: "1px solid #cbd5e1", color: "#1e293b", boxShadow: "none", borderRadius: "6px" }}
-                    >
-                      + Adicionar Fase
-                    </button>
-                  </div>
+                  <section className="pa-fcard">
+                    <div className="pa-fcard-title"><span className="pa-fcard-ico is-blue"><Icons.Clock /></span> Fases & Datas de Limite</div>
+                    {renderFaseEditor(
+                      avisoFormFases,
+                      (idx, field, value) => setAvisoFormFases(prev => prev.map((f, i) => i === idx ? { ...f, [field]: value } : f)),
+                      (idx) => setAvisoFormFases(prev => prev.filter((_, i) => i !== idx)),
+                      () => setAvisoFormFases(prev => [...prev, createBlankFase(prev.length)])
+                    )}
+                  </section>
+                </div>
 
-                  <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "20px" }}>
-                    {avisoFormFases.map((fase, idx) => (
-                      <div key={idx} style={{ display: "grid", gridTemplateColumns: "1fr 180px auto", gap: "10px", alignItems: "center", background: "#f8fafc", padding: "10px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
-                        <input
-                          type="text"
-                          value={fase.nome}
-                          onChange={(e) => setAvisoFormFases(prev => prev.map((f, i) => i === idx ? { ...f, nome: e.target.value } : f))}
-                          style={styles.input}
-                          placeholder="Nome da Fase"
-                        />
-                        <input
-                          type="date"
-                          value={fase.prazo}
-                          onChange={(e) => setAvisoFormFases(prev => prev.map((f, i) => i === idx ? { ...f, prazo: e.target.value } : f))}
-                          style={styles.input}
-                        />
-                        <button
-                          type="button"
-                          disabled={avisoFormFases.length === 1}
-                          onClick={() => setAvisoFormFases(prev => prev.filter((_, i) => i !== idx))}
-                          style={{ background: "none", border: "none", cursor: "pointer" }}
-                        >
-                          <Icons.Trash />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", borderTop: "1px solid #f1f5f9", paddingTop: "20px" }}>
-                    <button
-                      type="button"
-                      onClick={handleCloseAvisoModal}
-                      style={{ ...styles.headerActionBtn, background: "transparent", border: "1px solid #cbd5e1", color: "#1e293b", boxShadow: "none" }}
-                    >
-                      Cancelar
-                    </button>
-                    <button style={styles.headerActionBtn} type="submit" disabled={isSubmitting}>
-                      {isSubmitting ? "A guardar..." : "Gravar Alterações"}
-                    </button>
-                  </div>
-                </form>
-              </div>
+                <div className="pa-modal-foot">
+                  <button type="button" className="pa-btn is-ghost" onClick={handleCloseAvisoModal}>
+                    Cancelar
+                  </button>
+                  <button className="pa-btn is-primary" type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? <span className="pa-spinner is-sm" /> : <Icons.Check />} {isSubmitting ? "A guardar..." : "Gravar Alterações"}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </ModalPortal>
@@ -1351,29 +1212,16 @@ export default function GestaoAvisos() {
       {/* MODAL DE CONFIRMAÇÃO GLOBAL */}
       {confirmModalOpen && (
         <ModalPortal>
-          <div style={styles.modalOverlay} onClick={() => setConfirmModalOpen(false)}>
-            <div
-              style={{ ...styles.modalContent, width: "400px", maxWidth: "90vw", padding: "30px", textAlign: "center", alignItems: "center" }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div style={{ marginBottom: "16px" }}>
-                <Icons.Warning />
-              </div>
-              <h3 style={{ margin: "0 0 12px 0", color: "#1a2530", fontSize: "1.25rem" }}>Confirmar Alteração</h3>
-              <p style={{ margin: "0 0 24px 0", color: "#7f8c8d", lineHeight: "1.5" }}>{confirmMessage}</p>
-              <div style={{ display: "flex", gap: "12px", justifyContent: "center", width: "100%" }}>
-                <button
-                  type="button"
-                  onClick={() => setConfirmModalOpen(false)}
-                  style={{ ...styles.headerActionBtn, flex: 1, justifyContent: "center", background: "transparent", border: "1px solid #cbd5e1", color: "#1a2530", boxShadow: "none" }}
-                >
+          <div className="pa-overlay is-top" onClick={() => setConfirmModalOpen(false)}>
+            <div className="pa-confirm" onClick={(e) => e.stopPropagation()}>
+              <span className="pa-confirm-ico"><Icons.Archive /></span>
+              <h3>Confirmar Alteração</h3>
+              <p>{confirmMessage}</p>
+              <div className="pa-confirm-actions">
+                <button type="button" className="pa-btn is-ghost" onClick={() => setConfirmModalOpen(false)}>
                   Cancelar
                 </button>
-                <button
-                  type="button"
-                  onClick={() => { if (confirmAction) confirmAction(); }}
-                  style={{ ...styles.headerActionBtn, flex: 1, justifyContent: "center", background: "var(--color-btnPrimary, #3b82f6)", boxShadow: "none" }}
-                >
+                <button type="button" className="pa-btn is-danger" onClick={() => { if (confirmAction) confirmAction(); }}>
                   Confirmar
                 </button>
               </div>
@@ -1385,15 +1233,8 @@ export default function GestaoAvisos() {
       {/* TOAST NOTIFICATIONS */}
       {notification && (
         <ModalPortal>
-          <div
-            style={{
-              position: "fixed", bottom: "40px", left: "50%", transform: "translateX(-50%)", zIndex: 99999, 
-              background: notification.type === "error" ? "#ef4444" : "var(--color-btnPrimary, #3b82f6)", color: "#ffffff",
-              padding: "14px 28px", borderRadius: "50px", boxShadow: "0 10px 25px rgba(0,0,0,0.15)",
-              fontWeight: "600", textAlign: "center", minWidth: "max-content",
-            }}
-          >
-            {notification.message}
+          <div className={`pa-toast ${notification.type === "error" ? "is-error" : ""}`}>
+            {notification.type === "error" ? <Icons.Close size={15} /> : <Icons.Check />} {notification.message}
           </div>
         </ModalPortal>
       )}
