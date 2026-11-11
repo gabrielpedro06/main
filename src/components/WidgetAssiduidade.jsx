@@ -1089,11 +1089,15 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
 
         const entradaHm = activeRecord?.hora_entrada?.slice(0, 5) || null;
         const pausaSecs = Number(activeRecord?.tempo_pausa_acumulado || 0);
-        // Saída prevista = entrada + 8h + pausas já feitas (só faz sentido a trabalhar)
+        // Saída prevista = entrada + 8h de trabalho + almoço (1h, ou as pausas já feitas se forem mais),
+        // e nunca antes da hora de saída habitual (18:00). Só faz sentido a trabalhar.
+        const ALMOCO_MIN = 60;
+        const SAIDA_HABITUAL_MIN = 18 * 60;
         let saidaPrevista = null;
         if (status === 'running' && entradaHm) {
           const [eh, em] = entradaHm.split(':').map(Number);
-          const totalMin = eh * 60 + em + 8 * 60 + Math.round(pausaSecs / 60);
+          const pausasMin = Math.max(ALMOCO_MIN, Math.round(pausaSecs / 60));
+          const totalMin = Math.max(SAIDA_HABITUAL_MIN, eh * 60 + em + 8 * 60 + pausasMin);
           saidaPrevista = `${String(Math.floor(totalMin / 60) % 24).padStart(2, '0')}:${String(totalMin % 60).padStart(2, '0')}`;
         }
 
