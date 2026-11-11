@@ -2,6 +2,7 @@
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import "./../styles/dashboard.css";
+import "../styles/templates.css";
 
 // --- ÍCONES SVG (Premium & Minimalistas) ---
 const Icons = {
@@ -537,357 +538,280 @@ export default function GestaoTemplates() {
           : atividades.length + 1)
       : null;
 
-  // ESTILOS PREMIUM & COMPACTOS
-  const styles = {
-    container: { padding: '20px', maxWidth: '1600px', margin: '0 auto' },
-    headerCard: { background: 'white', padding: '15px 20px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px', boxShadow: '0 2px 4px -1px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-    headerTitle: { margin: 0, color: '#0f172a', fontSize: '1.5rem', fontWeight: '800', letterSpacing: '-0.02em' },
-    headerSubtitle: { margin: '4px 0 0 0', color: '#64748b', fontSize: '0.85rem', fontWeight: '500' },
-    statsBox: { display: 'flex', gap: '15px', alignItems: 'center', fontSize: '0.8rem', color: '#64748b', fontWeight: '600' },
-    statItem: { display: 'flex', alignItems: 'center', gap: '6px' },
-    statNumber: { fontSize: '1rem', fontWeight: '800', color: '#0f172a' },
-
-    gridContainer: { display: 'grid', gridTemplateColumns: '280px 320px 1fr', gap: '15px', alignItems: 'start' },
-    
-    column: { background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 130px)', minHeight: '500px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)' },
-    columnHeader: { padding: '10px 12px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc' },
-    columnTitle: { margin: 0, color: '#334155', fontSize: '0.85rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' },
-    columnContext: { fontSize: '0.7rem', color: '#94a3b8', fontWeight: '500', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '150px' },
-    
-    addButton: { background: 'transparent', color: 'var(--color-btnPrimary)', border: '1px solid transparent', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', gap: '4px' },
-    
-    listContainer: { flex: 1, overflowY: 'auto', padding: '8px' },
-    
-    listItem: (isSelected) => ({
-        padding: '8px 10px', marginBottom: '4px', borderRadius: '8px', cursor: 'pointer',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        background: isSelected ? 'var(--color-bgSecondary)' : 'transparent',
-        border: isSelected ? '1px solid var(--color-borderColor)' : '1px solid transparent',
-        color: isSelected ? 'var(--color-btnPrimaryHover)' : '#475569',
-        transition: 'all 0.15s ease-in-out', fontSize: '0.9rem', fontWeight: isSelected ? '600' : '500'
-    }),
-
-    taskCard: { marginBottom: '8px', background: 'white', borderRadius: '8px', border: '1px solid #e2e8f0', overflow: 'hidden' },
-    taskHeader: { padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', cursor: 'grab' },
-    taskTitle: { fontWeight: '600', color: '#1e293b', fontSize: '0.9rem' },
-    
-    actionsGroup: { display: 'flex', gap: '2px', opacity: 0.4, transition: '0.2s' },
-    actionBtn: { background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'inherit', transition: '0.2s' },
-
-    badge: (type) => ({
-        fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '3px', whiteSpace: 'nowrap',
-        background: type === 'time' ? '#ecfdf5' : type === 'dep' ? '#eff6ff' : '#fffbeb',
-        color: type === 'time' ? '#047857' : type === 'dep' ? '#1d4ed8' : '#b45309',
-        border: `1px solid ${type === 'time' ? '#a7f3d0' : type === 'dep' ? '#bfdbfe' : '#fde68a'}`
-    }),
-
-    dependencyTrace: { marginTop: '5px', marginLeft: '20px', display: 'flex', alignItems: 'center', gap: '6px' },
-    dependencyLine: { width: '10px', height: '0', borderTop: '2px solid #93c5fd', opacity: 0.9 },
-    dependencyText: { fontSize: '0.72rem', color: '#2563eb', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-
-    subtaskList: { padding: '4px 12px 8px 24px', background: 'white', borderTop: '1px solid #f1f5f9' },
-    subtaskItem: { padding: '4px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', fontSize: '0.85rem', color: '#475569', cursor: 'grab' },
-
-    // Modal Styles
-    modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(2px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999 },
-    modalBox: { background: 'white', width: '90%', maxWidth: '420px', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' },
-    modalHeader: { padding: '12px 20px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-    modalTitle: { margin: 0, color: '#0f172a', fontSize: '1rem', fontWeight: '700' },
-    modalForm: { padding: '20px' },
-    label: { display: 'block', fontSize: '0.75rem', fontWeight: '700', color: '#64748b', marginBottom: '4px' },
-    input: { width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', background: 'white', fontSize: '0.9rem', marginBottom: '15px', outline: 'none', boxSizing: 'border-box', color: '#1e293b', fontWeight: '500', transition: 'border-color 0.2s' },
-    textarea: { width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #e2e8f0', background: '#fffbeb', fontSize: '0.85rem', marginBottom: '15px', outline: 'none', boxSizing: 'border-box', color: '#78350f', resize: 'vertical', minHeight: '60px' },
-    modalFooter: { display: 'flex', gap: '10px', paddingTop: '10px', borderTop: '1px solid #f1f5f9' },
-    btnCancel: { flex: 1, padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', background: 'white', color: '#64748b', fontWeight: '600', cursor: 'pointer', fontSize: '0.85rem' },
-    btnSubmit: { flex: 1, padding: '10px', borderRadius: '6px', border: 'none', background: 'var(--color-btnPrimary)', color: 'white', fontWeight: '600', cursor: 'pointer', fontSize: '0.85rem' },
-
-    // Alert Modal
-    alertBox: { background: 'white', padding: '25px', borderRadius: '12px', width: '90%', maxWidth: '350px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' },
-    alertTitle: { margin: '10px 0 5px 0', color: '#1e293b', fontSize: '1.1rem', fontWeight: '700' },
-    alertText: { color: '#64748b', fontSize: '0.9rem', marginBottom: '20px', lineHeight: '1.4' },
-    btnDanger: { flex: 1, padding: '10px', borderRadius: '6px', border: 'none', background: '#ef4444', color: 'white', fontWeight: '600', cursor: 'pointer', fontSize: '0.85rem' }
+  const TIPO_COLORS = ['#6366f1', '#0ea5e9', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#14b8a6', '#f43f5e', '#84cc16'];
+  const tipoColor = (id) => {
+      const hash = String(id || '').split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+      return TIPO_COLORS[hash % TIPO_COLORS.length];
   };
+  const initialsOf = (txt) => String(txt || '?').replace(/[[\]()\-–]/g, ' ').trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?';
+  const totalDiasEtapas = atividades.reduce((acc, a) => acc + (Number(a.dias_estimados) || 0), 0);
 
-  if (loading) return <div className="page-container" style={{display:'flex', justifyContent:'center', alignItems:'center', height:'80vh'}}><div className="pulse-dot-white" style={{background:'var(--color-btnPrimary)'}}></div></div>;
+  const renderSwitch = (id, checked, onChange, label, hint) => (
+      <label htmlFor={id} className={`gm-switch ${checked ? 'is-on' : ''}`}>
+          <input id={id} type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+          <span className="gm-switch-track"><span /></span>
+          <span className="gm-switch-text"><strong>{label}</strong>{hint && <em>{hint}</em>}</span>
+      </label>
+  );
+
+  if (loading) return (
+      <div className="page-container gm-page">
+          <div className="gm-loading"><span /><span /><span /></div>
+      </div>
+  );
 
   return (
-    <div className="page-container" style={styles.container}>
-      
-      {/* HEADER COMPACTO */}
-      <div style={styles.headerCard}>
-        <div>
-            <h1 style={styles.headerTitle}>Modelos de Projeto</h1>
-            <p style={styles.headerSubtitle}>Define a estrutura base (Etapas e Tarefas) para padronizar futuros projetos.</p>
-        </div>
-        <div style={styles.statsBox}>
-            <div style={styles.statItem}><Icons.Folder/><span style={styles.statNumber}>{tipos.length}</span> Modelos</div>
-        </div>
-      </div>
+    <div className="page-container gm-page">
 
-      <div style={styles.gridContainer}>
-        
+      {/* HERO */}
+      <header className="gm-hero">
+          <div className="gm-hero-bg" aria-hidden="true"><span className="gm-orb gm-orb-a" /><span className="gm-orb gm-orb-b" /></div>
+          <div className="gm-hero-main">
+              <span className="gm-hero-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><path d="M14 17.5h7M17.5 14v7" /></svg></span>
+              <div>
+                  <h1>Modelos de Projeto</h1>
+                  <p>Define a estrutura base (Etapas e Tarefas) para padronizar futuros projetos.</p>
+              </div>
+          </div>
+          <div className="gm-hero-stats">
+              <span className="gm-stat"><strong>{tipos.length}</strong> Modelos</span>
+              {selectedTipo && <span className="gm-stat"><strong>{atividades.length}</strong> etapas em {selectedTipo.nome}</span>}
+              {selectedTipo && totalDiasEtapas > 0 && <span className="gm-stat"><strong>{totalDiasEtapas}</strong> dias previstos</span>}
+          </div>
+      </header>
+
+      <div className="gm-grid">
+
         {/* COLUNA 1: TIPOS */}
-        <div style={styles.column}>
-            <div style={styles.columnHeader}>
-                <h3 style={styles.columnTitle}>1. Tipos de Projetos</h3>
-                <button onClick={() => openCreateModal('tipo_projeto')} style={styles.addButton} className="hover-btn-primary"><Icons.Plus/> Novo</button>
-            </div>
-            <div style={styles.listContainer} className="custom-scrollbar">
-                {tipos.map((t) => {
+        <section className="gm-col">
+            <header className="gm-col-head">
+                <span className="gm-step"><Icons.Folder /></span>
+                <div className="gm-col-title">
+                    <h3>1. Tipos de Projetos</h3>
+                    <span>{tipos.length} modelo{tipos.length === 1 ? '' : 's'}</span>
+                </div>
+                <button type="button" onClick={() => openCreateModal('tipo_projeto')} className="gm-add"><Icons.Plus /> Novo</button>
+            </header>
+            <div className="gm-col-body custom-scrollbar">
+                {tipos.map((t, i) => {
                     const isSelected = selectedTipo?.id === t.id;
                     return (
-                    <div 
-                        key={t.id} 
-                        onClick={() => setSelectedTipo(t)} 
-                        style={styles.listItem(isSelected)} 
-                        className="hover-list-item"
-                    >
-                        <div style={{display: 'flex', alignItems: 'center', gap: '8px', flex: 1, overflow: 'hidden'}}>
-                            <span style={{color: isSelected ? 'var(--color-btnPrimary)' : '#94a3b8', opacity: isSelected ? 1 : 0.7}}><Icons.Folder/></span>
-                            <span style={{flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{t.nome}</span>
-                                                        {t.tem_programa && (
-                                                            <span style={{ ...styles.badge('dep'), fontSize: '0.62rem' }}><Icons.Doc/></span>
-                                                        )}
-                                                        {t.eh_formacao && (
-                                                            <span style={{ ...styles.badge('time'), fontSize: '0.62rem', border: '1px solid #c084fc', background: '#f3e8ff', color: '#7e22ce' }}><Icons.Doc/></span>
-                                                        )}
+                        <div
+                            key={t.id}
+                            onClick={() => setSelectedTipo(t)}
+                            className={`gm-tipo ${isSelected ? 'is-on' : ''}`}
+                            style={{ '--tc': tipoColor(t.id), '--i': Math.min(i, 12) }}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedTipo(t); } }}
+                        >
+                            <span className="gm-tipo-tile">{initialsOf(t.nome)}</span>
+                            <div className="gm-tipo-text">
+                                <strong title={t.nome}>{t.nome}</strong>
+                                {(t.tem_programa || t.eh_formacao) && (
+                                    <span className="gm-chips">
+                                        {t.tem_programa && <span className="gm-chip is-prog" title="Requer programa de financiamento"><Icons.Doc /> Programa</span>}
+                                        {t.eh_formacao && <span className="gm-chip is-form" title="Projeto de Formação"><Icons.Doc /> Formação</span>}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="gm-actions">
+                                <button type="button" onClick={(e) => { e.stopPropagation(); openEditModal('tipo_projeto', t); }} className="gm-icon" title="Editar" aria-label="Editar"><Icons.Edit /></button>
+                                <button type="button" onClick={(e) => { e.stopPropagation(); askDelete("tipos_projeto", t.id, setTipos, tipos, true, false); }} className="gm-icon is-danger" title="Apagar" aria-label="Apagar"><Icons.Trash /></button>
+                            </div>
                         </div>
-                        <div style={styles.actionsGroup} className="actions-group">
-                            <button onClick={(e) => { e.stopPropagation(); openEditModal('tipo_projeto', t); }} style={styles.actionBtn} className="hover-icon-blue"><Icons.Edit/></button>
-                            <button onClick={(e) => { e.stopPropagation(); askDelete("tipos_projeto", t.id, setTipos, tipos, true, false); }} style={styles.actionBtn} className="hover-icon-red"><Icons.Trash/></button>
-                        </div>
-                    </div>
-                )})}
-                {tipos.length === 0 && <div style={{textAlign:'center', padding:'30px 10px', color:'#94a3b8', opacity:0.6}}><Icons.Empty/><p style={{fontSize:'0.8rem', margin:'5px 0 0 0'}}>Sem modelos.</p></div>}
+                    );
+                })}
+                {tipos.length === 0 && (
+                    <div className="gm-empty"><Icons.Empty /><p>Sem modelos.</p></div>
+                )}
             </div>
-        </div>
+        </section>
 
         {/* COLUNA 2: ATIVIDADES */}
-        <div style={{...styles.column, opacity: selectedTipo ? 1 : 0.5, pointerEvents: selectedTipo ? 'auto' : 'none', transition: '0.2s'}}>
-            <div style={styles.columnHeader}>
-                <div>
-                    <h3 style={styles.columnTitle}>2. Atividades</h3>
-                    <span style={styles.columnContext}>{selectedTipo ? selectedTipo.nome : 'Seleciona um modelo'}</span>
+        <section className={`gm-col ${selectedTipo ? '' : 'is-locked'}`} style={selectedTipo ? { '--tc': tipoColor(selectedTipo.id) } : undefined}>
+            <header className="gm-col-head">
+                <span className="gm-step"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5z" /><path d="m2 17 10 5 10-5" /><path d="m2 12 10 5 10-5" /></svg></span>
+                <div className="gm-col-title">
+                    <h3>2. Atividades</h3>
+                    <span>{selectedTipo ? selectedTipo.nome : 'Seleciona um modelo'}</span>
                 </div>
-                {selectedTipo && <button onClick={() => openCreateModal('atividade', selectedTipo.id, selectedTipo.nome)} style={styles.addButton} className="hover-btn-primary"><Icons.Plus/> Etapa</button>}
-            </div>
-            <div style={styles.listContainer} className="custom-scrollbar">
-                {atividades.map((a, index) => {
+                {selectedTipo && <button type="button" onClick={() => openCreateModal('atividade', selectedTipo.id, selectedTipo.nome)} className="gm-add"><Icons.Plus /> Etapa</button>}
+            </header>
+            <div className="gm-col-body custom-scrollbar">
+                {!selectedTipo ? (
+                    <div className="gm-placeholder"><span><Icons.ArrowRight /></span><p>Escolhe um tipo de projeto à esquerda para ver as etapas.</p></div>
+                ) : atividades.length === 0 ? (
+                    <div className="gm-empty"><Icons.Empty /><p>Este modelo ainda não tem etapas.</p></div>
+                ) : atividades.map((a, index) => {
                     const isSelected = selectedAtiv?.id === a.id;
                     const atividadeDepLabel = getAtividadeDependencyLabel(a);
                     return (
-                    <div 
-                        key={a.id} 
-                        draggable
-                        onDragStart={() => handleDragStart(index)}
-                        onDragEnter={() => handleDragEnter(index)}
-                        onDragEnd={handleDragEndAtividades}
-                        onClick={() => setSelectedAtiv(a)} 
-                        style={styles.listItem(isSelected)} 
-                        className="hover-list-item drag-item"
-                    >
-                        <div style={{flex: 1, overflow:'hidden', display: 'flex', gap: '8px', alignItems: 'flex-start'}}>
-                            <span style={{marginTop: '2px'}}><Icons.Grip/></span>
-                            <div style={{flex: 1}}>
-                                <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
-                                    <span style={{fontSize:'0.7rem', color: isSelected ? 'var(--color-btnPrimary)' : '#64748b', fontWeight:'700', minWidth:'15px'}}>{a.ordem}.</span> 
-                                    <span style={{whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{a.nome}</span>
-                                </div>
-                                <div style={{display:'flex', gap:'5px', marginTop:'4px', paddingLeft:'20px'}}>
-                                    {a.dias_estimados > 0 && <span style={styles.badge('time')}><Icons.Clock/> {a.dias_estimados}d</span>}
-                                    {a.descricao && <span style={styles.badge('doc')}><Icons.Doc/> Nota</span>}
-                                </div>
-                                {atividadeDepLabel && (
-                                    <div style={styles.dependencyTrace} title={atividadeDepLabel}>
-                                        <span style={styles.dependencyLine}></span>
-                                        <span style={styles.dependencyText}>{atividadeDepLabel}</span>
-                                    </div>
+                        <div
+                            key={a.id}
+                            draggable
+                            onDragStart={() => handleDragStart(index)}
+                            onDragEnter={() => handleDragEnter(index)}
+                            onDragEnd={handleDragEndAtividades}
+                            onClick={() => setSelectedAtiv(a)}
+                            className={`gm-etapa ${isSelected ? 'is-on' : ''}`}
+                            style={{ '--i': Math.min(index, 12) }}
+                        >
+                            <span className="gm-grip"><Icons.Grip /></span>
+                            <span className="gm-num">{a.ordem}</span>
+                            <div className="gm-etapa-text">
+                                <strong title={a.nome}>{a.nome}</strong>
+                                {(a.dias_estimados > 0 || a.descricao || atividadeDepLabel) && (
+                                    <span className="gm-chips">
+                                        {a.dias_estimados > 0 && <span className="gm-chip is-time"><Icons.Clock /> {a.dias_estimados}d</span>}
+                                        {a.descricao && <span className="gm-chip is-note" title={a.descricao}><Icons.Doc /> Nota</span>}
+                                        {atividadeDepLabel && <span className="gm-chip is-dep" title={atividadeDepLabel}>↳ {atividadeDepLabel}</span>}
+                                    </span>
                                 )}
                             </div>
+                            <div className="gm-actions">
+                                <button type="button" onClick={(e) => { e.stopPropagation(); openEditModal('atividade', a); }} className="gm-icon" title="Editar" aria-label="Editar"><Icons.Edit /></button>
+                                <button type="button" onClick={(e) => { e.stopPropagation(); askDelete("template_atividades", a.id, setAtividades, atividades, false, true); }} className="gm-icon is-danger" title="Apagar" aria-label="Apagar"><Icons.Trash /></button>
+                            </div>
+                            <span className="gm-chevron" aria-hidden="true"><Icons.ArrowRight /></span>
                         </div>
-                        <div style={styles.actionsGroup} className="actions-group">
-                            <button onClick={(e) => { e.stopPropagation(); openEditModal('atividade', a); }} style={styles.actionBtn} className="hover-icon-blue"><Icons.Edit/></button>
-                            <button onClick={(e) => { e.stopPropagation(); askDelete("template_atividades", a.id, setAtividades, atividades, false, true); }} style={styles.actionBtn} className="hover-icon-red"><Icons.Trash/></button>
-                        </div>
-                    </div>
-                )})}
+                    );
+                })}
             </div>
-        </div>
+        </section>
 
         {/* COLUNA 3: TAREFAS */}
-        <div style={{...styles.column, opacity: selectedAtiv ? 1 : 0.5, pointerEvents: selectedAtiv ? 'auto' : 'none', transition: '0.2s'}}>
-            <div style={styles.columnHeader}>
-                <div>
-                    <h3 style={styles.columnTitle}>3. Tarefas</h3>
-                    <span style={styles.columnContext}>{selectedAtiv ? selectedAtiv.nome : 'Seleciona uma etapa'}</span>
+        <section className={`gm-col is-wide ${selectedAtiv ? '' : 'is-locked'}`}>
+            <header className="gm-col-head">
+                <span className="gm-step"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg></span>
+                <div className="gm-col-title">
+                    <h3>3. Tarefas</h3>
+                    <span>{selectedAtiv ? selectedAtiv.nome : 'Seleciona uma etapa'}</span>
                 </div>
-                {selectedAtiv && <button onClick={() => openCreateModal('tarefa', selectedAtiv.id, selectedAtiv.nome)} style={styles.addButton} className="hover-btn-primary"><Icons.Plus/> Tarefa</button>}
-            </div>
-            <div style={styles.listContainer} className="custom-scrollbar">
-                {tarefas.map((t, index) => {
+                {selectedAtiv && <button type="button" onClick={() => openCreateModal('tarefa', selectedAtiv.id, selectedAtiv.nome)} className="gm-add"><Icons.Plus /> Tarefa</button>}
+            </header>
+            <div className="gm-col-body custom-scrollbar">
+                {!selectedAtiv ? (
+                    <div className="gm-placeholder"><span><Icons.ArrowRight /></span><p>Escolhe uma etapa para ver e organizar as tarefas.</p></div>
+                ) : tarefas.length === 0 ? (
+                    <div className="gm-empty"><Icons.Empty /><p>Esta etapa ainda não tem tarefas.</p></div>
+                ) : tarefas.map((t, index) => {
                     const subs = subtarefas.filter(st => st.template_tarefa_id === t.id);
                     const tarefaDepLabel = getTarefaDependencyLabel(t);
                     return (
-                    <div 
-                        key={t.id} 
-                        style={styles.taskCard} 
-                        draggable
-                        onDragStart={() => handleDragStart(index)}
-                        onDragEnter={() => handleDragEnter(index)}
-                        onDragEnd={handleDragEndTarefas}
-                        className="drag-item"
-                    >
-                        <div style={styles.taskHeader} className="hover-list-item">
-                            <div style={{display: 'flex', gap: '8px', alignItems:'center', flex:1}}>
-                                <span><Icons.Grip/></span>
-                                <span style={{fontSize:'0.75rem', color:'#64748b', fontWeight:'700'}}>{t.ordem}.</span>
-                                <div style={styles.taskTitle}>{t.nome}</div>
-                                {t.dias_estimados > 0 && <span style={styles.badge('time')}><Icons.Clock/>{t.dias_estimados}d</span>}
-                                {t.descricao && <span style={{...styles.badge('doc'), background:'transparent', border:'none', padding:0}} title="Tem notas"><Icons.Doc/></span>}
-                            </div>
-                            <div style={{display:'flex', alignItems:'center', gap:'5px'}}>
-                                <button onClick={() => openCreateModal('subtarefa', t.id, t.nome)} style={{...styles.addButton, color:'#64748b', fontSize:'0.7rem'}} className="hover-btn-secondary"> + Passo</button>
-                                <div style={{width:'1px', height:'12px', background:'#e2e8f0'}}></div>
-                                <div style={styles.actionsGroup} className="actions-group">
-                                    <button onClick={() => openEditModal('tarefa', t)} style={styles.actionBtn} className="hover-icon-blue"><Icons.Edit/></button>
-                                    <button onClick={() => askDelete("template_tarefas", t.id, setTarefas, tarefas)} style={styles.actionBtn} className="hover-icon-red"><Icons.Trash/></button>
+                        <article
+                            key={t.id}
+                            className="gm-task"
+                            draggable
+                            onDragStart={() => handleDragStart(index)}
+                            onDragEnter={() => handleDragEnter(index)}
+                            onDragEnd={handleDragEndTarefas}
+                            style={{ '--i': Math.min(index, 12) }}
+                        >
+                            <div className="gm-task-head">
+                                <span className="gm-grip"><Icons.Grip /></span>
+                                <span className="gm-num is-sm">{t.ordem}</span>
+                                <div className="gm-task-title">
+                                    <strong>{t.nome}</strong>
+                                    {(t.dias_estimados > 0 || tarefaDepLabel) && (
+                                        <span className="gm-chips">
+                                            {t.dias_estimados > 0 && <span className="gm-chip is-time"><Icons.Clock /> {t.dias_estimados}d</span>}
+                                            {tarefaDepLabel && <span className="gm-chip is-dep" title={tarefaDepLabel}>↳ {tarefaDepLabel}</span>}
+                                        </span>
+                                    )}
+                                </div>
+                                <button type="button" onClick={() => openCreateModal('subtarefa', t.id, t.nome)} className="gm-add is-soft">+ Passo</button>
+                                <div className="gm-actions">
+                                    <button type="button" onClick={() => openEditModal('tarefa', t)} className="gm-icon" title="Editar" aria-label="Editar"><Icons.Edit /></button>
+                                    <button type="button" onClick={() => askDelete("template_tarefas", t.id, setTarefas, tarefas)} className="gm-icon is-danger" title="Apagar" aria-label="Apagar"><Icons.Trash /></button>
                                 </div>
                             </div>
-                        </div>
 
-                        {t.descricao && (
-                            <div style={{padding: '6px 12px 6px 30px', background: '#fffbeb', borderTop: '1px solid #fef3c7', fontSize: '0.75rem', color: '#b45309', display:'flex', gap:'6px', alignItems:'flex-start'}}>
-                                <span style={{marginTop:'2px', opacity:0.7}}><Icons.Doc/></span>
-                                <span style={{whiteSpace: 'pre-wrap'}}>{t.descricao}</span>
-                            </div>
-                        )}
+                            {t.descricao && (
+                                <div className="gm-note"><Icons.Doc /><span>{t.descricao}</span></div>
+                            )}
 
-                        {tarefaDepLabel && (
-                            <div style={{padding: '6px 12px 6px 30px', borderTop: '1px solid #e2e8f0'}} title={tarefaDepLabel}>
-                                <div style={{...styles.dependencyTrace, marginTop: 0, marginLeft: 0}}>
-                                    <span style={styles.dependencyLine}></span>
-                                    <span style={styles.dependencyText}>{tarefaDepLabel}</span>
-                                </div>
-                            </div>
-                        )}
-
-                        {subs.length > 0 && (
-                            <div style={styles.subtaskList}>
-                                {subs.map((st, sIndex) => (
-                                    <div 
-                                        key={st.id} 
-                                        style={styles.subtaskItem} 
-                                        className="hover-list-item drag-item"
-                                        draggable
-                                        onDragStart={(e) => { e.stopPropagation(); handleDragStart(sIndex); }}
-                                        onDragEnter={(e) => { e.stopPropagation(); handleDragEnter(sIndex); }}
-                                        onDragEnd={(e) => { e.stopPropagation(); handleDragEndSubtarefas(t.id); }}
-                                    >
-                                        <div style={{display: 'flex', alignItems: 'flex-start', gap: '8px', flex:1}}>
-                                            <span style={{marginTop:'2px'}}><Icons.Grip/></span>
-                                            <span style={{color: '#cbd5e1', marginTop:'2px'}}><Icons.ArrowRight/></span>
-                                            <div style={{flex: 1}}>
-                                                <div style={{display:'flex', alignItems:'center', gap:'6px'}}>
-                                                    <span style={{fontSize:'0.75rem', fontWeight:'600'}}>{st.ordem}.</span>
-                                                    <span>{st.nome}</span>
-                                                    {st.dias_estimados > 0 && <span style={styles.badge('time')}>{st.dias_estimados}d</span>}
-                                                </div>
-                                                {/* 💡 AQUI: Descrição da Subtarefa */}
-                                                {st.descricao && (
-                                                    <div style={{fontSize: '0.7rem', color: '#b45309', background: '#fffbeb', padding: '4px 8px', borderRadius: '4px', marginTop: '4px', whiteSpace: 'pre-wrap', borderLeft: '2px solid #fcd34d'}}>
-                                                        {st.descricao}
-                                                    </div>
-                                                )}
+                            {subs.length > 0 && (
+                                <ol className="gm-subs">
+                                    {subs.map((st, sIndex) => (
+                                        <li
+                                            key={st.id}
+                                            className="gm-sub"
+                                            draggable
+                                            onDragStart={(e) => { e.stopPropagation(); handleDragStart(sIndex); }}
+                                            onDragEnter={(e) => { e.stopPropagation(); handleDragEnter(sIndex); }}
+                                            onDragEnd={(e) => { e.stopPropagation(); handleDragEndSubtarefas(t.id); }}
+                                        >
+                                            <span className="gm-grip"><Icons.Grip /></span>
+                                            <span className="gm-sub-num">{st.ordem}</span>
+                                            <div className="gm-sub-text">
+                                                <span>{st.nome}{st.dias_estimados > 0 && <span className="gm-chip is-time">{st.dias_estimados}d</span>}</span>
+                                                {st.descricao && <div className="gm-note is-sub">{st.descricao}</div>}
                                             </div>
-                                        </div>
-                                        <div style={styles.actionsGroup} className="actions-group">
-                                            <button onClick={() => openEditModal('subtarefa', st)} style={styles.actionBtn} className="hover-icon-blue"><Icons.Edit/></button>
-                                            <button onClick={() => askDelete("template_subtarefas", st.id, setSubtarefas, subtarefas)} style={styles.actionBtn} className="hover-icon-red"><Icons.Trash/></button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                )})}
+                                            <div className="gm-actions">
+                                                <button type="button" onClick={() => openEditModal('subtarefa', st)} className="gm-icon" title="Editar" aria-label="Editar"><Icons.Edit /></button>
+                                                <button type="button" onClick={() => askDelete("template_subtarefas", st.id, setSubtarefas, subtarefas)} className="gm-icon is-danger" title="Apagar" aria-label="Apagar"><Icons.Trash /></button>
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ol>
+                            )}
+                        </article>
+                    );
+                })}
             </div>
-        </div>
+        </section>
       </div>
 
-      {/* --- MODAL DE CRIAÇÃO/EDIÇÃO COMPACTO --- */}
+      {/* --- MODAL DE CRIAÇÃO/EDIÇÃO --- */}
       {modalConfig.isOpen && (
           <ModalPortal>
-              <div style={styles.modalOverlay}>
-                  <div style={styles.modalBox}>
-                      <div style={styles.modalHeader}>
+              <div className="gm-overlay" onClick={closeModal}>
+                  <div className="gm-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={getModalTitle()}>
+                      <header className="gm-modal-head">
+                          <span className="gm-modal-icon">{modalConfig.mode === 'edit' ? <Icons.Edit /> : <Icons.Plus />}</span>
                           <div>
-                              <h3 style={styles.modalTitle}>{getModalTitle()}</h3>
-                              <p style={{margin: '2px 0 0 0', fontSize: '0.75rem', color: '#64748b'}}>{getModalSubtitle()}</p>
+                              <h3>{getModalTitle()}</h3>
+                              <p>{getModalSubtitle()}</p>
                           </div>
-                          <button onClick={closeModal} style={{background:'none', border:'none', cursor:'pointer', color:'#94a3b8'}}><Icons.Close/></button>
-                      </div>
-                      <form onSubmit={handleModalSubmit} style={styles.modalForm}>
-                          <label style={styles.label}>Nome *</label>
-                          <input type="text" autoFocus value={inputValue} onChange={(e) => setInputValue(e.target.value)} required style={styles.input} className="input-focus" />
+                          <button type="button" onClick={closeModal} className="gm-icon is-close" aria-label="Fechar"><Icons.Close /></button>
+                      </header>
+                      <form onSubmit={handleModalSubmit} className="gm-modal-body">
+                          <div className="gm-field">
+                              <label>Nome *</label>
+                              <input className="gm-input is-title" type="text" autoFocus value={inputValue} onChange={(e) => setInputValue(e.target.value)} required />
+                          </div>
 
                           {modalConfig.tipo === 'tipo_projeto' && (
                               <>
-                                  <label htmlFor="tipoTemPrograma" style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '15px', fontWeight: 600, color: '#334155', cursor: 'pointer'}}>
-                                      <input id="tipoTemPrograma" type="checkbox" checked={inputTemPrograma} onChange={(e) => setInputTemPrograma(e.target.checked)} style={{width:16, height:16, minWidth:16, minHeight:16, maxWidth:16, maxHeight:16, flex:'none'}} />
-                                      Este tipo de projeto requer programa de financiamento
-                                  </label>
-
-                                  <label htmlFor="tipoEhFormacao" style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '15px', fontWeight: 600, color: '#334155', cursor: 'pointer'}}>
-                                      <input id="tipoEhFormacao" type="checkbox" checked={inputEhFormacao} onChange={(e) => setInputEhFormacao(e.target.checked)} style={{width:16, height:16, minWidth:16, minHeight:16, maxWidth:16, maxHeight:16, flex:'none'}} />
-                                      É um projeto de Formação
-                                  </label>
-
-                                  <div style={{display: 'flex', gap: '12px'}}>
-                                      <div style={{flex: 1}}>
-                                          <label style={styles.label}>Default Num Horas</label>
-                                          <input
-                                              type="number"
-                                              min="0"
-                                              step="0.25"
-                                              value={inputDefaultNumHoras}
-                                              onChange={(e) => setInputDefaultNumHoras(e.target.value)}
-                                              style={styles.input}
-                                              className="input-focus"
-                                          />
+                                  <div className="gm-switches">
+                                      {renderSwitch('tipoTemPrograma', inputTemPrograma, setInputTemPrograma, 'Este tipo de projeto requer programa de financiamento')}
+                                      {renderSwitch('tipoEhFormacao', inputEhFormacao, setInputEhFormacao, 'É um projeto de Formação')}
+                                  </div>
+                                  <div className="gm-row-2">
+                                      <div className="gm-field">
+                                          <label>Default Num Horas</label>
+                                          <input className="gm-input" type="number" min="0" step="0.25" value={inputDefaultNumHoras} onChange={(e) => setInputDefaultNumHoras(e.target.value)} />
                                       </div>
-                                      <div style={{flex: 1}}>
-                                          <label style={styles.label}>Default Base (EUR/h)</label>
-                                          <input
-                                              type="number"
-                                              min="0"
-                                              step="0.01"
-                                              value={inputDefaultBaseEurHora}
-                                              onChange={(e) => setInputDefaultBaseEurHora(e.target.value)}
-                                              style={styles.input}
-                                              className="input-focus"
-                                          />
+                                      <div className="gm-field">
+                                          <label>Default Base (EUR/h)</label>
+                                          <input className="gm-input" type="number" min="0" step="0.01" value={inputDefaultBaseEurHora} onChange={(e) => setInputDefaultBaseEurHora(e.target.value)} />
                                       </div>
                                   </div>
                               </>
                           )}
 
-                          {/* 💡 AGORA TODOS OS NÍVEIS TÊM DESCRIÇÃO (EXCETO O TIPO_PROJETO) */}
                           {modalConfig.tipo !== 'tipo_projeto' && (
-                              <>
-                                <label style={{...styles.label, display:'flex', justifyContent:'space-between'}}>Guia / Notas <span style={{fontWeight:'400', opacity:0.7}}>(Opcional)</span></label>
-                                <textarea value={inputDescricao} onChange={(e) => setInputDescricao(e.target.value)} rows="3" style={styles.textarea} placeholder="Instruções ou procedimentos..." className="input-focus" />
-                              </>
+                              <div className="gm-field">
+                                  <label>Guia / Notas <em>(Opcional)</em></label>
+                                  <textarea className="gm-input is-note" value={inputDescricao} onChange={(e) => setInputDescricao(e.target.value)} rows="3" placeholder="Instruções ou procedimentos..." />
+                              </div>
                           )}
 
                           {modalConfig.tipo === 'atividade' && (
-                              <>
-                                  <label style={styles.label}>Depende da Etapa</label>
-                                  <select
-                                      value={inputDepAtividadeId}
-                                      onChange={(e) => setInputDepAtividadeId(e.target.value)}
-                                      style={styles.input}
-                                      className="input-focus"
-                                  >
+                              <div className="gm-field">
+                                  <label>Depende da Etapa</label>
+                                  <select className="gm-input" value={inputDepAtividadeId} onChange={(e) => setInputDepAtividadeId(e.target.value)}>
                                       <option value="">Sem dependência</option>
                                       {atividades
                                           .filter((a) => String(a.id) !== String(modalConfig.itemId || ''))
@@ -896,18 +820,13 @@ export default function GestaoTemplates() {
                                               <option key={a.id} value={a.id}>{a.ordem}. {a.nome}</option>
                                           ))}
                                   </select>
-                              </>
+                              </div>
                           )}
 
                           {modalConfig.tipo === 'tarefa' && (
-                              <>
-                                  <label style={styles.label}>Depende da Tarefa (mesma etapa)</label>
-                                  <select
-                                      value={inputDepTarefaId}
-                                      onChange={(e) => setInputDepTarefaId(e.target.value)}
-                                      style={styles.input}
-                                      className="input-focus"
-                                  >
+                              <div className="gm-field">
+                                  <label>Depende da Tarefa (mesma etapa)</label>
+                                  <select className="gm-input" value={inputDepTarefaId} onChange={(e) => setInputDepTarefaId(e.target.value)}>
                                       <option value="">Sem dependência</option>
                                       {tarefas
                                           .filter((t) => String(t.id) !== String(modalConfig.itemId || ''))
@@ -916,57 +835,47 @@ export default function GestaoTemplates() {
                                               <option key={t.id} value={t.id}>{t.ordem}. {t.nome}</option>
                                           ))}
                                   </select>
-                              </>
+                              </div>
                           )}
 
-                                                    {modalConfig.tipo !== 'tipo_projeto' && (
-                                                            <div style={{display: 'flex', gap: '15px'}}>
-                                                                    <div style={{flex:1}}>
-                                                                            <label style={styles.label}>Prazo Previsto (Dias)</label>
-                                                                            <div style={{position: 'relative'}}>
-                                                                                    <span style={{position:'absolute', left:'10px', top:'9px', color:'#94a3b8'}}><Icons.Clock/></span>
-                                                                                    <input type="number" value={inputDias} onChange={(e) => setInputDias(e.target.value)} min="0" required style={{...styles.input, paddingLeft: '28px'}} className="input-focus" />
-                                                                            </div>
-                                                                    </div>
-                                                            </div>
-                                                    )}
+                          {modalConfig.tipo !== 'tipo_projeto' && (
+                              <div className="gm-field">
+                                  <label>Prazo Previsto (Dias)</label>
+                                  <div className="gm-input-icon">
+                                      <Icons.Clock />
+                                      <input className="gm-input" type="number" value={inputDias} onChange={(e) => setInputDias(e.target.value)} min="0" required />
+                                  </div>
+                              </div>
+                          )}
 
-                                                    {/* Campos de Informação Adicional para etapas/tarefas */}
-                                                    {(modalConfig.tipo === 'atividade' || modalConfig.tipo === 'tarefa') && (
-                                                        <div style={{margin: '18px 0 10px 0', padding: '10px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0'}}>
-                                                            <label htmlFor="exigeInfoAdicional" style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '0.95rem', color: '#334155', marginBottom: '10px', cursor: 'pointer'}}>
-                                                                <input type="checkbox" id="exigeInfoAdicional" checked={exigeInfoAdicional} onChange={e => setExigeInfoAdicional(e.target.checked)} style={{width:16, height:16, minWidth:16, minHeight:16, maxWidth:16, maxHeight:16, flex:'none'}} />
-                                                                Exige informação adicional?
-                                                            </label>
-                                                            {exigeInfoAdicional && (
-                                                                <div style={{marginLeft: '2px', marginTop: '8px'}}>
-                                                                    <div style={{fontWeight: 700, fontSize: '0.85rem', color: '#64748b', marginBottom: '8px'}}>Campos necessários:</div>
-                                                                    <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
-                                                                        <label htmlFor="campoInvestimento" style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 500, fontSize: '0.95rem', color: '#1e293b', cursor: 'pointer'}}>
-                                                                            <input type="checkbox" id="campoInvestimento" checked={camposInfoAdicional.investimento} onChange={e => setCamposInfoAdicional(v => ({...v, investimento: e.target.checked}))} style={{width:16, height:16, minWidth:16, minHeight:16, maxWidth:16, maxHeight:16, flex:'none'}} />
-                                                                            Valor do Investimento
-                                                                        </label>
-                                                                        <label htmlFor="campoFinanciamento" style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 500, fontSize: '0.95rem', color: '#1e293b', cursor: 'pointer'}}>
-                                                                            <input type="checkbox" id="campoFinanciamento" checked={camposInfoAdicional.financiamento} onChange={e => setCamposInfoAdicional(v => ({...v, financiamento: e.target.checked}))} style={{width:16, height:16, minWidth:16, minHeight:16, maxWidth:16, maxHeight:16, flex:'none'}} />
-                                                                            Valor do Financiamento
-                                                                        </label>
-                                                                        <label htmlFor="campoIncentivo" style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 500, fontSize: '0.95rem', color: '#1e293b', cursor: 'pointer'}}>
-                                                                            <input type="checkbox" id="campoIncentivo" checked={camposInfoAdicional.incentivo} onChange={e => setCamposInfoAdicional(v => ({...v, incentivo: e.target.checked}))} style={{width:16, height:16, minWidth:16, minHeight:16, maxWidth:16, maxHeight:16, flex:'none'}} />
-                                                                            Valor do Incentivo
-                                                                        </label>
-                                                                        <label htmlFor="campoDataPrevista" style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 500, fontSize: '0.95rem', color: '#1e293b', cursor: 'pointer'}}>
-                                                                            <input type="checkbox" id="campoDataPrevista" checked={camposInfoAdicional.data_prevista_aprovacao} onChange={e => setCamposInfoAdicional(v => ({...v, data_prevista_aprovacao: e.target.checked}))} style={{width:16, height:16, minWidth:16, minHeight:16, maxWidth:16, maxHeight:16, flex:'none'}} />
-                                                                            Data prevista de aprovação
-                                                                        </label>
-                                                                    </div>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    )}
+                          {(modalConfig.tipo === 'atividade' || modalConfig.tipo === 'tarefa') && (
+                              <div className="gm-extra">
+                                  {renderSwitch('exigeInfoAdicional', exigeInfoAdicional, setExigeInfoAdicional, 'Exige informação adicional?')}
+                                  {exigeInfoAdicional && (
+                                      <div className="gm-extra-fields">
+                                          <span className="gm-extra-title">Campos necessários:</span>
+                                          <div className="gm-checks">
+                                              {[
+                                                  ['campoInvestimento', 'investimento', 'Valor do Investimento'],
+                                                  ['campoFinanciamento', 'financiamento', 'Valor do Financiamento'],
+                                                  ['campoIncentivo', 'incentivo', 'Valor do Incentivo'],
+                                                  ['campoDataPrevista', 'data_prevista_aprovacao', 'Data prevista de aprovação'],
+                                              ].map(([id, key, label]) => (
+                                                  <label key={id} htmlFor={id} className={`gm-check ${camposInfoAdicional[key] ? 'is-on' : ''}`}>
+                                                      <input type="checkbox" id={id} checked={camposInfoAdicional[key]} onChange={e => setCamposInfoAdicional(v => ({ ...v, [key]: e.target.checked }))} />
+                                                      <span className="gm-check-box"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg></span>
+                                                      {label}
+                                                  </label>
+                                              ))}
+                                          </div>
+                                      </div>
+                                  )}
+                              </div>
+                          )}
 
-                          <div style={styles.modalFooter}>
-                              <button type="button" onClick={closeModal} style={styles.btnCancel} className="hover-btn-secondary">Cancelar</button>
-                              <button type="submit" disabled={isSubmitting} style={styles.btnSubmit} className="hover-btn-primary">{isSubmitting ? 'A guardar...' : 'Guardar Alterações'}</button>
+                          <div className="gm-modal-foot">
+                              <button type="button" onClick={closeModal} className="gm-btn">Cancelar</button>
+                              <button type="submit" disabled={isSubmitting} className="gm-btn is-primary">{isSubmitting ? 'A guardar...' : 'Guardar Alterações'}</button>
                           </div>
                       </form>
                   </div>
@@ -977,14 +886,14 @@ export default function GestaoTemplates() {
       {/* MODAL DE CONFIRMAÇÃO GLOBAL */}
       {confirmDialog.show && (
           <ModalPortal>
-              <div style={styles.modalOverlay}>
-                  <div style={styles.alertBox} className="fade-in">
-                      <div style={{display:'flex', justifyContent:'center', marginBottom:'10px'}}><Icons.Alert/></div>
-                      <h3 style={styles.alertTitle}>Tens a certeza?</h3>
-                      <p style={styles.alertText}>{confirmDialog.message}</p>
-                      <div style={{display: 'flex', gap: '10px'}}>
-                          <button onClick={() => setConfirmDialog({show: false, message: '', confirmText: '', onConfirm: null})} style={styles.btnCancel} className="hover-btn-secondary">Cancelar</button>
-                          <button onClick={confirmDialog.onConfirm} style={styles.btnDanger} className="hover-btn-danger">{confirmDialog.confirmText}</button>
+              <div className="gm-overlay" onClick={() => setConfirmDialog({show: false, message: '', confirmText: '', onConfirm: null})}>
+                  <div className="gm-dialog" onClick={(e) => e.stopPropagation()} role="alertdialog">
+                      <span className="gm-dialog-icon"><Icons.Alert /></span>
+                      <h3>Tens a certeza?</h3>
+                      <p>{confirmDialog.message}</p>
+                      <div className="gm-dialog-actions">
+                          <button type="button" onClick={() => setConfirmDialog({show: false, message: '', confirmText: '', onConfirm: null})} className="gm-btn">Cancelar</button>
+                          <button type="button" onClick={confirmDialog.onConfirm} className="gm-btn is-danger">{confirmDialog.confirmText}</button>
                       </div>
                   </div>
               </div>
@@ -992,26 +901,6 @@ export default function GestaoTemplates() {
       )}
 
       {notification && <div className={`toast-container ${notification.type}`}>{notification.type === 'success' ? '✅' : '⚠️'} {notification.message}</div>}
-
-      <style>{`
-          .hover-list-item:hover { background-color: #f8fafc !important; border-color: #e2e8f0 !important; }
-          .hover-list-item:hover .actions-group { opacity: 1 !important; }
-          .hover-btn-primary:hover { background-color: var(--color-btnPrimaryDark) !important; }
-          .hover-btn-secondary:hover { background-color: #f1f5f9 !important; color: #1e293b !important; border-color: #cbd5e1 !important; }
-          .hover-btn-danger:hover { background-color: #dc2626 !important; }
-          .hover-icon-blue:hover { color: var(--color-btnPrimary) !important; background: var(--color-bgSecondary) !important; }
-          .hover-icon-red:hover { color: #ef4444 !important; background: #fee2e2 !important; }
-          .input-focus:focus { border-color: var(--color-btnPrimary) !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
-          .custom-scrollbar::-webkit-scrollbar { width: 5px; }
-          .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-          .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
-          .fade-in { animation: fadeIn 0.2s ease-out; }
-          @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-          
-          /* Efeitos de Drag and Drop */
-          .drag-item { cursor: grab; }
-          .drag-item:active { cursor: grabbing; opacity: 0.7; transform: scale(0.98); }
-      `}</style>
     </div>
   );
 }
