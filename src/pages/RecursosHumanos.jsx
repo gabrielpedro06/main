@@ -6,6 +6,8 @@ import gerarRelatorioRecursosHumanos from "../components/pdfRecursosHumanos";
 import gerarRelatorioIndividual from "../components/pdfIndividual";
 import gerarRelatorioDeslocacoesMensais from "../components/pdfDeslocacoesMensais";
 import CalendarioColaborador from "../components/CalendarioColaborador";
+import FancySelect from "../components/FancySelect";
+import * as XLSX from "xlsx";
 import {
     calcularDiasUteis as calcularDiasUteisFerias,
     buildToleranciasSkipSet,
@@ -26,6 +28,7 @@ import {
 } from "../utils/feriasSaldo";
 import { createDashboardNotifications } from "../utils/dashboardNotifications";
 import "./../styles/dashboard.css"; 
+import "./../styles/rh.css";
 
 // --- ÍCONES SVG ESTILO SAAS ---
 const Icons = {
@@ -53,6 +56,8 @@ const Icons = {
   FileText: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>,
   Download: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
 };
+
+Icons.Search = ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>;
 
 const ModalPortal = ({ children }) => {
   return createPortal(children, document.body);
@@ -405,8 +410,10 @@ export default function RecursosHumanos() {
     // States para seleção múltipla
   const [selectedPedidosPendentes, setSelectedPedidosPendentes] = useState([]);
   const [selectedPedidosKm, setSelectedPedidosKm] = useState([]);
+  const [pedidosBusca, setPedidosBusca] = useState('');
+  const dadosMensaisReqRef = useRef(0);
+  const [pedidosTipoFiltro, setPedidosTipoFiltro] = useState('todos');
     const [bulkApproveModal, setBulkApproveModal] = useState({ show: false, tipo: null, pedidos: [] });
-    const [toleranciasTab, setToleranciasTab] = useState("tolerancias");
     const [userStatusModal, setUserStatusModal] = useState({ show: false, profile: null, nextActive: true });
 
   const toLocalDateString = (date) => {
@@ -621,9 +628,10 @@ export default function RecursosHumanos() {
       };
   }, []);
 
+  const isProcessamentoView = activeView === 'processamento';
   useEffect(() => {
             fetchDadosMensais();
-        }, [selectedUser, currentDate, colaboradores]);
+        }, [selectedUser, currentDate, colaboradores, isProcessamentoView]);
 
     useEffect(() => {
         if (!selectedUser) {
@@ -1087,19 +1095,21 @@ export default function RecursosHumanos() {
   }
 
   async function fetchDadosMensais() {
+    const reqId = ++dadosMensaisReqRef.current;
+    const scopeUser = activeView === 'processamento' ? null : selectedUser;
     try {
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth() + 1;
         const startOfMonth = `${year}-${String(month).padStart(2, '0')}-01`;
                 const endOfMonth = toLocalDateString(new Date(year, month, 0));
-        const startOfAttendanceWindow = selectedUser
-            ? getAttendanceStartForUser(selectedUser)
+        const startOfAttendanceWindow = scopeUser
+            ? getAttendanceStartForUser(scopeUser)
             : getAttendanceCalculationStartDate(startOfMonth);
 
         let qAssiduidade = supabase.from("assiduidade").select("*").gte("data_registo", startOfAttendanceWindow).lte("data_registo", endOfMonth);
-        if (selectedUser) qAssiduidade = qAssiduidade.eq("user_id", selectedUser);
+        if (scopeUser) qAssiduidade = qAssiduidade.eq("user_id", scopeUser);
         const { data: dAssiduidade } = await qAssiduidade;
-        setAssiduidadeMes(dAssiduidade || []);
+        if (reqId !== dadosMensaisReqRef.current) return;
 
         let qFerias = supabase
             .from("ferias")
@@ -1108,8 +1118,10 @@ export default function RecursosHumanos() {
             .neq('estado', 'cancelado')
             .lte("data_inicio", endOfMonth)
             .gte("data_fim", startOfAttendanceWindow);
-        if (selectedUser) qFerias = qFerias.or(`user_id.eq.${selectedUser},user_id.is.null`);
+        if (scopeUser) qFerias = qFerias.or(`user_id.eq.${scopeUser},user_id.is.null`);
         const { data: dFerias } = await qFerias;
+        if (reqId !== dadosMensaisReqRef.current) return;
+        setAssiduidadeMes(dAssiduidade || []);
         setAusenciasMes(dFerias || []);
     } catch (err) { console.error(err); }
   }
@@ -1404,11 +1416,6 @@ export default function RecursosHumanos() {
 
   const closeUserEditor = () => {
       setIsEditingUser(false);
-  };
-
-  const getUserAvatarFallback = (profile) => {
-      const name = String(profile?.nome || profile?.nome_completo || 'C').trim();
-      return name ? name.slice(0, 1).toUpperCase() : 'C';
   };
 
   async function handleUpdateUserProfile() {
@@ -2089,6 +2096,182 @@ export default function RecursosHumanos() {
   const faltasInjustificadasAutomaticas = gerarFaltasInjustificadasAutomaticas();
 
   const stats = getStats();
+
+  // ---------------------------------------------------------------------------
+  // PROCESSAMENTO POR COLABORADOR (mesma lógica do getStats, aplicada a cada um)
+  // Só é usado na Visão Global, onde assiduidadeMes/ausenciasMes têm toda a equipa.
+  // ---------------------------------------------------------------------------
+  const computeProcessamentoFor = (uid) => {
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      const monthStart = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+      const monthEnd = toLocalDateString(new Date(year, month + 1, 0));
+      const attendanceStart = getAttendanceStartForUser(uid);
+      const effectiveMonthStart = attendanceStart && attendanceStart > monthStart ? attendanceStart : monthStart;
+      const holidaySet = createHolidaySetForMonth(year, month);
+      const diasUteisMes = calcularDiasUteis(effectiveMonthStart, monthEnd);
+      const assidU = (assiduidadeMes || []).filter((a) => a.user_id === uid);
+      const ausU = (ausenciasMes || []).filter((a) => a.user_id === uid || a.user_id === null || a.user_id === undefined);
+
+      const countTrabalho = countMealAllowanceEligibleDaysInPeriod(assidU, {
+          startDate: effectiveMonthStart,
+          endDate: monthEnd,
+          holidaySet,
+      });
+
+      const toleranciasDoMes = ausU.filter((a) => !a.is_parcial && isToleranceType(a.tipo));
+      const skipSet = buildToleranciasSkipSet(
+          toleranciasDoMes.map((item) => ({
+              user_id: item.user_id,
+              data: item.data_inicio,
+              data_inicio: item.data_inicio,
+              data_fim: item.data_fim || item.data_inicio,
+          })),
+          uid,
+      );
+
+      let countFerias = 0, countFaltas = 0, countBaixas = 0;
+      ausU.forEach((a) => {
+          if (a.is_parcial) return;
+          const tipoNormalizado = normalizeAbsenceType(a.tipo);
+          if (isToleranceType(tipoNormalizado)) return;
+          const dataInicioCalculo = getAttendanceStartForUser(a.user_id);
+          const dataInicioAjustada = a.data_inicio < dataInicioCalculo ? dataInicioCalculo : a.data_inicio;
+          const dias = calcularDiasUteisNoMes(
+              dataInicioAjustada,
+              a.data_fim || a.data_inicio,
+              year,
+              month,
+              isVacationType(tipoNormalizado) ? skipSet : null,
+          );
+          if (dias <= 0) return;
+          if (isVacationType(tipoNormalizado)) countFerias += dias;
+          else if (tipoNormalizado.includes('falta')) countFaltas += dias;
+          else if (tipoNormalizado.includes('baixa') || tipoNormalizado.includes('doenca') || tipoNormalizado.includes('acidente')) countBaixas += dias;
+      });
+
+      // Faltas injustificadas automáticas (mesma regra da ficha individual)
+      const hojeStr = new Date().toISOString().split('T')[0];
+      const datasComAssiduidade = new Set(assidU.map((a) => a.data_registo));
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      let diasDescontadosSA = 0;
+      for (let d = 1; d <= daysInMonth; d++) {
+          const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+          const dayOfWeek = new Date(year, month, d).getDay();
+          const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+          const isHoliday = holidaySet.has(dateStr);
+          if (dateStr < effectiveMonthStart || isWeekend || isHoliday) continue;
+
+          const temJustificacao = ausU.some((a) => {
+              if (a.tipo === KM_REQUEST_TYPE) return false;
+              const estado = (a.estado || '').toLowerCase();
+              if (estado === 'rejeitado' || estado === 'cancelado') return false;
+              return a.data_inicio <= dateStr && a.data_fim >= dateStr;
+          });
+          if (dateStr < hojeStr && dateStr >= attendanceStart && !datasComAssiduidade.has(dateStr) && !temJustificacao) {
+              countFaltas += 1;
+          }
+
+          const ausenciaDiaInteira = ausU.find((a) => {
+              if (a.is_parcial) return false;
+              if (a.tipo === KM_REQUEST_TYPE) return false;
+              const estado = (a.estado || '').toLowerCase();
+              if (estado === 'rejeitado' || estado === 'cancelado') return false;
+              return a.data_inicio <= dateStr && a.data_fim >= dateStr;
+          });
+          if (ausenciaDiaInteira) { diasDescontadosSA++; continue; }
+          if (!(dateStr < hojeStr)) continue;
+          const assid = assidU.find((a) => a.data_registo === dateStr);
+          const worked = assid ? getEffectiveWorkedSeconds(assid) : 0;
+          if (worked >= MIN_SA_WORK_SECONDS) continue;
+          diasDescontadosSA++;
+      }
+
+      const profile = colaboradores.find((c) => c.id === uid);
+      const diarioSA = Number(profile?.valor_sa) || 0;
+      const valorSA = (diasUteisMes - diasDescontadosSA) * diarioSA;
+      return { countTrabalho, countFerias, countFaltas, countBaixas, valorSA, diarioSA, diasUteisMes, diasDescontadosSA };
+  };
+
+  const processamentoEquipa = activeView === 'processamento'
+      ? [...colaboradoresAtivos]
+          .sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-PT'))
+          .map((colab) => ({ colab, ...computeProcessamentoFor(colab.id) }))
+      : [];
+  const processamentoTotal = processamentoEquipa.reduce((sum, item) => sum + item.valorSA, 0);
+
+  // ---------------------------------------------------------------------------
+  // ESTADO DE HOJE DE CADA COLABORADOR (grelha da equipa)
+  // ---------------------------------------------------------------------------
+  const getEstadoHoje = (colab) => {
+      const todayStr = toLocalDateString(new Date());
+      const weekday = new Date().getDay();
+      const estadoTemp = getTemporaryStatusFromProfile(colab);
+      if (estadoTemp && isTemporaryStatusActiveOnDate(estadoTemp, todayStr)) {
+          return { tone: 'temp', label: formatAbsenceTypeLabel(estadoTemp.tipo) };
+      }
+      const ausencias = (ausenciasMes || []).filter((a) => a.tipo !== KM_REQUEST_TYPE && a.data_inicio <= todayStr && a.data_fim >= todayStr && (a.user_id === colab.id || a.user_id === null));
+      const inteira = ausencias.find((a) => !a.is_parcial);
+      if (inteira) {
+          const t = normalizeAbsenceType(inteira.tipo);
+          if (isToleranceType(t)) return { tone: 'tol', label: 'Tolerância' };
+          if (isVacationType(t)) return { tone: 'vac', label: 'Férias' };
+          if (t.includes('baixa') || t.includes('doenca') || t.includes('acidente')) return { tone: 'sick', label: 'Baixa' };
+          if (t.includes('falta')) return { tone: 'bad', label: 'Falta' };
+          return { tone: 'temp', label: formatAbsenceTypeLabel(inteira.tipo) };
+      }
+      const assid = (assiduidadeMes || []).find((a) => a.user_id === colab.id && a.data_registo === todayStr);
+      const parcial = ausencias.find((a) => a.is_parcial);
+      if (parcial && !assid) return { tone: 'part', label: `Ausente ${parcial.hora_inicio?.slice(0, 5) || ''}–${parcial.hora_fim?.slice(0, 5) || ''}` };
+      if (assid?.hora_entrada && !assid?.hora_saida) return { tone: 'work', label: `A trabalhar desde ${String(assid.hora_entrada).slice(0, 5)}` };
+      if (assid?.hora_saida) return { tone: 'done', label: `Saiu às ${String(assid.hora_saida).slice(0, 5)}` };
+      if (weekday === 0 || weekday === 6) return { tone: 'off', label: 'Fim de semana' };
+      return { tone: 'none', label: 'Sem registo hoje' };
+  };
+
+  // ---------------------------------------------------------------------------
+  // FILTROS DOS PEDIDOS
+  // ---------------------------------------------------------------------------
+  const pedidosBuscaNorm = String(pedidosBusca || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+  const matchPedidoBusca = (p) => {
+      if (!pedidosBuscaNorm) return true;
+      const texto = `${p.profiles?.nome || ''} ${p.tipo || ''} ${p.km_origem || ''} ${p.km_destino || ''} ${p.motivo || ''}`
+          .normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+      return texto.includes(pedidosBuscaNorm);
+  };
+  const pedidosPendentesFiltrados = pedidosPendentes.filter((p) => {
+      if (!matchPedidoBusca(p)) return false;
+      if (pedidosTipoFiltro === 'ferias') return isVacationType(p.tipo) && p.estado === 'pendente';
+      if (pedidosTipoFiltro === 'outras') return !isVacationType(p.tipo) && p.estado === 'pendente';
+      if (pedidosTipoFiltro === 'cancel') return p.estado === 'pedido_cancelamento';
+      return true;
+  });
+  const pedidosKmFiltrados = pedidosTipoFiltro === 'ferias' || pedidosTipoFiltro === 'outras'
+      ? []
+      : pedidosKmPendentes.filter((p) => matchPedidoBusca(p) && (pedidosTipoFiltro === 'cancel' ? p.estado === 'pedido_cancelamento' : true));
+
+  const exportarProcessamentoExcel = () => {
+      const mesLabel = currentDate.toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' });
+      const linhas = processamentoEquipa.map((item) => ({
+          'Colaborador': item.colab.nome,
+          'Empresas': formatCompaniesLabel(item.colab),
+          'Dias úteis do mês': item.diasUteisMes,
+          'Dias Trabalhados (>=5h)': item.countTrabalho,
+          'Dias Descontados (<5h / ausência)': item.diasDescontadosSA,
+          'Férias': item.countFerias,
+          'Faltas': item.countFaltas,
+          'Baixas': item.countBaixas,
+          'Valor S.A. Diário (€)': Number(item.diarioSA.toFixed(2)),
+          'TOTAL S.A. PAGAR (€)': Number(item.valorSA.toFixed(2)),
+      }));
+      linhas.push({ 'Colaborador': 'TOTAL', 'TOTAL S.A. PAGAR (€)': Number(processamentoTotal.toFixed(2)) });
+      const ws = XLSX.utils.json_to_sheet(linhas);
+      ws['!cols'] = [{ wch: 26 }, { wch: 22 }, { wch: 16 }, { wch: 22 }, { wch: 30 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 18 }, { wch: 20 }];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Processamento');
+      XLSX.writeFile(wb, `Processamento_SA_${currentDate.getFullYear()}_${String(currentDate.getMonth() + 1).padStart(2, '0')}.xlsx`);
+      showNotification(`Processamento de ${mesLabel} exportado.`, 'success');
+  };
   const currentUserProfile = colaboradores.find(c => c.id === selectedUser);
   const modalHasSAUpdate = pendingGlobalUpdates.sa;
   const modalHasKmUpdate = pendingGlobalUpdates.km;
@@ -2228,6 +2411,8 @@ export default function RecursosHumanos() {
                         return {
                             id: `estado-${colaborador.id}-${dateStr}`,
                             nome: colaborador.nome || 'Desconhecido',
+                            colabId: colaborador.id,
+                            avatarUrl: colaborador.avatar_url,
                             tipo: estado.tipo,
                             estado,
                         };
@@ -2318,7 +2503,7 @@ export default function RecursosHumanos() {
                           const ownerLabel = a.user_id ? (user?.nome || 'Desconhecido') : 'Global';
                           return (
                               <ModernTooltip key={i} content={`${ownerLabel}: ${formatAbsenceTypeLabel(a.tipo)} ${a.is_parcial ? '(Horas)' : ''}`}>
-                                  <div style={{height: '6px', background: barColor, borderRadius: '3px', width: '100%'}} />
+                                  <span className="rh-day-av" style={{ '--r': barColor }}>{renderRhAvatar(ownerLabel, a.user_id || 'global', 'xs', user?.avatar_url)}</span>
                               </ModernTooltip>
                           );
                       });
@@ -2329,7 +2514,7 @@ export default function RecursosHumanos() {
                           const estadoStyle = getTemporaryStatusStyle(estado.tipo);
                           return (
                               <ModernTooltip key={`estado-${i}`} content={`${estado.nome}: ${formatAbsenceTypeLabel(estado.tipo)}`}>
-                                  <div style={{height: '6px', background: estadoStyle.textoCor, borderRadius: '3px', width: '100%'}} />
+                                  <span className="rh-day-av" style={{ '--r': estadoStyle.textoCor }}>{renderRhAvatar(estado.nome, estado.colabId || estado.nome, 'xs', estado.avatarUrl)}</span>
                               </ModernTooltip>
                           );
                       });
@@ -2354,28 +2539,21 @@ export default function RecursosHumanos() {
                       {badge && !feriado && !toleranciaGlobalNoDia && (
                           <span style={{fontSize: '0.7rem', color: textoCor, fontStyle: 'italic'}}>{badge}</span>
                       )}
-                      {bars}
-                      {estadosBars}
+                      {(bars.length + estadosBars.length) > 0 && (
+                          <div className="rh-day-people">
+                              {[...bars, ...estadosBars].slice(0, 4)}
+                              {bars.length + estadosBars.length > 4 && <span className="rh-day-more">+{bars.length + estadosBars.length - 4}</span>}
+                          </div>
+                      )}
                   </div>
               );
           }
 
+          const isTodayCell = dateStr === toLocalDateString(new Date());
           days.push(
-              <div key={d} style={{
-                  border: `1px solid ${cellBorderColor}`, 
-                  borderRadius: '8px', 
-                  padding: '5px', 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  justifyContent: 'space-between', 
-                  outline: 'none', 
-                  boxShadow: 'none', 
-                  background: cor,
-                  minHeight: '80px', 
-                  position: 'relative'
-              }}>
-                  <span style={{fontSize:'0.75rem', color: textoCor, fontWeight:'bold'}}>{d}</span>
-                  <div style={{textAlign:'center', fontSize:'1.2rem', width: '100%'}}>{content}</div>
+              <div key={d} className={`rh-day is-${tipo} ${isTodayCell ? 'is-today' : ''}`} style={{ background: cor, borderColor: cellBorderColor }}>
+                  <span className="rh-day-num" style={{ color: isTodayCell ? undefined : textoCor }}>{d}</span>
+                  <div className="rh-day-body">{content}</div>
               </div>
           );
       }
@@ -2389,10 +2567,6 @@ export default function RecursosHumanos() {
         setCurrentDate(newDate);
     };
   
-    const readOnlyGridStyle = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', columnGap: '20px', rowGap: '10px', fontSize: '0.9rem', color: '#334151' };
-  const readOnlyItemStyle = { display: 'flex', flexDirection: 'column', borderBottom: '1px solid #f1f5f9', paddingBottom: '5px' };
-  const labelStyle = { color: '#64748b', fontSize: '0.75rem', marginBottom: '2px' };
-  const inputStyle = { padding: '10px', borderRadius: '5px', border: '1px solid #ccc', width: '100%', marginBottom: '10px' };
 
   // Função para ir buscar as formações
   async function fetchFormacoes() {
@@ -2491,481 +2665,474 @@ export default function RecursosHumanos() {
       });
   };
 
+  const rhInitials = (nome) => {
+      const parts = String(nome || '').trim().split(/\s+/).filter(Boolean);
+      if (!parts.length) return '?';
+      return ((parts[0][0] || '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
+  };
+  const RH_AVATAR_COLORS = ['#0ea5e9', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f43f5e', '#6366f1'];
+  const rhColorFor = (key) => {
+      const s = String(key || '');
+      let h = 0;
+      for (let i = 0; i < s.length; i += 1) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+      return RH_AVATAR_COLORS[h % RH_AVATAR_COLORS.length];
+  };
+  const renderRhAvatar = (nome, key, size = 'sm', url = null) => (
+      <span className={`rh-avatar is-${size}`} style={{ '--c': rhColorFor(key || nome) }}>
+          {url ? <img src={url} alt="" /> : rhInitials(nome)}
+      </span>
+  );
+  const formatPeriodo = (p) => (p.is_parcial
+      ? (
+          <div className="rh-periodo">
+              <strong>{new Date(p.data_inicio).toLocaleDateString('pt-PT')}</strong>
+              <small><Icons.Clock size={12}/> {p.hora_inicio?.slice(0,5)} às {p.hora_fim?.slice(0,5) || '...'}</small>
+          </div>
+      )
+      : <span className="rh-periodo-line">{`${new Date(p.data_inicio).toLocaleDateString('pt-PT')} a ${new Date(p.data_fim).toLocaleDateString('pt-PT')}`}</span>);
+  const renderEstadoPedido = (p) => (p.estado === 'pendente'
+      ? <span className="rh-tag is-new">Novo Pedido</span>
+      : <span className="rh-tag is-cancel"><Icons.Alert size={12}/> Cancelamento</span>);
+  const renderPedidoAcoes = (p) => (
+      <div className="rh-row-actions">
+          <ModernTooltip content="Ver Detalhes do Pedido">
+              <button type="button" className="rh-icon-btn" onClick={() => abrirModalDetalhes(p)}><Icons.Eye size={16} /></button>
+          </ModernTooltip>
+          {p.estado === 'pendente' ? (
+              <>
+                  <ModernTooltip content="Aprovar">
+                      <button type="button" className="rh-icon-btn is-ok" onClick={() => abrirModalConfirmacao(p, 'aprovar')}><Icons.Check size={16} /></button>
+                  </ModernTooltip>
+                  <ModernTooltip content="Rejeitar">
+                      <button type="button" className="rh-icon-btn is-bad" onClick={() => abrirModalConfirmacao(p, 'rejeitar')}><Icons.X size={16} /></button>
+                  </ModernTooltip>
+              </>
+          ) : (
+              <>
+                  <ModernTooltip content="Aceitar Cancelamento">
+                      <button type="button" className="rh-pill-btn is-bad" onClick={() => abrirModalConfirmacao(p, 'aceitar_cancelamento')}>Aceitar</button>
+                  </ModernTooltip>
+                  <ModernTooltip content="Recusar Cancelamento">
+                      <button type="button" className="rh-pill-btn" onClick={() => abrirModalConfirmacao(p, 'recusar_cancelamento')}>Recusar</button>
+                  </ModernTooltip>
+              </>
+          )}
+      </div>
+  );
+  const renderInativosList = () => (
+      <div className="rh-people-list">
+          {colaboradoresInativos.length > 0 ? (
+              colaboradoresInativos.map((colaborador) => (
+                  <div key={colaborador.id} className="rh-person-row is-off">
+                      {renderRhAvatar(colaborador.nome, colaborador.id, 'md', colaborador.avatar_url)}
+                      <div className="rh-person-row-main">
+                          <div className="rh-person-row-name">
+                              <strong>{colaborador.nome}</strong>
+                              <span className="rh-tag is-off">Desativado</span>
+                          </div>
+                          <small>{formatCompaniesLabel(colaborador)}</small>
+                      </div>
+                      <button type="button" className="rh-btn is-ok-soft" onClick={() => openUserStatusModal(colaborador)}>
+                          <Icons.Check size={15} /> Reativar
+                      </button>
+                  </div>
+              ))
+          ) : (
+              <div className="rh-empty is-small">
+                  <span className="rh-empty-ico"><Icons.Users size={26} /></span>
+                  <p>Não há colaboradores desativados.</p>
+              </div>
+          )}
+      </div>
+  );
+  const setTemp = (key) => (e) => setTempUserProfile({ ...tempUserProfile, [key]: e.target.value });
+  const temporaryStatusAtual = getTemporaryStatusFromProfile(currentUserProfile);
+  const totalPedidos = pedidosPendentes.length + pedidosKmPendentes.length;
+  const formacaoAno = currentDate.getFullYear();
+  const horasPorColab = colaboradoresAtivos.map((colab) => ({
+      colab,
+      horas: formacoes.filter(f => f.user_id === colab.id && f.ano === formacaoAno).reduce((sum, f) => sum + Number(f.total_horas), 0),
+  }));
+  const formacaoCumpridos = horasPorColab.filter((item) => item.horas >= 40).length;
+  const formacaoTotalHoras = horasPorColab.reduce((sum, item) => sum + item.horas, 0);
+  const RH_VIEWS = [
+      { id: 'gestao', label: 'Gestão', icon: Icons.Chart },
+      { id: 'processamento', label: 'Processamento', icon: Icons.Currency },
+      { id: 'pedidos', label: 'Pedidos', icon: Icons.Inbox, badge: totalPedidos },
+      { id: 'tolerancias', label: 'Tolerâncias', icon: Icons.Clock },
+      { id: 'formacoes', label: 'Formação', icon: Icons.FileText },
+      { id: 'inativos', label: 'Colab. Inativos', icon: Icons.User },
+  ];
+
   return (
-    <div className="page-container" style={{padding: '20px'}}>
-      
-      <div style={{marginBottom: '20px', background:'white', padding:'20px', borderRadius:'12px', boxShadow:'0 2px 5px rgba(0,0,0,0.05)'}}>
-        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'20px'}}>
-            <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
-                <div style={{background:'var(--color-bgSecondary)', padding:'12px', borderRadius:'10px', display:'flex', alignItems:'center', justifyContent:'center'}}>
-                    <Icons.Users size={28} color="var(--color-btnPrimary)" />
-                </div>
+    <div className="page-container rh-page">
+
+      {/* HERO */}
+      <header className="rh-hero">
+        <div className="rh-hero-bg"><span className="rh-orb rh-orb-a" /><span className="rh-orb rh-orb-b" /></div>
+        <div className="rh-hero-row">
+            <div className="rh-hero-main">
+                <span className="rh-hero-icon"><Icons.Users size={26} /></span>
                 <div>
-                    <h1 style={{margin:0, fontSize:'1.4rem', color:'#1e293b'}}>Gestão de RH</h1>
-                    <p style={{margin:'5px 0 0 0', color:'#64748b', fontSize:'0.9rem'}}>Aprovações, salários e dados pessoais.</p>
+                    <h1>Gestão de RH</h1>
+                    <p>Aprovações, salários e dados pessoais.</p>
                 </div>
             </div>
-            <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end'}}>
-                <button className={activeView === 'gestao' ? 'btn-primary' : 'btn-small'} onClick={() => setActiveView('gestao')} style={{padding: '10px 20px', display:'flex', alignItems:'center', gap:'8px'}}>
-                    <Icons.Chart size={18} /> Gestão
-                </button>
-                <button className={activeView === 'pedidos' ? 'btn-primary' : 'btn-small'} onClick={() => setActiveView('pedidos')} style={{padding: '10px 20px', position: 'relative', display:'flex', alignItems:'center', gap:'8px'}}>
-                    <Icons.Inbox size={18} /> Pedidos
-                    {(pedidosPendentes.length + pedidosKmPendentes.length) > 0 && <span style={{position: 'absolute', top: '-8px', right: '-8px', background: '#ef4444', color: 'white', borderRadius: '50%', padding: '2px 8px', fontSize: '0.7rem', fontWeight: 'bold'}}>{pedidosPendentes.length + pedidosKmPendentes.length}</span>}
-                </button>
-                <button className={activeView === 'tolerancias' ? 'btn-primary' : 'btn-small'} onClick={() => setActiveView('tolerancias')} style={{padding: '10px 20px', display:'flex', alignItems:'center', gap:'8px'}}>
-                    <Icons.Clock size={18} /> Tolerâncias
-                </button>
-                <button className={activeView === 'formacoes' ? 'btn-primary' : 'btn-small'} onClick={() => setActiveView('formacoes')} style={{padding: '10px 20px', display:'flex', alignItems:'center', gap:'8px'}}>
-                    <Icons.FileText size={18} /> Formação
-                </button>
-                <button className={activeView === 'inativos' ? 'btn-primary' : 'btn-small'} onClick={() => setActiveView('inativos')} style={{padding: '10px 20px', display:'flex', alignItems:'center', gap:'8px'}}>
-                    <Icons.User size={18} /> Colab. Inativos
-                </button>
+            <div className="rh-hero-stats">
+                <span className="rh-stat"><strong>{colaboradoresAtivos.length}</strong> colaboradores</span>
+                <span className={`rh-stat ${totalPedidos > 0 ? 'is-alert' : ''}`}><strong>{totalPedidos}</strong> pedidos pendentes</span>
+                <span className="rh-stat"><strong>{ausentesHoje.length}</strong> ausentes hoje</span>
+                {aniversariantes.length > 0 && <span className="rh-stat"><Icons.Cake size={13} /> <strong>{aniversariantes.length}</strong> aniversários</span>}
             </div>
         </div>
-      </div>
+        <div className="rh-hero-tools">
+            <div className="rh-scope" role="tablist">
+                {RH_VIEWS.map((view) => {
+                    const ViewIcon = view.icon;
+                    return (
+                        <button key={view.id} type="button" role="tab" aria-selected={activeView === view.id} className={activeView === view.id ? 'is-on' : ''} onClick={() => setActiveView(view.id)}>
+                            <ViewIcon size={16} /> {view.label}
+                            {view.badge > 0 && <em className="is-alert">{view.badge}</em>}
+                            {view.id === 'inativos' && colaboradoresInativos.length > 0 && <em>{colaboradoresInativos.length}</em>}
+                        </button>
+                    );
+                })}
+            </div>
+        </div>
+      </header>
 
       {activeView === 'pedidos' && (
-          <div style={{display: 'flex', flexDirection: 'column', gap: '30px'}}>
-              
+          <div className="rh-stack bz-tab-panel">
+              <div className="rh-toolbar is-pedidos">
+                  <label className="rh-search">
+                      <Icons.Search size={16} />
+                      <input type="text" value={pedidosBusca} onChange={(e) => setPedidosBusca(e.target.value)} placeholder="Procurar por colaborador, tipo, origem ou destino..." />
+                      {pedidosBusca && <button type="button" className="rh-search-clear" onClick={() => setPedidosBusca('')} aria-label="Limpar"><Icons.X size={13} /></button>}
+                  </label>
+                  <div className="rh-seg">
+                      {[
+                          { id: 'todos', label: 'Todos', n: pedidosPendentes.length + pedidosKmPendentes.length },
+                          { id: 'ferias', label: 'Férias', n: pedidosPendentes.filter((p) => isVacationType(p.tipo) && p.estado === 'pendente').length },
+                          { id: 'outras', label: 'Outras ausências', n: pedidosPendentes.filter((p) => !isVacationType(p.tipo) && p.estado === 'pendente').length },
+                          { id: 'cancel', label: 'Cancelamentos', n: [...pedidosPendentes, ...pedidosKmPendentes].filter((p) => p.estado === 'pedido_cancelamento').length },
+                      ].map((f) => (
+                          <button key={f.id} type="button" className={pedidosTipoFiltro === f.id ? 'is-on' : ''} onClick={() => setPedidosTipoFiltro(f.id)}>
+                              {f.label} <em>{f.n}</em>
+                          </button>
+                      ))}
+                  </div>
+              </div>
+
               {/* TABELA DE AUSÊNCIAS (Férias, Baixas, etc.) */}
-              <div className="card" style={{padding: '25px', borderRadius: '12px', background: 'white', boxShadow: '0 2px 10px rgba(0,0,0,0.02)'}}>
-                  <div style={{display:'flex', alignItems:'center', justifyContent: 'space-between', flexWrap:'wrap', gap:'10px', marginBottom: '20px'}}>
-                      <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
-                          <Icons.Flag size={24} color="#1e293b" />
-                          <h3 style={{margin: 0, color: '#1e293b'}}>Ausências Pendentes</h3>
+              <section className="rh-card">
+                  <div className="rh-card-head">
+                      <div className="rh-card-title">
+                          <span className="rh-card-ico is-amber"><Icons.Flag size={18} /></span>
+                          <div>
+                              <h3>Ausências Pendentes <em className="rh-count">{pedidosPendentes.length}</em></h3>
+                          </div>
                       </div>
                       {selectedPedidosPendentes.length > 0 && (
-                          <button onClick={() => abrirModalAprovacaoMassa('ausencias')} disabled={isSubmitting} className="btn-small" style={{background: '#16a34a', color: 'white', border: 'none', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', borderRadius: '8px', boxShadow: '0 4px 6px rgba(22, 163, 74, 0.2)'}}>
+                          <button type="button" onClick={() => abrirModalAprovacaoMassa('ausencias')} disabled={isSubmitting} className="rh-btn is-ok">
                               <Icons.Check size={16} /> Aprovar Selecionados ({selectedPedidosPendentes.length})
                           </button>
                       )}
                   </div>
                   {pedidosPendentes.length > 0 ? (
-                      <div className="table-responsive">
-                        <table className="data-table" style={{width: '100%', borderCollapse: 'collapse', textAlign: 'left'}}>
+                      <div className="rh-table-wrap">
+                        <table className="rh-table">
                             <thead>
-                                <tr style={{borderBottom: '2px solid #f1f5f9', color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase'}}>
-                                    <th style={{padding: '12px', width: '40px', textAlign: 'center'}}>
-                                        <input 
-                                            type="checkbox" 
-                                            onChange={(e) => handleSelectAll(e, pedidosPendentes, setSelectedPedidosPendentes)} 
-                                            checked={pedidosPendentes.filter(p => p.estado === 'pendente').length > 0 && selectedPedidosPendentes.length === pedidosPendentes.filter(p => p.estado === 'pendente').length}
-                                            style={{cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--color-btnPrimary)'}}
+                                <tr>
+                                    <th className="is-check">
+                                        <input
+                                            type="checkbox"
+                                            className="rh-checkbox"
+                                            onChange={(e) => handleSelectAll(e, pedidosPendentesFiltrados, setSelectedPedidosPendentes)}
+                                            checked={pedidosPendentesFiltrados.filter(p => p.estado === 'pendente').length > 0 && pedidosPendentesFiltrados.filter(p => p.estado === 'pendente').every(p => selectedPedidosPendentes.includes(p.id))}
                                             title="Selecionar todos os novos pedidos"
                                         />
                                     </th>
-                                    <th style={{padding: '12px'}}>Colaborador</th>
-                                    <th style={{padding: '12px'}}>Tipo</th>
-                                    <th style={{padding: '12px'}}>Período</th>
-                                    <th style={{padding: '12px'}}>Duração</th>
-                                    <th style={{padding: '12px'}}>Estado</th>
-                                    <th style={{padding: '12px', textAlign: 'center'}}>Ações</th>
+                                    <th>Colaborador</th>
+                                    <th>Tipo</th>
+                                    <th>Período</th>
+                                    <th>Duração</th>
+                                    <th>Estado</th>
+                                    <th className="is-center">Ações</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {pedidosPendentes.map(p => (
-                                    <tr key={p.id} style={{background: p.estado === 'pedido_cancelamento' ? '#fefce8' : (selectedPedidosPendentes.includes(p.id) ? '#f0f9ff' : 'transparent'), borderBottom: '1px solid #f1f5f9'}}>
-                                        <td style={{padding: '12px', textAlign: 'center'}}>
+                                {pedidosPendentesFiltrados.length === 0 && (
+                                    <tr><td colSpan={7} className="rh-no-results">Nenhuma ausência corresponde aos filtros.</td></tr>
+                                )}
+                                {pedidosPendentesFiltrados.map(p => (
+                                    <tr key={p.id} className={p.estado === 'pedido_cancelamento' ? 'is-cancel' : (selectedPedidosPendentes.includes(p.id) ? 'is-selected' : '')}>
+                                        <td className="is-check">
                                             {p.estado === 'pendente' && (
-                                                <input 
-                                                    type="checkbox" 
-                                                    checked={selectedPedidosPendentes.includes(p.id)} 
+                                                <input
+                                                    type="checkbox"
+                                                    className="rh-checkbox"
+                                                    checked={selectedPedidosPendentes.includes(p.id)}
                                                     onChange={(e) => handleSelectOne(e, p.id, setSelectedPedidosPendentes)}
-                                                    style={{cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--color-btnPrimary)'}}
                                                 />
                                             )}
                                         </td>
-                                        <td style={{padding: '12px', fontWeight: 'bold', color: 'var(--color-btnPrimary)'}}>{p.profiles?.nome}</td>
-                                        <td style={{padding: '12px', color: '#334155'}}>{formatAbsenceTypeLabel(p.tipo)}</td>
-                                        <td style={{padding: '12px', color: '#334155'}}>
-                                          {p.is_parcial ? (
-                                              <>
-                                                  <div style={{fontWeight: '500'}}>{new Date(p.data_inicio).toLocaleDateString('pt-PT')}</div>
-                                                  <div style={{fontSize: '0.8rem', color: '#64748b', display:'flex', alignItems:'center', gap:'4px'}}><Icons.Clock size={12}/> {p.hora_inicio?.slice(0,5)} às {p.hora_fim?.slice(0,5) || '...'}</div>
-                                              </>
-                                          ) : (
-                                              `${new Date(p.data_inicio).toLocaleDateString('pt-PT')} a ${new Date(p.data_fim).toLocaleDateString('pt-PT')}`
-                                          )}
-                                        </td>
-                                        <td style={{padding: '12px'}}>
-                                            <span style={{fontSize:'0.9rem', fontWeight:'500'}}>
-                                                {getDuracaoAusenciaUI(p)} dia(s)
-                                            </span>
-                                        </td>
-                                        <td style={{padding: '12px'}}>
-                                            {p.estado === 'pendente' ? 
-                                                <span style={{background: 'var(--color-borderColorLight)', color: 'var(--color-btnPrimary)', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold'}}>Novo Pedido</span> : 
-                                                <span style={{background: '#fef08a', color: '#854d0e', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', display:'flex', alignItems:'center', gap:'4px', width:'max-content'}}><Icons.Alert size={12}/> Cancelamento</span>
-                                            }
-                                        </td>
-                                        <td style={{padding: '12px', textAlign: 'center'}}>
-                                            <div style={{display: 'flex', gap: '8px', justifyContent: 'center'}}>
-                                                <ModernTooltip content="Ver Detalhes do Pedido">
-                                                    <button className="btn-small" style={{background: '#f8fafc', borderColor: '#cbd5e1', color: '#475569', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalDetalhes(p)}>
-                                                        <Icons.Eye size={16} />
-                                                    </button>
-                                                </ModernTooltip>
-                                                
-                                                {p.estado === 'pendente' ? (
-                                                    <>
-                                                        <ModernTooltip content="Aprovar">
-                                                            <button className="btn-small" style={{background: '#f0fdf4', borderColor: '#bbf7d0', color: '#16a34a', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalConfirmacao(p, 'aprovar')}>
-                                                                <Icons.Check size={16} />
-                                                            </button>
-                                                        </ModernTooltip>
-                                                        <ModernTooltip content="Rejeitar">
-                                                            <button className="btn-small" style={{background: '#fef2f2', borderColor: '#fecaca', color: '#ef4444', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalConfirmacao(p, 'rejeitar')}>
-                                                                <Icons.X size={16} />
-                                                            </button>
-                                                        </ModernTooltip>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <ModernTooltip content="Aceitar Cancelamento">
-                                                            <button className="btn-small" style={{background: '#fef2f2', borderColor: '#fecaca', color: '#ef4444', fontWeight:'bold', fontSize:'0.8rem'}} onClick={() => abrirModalConfirmacao(p, 'aceitar_cancelamento')}>Aceitar</button>
-                                                        </ModernTooltip>
-                                                        <ModernTooltip content="Recusar Cancelamento">
-                                                            <button className="btn-small" style={{background: '#f8fafc', borderColor: '#cbd5e1', color: '#64748b', fontSize:'0.8rem'}} onClick={() => abrirModalConfirmacao(p, 'recusar_cancelamento')}>Recusar</button>
-                                                        </ModernTooltip>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </td>
+                                        <td><span className="rh-who">{renderRhAvatar(p.profiles?.nome, p.user_id)}<strong>{p.profiles?.nome}</strong></span></td>
+                                        <td><span className="rh-type">{formatAbsenceTypeLabel(p.tipo)}</span></td>
+                                        <td>{formatPeriodo(p)}</td>
+                                        <td><span className="rh-num">{getDuracaoAusenciaUI(p)} dia(s)</span></td>
+                                        <td>{renderEstadoPedido(p)}</td>
+                                        <td className="is-center">{renderPedidoAcoes(p)}</td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
                       </div>
-                  ) : <div style={{textAlign: 'center', padding: '40px', color: '#94a3b8', background: '#f8fafc', borderRadius: '12px', display:'flex', flexDirection:'column', alignItems:'center', gap:'10px'}}>
-                        <Icons.Flag size={40} color="#cbd5e1" />
-                        <span style={{fontSize:'0.95rem'}}>Não há ausências pendentes.</span>
-                    </div>}
-              </div>
+                  ) : (
+                      <div className="rh-empty">
+                          <span className="rh-empty-ico"><Icons.Flag size={30} /></span>
+                          <p>Não há ausências pendentes.</p>
+                      </div>
+                  )}
+              </section>
 
               {/* TABELA DE PEDIDOS DE KM's */}
-              <div className="card" style={{padding: '25px', borderRadius: '12px', background: 'white', boxShadow: '0 2px 10px rgba(0,0,0,0.02)'}}>
-                  <div style={{display:'flex', alignItems:'center', justifyContent: 'space-between', flexWrap:'wrap', gap:'10px', marginBottom: '20px'}}>
-                      <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
-                          <Icons.Inbox size={24} color="#1e293b" />
-                          <h3 style={{margin: 0, color: '#1e293b'}}>Deslocações Pendentes</h3>
+              <section className="rh-card">
+                  <div className="rh-card-head">
+                      <div className="rh-card-title">
+                          <span className="rh-card-ico is-blue"><Icons.Inbox size={18} /></span>
+                          <div>
+                              <h3>Deslocações Pendentes <em className="rh-count">{pedidosKmPendentes.length}</em></h3>
+                          </div>
                       </div>
                       {selectedPedidosKm.length > 0 && (
-                          <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
+                          <div className="rh-head-actions">
                               {/* Etiqueta de Contagem em Tempo Real */}
-                              <div style={{background: '#f0fdf4', color: '#166534', padding: '6px 12px', borderRadius: '8px', border: '1px solid #bbf7d0', fontSize: '0.85rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px'}}>
+                              <span className="rh-km-total">
                                   <Icons.Chart size={14}/>
-                                  Total Selecionado: <span style={{fontSize: '1rem', fontWeight: 'bold'}}>{totalKmSelecionados.toFixed(2)} km</span>
-                              </div>
-                              
-                              <button onClick={() => abrirModalAprovacaoMassa('kms')} disabled={isSubmitting} className="btn-small" style={{background: '#16a34a', color: 'white', border: 'none', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', borderRadius: '8px', boxShadow: '0 4px 6px rgba(22, 163, 74, 0.2)'}}>
+                                  Total Selecionado: <strong>{totalKmSelecionados.toFixed(2)} km</strong>
+                              </span>
+                              <button type="button" onClick={() => abrirModalAprovacaoMassa('kms')} disabled={isSubmitting} className="rh-btn is-ok">
                                   <Icons.Check size={16} /> Aprovar ({selectedPedidosKm.length})
                               </button>
                           </div>
                       )}
                   </div>
                   {pedidosKmPendentes.length > 0 ? (
-                      <div className="table-responsive">
-                        <table className="data-table" style={{width: '100%', borderCollapse: 'collapse', textAlign: 'left'}}>
+                      <div className="rh-table-wrap">
+                        <table className="rh-table">
                             <thead>
-                                <tr style={{borderBottom: '2px solid #f1f5f9', color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase'}}>
-                                    <th style={{padding: '12px', width: '40px', textAlign: 'center'}}>
-                                        <input 
-                                            type="checkbox" 
-                                            onChange={(e) => handleSelectAll(e, pedidosKmPendentes, setSelectedPedidosKm)} 
-                                            checked={pedidosKmPendentes.filter(p => p.estado === 'pendente').length > 0 && selectedPedidosKm.length === pedidosKmPendentes.filter(p => p.estado === 'pendente').length}
-                                            style={{cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--color-btnPrimary)'}}
+                                <tr>
+                                    <th className="is-check">
+                                        <input
+                                            type="checkbox"
+                                            className="rh-checkbox"
+                                            onChange={(e) => handleSelectAll(e, pedidosKmFiltrados, setSelectedPedidosKm)}
+                                            checked={pedidosKmFiltrados.filter(p => p.estado === 'pendente').length > 0 && pedidosKmFiltrados.filter(p => p.estado === 'pendente').every(p => selectedPedidosKm.includes(p.id))}
                                             title="Selecionar todos os novos pedidos"
                                         />
                                     </th>
-                                    <th style={{padding: '12px'}}>Colaborador</th>
-                                    <th style={{padding: '12px'}}>Origem</th>
-                                    <th style={{padding: '12px'}}>Destino</th>
-                                    <th style={{padding: '12px'}}>Distância</th>
-                                    <th style={{padding: '12px'}}>Data</th>
-                                    <th style={{padding: '12px'}}>Estado</th>
-                                    <th style={{padding: '12px', textAlign: 'center'}}>Ações</th>
+                                    <th>Colaborador</th>
+                                    <th>Origem</th>
+                                    <th>Destino</th>
+                                    <th>Distância</th>
+                                    <th>Data</th>
+                                    <th>Estado</th>
+                                    <th className="is-center">Ações</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {pedidosKmPendentes.map(p => {
+                                {pedidosKmFiltrados.length === 0 && (
+                                    <tr><td colSpan={8} className="rh-no-results">Nenhuma deslocação corresponde aos filtros.</td></tr>
+                                )}
+                                {pedidosKmFiltrados.map(p => {
                                     const acumuladoMes = calcularTotalKmAprovadosNoMes(p.user_id, p.data_inicio, ausenciasMes);
-                                    
                                     return (
-                                    <tr key={p.id} style={{background: p.estado === 'pedido_cancelamento' ? '#fefce8' : (selectedPedidosKm.includes(p.id) ? '#f0f9ff' : 'transparent'), borderBottom: '1px solid #f1f5f9'}}>
-                                        <td style={{padding: '12px', textAlign: 'center'}}>
+                                    <tr key={p.id} className={p.estado === 'pedido_cancelamento' ? 'is-cancel' : (selectedPedidosKm.includes(p.id) ? 'is-selected' : '')}>
+                                        <td className="is-check">
                                             {p.estado === 'pendente' && (
-                                                <input 
-                                                    type="checkbox" 
-                                                    checked={selectedPedidosKm.includes(p.id)} 
+                                                <input
+                                                    type="checkbox"
+                                                    className="rh-checkbox"
+                                                    checked={selectedPedidosKm.includes(p.id)}
                                                     onChange={(e) => handleSelectOne(e, p.id, setSelectedPedidosKm)}
-                                                    style={{cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--color-btnPrimary)'}}
                                                 />
                                             )}
                                         </td>
-                                        <td style={{padding: '12px', fontWeight: 'bold', color: 'var(--color-btnPrimary)'}}>{p.profiles?.nome}</td>
-                                        <td style={{padding: '12px', color: '#334155', fontWeight: '500'}}>{p.km_origem || '-'}</td>
-                                        <td style={{padding: '12px', color: '#334155', fontWeight: '500'}}>{p.km_destino || '-'}{p.km_ida_volta && <span style={{marginLeft: '6px', padding: '2px 8px', borderRadius: '99px', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', fontSize: '0.7rem', fontWeight: 800, whiteSpace: 'nowrap'}}>⇄ Ida e volta</span>}</td>
-                                        <td style={{padding: '12px'}}>
-                                            <div style={{display:'flex', flexDirection:'column'}}>
-                                                <span style={{fontSize:'0.95rem', fontWeight:'600', color: '#16a34a'}}>+{p.km_total ?? 0} km</span>
-                                                <span style={{fontSize:'0.7rem', color: '#64748b'}}> Já aprovados no mês: <strong>{acumuladoMes} km</strong></span>
-                                            </div>       
+                                        <td><span className="rh-who">{renderRhAvatar(p.profiles?.nome, p.user_id)}<strong>{p.profiles?.nome}</strong></span></td>
+                                        <td><span className="rh-place">{p.km_origem || '-'}</span></td>
+                                        <td>
+                                            <span className="rh-place">{p.km_destino || '-'}</span>
+                                            {p.km_ida_volta && <span className="rh-tag is-brand">⇄ Ida e volta</span>}
                                         </td>
-
-                                        <td style={{padding: '12px', color: '#334155'}}>{new Date(p.data_inicio).toLocaleDateString('pt-PT')}</td>
-                                        <td style={{padding: '12px'}}>
-                                            {p.estado === 'pendente' ? 
-                                                <span style={{background: 'var(--color-borderColorLight)', color: 'var(--color-btnPrimary)', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold'}}>Novo Pedido</span> : 
-                                                <span style={{background: '#fef08a', color: '#854d0e', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', display:'flex', alignItems:'center', gap:'4px', width:'max-content'}}><Icons.Alert size={12}/> Cancelamento</span>
-                                            }
-                                        </td>
-                                        <td style={{padding: '12px', textAlign: 'center'}}>
-                                            <div style={{display: 'flex', gap: '8px', justifyContent: 'center'}}>
-                                                <ModernTooltip content="Ver Detalhes do Pedido">
-                                                    <button className="btn-small" style={{background: '#f8fafc', borderColor: '#cbd5e1', color: '#475569', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalDetalhes(p)}>
-                                                        <Icons.Eye size={16} />
-                                                    </button>
-                                                </ModernTooltip>
-                                                
-                                                {p.estado === 'pendente' ? (
-                                                    <>
-                                                        <ModernTooltip content="Aprovar">
-                                                            <button className="btn-small" style={{background: '#f0fdf4', borderColor: '#bbf7d0', color: '#16a34a', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalConfirmacao(p, 'aprovar')}>
-                                                                <Icons.Check size={16} />
-                                                            </button>
-                                                        </ModernTooltip>
-                                                        <ModernTooltip content="Rejeitar">
-                                                            <button className="btn-small" style={{background: '#fef2f2', borderColor: '#fecaca', color: '#ef4444', display:'flex', alignItems:'center', padding:'6px'}} onClick={() => abrirModalConfirmacao(p, 'rejeitar')}>
-                                                                <Icons.X size={16} />
-                                                            </button>
-                                                        </ModernTooltip>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <ModernTooltip content="Aceitar Cancelamento">
-                                                            <button className="btn-small" style={{background: '#fef2f2', borderColor: '#fecaca', color: '#ef4444', fontWeight:'bold', fontSize:'0.8rem'}} onClick={() => abrirModalConfirmacao(p, 'aceitar_cancelamento')}>Aceitar</button>
-                                                        </ModernTooltip>
-                                                        <ModernTooltip content="Recusar Cancelamento">
-                                                            <button className="btn-small" style={{background: '#f8fafc', borderColor: '#cbd5e1', color: '#64748b', fontSize:'0.8rem'}} onClick={() => abrirModalConfirmacao(p, 'recusar_cancelamento')}>Recusar</button>
-                                                        </ModernTooltip>
-                                                    </>
-                                                )}
+                                        <td>
+                                            <div className="rh-km">
+                                                <strong>+{p.km_total ?? 0} km</strong>
+                                                <small>Já aprovados no mês: <b>{acumuladoMes} km</b></small>
                                             </div>
                                         </td>
+                                        <td><span className="rh-periodo-line">{new Date(p.data_inicio).toLocaleDateString('pt-PT')}</span></td>
+                                        <td>{renderEstadoPedido(p)}</td>
+                                        <td className="is-center">{renderPedidoAcoes(p)}</td>
                                     </tr>
                                 )})}
                             </tbody>
                         </table>
                       </div>
-                  ) : <div style={{textAlign: 'center', padding: '40px', color: '#94a3b8', background: '#f8fafc', borderRadius: '12px', display:'flex', flexDirection:'column', alignItems:'center', gap:'10px'}}>
-                        <Icons.Inbox size={40} color="#cbd5e1" />
-                        <span style={{fontSize:'0.95rem'}}>Não há deslocações pendentes.</span>
-                    </div>}
-              </div>
+                  ) : (
+                      <div className="rh-empty">
+                          <span className="rh-empty-ico"><Icons.Inbox size={30} /></span>
+                          <p>Não há deslocações pendentes.</p>
+                      </div>
+                  )}
+              </section>
+
+              {(selectedPedidosPendentes.length > 0 || selectedPedidosKm.length > 0) && (
+                  <div className="rh-floatbar">
+                      <div className="rh-floatbar-info">
+                          <strong>{selectedPedidosPendentes.length + selectedPedidosKm.length}</strong>
+                          <span>
+                              selecionado(s)
+                              {selectedPedidosKm.length > 0 && <> · <b>{totalKmSelecionados.toFixed(2)} km</b></>}
+                          </span>
+                      </div>
+                      {selectedPedidosPendentes.length > 0 && (
+                          <button type="button" className="rh-btn is-ok is-sm" disabled={isSubmitting} onClick={() => abrirModalAprovacaoMassa('ausencias')}>
+                              <Icons.Check size={15} /> Aprovar Selecionados ({selectedPedidosPendentes.length})
+                          </button>
+                      )}
+                      {selectedPedidosKm.length > 0 && (
+                          <button type="button" className="rh-btn is-ok is-sm" disabled={isSubmitting} onClick={() => abrirModalAprovacaoMassa('kms')}>
+                              <Icons.Check size={15} /> Aprovar ({selectedPedidosKm.length})
+                          </button>
+                      )}
+                      <button type="button" className="rh-floatbar-clear" onClick={() => { setSelectedPedidosPendentes([]); setSelectedPedidosKm([]); }} aria-label="Limpar seleção"><Icons.X size={15} /></button>
+                  </div>
+              )}
           </div>
       )}
 
         {activeView === 'tolerancias' && (
-            <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
-                <div className="card" style={{padding: '25px', borderRadius: '12px', background: 'white', boxShadow: '0 2px 10px rgba(0,0,0,0.02)'}}>
-                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'14px', marginBottom: '20px'}}>
-                        <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
-                            <Icons.Clock size={24} color="#1e293b" />
+            <div className="rh-stack bz-tab-panel">
+                <section className="rh-card">
+                    <div className="rh-card-head">
+                        <div className="rh-card-title">
+                            <span className="rh-card-ico"><Icons.Clock size={18} /></span>
                             <div>
-                                <h3 style={{margin: 0, color: '#1e293b'}}>{toleranciasTab === 'tolerancias' ? 'Tolerâncias de Ponto' : 'Colaboradores inativos'}</h3>
-                                <p style={{margin:'4px 0 0 0', color:'#64748b', fontSize:'0.85rem'}}>{toleranciasTab === 'tolerancias' ? 'Dias dispensados que não contam como férias para os colaboradores.' : 'Colaboradores arquivados que continuam associados aos dados históricos.'}</p>
+                                <h3>Tolerâncias de Ponto <em className="rh-count">{tolerancias.length}</em></h3>
+                                <p>Dias dispensados que não contam como férias para os colaboradores.</p>
                             </div>
                         </div>
-                        <div style={{display:'flex', alignItems:'center', gap:'10px', flexWrap:'wrap'}}>
-                            <div style={{display:'none', gap:'6px', background:'#f8fafc', padding:'4px', borderRadius:'10px', border:'1px solid #e2e8f0'}}>
-                                <button type="button" onClick={() => setToleranciasTab('tolerancias')} style={{padding:'8px 14px', border:'none', borderRadius:'8px', background: toleranciasTab === 'tolerancias' ? 'white' : 'transparent', color: toleranciasTab === 'tolerancias' ? 'var(--color-btnPrimary)' : '#64748b', fontWeight:'700', cursor:'pointer', boxShadow: toleranciasTab === 'tolerancias' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none'}}>Tolerâncias</button>
-                                <button type="button" onClick={() => setToleranciasTab('inativos')} style={{padding:'8px 14px', border:'none', borderRadius:'8px', background: toleranciasTab === 'inativos' ? 'white' : 'transparent', color: toleranciasTab === 'inativos' ? 'var(--color-btnPrimary)' : '#64748b', fontWeight:'700', cursor:'pointer', boxShadow: toleranciasTab === 'inativos' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none'}}>Colaboradores inativos <span style={{marginLeft:'6px', color:'#dc2626'}}>({colaboradoresInativos.length})</span></button>
-                            </div>
-                            {toleranciasTab === 'tolerancias' && (
-                                <button className="btn-primary" onClick={() => { setNewTolerancia({ nome: '', data: '', tipo: 'global', user_id: '' }); setShowToleranciaModal(true); }} style={{padding: '10px 20px', display:'flex', alignItems:'center', gap:'8px'}}>
-                                    <Icons.Flag size={16} /> Nova Tolerância
-                                </button>
-                            )}
-                        </div>
+                        <button type="button" className="rh-btn is-primary" onClick={() => { setNewTolerancia({ nome: '', data: '', tipo: 'global', user_id: '' }); setShowToleranciaModal(true); }}>
+                            <Icons.Flag size={16} /> Nova Tolerância
+                        </button>
                     </div>
-                    {toleranciasTab === 'tolerancias' ? (tolerancias.length > 0 ? (
-                        <div className="table-responsive">
-                            <table className="data-table" style={{width: '100%', borderCollapse: 'collapse', textAlign: 'left'}}>
-                                <thead>
-                                    <tr style={{borderBottom: '2px solid #f1f5f9', color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase'}}>
-                                        <th style={{padding: '12px'}}>Designação</th>
-                                        <th style={{padding: '12px'}}>Data</th>
-                                        <th style={{padding: '12px'}}>Âmbito</th>
-                                        <th style={{padding: '12px', textAlign: 'center'}}>Ações</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {tolerancias.map(t => {
-                                        const colab = t.user_id ? colaboradores.find(c => c.id === t.user_id) : null;
-                                        return (
-                                            <tr key={t.id} style={{borderBottom: '1px solid #f1f5f9'}}>
-                                                <td style={{padding: '12px', fontWeight: '500', color: '#1e293b'}}>{t.nome}</td>
-                                                <td style={{padding: '12px', color: '#475569'}}>{t.data ? new Date(t.data + 'T00:00:00').toLocaleDateString('pt-PT') : '-'}</td>
-                                                <td style={{padding: '12px'}}>
-                                                    {t.user_id ? (
-                                                        <span style={{background: '#f0fdf4', color: '#166534', padding: '4px 10px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: '600', display:'inline-flex', alignItems:'center', gap:'4px'}}>
-                                                            <Icons.User size={12} /> {colab?.nome || 'Individual'}
-                                                        </span>
-                                                    ) : (
-                                                        <span style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimaryDark)', padding: '4px 10px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: '600', display:'inline-flex', alignItems:'center', gap:'4px'}}>
-                                                            <Icons.Users size={12} /> Global
-                                                        </span>
-                                                    )}
-                                                </td>
-                                                <td style={{padding: '12px', textAlign: 'center'}}>
-                                                    <ModernTooltip content="Eliminar">
-                                                        <button className="btn-small" style={{background: '#fef2f2', borderColor: '#fecaca', color: '#ef4444', display:'flex', alignItems:'center', padding:'6px', margin:'0 auto'}} onClick={() => handleDeleteTolerancia(t.id)}>
-                                                            <Icons.Trash size={16} />
-                                                        </button>
-                                                    </ModernTooltip>
-                                                </td>
-                                            </tr>
-                                      );
-                                  })}
-                              </tbody>
-                          </table>
-                      </div>
-                  ) : (
-                      <div style={{textAlign: 'center', padding: '40px', color: '#94a3b8', background: '#f8fafc', borderRadius: '12px', display:'flex', flexDirection:'column', alignItems:'center', gap:'10px'}}>
-                          <Icons.Clock size={40} color="#cbd5e1" />
-                          <span style={{fontSize:'0.95rem'}}>Nenhuma tolerância definida. Adicione dias dispensados que não devem contar como férias.</span>
-                      </div>
-                  )) : (
-                      <div style={{display:'flex', flexDirection:'column', gap:'8px', maxHeight:'360px', overflowY:'auto'}}>
-                          {colaboradoresInativos.length > 0 ? (
-                              colaboradoresInativos.map((colaborador) => (
-                                  <div key={colaborador.id} style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:'12px', padding:'12px 14px', border:'1px solid #e2e8f0', borderRadius:'10px', background:'#f8fafc'}}>
-                                      <div style={{minWidth: 0}}>
-                                          <div style={{display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap'}}>
-                                              <strong style={{color:'#1e293b'}}>{colaborador.nome}</strong>
-                                              <span style={{fontSize:'0.72rem', background:'#fee2e2', color:'#991b1b', padding:'3px 8px', borderRadius:'999px', fontWeight:'700'}}>
-                                                  Desativado
-                                              </span>
-                                          </div>
-                                          <div style={{marginTop:'4px', color:'#64748b', fontSize:'0.82rem'}}>{formatCompaniesLabel(colaborador)}</div>
-                                      </div>
-                                      <button
-                                          type="button"
-                                          onClick={() => openUserStatusModal(colaborador)}
-                                          style={{padding:'8px 14px', borderRadius:'8px', border:'1px solid #bbf7d0', background:'#f0fdf4', color:'#16a34a', fontWeight:'700', cursor:'pointer', whiteSpace:'nowrap'}}
-                                      >
-                                          Reativar
-                                      </button>
-                                  </div>
-                              ))
-                          ) : (
-                              <div style={{padding:'18px', textAlign:'center', color:'#94a3b8', background:'#f8fafc', borderRadius:'10px', border:'1px dashed #e2e8f0'}}>
-                                  Não há colaboradores desativados.
-                              </div>
-                          )}
-                      </div>
-                  )}
-              </div>
-          </div>
-      )}
+                    {tolerancias.length > 0 ? (
+                        <div className="rh-tol-list">
+                            {tolerancias.map(t => {
+                                const colab = t.user_id ? colaboradores.find(c => c.id === t.user_id) : null;
+                                const dt = t.data ? new Date(t.data + 'T00:00:00') : null;
+                                return (
+                                    <div key={t.id} className="rh-tol">
+                                        <span className="rh-tol-date">
+                                            <strong>{dt ? dt.getDate() : '-'}</strong>
+                                            <small>{dt ? dt.toLocaleDateString('pt-PT', { month: 'short' }).replace('.', '') : ''}</small>
+                                        </span>
+                                        <div className="rh-tol-main">
+                                            <strong>{t.nome}</strong>
+                                            <small>{dt ? dt.toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '-'}</small>
+                                        </div>
+                                        {t.user_id ? (
+                                            <span className="rh-tag is-green"><Icons.User size={12} /> {colab?.nome || 'Individual'}</span>
+                                        ) : (
+                                            <span className="rh-tag is-brand"><Icons.Users size={12} /> Global</span>
+                                        )}
+                                        <ModernTooltip content="Eliminar">
+                                            <button type="button" className="rh-icon-btn is-bad" onClick={() => handleDeleteTolerancia(t.id)}>
+                                                <Icons.Trash size={16} />
+                                            </button>
+                                        </ModernTooltip>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <div className="rh-empty">
+                            <span className="rh-empty-ico"><Icons.Clock size={30} /></span>
+                            <p>Nenhuma tolerância definida. Adicione dias dispensados que não devem contar como férias.</p>
+                        </div>
+                    )}
+                </section>
+            </div>
+        )}
 
         {activeView === 'inativos' && (
-            <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
-                <div className="card" style={{padding: '25px', borderRadius: '12px', background: 'white', boxShadow: '0 2px 10px rgba(0,0,0,0.02)'}}>
-                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'14px', marginBottom: '20px'}}>
-                        <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
-                            <Icons.User size={24} color="#1e293b" />
+            <div className="rh-stack bz-tab-panel">
+                <section className="rh-card">
+                    <div className="rh-card-head">
+                        <div className="rh-card-title">
+                            <span className="rh-card-ico is-red"><Icons.User size={18} /></span>
                             <div>
-                                <h3 style={{margin: 0, color: '#1e293b'}}>Colaboradores inativos</h3>
-                                <p style={{margin:'4px 0 0 0', color:'#64748b', fontSize:'0.85rem'}}>Colaboradores arquivados que continuam associados aos dados históricos.</p>
+                                <h3>Colaboradores inativos <em className="rh-count">{colaboradoresInativos.length}</em></h3>
+                                <p>Colaboradores arquivados que continuam associados aos dados históricos.</p>
                             </div>
                         </div>
                     </div>
-                    <div style={{display:'flex', flexDirection:'column', gap:'8px', maxHeight:'360px', overflowY:'auto'}}>
-                        {colaboradoresInativos.length > 0 ? (
-                            colaboradoresInativos.map((colaborador) => (
-                                <div key={colaborador.id} style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:'12px', padding:'12px 14px', border:'1px solid #e2e8f0', borderRadius:'10px', background:'#f8fafc'}}>
-                                    <div style={{minWidth: 0}}>
-                                        <div style={{display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap'}}>
-                                            <strong style={{color:'#1e293b'}}>{colaborador.nome}</strong>
-                                            <span style={{fontSize:'0.72rem', background:'#fee2e2', color:'#991b1b', padding:'3px 8px', borderRadius:'999px', fontWeight:'700'}}>Desativado</span>
-                                        </div>
-                                        <div style={{marginTop:'4px', color:'#64748b', fontSize:'0.82rem'}}>{formatCompaniesLabel(colaborador)}</div>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => openUserStatusModal(colaborador)}
-                                        style={{padding:'8px 14px', borderRadius:'8px', border:'1px solid #bbf7d0', background:'#f0fdf4', color:'#16a34a', fontWeight:'700', cursor:'pointer', whiteSpace:'nowrap'}}
-                                    >
-                                        Reativar
-                                    </button>
-                                </div>
-                            ))
-                        ) : (
-                            <div style={{padding:'18px', textAlign:'center', color:'#94a3b8', background:'#f8fafc', borderRadius:'10px', border:'1px dashed #e2e8f0'}}>
-                                Não há colaboradores desativados.
-                            </div>
-                        )}
-                    </div>
-                </div>
+                    {renderInativosList()}
+                </section>
             </div>
         )}
 
       {activeView === 'formacoes' && (
-        <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
-            <div className="card" style={{padding: '25px', borderRadius: '12px', background: 'white', boxShadow: '0 2px 10px rgba(0,0,0,0.02)'}}>
-                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'14px', marginBottom: '20px'}}>
-                    <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
-                        <Icons.FileText size={24} color="#1e293b" />
+        <div className="rh-stack bz-tab-panel">
+            <section className="rh-card">
+                <div className="rh-card-head">
+                    <div className="rh-card-title">
+                        <span className="rh-card-ico is-purple"><Icons.FileText size={18} /></span>
                         <div>
-                            <h3 style={{margin: 0, color: '#1e293b'}}>Horas de Formação - Ano {currentDate.getFullYear()}</h3>
-                            <p style={{margin:'4px 0 0 0', color:'#64748b', fontSize:'0.85rem'}}>Acompanhamento do mínimo legal de 40h anuais por colaborador.</p>
+                            <h3>Horas de Formação - Ano {formacaoAno}</h3>
+                            <p>Acompanhamento do mínimo legal de 40h anuais por colaborador.</p>
                         </div>
                     </div>
-                    <button className="btn-primary" onClick={() => setShowFormacaoModal(true)} style={{padding: '10px 20px', display:'flex', alignItems:'center', gap:'8px'}}>
+                    <button type="button" className="rh-btn is-primary" onClick={() => setShowFormacaoModal(true)}>
                         <Icons.Check size={16} /> Registar Nova Formação
                     </button>
                 </div>
 
-                <div className="table-responsive">
-                    <table className="data-table" style={{width: '100%', borderCollapse: 'collapse', textAlign: 'left'}}>
+                <div className="rh-mini-kpis">
+                    <div><span>Cumprem as 40h</span><strong className="is-green">{formacaoCumpridos}<small>/{colaboradoresAtivos.length}</small></strong></div>
+                    <div><span>Total de horas</span><strong>{formacaoTotalHoras}h</strong></div>
+                    <div><span>Média por colaborador</span><strong>{colaboradoresAtivos.length ? (formacaoTotalHoras / colaboradoresAtivos.length).toFixed(1) : 0}h</strong></div>
+                </div>
+
+                <div className="rh-table-wrap">
+                    <table className="rh-table">
                         <thead>
-                            <tr style={{borderBottom: '2px solid #f1f5f9', color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase'}}>
-                                <th style={{padding: '12px'}}>Colaborador</th>
-                                <th style={{padding: '12px'}}>Progresso (Mín. 40h)</th>
-                                <th style={{padding: '12px', textAlign: 'center'}}>Total Horas</th>
-                                <th style={{padding: '12px', textAlign: 'center'}}>Faltam</th>
+                            <tr>
+                                <th>Colaborador</th>
+                                <th>Progresso (Mín. 40h)</th>
+                                <th className="is-center">Total Horas</th>
+                                <th className="is-center">Faltam</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {colaboradoresAtivos.map(colab => {
-                                // Filtrar as formações do utilizador para o ano atual
-                                const horasAno = formacoes
-                                    .filter(f => f.user_id === colab.id && f.ano === currentDate.getFullYear())
-                                    .reduce((sum, f) => sum + Number(f.total_horas), 0);
-                                
+                            {horasPorColab.map(({ colab, horas: horasAno }) => {
                                 const faltam = Math.max(0, 40 - horasAno);
                                 const percent = Math.min((horasAno / 40) * 100, 100);
                                 const barColor = horasAno >= 40 ? '#16a34a' : (horasAno > 20 ? '#eab308' : '#ef4444');
-                                
                                 return (
-                                    <tr key={colab.id} style={{borderBottom: '1px solid #f1f5f9'}}>
-                                        <td style={{padding: '12px', fontWeight: '600', color: '#1e293b'}}>{colab.nome}</td>
-                                        <td style={{padding: '12px', width: '40%'}}>
-                                            <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
-                                                <div style={{flex: 1, background: '#e2e8f0', height: '10px', borderRadius: '5px', overflow: 'hidden'}}>
-                                                    <div style={{width: `${percent}%`, background: barColor, height: '100%', borderRadius: '5px', transition: 'width 0.5s ease'}}></div>
-                                                </div>
-                                                <span style={{fontSize:'0.75rem', fontWeight:'bold', color: barColor, width:'40px'}}>{percent.toFixed(0)}%</span>
+                                    <tr key={colab.id}>
+                                        <td><span className="rh-who">{renderRhAvatar(colab.nome, colab.id, 'sm', colab.avatar_url)}<strong>{colab.nome}</strong></span></td>
+                                        <td style={{ width: '42%' }}>
+                                            <div className="rh-progress" style={{ '--b': barColor }}>
+                                                <span className="rh-progress-bar"><i style={{ width: `${percent}%` }} /></span>
+                                                <b>{percent.toFixed(0)}%</b>
                                             </div>
                                         </td>
-                                        <td style={{padding: '12px', textAlign: 'center', fontWeight: 'bold'}}>{horasAno}h</td>
-                                        <td style={{padding: '12px', textAlign: 'center'}}>
-                                            {faltam === 0 
-                                                ? <span style={{color: '#16a34a', background: '#dcfce7', padding: '4px 8px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: '700'}}>Concluído</span> 
-                                                : <span style={{color: '#ef4444'}}>{faltam}h</span>
+                                        <td className="is-center"><span className="rh-num">{horasAno}h</span></td>
+                                        <td className="is-center">
+                                            {faltam === 0
+                                                ? <span className="rh-tag is-green">Concluído</span>
+                                                : <span className="rh-num is-bad">{faltam}h</span>
                                             }
                                         </td>
                                     </tr>
@@ -2974,18 +3141,23 @@ export default function RecursosHumanos() {
                         </tbody>
                     </table>
                 </div>
-                
-                {/* HISTÓRICO DE AÇÕES DE FORMAÇÃO EM CARDS */}
-                <h4 style={{marginTop: '40px', marginBottom: '15px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}>
-                    <Icons.FileText size={20} color="#64748b"/> Histórico de Formações Dadas
-                </h4>
-                
+            </section>
+
+            {/* HISTÓRICO DE AÇÕES DE FORMAÇÃO EM CARDS */}
+            <section className="rh-card">
+                <div className="rh-card-head">
+                    <div className="rh-card-title">
+                        <span className="rh-card-ico"><Icons.FileText size={18} /></span>
+                        <div><h3>Histórico de Formações Dadas</h3></div>
+                    </div>
+                </div>
                 {formacoes.length === 0 ? (
-                    <div style={{padding:'20px', textAlign:'center', color:'#94a3b8', background:'#f8fafc', borderRadius:'10px', border:'1px dashed #e2e8f0'}}>
-                        Nenhuma ação de formação registada.
+                    <div className="rh-empty is-small">
+                        <span className="rh-empty-ico"><Icons.FileText size={26} /></span>
+                        <p>Nenhuma ação de formação registada.</p>
                     </div>
                 ) : (
-                    <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px'}}>
+                    <div className="rh-form-grid">
                         {Object.values(formacoes.reduce((acc, f) => {
                             // Agrupar formações pelo Nome + Datas
                             const key = `${f.nome}_${f.data_inicio}_${f.data_fim}`;
@@ -3003,508 +3175,466 @@ export default function RecursosHumanos() {
                             if (f.profiles?.nome) acc[key].participantes.push(f.profiles.nome);
                             return acc;
                         }, {})).sort((a, b) => new Date(b.data_inicio) - new Date(a.data_inicio)).map((grupo, i) => (
-                            <div key={i} style={{background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px', position: 'relative', display: 'flex', flexDirection: 'column'}}>
-                                
-                                {/* Botão Apagar */}
-                                <button 
-                                    onClick={() => setDeleteFormacaoModal({show: true, grupo: grupo})} 
-                                    style={{position: 'absolute', top: '15px', right: '15px', background: '#fee2e2', color: '#ef4444', border: 'none', padding: '8px', borderRadius: '8px', cursor: 'pointer', transition: '0.2s'}}
-                                    className="hover-bg-gray"
-                                    title="Eliminar Formação"
-                                >
+                            <article key={i} className="rh-formacao">
+                                <button type="button" onClick={() => setDeleteFormacaoModal({show: true, grupo: grupo})} className="rh-icon-btn is-bad rh-formacao-del" title="Eliminar Formação">
                                     <Icons.Trash size={16} />
                                 </button>
-
-                                <div style={{paddingRight: '40px'}}>
-                                    <h4 style={{margin: '0 0 5px 0', color: '#1e293b', fontSize: '1.05rem', lineHeight: '1.3'}}>{grupo.nome}</h4>
-                                    <div style={{fontSize: '0.8rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '15px'}}>
-                                        <Icons.Calendar size={14}/> 
-                                        {grupo.data_inicio === grupo.data_fim 
-                                            ? new Date(grupo.data_inicio).toLocaleDateString('pt-PT') 
-                                            : `${new Date(grupo.data_inicio).toLocaleDateString('pt-PT')} a ${new Date(grupo.data_fim).toLocaleDateString('pt-PT')}`
-                                        }
-                                    </div>
+                                <h4>{grupo.nome}</h4>
+                                <div className="rh-formacao-date">
+                                    <Icons.Calendar size={14}/>
+                                    {grupo.data_inicio === grupo.data_fim
+                                        ? new Date(grupo.data_inicio).toLocaleDateString('pt-PT')
+                                        : `${new Date(grupo.data_inicio).toLocaleDateString('pt-PT')} a ${new Date(grupo.data_fim).toLocaleDateString('pt-PT')}`
+                                    }
                                 </div>
-
-                                <div style={{display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px'}}>
-                                    <span style={{background: '#eff6ff', color: '#1d4ed8', padding: '4px 10px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', border: '1px solid #bfdbfe'}}>
-                                        {grupo.total_horas} horas
-                                    </span>
-                                    <span style={{background: '#f0fdf4', color: '#166534', padding: '4px 10px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', border: '1px solid #bbf7d0'}}>
-                                        {grupo.participantes.length} Participante(s)
-                                    </span>
+                                <div className="rh-formacao-tags">
+                                    <span className="rh-tag is-blue">{grupo.total_horas} horas</span>
+                                    <span className="rh-tag is-green">{grupo.participantes.length} Participante(s)</span>
                                 </div>
-
                                 {/* Intervenientes */}
-                                <div style={{marginTop: 'auto', paddingTop: '15px', borderTop: '1px dashed #cbd5e1'}}>
-                                    <div style={{fontSize: '0.75rem', fontWeight: 'bold', color: '#475569', textTransform: 'uppercase', marginBottom: '8px'}}>Intervenientes:</div>
-                                    <div style={{display: 'flex', flexWrap: 'wrap', gap: '6px'}}>
-                                        {grupo.participantes.map((participante, pIndex) => (
-                                            <span key={pIndex} style={{background: 'white', border: '1px solid #e2e8f0', color: '#334155', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem'}}>
-                                                {participante}
-                                            </span>
+                                <div className="rh-formacao-people">
+                                    <span>Intervenientes:</span>
+                                    <div className="rh-avatar-stack">
+                                        {grupo.participantes.slice(0, 6).map((participante, pIndex) => (
+                                            <ModernTooltip key={pIndex} content={participante}>
+                                                {renderRhAvatar(participante, participante)}
+                                            </ModernTooltip>
                                         ))}
+                                        {grupo.participantes.length > 6 && <span className="rh-avatar is-sm is-more">+{grupo.participantes.length - 6}</span>}
                                     </div>
                                 </div>
-
-                            </div>
+                            </article>
                         ))}
                     </div>
                 )}
-            </div>
+            </section>
         </div>
         )}
 
-      {activeView === 'gestao' && (
-          <>
-            <div className="rh-toolbar" style={{marginBottom: '20px', background:'white', padding:'15px 20px', borderRadius:'12px', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'15px', border: '1px solid #e2e8f0', boxShadow: '0 2px 5px rgba(0,0,0,0.02)'}}>
-                <div style={{background:'#f8fafc', padding:'10px 15px', borderRadius:'8px', display:'flex', alignItems:'center', gap:'10px', border:'1px solid #e2e8f0'}}>
-                    <span style={{fontSize:'0.8rem', fontWeight:'bold', color:'#475569'}}>S.A. GLOBAL:</span>
-                    <input
-                        type="number"
-                        step="0.01"
-                        value={globalSA}
-                        onChange={e => {
-                            setGlobalSA(e.target.value);
-                            setPendingGlobalUpdates((prev) => ({ ...prev, sa: true }));
-                        }}
-                        style={{width:'60px', padding:'5px', borderRadius:'4px', border:'1px solid #cbd5e1'}}
-                    />
-                    <span style={{fontSize:'0.8rem', fontWeight:'bold', color:'#475569'}}>€/KM:</span>
-                    <input
-                        type="number"
-                        min="0.01"
-                        step="0.01"
-                        value={valorKmReembolso}
-                        onChange={e => {
-                            setValorKmReembolso(e.target.value);
-                            setPendingGlobalUpdates((prev) => ({ ...prev, km: true }));
-                        }}
-                        style={{width:'72px', padding:'5px', borderRadius:'4px', border:'1px solid #cbd5e1'}}
-                    />
-                    {isSavingKmRate && <span style={{fontSize:'0.72rem', color:'#64748b'}}>a guardar...</span>}
-                    <button onClick={handleBulkUpdateSA} className="btn-small" style={{background:'var(--color-btnPrimary)', color:'white', border:'none', padding:'6px 12px', fontWeight:'500'}}>Aplicar</button>
-                </div>
-                <div className="rh-toolbar-actions" style={{display:'flex', gap:'15px', alignItems:'center'}}>
-                    <select className="rh-user-select" value={selectedUser || ""} onChange={(e) => {
-                        setIsEditingUser(false);
-                        setSelectedUser(e.target.value || null);
-                    }} style={{padding: '10px 15px', borderRadius: '8px', minWidth: '250px', border:'1px solid #cbd5e1', color:'#1e293b', fontWeight:'500'}}>
-                        <option value="">Visão Geral Global</option>
-                        {colaboradoresAtivos.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                    </select>
-                    {!selectedUser && (
-                        <>
-                            <button
-                                onClick={downloadRHGeneralPDF}
-                                disabled={isGeneratingRhPdf || colaboradores.length === 0}
-                                className="btn-small"
-                                style={{
-                                    padding: '10px 14px',
-                                    display:'flex',
-                                    alignItems:'center',
-                                    gap:'8px',
-                                    background:'var(--color-bgSecondary)',
-                                    color:'var(--color-btnPrimaryDark)',
-                                    borderColor:'var(--color-borderColor)',
-                                    opacity: isGeneratingRhPdf ? 0.7 : 1,
-                                    cursor: isGeneratingRhPdf ? 'wait' : 'pointer'
-                                }}
-                            >
-                                <Icons.Download size={16} /> {isGeneratingRhPdf ? 'A gerar PDF...' : 'Exportar PDF RH'}
+      {activeView === 'processamento' && (
+          <div className="rh-stack bz-tab-panel">
+                <section className="rh-card">
+                    <div className="rh-card-head">
+                        <div className="rh-card-title">
+                            <span className="rh-card-ico is-green"><Icons.Currency size={18} /></span>
+                            <div>
+                                <h3>Processamento da Equipa <span className="rh-cap">{currentDate.toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' })}</span></h3>
+                                <p>Subsídio de alimentação calculado com as mesmas regras da ficha individual. Clica numa linha para abrir a ficha.</p>
+                            </div>
+                        </div>
+                        <div className="rh-head-actions">
+                            <div className="rh-month-mini">
+                                <button type="button" onClick={() => changeMonth(-1)} aria-label="Mês anterior"><Icons.ChevronLeft size={16} /></button>
+                                <button type="button" onClick={() => changeMonth(1)} aria-label="Mês seguinte"><Icons.ChevronRight size={16} /></button>
+                            </div>
+                            <button type="button" className="rh-btn is-green-soft is-sm" onClick={exportarProcessamentoExcel} disabled={processamentoEquipa.length === 0}>
+                                <Icons.Download size={15} /> Exportar Excel
                             </button>
-                        </>
+                        </div>
+                    </div>
+                    <div className="rh-table-wrap">
+                        <table className="rh-table rh-proc-table">
+                            <thead>
+                                <tr>
+                                    <th>Colaborador</th>
+                                    <th className="is-center">Dias úteis</th>
+                                    <th className="is-center">Trabalhados (&gt;=5h)</th>
+                                    <th className="is-center">Descontados</th>
+                                    <th className="is-center">Férias</th>
+                                    <th className="is-center">Faltas</th>
+                                    <th className="is-center">Baixas</th>
+                                    <th className="is-right">S.A. Diário</th>
+                                    <th className="is-right">Total S.A.</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {processamentoEquipa.map((item) => (
+                                    <tr key={item.colab.id} className="is-click" onClick={() => { setIsEditingUser(false); setSelectedUser(item.colab.id); setActiveView('gestao'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
+                                        <td><span className="rh-who">{renderRhAvatar(item.colab.nome, item.colab.id, 'sm', item.colab.avatar_url)}<strong>{item.colab.nome}</strong></span></td>
+                                        <td className="is-center"><span className="rh-num is-muted">{item.diasUteisMes}</span></td>
+                                        <td className="is-center"><span className="rh-num">{item.countTrabalho}</span></td>
+                                        <td className="is-center"><span className={`rh-num ${item.diasDescontadosSA > 0 ? 'is-bad' : 'is-muted'}`}>{item.diasDescontadosSA}</span></td>
+                                        <td className="is-center"><span className={`rh-num ${item.countFerias > 0 ? 'is-amber' : 'is-muted'}`}>{item.countFerias}</span></td>
+                                        <td className="is-center"><span className={`rh-num ${item.countFaltas > 0 ? 'is-bad' : 'is-muted'}`}>{item.countFaltas}</span></td>
+                                        <td className="is-center"><span className={`rh-num ${item.countBaixas > 0 ? 'is-purple' : 'is-muted'}`}>{item.countBaixas}</span></td>
+                                        <td className="is-right"><span className="rh-num is-muted">{item.diarioSA.toFixed(2)} €</span></td>
+                                        <td className="is-right"><span className="rh-sa-total">{item.valorSA.toFixed(2)} €</span></td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colSpan={8}>TOTAL S.A. PAGAR</td>
+                                    <td className="is-right"><span className="rh-sa-total is-big">{processamentoTotal.toFixed(2)} €</span></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </section>
+          </div>
+      )}
+
+      {activeView === 'gestao' && (
+          <div className="rh-stack bz-tab-panel">
+            <div className="rh-toolbar">
+                <div className="rh-global">
+                    <label className="rh-global-field">
+                        <span>S.A. GLOBAL:</span>
+                        <input
+                            type="number"
+                            step="0.01"
+                            value={globalSA}
+                            onChange={e => {
+                                setGlobalSA(e.target.value);
+                                setPendingGlobalUpdates((prev) => ({ ...prev, sa: true }));
+                            }}
+                        />
+                        <em>€</em>
+                    </label>
+                    <label className="rh-global-field">
+                        <span>€/KM:</span>
+                        <input
+                            type="number"
+                            min="0.01"
+                            step="0.01"
+                            value={valorKmReembolso}
+                            onChange={e => {
+                                setValorKmReembolso(e.target.value);
+                                setPendingGlobalUpdates((prev) => ({ ...prev, km: true }));
+                            }}
+                        />
+                    </label>
+                    {isSavingKmRate && <span className="rh-saving">a guardar...</span>}
+                    <button type="button" onClick={handleBulkUpdateSA} className={`rh-btn is-primary is-sm ${pendingGlobalUpdates.sa || pendingGlobalUpdates.km ? 'is-pulse' : ''}`}>Aplicar</button>
+                </div>
+                <div className="rh-toolbar-actions">
+                    <FancySelect
+                        className="rh-user-picker"
+                        value={selectedUser || ""}
+                        onChange={(value) => {
+                            setIsEditingUser(false);
+                            setSelectedUser(value || null);
+                        }}
+                        options={[
+                            {
+                                value: "",
+                                label: "Visão Geral Global",
+                                hint: `${colaboradoresAtivos.length} colaboradores · resumo da equipa`,
+                                icon: <span className="rh-avatar is-sm is-global"><Icons.Users size={15} /></span>,
+                            },
+                            ...[...colaboradoresAtivos]
+                                .sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-PT'))
+                                .map((c) => {
+                                    const ausente = ausentesHoje.some((a) => a.nomeUser === c.nome);
+                                    return {
+                                        value: c.id,
+                                        label: c.nome,
+                                        hint: `${formatCompaniesLabel(c)}${ausente ? ' · Ausente hoje' : ''}`,
+                                        group: 'Colaboradores',
+                                        icon: renderRhAvatar(c.nome, c.id, 'sm', c.avatar_url),
+                                    };
+                                }),
+                        ]}
+                        menuWidth={340}
+                        searchPlaceholder="Procurar colaborador..."
+                        ariaLabel="Colaborador"
+                    />
+                    {!selectedUser && (
+                        <button
+                            type="button"
+                            onClick={downloadRHGeneralPDF}
+                            disabled={isGeneratingRhPdf || colaboradores.length === 0}
+                            className="rh-btn is-soft"
+                        >
+                            <Icons.Download size={16} /> {isGeneratingRhPdf ? 'A gerar PDF...' : 'Exportar PDF RH'}
+                        </button>
                     )}
-                                        <button onClick={() => { 
+                    <button type="button" onClick={() => {
                       setIsEditingAbsence(false);
                       setEditingAbsenceData(null);
-                                            setNewAbsence({ user_id: selectedUser || "", tipo: "Férias", data_inicio: "", data_fim: "", is_parcial: false, hora_inicio: "", hora_fim: "", motivo: "", km_origem: "", km_destino: "", km_total: "" }); 
-                      setAbsenceFile(null); 
-                      setShowAbsenceModal(true); 
-                    }} className="btn-primary" style={{padding: '10px 20px', display:'flex', alignItems:'center', gap:'8px'}}>
+                      setNewAbsence({ user_id: selectedUser || "", tipo: "Férias", data_inicio: "", data_fim: "", is_parcial: false, hora_inicio: "", hora_fim: "", motivo: "", km_origem: "", km_destino: "", km_total: "" });
+                      setAbsenceFile(null);
+                      setShowAbsenceModal(true);
+                    }} className="rh-btn is-primary">
                         <Icons.Edit size={16} /> Ausência Manual
                     </button>
                 </div>
             </div>
 
-            <div className="rh-grid" style={{display:'grid', gridTemplateColumns: '400px 1fr', gap: '20px'}}>
-                <div style={{minWidth: 0}}>
+            {!selectedUser && (
+                <section className="rh-card">
+                    <div className="rh-card-head">
+                        <div className="rh-card-title">
+                            <span className="rh-card-ico"><Icons.Users size={18} /></span>
+                            <div>
+                                <h3>Equipa hoje <em className="rh-count">{colaboradoresAtivos.length}</em></h3>
+                                <p>Clica num colaborador para abrir a ficha.</p>
+                            </div>
+                        </div>
+                        <div className="rh-team-legend">
+                            <span className="is-work"><i />A trabalhar</span>
+                            <span className="is-vac"><i />Férias</span>
+                            <span className="is-sick"><i />Baixa</span>
+                            <span className="is-none"><i />Sem registo</span>
+                        </div>
+                    </div>
+                    <div className="rh-team">
+                        {[...colaboradoresAtivos]
+                            .sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-PT'))
+                            .map((c, index) => {
+                                const estadoHoje = getEstadoHoje(c);
+                                const ferias = getDiasDisponiveisPorUserId(c.id);
+                                return (
+                                    <button
+                                        key={c.id}
+                                        type="button"
+                                        className={`rh-member is-${estadoHoje.tone}`}
+                                        style={{ '--i': Math.min(index, 16) }}
+                                        onClick={() => { setIsEditingUser(false); setSelectedUser(c.id); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                                    >
+                                        <span className="rh-member-av">
+                                            {renderRhAvatar(c.nome, c.id, 'md', c.avatar_url)}
+                                            <i className="rh-member-dot" />
+                                        </span>
+                                        <span className="rh-member-main">
+                                            <strong>{c.nome}</strong>
+                                            <small>{estadoHoje.label}</small>
+                                        </span>
+                                        <span className="rh-member-vac" title="Férias disponíveis">
+                                            <b>{ferias}</b>
+                                            <small>dias</small>
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                    </div>
+                </section>
+            )}
+
+            <div className="rh-grid">
+                <div className="rh-col">
                     {selectedUser ? (
                         <>
-                            <div className="card" style={{marginBottom: '20px', padding:'25px', background:'white', borderRadius:'12px', borderTop:'4px solid var(--color-btnPrimary)', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
-                                <div style={{display:'flex', justifyContent:'space-between', alignItems:'start', marginBottom:'20px'}}>
-                                    <div style={{display:'flex', gap:'15px', alignItems:'center'}}>
-                                        <div style={{background:'var(--color-bgSecondary)', width:'45px', height:'45px', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center'}}>
-                                            <Icons.User size={24} color="var(--color-btnPrimary)" />
-                                        </div>
-                                        <div>
-                                            <h3 style={{margin:0, color:'#1e293b', fontSize:'1.2rem'}}>{currentUserProfile?.nome}</h3>
-                                            <div style={{marginTop:'5px'}}>
-                                                <span style={{fontSize:'0.75rem', background:'#f1f5f9', color:'#475569', padding:'3px 10px', borderRadius:'12px', fontWeight:'600'}}>
-                                                    {formatCompaniesLabel(currentUserProfile)}
-                                                </span>
+                            <section className="rh-card rh-profile" style={{ '--c': rhColorFor(selectedUser) }}>
+                                <div className="rh-profile-banner" />
+                                <div className="rh-profile-head">
+                                    {renderRhAvatar(currentUserProfile?.nome, selectedUser, 'xl', currentUserProfile?.avatar_url)}
+                                    <div className="rh-profile-id">
+                                        <h3>{currentUserProfile?.nome}</h3>
+                                        <span className="rh-tag">{formatCompaniesLabel(currentUserProfile)}</span>
+                                        {temporaryStatusAtual && (
+                                            <div className="rh-profile-temp">
+                                                <span className="rh-tag is-teal">Estado temporário ativo</span>
+                                                <small>{formatAbsenceTypeLabel(temporaryStatusAtual.tipo)} · {formatTemporaryStatusRange(temporaryStatusAtual)}</small>
                                             </div>
-                                            {getTemporaryStatusFromProfile(currentUserProfile) && (
-                                                <div style={{marginTop:'8px', display:'flex', flexWrap:'wrap', gap:'6px', alignItems:'center'}}>
-                                                    <span style={{fontSize:'0.72rem', background:'#ecfeff', color:'#0f766e', padding:'3px 10px', borderRadius:'999px', fontWeight:'700'}}>
-                                                        Estado temporário ativo
-                                                    </span>
-                                                    <span style={{fontSize:'0.72rem', color:'#475569'}}>
-                                                        {formatAbsenceTypeLabel(getTemporaryStatusFromProfile(currentUserProfile).tipo)} · {formatTemporaryStatusRange(getTemporaryStatusFromProfile(currentUserProfile))}
-                                                    </span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div style={{display:'flex', flexDirection:'column', gap:'8px', alignItems:'stretch'}}>
-                                        <button
-                                            onClick={downloadIndividualPDF}
-                                            disabled={isGeneratingIndividualPdf}
-                                            className="btn-small"
-                                            style={{display:'flex', alignItems:'center', gap:'6px', justifyContent:'center', background:'#f0fdf4', color:'#16a34a', borderColor:'#bbf7d0', opacity: isGeneratingIndividualPdf ? 0.7 : 1, cursor: isGeneratingIndividualPdf ? 'wait' : 'pointer'}}
-                                        >
-                                            <Icons.Download size={14} /> {isGeneratingIndividualPdf ? 'A gerar PDF...' : 'Relatório PDF'}
-                                        </button>
-                                        <button
-                                            onClick={downloadSelectedUserDeslocacoesPDF}
-                                            disabled={isGeneratingDeslocacoesPdf}
-                                            className="btn-small"
-                                            style={{display:'flex', alignItems:'center', gap:'6px', justifyContent:'center', background:'#fff7ed', color:'#c2410c', borderColor:'#fed7aa', opacity: isGeneratingDeslocacoesPdf ? 0.7 : 1, cursor: isGeneratingDeslocacoesPdf ? 'wait' : 'pointer'}}
-                                        >
-                                            <Icons.Download size={14} /> {isGeneratingDeslocacoesPdf ? 'A gerar PDF...' : 'Deslocações PDF'}
-                                        </button>
+                                        )}
                                     </div>
                                 </div>
+                                <div className="rh-profile-pdfs">
+                                    <button type="button" onClick={downloadIndividualPDF} disabled={isGeneratingIndividualPdf} className="rh-btn is-green-soft is-sm">
+                                        <Icons.Download size={14} /> {isGeneratingIndividualPdf ? 'A gerar PDF...' : 'Relatório PDF'}
+                                    </button>
+                                    <button type="button" onClick={downloadSelectedUserDeslocacoesPDF} disabled={isGeneratingDeslocacoesPdf} className="rh-btn is-orange-soft is-sm">
+                                        <Icons.Download size={14} /> {isGeneratingDeslocacoesPdf ? 'A gerar PDF...' : 'Deslocações PDF'}
+                                    </button>
+                                </div>
 
-                                <div className="tabs rh-user-tabs" style={{marginBottom:'20px', display:'flex', background:'#f8fafc', padding:'4px', borderRadius:'8px'}}>
-                                    <button type="button" className={userTab === 'financeiro' ? 'active' : ''} onClick={() => setUserTab('financeiro')} style={{flex:1, borderRadius:'6px', padding:'8px', display:'flex', justifyContent:'center', alignItems:'center', gap:'6px', background: userTab === 'financeiro' ? 'white' : 'transparent', border: userTab === 'financeiro' ? '1px solid #e2e8f0' : 'none', color: userTab === 'financeiro' ? 'var(--color-btnPrimary)' : '#64748b', fontWeight:'bold', boxShadow: userTab === 'financeiro' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', transition:'0.2s'}}>
+                                <div className="rh-seg is-full">
+                                    <button type="button" className={userTab === 'financeiro' ? 'is-on' : ''} onClick={() => setUserTab('financeiro')}>
                                         <Icons.Currency size={16} /> Financeiro
                                     </button>
-                                    <button type="button" className={userTab === 'dados' ? 'active' : ''} onClick={() => setUserTab('dados')} style={{flex:1, borderRadius:'6px', padding:'8px', display:'flex', justifyContent:'center', alignItems:'center', gap:'6px', background: userTab === 'dados' ? 'white' : 'transparent', border: userTab === 'dados' ? '1px solid #e2e8f0' : 'none', color: userTab === 'dados' ? 'var(--color-btnPrimary)' : '#64748b', fontWeight:'bold', boxShadow: userTab === 'dados' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', transition:'0.2s'}}>
+                                    <button type="button" className={userTab === 'dados' ? 'is-on' : ''} onClick={() => setUserTab('dados')}>
                                         <Icons.FileText size={16} /> Pessoal
                                     </button>
                                 </div>
 
                                 {userTab === 'financeiro' && (
-                                    !isEditingUser ? (
-                                        <div>
-                                            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px', padding:'10px', background:'#f8fafc', borderRadius:'8px'}}>
-                                                <span style={{color:'#64748b', fontSize:'0.9rem', display:'flex', alignItems:'center', gap:'6px'}}><Icons.Currency size={16}/> Valor S.A. Diário</span>
-                                                <span style={{fontWeight:'bold', fontSize:'1.1rem'}}>{Number(currentUserProfile?.valor_sa || 0).toFixed(2)} €</span>
-                                            </div>
-                                            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px', padding:'10px', background:'var(--color-bgSecondary)', borderRadius:'8px', border:'1px dashed var(--color-borderColor)'}}>
-                                                <span style={{color:'var(--color-btnPrimaryHover)', fontSize:'0.9rem', display:'flex', alignItems:'center', gap:'6px'}}><Icons.Sun size={16}/> Férias disponíveis ({currentDate.getFullYear()})</span>
-                                                <span style={{fontWeight:'bold', color:'var(--color-btnPrimary)', fontSize:'1.1rem'}}>{saldoFeriasAnoSelecionado?.diasDisponiveis ?? '--'} dias</span>
-                                            </div>
-                                            {isAnnualVacationOpeningAvailable() && (
-                                                <>
-                                                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px', padding:'10px', background:'#ecfeff', borderRadius:'8px', border:'1px dashed #a5f3fc'}}>
-                                                        <span style={{color:'#0e7490', fontSize:'0.9rem', display:'flex', alignItems:'center', gap:'6px'}}><Icons.Calendar size={16}/> Férias disponíveis ({currentDate.getFullYear() + 1})</span>
-                                                        <span style={{fontWeight:'bold', color:'#0f766e', fontSize:'1.1rem'}}>{saldoFeriasAnoSeguinte?.diasDisponiveis ?? '--'} dias</span>
-                                                    </div>
-                                                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px', padding:'10px', background:'#f0fdf4', borderRadius:'8px', border:'1px dashed #bbf7d0'}}>
-                                                        <span style={{color:'#15803d', fontSize:'0.9rem', display:'flex', alignItems:'center', gap:'6px'}}><Icons.Sun size={16}/> Total disponível (2 anos)</span>
-                                                        <span style={{fontWeight:'bold', color:'#15803d', fontSize:'1.1rem'}}>
-                                                            {saldoFeriasAnoSelecionado && saldoFeriasAnoSeguinte
-                                                                ? `${saldoFeriasAnoSelecionado.diasDisponiveis + saldoFeriasAnoSeguinte.diasDisponiveis} dias`
-                                                                : '--'}
-                                                        </span>
-                                                    </div>
-                                                </>
-                                            )}
-                                            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px', padding:'10px', background:'#ecfeff', borderRadius:'8px', border:'1px dashed #a5f3fc'}}>
-                                                <span style={{color:'#0e7490', fontSize:'0.9rem', display:'flex', alignItems:'center', gap:'6px'}}><Icons.Flag size={16}/> Limite Anual de Férias</span>
-                                                <span style={{fontWeight:'bold', color:'#0f766e', fontSize:'1.1rem'}}>
-                                                    {hasDiasFeriasTotalColumn ? (currentUserProfile?.dias_ferias_total ?? '--') : '--'} dias
-                                                </span>
-                                            </div>
-                                            <button type="button" onClick={openUserEditor} style={{width:'100%', marginTop:'10px', padding:'10px', borderRadius:'8px', border:'1px solid #cbd5e1', background:'white', cursor:'pointer', color:'#475569', fontWeight:'600', display:'flex', justifyContent:'center', alignItems:'center', gap:'8px', transition:'0.2s'}} className="hover-bg-gray">
-                                                <Icons.Edit size={16} /> Editar Dados Financeiros
-                                            </button>
+                                    <div className="rh-fin bz-tab-panel" key="fin">
+                                        <div className="rh-fin-tile is-main">
+                                            <span><Icons.Currency size={16}/> Valor S.A. Diário</span>
+                                            <strong>{Number(currentUserProfile?.valor_sa || 0).toFixed(2)} €</strong>
                                         </div>
-                                    ) : null
+                                        <div className="rh-fin-tile is-brand">
+                                            <span><Icons.Sun size={16}/> Férias disponíveis ({currentDate.getFullYear()})</span>
+                                            <strong>{saldoFeriasAnoSelecionado?.diasDisponiveis ?? '--'} <small>dias</small></strong>
+                                            {hasDiasFeriasTotalColumn && Number(currentUserProfile?.dias_ferias_total) > 0 && saldoFeriasAnoSelecionado && (
+                                                <span className="rh-fin-bar"><i style={{ width: `${Math.max(0, Math.min(100, (Number(saldoFeriasAnoSelecionado.diasDisponiveis) / Number(currentUserProfile.dias_ferias_total)) * 100))}%` }} /></span>
+                                            )}
+                                        </div>
+                                        {isAnnualVacationOpeningAvailable() && (
+                                            <>
+                                                <div className="rh-fin-tile is-teal">
+                                                    <span><Icons.Calendar size={16}/> Férias disponíveis ({currentDate.getFullYear() + 1})</span>
+                                                    <strong>{saldoFeriasAnoSeguinte?.diasDisponiveis ?? '--'} <small>dias</small></strong>
+                                                </div>
+                                                <div className="rh-fin-tile is-green">
+                                                    <span><Icons.Sun size={16}/> Total disponível (2 anos)</span>
+                                                    <strong>
+                                                        {saldoFeriasAnoSelecionado && saldoFeriasAnoSeguinte
+                                                            ? <>{saldoFeriasAnoSelecionado.diasDisponiveis + saldoFeriasAnoSeguinte.diasDisponiveis} <small>dias</small></>
+                                                            : '--'}
+                                                    </strong>
+                                                </div>
+                                            </>
+                                        )}
+                                        <div className="rh-fin-tile is-teal">
+                                            <span><Icons.Flag size={16}/> Limite Anual de Férias</span>
+                                            <strong>{hasDiasFeriasTotalColumn ? (currentUserProfile?.dias_ferias_total ?? '--') : '--'} <small>dias</small></strong>
+                                        </div>
+                                        <button type="button" onClick={openUserEditor} className="rh-btn is-ghost is-block">
+                                            <Icons.Edit size={16} /> Editar Dados Financeiros
+                                        </button>
+                                    </div>
                                 )}
 
                                 {userTab === 'dados' && (
                                     !isEditingUser ? (
-                                        <>
-                                            <div className="rh-readonly-grid" style={readOnlyGridStyle}>
-                                                <div style={readOnlyItemStyle}><span style={labelStyle}>Nome Completo</span><b>{currentUserProfile?.nome_completo || '-'}</b></div>
-                                                <div style={readOnlyItemStyle}><span style={labelStyle}>Telemóvel</span><b>{currentUserProfile?.telemovel || '-'}</b></div>
-                                                
-                                                <div style={readOnlyItemStyle}><span style={labelStyle}>NIF</span><b>{currentUserProfile?.nif || '-'}</b></div>
-                                                <div style={readOnlyItemStyle}><span style={labelStyle}>NISS</span><b>{currentUserProfile?.niss || '-'}</b></div>
-                                                
-                                                <div style={readOnlyItemStyle}><span style={labelStyle}>NCC</span><b>{currentUserProfile?.ncc || '-'}</b></div>
-                                                <div style={readOnlyItemStyle}><span style={labelStyle}>Validade CC</span><b>{currentUserProfile?.validade_cc ? new Date(currentUserProfile.validade_cc).toLocaleDateString('pt-PT') : '-'}</b></div>
-                                                
-                                                <div style={readOnlyItemStyle}><span style={labelStyle}>Data Nasc.</span><b>{currentUserProfile?.data_nascimento ? new Date(currentUserProfile.data_nascimento).toLocaleDateString('pt-PT') : '-'}</b></div>
-                                                <div style={readOnlyItemStyle}><span style={labelStyle}>Data Admissão</span><b>{currentUserProfile?.data_admissao ? new Date(currentUserProfile.data_admissao).toLocaleDateString('pt-PT') : '-'}</b></div>
-                                                <div style={readOnlyItemStyle}><span style={labelStyle}>Dependentes</span><b>{currentUserProfile?.nr_dependentes || '0'}</b></div>
-                                                
-                                                <div style={readOnlyItemStyle}><span style={labelStyle}>Estado Civil</span><b>{currentUserProfile?.estado_civil || '-'}</b></div>
-                                                <div style={readOnlyItemStyle}><span style={labelStyle}>Nacionalidade</span><b>{currentUserProfile?.nacionalidade || '-'}</b></div>
-                                                
-                                                <div style={readOnlyItemStyle}><span style={labelStyle}>Sexo</span><b>{currentUserProfile?.sexo || '-'}</b></div>
+                                        <div className="rh-dados bz-tab-panel" key="dados">
+                                            <div className="rh-info-grid">
+                                                <div><span>Nome Completo</span><b>{currentUserProfile?.nome_completo || '-'}</b></div>
+                                                <div><span>Telemóvel</span><b>{currentUserProfile?.telemovel || '-'}</b></div>
+                                                <div><span>NIF</span><b>{currentUserProfile?.nif || '-'}</b></div>
+                                                <div><span>NISS</span><b>{currentUserProfile?.niss || '-'}</b></div>
+                                                <div><span>NCC</span><b>{currentUserProfile?.ncc || '-'}</b></div>
+                                                <div><span>Validade CC</span><b>{currentUserProfile?.validade_cc ? new Date(currentUserProfile.validade_cc).toLocaleDateString('pt-PT') : '-'}</b></div>
+                                                <div><span>Data Nasc.</span><b>{currentUserProfile?.data_nascimento ? new Date(currentUserProfile.data_nascimento).toLocaleDateString('pt-PT') : '-'}</b></div>
+                                                <div><span>Data Admissão</span><b>{currentUserProfile?.data_admissao ? new Date(currentUserProfile.data_admissao).toLocaleDateString('pt-PT') : '-'}</b></div>
+                                                <div><span>Dependentes</span><b>{currentUserProfile?.nr_dependentes || '0'}</b></div>
+                                                <div><span>Estado Civil</span><b>{currentUserProfile?.estado_civil || '-'}</b></div>
+                                                <div><span>Nacionalidade</span><b>{currentUserProfile?.nacionalidade || '-'}</b></div>
+                                                <div><span>Sexo</span><b>{currentUserProfile?.sexo || '-'}</b></div>
+                                                <div className="is-wide"><span>Morada</span><b>{currentUserProfile?.morada || '-'}</b></div>
                                             </div>
-                                            <div style={{...readOnlyItemStyle, marginTop:'10px'}}><span style={labelStyle}>Morada</span><b>{currentUserProfile?.morada || '-'}</b></div>
-                                            <div style={{display:'flex', justifyContent:'space-between', marginTop:'15px', paddingBottom:'8px', borderBottom:'1px dashed #e2e8f0', fontSize:'0.9rem'}}><span style={labelStyle}>Concelho:</span> <b style={{color:'#1e293b'}}>{currentUserProfile?.concelho || '-'}</b></div>
-                                            <div style={{display:'flex', justifyContent:'space-between', marginTop:'8px', paddingBottom:'8px', borderBottom:'1px dashed #e2e8f0', fontSize:'0.9rem'}}><span style={labelStyle}>Empresas:</span> <b style={{color:'#1e293b'}}>{formatCompaniesLabel(currentUserProfile)}</b></div>
-                                            <div style={{display:'flex', justifyContent:'space-between', marginTop:'8px', paddingBottom:'8px', borderBottom:'1px dashed #e2e8f0', fontSize:'0.9rem'}}><span style={labelStyle}>Email Institucional:</span> <b style={{color:'#1e293b'}}>{currentUserProfile?.email || '-'}</b></div>
-                                            <div style={{display:'flex', justifyContent:'space-between', marginTop:'8px', paddingBottom:'8px', borderBottom:'1px dashed #e2e8f0', fontSize:'0.9rem'}}><span style={labelStyle}>Email Pessoal:</span> <b style={{color:'#1e293b'}}>{currentUserProfile?.email_pessoal || '-'}</b></div>
-                                            <div style={{display:'flex', justifyContent:'space-between', marginTop:'8px', fontSize:'0.9rem'}}><span style={labelStyle}>Contrato:</span> <b style={{color:'#1e293b'}}>{currentUserProfile?.tipo_contrato || '-'}</b></div>
-                                            {getTemporaryStatusFromProfile(currentUserProfile) && (
-                                                <div style={{marginTop:'12px', padding:'12px', border:'1px solid #bae6fd', borderRadius:'8px', background:'#f0f9ff'}}>
-                                                    <div style={{fontSize:'0.75rem', fontWeight:'700', color:'#0369a1', textTransform:'uppercase'}}>Estado temporário</div>
-                                                    <div style={{marginTop:'4px', fontWeight:'700', color:'#0f172a'}}>{formatAbsenceTypeLabel(getTemporaryStatusFromProfile(currentUserProfile).tipo)}</div>
-                                                    <div style={{marginTop:'2px', fontSize:'0.84rem', color:'#475569'}}>{formatTemporaryStatusRange(getTemporaryStatusFromProfile(currentUserProfile))}</div>
-                                                    {getTemporaryStatusFromProfile(currentUserProfile).motivo && (
-                                                        <div style={{marginTop:'4px', fontSize:'0.8rem', color:'#64748b'}}>{getTemporaryStatusFromProfile(currentUserProfile).motivo}</div>
-                                                    )}
+                                            <div className="rh-info-list">
+                                                <div><span>Concelho:</span> <b>{currentUserProfile?.concelho || '-'}</b></div>
+                                                <div><span>Empresas:</span> <b>{formatCompaniesLabel(currentUserProfile)}</b></div>
+                                                <div><span>Email Institucional:</span> <b>{currentUserProfile?.email || '-'}</b></div>
+                                                <div><span>Email Pessoal:</span> <b>{currentUserProfile?.email_pessoal || '-'}</b></div>
+                                                <div><span>Contrato:</span> <b>{currentUserProfile?.tipo_contrato || '-'}</b></div>
+                                            </div>
+                                            {temporaryStatusAtual && (
+                                                <div className="rh-temp-box">
+                                                    <span>Estado temporário</span>
+                                                    <strong>{formatAbsenceTypeLabel(temporaryStatusAtual.tipo)}</strong>
+                                                    <small>{formatTemporaryStatusRange(temporaryStatusAtual)}</small>
+                                                    {temporaryStatusAtual.motivo && <em>{temporaryStatusAtual.motivo}</em>}
                                                 </div>
                                             )}
-                                            <div style={{display:'flex', gap:'10px', marginTop:'20px'}}>
-                                                <button type="button" onClick={openUserEditor} style={{flex:1, padding:'10px', borderRadius:'8px', border:'1px solid #cbd5e1', background:'white', cursor:'pointer', color:'#475569', fontWeight:'600', display:'flex', justifyContent:'center', alignItems:'center', gap:'8px', transition:'0.2s'}}>
+                                            <div className="rh-btn-row">
+                                                <button type="button" onClick={openUserEditor} className="rh-btn is-ghost">
                                                     <Icons.Edit size={16} /> Editar Informações
                                                 </button>
-                                                <button type="button" onClick={openUserTemporaryStatusEditor} style={{flex:1, padding:'10px', borderRadius:'8px', border:'1px solid #bae6fd', background:'#f0f9ff', cursor:'pointer', color:'#0369a1', fontWeight:'600', display:'flex', justifyContent:'center', alignItems:'center', gap:'8px', transition:'0.2s'}}>
+                                                <button type="button" onClick={openUserTemporaryStatusEditor} className="rh-btn is-sky-soft">
                                                     <Icons.Clock size={16} /> Estado temporário
                                                 </button>
                                             </div>
-                                        </>
-                                    ) : (
-                                        <div style={{background:'#f8fafc', padding:'15px', borderRadius:'8px', maxHeight:'450px', overflowY:'auto', border:'1px solid #e2e8f0'}}>
-                                            <label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Nome Completo</label>
-                                            <input type="text" value={tempUserProfile.nome_completo || ''} onChange={e => setTempUserProfile({...tempUserProfile, nome_completo: e.target.value})} style={{width:'100%', marginBottom:'10px', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} />
-                                            
-                                            <div className="rh-user-form-grid" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'10px'}}>
-                                                <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>NIF</label><input type="text" value={tempUserProfile.nif || ''} onChange={e => setTempUserProfile({...tempUserProfile, nif: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
-                                                <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>NISS</label><input type="text" value={tempUserProfile.niss || ''} onChange={e => setTempUserProfile({...tempUserProfile, niss: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
-                                                
-                                                <div style={{gridColumn:'1 / -1'}}>
-                                                    <label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>CC (Formato auto)</label>
-                                                    <input type="text" value={tempUserProfile.ncc || ''} onChange={handleCCChange} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px', fontFamily: 'monospace'}} />
-                                                </div>
-                                                <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Validade CC</label><input type="date" value={tempUserProfile.validade_cc || ''} onChange={e => setTempUserProfile({...tempUserProfile, validade_cc: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
-                                                <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Dependentes</label><input type="number" value={tempUserProfile.nr_dependentes || 0} onChange={e => setTempUserProfile({...tempUserProfile, nr_dependentes: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
-                                                <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Estado Civil</label><select value={tempUserProfile.estado_civil || ''} onChange={e => setTempUserProfile({...tempUserProfile, estado_civil: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px', background:'white'}}><option value="">-</option><option value="Solteiro">Solteiro</option><option value="Casado">Casado</option><option value="Divorciado">Divorciado</option><option value="União Facto">União Facto</option></select></div>
-                                                <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Data Nasc.</label><input type="date" value={tempUserProfile.data_nascimento || ''} onChange={e => setTempUserProfile({...tempUserProfile, data_nascimento: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
-                                                <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Data Admissão</label><input type="date" value={tempUserProfile.data_admissao || ''} onChange={e => setTempUserProfile({...tempUserProfile, data_admissao: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
-                                                <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Nacionalidade</label><input type="text" value={tempUserProfile.nacionalidade || ''} onChange={e => setTempUserProfile({...tempUserProfile, nacionalidade: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
-                                                <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Sexo</label><select value={tempUserProfile.sexo || ''} onChange={e => setTempUserProfile({...tempUserProfile, sexo: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px', background:'white'}}><option value="">-</option><option value="Masculino">Masculino</option><option value="Feminino">Feminino</option><option value="Outro">Outro</option></select></div>
-                                            </div>
-                                            <label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Morada</label>
-                                            <input type="text" value={tempUserProfile.morada || ''} onChange={e => setTempUserProfile({...tempUserProfile, morada: e.target.value})} style={{width:'100%', marginBottom:'10px', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} />
-
-                                            <div className="rh-user-form-grid" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'10px'}}>
-                                                <div>
-                                                    <label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Email Institucional</label>
-                                                    <input type="email" value={tempUserProfile.email || ''} disabled readOnly style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px', background:'#f8fafc', color:'#64748b', cursor:'not-allowed'}} />
-                                                </div>
-                                                <div>
-                                                    <label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Email Pessoal</label>
-                                                    <input type="email" value={tempUserProfile.email_pessoal || ''} onChange={e => setTempUserProfile({...tempUserProfile, email_pessoal: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} />
-                                                </div>
-                                            </div>
-                                            
-                                            <div className="rh-user-form-grid" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'10px'}}>
-                                                <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Telemóvel</label><input type="text" value={tempUserProfile.telemovel || ''} onChange={e => setTempUserProfile({...tempUserProfile, telemovel: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
-                                                <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Concelho</label><input type="text" value={tempUserProfile.concelho || ''} onChange={e => setTempUserProfile({...tempUserProfile, concelho: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
-                                            </div>
-                                            
-                                            <label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Empresas Internas</label>
-                                            <div style={{display:'flex', flexWrap:'wrap', gap:'8px', marginBottom:'14px', padding:'10px', background:'#ffffff', border:'1px solid #cbd5e1', borderRadius:'8px'}}>
-                                                {EMPRESAS_INTERNAS.map((empresa) => {
-                                                    const isSelected = (tempUserProfile.empresas_internas || []).includes(empresa);
-                                                    return (
-                                                        <div
-                                                            key={empresa}
-                                                            onClick={() => handleToggleEmpresaInterna(empresa)}
-                                                            style={{
-                                                                padding:'7px 14px',
-                                                                borderRadius:'20px',
-                                                                fontSize:'0.8rem',
-                                                                fontWeight:'600',
-                                                                cursor:'pointer',
-                                                                transition:'all 0.2s ease',
-                                                                border: isSelected ? '1px solid var(--color-btnPrimary)' : '1px solid #e2e8f0',
-                                                                background: isSelected ? 'var(--color-bgSecondary)' : '#f8fafc',
-                                                                color: isSelected ? 'var(--color-btnPrimary)' : '#64748b',
-                                                                userSelect:'none'
-                                                            }}
-                                                        >
-                                                            {empresa}
-                                                        </div>
-                                                    );
-                                                })}
-                                                {(tempUserProfile.empresas_internas || []).length === 0 && (
-                                                    <span style={{color:'#94a3b8', fontSize:'0.82rem', fontStyle:'italic'}}>Selecione pelo menos uma empresa.</span>
-                                                )}
-                                            </div>
-                                            
-                                            <label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Contrato</label>
-                                            <select value={tempUserProfile.tipo_contrato || ''} onChange={e => setTempUserProfile({...tempUserProfile, tipo_contrato: e.target.value})} style={{width:'100%', marginBottom:'20px', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px', background:'white'}}>
-                                                <option value="">Selecione...</option><option value="Termo Certo">Termo Certo</option><option value="Sem Termo">Sem Termo</option><option value="Termo Incerto">Termo Incerto</option><option value="Estágio Profissional">Estágio Profissional</option><option value="Estágio Curricular">Estágio Curricular</option><option value="Prestação de Serviços">Prestação de Serviços</option><option value="N/a">N/a</option>
-                                            </select>
-
-                                            <div style={{marginBottom:'16px', padding:'12px', border:'1px solid #e2e8f0', borderRadius:'8px', background:'#f8fafc'}}>
-                                                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:'10px', marginBottom:'10px'}}>
-                                                    <div>
-                                                        <div style={{fontSize:'0.8rem', fontWeight:'700', color:'#475569'}}>Estado temporário</div>
-                                                        <div style={{fontSize:'0.75rem', color:'#64748b'}}>Marca automaticamente os dias dentro do período indicado.</div>
-                                                    </div>
-                                                    <span style={{fontSize:'0.72rem', color:'#64748b'}}>Opcional</span>
-                                                </div>
-                                                <select
-                                                    value={tempUserProfile.estado_temporario_tipo || ''}
-                                                    onChange={(e) => setTempUserProfile((prev) => ({
-                                                        ...prev,
-                                                        estado_temporario_tipo: e.target.value,
-                                                        estado_temporario_inicio: e.target.value ? (prev.estado_temporario_inicio || toLocalDateString(new Date())) : '',
-                                                        estado_temporario_fim: e.target.value ? prev.estado_temporario_fim : '',
-                                                        estado_temporario_motivo: e.target.value ? prev.estado_temporario_motivo : '',
-                                                    }))}
-                                                    style={{width:'100%', marginBottom:'10px', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px', background:'white'}}
-                                                >
-                                                    <option value="">Nenhum estado</option>
-                                                    {COLLABORATOR_STATUS_TYPES.map((estado) => (
-                                                        <option key={estado} value={estado}>{estado}</option>
-                                                    ))}
-                                                </select>
-                                                {tempUserProfile.estado_temporario_tipo && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setTempUserProfile((prev) => ({
-                                                            ...prev,
-                                                            estado_temporario_tipo: '',
-                                                            estado_temporario_inicio: '',
-                                                            estado_temporario_fim: '',
-                                                            estado_temporario_motivo: '',
-                                                        }))}
-                                                        style={{width:'100%', marginBottom:'10px', padding:'8px 10px', border:'1px solid #fecaca', background:'#fef2f2', color:'#b91c1c', borderRadius:'6px', cursor:'pointer', fontWeight:'600'}}
-                                                    >
-                                                        Limpar estado temporário
-                                                    </button>
-                                                )}
-                                                <div className="rh-user-form-grid" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'10px'}}>
-                                                    <div>
-                                                        <label style={{fontSize:'0.72rem', fontWeight:'600', color:'#475569'}}>Início</label>
-                                                        <input type="date" value={tempUserProfile.estado_temporario_inicio || ''} onChange={e => setTempUserProfile({...tempUserProfile, estado_temporario_inicio: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} />
-                                                    </div>
-                                                    <div>
-                                                        <label style={{fontSize:'0.72rem', fontWeight:'600', color:'#475569'}}>Fim</label>
-                                                        <input type="date" value={tempUserProfile.estado_temporario_fim || ''} onChange={e => setTempUserProfile({...tempUserProfile, estado_temporario_fim: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} />
-                                                    </div>
-                                                </div>
-                                                <label style={{fontSize:'0.72rem', fontWeight:'600', color:'#475569'}}>Motivo / observações</label>
-                                                <input type="text" value={tempUserProfile.estado_temporario_motivo || ''} onChange={e => setTempUserProfile({...tempUserProfile, estado_temporario_motivo: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} placeholder="Ex: Licença parental" />
-                                            </div>
-                                            
                                         </div>
+                                    ) : (
+                                        <div className="rh-editing-note"><Icons.Edit size={16} /> A editar no painel de edição…</div>
                                     )
+                                )}
+                            </section>
+
+                            <section className="rh-card">
+                                <div className="rh-card-head">
+                                    <div className="rh-card-title">
+                                        <span className="rh-card-ico is-green"><Icons.Chart size={18} /></span>
+                                        <div><h3>Processamento <span className="rh-cap">{currentDate.toLocaleDateString('pt-PT', {month:'long'})}</span></h3></div>
+                                    </div>
+                                </div>
+                                <div className="rh-proc">
+                                    <div><span>Dias úteis do mês</span><b>{stats.diasUteisMes}</b></div>
+                                    <div><span>Dias Trabalhados (&gt;=5h)</span><b className="is-ink">{stats.countTrabalho}</b></div>
+                                    <div className="is-bad"><span>Dias Descontados (&lt;5h / ausência)</span><b>{stats.diasDescontadosSA}</b></div>
+                                    <div><span>Férias</span><b>{stats.countFerias}</b></div>
+                                    <div className="is-bad"><span>Faltas</span><b>{stats.countFaltas}</b></div>
+                                    <div className="is-purple"><span>Baixas</span><b>{stats.countBaixas}</b></div>
+                                </div>
+                                <div className="rh-proc-total">
+                                    <span>TOTAL S.A. PAGAR:</span>
+                                    <strong>{stats.valorSA} €</strong>
+                                </div>
+                            </section>
+                        </>
+                    ) : (
+                        <section className="rh-card">
+                            <div className="rh-card-head">
+                                <div className="rh-card-title">
+                                    <span className="rh-card-ico"><Icons.Chart size={18} /></span>
+                                    <div><h3>Resumo Global do Mês</h3></div>
+                                </div>
+                            </div>
+                            <div className="rh-sum-tiles">
+                                <div className="is-amber"><Icons.Sun size={18}/><span>Férias Marcadas</span><strong>{stats.countFerias} <small>dias</small></strong></div>
+                                <div className="is-red"><Icons.X size={18}/><span>Faltas</span><strong>{stats.countFaltas} <small>dias</small></strong></div>
+                                <div className="is-purple"><Icons.HeartPulse size={18}/><span>Baixas Médicas</span><strong>{stats.countBaixas} <small>dias</small></strong></div>
+                            </div>
+
+                            <div className="rh-sub">
+                                <h5><Icons.Clock size={14}/> Ausentes Hoje</h5>
+                                {ausentesHoje.length === 0 ? (
+                                    <div className="rh-ok-box"><Icons.Check size={18}/> Todos presentes!</div>
+                                ) : (
+                                    <div className="rh-mini-list">
+                                        {ausentesHoje.map(a => (
+                                            <div key={a.id} className="rh-mini-row">
+                                                {renderRhAvatar(a.nomeUser, a.user_id || a.nomeUser)}
+                                                <div><b>{a.nomeUser}</b><small>{a.infoHora} {formatAbsenceTypeLabel(a.tipo)}</small></div>
+                                            </div>
+                                        ))}
+                                    </div>
                                 )}
                             </div>
 
-                            <div className="card" style={{padding:'25px', background:'white', borderRadius:'12px', marginBottom: '20px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
-                                <h4 style={{margin:'0 0 20px 0', color:'#1e293b', fontSize:'1.1rem', display:'flex', alignItems:'center', gap:'8px'}}>
-                                    <Icons.Chart size={18} color="#64748b"/>
-                                    Processamento {currentDate.toLocaleDateString('pt-PT', {month:'long'})}
-                                </h4>
-                                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'12px', fontSize:'0.9rem', color:'#334155'}}><span>Dias úteis do mês</span><span style={{color:'#64748b'}}>{stats.diasUteisMes}</span></div>
-                                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'12px', fontSize:'0.9rem', color:'#334155'}}><span>Dias Trabalhados (&gt;=5h)</span><span style={{fontWeight:'600'}}>{stats.countTrabalho}</span></div>
-                                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'12px', fontSize:'0.9rem', color:'#ef4444', fontWeight:'500'}}><span>Dias Descontados (&lt;5h / ausência)</span><span style={{color:'#fca5a5'}}>{stats.diasDescontadosSA}</span></div>
-                                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'12px', fontSize:'0.9rem', color:'#334155'}}><span>Férias</span><span style={{color:'#94a3b8'}}>{stats.countFerias}</span></div>
-                                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'12px', fontSize:'0.9rem', color:'#ef4444', fontWeight:'500'}}><span>Faltas</span><span style={{color:'#fca5a5'}}>{stats.countFaltas}</span></div>
-                                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'12px', fontSize:'0.9rem', color:'#8b5cf6'}}><span>Baixas</span><span style={{color:'#c4b5fd'}}>{stats.countBaixas}</span></div>
-                                <div style={{marginTop:'20px', paddingTop:'15px', borderTop:'2px dashed #f1f5f9', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                                    <span style={{fontWeight:'bold', color:'#475569', fontSize:'0.9rem'}}>TOTAL S.A. PAGAR:</span><span style={{fontSize:'1.5rem', fontWeight:'800', color:'#16a34a'}}>{stats.valorSA} €</span>
-                                </div>
-                            </div>
-                        </>
-                    ) : (
-                        <div className="card" style={{padding:'30px', background:'white', borderRadius:'12px', color:'#64748b', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
-                            <h3 style={{margin:'0', color:'#1e293b', display:'flex', alignItems:'center', gap:'10px', fontSize:'1.2rem'}}>
-                                <Icons.Chart size={24} color="var(--color-btnPrimary)"/> 
-                                Resumo Global do Mês
-                            </h3>
-                            <ul style={{listStyle:'none', padding:0, marginTop:'25px'}}>
-                                <li style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 0', borderBottom:'1px solid #f1f5f9'}}>
-                                    <span style={{display:'flex', alignItems:'center', gap:'8px'}}><Icons.Sun size={18} color="#eab308"/> Férias Marcadas</span> 
-                                    <span style={{fontWeight:'bold', color:'#1e293b'}}>{stats.countFerias} dias</span>
-                                </li>
-                                <li style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 0', borderBottom:'1px solid #f1f5f9'}}>
-                                    <span style={{display:'flex', alignItems:'center', gap:'8px'}}><Icons.X size={18} color="#ef4444"/> Faltas</span> 
-                                    <span style={{fontWeight:'bold', color:'#1e293b'}}>{stats.countFaltas} dias</span>
-                                </li>
-                                <li style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 0', borderBottom:'1px solid #f1f5f9'}}>
-                                    <span style={{display:'flex', alignItems:'center', gap:'8px'}}><Icons.HeartPulse size={18} color="#8b5cf6"/> Baixas Médicas</span> 
-                                    <span style={{fontWeight:'bold', color:'#1e293b'}}>{stats.countBaixas} dias</span>
-                                </li>
-                            </ul>
-                            
-                            <div style={{marginTop:'30px', paddingTop:'20px', borderTop:'2px solid #f8fafc'}}>
-                                <h5 style={{margin:'0 0 15px 0', color:'#64748b', textTransform:'uppercase', fontSize:'0.75rem', fontWeight:'700', letterSpacing:'0.05em', display:'flex', alignItems:'center', gap:'6px'}}>
-                                    <Icons.Clock size={14}/> Ausentes Hoje
-                                </h5>
-                                {ausentesHoje.length === 0 ? <div style={{background:'#f0fdf4', padding:'12px', borderRadius:'8px', color:'#166534', fontWeight:'600', fontSize:'0.9rem', display:'flex', alignItems:'center', gap:'8px'}}><Icons.Check size={18}/> Todos presentes!</div> : 
-                                    ausentesHoje.map(a => <div key={a.id} style={{padding:'10px', border:'1px solid #e2e8f0', borderRadius:'8px', marginBottom:'8px', fontSize:'0.9rem', color:'#334155'}}><b style={{color:'#1e293b'}}>{a.nomeUser}</b> {a.infoHora} - {formatAbsenceTypeLabel(a.tipo)}</div>)
-                                }
-                            </div>
-
-                            <div style={{marginTop:'24px', paddingTop:'20px', borderTop:'2px solid #f8fafc'}}>
-                                <h5 style={{margin:'0 0 15px 0', color:'#64748b', textTransform:'uppercase', fontSize:'0.75rem', fontWeight:'700', letterSpacing:'0.05em', display:'flex', alignItems:'center', gap:'6px'}}>
-                                    <Icons.Clock size={14}/> Estados Temporários Ativos Hoje
-                                </h5>
+                            <div className="rh-sub">
+                                <h5><Icons.Clock size={14}/> Estados Temporários Ativos Hoje</h5>
                                 {estadosTemporariosHoje.length === 0 ? (
-                                    <div style={{padding:'12px', borderRadius:'8px', color:'#94a3b8', fontSize:'0.9rem', fontStyle:'italic', background:'#f8fafc'}}>Sem estados temporários ativos hoje.</div>
+                                    <div className="rh-muted-box">Sem estados temporários ativos hoje.</div>
                                 ) : (
-                                    <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
+                                    <div className="rh-mini-list">
                                         {estadosTemporariosHoje.map((item) => {
                                             const estadoStyle = getTemporaryStatusStyle(item.tipo);
                                             return (
-                                                <div key={item.id} style={{padding:'10px 12px', border:'1px solid #e2e8f0', borderRadius:'8px', background: estadoStyle.cor, color: estadoStyle.textoCor, display:'flex', justifyContent:'space-between', gap:'10px', alignItems:'center'}}>
-                                                    <div style={{minWidth: 0}}>
-                                                        <div style={{fontWeight:'700'}}>{item.nomeUser}</div>
-                                                        <div style={{fontSize:'0.84rem', opacity:0.85}}>{formatAbsenceTypeLabel(item.tipo)} · {formatTemporaryStatusRange(item.estado)}</div>
+                                                <div key={item.id} className="rh-mini-row is-tinted" style={{ background: estadoStyle.cor, color: estadoStyle.textoCor }}>
+                                                    <div>
+                                                        <b>{item.nomeUser}</b>
+                                                        <small>{formatAbsenceTypeLabel(item.tipo)} · {formatTemporaryStatusRange(item.estado)}</small>
                                                     </div>
-                                                    <span style={{fontSize:'0.72rem', fontWeight:'700', padding:'3px 8px', borderRadius:'999px', background:'rgba(255,255,255,0.6)'}}>
-                                                        Ativo
-                                                    </span>
+                                                    <span className="rh-tag is-white">Ativo</span>
                                                 </div>
                                             );
                                         })}
                                     </div>
                                 )}
                             </div>
-                            
-                            <div style={{marginTop: '30px', paddingTop: '20px', borderTop: '2px solid #f8fafc'}}>
-                                <h5 style={{margin:'0 0 15px 0', color:'#64748b', textTransform:'uppercase', fontSize:'0.75rem', fontWeight:'700', letterSpacing:'0.05em', display:'flex', alignItems:'center', gap:'6px'}}>
-                                    <Icons.Cake size={14}/> Aniversariantes de {currentDate.toLocaleDateString('pt-PT', {month:'long'})}
-                                </h5>
+
+                            <div className="rh-sub">
+                                <h5><Icons.Cake size={14}/> Aniversariantes de {currentDate.toLocaleDateString('pt-PT', {month:'long'})}</h5>
                                 {aniversariantes.length === 0 ? (
-                                    <div style={{padding:'12px', borderRadius:'8px', color:'#94a3b8', fontSize:'0.9rem', fontStyle:'italic', background:'#f8fafc'}}>Ninguém faz anos este mês.</div>
+                                    <div className="rh-muted-box">Ninguém faz anos este mês.</div>
                                 ) : (
-                                    <ul style={{listStyle:'none', padding:0}}>
+                                    <div className="rh-mini-list">
                                         {aniversariantes.map(c => (
-                                            <li key={c.id} style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 0', borderBottom:'1px solid #f1f5f9', fontSize:'0.9rem'}}>
-                                                <span style={{color:'#1e293b', fontWeight:'500'}}>{c.nome}</span>
-                                                <span style={{fontWeight:'bold', color:'#eab308', background:'#fefce8', padding:'4px 8px', borderRadius:'6px'}}>Dia {new Date(c.data_nascimento).getDate()}</span>
-                                            </li>
+                                            <div key={c.id} className="rh-mini-row">
+                                                {renderRhAvatar(c.nome, c.id, 'sm', c.avatar_url)}
+                                                <div><b>{c.nome}</b></div>
+                                                <span className="rh-bday">🎂 Dia {new Date(c.data_nascimento).getDate()}</span>
+                                            </div>
                                         ))}
-                                    </ul>
+                                    </div>
                                 )}
                             </div>
-                        </div>
+                        </section>
                     )}
                 </div>
 
-                <div style={{display:'flex', flexDirection:'column', gap:'20px', minWidth: 0}}>
+                <div className="rh-col">
                     {selectedUser ? (
                         <CalendarioColaborador
                             userId={selectedUser}
                             userName={currentUserProfile?.nome || 'Colaborador'}
                             dataAdmissao={currentUserProfile?.data_admissao}
-                            estadoTemporario={getTemporaryStatusFromProfile(currentUserProfile)}
+                            estadoTemporario={temporaryStatusAtual}
                             onVacationBalanceUpdated={async () => {
                                 await fetchColaboradores();
                                 if (selectedUser) await fetchHistoricoUser(selectedUser);
@@ -3513,76 +3643,78 @@ export default function RecursosHumanos() {
                             onMonthChange={(date) => setCurrentDate(date)}
                         />
                     ) : (
-                        <div className="card" style={{padding:'25px', background:'white', borderRadius:'12px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
-                            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'25px'}}>
-                                <button onClick={() => changeMonth(-1)} className="btn-small" style={{display:'flex', alignItems:'center', justifyContent:'center', padding:'8px', borderRadius:'50%'}}>
-                                    <Icons.ChevronLeft size={18} color="#475569"/>
+                        <section className="rh-card rh-cal">
+                            <div className="rh-cal-head">
+                                <button type="button" onClick={() => changeMonth(-1)} className="rh-round-btn" aria-label="Mês anterior">
+                                    <Icons.ChevronLeft size={18} />
                                 </button>
-                                <h2 style={{margin:0, fontSize:'1.2rem', color:'#1e293b', textTransform:'capitalize'}}>{currentDate.toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' })}</h2>
-                                <button onClick={() => changeMonth(1)} className="btn-small" style={{display:'flex', alignItems:'center', justifyContent:'center', padding:'8px', borderRadius:'50%'}}>
-                                    <Icons.ChevronRight size={18} color="#475569"/>
+                                <h2>{currentDate.toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' })}</h2>
+                                <button type="button" onClick={() => changeMonth(1)} className="rh-round-btn" aria-label="Mês seguinte">
+                                    <Icons.ChevronRight size={18} />
                                 </button>
                             </div>
-                            <div style={{display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px'}}>
-                                {['D','S','T','Q','Q','S','S'].map((d, i) => <div key={`wd-${i}`} style={{textAlign:'center', fontWeight:'800', color:'#94a3b8', fontSize:'0.8rem', paddingBottom:'10px'}}>{d}</div>)}
+                            <div className="rh-cal-legend">
+                                <span><i style={{ background: '#fcd34d' }} /> Férias</span>
+                                <span><i style={{ background: '#fca5a5' }} /> Faltas</span>
+                                <span><i style={{ background: '#d8b4fe' }} /> Baixas</span>
+                                <span><i style={{ background: '#94a3b8' }} /> Parcial (horas)</span>
+                                <span><i style={{ background: 'var(--color-btnPrimary)' }} /> Tolerância</span>
+                                <span><i style={{ background: '#fee2e2', boxShadow: 'inset 0 0 0 1px #fca5a5' }} /> Feriado</span>
+                            </div>
+                            <div className="rh-cal-grid">
+                                {['D','S','T','Q','Q','S','S'].map((d, i) => <div key={`wd-${i}`} className="rh-cal-wd">{d}</div>)}
                                 {renderCalendar()}
                             </div>
-                        </div>
+                        </section>
                     )}
 
                     {selectedUser && historicoUser.length > 0 && (
-                        <div className="card" style={{padding:'25px', background:'white', borderRadius:'12px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'}}>
-                            <h3 style={{marginTop:0, marginBottom:'20px', fontSize:'1.1rem', color:'#1e293b', display:'flex', alignItems:'center', gap:'8px'}}>
-                                <Icons.Clock size={18} color="#64748b"/> Histórico de Ausências
-                            </h3>
-                            <div className="table-responsive" style={{maxHeight:'350px', overflowY:'auto'}}>
-                                <table className="data-table" style={{fontSize:'0.9rem', width:'100%', borderCollapse:'collapse'}}>
+                        <section className="rh-card">
+                            <div className="rh-card-head">
+                                <div className="rh-card-title">
+                                    <span className="rh-card-ico"><Icons.Clock size={18} /></span>
+                                    <div><h3>Histórico de Ausências <em className="rh-count">{historicoUser.length}</em></h3></div>
+                                </div>
+                            </div>
+                            <div className="rh-table-wrap is-scroll">
+                                <table className="rh-table">
                                     <thead>
-                                        <tr style={{borderBottom:'2px solid #f1f5f9', color:'#64748b'}}>
-                                            <th style={{padding:'10px', textAlign:'left'}}>Tipo</th>
-                                            <th style={{padding:'10px', textAlign:'left'}}>Período</th>
-                                            <th style={{padding:'10px', textAlign:'center'}}>Anexo</th>
-                                            <th style={{padding:'10px', textAlign:'center'}}>Estado</th>
-                                            <th style={{padding:'10px', textAlign:'center'}}>Ações</th>
+                                        <tr>
+                                            <th>Tipo</th>
+                                            <th>Período</th>
+                                            <th className="is-center">Anexo</th>
+                                            <th className="is-center">Estado</th>
+                                            <th className="is-center">Ações</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {historicoUser.map(h => (
-                                            <tr key={h.id} style={{borderBottom:'1px solid #f8fafc'}}>
-                                                <td style={{padding:'10px', color:'#334155', fontWeight:'500'}}>{formatAbsenceTypeLabel(h.tipo)}</td>
-                                                <td style={{padding:'10px', color:'#475569'}}>
+                                            <tr key={h.id}>
+                                                <td><span className="rh-type">{formatAbsenceTypeLabel(h.tipo)}</span></td>
+                                                <td>
                                                   {h.tipo === KM_REQUEST_TYPE ? (
-                                                      <>
-                                                          <div>{new Date(h.data_inicio).toLocaleDateString('pt-PT')}</div>
-                                                          <div style={{fontSize: '0.8rem', color: '#94a3b8'}}>De {h.km_origem || '-'} para {h.km_destino || '-'}{h.km_ida_volta ? ' e volta' : ''} ({h.km_total ?? '-'} km)</div>
-                                                      </>
-                                                  ) : h.is_parcial ? (
-                                                      <>
-                                                          <div>{new Date(h.data_inicio).toLocaleDateString('pt-PT')}</div>
-                                                          <div style={{fontSize: '0.8rem', color: '#94a3b8', display:'flex', alignItems:'center', gap:'4px'}}><Icons.Clock size={12}/> {h.hora_inicio?.slice(0,5)} às {h.hora_fim?.slice(0,5) || '...'}</div>
-                                                      </>
-                                                  ) : (
-                                                      `${new Date(h.data_inicio).toLocaleDateString('pt-PT')} a ${new Date(h.data_fim).toLocaleDateString('pt-PT')}`
-                                                  )}
+                                                      <div className="rh-periodo">
+                                                          <strong>{new Date(h.data_inicio).toLocaleDateString('pt-PT')}</strong>
+                                                          <small>De {h.km_origem || '-'} para {h.km_destino || '-'}{h.km_ida_volta ? ' e volta' : ''} ({h.km_total ?? '-'} km)</small>
+                                                      </div>
+                                                  ) : formatPeriodo(h)}
                                                 </td>
-                                                <td style={{padding:'10px', textAlign:'center'}}>
-                                                    {h.anexo_url ? <a href={h.anexo_url} target="_blank" rel="noreferrer" style={{color:'var(--color-btnPrimary)', display:'inline-flex', alignItems:'center', gap:'4px', background:'var(--color-bgSecondary)', padding:'4px 8px', borderRadius:'6px', textDecoration:'none', fontSize:'0.8rem', fontWeight:'600'}}><Icons.Paperclip size={14}/> Ver</a> : <span style={{color:'#cbd5e1'}}>-</span>}
+                                                <td className="is-center">
+                                                    {h.anexo_url ? <a href={h.anexo_url} target="_blank" rel="noreferrer" className="rh-link-chip"><Icons.Paperclip size={14}/> Ver</a> : <span className="rh-nil">-</span>}
                                                 </td>
-                                                <td style={{padding:'10px', textAlign:'center'}}>
-                                                    <span style={{background: h.estado === 'aprovado' ? '#dcfce7' : '#fee2e2', color: h.estado === 'aprovado' ? '#166534' : '#991b1b', padding:'4px 8px', borderRadius:'6px', fontSize:'0.75rem', fontWeight:'700', textTransform:'uppercase'}}>
-                                                        {h.estado}
-                                                    </span>
+                                                <td className="is-center">
+                                                    <span className={`rh-tag ${h.estado === 'aprovado' ? 'is-green' : 'is-off'} is-upper`}>{h.estado}</span>
                                                 </td>
-                                                <td style={{padding:'10px', textAlign: 'center'}}>
-                                                    <div style={{display:'flex', gap:'5px', justifyContent:'center'}}>
+                                                <td className="is-center">
+                                                    <div className="rh-row-actions">
                                                         <ModernTooltip content="Editar Registo">
-                                                            <button className="btn-small" style={{color:'var(--color-btnPrimary)', background:'var(--color-bgSecondary)', borderColor:'var(--color-borderColor)', padding:'6px'}} onClick={() => handleEditClick(h)}>
+                                                            <button type="button" className="rh-icon-btn is-brand" onClick={() => handleEditClick(h)}>
                                                                 <Icons.Edit size={14} />
                                                             </button>
                                                         </ModernTooltip>
                                                         {h.estado === 'aprovado' && (
                                                             <ModernTooltip content="Cancelar e devolver dias">
-                                                                <button className="btn-small" style={{color:'#ef4444', background:'#fef2f2', borderColor:'#fecaca', padding:'6px'}} onClick={() => abrirModalConfirmacao(h, 'cancelar_direto')}>
+                                                                <button type="button" className="rh-icon-btn is-bad" onClick={() => abrirModalConfirmacao(h, 'cancelar_direto')}>
                                                                     <Icons.Trash size={14} />
                                                                 </button>
                                                             </ModernTooltip>
@@ -3594,190 +3726,124 @@ export default function RecursosHumanos() {
                                     </tbody>
                                 </table>
                             </div>
-                        </div>
+                        </section>
                     )}
                 </div>
             </div>
-          </>
+          </div>
       )}
 
       {isEditingUser && (
           <ModalPortal>
-              <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.6)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999, padding:'14px'}}>
-                  <div style={{background:'white', width:'min(1240px, 98vw)', height:'94vh', overflow:'hidden', borderRadius:'18px', boxShadow:'0 25px 50px -12px rgba(0, 0, 0, 0.25)', display:'flex', flexDirection:'column'}}>
-                      <div style={{padding:'16px 22px', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center', gap:'16px'}}>
-                          <div style={{display:'flex', alignItems:'center', gap:'14px', minWidth:0}}>
-                              <div style={{width:'56px', height:'56px', borderRadius:'50%', background:'var(--color-bgSecondary)', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', flex:'0 0 auto', border:'1px solid #dbeafe'}}>
-                                  {currentUserProfile?.avatar_url ? (
-                                      <img src={currentUserProfile.avatar_url} alt={currentUserProfile?.nome || 'Colaborador'} style={{width:'100%', height:'100%', objectFit:'cover'}} />
-                                  ) : (
-                                      <span style={{fontSize:'1.25rem', fontWeight:'800', color:'var(--color-btnPrimary)'}}>{getUserAvatarFallback(currentUserProfile)}</span>
-                                  )}
-                              </div>
-                              <div style={{minWidth:0}}>
-                                  <h3 style={{margin:0, color:'#1e293b', fontSize:'1.15rem', lineHeight:1.2}}>Editar colaborador</h3>
-                                  <div style={{marginTop:'4px', color:'#64748b', fontSize:'0.85rem', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{currentUserProfile?.nome || currentUserProfile?.nome_completo || 'Colaborador'}</div>
-                              </div>
+              <div className="rh-overlay">
+                  <div className="rh-modal is-xl">
+                      <div className="rh-modal-head" style={{ '--c': rhColorFor(selectedUser) }}>
+                          {renderRhAvatar(currentUserProfile?.nome || currentUserProfile?.nome_completo, selectedUser, 'lg', currentUserProfile?.avatar_url)}
+                          <div className="rh-modal-title">
+                              <span>Editar colaborador</span>
+                              <h3>{currentUserProfile?.nome || currentUserProfile?.nome_completo || 'Colaborador'}</h3>
+                              <small>{formatCompaniesLabel(currentUserProfile)}</small>
                           </div>
-                          <button type="button" onClick={closeUserEditor} style={{background:'none', border:'none', cursor:'pointer', color:'#94a3b8', padding:'6px'}}>
-                              <Icons.X size={22} />
+                          <button type="button" onClick={() => openUserStatusModal(currentUserProfile)} className="rh-head-danger">
+                              <Icons.Trash size={15} /> Desativar
                           </button>
+                          <button type="button" onClick={closeUserEditor} className="rh-modal-close" aria-label="Fechar"><Icons.X size={20} /></button>
                       </div>
 
-                      <div style={{padding:'18px 20px 20px', overflowY:'auto', flex:1}}>
-                          <div style={{display:'grid', gridTemplateColumns:'300px minmax(0, 1fr)', gap:'18px', alignItems:'start'}}>
-                              <div style={{background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:'14px', padding:'16px', height:'fit-content', position:'sticky', top:0}}>
-                                  <div style={{display:'flex', alignItems:'center', gap:'12px', marginBottom:'16px'}}>
-                                      <div style={{width:'50px', height:'50px', borderRadius:'50%', background:'var(--color-bgSecondary)', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', border:'1px solid #dbeafe'}}>
-                                          {currentUserProfile?.avatar_url ? (
-                                              <img src={currentUserProfile.avatar_url} alt={currentUserProfile?.nome || 'Colaborador'} style={{width:'100%', height:'100%', objectFit:'cover'}} />
-                                          ) : (
-                                              <span style={{fontSize:'1.15rem', fontWeight:'800', color:'var(--color-btnPrimary)'}}>{getUserAvatarFallback(currentUserProfile)}</span>
-                                          )}
-                                      </div>
-                                      <div style={{minWidth:0}}>
-                                          <div style={{fontWeight:'700', color:'#1e293b'}}>{currentUserProfile?.nome || currentUserProfile?.nome_completo || '-'}</div>
-                                          <div style={{fontSize:'0.82rem', color:'#64748b', overflow:'hidden', textOverflow:'ellipsis'}}>{formatCompaniesLabel(currentUserProfile)}</div>
-                                      </div>
-                                  </div>
-
-                                  <div style={{display:'grid', gap:'8px'}}>
-                                        <div style={{padding:'10px 12px', borderRadius:'10px', background:'white', border:'1px solid #e2e8f0'}}>
-                                            <label style={{display:'block', fontSize:'0.75rem', color:'#64748b', fontWeight:'700', textTransform:'uppercase', marginBottom:'6px'}}>Valor S.A. Diário (€)</label>
-                                            <input 
-                                                type="number" 
-                                                step="0.01" 
-                                                min="0"
-                                                value={tempUserProfile.valor_sa || ''} 
-                                                onChange={e => setTempUserProfile({...tempUserProfile, valor_sa: e.target.value})}
-                                                style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px', fontSize:'1rem', fontWeight:'600'}}
-                                            />
-                                        </div>
-                                        <div style={{padding:'10px 12px', borderRadius:'10px', background:'white', border:'1px solid #e2e8f0'}}>
-                                            <label style={{display:'block', fontSize:'0.75rem', color:'#64748b', fontWeight:'700', textTransform:'uppercase', marginBottom:'6px'}}>Férias Disponíveis</label>
-                                            <input 
-                                                type="number" 
-                                                step="0.5" 
-                                                value={tempUserProfile.dias_ferias ?? ''} 
-                                                onChange={e => setTempUserProfile({...tempUserProfile, dias_ferias: e.target.value})}
-                                                style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px', fontSize:'1rem', fontWeight:'600'}}
-                                            />
-                                        </div>
-                                        {hasDiasFeriasTotalColumn && (
-                                            <div style={{padding:'10px 12px', borderRadius:'10px', background:'white', border:'1px solid #e2e8f0'}}>
-                                                <label style={{display:'block', fontSize:'0.75rem', color:'#64748b', fontWeight:'700', textTransform:'uppercase', marginBottom:'6px'}}>Limite Anual</label>
-                                                <input 
-                                                    type="number" 
-                                                    step="1" 
-                                                    min="0"
-                                                    value={tempUserProfile.dias_ferias_total ?? ''} 
-                                                    onChange={e => setTempUserProfile({...tempUserProfile, dias_ferias_total: e.target.value})}
-                                                    style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px', fontSize:'1rem', fontWeight:'600'}}
-                                                />
-                                            </div>
-                                        )}
-                                    </div>
-
-                                  <div style={{marginTop:'14px', padding:'8px 10px', background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:'999px', color:'#1d4ed8', fontSize:'0.8rem', lineHeight:1.35, textAlign:'center', fontWeight:'600'}}>
-                                      Edição Ativa.
-                                  </div>
+                      <div className="rh-modal-body is-split">
+                          <aside className="rh-editor-aside">
+                              <div className="rh-aside-title"><Icons.Currency size={15} /> Financeiro</div>
+                              <div className="rh-field">
+                                  <label>Valor S.A. Diário (€)</label>
+                                  <input type="number" step="0.01" min="0" className="rh-input is-big" value={tempUserProfile.valor_sa || ''} onChange={setTemp('valor_sa')} />
                               </div>
-
-                              <div style={{background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:'14px', padding:'16px', minWidth:0}}>
-                                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'14px', gap:'12px', flexWrap:'wrap'}}>
-                                      <div>
-                                          <h4 style={{margin:'0 0 4px 0', color:'#1e293b'}}>Dados do colaborador</h4>
-                                          <p style={{margin:0, color:'#64748b', fontSize:'0.85rem'}}>Atualiza os campos pessoais, financeiros e o estado temporário.</p>
-                                      </div>
-                                      <button type="button" onClick={() => openUserStatusModal(currentUserProfile)} style={{background:'#fee2e2', color:'#ef4444', border:'none', padding:'9px 12px', borderRadius:'8px', fontSize:'0.85rem', fontWeight:'700', cursor:'pointer', display:'flex', alignItems:'center', gap:'8px'}}>
-                                          <Icons.Trash size={16} /> Desativar
-                                      </button>
+                              <div className="rh-field">
+                                  <label>Férias Disponíveis</label>
+                                  <input type="number" step="0.5" className="rh-input is-big" value={tempUserProfile.dias_ferias ?? ''} onChange={setTemp('dias_ferias')} />
+                              </div>
+                              {hasDiasFeriasTotalColumn && (
+                                  <div className="rh-field">
+                                      <label>Limite Anual</label>
+                                      <input type="number" step="1" min="0" className="rh-input is-big" value={tempUserProfile.dias_ferias_total ?? ''} onChange={setTemp('dias_ferias_total')} />
                                   </div>
+                              )}
+                              <div className="rh-editing-pill"><span className="rh-dot" /> Edição Ativa.</div>
+                          </aside>
 
-                                  <div style={{maxHeight:'calc(94vh - 140px)', overflowY:'auto', paddingRight:'6px'}}>
-                                      <label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Nome Completo</label>
-                                      <input type="text" value={tempUserProfile.nome_completo || ''} onChange={e => setTempUserProfile({...tempUserProfile, nome_completo: e.target.value})} style={{width:'100%', marginBottom:'10px', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} />
+                          <div className="rh-editor-main">
+                              <p className="rh-editor-intro"><b>Dados do colaborador</b> · Atualiza os campos pessoais, financeiros e o estado temporário.</p>
 
-                                      <div className="rh-user-form-grid" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'10px'}}>
-                                          <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>NIF</label><input type="text" value={tempUserProfile.nif || ''} onChange={e => setTempUserProfile({...tempUserProfile, nif: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
-                                          <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>NISS</label><input type="text" value={tempUserProfile.niss || ''} onChange={e => setTempUserProfile({...tempUserProfile, niss: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
+                              <section className="rh-fcard">
+                                  <div className="rh-fcard-title"><span className="rh-card-ico is-sm"><Icons.User size={14} /></span> Identificação</div>
+                                  <div className="rh-field">
+                                      <label>Nome Completo</label>
+                                      <input type="text" className="rh-input" value={tempUserProfile.nome_completo || ''} onChange={setTemp('nome_completo')} />
+                                  </div>
+                                  <div className="rh-fgrid is-3">
+                                      <div className="rh-field"><label>NIF</label><input type="text" className="rh-input" value={tempUserProfile.nif || ''} onChange={setTemp('nif')} /></div>
+                                      <div className="rh-field"><label>NISS</label><input type="text" className="rh-input" value={tempUserProfile.niss || ''} onChange={setTemp('niss')} /></div>
+                                      <div className="rh-field"><label>CC (Formato auto)</label><input type="text" className="rh-input is-mono" value={tempUserProfile.ncc || ''} onChange={handleCCChange} /></div>
+                                      <div className="rh-field"><label>Validade CC</label><input type="date" className="rh-input" value={tempUserProfile.validade_cc || ''} onChange={setTemp('validade_cc')} /></div>
+                                      <div className="rh-field"><label>Data Nasc.</label><input type="date" className="rh-input" value={tempUserProfile.data_nascimento || ''} onChange={setTemp('data_nascimento')} /></div>
+                                      <div className="rh-field"><label>Data Admissão</label><input type="date" className="rh-input" value={tempUserProfile.data_admissao || ''} onChange={setTemp('data_admissao')} /></div>
+                                      <div className="rh-field"><label>Estado Civil</label><select className="rh-input" value={tempUserProfile.estado_civil || ''} onChange={setTemp('estado_civil')}><option value="">-</option><option value="Solteiro">Solteiro</option><option value="Casado">Casado</option><option value="Divorciado">Divorciado</option><option value="União Facto">União Facto</option></select></div>
+                                      <div className="rh-field"><label>Dependentes</label><input type="number" className="rh-input" value={tempUserProfile.nr_dependentes || 0} onChange={setTemp('nr_dependentes')} /></div>
+                                      <div className="rh-field"><label>Sexo</label><select className="rh-input" value={tempUserProfile.sexo || ''} onChange={setTemp('sexo')}><option value="">-</option><option value="Masculino">Masculino</option><option value="Feminino">Feminino</option><option value="Outro">Outro</option></select></div>
+                                      <div className="rh-field"><label>Nacionalidade</label><input type="text" className="rh-input" value={tempUserProfile.nacionalidade || ''} onChange={setTemp('nacionalidade')} /></div>
+                                  </div>
+                              </section>
 
-                                          <div style={{gridColumn:'1 / -1'}}>
-                                              <label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>CC (Formato auto)</label>
-                                              <input type="text" value={tempUserProfile.ncc || ''} onChange={handleCCChange} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px', fontFamily: 'monospace'}} />
-                                          </div>
-                                          <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Validade CC</label><input type="date" value={tempUserProfile.validade_cc || ''} onChange={e => setTempUserProfile({...tempUserProfile, validade_cc: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
-                                          <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Dependentes</label><input type="number" value={tempUserProfile.nr_dependentes || 0} onChange={e => setTempUserProfile({...tempUserProfile, nr_dependentes: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
-                                          <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Estado Civil</label><select value={tempUserProfile.estado_civil || ''} onChange={e => setTempUserProfile({...tempUserProfile, estado_civil: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px', background:'white'}}><option value="">-</option><option value="Solteiro">Solteiro</option><option value="Casado">Casado</option><option value="Divorciado">Divorciado</option><option value="União Facto">União Facto</option></select></div>
-                                          <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Data Nasc.</label><input type="date" value={tempUserProfile.data_nascimento || ''} onChange={e => setTempUserProfile({...tempUserProfile, data_nascimento: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
-                                          <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Data Admissão</label><input type="date" value={tempUserProfile.data_admissao || ''} onChange={e => setTempUserProfile({...tempUserProfile, data_admissao: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
-                                          <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Nacionalidade</label><input type="text" value={tempUserProfile.nacionalidade || ''} onChange={e => setTempUserProfile({...tempUserProfile, nacionalidade: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
-                                          <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Sexo</label><select value={tempUserProfile.sexo || ''} onChange={e => setTempUserProfile({...tempUserProfile, sexo: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px', background:'white'}}><option value="">-</option><option value="Masculino">Masculino</option><option value="Feminino">Feminino</option><option value="Outro">Outro</option></select></div>
-                                      </div>
+                              <section className="rh-fcard">
+                                  <div className="rh-fcard-title"><span className="rh-card-ico is-sm is-blue"><Icons.Info size={14} /></span> Contactos & Morada</div>
+                                  <div className="rh-field">
+                                      <label>Morada</label>
+                                      <input type="text" className="rh-input" value={tempUserProfile.morada || ''} onChange={setTemp('morada')} />
+                                  </div>
+                                  <div className="rh-fgrid is-2">
+                                      <div className="rh-field"><label>Email Institucional</label><input type="email" className="rh-input" value={tempUserProfile.email || ''} disabled readOnly /></div>
+                                      <div className="rh-field"><label>Email Pessoal</label><input type="email" className="rh-input" value={tempUserProfile.email_pessoal || ''} onChange={setTemp('email_pessoal')} /></div>
+                                      <div className="rh-field"><label>Telemóvel</label><input type="text" className="rh-input" value={tempUserProfile.telemovel || ''} onChange={setTemp('telemovel')} /></div>
+                                      <div className="rh-field"><label>Concelho</label><input type="text" className="rh-input" value={tempUserProfile.concelho || ''} onChange={setTemp('concelho')} /></div>
+                                  </div>
+                              </section>
 
-                                      <label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Morada</label>
-                                      <input type="text" value={tempUserProfile.morada || ''} onChange={e => setTempUserProfile({...tempUserProfile, morada: e.target.value})} style={{width:'100%', marginBottom:'10px', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} />
-
-                                      <div className="rh-user-form-grid" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'10px'}}>
-                                          <div>
-                                              <label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Email Institucional</label>
-                                              <input type="email" value={tempUserProfile.email || ''} disabled readOnly style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px', background:'#f8fafc', color:'#64748b', cursor:'not-allowed'}} />
-                                          </div>
-                                          <div>
-                                              <label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Email Pessoal</label>
-                                              <input type="email" value={tempUserProfile.email_pessoal || ''} onChange={e => setTempUserProfile({...tempUserProfile, email_pessoal: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} />
-                                          </div>
-                                      </div>
-
-                                      <div className="rh-user-form-grid" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'10px'}}>
-                                          <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Telemóvel</label><input type="text" value={tempUserProfile.telemovel || ''} onChange={e => setTempUserProfile({...tempUserProfile, telemovel: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
-                                          <div><label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Concelho</label><input type="text" value={tempUserProfile.concelho || ''} onChange={e => setTempUserProfile({...tempUserProfile, concelho: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} /></div>
-                                      </div>
-
-                                      <label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Empresas Internas</label>
-                                      <div style={{display:'flex', flexWrap:'wrap', gap:'8px', marginBottom:'14px', padding:'10px', background:'#ffffff', border:'1px solid #cbd5e1', borderRadius:'8px'}}>
+                              <section className="rh-fcard">
+                                  <div className="rh-fcard-title"><span className="rh-card-ico is-sm is-purple"><Icons.FileText size={14} /></span> Empresas & Contrato</div>
+                                  <div className="rh-field">
+                                      <label>Empresas Internas</label>
+                                      <div className="rh-chips">
                                           {EMPRESAS_INTERNAS.map((empresa) => {
                                               const isSelected = (tempUserProfile.empresas_internas || []).includes(empresa);
                                               return (
-                                                  <div
-                                                      key={empresa}
-                                                      onClick={() => handleToggleEmpresaInterna(empresa)}
-                                                      style={{
-                                                          padding:'7px 14px',
-                                                          borderRadius:'20px',
-                                                          fontSize:'0.8rem',
-                                                          fontWeight:'600',
-                                                          cursor:'pointer',
-                                                          transition:'all 0.2s ease',
-                                                          border: isSelected ? '1px solid var(--color-btnPrimary)' : '1px solid #e2e8f0',
-                                                          background: isSelected ? 'var(--color-bgSecondary)' : '#f8fafc',
-                                                          color: isSelected ? 'var(--color-btnPrimary)' : '#64748b',
-                                                          userSelect:'none'
-                                                      }}
-                                                  >
-                                                      {empresa}
-                                                  </div>
+                                                  <button key={empresa} type="button" onClick={() => handleToggleEmpresaInterna(empresa)} className={`rh-chip ${isSelected ? 'is-on' : ''}`}>
+                                                      {isSelected && <Icons.Check size={13} />} {empresa}
+                                                  </button>
                                               );
                                           })}
                                           {(tempUserProfile.empresas_internas || []).length === 0 && (
-                                              <span style={{color:'#94a3b8', fontSize:'0.82rem', fontStyle:'italic'}}>Selecione pelo menos uma empresa.</span>
+                                              <span className="rh-chips-empty">Selecione pelo menos uma empresa.</span>
                                           )}
                                       </div>
-
-                                      <label style={{fontSize:'0.75rem', fontWeight:'600', color:'#475569'}}>Contrato</label>
-                                      <select value={tempUserProfile.tipo_contrato || ''} onChange={e => setTempUserProfile({...tempUserProfile, tipo_contrato: e.target.value})} style={{width:'100%', marginBottom:'20px', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px', background:'white'}}>
+                                  </div>
+                                  <div className="rh-field">
+                                      <label>Contrato</label>
+                                      <select className="rh-input" value={tempUserProfile.tipo_contrato || ''} onChange={setTemp('tipo_contrato')}>
                                           <option value="">Selecione...</option><option value="Termo Certo">Termo Certo</option><option value="Sem Termo">Sem Termo</option><option value="Termo Incerto">Termo Incerto</option><option value="Estágio Profissional">Estágio Profissional</option><option value="Estágio Curricular">Estágio Curricular</option><option value="Prestação de Serviços">Prestação de Serviços</option><option value="N/a">N/a</option>
                                       </select>
+                                  </div>
+                              </section>
 
-                                      <div style={{marginBottom:'12px', padding:'12px', border:'1px solid #e2e8f0', borderRadius:'8px', background:'#f8fafc'}}>
-                                          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:'10px', marginBottom:'10px'}}>
-                                              <div>
-                                                  <div style={{fontSize:'0.8rem', fontWeight:'700', color:'#475569'}}>Estado temporário</div>
-                                                  <div style={{fontSize:'0.75rem', color:'#64748b'}}>Marca automaticamente os dias dentro do período indicado.</div>
-                                              </div>
-                                              <span style={{fontSize:'0.72rem', color:'#64748b'}}>Opcional</span>
-                                          </div>
+                              <section className="rh-fcard is-temp">
+                                  <div className="rh-fcard-title is-split">
+                                      <span><span className="rh-card-ico is-sm is-teal"><Icons.Clock size={14} /></span> Estado temporário</span>
+                                      <em>Opcional</em>
+                                  </div>
+                                  <p className="rh-field-note">Marca automaticamente os dias dentro do período indicado.</p>
+                                  <div className="rh-fgrid is-temp">
+                                      <div className="rh-field">
+                                          <label>Tipo</label>
                                           <select
+                                              className="rh-input"
                                               value={tempUserProfile.estado_temporario_tipo || ''}
                                               onChange={(e) => setTempUserProfile((prev) => ({
                                                   ...prev,
@@ -3786,63 +3852,42 @@ export default function RecursosHumanos() {
                                                   estado_temporario_fim: e.target.value ? prev.estado_temporario_fim : '',
                                                   estado_temporario_motivo: e.target.value ? prev.estado_temporario_motivo : '',
                                               }))}
-                                              style={{width:'100%', marginBottom:'10px', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px', background:'white'}}
                                           >
                                               <option value="">Nenhum estado</option>
                                               {COLLABORATOR_STATUS_TYPES.map((estado) => (
                                                   <option key={estado} value={estado}>{estado}</option>
                                               ))}
                                           </select>
-                                          {tempUserProfile.estado_temporario_tipo && (
-                                              <button
-                                                  type="button"
-                                                  onClick={() => setTempUserProfile((prev) => ({
-                                                      ...prev,
-                                                      estado_temporario_tipo: '',
-                                                      estado_temporario_inicio: '',
-                                                      estado_temporario_fim: '',
-                                                      estado_temporario_motivo: '',
-                                                  }))}
-                                                  style={{width:'100%', marginBottom:'10px', padding:'8px 10px', border:'1px solid #fecaca', background:'#fef2f2', color:'#b91c1c', borderRadius:'6px', cursor:'pointer', fontWeight:'600'}}
-                                              >
-                                                  Limpar estado temporário
-                                              </button>
-                                          )}
-                                          <div className="rh-user-form-grid" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'10px'}}>
-                                              <div>
-                                                  <label style={{fontSize:'0.72rem', fontWeight:'600', color:'#475569'}}>Início</label>
-                                                  <input type="date" value={tempUserProfile.estado_temporario_inicio || ''} onChange={e => setTempUserProfile({...tempUserProfile, estado_temporario_inicio: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} />
-                                              </div>
-                                              <div>
-                                                  <label style={{fontSize:'0.72rem', fontWeight:'600', color:'#475569'}}>Fim</label>
-                                                  <input type="date" value={tempUserProfile.estado_temporario_fim || ''} onChange={e => setTempUserProfile({...tempUserProfile, estado_temporario_fim: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} />
-                                              </div>
-                                          </div>
-                                          <label style={{fontSize:'0.72rem', fontWeight:'600', color:'#475569'}}>Motivo / observações</label>
-                                          <input type="text" value={tempUserProfile.estado_temporario_motivo || ''} onChange={e => setTempUserProfile({...tempUserProfile, estado_temporario_motivo: e.target.value})} style={{width:'100%', padding:'8px', border:'1px solid #cbd5e1', borderRadius:'6px'}} placeholder="Ex: Licença parental" />
                                       </div>
-
-                                      <div style={{display:'flex', gap:'10px', marginTop:'6px', paddingTop:'12px'}}>
-                                            <button 
-                                                type="button" 
-                                                className="hover-bg-gray"
-                                                onClick={closeUserEditor} 
-                                                style={{flex:1, padding:'12px', border:'1px solid #cbd5e1', borderRadius:'8px', background:'white', color:'#475569', fontWeight:'700', cursor:'pointer', transition:'all 0.2s ease'}}
-                                            >
-                                                Cancelar
-                                            </button>
-                                            <button 
-                                                type="button" 
-                                                className="btn-small"
-                                                onClick={handleUpdateUserProfile} 
-                                                style={{flex:1, padding:'12px', background:'var(--color-btnPrimary)', color:'white', border:'none', borderRadius:'8px', fontWeight:'800', cursor:'pointer', transition:'all 0.2s ease', boxShadow:'0 2px 4px rgba(0,0,0,0.1)'}}
-                                            >
-                                                Guardar alterações
-                                            </button>
-                                        </div>
+                                      <div className="rh-field"><label>Início</label><input type="date" className="rh-input" value={tempUserProfile.estado_temporario_inicio || ''} onChange={setTemp('estado_temporario_inicio')} /></div>
+                                      <div className="rh-field"><label>Fim</label><input type="date" className="rh-input" value={tempUserProfile.estado_temporario_fim || ''} onChange={setTemp('estado_temporario_fim')} /></div>
                                   </div>
-                              </div>
+                                  <div className="rh-field">
+                                      <label>Motivo / observações</label>
+                                      <input type="text" className="rh-input" value={tempUserProfile.estado_temporario_motivo || ''} onChange={setTemp('estado_temporario_motivo')} placeholder="Ex: Licença parental" />
+                                  </div>
+                                  {tempUserProfile.estado_temporario_tipo && (
+                                      <button
+                                          type="button"
+                                          className="rh-btn is-bad-soft is-sm"
+                                          onClick={() => setTempUserProfile((prev) => ({
+                                              ...prev,
+                                              estado_temporario_tipo: '',
+                                              estado_temporario_inicio: '',
+                                              estado_temporario_fim: '',
+                                              estado_temporario_motivo: '',
+                                          }))}
+                                      >
+                                          <Icons.X size={14} /> Limpar estado temporário
+                                      </button>
+                                  )}
+                              </section>
                           </div>
+                      </div>
+
+                      <div className="rh-modal-foot">
+                          <button type="button" className="rh-btn is-ghost" onClick={closeUserEditor}>Cancelar</button>
+                          <button type="button" className="rh-btn is-primary is-lg" onClick={handleUpdateUserProfile}><Icons.Check size={16} /> Guardar alterações</button>
                       </div>
                   </div>
               </div>
@@ -3854,109 +3899,100 @@ export default function RecursosHumanos() {
       {/* NOVO MODAL: DETALHES DO PEDIDO (Ver Detalhes) */}
       {detailsModal.show && detailsModal.pedido && (
           <ModalPortal>
-              <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999}}>
-                  <div style={{background:'white', padding:'30px', borderRadius:'16px', width:'500px', maxWidth:'90%', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', maxHeight:'90vh', overflowY:'auto'}}>
-                      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px', borderBottom:'1px solid #f1f5f9', paddingBottom:'15px'}}>
-                          <h3 style={{margin: 0, color: '#1e293b', display:'flex', alignItems:'center', gap:'8px'}}>
-                              <Icons.FileText size={20} color="var(--color-btnPrimary)" />
-                              Detalhes do Pedido
-                          </h3>
-                          <button onClick={() => setDetailsModal({show: false, pedido: null})} style={{background:'transparent', border:'none', cursor:'pointer', color:'#94a3b8'}}><Icons.X size={20}/></button>
-                      </div>
-                      
-                      <div style={{display:'flex', flexDirection:'column', gap:'15px', marginBottom:'25px'}}>
-                          <div style={{background:'#f8fafc', padding:'15px', borderRadius:'8px', border:'1px solid #e2e8f0'}}>
-                              <div style={{fontSize:'0.8rem', color:'#64748b', fontWeight:'600', textTransform:'uppercase'}}>Colaborador</div>
-                              <div style={{fontSize:'1.1rem', fontWeight:'bold', color:'#1e293b'}}>{detailsModal.pedido.profiles?.nome}</div>
+              <div className="rh-overlay" onClick={() => setDetailsModal({show: false, pedido: null})}>
+                  <div className="rh-modal is-sm" onClick={(e) => e.stopPropagation()}>
+                      <div className="rh-modal-head" style={{ '--c': rhColorFor(detailsModal.pedido.user_id) }}>
+                          {renderRhAvatar(detailsModal.pedido.profiles?.nome, detailsModal.pedido.user_id, 'lg')}
+                          <div className="rh-modal-title">
+                              <span>Detalhes do Pedido</span>
+                              <h3>{detailsModal.pedido.profiles?.nome}</h3>
+                              <small>{formatAbsenceTypeLabel(detailsModal.pedido.tipo)}</small>
                           </div>
-                          
-                          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'15px'}}>
+                          <button type="button" onClick={() => setDetailsModal({show: false, pedido: null})} className="rh-modal-close" aria-label="Fechar"><Icons.X size={20}/></button>
+                      </div>
+
+                      <div className="rh-modal-body">
+                          <div className="rh-detail-grid">
                               <div>
-                                  <div style={{fontSize:'0.8rem', color:'#64748b', fontWeight:'600'}}>{detailsModal.pedido.tipo === KM_REQUEST_TYPE ? 'Tipo de Pedido' : 'Tipo de Ausência'}</div>
-                                  <div style={{fontWeight:'500', color:'#334155', marginTop:'2px'}}>{formatAbsenceTypeLabel(detailsModal.pedido.tipo)}</div>
+                                  <span>{detailsModal.pedido.tipo === KM_REQUEST_TYPE ? 'Tipo de Pedido' : 'Tipo de Ausência'}</span>
+                                  <b>{formatAbsenceTypeLabel(detailsModal.pedido.tipo)}</b>
                               </div>
                               <div>
-                                  <div style={{fontSize:'0.8rem', color:'#64748b', fontWeight:'600'}}>Estado Atual</div>
-                                  <div style={{marginTop:'2px'}}>
-                                      <span style={{background: detailsModal.pedido.estado === 'pendente' ? 'var(--color-borderColorLight)' : (detailsModal.pedido.estado === 'pedido_cancelamento' ? '#fef08a' : '#f1f5f9'), color: detailsModal.pedido.estado === 'pendente' ? 'var(--color-btnPrimaryHover)' : (detailsModal.pedido.estado === 'pedido_cancelamento' ? '#854d0e' : '#475569'), padding:'2px 8px', borderRadius:'6px', fontSize:'0.8rem', fontWeight:'700'}}>
-                                          {detailsModal.pedido.estado.replace('_', ' ')}
-                                      </span>
-                                  </div>
+                                  <span>Estado Atual</span>
+                                  <b><span className={`rh-tag ${detailsModal.pedido.estado === 'pendente' ? 'is-new' : (detailsModal.pedido.estado === 'pedido_cancelamento' ? 'is-cancel' : '')}`}>{detailsModal.pedido.estado.replace('_', ' ')}</span></b>
                               </div>
                           </div>
 
-                          <div style={{background:'var(--color-bgSecondary)', padding:'15px', borderRadius:'8px', border:'1px solid var(--color-borderColor)', display:'flex', gap:'15px'}}>
-                              <div style={{flex:1}}>
-                                  <div style={{fontSize:'0.8rem', color:'var(--color-btnPrimaryHover)', fontWeight:'600'}}>Período</div>
-                                  <div style={{fontWeight:'bold', color:'var(--color-btnPrimaryDark)', marginTop:'4px'}}>
-                                      {detailsModal.pedido.is_parcial 
+                          <div className="rh-detail-period">
+                              <div>
+                                  <span>Período</span>
+                                  <strong>
+                                      {detailsModal.pedido.is_parcial
                                         ? new Date(detailsModal.pedido.data_inicio).toLocaleDateString('pt-PT')
                                         : `${new Date(detailsModal.pedido.data_inicio).toLocaleDateString('pt-PT')} a ${new Date(detailsModal.pedido.data_fim).toLocaleDateString('pt-PT')}`
                                       }
-                                  </div>
+                                  </strong>
                                   {detailsModal.pedido.is_parcial && (
-                                      <div style={{fontSize:'0.85rem', color:'var(--color-btnPrimary)', marginTop:'4px', display:'flex', alignItems:'center', gap:'4px'}}>
-                                          <Icons.Clock size={14}/> {detailsModal.pedido.hora_inicio?.slice(0,5)} às {detailsModal.pedido.hora_fim?.slice(0,5) || '?'}
-                                      </div>
+                                      <small><Icons.Clock size={14}/> {detailsModal.pedido.hora_inicio?.slice(0,5)} às {detailsModal.pedido.hora_fim?.slice(0,5) || '?'}</small>
                                   )}
                               </div>
-                              <div style={{borderLeft:'1px solid var(--color-borderColorLight)', paddingLeft:'15px', display:'flex', flexDirection:'column', justifyContent:'center'}}>
-                                  <div style={{fontSize:'0.8rem', color:'var(--color-btnPrimaryHover)', fontWeight:'600'}}>Duração</div>
-                                  <div style={{fontWeight:'bold', color:'var(--color-btnPrimaryDark)', fontSize:'1.1rem'}}>
-                                    {detailsModal.pedido.tipo === KM_REQUEST_TYPE 
-                                        ? `${detailsModal.pedido.km_total ?? 0} km` 
+                              <div className="is-right">
+                                  <span>Duração</span>
+                                  <strong className="is-big">
+                                    {detailsModal.pedido.tipo === KM_REQUEST_TYPE
+                                        ? `${detailsModal.pedido.km_total ?? 0} km`
                                         : `${getDuracaoAusenciaUI(detailsModal.pedido)} dia(s) úteis`
                                     }
-                                </div>
+                                  </strong>
                               </div>
                           </div>
 
                           {detailsModal.pedido.tipo === KM_REQUEST_TYPE && (
-                              <div style={{background:'#f8fafc', padding:'12px', borderRadius:'8px', border:'1px solid #e2e8f0'}}>
-                                  <div style={{fontSize:'0.8rem', color:'#64748b', fontWeight:'600', marginBottom:'4px'}}>Detalhe da Deslocação</div>
-                                  <div style={{fontSize:'0.9rem', color:'#334155'}}>De <b>{detailsModal.pedido.km_origem || '-'}</b> para <b>{detailsModal.pedido.km_destino || '-'}</b>{detailsModal.pedido.km_ida_volta && <span style={{marginLeft: '8px', padding: '2px 8px', borderRadius: '99px', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', fontSize: '0.75rem', fontWeight: 800}}>⇄ Ida e volta</span>}</div>
-                              </div>
-                          )}
-
-                          {detailsModal.pedido.motivo && (
-                              <div>
-                                  <div style={{fontSize:'0.8rem', color:'#64748b', fontWeight:'600'}}>Observações / Motivo</div>
-                                  <div style={{background:'#f8fafc', padding:'10px', borderRadius:'6px', border:'1px solid #e2e8f0', marginTop:'4px', fontSize:'0.9rem', color:'#334155', fontStyle:'italic'}}>
-                                      "{detailsModal.pedido.motivo}"
+                              <div className="rh-detail-box">
+                                  <span>Detalhe da Deslocação</span>
+                                  <div className="rh-route">
+                                      <b>{detailsModal.pedido.km_origem || '-'}</b>
+                                      <i>{detailsModal.pedido.km_ida_volta ? '⇄' : '→'}</i>
+                                      <b>{detailsModal.pedido.km_destino || '-'}</b>
+                                      {detailsModal.pedido.km_ida_volta && <span className="rh-tag is-brand">⇄ Ida e volta</span>}
                                   </div>
                               </div>
                           )}
 
-                          {detailsModal.pedido.anexo_url && (
-                              <div>
-                                  <div style={{fontSize:'0.8rem', color:'#64748b', fontWeight:'600'}}>Documento Anexo</div>
-                                  <a href={detailsModal.pedido.anexo_url} target="_blank" rel="noreferrer" style={{display:'inline-flex', alignItems:'center', gap:'6px', background:'#f0fdf4', color:'#16a34a', padding:'8px 12px', borderRadius:'6px', border:'1px solid #bbf7d0', textDecoration:'none', marginTop:'4px', fontSize:'0.9rem', fontWeight:'600'}}>
-                                      <Icons.Paperclip size={16}/> Abrir Documento
-                                  </a>
+                          {detailsModal.pedido.motivo && (
+                              <div className="rh-detail-box">
+                                  <span>Observações / Motivo</span>
+                                  <blockquote>"{detailsModal.pedido.motivo}"</blockquote>
                               </div>
                           )}
-                          
-                          <div style={{fontSize:'0.75rem', color:'#94a3b8', textAlign:'right', marginTop:'10px'}}>
+
+                          {detailsModal.pedido.anexo_url && (
+                              <a href={detailsModal.pedido.anexo_url} target="_blank" rel="noreferrer" className="rh-attach">
+                                  <Icons.Paperclip size={16}/> Abrir Documento
+                              </a>
+                          )}
+
+                          <div className="rh-detail-foot">
                               Pedido efetuado a {new Date(detailsModal.pedido.created_at).toLocaleString('pt-PT')}
                           </div>
                       </div>
 
                       {/* Botões de Ação Rápidos dentro do Modal */}
                       {detailsModal.pedido.estado === 'pendente' || detailsModal.pedido.estado === 'pedido_cancelamento' ? (
-                          <div style={{display: 'flex', gap: '10px', paddingTop:'15px', borderTop:'1px solid #f1f5f9'}}>
+                          <div className="rh-modal-foot">
                               {detailsModal.pedido.estado === 'pendente' ? (
                                   <>
-                                      <button onClick={() => abrirModalConfirmacao(detailsModal.pedido, 'rejeitar')} style={{padding: '12px', borderRadius: '8px', border: '1px solid #fecaca', background: '#fef2f2', color:'#ef4444', fontWeight:'bold', flex: 1, display:'flex', justifyContent:'center', alignItems:'center', gap:'8px', cursor:'pointer'}}>
+                                      <button type="button" onClick={() => abrirModalConfirmacao(detailsModal.pedido, 'rejeitar')} className="rh-btn is-bad-soft is-lg">
                                           <Icons.X size={18}/> Rejeitar
                                       </button>
-                                      <button onClick={() => abrirModalConfirmacao(detailsModal.pedido, 'aprovar')} style={{padding: '12px', borderRadius: '8px', border: 'none', background: '#16a34a', color: 'white', fontWeight:'bold', flex: 2, display:'flex', justifyContent:'center', alignItems:'center', gap:'8px', cursor:'pointer'}}>
+                                      <button type="button" onClick={() => abrirModalConfirmacao(detailsModal.pedido, 'aprovar')} className="rh-btn is-ok is-lg is-grow">
                                           <Icons.Check size={18}/> {detailsModal.pedido.tipo === KM_REQUEST_TYPE ? 'Aprovar Deslocação' : 'Aprovar Ausência'}
                                       </button>
                                   </>
                               ) : (
                                   <>
-                                      <button onClick={() => abrirModalConfirmacao(detailsModal.pedido, 'recusar_cancelamento')} style={{padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', color:'#475569', fontWeight:'bold', flex: 1, cursor:'pointer'}}>Manter Férias</button>
-                                      <button onClick={() => abrirModalConfirmacao(detailsModal.pedido, 'aceitar_cancelamento')} style={{padding: '12px', borderRadius: '8px', border: 'none', background: '#ef4444', color: 'white', fontWeight:'bold', flex: 1, cursor:'pointer'}}>Aceitar Cancelamento</button>
+                                      <button type="button" onClick={() => abrirModalConfirmacao(detailsModal.pedido, 'recusar_cancelamento')} className="rh-btn is-ghost is-lg is-grow">Manter Férias</button>
+                                      <button type="button" onClick={() => abrirModalConfirmacao(detailsModal.pedido, 'aceitar_cancelamento')} className="rh-btn is-bad is-lg is-grow">Aceitar Cancelamento</button>
                                   </>
                               )}
                           </div>
@@ -3969,146 +4005,157 @@ export default function RecursosHumanos() {
       {/* Modal de Criar/Editar Ausência */}
       {showAbsenceModal && (
           <ModalPortal>
-            <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999}}>
-                <div style={{background:'white', padding:'30px', borderRadius:'16px', width:'500px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'}}>
-                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px'}}>
-                        <h3 style={{margin: 0, display:'flex', alignItems:'center', gap:'8px', color:'#1e293b'}}>
-                            {isEditingAbsence ? <Icons.Edit size={20} color="var(--color-btnPrimary)"/> : <Icons.Sun size={20} color="var(--color-btnPrimary)"/>}
-                            {isEditingAbsence ? 'Editar Ausência' : 'Registar Ausência'}
-                        </h3>
-                        <button type="button" onClick={closeAbsenceModal} style={{background:'none', border:'none', cursor:'pointer', color: '#94a3b8'}}><Icons.X size={20}/></button>
+            <div className="rh-overlay">
+                <div className="rh-modal is-md">
+                    <div className="rh-modal-head">
+                        <span className="rh-modal-ico">{isEditingAbsence ? <Icons.Edit size={20}/> : <Icons.Sun size={20}/>}</span>
+                        <div className="rh-modal-title">
+                            <span>{isEditingAbsence ? 'Editar' : 'Novo registo'}</span>
+                            <h3>{isEditingAbsence ? 'Editar Ausência' : 'Registar Ausência'}</h3>
+                        </div>
+                        <button type="button" onClick={closeAbsenceModal} className="rh-modal-close" aria-label="Fechar"><Icons.X size={20}/></button>
                     </div>
-                    
-                    <form onSubmit={handleSaveAbsence}>
-                        <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Colaborador</label>
-                        <select required value={newAbsence.user_id} onChange={e => setNewAbsence({...newAbsence, user_id: e.target.value})} style={{...inputStyle, background: isEditingAbsence || !!selectedUser ? '#f8fafc' : 'white'}} disabled={isEditingAbsence || !!selectedUser}>
-                            <option value="">Selecione Colaborador...</option>
-                            {colaboradoresAtivos.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                        </select>
-                        
-                        <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Motivo da Ausência</label>
-                        <select value={newAbsence.tipo} onChange={e => setNewAbsence({...newAbsence, tipo: e.target.value})} style={inputStyle} required>
-                            <option value="Férias">Férias</option>
-                            <option value={KM_REQUEST_TYPE}>{KM_REQUEST_TYPE}</option>
-                            <option value="Assistência à família">Assistência à família</option>
-                            <option value="Outros - Assuntos pessoais">Outros - Assuntos pessoais</option>
-                            <option value="Ausência sem motivo - injustificada">Ausência sem motivo - injustificada</option>
-                            <option value="Doença, acidente e obrigação legal">Doença, acidente e obrigação legal</option>
-                            <option value="Casamento">Casamento</option>
-                            <option value="Deslocação a estabelecimento de ensino">Deslocação a estabelecimento de ensino</option>
-                            <option value="Licença maternal/paternal">Licença maternal/paternal</option>
-                            <option value="Licença sem vencimento">Licença sem vencimento</option>
-                            <option value="Falecimento de familiar">Falecimento de familiar</option>
-                            <option value="Prestação de provas de avaliação">Prestação de provas de avaliação</option>
-                            <option value="Candidato a cargo público">Candidato a cargo público</option>
-                        </select>
-                        
-                        {newAbsence.tipo !== KM_REQUEST_TYPE && (
-                        <label style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginBottom: '15px', color: '#1e293b', fontWeight: '600', fontSize: '0.9rem', background: newAbsence.is_parcial ? 'var(--color-bgSecondary)' : '#f8fafc', padding: '12px', borderRadius: '8px', border: newAbsence.is_parcial ? '1px solid var(--color-borderColor)' : '1px solid #e2e8f0', transition:'0.2s'}}>
-                            <input 
-                                type="checkbox" 
-                                checked={newAbsence.is_parcial} 
-                                onChange={e => setNewAbsence({...newAbsence, is_parcial: e.target.checked, data_fim: e.target.checked ? newAbsence.data_inicio : newAbsence.data_fim})} 
-                                style={{width: '18px', height: '18px', accentColor:'var(--color-btnPrimary)'}} 
-                            />
-                            <Icons.Clock size={18} color={newAbsence.is_parcial ? 'var(--color-btnPrimary)' : '#64748b'}/> 
-                            Ausência Parcial (Apenas algumas horas)
-                        </label>
-                        )}
 
-                        {newAbsence.tipo === KM_REQUEST_TYPE ? (
-                            <>
-                                <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Data da Deslocação</label>
-                                <input type="date" required value={newAbsence.data_inicio} onChange={e=>setNewAbsence({...newAbsence, data_inicio: e.target.value, data_fim: e.target.value})} style={inputStyle}/>
+                    <form onSubmit={handleSaveAbsence} className="rh-modal-form">
+                        <div className="rh-modal-body">
+                            <div className="rh-field">
+                                <label>Colaborador</label>
+                                <select required className="rh-input" value={newAbsence.user_id} onChange={e => setNewAbsence({...newAbsence, user_id: e.target.value})} disabled={isEditingAbsence || !!selectedUser}>
+                                    <option value="">Selecione Colaborador...</option>
+                                    {colaboradoresAtivos.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                                </select>
+                            </div>
 
-                                <div style={{display:'flex', gap:'15px'}}>
-                                      <div style={{flex:1}}>
-                                          <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>De</label>
-                                          <input type="text" required value={newAbsence.km_origem} onChange={e=>setNewAbsence({...newAbsence, km_origem: e.target.value})} style={inputStyle} placeholder="Ex: Portimão"/>
-                                      </div>
-                                      <div style={{flex:1}}>
-                                          <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Para</label>
-                                          <input type="text" required value={newAbsence.km_destino} onChange={e=>setNewAbsence({...newAbsence, km_destino: e.target.value})} style={inputStyle} placeholder="Ex: Faro"/>
-                                      </div>
+                            <div className="rh-field">
+                                <label>Motivo da Ausência</label>
+                                <select className="rh-input" value={newAbsence.tipo} onChange={e => setNewAbsence({...newAbsence, tipo: e.target.value})} required>
+                                    <option value="Férias">Férias</option>
+                                    <option value={KM_REQUEST_TYPE}>{KM_REQUEST_TYPE}</option>
+                                    <option value="Assistência à família">Assistência à família</option>
+                                    <option value="Outros - Assuntos pessoais">Outros - Assuntos pessoais</option>
+                                    <option value="Ausência sem motivo - injustificada">Ausência sem motivo - injustificada</option>
+                                    <option value="Doença, acidente e obrigação legal">Doença, acidente e obrigação legal</option>
+                                    <option value="Casamento">Casamento</option>
+                                    <option value="Deslocação a estabelecimento de ensino">Deslocação a estabelecimento de ensino</option>
+                                    <option value="Licença maternal/paternal">Licença maternal/paternal</option>
+                                    <option value="Licença sem vencimento">Licença sem vencimento</option>
+                                    <option value="Falecimento de familiar">Falecimento de familiar</option>
+                                    <option value="Prestação de provas de avaliação">Prestação de provas de avaliação</option>
+                                    <option value="Candidato a cargo público">Candidato a cargo público</option>
+                                </select>
+                            </div>
+
+                            {newAbsence.tipo !== KM_REQUEST_TYPE && (
+                                <label className={`rh-toggle-row ${newAbsence.is_parcial ? 'is-on' : ''}`}>
+                                    <input
+                                        type="checkbox"
+                                        checked={newAbsence.is_parcial}
+                                        onChange={e => setNewAbsence({...newAbsence, is_parcial: e.target.checked, data_fim: e.target.checked ? newAbsence.data_inicio : newAbsence.data_fim})}
+                                    />
+                                    <span className="rh-switch"><span /></span>
+                                    <Icons.Clock size={18} />
+                                    Ausência Parcial (Apenas algumas horas)
+                                </label>
+                            )}
+
+                            {newAbsence.tipo === KM_REQUEST_TYPE ? (
+                                <>
+                                    <div className="rh-field">
+                                        <label>Data da Deslocação</label>
+                                        <input type="date" required className="rh-input" value={newAbsence.data_inicio} onChange={e=>setNewAbsence({...newAbsence, data_inicio: e.target.value, data_fim: e.target.value})}/>
+                                    </div>
+                                    <div className="rh-fgrid is-2">
+                                        <div className="rh-field">
+                                            <label>De</label>
+                                            <input type="text" required className="rh-input" value={newAbsence.km_origem} onChange={e=>setNewAbsence({...newAbsence, km_origem: e.target.value})} placeholder="Ex: Portimão"/>
+                                        </div>
+                                        <div className="rh-field">
+                                            <label>Para</label>
+                                            <input type="text" required className="rh-input" value={newAbsence.km_destino} onChange={e=>setNewAbsence({...newAbsence, km_destino: e.target.value})} placeholder="Ex: Faro"/>
+                                        </div>
+                                    </div>
+                                    <div className="rh-field">
+                                        <label>Km total</label>
+                                        <input type="number" min="0" step="0.1" required className="rh-input" value={newAbsence.km_total} onChange={e=>setNewAbsence({...newAbsence, km_total: e.target.value})} placeholder="Ex: 72"/>
+                                    </div>
+                                </>
+                            ) : !newAbsence.is_parcial ? (
+                                <div className="rh-fgrid is-2">
+                                    <div className="rh-field">
+                                        <label>Data Início</label>
+                                        <input type="date" required className="rh-input" value={newAbsence.data_inicio} onChange={e=>setNewAbsence({...newAbsence, data_inicio: e.target.value})}/>
+                                    </div>
+                                    <div className="rh-field">
+                                        <label>Data Fim</label>
+                                        <input type="date" required className="rh-input" value={newAbsence.data_fim} onChange={e=>setNewAbsence({...newAbsence, data_fim: e.target.value})}/>
+                                    </div>
                                 </div>
-
-                                <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Km total</label>
-                                <input type="number" min="0" step="0.1" required value={newAbsence.km_total} onChange={e=>setNewAbsence({...newAbsence, km_total: e.target.value})} style={inputStyle} placeholder="Ex: 72"/>
-                            </>
-                        ) : !newAbsence.is_parcial ? (
-                            <div style={{display:'flex', gap:'15px'}}>
-                                  <div style={{flex:1}}>
-                                      <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Data Início</label>
-                                      <input type="date" required value={newAbsence.data_inicio} onChange={e=>setNewAbsence({...newAbsence, data_inicio: e.target.value})} style={inputStyle}/>
-                                  </div>
-                                  <div style={{flex:1}}>
-                                      <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Data Fim</label>
-                                      <input type="date" required value={newAbsence.data_fim} onChange={e=>setNewAbsence({...newAbsence, data_fim: e.target.value})} style={inputStyle}/>
-                                  </div>
-                            </div>
-                        ) : (
-                            <div style={{display: 'flex', gap: '15px'}}>
-                                <div style={{flex: 1.5}}>
-                                    <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Data</label>
-                                    <input type="date" value={newAbsence.data_inicio} onChange={e => setNewAbsence({...newAbsence, data_inicio: e.target.value, data_fim: e.target.value})} required style={inputStyle}/>
+                            ) : (
+                                <div className="rh-fgrid is-time">
+                                    <div className="rh-field">
+                                        <label>Data</label>
+                                        <input type="date" className="rh-input" value={newAbsence.data_inicio} onChange={e => setNewAbsence({...newAbsence, data_inicio: e.target.value, data_fim: e.target.value})} required/>
+                                    </div>
+                                    <div className="rh-field">
+                                        <label>Saída</label>
+                                        <input type="time" className="rh-input" value={newAbsence.hora_inicio} onChange={e => setNewAbsence({...newAbsence, hora_inicio: e.target.value})} required/>
+                                    </div>
+                                    <div className="rh-field">
+                                        <label>Regresso</label>
+                                        <input type="time" className="rh-input" value={newAbsence.hora_fim} onChange={e => setNewAbsence({...newAbsence, hora_fim: e.target.value})}/>
+                                    </div>
                                 </div>
-                                <div style={{flex: 1}}>
-                                    <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Saída</label>
-                                    <input type="time" value={newAbsence.hora_inicio} onChange={e => setNewAbsence({...newAbsence, hora_inicio: e.target.value})} required style={inputStyle}/>
+                            )}
+
+                            {newAbsence.tipo !== KM_REQUEST_TYPE && newAbsence.data_inicio && (
+                                <div className={`rh-note ${diasUteisModal > 0 ? '' : 'is-bad'}`}>
+                                    {diasUteisModal > 0 ? <Icons.Info size={16}/> : <Icons.Alert size={16}/>}
+                                    <span>
+                                        {diasUteisModal > 0
+                                            ? (isVacationType(newAbsence.tipo)
+                                                ? <>Este registo consumirá <b>{diasUteisModal} dia(s) útil(eis)</b> de férias do colaborador.</>
+                                                : <>Registará <b>{diasUteisModal} dia(s) útil(eis)</b> de ausência. Tratando-se de justificação, não desconta férias.</>)
+                                            : (newAbsence.is_parcial && (!newAbsence.hora_inicio || !newAbsence.hora_fim))
+                                                ? `Introduza a hora de saída e regresso para calcular o desconto.`
+                                                : newAbsence.is_parcial
+                                                    ? `As horas inseridas não são válidas (Regresso < Saída).`
+                                                    : `Atenção: O período selecionado calha num fim de semana ou feriado.`}
+                                    </span>
                                 </div>
-                                <div style={{flex: 1}}>
-                                    <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Regresso</label>
-                                    <input type="time" value={newAbsence.hora_fim} onChange={e => setNewAbsence({...newAbsence, hora_fim: e.target.value})} style={inputStyle}/>
+                            )}
+                            {newAbsence.tipo !== KM_REQUEST_TYPE && newAbsence.is_parcial && newAbsence.data_inicio && (
+                                <div className="rh-note">
+                                    <Icons.Info size={16}/>
+                                    <span>Ausência parcial de horas. <b>Não será deduzido nenhum dia de férias ao colaborador.</b></span>
                                 </div>
-                            </div>
-                        )}
+                            )}
+                            {newAbsence.tipo === KM_REQUEST_TYPE && (
+                                <div className="rh-note">
+                                    <Icons.Info size={16}/>
+                                    <span>Este pedido de Km's entra no fluxo de aprovação e no relatório mensal.</span>
+                                </div>
+                            )}
 
-                        {newAbsence.tipo !== KM_REQUEST_TYPE && newAbsence.data_inicio && (
-                            <div style={{
-                                background: diasUteisModal > 0 ? 'var(--color-bgSecondary)' : '#fef2f2', 
-                                color: diasUteisModal > 0 ? 'var(--color-btnPrimaryHover)' : '#b91c1c', 
-                                border: `1px solid ${diasUteisModal > 0 ? 'var(--color-borderColor)' : '#fecaca'}`, 
-                                padding: '12px 15px', borderRadius: '8px', marginBottom: '15px', fontSize: '0.85rem', display: 'flex', gap: '10px'
-                            }}>
-                                <span style={{marginTop:'2px'}}>{diasUteisModal > 0 ? <Icons.Info size={16}/> : <Icons.Alert size={16}/>}</span>
-                                <span>
-                                    {diasUteisModal > 0 
-                                        ? (isVacationType(newAbsence.tipo) 
-                                            ? <>Este registo consumirá <b>{diasUteisModal} dia(s) útil(eis)</b> de férias do colaborador.</> 
-                                            : <>Registará <b>{diasUteisModal} dia(s) útil(eis)</b> de ausência. Tratando-se de justificação, não desconta férias.</>)
-                                        : (newAbsence.is_parcial && (!newAbsence.hora_inicio || !newAbsence.hora_fim))
-                                            ? `Introduza a hora de saída e regresso para calcular o desconto.`
-                                            : newAbsence.is_parcial 
-                                                ? `As horas inseridas não são válidas (Regresso < Saída).`
-                                                : `Atenção: O período selecionado calha num fim de semana ou feriado.`}
-                                </span>
+                            <div className="rh-field">
+                                <label>Notas / Observações</label>
+                                <input type="text" className="rh-input" placeholder="Mais detalhes (Opcional)..." value={newAbsence.motivo} onChange={e=>setNewAbsence({...newAbsence, motivo: e.target.value})}/>
                             </div>
-                        )}
-                        {newAbsence.tipo !== KM_REQUEST_TYPE && newAbsence.is_parcial && newAbsence.data_inicio && (
-                            <div style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimaryHover)', padding: '12px 15px', borderRadius: '8px', marginBottom: '15px', fontSize: '0.85rem', display: 'flex', gap: '10px', border:'1px solid var(--color-borderColor)'}}>
-                                <span style={{marginTop:'2px'}}><Icons.Info size={16}/></span>
-                                <span>Ausência parcial de horas. <b>Não será deduzido nenhum dia de férias ao colaborador.</b></span>
-                            </div>
-                        )}
 
-                        {newAbsence.tipo === KM_REQUEST_TYPE && (
-                            <div style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimaryHover)', padding: '12px 15px', borderRadius: '8px', marginBottom: '15px', fontSize: '0.85rem', display: 'flex', gap: '10px', border:'1px solid var(--color-borderColor)'}}>
-                                <span style={{marginTop:'2px'}}><Icons.Info size={16}/></span>
-                                <span>Este pedido de Km's entra no fluxo de aprovação e no relatório mensal.</span>
+                            <div className="rh-field">
+                                <label>Anexar Documento (Atestados, PDFs - Opcional)</label>
+                                {isEditingAbsence && editingAbsenceData?.anexo_url && <div className="rh-current-file"><Icons.Paperclip size={14}/> Ficheiro atual: <a href={editingAbsenceData.anexo_url} target="_blank" rel="noreferrer">Ver documento</a></div>}
+                                <label className={`rh-file ${absenceFile ? 'has-file' : ''}`}>
+                                    <Icons.Paperclip size={16} />
+                                    <span>{absenceFile ? absenceFile.name : 'Escolher ficheiro (PDF ou imagem)'}</span>
+                                    <input type="file" accept=".pdf, image/*" onChange={e => setAbsenceFile(e.target.files[0])} />
+                                </label>
                             </div>
-                        )}
+                        </div>
 
-                        <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Notas / Observações</label>
-                        <input type="text" placeholder="Mais detalhes (Opcional)..." value={newAbsence.motivo} onChange={e=>setNewAbsence({...newAbsence, motivo: e.target.value})} style={inputStyle}/>
-                        
-                        <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Anexar Documento (Atestados, PDFs - Opcional)</label>
-                        {isEditingAbsence && editingAbsenceData?.anexo_url && <div style={{fontSize:'0.8rem', color:'#64748b', marginBottom:'8px', display:'flex', alignItems:'center', gap:'6px'}}><Icons.Paperclip size={14}/> Ficheiro atual: <a href={editingAbsenceData.anexo_url} target="_blank" rel="noreferrer" style={{color:'var(--color-btnPrimary)'}}>Ver documento</a></div>}
-                        <input type="file" accept=".pdf, image/*" onChange={e => setAbsenceFile(e.target.files[0])} style={{...inputStyle, background: '#f8fafc'}} />
-                        
-                        <div style={{display:'flex', gap:'10px', marginTop:'10px', paddingTop:'15px', borderTop:'1px solid #e2e8f0'}}>
-                            <button type="button" className="hover-bg-gray" onClick={() => setShowToleranciaModal(false)} style={{flex:1, padding:'12px', background:'white', border:'1px solid #cbd5e1', borderRadius:'8px', cursor:'pointer', color: '#475569', fontWeight:'bold', transition:'all 0.2s ease'}}>Cancelar</button>
-                            <button type="submit" className="btn-small" disabled={isSubmittingTolerancia} style={{flex:2, padding:'12px', background:'var(--color-btnPrimary)', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'bold', transition:'all 0.2s ease', boxShadow:'0 2px 4px rgba(0,0,0,0.1)', opacity: isSubmittingTolerancia ? 0.7 : 1}}>
-                                {isSubmittingTolerancia ? 'A guardar...' : 'Guardar Tolerância'}
+                        <div className="rh-modal-foot">
+                            <button type="button" className="rh-btn is-ghost" onClick={closeAbsenceModal}>Cancelar</button>
+                            <button type="submit" className="rh-btn is-primary is-lg" disabled={isSubmitting}>
+                                <Icons.Check size={16} /> {isSubmitting ? 'A guardar...' : (isEditingAbsence ? 'Guardar Alterações' : 'Registar Ausência')}
                             </button>
                         </div>
                     </form>
@@ -4120,15 +4167,13 @@ export default function RecursosHumanos() {
       {/* Modal Confirmação (Ações) */}
       {confirmModal.show && (
           <ModalPortal>
-              <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999}}>
-                  <div style={{background:'white', padding:'30px', borderRadius:'16px', width:'400px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'}}>
-                      <div style={{display:'flex', justifyContent:'center', marginBottom: '15px'}}>
-                          {['aprovar', 'aceitar_cancelamento', 'cancelar_direto'].includes(confirmModal.acao) 
-                              ? <div style={{background:'#dcfce7', padding:'15px', borderRadius:'50%', color:'#16a34a'}}><Icons.Check size={32}/></div> 
-                              : <div style={{background:'#fee2e2', padding:'15px', borderRadius:'50%', color:'#ef4444'}}><Icons.X size={32}/></div>}
-                      </div>
-                      <h3 style={{marginTop: 0, color: '#1e293b'}}>Confirmar Ação</h3>
-                      <p style={{color: '#64748b', marginBottom: '25px', lineHeight: '1.5', fontSize:'0.95rem'}}>
+              <div className="rh-overlay is-top">
+                  <div className="rh-confirm">
+                      {['aprovar', 'aceitar_cancelamento', 'cancelar_direto'].includes(confirmModal.acao)
+                          ? <span className="rh-confirm-ico is-ok"><Icons.Check size={30}/></span>
+                          : <span className="rh-confirm-ico is-bad"><Icons.X size={30}/></span>}
+                      <h3>Confirmar Ação</h3>
+                      <p>
                           {confirmModal.acao === 'aprovar' && <span>Tens a certeza que queres aprovar o pedido de <b>{formatAbsenceTypeLabel(confirmModal.pedido?.tipo)}</b>?</span>}
                           {confirmModal.acao === 'rejeitar' && <span>Tens a certeza que queres rejeitar este pedido?</span>}
                           {(confirmModal.acao === 'aceitar_cancelamento' || confirmModal.acao === 'cancelar_direto') && <span>Tens a certeza que queres cancelar e devolver os dias ao colaborador (se férias)?</span>}
@@ -4142,36 +4187,20 @@ export default function RecursosHumanos() {
                               const valorAprovadosMes = kmAprovadosMes * valorKm;
                               const kmTotalDepois = kmAprovadosMes + kmPedidoAtual;
                               const valorTotalDepois = kmTotalDepois * valorKm;
-
                               return (
-                                  <div style={{background:'#f8fafc', padding:'12px', borderRadius:'8px', border:'1px solid #e2e8f0', marginBottom:'20px', textAlign:'left'}}>
-                                      <div style={{display:'flex', justifyContent:'space-between', gap:'12px', marginBottom:'6px', fontSize:'0.9rem', color:'#334155'}}>
-                                          <span>Já aprovados:</span>
-                                          <b>{kmAprovadosMes.toFixed(2)} km</b>
-                                      </div>
-                                      <div style={{display:'flex', justifyContent:'space-between', gap:'12px', marginBottom:'6px', fontSize:'0.9rem', color:'#334155'}}>
-                                          <span>Valor já aprovado:</span>
-                                          <b>{formatCurrency(valorAprovadosMes)}</b>
-                                      </div>
-                                      <div style={{display:'flex', justifyContent:'space-between', gap:'12px', marginBottom:'6px', fontSize:'0.9rem', color:'#334155'}}>
-                                          <span>Pedido atual:</span>
-                                          <b>{kmPedidoAtual.toFixed(2)} km</b>
-                                      </div>
-                                      <div style={{display:'flex', justifyContent:'space-between', gap:'12px', marginBottom:'6px', fontSize:'0.9rem', color:'#334155'}}>
-                                          <span>Valor €/km:</span>
-                                          <b>{formatCurrency(valorKm)}</b>
-                                      </div>
-                                      <div style={{display:'flex', justifyContent:'space-between', gap:'12px', fontSize:'0.95rem', color:'#1e293b'}}>
-                                          <span>Total após aprovar:</span>
-                                          <b style={{color:'#16a34a'}}>{formatCurrency(valorTotalDepois)}</b>
-                                      </div>
+                                  <div className="rh-summary">
+                                      <div><span>Já aprovados:</span><b>{kmAprovadosMes.toFixed(2)} km</b></div>
+                                      <div><span>Valor já aprovado:</span><b>{formatCurrency(valorAprovadosMes)}</b></div>
+                                      <div><span>Pedido atual:</span><b>{kmPedidoAtual.toFixed(2)} km</b></div>
+                                      <div><span>Valor €/km:</span><b>{formatCurrency(valorKm)}</b></div>
+                                      <div className="is-total"><span>Total após aprovar:</span><b>{formatCurrency(valorTotalDepois)}</b></div>
                                   </div>
                               );
                           })()
                       )}
-                      <div style={{display: 'flex', gap: '10px', justifyContent: 'center'}}>
-                          <button onClick={() => setConfirmModal({ show: false, pedido: null, acao: null })} style={{padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white', color:'#475569', fontWeight:'bold', flex: 1, cursor:'pointer'}}>Voltar</button>
-                          <button onClick={executarAcaoRH} style={{padding: '12px', borderRadius: '8px', border: 'none', flex: 1, color: 'white', background: ['aprovar', 'recusar_cancelamento'].includes(confirmModal.acao) ? '#16a34a' : '#ef4444', fontWeight:'bold', cursor:'pointer'}}>
+                      <div className="rh-confirm-actions">
+                          <button type="button" className="rh-btn is-ghost" onClick={() => setConfirmModal({ show: false, pedido: null, acao: null })}>Voltar</button>
+                          <button type="button" className={`rh-btn ${['aprovar', 'recusar_cancelamento'].includes(confirmModal.acao) ? 'is-ok' : 'is-bad'}`} onClick={executarAcaoRH}>
                               Confirmar
                           </button>
                       </div>
@@ -4183,30 +4212,14 @@ export default function RecursosHumanos() {
       {/* Modal Confirmação S.A. Global */}
       {showBulkSAConfirmModal && (
           <ModalPortal>
-              <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999}}>
-                  <div style={{background:'white', padding:'30px', borderRadius:'16px', width:'430px', maxWidth:'92%', textAlign:'center', boxShadow:'0 25px 50px -12px rgba(0, 0, 0, 0.25)'}}>
-                      <div style={{display:'flex', justifyContent:'center', marginBottom:'15px'}}>
-                          <div style={{background:'var(--color-bgSecondary)', padding:'15px', borderRadius:'50%', color:'var(--color-btnPrimary)'}}><Icons.Currency size={30}/></div>
-                      </div>
-                      <h3 style={{marginTop:0, color:'#1e293b'}}>{modalTitle}</h3>
-                      <p style={{color:'#64748b', marginBottom:'25px', lineHeight:'1.5', fontSize:'0.95rem'}}>
-                          {modalDescription}
-                      </p>
-                      <div style={{display:'flex', gap:'10px', justifyContent:'center'}}>
-                          <button
-                              type="button"
-                              onClick={() => setShowBulkSAConfirmModal(false)}
-                              disabled={isApplyingBulkSA}
-                              style={{padding:'12px', borderRadius:'8px', border:'1px solid #cbd5e1', background:'white', color:'#475569', fontWeight:'bold', flex:1, cursor:'pointer', opacity: isApplyingBulkSA ? 0.7 : 1}}
-                          >
-                              Cancelar
-                          </button>
-                          <button
-                              type="button"
-                              onClick={confirmarBulkUpdateSA}
-                              disabled={isApplyingBulkSA}
-                              style={{padding:'12px', borderRadius:'8px', border:'none', flex:1, color:'white', background:'var(--color-btnPrimary)', fontWeight:'bold', cursor:'pointer', opacity: isApplyingBulkSA ? 0.7 : 1}}
-                          >
+              <div className="rh-overlay is-top">
+                  <div className="rh-confirm">
+                      <span className="rh-confirm-ico is-brand"><Icons.Currency size={28}/></span>
+                      <h3>{modalTitle}</h3>
+                      <p>{modalDescription}</p>
+                      <div className="rh-confirm-actions">
+                          <button type="button" className="rh-btn is-ghost" onClick={() => setShowBulkSAConfirmModal(false)} disabled={isApplyingBulkSA}>Cancelar</button>
+                          <button type="button" className="rh-btn is-primary" onClick={confirmarBulkUpdateSA} disabled={isApplyingBulkSA}>
                               {isApplyingBulkSA ? 'A aplicar...' : 'Confirmar'}
                           </button>
                       </div>
@@ -4217,28 +4230,22 @@ export default function RecursosHumanos() {
 
       {userStatusModal.show && userStatusModal.profile && (
           <ModalPortal>
-              <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999}}>
-                  <div style={{background:'white', padding:'30px', borderRadius:'16px', width:'420px', maxWidth:'92%', textAlign:'center', boxShadow:'0 25px 50px -12px rgba(0, 0, 0, 0.25)'}}>
-                      <div style={{display:'flex', justifyContent:'center', marginBottom:'15px'}}>
-                          <div style={{background: userStatusModal.nextActive ? '#dcfce7' : '#fee2e2', padding:'15px', borderRadius:'50%', color: userStatusModal.nextActive ? '#16a34a' : '#ef4444'}}>
-                              {userStatusModal.nextActive ? <Icons.Check size={32}/> : <Icons.Alert size={32}/>}
-                          </div>
-                      </div>
-                      <h3 style={{marginTop:0, color:'#1e293b'}}>
-                          {userStatusModal.nextActive ? 'Reativar colaborador' : 'Confirmar desativação'}
-                      </h3>
-                      <p style={{color:'#64748b', marginBottom:'25px', lineHeight:'1.5', fontSize:'0.95rem'}}>
+              <div className="rh-overlay is-top">
+                  <div className="rh-confirm">
+                      <span className={`rh-confirm-ico ${userStatusModal.nextActive ? 'is-ok' : 'is-bad'}`}>
+                          {userStatusModal.nextActive ? <Icons.Check size={30}/> : <Icons.Alert size={30}/>}
+                      </span>
+                      <h3>{userStatusModal.nextActive ? 'Reativar colaborador' : 'Confirmar desativação'}</h3>
+                      <p>
                           {userStatusModal.nextActive ? (
                               <span>Tem a certeza que quer <b>reativar</b> <b>{userStatusModal.profile.nome}</b>?</span>
                           ) : (
                               <span>Tem a certeza que quer <b>desativar</b> <b>{userStatusModal.profile.nome}</b>? O registo ficará arquivado como ex-colaborador e os dados históricos mantêm-se.</span>
                           )}
                       </p>
-                      <div style={{display:'flex', gap:'10px', justifyContent:'center'}}>
-                          <button onClick={closeUserStatusModal} style={{padding:'12px', borderRadius:'8px', border:'1px solid #cbd5e1', background:'white', color:'#475569', fontWeight:'bold', flex:1, cursor:'pointer'}}>
-                              Cancelar
-                          </button>
-                          <button onClick={handleToggleUserActive} style={{padding:'12px', borderRadius:'8px', border:'none', flex:1, color:'white', background: userStatusModal.nextActive ? '#16a34a' : '#ef4444', fontWeight:'bold', cursor:'pointer'}}>
+                      <div className="rh-confirm-actions">
+                          <button type="button" className="rh-btn is-ghost" onClick={closeUserStatusModal}>Cancelar</button>
+                          <button type="button" className={`rh-btn ${userStatusModal.nextActive ? 'is-ok' : 'is-bad'}`} onClick={handleToggleUserActive}>
                               {userStatusModal.nextActive ? 'Reativar' : 'Desativar'}
                           </button>
                       </div>
@@ -4250,16 +4257,14 @@ export default function RecursosHumanos() {
       {/* Modal de Notificação */}
       {notification.show && (
           <ModalPortal>
-              <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999}}>
-                  <div style={{background:'white', padding:'30px', borderRadius:'16px', width:'350px', textAlign: 'center', boxShadow:'0 20px 25px -5px rgba(0,0,0,0.1)'}}>
-                      <div style={{display:'flex', justifyContent:'center', marginBottom: '15px'}}>
-                          {notification.type === 'success' 
-                              ? <div style={{background:'#dcfce7', padding:'15px', borderRadius:'50%', color:'#16a34a'}}><Icons.Check size={32}/></div> 
-                              : <div style={{background:'#fee2e2', padding:'15px', borderRadius:'50%', color:'#ef4444'}}><Icons.Alert size={32}/></div>}
-                      </div>
-                      <h3 style={{marginTop: 0, color:'#1e293b'}}>{notification.type === 'success' ? 'Sucesso!' : 'Erro'}</h3>
-                      <p style={{color:'#475569', fontSize:'0.95rem', marginBottom:'25px'}}>{notification.message}</p>
-                      <button onClick={() => setNotification({ show: false, message: '', type: 'success' })} style={{width: '100%', padding:'12px', background:'var(--color-btnPrimary)', color:'white', border:'none', borderRadius:'8px', fontWeight:'bold', cursor:'pointer'}}>Fechar</button>
+              <div className="rh-overlay is-top" onClick={() => setNotification({ show: false, message: '', type: 'success' })}>
+                  <div className="rh-confirm is-notice" onClick={(e) => e.stopPropagation()}>
+                      <span className={`rh-confirm-ico ${notification.type === 'success' ? 'is-ok' : 'is-bad'}`}>
+                          {notification.type === 'success' ? <Icons.Check size={30}/> : <Icons.Alert size={30}/>}
+                      </span>
+                      <h3>{notification.type === 'success' ? 'Sucesso!' : 'Erro'}</h3>
+                      <p>{notification.message}</p>
+                      <button type="button" className="rh-btn is-primary is-block" onClick={() => setNotification({ show: false, message: '', type: 'success' })}>Fechar</button>
                   </div>
               </div>
           </ModalPortal>
@@ -4268,49 +4273,55 @@ export default function RecursosHumanos() {
       {/* Modal Nova Tolerância */}
       {showToleranciaModal && (
           <ModalPortal>
-              <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999}}>
-                  <div style={{background:'white', padding:'30px', borderRadius:'16px', width:'460px', maxWidth:'90%', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'}}>
-                      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px'}}>
-                          <h3 style={{margin: 0, display:'flex', alignItems:'center', gap:'8px', color:'#1e293b'}}>
-                              <Icons.Clock size={20} color="var(--color-btnPrimary)"/> Nova Tolerância de Ponto
-                          </h3>
-                          <button type="button" onClick={() => setShowToleranciaModal(false)} style={{background:'none', border:'none', cursor:'pointer', color: '#94a3b8'}}><Icons.X size={20}/></button>
-                      </div>
-                      <form onSubmit={handleSaveTolerancia}>
-                          <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Designação</label>
-                          <input type="text" required placeholder="Ex: Véspera de Natal" value={newTolerancia.nome} onChange={e => setNewTolerancia({...newTolerancia, nome: e.target.value})} style={{...inputStyle, marginTop:'4px'}}/>
-
-                          <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Data</label>
-                          <input type="date" required value={newTolerancia.data} onChange={e => setNewTolerancia({...newTolerancia, data: e.target.value})} style={{...inputStyle, marginTop:'4px'}}/>
-
-                          <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569', display:'block', marginBottom:'8px'}}>Âmbito</label>
-                          <div style={{display:'flex', gap:'10px', marginBottom:'15px'}}>
-                              <button type="button" onClick={() => setNewTolerancia({...newTolerancia, tipo: 'global', user_id: ''})} style={{flex:1, padding:'12px 10px', borderRadius:'8px', border: newTolerancia.tipo === 'global' ? '2px solid var(--color-btnPrimary)' : '1px solid #e2e8f0', background: newTolerancia.tipo === 'global' ? 'var(--color-bgSecondary)' : '#f8fafc', color: newTolerancia.tipo === 'global' ? 'var(--color-btnPrimaryDark)' : '#475569', fontWeight:'600', cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', gap:'4px', transition:'0.2s'}}>
-                                  <Icons.Users size={18} color={newTolerancia.tipo === 'global' ? 'var(--color-btnPrimary)' : '#94a3b8'}/>
-                                  <span style={{fontSize:'0.85rem'}}>Global</span>
-                                  <span style={{fontSize:'0.72rem', opacity:0.7}}>Toda a empresa</span>
-                              </button>
-                              <button type="button" onClick={() => setNewTolerancia({...newTolerancia, tipo: 'individual'})} style={{flex:1, padding:'12px 10px', borderRadius:'8px', border: newTolerancia.tipo === 'individual' ? '2px solid #16a34a' : '1px solid #e2e8f0', background: newTolerancia.tipo === 'individual' ? '#f0fdf4' : '#f8fafc', color: newTolerancia.tipo === 'individual' ? '#166534' : '#475569', fontWeight:'600', cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', gap:'4px', transition:'0.2s'}}>
-                                  <Icons.User size={18} color={newTolerancia.tipo === 'individual' ? '#16a34a' : '#94a3b8'}/>
-                                  <span style={{fontSize:'0.85rem'}}>Individual</span>
-                                  <span style={{fontSize:'0.72rem', opacity:0.7}}>Um colaborador</span>
-                              </button>
+              <div className="rh-overlay">
+                  <div className="rh-modal is-sm">
+                      <div className="rh-modal-head">
+                          <span className="rh-modal-ico"><Icons.Clock size={20}/></span>
+                          <div className="rh-modal-title">
+                              <span>Tolerância</span>
+                              <h3>Nova Tolerância de Ponto</h3>
                           </div>
-
-                          {newTolerancia.tipo === 'individual' && (
-                              <>
-                                  <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Colaborador</label>
-                                  <select required value={newTolerancia.user_id} onChange={e => setNewTolerancia({...newTolerancia, user_id: e.target.value})} style={{...inputStyle, marginTop:'4px', background:'white'}}>
-                                      <option value="">Selecione Colaborador...</option>
-                                      {colaboradoresAtivos.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                                  </select>
-                              </>
-                          )}
-
-                          <div style={{display:'flex', gap:'10px', marginTop:'10px', paddingTop:'15px', borderTop:'1px solid #e2e8f0'}}>
-                              <button type="button" onClick={() => setShowToleranciaModal(false)} style={{flex:1, padding:'12px', background:'white', border:'1px solid #cbd5e1', borderRadius:'8px', cursor:'pointer', color: '#475569', fontWeight:'bold'}}>Cancelar</button>
-                              <button type="submit" disabled={isSubmittingTolerancia} style={{flex:2, padding:'12px', background:'var(--color-btnPrimary)', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'bold', opacity: isSubmittingTolerancia ? 0.7 : 1}}>
-                                  {isSubmittingTolerancia ? 'A guardar...' : 'Guardar Tolerância'}
+                          <button type="button" onClick={() => setShowToleranciaModal(false)} className="rh-modal-close" aria-label="Fechar"><Icons.X size={20}/></button>
+                      </div>
+                      <form onSubmit={handleSaveTolerancia} className="rh-modal-form">
+                          <div className="rh-modal-body">
+                              <div className="rh-field">
+                                  <label>Designação</label>
+                                  <input type="text" required className="rh-input" placeholder="Ex: Véspera de Natal" value={newTolerancia.nome} onChange={e => setNewTolerancia({...newTolerancia, nome: e.target.value})}/>
+                              </div>
+                              <div className="rh-field">
+                                  <label>Data</label>
+                                  <input type="date" required className="rh-input" value={newTolerancia.data} onChange={e => setNewTolerancia({...newTolerancia, data: e.target.value})}/>
+                              </div>
+                              <div className="rh-field">
+                                  <label>Âmbito</label>
+                                  <div className="rh-choice">
+                                      <button type="button" onClick={() => setNewTolerancia({...newTolerancia, tipo: 'global', user_id: ''})} className={newTolerancia.tipo === 'global' ? 'is-on' : ''}>
+                                          <Icons.Users size={20}/>
+                                          <strong>Global</strong>
+                                          <small>Toda a empresa</small>
+                                      </button>
+                                      <button type="button" onClick={() => setNewTolerancia({...newTolerancia, tipo: 'individual'})} className={newTolerancia.tipo === 'individual' ? 'is-on is-green' : ''}>
+                                          <Icons.User size={20}/>
+                                          <strong>Individual</strong>
+                                          <small>Um colaborador</small>
+                                      </button>
+                                  </div>
+                              </div>
+                              {newTolerancia.tipo === 'individual' && (
+                                  <div className="rh-field">
+                                      <label>Colaborador</label>
+                                      <select required className="rh-input" value={newTolerancia.user_id} onChange={e => setNewTolerancia({...newTolerancia, user_id: e.target.value})}>
+                                          <option value="">Selecione Colaborador...</option>
+                                          {colaboradoresAtivos.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                                      </select>
+                                  </div>
+                              )}
+                          </div>
+                          <div className="rh-modal-foot">
+                              <button type="button" className="rh-btn is-ghost" onClick={() => setShowToleranciaModal(false)}>Cancelar</button>
+                              <button type="submit" className="rh-btn is-primary is-lg" disabled={isSubmittingTolerancia}>
+                                  <Icons.Check size={16} /> {isSubmittingTolerancia ? 'A guardar...' : 'Guardar Tolerância'}
                               </button>
                           </div>
                       </form>
@@ -4321,86 +4332,94 @@ export default function RecursosHumanos() {
 
       {showFormacaoModal && (
         <ModalPortal>
-            <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999}}>
-                <div style={{background:'white', padding:'30px', borderRadius:'16px', width:'500px', maxWidth:'90%', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', maxHeight:'90vh', overflowY:'auto'}}>
-                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px'}}>
-                        <h3 style={{margin: 0, display:'flex', alignItems:'center', gap:'8px', color:'#1e293b'}}>
-                            <Icons.Check size={20} color="var(--color-btnPrimary)"/> Nova Ação de Formação
-                        </h3>
-                        <button type="button" onClick={() => setShowFormacaoModal(false)} style={{background:'none', border:'none', cursor:'pointer', color: '#94a3b8'}}><Icons.X size={20}/></button>
+            <div className="rh-overlay">
+                <div className="rh-modal is-md">
+                    <div className="rh-modal-head">
+                        <span className="rh-modal-ico"><Icons.FileText size={20}/></span>
+                        <div className="rh-modal-title">
+                            <span>Formação</span>
+                            <h3>Nova Ação de Formação</h3>
+                        </div>
+                        <button type="button" onClick={() => setShowFormacaoModal(false)} className="rh-modal-close" aria-label="Fechar"><Icons.X size={20}/></button>
                     </div>
-                    <form onSubmit={handleSaveFormacao}>
-                        <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Nome da Ação de Formação</label>
-                        <input type="text" required placeholder="Ex: Curso Primeiros Socorros" value={newFormacao.nome} onChange={e => setNewFormacao({...newFormacao, nome: e.target.value})} style={{...inputStyle, marginTop:'4px'}}/>
-
-                        <div style={{display:'flex', gap:'15px'}}>
-                            <div style={{display:'flex', gap:'15px'}}>
-                                <div style={{flex:1}}>
-                                    <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Data Início</label>
-                                    <input 
-                                        type="date" 
-                                        required 
-                                        value={newFormacao.data_inicio} 
+                    <form onSubmit={handleSaveFormacao} className="rh-modal-form">
+                        <div className="rh-modal-body">
+                            <div className="rh-field">
+                                <label>Nome da Ação de Formação</label>
+                                <input type="text" required className="rh-input" placeholder="Ex: Curso Primeiros Socorros" value={newFormacao.nome} onChange={e => setNewFormacao({...newFormacao, nome: e.target.value})}/>
+                            </div>
+                            <div className="rh-fgrid is-3">
+                                <div className="rh-field">
+                                    <label>Data Início</label>
+                                    <input
+                                        type="date"
+                                        required
+                                        className="rh-input"
+                                        value={newFormacao.data_inicio}
                                         onChange={e => {
                                             const newStart = e.target.value;
                                             // Se a data de fim for anterior à nova data de início (ou estiver vazia), ajusta a de fim para ser igual à de início
                                             const newEnd = (!newFormacao.data_fim || newFormacao.data_fim < newStart) ? newStart : newFormacao.data_fim;
                                             setNewFormacao({...newFormacao, data_inicio: newStart, data_fim: newEnd});
-                                        }} 
-                                        style={{...inputStyle, marginTop:'4px'}}
+                                        }}
                                     />
                                 </div>
-                                <div style={{flex:1}}>
-                                    <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Data Fim</label>
-                                    <input 
-                                        type="date" 
-                                        required 
-                                        min={newFormacao.data_inicio} // Bloqueia dias anteriores no calendário do browser
-                                        value={newFormacao.data_fim} 
-                                        onChange={e => setNewFormacao({...newFormacao, data_fim: e.target.value})} 
-                                        style={{...inputStyle, marginTop:'4px'}}
+                                <div className="rh-field">
+                                    <label>Data Fim</label>
+                                    <input
+                                        type="date"
+                                        required
+                                        className="rh-input"
+                                        min={newFormacao.data_inicio}
+                                        value={newFormacao.data_fim}
+                                        onChange={e => setNewFormacao({...newFormacao, data_fim: e.target.value})}
                                     />
+                                </div>
+                                <div className="rh-field">
+                                    <label>Total de Horas</label>
+                                    <input type="number" min="0.5" step="0.5" required className="rh-input" placeholder="Ex: 8" value={newFormacao.total_horas} onChange={e => setNewFormacao({...newFormacao, total_horas: e.target.value})}/>
+                                </div>
+                            </div>
+
+                            <div className="rh-field">
+                                <label>Selecionar Colaboradores Envolvidos <em className="rh-count">{newFormacao.user_ids.length}</em></label>
+                                <div className="rh-pick">
+                                    <label className="rh-pick-all">
+                                        <input
+                                            type="checkbox"
+                                            className="rh-checkbox"
+                                            onChange={(e) => {
+                                                if(e.target.checked) {
+                                                    setNewFormacao({...newFormacao, user_ids: colaboradoresAtivos.map(c => c.id)});
+                                                } else {
+                                                    setNewFormacao({...newFormacao, user_ids: []});
+                                                }
+                                            }}
+                                            checked={newFormacao.user_ids.length === colaboradoresAtivos.length && colaboradoresAtivos.length > 0}
+                                        />
+                                        <span>Selecionar Todos</span>
+                                    </label>
+                                    <div className="rh-pick-grid">
+                                        {colaboradoresAtivos.map(c => (
+                                            <label key={c.id} className={`rh-pick-item ${newFormacao.user_ids.includes(c.id) ? 'is-on' : ''}`}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={newFormacao.user_ids.includes(c.id)}
+                                                    onChange={() => handleToggleUserFormacao(c.id)}
+                                                />
+                                                {renderRhAvatar(c.nome, c.id, 'xs', c.avatar_url)}
+                                                <span>{c.nome}</span>
+                                                <i className="rh-pick-check"><Icons.Check size={12} /></i>
+                                            </label>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
                         </div>
-
-                        <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569'}}>Total de Horas</label>
-                        <input type="number" min="0.5" step="0.5" required placeholder="Ex: 8" value={newFormacao.total_horas} onChange={e => setNewFormacao({...newFormacao, total_horas: e.target.value})} style={{...inputStyle, marginTop:'4px'}}/>
-
-                        <label style={{fontSize: '0.8rem', fontWeight: 'bold', color:'#475569', display:'block', marginBottom:'8px'}}>Selecionar Colaboradores Envolvidos</label>
-                        <div style={{maxHeight:'150px', overflowY:'auto', border:'1px solid #e2e8f0', borderRadius:'8px', padding:'10px', background:'#f8fafc', marginBottom:'15px'}}>
-                            <label style={{display:'flex', alignItems:'center', gap:'8px', padding:'6px', cursor:'pointer', borderBottom:'1px dashed #cbd5e1', marginBottom:'5px'}}>
-                                <input 
-                                    type="checkbox" 
-                                    onChange={(e) => {
-                                        if(e.target.checked) {
-                                            setNewFormacao({...newFormacao, user_ids: colaboradoresAtivos.map(c => c.id)});
-                                        } else {
-                                            setNewFormacao({...newFormacao, user_ids: []});
-                                        }
-                                    }}
-                                    checked={newFormacao.user_ids.length === colaboradoresAtivos.length && colaboradoresAtivos.length > 0}
-                                    style={{width:'16px', height:'16px', accentColor:'var(--color-btnPrimary)'}}
-                                />
-                                <span style={{fontWeight:'bold', color:'var(--color-btnPrimary)'}}>Selecionar Todos</span>
-                            </label>
-                            {colaboradoresAtivos.map(c => (
-                                <label key={c.id} style={{display:'flex', alignItems:'center', gap:'8px', padding:'4px 6px', cursor:'pointer', color:'#334155'}}>
-                                    <input 
-                                        type="checkbox" 
-                                        checked={newFormacao.user_ids.includes(c.id)}
-                                        onChange={() => handleToggleUserFormacao(c.id)}
-                                        style={{width:'15px', height:'15px'}}
-                                    />
-                                    {c.nome}
-                                </label>
-                            ))}
-                        </div>
-
-                        <div style={{display:'flex', gap:'10px', marginTop:'10px', paddingTop:'15px', borderTop:'1px solid #e2e8f0'}}>
-                            <button type="button" onClick={() => setShowFormacaoModal(false)} style={{flex:1, padding:'12px', background:'white', border:'1px solid #cbd5e1', borderRadius:'8px', cursor:'pointer', color: '#475569', fontWeight:'bold'}}>Cancelar</button>
-                            <button type="submit" disabled={isSubmittingFormacao} style={{flex:2, padding:'12px', background:'var(--color-btnPrimary)', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'bold', opacity: isSubmittingFormacao ? 0.7 : 1}}>
-                                {isSubmittingFormacao ? 'A guardar...' : 'Guardar Formação'}
+                        <div className="rh-modal-foot">
+                            <button type="button" className="rh-btn is-ghost" onClick={() => setShowFormacaoModal(false)}>Cancelar</button>
+                            <button type="submit" className="rh-btn is-primary is-lg" disabled={isSubmittingFormacao}>
+                                <Icons.Check size={16} /> {isSubmittingFormacao ? 'A guardar...' : 'Guardar Formação'}
                             </button>
                         </div>
                     </form>
@@ -4412,25 +4431,17 @@ export default function RecursosHumanos() {
     {/* Modal Apagar Formação */}
       {deleteFormacaoModal.show && deleteFormacaoModal.grupo && (
           <ModalPortal>
-              <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999}}>
-                  <div style={{background:'white', padding:'30px', borderRadius:'16px', width:'420px', maxWidth:'92%', textAlign:'center', boxShadow:'0 25px 50px -12px rgba(0, 0, 0, 0.25)'}}>
-                      <div style={{display:'flex', justifyContent:'center', marginBottom:'15px'}}>
-                          <div style={{background:'#fee2e2', padding:'15px', borderRadius:'50%', color:'#ef4444'}}>
-                              <Icons.Trash size={32}/>
-                          </div>
-                      </div>
-                      <h3 style={{marginTop:0, color:'#1e293b'}}>Eliminar Formação</h3>
-                      <p style={{color:'#64748b', marginBottom:'20px', lineHeight:'1.5', fontSize:'0.95rem'}}>
-                          Tem a certeza que deseja eliminar a formação <b>"{deleteFormacaoModal.grupo.nome}"</b>?
-                      </p>
-                      <div style={{background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '25px', textAlign: 'left', fontSize: '0.85rem', color: '#ef4444'}}>
+              <div className="rh-overlay is-top">
+                  <div className="rh-confirm">
+                      <span className="rh-confirm-ico is-bad"><Icons.Trash size={28}/></span>
+                      <h3>Eliminar Formação</h3>
+                      <p>Tem a certeza que deseja eliminar a formação <b>"{deleteFormacaoModal.grupo.nome}"</b>?</p>
+                      <div className="rh-summary is-bad">
                           Esta ação irá remover as <b>{deleteFormacaoModal.grupo.total_horas}h</b> atribuídas a <b>{deleteFormacaoModal.grupo.participantes.length}</b> colaborador(es).
                       </div>
-                      <div style={{display:'flex', gap:'10px', justifyContent:'center'}}>
-                          <button onClick={() => setDeleteFormacaoModal({show: false, grupo: null})} disabled={isSubmittingFormacao} style={{padding:'12px', borderRadius:'8px', border:'1px solid #cbd5e1', background:'white', color:'#475569', fontWeight:'bold', flex:1, cursor:'pointer'}}>
-                              Cancelar
-                          </button>
-                          <button onClick={confirmarDeleteFormacao} disabled={isSubmittingFormacao} style={{padding:'12px', borderRadius:'8px', border:'none', flex:1, color:'white', background:'#ef4444', fontWeight:'bold', cursor:'pointer', opacity: isSubmittingFormacao ? 0.7 : 1}}>
+                      <div className="rh-confirm-actions">
+                          <button type="button" className="rh-btn is-ghost" onClick={() => setDeleteFormacaoModal({show: false, grupo: null})} disabled={isSubmittingFormacao}>Cancelar</button>
+                          <button type="button" className="rh-btn is-bad" onClick={confirmarDeleteFormacao} disabled={isSubmittingFormacao}>
                               {isSubmittingFormacao ? 'A eliminar...' : 'Sim, Eliminar'}
                           </button>
                       </div>
@@ -4439,132 +4450,70 @@ export default function RecursosHumanos() {
           </ModalPortal>
       )}
 
-      <style>{`
-          .btn-small:hover { opacity: 0.8; transform: translateY(-1px); }
-          .hover-bg-gray:hover { background: #f8fafc !important; }
-          @media (max-width: 1180px) {
-              .rh-grid { grid-template-columns: 1fr !important; }
-          }
-          @media (max-width: 900px) {
-              .rh-toolbar { align-items: stretch !important; }
-              .rh-toolbar-actions {
-                  width: 100%;
-                  flex-wrap: wrap;
-              }
-              .rh-toolbar-actions > * {
-                  flex: 1 1 220px;
-              }
-              .rh-user-select {
-                  min-width: 0 !important;
-                  width: 100%;
-              }
-          }
-          @media (max-width: 720px) {
-              .rh-user-tabs {
-                  flex-direction: column;
-              }
-              .rh-readonly-grid,
-              .rh-user-form-grid {
-                  grid-template-columns: 1fr !important;
-              }
-          }
-      `}
       {/* --- NOVO MODAL DE APROVAÇÃO EM MASSA COM RESUMO --- */}
       {bulkApproveModal.show && (
           <ModalPortal>
-              <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999}}>
-                  <div style={{background:'white', padding:'30px', borderRadius:'16px', width:'450px', maxWidth: '90%', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', maxHeight: '90vh', overflowY: 'auto'}}>
-                      <div style={{display:'flex', justifyContent:'center', marginBottom: '15px'}}>
-                          <div style={{background:'#dcfce7', padding:'15px', borderRadius:'50%', color:'#16a34a'}}><Icons.Check size={32}/></div>
-                      </div>
-                      <h3 style={{marginTop: 0, color: '#1e293b'}}>Aprovação em Massa</h3>
-                      <p style={{color: '#64748b', marginBottom: '20px', lineHeight: '1.5', fontSize:'0.95rem'}}>
-                          Está prestes a aprovar <b>{bulkApproveModal.pedidos.length}</b> pedido(s) de {bulkApproveModal.tipo === 'kms' ? 'deslocação' : 'ausência'}.
-                      </p>
+              <div className="rh-overlay is-top">
+                  <div className="rh-confirm is-wide">
+                      <span className="rh-confirm-ico is-ok"><Icons.Check size={30}/></span>
+                      <h3>Aprovação em Massa</h3>
+                      <p>Está prestes a aprovar <b>{bulkApproveModal.pedidos.length}</b> pedido(s) de {bulkApproveModal.tipo === 'kms' ? 'deslocação' : 'ausência'}.</p>
 
                       {/* RESUMO DINÂMICO DE KM'S COM HISTÓRICO */}
-                      {bulkApproveModal.tipo === 'kms' && (
-                          <div style={{background: '#f8fafc', padding: '15px', borderRadius: '8px', textAlign: 'left', marginBottom: '25px', border: '1px solid #e2e8f0'}}>
-                              <h4 style={{margin: '0 0 10px 0', color: '#475569', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Resumo de KM's por Colaborador:</h4>
-                              
-                              {/* Lógica melhorada para agrupar e calcular o histórico */}
-                              {Object.values(
-                                  bulkApproveModal.pedidos.reduce((acc, p) => {
-                                      const userId = p.user_id;
-                                      // Se o utilizador ainda não está no acumulador, cria o registo base dele
-                                      if (!acc[userId]) {
-                                          acc[userId] = {
-                                              nome: p.profiles?.nome || 'Desconhecido',
-                                              kmsNovos: 0,
-                                              kmsAprovados: calcularTotalKmAprovadosNoMes(userId, p.data_inicio, ausenciasMes)
-                                          };
-                                      }
-                                      // Soma os km's dos pedidos pendentes que vão ser aprovados
-                                      acc[userId].kmsNovos += (Number(p.km_total) || 0);
-                                      return acc;
-                                  }, {})
-                              ).map((resumo, index) => {
-                                  const novoTotal = resumo.kmsAprovados + resumo.kmsNovos;
-                                  const valorNovo = resumo.kmsNovos * parseKmRate(valorKmReembolso);
-                                  const valorNovoTotal = novoTotal * parseKmRate(valorKmReembolso);
-                                  
-                                  return (
-                                      <div key={index} style={{display: 'flex', flexDirection: 'column', padding: '10px 0', borderBottom: '1px dashed #cbd5e1'}}>
-                                          <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '0.95rem'}}>
-                                              <span style={{color: '#334155', fontWeight: '600'}}>{resumo.nome}</span>
-                                              <span style={{color: '#16a34a', fontWeight: 'bold'}}>+{Number(resumo.kmsNovos).toFixed(2)} km</span>
+                      {bulkApproveModal.tipo === 'kms' && (() => {
+                          const resumos = Object.values(
+                              bulkApproveModal.pedidos.reduce((acc, p) => {
+                                  const userId = p.user_id;
+                                  if (!acc[userId]) {
+                                      acc[userId] = {
+                                          userId,
+                                          nome: p.profiles?.nome || 'Desconhecido',
+                                          kmsNovos: 0,
+                                          kmsAprovados: calcularTotalKmAprovadosNoMes(userId, p.data_inicio, ausenciasMes)
+                                      };
+                                  }
+                                  acc[userId].kmsNovos += (Number(p.km_total) || 0);
+                                  return acc;
+                              }, {})
+                          );
+                          const rate = parseKmRate(valorKmReembolso);
+                          const totalJaAprovados = resumos.reduce((sum, resumo) => sum + (Number(resumo.kmsAprovados) || 0), 0);
+                          const totalSelecionados = bulkApproveModal.pedidos.reduce((sum, p) => sum + (Number(p.km_total) || 0), 0);
+                          return (
+                              <div className="rh-bulk">
+                                  <h4>Resumo de KM's por Colaborador:</h4>
+                                  {resumos.map((resumo, index) => {
+                                      const novoTotal = resumo.kmsAprovados + resumo.kmsNovos;
+                                      return (
+                                          <div key={index} className="rh-bulk-row">
+                                              <div className="rh-bulk-top">
+                                                  <span className="rh-who">{renderRhAvatar(resumo.nome, resumo.userId)}<strong>{resumo.nome}</strong></span>
+                                                  <b className="is-green">+{Number(resumo.kmsNovos).toFixed(2)} km</b>
+                                              </div>
+                                              <div className="rh-bulk-sub">
+                                                  <span>Já aprovados: <b>{Number(resumo.kmsAprovados).toFixed(2)} km</b></span>
+                                                  <span>&rarr; Novo Total: <b>{Number(novoTotal).toFixed(2)} km</b></span>
+                                              </div>
+                                              <div className="rh-bulk-sub">
+                                                  <span>Novo valor: <b>{formatCurrency(resumo.kmsNovos * rate)}</b></span>
+                                                  <span>Total valor: <b>{formatCurrency(novoTotal * rate)}</b></span>
+                                              </div>
                                           </div>
-                                          <div style={{fontSize: '0.8rem', color: '#64748b', display: 'flex', justifyContent: 'space-between'}}>
-                                              <span>Já aprovados: <b>{Number(resumo.kmsAprovados).toFixed(2)} km</b></span>
-                                              <span>&rarr; Novo Total: <b style={{color: '#1e293b'}}>{Number(novoTotal).toFixed(2)} km</b></span>
-                                          </div>
-                                          <div style={{fontSize: '0.8rem', color: '#64748b', display: 'flex', justifyContent: 'space-between', marginTop: '4px'}}>
-                                              <span>Novo valor: <b>{formatCurrency(valorNovo)}</b></span>
-                                              <span>Total valor: <b style={{color: '#1e293b'}}>{formatCurrency(valorNovoTotal)}</b></span>
-                                          </div>
-                                      </div>
-                                  );
-                              })}
-                              <div style={{marginTop:'12px', paddingTop:'12px', borderTop:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', gap:'12px', fontSize:'0.95rem', color:'#334155'}}>
-                                  <span>Total já aprovados:</span>
-                                  <b>{Object.values(bulkApproveModal.pedidos.reduce((acc, p) => {
-                                      const userId = p.user_id;
-                                      if (!acc[userId]) {
-                                          acc[userId] = {
-                                              kmsAprovados: calcularTotalKmAprovadosNoMes(userId, p.data_inicio, ausenciasMes)
-                                          };
-                                      }
-                                      return acc;
-                                  }, {})).reduce((sum, resumo) => sum + (Number(resumo.kmsAprovados) || 0), 0).toFixed(2)} km</b>
+                                      );
+                                  })}
+                                  <div className="rh-summary is-flat">
+                                      <div><span>Total já aprovados:</span><b>{totalJaAprovados.toFixed(2)} km</b></div>
+                                      <div><span>Valor já aprovado:</span><b className="is-green">{formatCurrency(totalJaAprovados * rate)}</b></div>
+                                      <div className="is-sep"><span>Total de Km's selecionados:</span><b>{Number(totalSelecionados).toFixed(2)} km</b></div>
+                                      <div className="is-total"><span>Total a aprovar:</span><b>{formatCurrency(totalSelecionados * rate)}</b></div>
+                                  </div>
                               </div>
-                              <div style={{display:'flex', justifyContent:'space-between', gap:'12px', marginTop:'6px', fontSize:'0.95rem', color:'#1e293b'}}>
-                                  <span>Valor já aprovado:</span>
-                                  <b style={{color:'#16a34a'}}>{formatCurrency(Object.values(bulkApproveModal.pedidos.reduce((acc, p) => {
-                                      const userId = p.user_id;
-                                      if (!acc[userId]) {
-                                          acc[userId] = {
-                                              kmsAprovados: calcularTotalKmAprovadosNoMes(userId, p.data_inicio, ausenciasMes)
-                                          };
-                                      }
-                                      return acc;
-                                  }, {})).reduce((sum, resumo) => sum + (Number(resumo.kmsAprovados) || 0), 0) * parseKmRate(valorKmReembolso))}</b>
-                              </div>
-                              <div style={{marginTop:'12px', paddingTop:'12px', borderTop:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', gap:'12px', fontSize:'0.95rem', color:'#334155'}}>
-                                  <span>Total de Km's selecionados:</span>
-                                  <b>{Number(bulkApproveModal.pedidos.reduce((sum, p) => sum + (Number(p.km_total) || 0), 0)).toFixed(2)} km</b>
-                              </div>
-                              <div style={{display:'flex', justifyContent:'space-between', gap:'12px', marginTop:'6px', fontSize:'0.95rem', color:'#1e293b'}}>
-                                  <span>Total a aprovar:</span>
-                                  <b style={{color:'#16a34a'}}>{formatCurrency(bulkApproveModal.pedidos.reduce((sum, p) => sum + (Number(p.km_total) || 0), 0) * parseKmRate(valorKmReembolso))}</b>
-                              </div>
-                          </div>
-                      )}
+                          );
+                      })()}
 
-                      <div style={{display: 'flex', gap: '10px', justifyContent: 'center'}}>
-                          <button onClick={() => setBulkApproveModal({ show: false, tipo: null, pedidos: [] })} disabled={isSubmitting} style={{padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white', color:'#475569', fontWeight:'bold', flex: 1, cursor:'pointer'}}>
-                              Cancelar
-                          </button>
-                          <button onClick={executarAprovarEmMassa} disabled={isSubmitting} style={{padding: '12px', borderRadius: '8px', border: 'none', flex: 1, color: 'white', background: '#16a34a', fontWeight:'bold', cursor:'pointer', opacity: isSubmitting ? 0.7 : 1}}>
+                      <div className="rh-confirm-actions">
+                          <button type="button" className="rh-btn is-ghost" onClick={() => setBulkApproveModal({ show: false, tipo: null, pedidos: [] })} disabled={isSubmitting}>Cancelar</button>
+                          <button type="button" className="rh-btn is-ok" onClick={executarAprovarEmMassa} disabled={isSubmitting}>
                               {isSubmitting ? 'A aprovar...' : 'Confirmar Aprovação'}
                           </button>
                       </div>
@@ -4572,7 +4521,6 @@ export default function RecursosHumanos() {
               </div>
           </ModalPortal>
       )}
-      </style>
     </div>
   );
 }

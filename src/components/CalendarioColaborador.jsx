@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
+import "../styles/calendario-colaborador.css";
 import {
   calcularDiasUteis,
   calcularDiasUteisNoMes,
@@ -760,196 +761,129 @@ export default function CalendarioColaborador({
   const temResumoAusencias = totalDiasAusencia > 0 || totais.diasFolga > 0;
 
   if (loading) {
-    return <div style={{ padding: "20px", textAlign: "center", color: "#94a3b8" }}>Carregando calendário...</div>;
+    return (
+      <div className="cc-card cc-loading">
+        <span className="cc-spinner" /> A carregar calendário...
+      </div>
+    );
   }
 
-  return (
-    <div style={{ background: "white", borderRadius: "12px", padding: "20px", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-      {/* Header e Botões de Navegação */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "10px" }}>
-        <h3 style={{ margin: 0, color: "#1e293b" }}>Calendário - {userName}</h3>
-        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-          
-          {/* BOTÃO: Preencher Mês com tooltip global */}
-          <button
-            onClick={() => setShowBulkModal(true)}
-            title="Preencher Mês Completo"
-            style={{
-              background: "#10b981",
-              color: "white",
-              border: "none",
-              padding: "6px 10px",
-              borderRadius: "6px",
-              cursor: "pointer",
-              fontSize: "1.2rem",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              marginRight: "10px"
-            }}
-          >
-            <Icons.Calendar size={18} color="white" />
-          </button>
+  const hojeStrCC = (() => {
+    const t = new Date();
+    return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
+  })();
+  const isBulkConfirmValid = bulkInput.trim().toUpperCase() === "SIM" || bulkInput.trim().toUpperCase() === "CONFIRMO";
+  const getDayHours = (dia) => {
+    if (!dia?.assidDia) return null;
+    const entradaSeg = timeToSeconds(dia.assidDia.hora_entrada);
+    const saidaSeg = timeToSeconds(dia.assidDia.hora_saida);
+    if (entradaSeg === null || saidaSeg === null) return null;
+    const pausaSeg = Number(dia.assidDia.tempo_pausa_acumulado) || 0;
+    return Math.max(0, saidaSeg - entradaSeg - pausaSeg);
+  };
+  const diaSelecionadoObj = diaSelected ? diasDoMes.find((d) => d && d.dia === diaSelected) : null;
 
-          <button
-            onClick={handlePrevMonth}
-            style={{
-              background: "white",
-              border: "1px solid #e2e8f0",
-              color: "#64748b",
-              padding: "6px 12px",
-              borderRadius: "6px",
-              cursor: "pointer",
-              fontSize: "0.85rem",
-            }}
-          >
-            ← Anterior
+  return (
+    <div className="cc-card">
+      {/* Header e Botões de Navegação */}
+      <div className="cc-head">
+        <div className="cc-title">
+          <span className="cc-title-ico"><Icons.Calendar size={18} /></span>
+          <div>
+            <h3>Calendário - {userName}</h3>
+            <p>Clica num dia para ver ou editar a assiduidade.</p>
+          </div>
+        </div>
+        <div className="cc-nav">
+          {/* BOTÃO: Preencher Mês */}
+          <button type="button" onClick={() => setShowBulkModal(true)} title="Preencher Mês Completo" className="cc-fill-btn">
+            <Icons.Calendar size={16} /> <span>Preencher mês</span>
           </button>
-          <button
-            onClick={handleToday}
-            style={{
-              background: "var(--color-btnPrimary)",
-              color: "white",
-              border: "none",
-              padding: "6px 12px",
-              borderRadius: "6px",
-              cursor: "pointer",
-              fontSize: "0.85rem",
-              fontWeight: "600",
-            }}
-          >
-            {nomesMeses[mesAtual]} {anoAtual}
-          </button>
-          <button
-            onClick={handleNextMonth}
-            style={{
-              background: "white",
-              border: "1px solid #e2e8f0",
-              color: "#64748b",
-              padding: "6px 12px",
-              borderRadius: "6px",
-              cursor: "pointer",
-              fontSize: "0.85rem",
-            }}
-          >
-            Próximo →
-          </button>
+          <div className="cc-month">
+            <button type="button" onClick={handlePrevMonth} aria-label="Mês anterior" title="← Anterior">‹</button>
+            <button type="button" onClick={handleToday} className="cc-month-label" title="Ir para hoje">{nomesMeses[mesAtual]} {anoAtual}</button>
+            <button type="button" onClick={handleNextMonth} aria-label="Mês seguinte" title="Próximo →">›</button>
+          </div>
         </div>
       </div>
 
       {saveFeedback.show && (
-        <div style={{ marginBottom: "16px", padding: "12px", borderRadius: "6px", background: saveFeedback.type === "error" ? "#fef2f2" : "#f0fdf4", color: saveFeedback.type === "error" ? "#991b1b" : "#166534", border: `1px solid ${saveFeedback.type === "error" ? "#fecaca" : "#bbf7d0"}` }}>
+        <div className={`cc-feedback ${saveFeedback.type === "error" ? "is-error" : ""}`}>
           {saveFeedback.message}
         </div>
       )}
 
-      {/* Tabela de Dias da Semana */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "8px", marginBottom: "10px" }}>
-        {diasSemana.map((dia, i) => (
-          <div key={`wd-${i}`} style={{ textAlign: "center", fontWeight: "bold", fontSize: "0.8rem", color: "#94a3b8" }}>
-            {dia}
-          </div>
-        ))}
-      </div>
-
       {/* Calendário */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "8px", marginBottom: "20px" }}>
+      <div className="cc-grid">
+        {diasSemana.map((dia, i) => (
+          <div key={`wd-${i}`} className="cc-wd">{dia}</div>
+        ))}
         {diasDoMes.map((dia, i) => {
           if (!dia) {
-            return <div key={`empty-${i}`}></div>;
+            return <div key={`empty-${i}`} className="cc-empty-day"></div>;
           }
 
           const isSelected = diaSelected === dia.dia;
+          const isToday = dia.dataStr === hojeStrCC;
+          const horas = getDayHours(dia);
 
           return (
-            <div
+            <button
+              type="button"
               key={dia.dataStr}
               onClick={() => setDiaSelected(isSelected ? null : dia.dia)}
-              style={{
-                background: dia.cor,
-                border: isSelected ? "2px solid var(--color-btnPrimary)" : "1px solid #e2e8f0",
-                borderRadius: "8px",
-                padding: "8px",
-                cursor: "pointer",
-                minHeight: "60px",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                transition: "all 0.2s",
-                boxShadow: isSelected ? "0 2px 8px rgba(37, 99, 235, 0.2)" : "none",
-              }}
-              onMouseEnter={(e) => {
-                if (!isSelected) e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.1)";
-              }}
-              onMouseLeave={(e) => {
-                if (!isSelected) e.currentTarget.style.boxShadow = "none";
-              }}
+              className={`cc-day ${isSelected ? "is-selected" : ""} ${isToday ? "is-today" : ""} ${dia.assidDia ? "has-work" : ""}`}
+              style={{ background: dia.cor, color: dia.textoCor }}
             >
-              <div style={{ fontWeight: "bold", fontSize: "0.95rem", color: dia.textoCor }}>{dia.dia}</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "4px", minHeight: "18px" }}>
-                <div style={{ fontSize: "0.7rem", color: dia.textoCor, fontWeight: "500" }}>{dia.badge}</div>
-              </div>
-            </div>
+              <span className="cc-day-num">{dia.dia}</span>
+              {dia.badge ? <span className={`cc-day-badge ${horas !== null ? "is-work" : ""}`}>{dia.badge}</span> : null}
+            </button>
           );
         })}
       </div>
 
       {/* Detalhes do Dia Selecionado */}
-      {diaSelected && (
-        <div style={{ background: "var(--color-bgSecondary)", border: "1px solid var(--color-borderColor)", borderRadius: "8px", padding: "15px", marginBottom: "20px" }}>
-          <h4 style={{ margin: "0 0 12px 0", color: "var(--color-btnPrimaryHover)", display: "flex", alignItems: "center", gap: "8px" }}>
-            Dia {diaSelected} de {nomesMeses[mesAtual]} de {anoAtual}
-          </h4>
+      {diaSelecionadoObj && (
+        <div className="cc-detail" key={diaSelecionadoObj.dataStr}>
+          <div className="cc-detail-head">
+            <h4>Dia {diaSelected} de {nomesMeses[mesAtual]} de {anoAtual}</h4>
+            <button type="button" className="cc-detail-close" onClick={() => setDiaSelected(null)} aria-label="Fechar">×</button>
+          </div>
 
           {(() => {
-            const diaObj = diasDoMes.find((d) => d && d.dia === diaSelected);
-            if (!diaObj) return null;
+            const diaObj = diaSelecionadoObj;
 
-              if (diaObj.estadoTemporarioDia) {
-                const statusStyle = getTemporaryStatusStyle(diaObj.estadoTemporarioDia.tipo);
-                return (
-                  <div>
-                    <p style={{ margin: "0 0 8px 0", fontWeight: "bold", color: "#475569" }}>
-                      Estado temporário: {formatAbsenceTypeLabel(diaObj.estadoTemporarioDia.tipo)}
-                    </p>
-                    <div style={{ background: statusStyle.cor, color: statusStyle.textoCor, padding: "10px", borderRadius: "6px", border: `1px solid ${statusStyle.textoCor}22` }}>
-                      <div style={{ fontWeight: "700" }}>{statusStyle.badge}</div>
-                      <div style={{ marginTop: "4px", fontSize: "0.9rem" }}>
-                        {new Date(`${diaObj.estadoTemporarioDia.data_inicio}T00:00:00`).toLocaleDateString("pt-PT")}
-                        {diaObj.estadoTemporarioDia.data_fim && diaObj.estadoTemporarioDia.data_fim !== diaObj.estadoTemporarioDia.data_inicio
-                          ? ` a ${new Date(`${diaObj.estadoTemporarioDia.data_fim}T00:00:00`).toLocaleDateString("pt-PT")}`
-                          : ""}
-                      </div>
-                      {diaObj.estadoTemporarioDia.motivo && (
-                        <div style={{ marginTop: "6px", fontSize: "0.85rem" }}>{diaObj.estadoTemporarioDia.motivo}</div>
-                      )}
-                    </div>
+            if (diaObj.estadoTemporarioDia) {
+              const statusStyle = getTemporaryStatusStyle(diaObj.estadoTemporarioDia.tipo);
+              return (
+                <div className="cc-detail-body">
+                  <p className="cc-detail-label">Estado temporário: {formatAbsenceTypeLabel(diaObj.estadoTemporarioDia.tipo)}</p>
+                  <div className="cc-status" style={{ background: statusStyle.cor, color: statusStyle.textoCor }}>
+                    <strong>{statusStyle.badge}</strong>
+                    <span>
+                      {new Date(`${diaObj.estadoTemporarioDia.data_inicio}T00:00:00`).toLocaleDateString("pt-PT")}
+                      {diaObj.estadoTemporarioDia.data_fim && diaObj.estadoTemporarioDia.data_fim !== diaObj.estadoTemporarioDia.data_inicio
+                        ? ` a ${new Date(`${diaObj.estadoTemporarioDia.data_fim}T00:00:00`).toLocaleDateString("pt-PT")}`
+                        : ""}
+                    </span>
+                    {diaObj.estadoTemporarioDia.motivo && <em>{diaObj.estadoTemporarioDia.motivo}</em>}
                   </div>
-                );
-              }
+                </div>
+              );
+            }
 
             if (diaObj.ausenciasDiaInteiras.length > 0 && !diaObj.assidDia) {
               const ausencia = diaObj.ausenciasDiaInteiras[0];
               return (
-                <div>
-                  <p style={{ margin: "0 0 8px 0", fontWeight: "bold", color: "#475569" }}>
-                    Ausência: {formatAbsenceTypeLabel(ausencia.tipo)}
-                  </p>
-                  {ausencia.motivo && <p style={{ margin: "0", color: "#64748b", fontSize: "0.9rem" }}>Motivo: {ausencia.motivo}</p>}
+                <div className="cc-detail-body">
+                  <p className="cc-detail-label">Ausência: {formatAbsenceTypeLabel(ausencia.tipo)}</p>
+                  {ausencia.motivo && <p className="cc-detail-text">Motivo: {ausencia.motivo}</p>}
                   {ausencia.is_parcial && (
-                    <p style={{ margin: "8px 0 0 0", color: "#64748b", fontSize: "0.9rem" }}>
-                      Horário: {formatarHora(ausencia.hora_inicio)} - {formatarHora(ausencia.hora_fim)}
-                    </p>
+                    <p className="cc-detail-text">Horário: {formatarHora(ausencia.hora_inicio)} - {formatarHora(ausencia.hora_fim)}</p>
                   )}
-
                   {isToleranceType(ausencia.tipo) ? (
-                    <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "12px" }}>
-                      <button
-                        type="button"
-                        onClick={() => handleToggleTolerancia(diaObj)}
-                        disabled={toleranciaLoading}
-                        style={{ background: "white", border: "1px solid #cbd5e1", color: "#334155", padding: "8px 12px", borderRadius: "6px", cursor: "pointer", fontWeight: "600" }}
-                      >
+                    <div className="cc-actions">
+                      <button type="button" className="cc-btn" onClick={() => handleToggleTolerancia(diaObj)} disabled={toleranciaLoading}>
                         {toleranciaLoading ? "A processar..." : "Remover Tolerância"}
                       </button>
                     </div>
@@ -960,74 +894,34 @@ export default function CalendarioColaborador({
 
             if (isEditingDay) {
               return (
-                <div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "12px", marginBottom: "12px" }}>
-                    <div>
-                      <span style={{ fontSize: "0.75rem", fontWeight: "bold", color: "#64748b" }}>Entrada *</span>
-                      <input
-                        type="time"
-                        value={editForm.hora_entrada}
-                        onChange={(e) => setEditForm({ ...editForm, hora_entrada: e.target.value })}
-                        style={{ width: "100%", marginTop: "5px", padding: "8px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <span style={{ fontSize: "0.75rem", fontWeight: "bold", color: "#64748b" }}>Saída *</span>
-                      <input
-                        type="time"
-                        value={editForm.hora_saida}
-                        onChange={(e) => setEditForm({ ...editForm, hora_saida: e.target.value })}
-                        style={{ width: "100%", marginTop: "5px", padding: "8px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
-                        required
-                      />
-                    </div>
+                <div className="cc-detail-body">
+                  <div className="cc-form-grid">
+                    <label className="cc-field">
+                      <span>Entrada *</span>
+                      <input type="time" className="cc-input" value={editForm.hora_entrada} onChange={(e) => setEditForm({ ...editForm, hora_entrada: e.target.value })} required />
+                    </label>
+                    <label className="cc-field">
+                      <span>Saída *</span>
+                      <input type="time" className="cc-input" value={editForm.hora_saida} onChange={(e) => setEditForm({ ...editForm, hora_saida: e.target.value })} required />
+                    </label>
+                    <label className="cc-field">
+                      <span>Pausa (minutos)</span>
+                      <input type="number" min="0" className="cc-input" value={editForm.tempo_pausa} onChange={(e) => setEditForm({ ...editForm, tempo_pausa: e.target.value })} />
+                    </label>
                   </div>
-
-                  <div style={{ marginBottom: "12px" }}>
-                    <span style={{ fontSize: "0.75rem", fontWeight: "bold", color: "#64748b" }}>Pausa (minutos)</span>
-                    <input
-                      type="number"
-                      min="0"
-                      value={editForm.tempo_pausa}
-                      onChange={(e) => setEditForm({ ...editForm, tempo_pausa: e.target.value })}
-                      style={{ width: "100%", marginTop: "5px", padding: "8px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
-                    />
-                  </div>
-
-                  <div style={{ marginBottom: "12px" }}>
-                    <span style={{ fontSize: "0.75rem", fontWeight: "bold", color: "#64748b" }}>Observações</span>
-                    <textarea
-                      rows="4"
-                      value={editForm.observacoes}
-                      onChange={(e) => setEditForm({ ...editForm, observacoes: e.target.value })}
-                      style={{ width: "100%", marginTop: "5px", padding: "8px", borderRadius: "6px", border: "1px solid #cbd5e1", resize: "vertical" }}
-                    />
-                  </div>
-
-                  <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
-                    <button
-                      type="button"
-                      onClick={() => handleToggleTolerancia(diaObj)}
-                      style={{ background: "white", border: "1px solid #cbd5e1", color: "#334155", padding: "8px 12px", borderRadius: "6px", cursor: "pointer", fontWeight: "600" }}
-                      disabled={savingDay || toleranciaLoading}
-                    >
+                  <label className="cc-field">
+                    <span>Observações</span>
+                    <textarea rows="3" className="cc-input is-area" value={editForm.observacoes} onChange={(e) => setEditForm({ ...editForm, observacoes: e.target.value })} />
+                  </label>
+                  <div className="cc-actions">
+                    <button type="button" className="cc-btn" onClick={() => handleToggleTolerancia(diaObj)} disabled={savingDay || toleranciaLoading}>
                       {diaObj.toleranciaDia ? "Remover Tolerância" : "Dar Tolerância"}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setIsEditingDay(false)}
-                      style={{ background: "white", border: "1px solid #cbd5e1", color: "#475569", padding: "8px 12px", borderRadius: "6px", cursor: "pointer", fontWeight: "600" }}
-                      disabled={savingDay}
-                    >
+                    <span className="cc-spacer" />
+                    <button type="button" className="cc-btn" onClick={() => setIsEditingDay(false)} disabled={savingDay}>
                       Cancelar
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => handleSaveDayAssiduidade(diaObj.dataStr)}
-                      style={{ background: "var(--color-btnPrimary)", border: "none", color: "white", padding: "8px 12px", borderRadius: "6px", cursor: "pointer", fontWeight: "700" }}
-                      disabled={savingDay}
-                    >
+                    <button type="button" className="cc-btn is-primary" onClick={() => handleSaveDayAssiduidade(diaObj.dataStr)} disabled={savingDay}>
                       {savingDay ? "A guardar..." : "Guardar"}
                     </button>
                   </div>
@@ -1043,87 +937,52 @@ export default function CalendarioColaborador({
               const totalLiquidoSeg = entradaSeg !== null && saidaSeg !== null ? Math.max(0, saidaSeg - entradaSeg - pausaSeg) : 0;
 
               return (
-                <div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "12px" }}>
-                    <div>
-                      <span style={{ fontSize: "0.75rem", fontWeight: "bold", color: "#64748b" }}>Entrada</span>
-                      <p style={{ margin: "4px 0 0 0", fontSize: "1rem", fontWeight: "bold", color: "var(--color-btnPrimary)" }}>
-                        {formatarHora(ass.hora_entrada)}
-                      </p>
-                    </div>
-                    <div>
-                      <span style={{ fontSize: "0.75rem", fontWeight: "bold", color: "#64748b" }}>Saída</span>
-                      <p style={{ margin: "4px 0 0 0", fontSize: "1rem", fontWeight: "bold", color: "#ef4444" }}>
-                        {formatarHora(ass.hora_saida)}
-                      </p>
-                    </div>
+                <div className="cc-detail-body">
+                  <div className="cc-times">
+                    <div className="is-in"><span>Entrada</span><strong>{formatarHora(ass.hora_entrada)}</strong></div>
+                    <div className="is-out"><span>Saída</span><strong>{formatarHora(ass.hora_saida)}</strong></div>
+                    <div className="is-total"><span>Total de Horas</span><strong>{formatDurationFromSeconds(totalLiquidoSeg)}</strong></div>
+                    {pausaSeg > 0 && (
+                      <div className="is-pause"><span>Tempo de Pausa</span><strong>{formatMinutesFromSeconds(pausaSeg)} minutos</strong></div>
+                    )}
                   </div>
-
-                  <div style={{ background: "white", borderRadius: "6px", padding: "10px", marginBottom: "12px", textAlign: "center" }}>
-                    <span style={{ fontSize: "0.75rem", fontWeight: "bold", color: "#64748b", display: "block" }}>Total de Horas</span>
-                    <span style={{ fontSize: "1.3rem", fontWeight: "bold", color: "var(--color-btnPrimary)" }}>{formatDurationFromSeconds(totalLiquidoSeg)}</span>
-                  </div>
-
-                  {pausaSeg > 0 && (
-                    <div style={{ background: "#fef3c7", borderRadius: "6px", padding: "8px", marginBottom: "12px", textAlign: "center" }}>
-                      <span style={{ fontSize: "0.75rem", fontWeight: "bold", color: "#92400e", display: "block" }}>Tempo de Pausa</span>
-                      <span style={{ fontSize: "1rem", fontWeight: "bold", color: "#92400e" }}>{formatMinutesFromSeconds(pausaSeg)} minutos</span>
-                    </div>
-                  )}
 
                   {ass.motivo_alteracao && (
-                    <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: "6px", padding: "10px", marginBottom: "12px" }}>
-                      <span style={{ fontSize: "0.75rem", fontWeight: "bold", color: "#9a3412", display: "block", marginBottom: "4px" }}>Alteração à Assiduidade</span>
-                      <span style={{ fontSize: "0.9rem", color: "#7c2d12" }}>{ass.motivo_alteracao}</span>
+                    <div className="cc-note is-orange">
+                      <span>Alteração à Assiduidade</span>
+                      <p>{ass.motivo_alteracao}</p>
                     </div>
                   )}
 
                   {ass.observacoes && (
-                    <div>
-                      <span style={{ fontSize: "0.75rem", fontWeight: "bold", color: "#64748b" }}>Observações</span>
-                      <p style={{ margin: "4px 0 0 0", fontSize: "0.85rem", color: "#475569", padding: "8px", background: "white", borderRadius: "4px" }}>
-                        {ass.observacoes}
-                      </p>
+                    <div className="cc-note">
+                      <span>Observações</span>
+                      <p>{ass.observacoes}</p>
                     </div>
                   )}
 
                   {diaObj.ausenciasDiaParciais.length > 0 && (
-                    <div style={{ marginTop: "12px", padding: "10px", borderRadius: "6px", background: "var(--color-bgSecondary)", border: "1px solid var(--color-borderColor)" }}>
-                      <span style={{ fontSize: "0.75rem", fontWeight: "bold", color: "var(--color-btnPrimaryHover)", display: "block", marginBottom: "6px" }}>Ausência Parcial</span>
+                    <div className="cc-note is-brand">
+                      <span>Ausência Parcial</span>
                       {diaObj.ausenciasDiaParciais.map((a) => (
-                        <div key={a.id} style={{ fontSize: "0.9rem", color: "#334155", marginBottom: "8px" }}>
+                        <div key={a.id} className="cc-note-item">
                           <div>{a.tipo} - {formatarHora(a.hora_inicio)} às {formatarHora(a.hora_fim)}</div>
-                          {a.motivo && <div style={{ marginTop: "3px", color: "#64748b", fontSize: "0.85rem" }}>Motivo: {a.motivo}</div>}
+                          {a.motivo && <small>Motivo: {a.motivo}</small>}
                         </div>
                       ))}
                     </div>
                   )}
 
-                  <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "12px", gap: "8px" }}>
-                    <button
-                      type="button"
-                      onClick={() => openEditForDay(diaObj)}
-                      style={{ background: "white", border: "1px solid #cbd5e1", color: "#334155", padding: "8px 12px", borderRadius: "6px", cursor: "pointer", fontWeight: "600" }}
-                    >
+                  <div className="cc-actions">
+                    <button type="button" className="cc-btn" onClick={() => handleToggleTolerancia(diaObj)} disabled={toleranciaLoading}>
+                      {diaObj.toleranciaDia ? "Remover Tolerância" : "Dar Tolerância"}
+                    </button>
+                    <span className="cc-spacer" />
+                    <button type="button" className="cc-btn" onClick={() => openEditForDay(diaObj)}>
                       Editar Assiduidade
                     </button>
-                    <button
-                      type="button"
-                      onClick={e => { e.stopPropagation(); setShowDeleteModal(true); setDeleteTarget(diaObj); setDeleteInput(""); }}
-                      style={{ background: "#ef4444", border: "none", color: "white", padding: "8px 12px", borderRadius: "6px", cursor: "pointer", fontWeight: "600" }}
-                    >
+                    <button type="button" className="cc-btn is-danger" onClick={e => { e.stopPropagation(); setShowDeleteModal(true); setDeleteTarget(diaObj); setDeleteInput(""); }}>
                       Apagar Assiduidade
-                    </button>
-                  </div>
-
-                  <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "8px" }}>
-                    <button
-                      type="button"
-                      onClick={() => handleToggleTolerancia(diaObj)}
-                      style={{ background: "white", border: "1px solid #cbd5e1", color: "#334155", padding: "8px 12px", borderRadius: "6px", cursor: "pointer", fontWeight: "600" }}
-                      disabled={toleranciaLoading}
-                    >
-                      {diaObj.toleranciaDia ? "Remover Tolerância" : "Dar Tolerância"}
                     </button>
                   </div>
                 </div>
@@ -1131,33 +990,20 @@ export default function CalendarioColaborador({
             }
 
             return (
-              <div>
-                <p style={{ color: "#94a3b8", margin: "0 0 10px 0" }}>
+              <div className="cc-detail-body">
+                <p className="cc-detail-text is-muted">
                   {diaObj.isFimSemana ? "Este é um fim de semana sem registos." : "Sem registos para este dia."}
                 </p>
-                <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
-                  <button
-                    type="button"
-                    onClick={() => openEditForDay(diaObj)}
-                    style={{ background: "white", border: "1px solid #cbd5e1", color: "#334155", padding: "8px 12px", borderRadius: "6px", cursor: "pointer", fontWeight: "600" }}
-                  >
-                    Registar Assiduidade
+                <div className="cc-actions">
+                  <button type="button" className="cc-btn" onClick={() => handleToggleTolerancia(diaObj)} disabled={toleranciaLoading}>
+                    {diaObj.toleranciaDia ? "Remover Tolerância" : "Dar Tolerância"}
                   </button>
-                  <button
-                    type="button"
-                    onClick={e => { e.stopPropagation(); setShowDeleteModal(true); setDeleteTarget(diaObj); setDeleteInput(""); }}
-                    style={{ background: "#ef4444", border: "none", color: "white", padding: "8px 12px", borderRadius: "6px", cursor: "pointer", fontWeight: "600" }}
-                    disabled={!diaObj.assidDia}
-                  >
+                  <span className="cc-spacer" />
+                  <button type="button" className="cc-btn is-danger" onClick={e => { e.stopPropagation(); setShowDeleteModal(true); setDeleteTarget(diaObj); setDeleteInput(""); }} disabled={!diaObj.assidDia}>
                     Apagar Assiduidade
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => handleToggleTolerancia(diaObj)}
-                    style={{ background: "white", border: "1px solid #cbd5e1", color: "#334155", padding: "8px 12px", borderRadius: "6px", cursor: "pointer", fontWeight: "600" }}
-                    disabled={toleranciaLoading}
-                  >
-                    {diaObj.toleranciaDia ? "Remover Tolerância" : "Dar Tolerância"}
+                  <button type="button" className="cc-btn is-primary" onClick={() => openEditForDay(diaObj)}>
+                    Registar Assiduidade
                   </button>
                 </div>
               </div>
@@ -1167,172 +1013,94 @@ export default function CalendarioColaborador({
       )}
 
       {/* Resumo do Mês */}
-      <div style={{ background: "#f8fafc", borderRadius: "8px", padding: "15px", border: "1px solid #e2e8f0" }}>
-        <h4 style={{ margin: "0 0 12px 0", color: "#1e293b" }}>Resumo do Mês</h4>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "12px" }}>
-          <div style={{ background: "white", padding: "10px", borderRadius: "6px", textAlign: "center" }}>
-            <span style={{ fontSize: "0.75rem", fontWeight: "bold", color: "#64748b", display: "block" }}>Total de Horas</span>
-            <span style={{ fontSize: "1.3rem", fontWeight: "bold", color: "var(--color-btnPrimary)" }}>{formatDurationFromSeconds(totais.totalHorasSeg)}</span>
-          </div>
-          <div style={{ background: "white", padding: "10px", borderRadius: "6px", textAlign: "center" }}>
-            <span style={{ fontSize: "0.75rem", fontWeight: "bold", color: "#64748b", display: "block" }}>Dias Trabalhados</span>
-            <span style={{ fontSize: "1.3rem", fontWeight: "bold", color: "var(--color-btnPrimary)" }}>{totais.diasTrabalhados}</span>
-          </div>
+      <div className="cc-summary">
+        <h4>Resumo do Mês</h4>
+        <div className="cc-summary-grid">
+          <div className="is-brand"><span>Total de Horas</span><strong>{formatDurationFromSeconds(totais.totalHorasSeg)}</strong></div>
+          <div className="is-brand"><span>Dias Trabalhados</span><strong>{totais.diasTrabalhados}</strong></div>
           {totais.totalPausasSeg > 0 && (
-            <div style={{ background: "white", padding: "10px", borderRadius: "6px", textAlign: "center" }}>
-              <span style={{ fontSize: "0.75rem", fontWeight: "bold", color: "#64748b", display: "block" }}>Total Pausas</span>
-              <span style={{ fontSize: "1.3rem", fontWeight: "bold", color: "#eab308" }}>{formatMinutesFromSeconds(totais.totalPausasSeg)}min</span>
-            </div>
+            <div className="is-amber"><span>Total Pausas</span><strong>{formatMinutesFromSeconds(totais.totalPausasSeg)}min</strong></div>
           )}
           {totalDiasAusencia > 0 && (
-            <div style={{ background: "white", padding: "10px", borderRadius: "6px", textAlign: "center" }}>
-              <span style={{ fontSize: "0.75rem", fontWeight: "bold", color: "#64748b", display: "block" }}>Dias Ausência</span>
-              <span style={{ fontSize: "1.3rem", fontWeight: "bold", color: "#ef4444" }}>
-                {totalDiasAusencia}
-              </span>
-            </div>
+            <div className="is-red"><span>Dias Ausência</span><strong>{totalDiasAusencia}</strong></div>
           )}
           {totais.diasFolga > 0 && (
-            <div style={{ background: "white", padding: "10px", borderRadius: "6px", textAlign: "center" }}>
-              <span style={{ fontSize: "0.75rem", fontWeight: "bold", color: "#64748b", display: "block" }}>Dias Tolerância</span>
-              <span style={{ fontSize: "1.3rem", fontWeight: "bold", color: "#16a34a" }}>{totais.diasFolga}</span>
-            </div>
+            <div className="is-green"><span>Dias Tolerância</span><strong>{totais.diasFolga}</strong></div>
           )}
         </div>
 
         {temResumoAusencias && (
-          <div style={{ marginTop: "12px", display: "flex", gap: "8px", flexWrap: "wrap" }}>
+          <div className="cc-chips">
             {Object.entries(totais.diasAusencia).map(([tipo, dias]) =>
-              dias > 0 ? (
-                <span
-                  key={tipo}
-                  style={{
-                    fontSize: "0.8rem",
-                    background: "#fee2e2",
-                    color: "#991b1b",
-                    padding: "4px 8px",
-                    borderRadius: "4px",
-                    fontWeight: "500",
-                  }}
-                >
-                  {tipo}: {dias}d
-                </span>
-              ) : null
+              dias > 0 ? <span key={tipo} className="cc-chip is-red">{tipo}: {dias}d</span> : null
             )}
-            {totais.diasFolga > 0 ? (
-              <span
-                key="Tolerância"
-                style={{
-                  fontSize: "0.8rem",
-                  background: "#dcfce7",
-                  color: "#166534",
-                  padding: "4px 8px",
-                  borderRadius: "4px",
-                  fontWeight: "500",
-                }}
-              >
-                Tolerância: {totais.diasFolga}d
-              </span>
-            ) : null}
+            {totais.diasFolga > 0 ? <span key="Tolerância" className="cc-chip is-green">Tolerância: {totais.diasFolga}d</span> : null}
           </div>
         )}
       </div>
 
       {/* Modal de confirmação para apagar assiduidade individual */}
-      {showDeleteModal && (
-        <div style={{
-          position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", background: "rgba(0,0,0,0.25)", zIndex: 9999,
-          display: "flex", alignItems: "center", justifyContent: "center"
-        }}>
-          <div style={{ background: "white", borderRadius: "10px", padding: 32, minWidth: 320, boxShadow: "0 2px 16px rgba(0,0,0,0.15)" }}>
-            <h3 style={{ color: "#ef4444", marginTop: 0 }}>Apagar Assiduidade</h3>
+      {showDeleteModal && createPortal(
+        <div className="cc-overlay">
+          <div className="cc-modal">
+            <span className="cc-modal-ico is-danger">!</span>
+            <h3>Apagar Assiduidade</h3>
             <p>Tem a certeza que quer apagar este registo de assiduidade? Esta ação é <b>irreversível</b>.<br/>Para confirmar, escreva <b>APAGAR</b> abaixo:</p>
             <input
               type="text"
+              className="cc-input"
               value={deleteInput}
               onChange={e => setDeleteInput(e.target.value)}
               placeholder="Digite APAGAR para confirmar"
-              style={{ width: "100%", padding: 8, borderRadius: 6, border: "1px solid #cbd5e1", marginBottom: 16 }}
               autoFocus
               disabled={deleteLoading}
             />
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-              <button
-                type="button"
-                onClick={() => { setShowDeleteModal(false); setDeleteInput(""); setDeleteTarget(null); }}
-                style={{ background: "white", border: "1px solid #cbd5e1", color: "#475569", padding: "8px 12px", borderRadius: "6px", cursor: "pointer", fontWeight: "600" }}
-                disabled={deleteLoading}
-              >
+            <div className="cc-modal-actions">
+              <button type="button" className="cc-btn" onClick={() => { setShowDeleteModal(false); setDeleteInput(""); setDeleteTarget(null); }} disabled={deleteLoading}>
                 Cancelar
               </button>
-              <button
-                type="button"
-                onClick={() => handleDeleteAssiduidade(deleteTarget)}
-                style={{ background: "#ef4444", border: "none", color: "white", padding: "8px 12px", borderRadius: "6px", cursor: deleteInput !== "APAGAR" || deleteLoading ? "not-allowed" : "pointer", fontWeight: "700", opacity: deleteInput !== "APAGAR" ? 0.6 : 1 }}
-                disabled={deleteInput !== "APAGAR" || deleteLoading}
-              >
+              <button type="button" className="cc-btn is-danger-solid" onClick={() => handleDeleteAssiduidade(deleteTarget)} disabled={deleteInput !== "APAGAR" || deleteLoading}>
                 {deleteLoading ? "A apagar..." : "Apagar"}
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Modal de confirmação para preenchimento em lote do mês */}
-      {showBulkModal && (
-        <div style={{
-          position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", background: "rgba(0,0,0,0.4)", zIndex: 9999,
-          display: "flex", alignItems: "center", justifyContent: "center"
-        }}>
-          <div style={{ background: "white", borderRadius: "10px", padding: 32, minWidth: 320, maxWidth: 500, boxShadow: "0 2px 16px rgba(0,0,0,0.15)" }}>
-            <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px'}}>
-                <Icons.Calendar color="#10b981" size={24} />
-                <h3 style={{ color: "#065f46", margin: 0 }}>Preencher Mês Completo</h3>
-            </div>
-            <p style={{color: '#475569', lineHeight: 1.5, fontSize: '0.95rem'}}>
-                Confirma que quer marcar assiduidade das <b>09:00 - 18:00</b> com <b>60 minutos</b> de pausa para <b>todos os dias úteis</b> do mês de {nomesMeses[mesAtual]} para o colaborador {userName}?
+      {showBulkModal && createPortal(
+        <div className="cc-overlay">
+          <div className="cc-modal">
+            <span className="cc-modal-ico is-green"><Icons.Calendar size={24} /></span>
+            <h3>Preencher Mês Completo</h3>
+            <p>
+              Confirma que quer marcar assiduidade das <b>09:00 - 18:00</b> com <b>60 minutos</b> de pausa para <b>todos os dias úteis</b> do mês de {nomesMeses[mesAtual]} para o colaborador {userName}?
             </p>
-            <p style={{fontSize: '0.85rem', color: '#64748b'}}>
-                <i>Nota: O sistema ignora fins de semana, feriados, e dias que já tenham ausências ou registos de assiduidade marcados.</i>
+            <p className="cc-modal-note">
+              Nota: O sistema ignora fins de semana, feriados, e dias que já tenham ausências ou registos de assiduidade marcados.
             </p>
-            <p style={{marginTop: '20px', fontWeight: 'bold'}}>Para confirmar, escreva "SIM" ou "CONFIRMO" abaixo:</p>
-            
+            <p className="cc-modal-strong">Para confirmar, escreva "SIM" ou "CONFIRMO" abaixo:</p>
             <input
               type="text"
+              className="cc-input"
               value={bulkInput}
               onChange={e => setBulkInput(e.target.value)}
               placeholder="Digite SIM para confirmar"
-              style={{ width: "100%", padding: '10px 12px', borderRadius: 6, border: "1px solid #cbd5e1", marginBottom: 20, fontSize: '1rem' }}
               autoFocus
               disabled={bulkLoading}
             />
-            
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-              <button
-                type="button"
-                onClick={() => { setShowBulkModal(false); setBulkInput(""); }}
-                style={{ flex: 1, background: "white", border: "1px solid #cbd5e1", color: "#475569", padding: "10px 12px", borderRadius: "6px", cursor: "pointer", fontWeight: "600", transition: "0.2s" }}
-                disabled={bulkLoading}
-              >
+            <div className="cc-modal-actions">
+              <button type="button" className="cc-btn" onClick={() => { setShowBulkModal(false); setBulkInput(""); }} disabled={bulkLoading}>
                 Cancelar
               </button>
-              <button
-                type="button"
-                onClick={handleBulkFillMonth}
-                style={{ 
-                    flex: 1, background: "#10b981", border: "none", color: "white", padding: "10px 12px", borderRadius: "6px", 
-                    cursor: (bulkInput.trim().toUpperCase() !== "SIM" && bulkInput.trim().toUpperCase() !== "CONFIRMO") || bulkLoading ? "not-allowed" : "pointer", 
-                    fontWeight: "700", 
-                    opacity: (bulkInput.trim().toUpperCase() !== "SIM" && bulkInput.trim().toUpperCase() !== "CONFIRMO") ? 0.5 : 1,
-                    transition: "0.2s" 
-                }}
-                disabled={(bulkInput.trim().toUpperCase() !== "SIM" && bulkInput.trim().toUpperCase() !== "CONFIRMO") || bulkLoading}
-              >
+              <button type="button" className="cc-btn is-green-solid" onClick={handleBulkFillMonth} disabled={!isBulkConfirmValid || bulkLoading}>
                 {bulkLoading ? "A preencher..." : "Confirmar"}
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
     </div>
