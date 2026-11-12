@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import "../styles/otp.css";
 
 /**
@@ -7,57 +7,78 @@ import "../styles/otp.css";
  */
 export default function OtpInput({ value, onChange, length = 6, autoFocus = false, disabled = false, invalid = false, onComplete }) {
   const refs = useRef([]);
+  // Valor mais recente (o `value` só atualiza no próximo render; o foco muda antes disso)
+  const valRef = useRef(value);
+  useLayoutEffect(() => { valRef.current = value; }, [value]);
+
   const digits = Array.from({ length }, (_, i) => value[i] || "");
 
-  const setAt = (idx, ch) => {
-    const arr = digits.slice();
-    arr[idx] = ch;
-    const next = arr.join("").slice(0, length);
-    onChange(next);
-    if (next.length === length && onComplete) onComplete(next);
+  const emit = (next) => {
+    const v = next.slice(0, length);
+    valRef.current = v;
+    onChange(v);
+    if (v.length === length && onComplete) onComplete(v);
   };
 
-  const focus = (i) => refs.current[Math.max(0, Math.min(length - 1, i))]?.focus();
+  const focus = (i) => {
+    const el = refs.current[Math.max(0, Math.min(length - 1, i))];
+    if (el) { el.focus(); el.select(); }
+  };
 
   const handleChange = (i, raw) => {
-    const clean = raw.replace(/\D/g, "");
+    let clean = raw.replace(/\D/g, "");
     if (!clean) return;
+
+    // Escreveu numa caixa que já tinha dígito: fica só o novo
+    if (digits[i] && clean.length === 2) clean = clean.replace(digits[i], "") || clean[1];
+
     if (clean.length > 1) {
-      // colou/autopreencheu vários dígitos
+      // Colou / preenchimento automático de vários dígitos
       const merged = (digits.slice(0, i).join("") + clean).slice(0, length);
-      onChange(merged);
+      emit(merged);
       focus(merged.length);
-      if (merged.length === length && onComplete) onComplete(merged);
       return;
     }
-    setAt(i, clean);
-    focus(i + 1);
+
+    const arr = digits.slice();
+    arr[i] = clean;
+    // Garante que não ficam buracos: o código é sempre contínuo da esquerda para a direita
+    const next = arr.join("");
+    emit(next);
+    focus(Math.min(next.length, length - 1));
   };
 
   const handleKeyDown = (i, e) => {
     if (e.key === "Enter") {
       // Não submeter formulários à volta (ex.: Perfil); confirma se o código estiver completo
       e.preventDefault();
-      if (value.length === length && onComplete) onComplete(value);
+      if (valRef.current.length === length && onComplete) onComplete(valRef.current);
     } else if (e.key === "Backspace") {
       e.preventDefault();
       if (digits[i]) {
-        onChange(digits.slice(0, i).join(""));
+        emit(digits.slice(0, i).join(""));
+        focus(i);
       } else if (i > 0) {
-        onChange(digits.slice(0, i - 1).join(""));
+        emit(digits.slice(0, i - 1).join(""));
         focus(i - 1);
       }
     } else if (e.key === "ArrowLeft") { e.preventDefault(); focus(i - 1); }
-    else if (e.key === "ArrowRight") { e.preventDefault(); focus(i + 1); }
+    else if (e.key === "ArrowRight") { e.preventDefault(); focus(Math.min(i + 1, valRef.current.length)); }
+  };
+
+  const handleFocus = (i, e) => {
+    // Não deixa saltar para uma caixa depois da primeira vazia
+    const primeiraVazia = Math.min(valRef.current.length, length - 1);
+    if (i > primeiraVazia) { focus(primeiraVazia); return; }
+    e.target.select();
   };
 
   const handlePaste = (e) => {
     const txt = (e.clipboardData.getData("text") || "").replace(/\D/g, "").slice(0, length);
     if (!txt) return;
     e.preventDefault();
-    onChange(txt);
+    emit(txt);
     focus(txt.length);
-    if (txt.length === length && onComplete) onComplete(txt);
   };
 
   return (
@@ -71,12 +92,13 @@ export default function OtpInput({ value, onChange, length = 6, autoFocus = fals
           inputMode="numeric"
           autoComplete={i === 0 ? "one-time-code" : "off"}
           pattern="[0-9]*"
-          maxLength={i === 0 ? length : 1}
+          maxLength={i === 0 ? length : 2}
           value={d}
           autoFocus={autoFocus && i === 0}
           disabled={disabled}
           aria-label={`Dígito ${i + 1}`}
-          onFocus={(e) => { if (i > value.length) { focus(value.length); return; } e.target.select(); }}
+          onFocus={(e) => handleFocus(i, e)}
+          onMouseUp={(e) => e.preventDefault()}
           onChange={(e) => handleChange(i, e.target.value)}
           onKeyDown={(e) => handleKeyDown(i, e)}
         />
