@@ -1,49 +1,60 @@
 import { useState } from "react"
 import { supabase } from "../services/supabase"
-import logo from "/logo2.png" // caminho para o teu logotipo
+import AuthLayout, { AuthField, AuthAlert, AuthSubmit, AuthDone } from "../components/AuthLayout"
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("")
-  const [message, setMessage] = useState("")
+  const [enviado, setEnviado] = useState(false)
   const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
 
   async function handleReset(e) {
-    e.preventDefault()
+    e?.preventDefault()
     setError("")
-    setMessage("")
+    setLoading(true)
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: "http://localhost:5173/reset-password",
+      redirectTo: `${window.location.origin}/reset-password`,
     })
 
+    setLoading(false)
     if (error) {
       setError("Erro ao enviar email")
     } else {
-      setMessage("Email enviado! Verifique a sua caixa de entrada.")
+      setEnviado(true)
     }
   }
 
+  if (enviado) {
+    return (
+      <AuthLayout hello="Feito." tagline="O link já vai a caminho." eyebrow="Verifique o email" title="Email enviado!" back={{ to: "/", label: "Voltar ao login" }}>
+        <AuthDone
+          icon="Send"
+          text={<>Se existir uma conta com <b>{email}</b>, vai receber um link para definir uma nova password. Veja também a pasta de spam.</>}
+          action={{ to: "/", label: "Voltar ao login" }}
+          secondary={{ label: loading ? "A reenviar…" : "Reenviar email", onClick: () => handleReset() }}
+        />
+        <AuthAlert>{error}</AuthAlert>
+      </AuthLayout>
+    )
+  }
+
   return (
-    <div className="login-page">
-      <div className="login-box">
-        {logo && <img src={logo} alt="Logo" className="login-logo" />}
-        <h2>Recuperar palavra-passe</h2>
+    <AuthLayout
+      hello="Acontece."
+      tagline="Num minuto volta a ter acesso à sua conta."
+      eyebrow="Recuperar acesso"
+      title="Esqueceu a password?"
+      subtitle="Indique o seu email e enviamos-lhe um link para definir uma nova."
+      back={{ to: "/", label: "Voltar ao login" }}
+    >
+      <form className="au-form" onSubmit={handleReset}>
+        <AuthField icon="Mail" label="Email" type="email" value={email} onChange={setEmail} autoComplete="email" autoFocus placeholder="nome@empresa.pt" invalid={!!error} />
 
-        <form onSubmit={handleReset}>
-          <input
-            type="email"
-            placeholder="O seu email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            required
-          />
-          <button type="submit">Enviar email</button>
-        </form>
+        <AuthAlert>{error}</AuthAlert>
 
-        {message && <p style={{ color: "green" }}>{message}</p>}
-        {error && <p style={{ color: "red" }}>{error}</p>}
-      </div>
-    </div>
+        <AuthSubmit loading={loading} icon="Send">{loading ? "A enviar…" : "Enviar link de recuperação"}</AuthSubmit>
+      </form>
+    </AuthLayout>
   )
 }
-
