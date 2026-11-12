@@ -146,6 +146,8 @@ const FESTIVE_CATALOG = [
   ["festa_primavera", "Primavera em Flor", "Pétalas e flores", "#f5fbf2", "#2e7a3d", "primavera", ["03-20", "05-31"]],
   ["festa_santos", "Santos Populares", "Bandeirinhas, manjericos e sardinhas", "#f2faf5", "#0d6a49", "santos", ["06-01", "06-30"]],
   ["festa_verao", "Verão na Praia", "Sol, ondas e gaivotas", "#eff8fc", "#0b6a96", "verao", ["06-21", "09-15"]],
+  ["festa_chuva", "Dia de Chuva", "Chuva miudinha, nuvens e um guarda-chuva amarelo", "#eef2f6", "#334e68", "chuva", ["10-01", "04-30"]],
+  ["festa_mulher", "Dia da Mulher", "8 de março: mimosas, túlipas e pétalas a cair", "#faf5ff", "#6b21a8", "mulher", ["03-01", "03-10"]],
 ];
 
 export const THEMES = Object.fromEntries([

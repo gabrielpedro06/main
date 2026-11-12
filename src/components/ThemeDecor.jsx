@@ -506,8 +506,97 @@ function Dragon() {
   );
 }
 
+// ---------- CHUVA ----------
+function RainDrop() {
+  return <i className="bz-drop" />;
+}
+export function Cloud({ tone = "#cbd5e1", shade = "#94a3b8" }) {
+  return (
+    <svg viewBox="0 0 120 64">
+      <path d="M26 56h70a20 20 0 0 0 2-40 28 28 0 0 0-52-4A22 22 0 0 0 26 56z" fill={tone} />
+      <path d="M26 56h70a20 20 0 0 0 16-8H14a22 22 0 0 0 12 8z" fill={shade} opacity="0.55" />
+    </svg>
+  );
+}
+export function Umbrella({ color = "#facc15", dark = "#ca8a04" }) {
+  return (
+    <svg viewBox="0 0 80 96">
+      <path d="M40 4v6" stroke="#57534e" strokeWidth="2.4" strokeLinecap="round" />
+      <path d="M4 42C4 22 20 9 40 9s36 13 36 33q-9-7-18 0-9-7-18 0-9-7-18 0-9-7-18 0z" fill={color} />
+      <path d="M40 9C30 16 24 28 22 42M40 9c10 7 16 19 18 33" stroke={dark} strokeWidth="1.6" fill="none" opacity="0.7" />
+      <path d="M40 40v40q0 9-8 9t-7-7" stroke="#57534e" strokeWidth="3" fill="none" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+// ---------- DIA DA MULHER ----------
+const WOMEN_PETALS = ["#c084fc", "#a855f7", "#f0abfc", "#e9d5ff", "#f472b6"];
+export function MimosaPuff({ i = 0 }) {
+  return (
+    <svg viewBox="0 0 20 20">
+      {Array.from({ length: 10 }).map((_, k) => (
+        <circle key={k} cx={10 + Math.cos((k / 10) * Math.PI * 2) * 6} cy={10 + Math.sin((k / 10) * Math.PI * 2) * 6} r={2.4 + rnd(i + k, 4) * 0.8} fill="#fde047" />
+      ))}
+      <circle cx="10" cy="10" r="6.4" fill="#facc15" />
+      <circle cx="8" cy="8" r="2" fill="#fef08a" opacity="0.8" />
+    </svg>
+  );
+}
+function WomenPetal({ i = 0 }) {
+  return <svg viewBox="0 0 20 20"><path d="M10 1c5 4 6 12 0 18C4 13 5 5 10 1z" fill={pick(WOMEN_PETALS, i)} /></svg>;
+}
+export function MiniFlower({ color = "#c084fc", center = "#facc15" }) {
+  return (
+    <svg viewBox="0 0 20 20">
+      {[0, 1, 2, 3, 4].map((k) => <ellipse key={k} cx="10" cy="5" rx="3.6" ry="4.8" fill={color} transform={`rotate(${k * 72} 10 10)`} />)}
+      <circle cx="10" cy="10" r="3" fill={center} />
+    </svg>
+  );
+}
+export function Tulip({ color = "#a855f7", shade = "#7e22ce" }) {
+  return (
+    <svg viewBox="0 0 30 90">
+      <path d="M15 30v58" stroke="#16a34a" strokeWidth="2.6" strokeLinecap="round" />
+      <path d="M15 66q-13-3-13-20 11 5 13 16" fill="#22c55e" />
+      <path d="M15 60q13-6 12-22-10 6-12 17" fill="#15803d" />
+      <path d="M4 8l5.5 7L15 5l5.5 10L26 8v13a11 11 0 0 1-22 0z" fill={color} />
+      <path d="M15 5l5.5 10L26 8v13a11 11 0 0 1-11 11z" fill={shade} opacity="0.35" />
+    </svg>
+  );
+}
+export function MimosaBranch() {
+  const puffs = [[44, 10], [36, 18], [50, 22], [31, 28], [44, 31], [27, 40], [38, 44], [23, 52]];
+  const leaves = [[38, 26, -30], [30, 36, 30], [34, 50, -25], [26, 60, 25], [42, 16, 35]];
+  return (
+    <svg viewBox="0 0 60 96">
+      <path d="M28 94C27 66 33 40 46 10" stroke="#4d7c0f" strokeWidth="2.2" fill="none" strokeLinecap="round" />
+      {leaves.map(([x, y, r], k) => <ellipse key={k} cx={x} cy={y} rx="2.4" ry="9" fill="#65a30d" transform={`rotate(${r} ${x} ${y})`} opacity="0.9" />)}
+      {puffs.map(([x, y], k) => (
+        <g key={k}>
+          <circle cx={x} cy={y} r="5" fill="#fde047" />
+          <circle cx={x} cy={y} r="3.6" fill="#facc15" />
+        </g>
+      ))}
+    </svg>
+  );
+}
+function BouquetWrap() {
+  return (
+    <svg viewBox="0 0 120 80">
+      <path d="M8 4h104L72 76H48z" fill="#ede9fe" />
+      <path d="M8 4h104L92 22H28z" fill="#ddd6fe" />
+      <path d="M60 4L48 76h24z" fill="#c4b5fd" opacity="0.45" />
+      <path d="M40 40q20 8 40 0v10q-20 8-40 0z" fill="#7e22ce" />
+      <path d="M60 45q-16-14-22-4 4 9 22 4zM60 45q16-14 22-4-4 9-22 4z" fill="#9333ea" />
+      <circle cx="60" cy="45" r="3.5" fill="#6b21a8" />
+    </svg>
+  );
+}
+
 // ---------- CONFIGURAÇÃO POR DECORAÇÃO ----------
 const SHAPES = {
+  drop: RainDrop, mimosa: MimosaPuff, wpetal: WomenPetal,
+  wflower: ({ i = 0 }) => <MiniFlower color={pick(["#c084fc", "#f472b6", "#a855f7", "#e879f9"], i)} />,
   snow: Snow, flake: Flake, confetti: Confetti, gold: (p) => <Confetti {...p} palette={GOLD} />,
   leaf: Leaf, chestnut: Chestnut, bat: Bat, heart: Heart, petal: Petal,
   blossom: Blossom, gull: Gull,
@@ -534,7 +623,32 @@ const DECOR = {
   conceicao: { particles: { shapes: ["rpetal", "star"], count: 14, motion: "fall", size: [8, 14] }, glow: true, top: "stars12", corner: "lirios" },
   reis: { particles: { shapes: ["sparkle", "gold"], count: 22, motion: "spin", size: [7, 13] }, topRight: "estrela", corner: "reis" },
   lunar: { particles: { shapes: ["coin", "redconfetti"], count: 18, motion: "spin", size: [9, 15] }, top: "lanterns", bottomLeft: "dragon" },
+  chuva: { particles: { shapes: ["drop"], count: 80, motion: "rain", size: [16, 30] }, top: "clouds", bottom: "splash", corner: "chuva" },
+  mulher: { particles: { shapes: ["mimosa", "wpetal", "wflower", "wpetal"], count: 20, motion: "spin", size: [9, 17] }, top: "flores", corner: "mulher" },
 };
+
+function Clouds() {
+  const list = [[-4, -18, 210, 0], [22, -26, 170, 1], [46, -14, 230, 2], [70, -24, 190, 3], [88, -12, 200, 4]];
+  return (
+    <div className="bz-decor-clouds">
+      {list.map(([x, y, w, k]) => (
+        <span key={k} style={{ left: `${x}%`, top: `${y}px`, width: `${w}px`, "--d": `${38 + k * 7}s`, "--k": k }}>
+          <Cloud tone={k % 2 ? "#cbd5e1" : "#d8dee8"} shade={k % 2 ? "#94a3b8" : "#a3b1c4"} />
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function Splashes() {
+  return (
+    <div className="bz-decor-splash">
+      {Array.from({ length: 16 }).map((_, i) => (
+        <i key={i} style={{ left: `${rnd(i, 11) * 96}%`, bottom: `${6 + rnd(i, 12) * 34}px`, "--d": `${1.1 + rnd(i, 13) * 0.9}s`, "--delay": `${-rnd(i, 14) * 2}s` }} />
+      ))}
+    </div>
+  );
+}
 
 // Grinalda / bandeirinhas: arcos ao longo do topo
 const ARCS = 7;
@@ -593,7 +707,21 @@ function TopString({ kind }) {
       });
     }
   }
-  const stringColor = kind === "baubles" ? "#2f6b3a" : kind === "lanterns" ? "#b45309" : "#7c5c3b";
+  if (kind === "flores") {
+    const cores = ["#c084fc", "#f472b6", "#a855f7", "#e879f9"];
+    for (let i = 0; i < ARCS; i += 1) {
+      for (let k = 1; k < 7; k += 1) {
+        const t = k / 7; const idx = i * 7 + k;
+        const mimosa = idx % 3 === 0;
+        items.push(
+          <span key={idx} className={`bz-flor ${mimosa ? "is-mimosa" : ""}`} style={{ left: `${((i + t) / ARCS) * 100}%`, top: `${arcY(t) - 2}px`, "--sw": `${2.4 + rnd(idx) * 2}s`, "--w": `${mimosa ? 13 : 15 + rnd(idx, 2) * 6}px` }}>
+            {mimosa ? <MimosaPuff i={idx} /> : <MiniFlower color={pick(cores, idx)} />}
+          </span>
+        );
+      }
+    }
+  }
+  const stringColor = kind === "baubles" ? "#2f6b3a" : kind === "lanterns" ? "#b45309" : kind === "flores" ? "#4d7c0f" : "#7c5c3b";
   return (
     <div className={`bz-decor-top is-${kind}`}>
       <svg className="bz-decor-string" viewBox="0 0 1000 44" preserveAspectRatio="none" aria-hidden="true">
@@ -695,6 +823,24 @@ function Corner({ kind }) {
       {[0, 1, 2, 3].map((k) => <span key={k} style={{ "--k": k }}><Lily /></span>)}
     </div>
   );
+  if (kind === "chuva") return (
+    <div className="bz-decor-corner is-chuva">
+      <span className="bz-c-puddle" />
+      <span className="bz-c-ripple" /><span className="bz-c-ripple b" />
+      <span className="bz-c-umbrella"><Umbrella /></span>
+    </div>
+  );
+  if (kind === "mulher") return (
+    <div className="bz-decor-corner is-mulher">
+      <span className="bz-c-mim a"><MimosaBranch /></span>
+      <span className="bz-c-tulip a"><Tulip color="#f472b6" shade="#be185d" /></span>
+      <span className="bz-c-tulip b"><Tulip /></span>
+      <span className="bz-c-tulip c"><Tulip color="#e879f9" shade="#a21caf" /></span>
+      <span className="bz-c-mim b"><MimosaBranch /></span>
+      <span className="bz-c-wrap"><BouquetWrap /></span>
+      <span className="bz-c-tag">8 de março</span>
+    </div>
+  );
   if (kind === "reis") return (
     <div className="bz-decor-corner is-reis">
       <span className="bz-c-bolo"><BoloRei /></span>
@@ -715,8 +861,8 @@ function Particles({ cfg }) {
       left: rnd(i, 1) * 100,
       top: rnd(i, 9) * 70,
       size: min + rnd(i, 2) * (max - min),
-      dur: (cfg.motion === "fly" ? 16 : 9) + rnd(i, 4) * (cfg.motion === "fly" ? 14 : 10),
-      delay: -rnd(i, 5) * 20,
+      dur: cfg.motion === "rain" ? 0.55 + rnd(i, 4) * 0.45 : (cfg.motion === "fly" ? 16 : 9) + rnd(i, 4) * (cfg.motion === "fly" ? 14 : 10),
+      delay: cfg.motion === "rain" ? -rnd(i, 5) * 3 : -rnd(i, 5) * 20,
       drift: (rnd(i, 6) - 0.5) * 120,
       rot: rnd(i, 8) * 360,
     };
@@ -749,7 +895,7 @@ export default function ThemeDecor() {
     <div className={`bz-decor bz-decor-${decor}`} aria-hidden="true">
       {cfg.particles && <Particles cfg={cfg.particles} />}
       {cfg.glow && <div className="bz-decor-glow" />}
-      {["baubles", "bunting", "papel", "lanterns"].includes(cfg.top) && <TopString kind={cfg.top} />}
+      {["baubles", "bunting", "papel", "lanterns", "flores"].includes(cfg.top) && <TopString kind={cfg.top} />}
       {cfg.top === "stars12" && <Stars12 />}
       {cfg.topRight === "terco" && <div className="bz-decor-terco"><Terco /></div>}
       {cfg.topRight === "estrela" && <div className="bz-decor-estrela"><ShootingStar /></div>}
@@ -764,6 +910,8 @@ export default function ThemeDecor() {
         </div>
       )}
       {cfg.bottom === "drift" && <div className="bz-decor-drift" />}
+      {cfg.top === "clouds" && <Clouds />}
+      {cfg.bottom === "splash" && <Splashes />}
       {cfg.corner && <Corner kind={cfg.corner} />}
       {cfg.bottomLeft === "dragon" && <Dragon />}
     </div>
@@ -791,6 +939,14 @@ export function DecorEmblem({ decor }) {
     case "conceicao": return <div className="bz-emb is-conceicao"><Stars12 /><span className="bz-emb-lily"><Lily /></span></div>;
     case "reis": return <div className="bz-emb is-row is-reis"><span className="bz-emb-crown"><Crown /></span><span className="bz-emb-bolo"><BoloRei /></span></div>;
     case "lunar": return <div className="bz-emb is-row is-tall is-lunar"><Lantern /><span className="bz-emb-lantern"><Lantern /></span><Lantern /></div>;
+    case "chuva": return (
+      <div className="bz-emb is-chuva">
+        <span className="cl"><Cloud /></span>
+        {Array.from({ length: 7 }).map((_, i) => <i key={i} className="dr" style={{ left: `${18 + i * 10}%`, "--delay": `${-rnd(i, 3)}s` }} />)}
+        <span className="um"><Umbrella /></span>
+      </div>
+    );
+    case "mulher": return <div className="bz-emb is-row is-tall is-mulher"><Tulip color="#f472b6" shade="#be185d" /><span className="bz-emb-mim"><MimosaBranch /></span><Tulip /></div>;
     default: return null;
   }
 }
