@@ -302,3 +302,16 @@
   .au-page *, .au-page *::before, .au-page *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
 }
 .au-wave .w3 { transform-origin: 30% 50%; animation: auWave 20s ease-in-out infinite alternate-reverse; }
+
+/* 2FA obrigatório — configuração no login */
+.au-why { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.au-why li { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; background: #f6f8fb; border: 1px solid #edf1f6; font-size: 0.9rem; font-weight: 600; color: var(--au-text); }
+.au-why li b { width: 26px; height: 26px; flex-shrink: 0; display: grid; place-items: center; border-radius: 50%; background: var(--au-navy); color: #fff; font-size: 0.78rem; font-weight: 900; }
+.au-enroll .tf-setup { margin: 0; padding: 0; border: none; grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 16px; }
+.au-enroll .tf-qr { width: 168px; height: 168px; }
+.au-enroll .tf-steps { width: 100%; }
+.au-enroll .tf-step .otp { justify-content: flex-start; }
+.au-enroll .otp-box { width: 44px; height: 54px; font-size: 1.4rem; }
+.au-enroll .tf-secret .au-btn-link { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.au-enroll form .au-submit { width: 100%; }
+.au-submit { width: 100%; }

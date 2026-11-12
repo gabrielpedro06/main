@@ -8,13 +8,34 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [userProfile, setUserProfile] = useState(null) // AQUI GUARDAMOS O PERFIL/ROLE
   const [loading, setLoading] = useState(true)
+  // 2FA (obrigatório):
+  //  mfaPending → falta algo antes de entrar (código ou configuração)
+  //  mfaSetup   → a conta ainda não tem app autenticadora configurada
+  const [mfaPending, setMfaPending] = useState(false)
+  const [mfaSetup, setMfaSetup] = useState(false)
+
+  async function checkMfa() {
+    try {
+      const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+      if (error || !data) throw error
+      const precisaCodigo = data.nextLevel === "aal2" && data.currentLevel !== "aal2"
+      const precisaConfigurar = data.nextLevel !== "aal2"
+      setMfaSetup(precisaConfigurar)
+      setMfaPending(precisaCodigo || precisaConfigurar)
+      return { pending: precisaCodigo || precisaConfigurar, setup: precisaConfigurar }
+    } catch {
+      setMfaSetup(false)
+      setMfaPending(false)
+      return { pending: false, setup: false }
+    }
+  }
 
   useEffect(() => {
     // 1. Vai buscar o utilizador atual (Sessão)
     supabase.auth.getUser().then(({ data }) => {
       setUser(data?.user ?? null)
       if (data?.user) {
-        fetchProfile(data.user.id) // Se houver user, vai buscar o Role dele
+        checkMfa().finally(() => fetchProfile(data.user.id)) // Se houver user, vai buscar o Role dele
       } else {
         setLoading(false)
       }
@@ -25,8 +46,11 @@ export function AuthProvider({ children }) {
       (_event, session) => {
         setUser(session?.user ?? null)
         if (session?.user) {
-          fetchProfile(session.user.id)
+          // Fora do callback para não bloquear o cliente do Supabase
+          setTimeout(() => { checkMfa().finally(() => fetchProfile(session.user.id)) }, 0)
         } else {
+          setMfaPending(false)
+          setMfaSetup(false)
           setUserProfile(null) // Limpa o perfil ao fazer logout
           setLoading(false)
         }
@@ -82,7 +106,10 @@ export function AuthProvider({ children }) {
         userProfile, 
         setUserProfile, // <--- ADICIONADO AQUI! (Isto resolve o erro vermelho)
         signOut, 
-        loading 
+        loading,
+        mfaPending,
+        mfaSetup,
+        checkMfa
     }}>
       {children}
     </AuthContext.Provider>

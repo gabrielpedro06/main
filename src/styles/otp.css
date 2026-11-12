@@ -1,0 +1,62 @@
+/* Código de 6 dígitos */
+.otp { display: flex; gap: 8px; justify-content: center; }
+.otp-box {
+  width: 50px; height: 60px;
+  padding: 0;
+  border-radius: 14px;
+  border: 1.5px solid #e2e8f0;
+  background: #fff;
+  text-align: center;
+  font: inherit; font-size: 1.6rem; font-weight: 900; color: #0f172a;
+  font-variant-numeric: tabular-nums;
+  caret-color: #3f9a5a;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s ease;
+}
+.otp-box.is-gap { margin-left: 10px; }
+.otp-box:focus { outline: none; border-color: #3f9a5a; box-shadow: 0 0 0 4px rgba(63, 154, 90, 0.15); transform: translateY(-2px); }
+.otp-box.is-filled { border-color: #b7dcc2; background: #f6fbf7; }
+.otp.is-invalid .otp-box { border-color: #ef4444; background: #fff5f5; animation: otpShake 0.42s ease both; }
+.otp-box:disabled { opacity: 0.6; }
+@keyframes otpShake { 0%, 100% { transform: none; } 25% { transform: translateX(-5px); } 50% { transform: translateX(4px); } 75% { transform: translateX(-2px); } }
+@media (max-width: 420px) {
+  .otp { gap: 6px; }
+  .otp-box { width: 42px; height: 52px; font-size: 1.35rem; border-radius: 12px; }
+  .otp-box.is-gap { margin-left: 6px; }
+}
+
+/* =========================================================================
+   Configuração do 2FA (Perfil → Segurança)
+   ========================================================================= */
+.tf { margin-top: 18px; padding: 18px; border-radius: 18px; border: 1px solid #e8edf3; background: linear-gradient(180deg, #fbfcfd, #fff); }
+.tf-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.tf-ico { width: 46px; height: 46px; flex-shrink: 0; display: grid; place-items: center; border-radius: 14px; background: #eef2f6; color: #64748b; transition: background 0.3s ease, color 0.3s ease; }
+.tf.is-on .tf-ico { background: linear-gradient(135deg, #dcfce7, #bbf7d0); color: #15803d; }
+.tf-title { flex: 1; min-width: 200px; }
+.tf-title h4 { margin: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 0.98rem; font-weight: 900; color: #0f172a; }
+.tf-title p { margin: 3px 0 0; font-size: 0.84rem; line-height: 1.45; color: #64748b; }
+.tf-badge { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 9px; border-radius: 99px; font-size: 0.7rem; font-weight: 900; letter-spacing: 0.02em; }
+.tf-badge.is-on { background: #dcfce7; color: #15803d; }
+.tf-badge.is-off { background: #f1f5f9; color: #64748b; }
+.tf-badge.is-on i { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2); }
+
+.tf-setup { margin-top: 16px; padding-top: 16px; border-top: 1px dashed #e2e8f0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 20px; align-items: start; animation: tfIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes tfIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.tf-qr { width: 184px; height: 184px; padding: 10px; border-radius: 18px; background: #fff; border: 1px solid #e2e8f0; box-shadow: 0 16px 30px -22px rgba(15, 23, 42, 0.5); display: grid; place-items: center; }
+.tf-qr img { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+.tf-steps { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.tf-step { display: flex; gap: 10px; }
+.tf-step > b { width: 24px; height: 24px; flex-shrink: 0; display: grid; place-items: center; border-radius: 50%; background: #1b2442; color: #fff; font-size: 0.74rem; font-weight: 900; }
+.tf-step > div { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; font-size: 0.86rem; color: #334155; line-height: 1.45; }
+.tf-step strong { color: #0f172a; }
+.tf-secret { display: flex; align-items: center; gap: 6px; padding: 6px 6px 6px 12px; border-radius: 11px; background: #f1f5f9; }
+.tf-secret code { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: ui-monospace, Consolas, monospace; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.06em; color: #0f172a; }
+.tf-step .otp { justify-content: flex-start; }
+.tf-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.tf-msg { font-size: 0.82rem; font-weight: 700; }
+.tf-msg.is-error { color: #dc2626; }
+.tf-msg.is-ok { color: #15803d; }
+@media (max-width: 640px) {
+  .tf-setup { grid-template-columns: minmax(0, 1fr); justify-items: center; }
+  .tf-steps { width: 100%; }
+}

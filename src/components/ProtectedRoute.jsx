@@ -6,7 +6,7 @@ function normalizeRole(value) {
 }
 
 export default function ProtectedRoute({ children, allowedRoles = null }) {
-  const { user, userProfile, loading } = useAuth()
+  const { user, userProfile, loading, mfaPending } = useAuth()
 
   if (loading) {
     return (
@@ -18,6 +18,11 @@ export default function ProtectedRoute({ children, allowedRoles = null }) {
 
   if (!user) {
     return <Navigate to="/" />
+  }
+
+  // 2FA ativo mas código ainda não introduzido: volta ao login para o pedir
+  if (mfaPending) {
+    return <Navigate to="/" replace />
   }
 
   if (Array.isArray(allowedRoles) && allowedRoles.length > 0) {

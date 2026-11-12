@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
+import TwoFactorSetup from "../components/TwoFactorSetup";
 import { useAuth } from "../context/AuthContext";
 import "./../styles/dashboard.css";
 import "../styles/profile.css";
@@ -645,6 +646,7 @@ async function handleSave(e) {
                               <span>{newPassword.length < 6 ? 'Demasiado curta' : pwdLabels[pwdScore]}</span>
                           </div>
                       )}
+                      <TwoFactorSetup />
                   </section>
               </div>
           </div>

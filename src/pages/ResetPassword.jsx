@@ -1,7 +1,8 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { supabase } from "../services/supabase"
 import { useNavigate } from "react-router-dom"
 import AuthLayout, { AuthField, AuthAlert, AuthSubmit } from "../components/AuthLayout"
+import OtpInput from "../components/OtpInput"
 
 export default function ResetPassword() {
   const [password, setPassword] = useState("")
@@ -11,6 +12,15 @@ export default function ResetPassword() {
   const [loading, setLoading] = useState(false)
 
   const navigate = useNavigate()
+
+  // Contas com 2FA: o Supabase só deixa mudar a password depois do código da app
+  const [precisa2fa, setPrecisa2fa] = useState(false)
+  const [code, setCode] = useState("")
+  useEffect(() => {
+    supabase.auth.mfa.getAuthenticatorAssuranceLevel().then(({ data }) => {
+      setPrecisa2fa(data?.nextLevel === "aal2" && data?.currentLevel !== "aal2")
+    }).catch(() => {})
+  }, [])
 
   const reqs = [
     { ok: password.length >= 8, label: "8+ caracteres" },
@@ -43,7 +53,27 @@ export default function ResetPassword() {
       return
     }
 
+    if (precisa2fa && code.length !== 6) {
+      setError("Introduza o código de 6 dígitos da app autenticadora.")
+      return
+    }
+
     setLoading(true)
+    if (precisa2fa) {
+      const { data: factors } = await supabase.auth.mfa.listFactors()
+      const totp = (factors?.totp || []).find((f) => f.status === "verified")
+      const { error: mfaError } = totp
+        ? await supabase.auth.mfa.challengeAndVerify({ factorId: totp.id, code })
+        : { error: new Error("sem fator") }
+      if (mfaError) {
+        setError("Código de segurança inválido. Use o código atual da app.")
+        setCode("")
+        setLoading(false)
+        return
+      }
+      setPrecisa2fa(false)
+    }
+
     const { error } = await supabase.auth.updateUser({
       password: password,
     })
@@ -95,6 +125,13 @@ export default function ResetPassword() {
           invalid={naoCoincide}
           hint={naoCoincide ? <small className="au-caps" style={{ color: "#dc2626" }}>As passwords ainda não coincidem</small> : null}
         />
+
+        {precisa2fa && (
+          <div className="au-field">
+            <span className="au-field-label">Código da app autenticadora</span>
+            <OtpInput value={code} onChange={setCode} disabled={loading} />
+          </div>
+        )}
 
         <AuthAlert>{error}</AuthAlert>
         <AuthAlert tone="success">{message}</AuthAlert>
