@@ -7,8 +7,19 @@ const I = {
   CheckAll: () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 7 17l-5-5" /><path d="m22 10-7.5 7.5L13 16" /></svg>,
   Arrow: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg>,
   Close: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>,
+  Stamp: () => <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>,
+  Undo: () => <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 14 4 9l5-5" /><path d="M4 9h11a5 5 0 0 1 0 10h-3" /></svg>,
   BellCheck: () => <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /><path d="m9.5 9.5 1.8 1.8 3.2-3.3" /></svg>,
 };
+
+/** Aspeto de cada tipo de notificação */
+const TIPO = {
+  project_created: { Icon: I.Rocket, acao: "Abrir projeto" },
+  mk_aprovacao: { Icon: I.Stamp, acao: "Rever e aprovar", tom: "is-approval" },
+  mk_aprovado: { Icon: I.Check, acao: "Abrir no Marketing", tom: "is-ok" },
+  mk_alteracoes: { Icon: I.Undo, acao: "Ver alterações", tom: "is-warn" },
+};
+const tipoDe = (n) => TIPO[n.tipo] || TIPO.project_created;
 
 const MOBILE_QUERY = "(max-width: 640px)";
 const PANEL_WIDTH = 410;
@@ -137,19 +148,19 @@ export default function NotificationsPanel({ open, onClose, anchorRef, items = [
             <div className="np-empty">
               <span className="np-empty-icon"><I.BellCheck /></span>
               <strong>Estás em dia</strong>
-              <span>Não há projetos novos por ver. Avisamos-te quando houver novidades.</span>
+              <span>Não há novidades por ver. Avisamos-te quando houver projetos novos ou conteúdos para aprovar.</span>
             </div>
           ) : (
             groups.map((g) => (
               <section key={g.label} className="np-group">
                 <h4 className="np-group-label">{g.label}</h4>
-                {g.items.map((n, idx) => (
+                {g.items.map((n, idx) => { const t = tipoDe(n); return (
                   <article
                     key={n.id}
-                    className={`np-item ${leaving.has(n.id) ? "is-leaving" : ""}`}
+                    className={`np-item ${t.tom || ""} ${leaving.has(n.id) ? "is-leaving" : ""}`}
                     style={{ "--i": idx }}
                   >
-                    <span className="np-item-icon"><I.Rocket /><span className="np-unread" /></span>
+                    <span className="np-item-icon"><t.Icon /><span className="np-unread" /></span>
                     <div className="np-item-body">
                       <div className="np-item-top">
                         <span className="np-item-title">{n.titulo}</span>
@@ -158,7 +169,7 @@ export default function NotificationsPanel({ open, onClose, anchorRef, items = [
                       {n.mensagem && <p className="np-item-msg">{n.mensagem}</p>}
                       <div className="np-item-actions">
                         <button type="button" className="np-btn-primary" onClick={() => { onClose(); onOpenItem?.(n); }}>
-                          Abrir projeto <I.Arrow />
+                          {t.acao} <I.Arrow />
                         </button>
                         <button type="button" className="np-btn-ghost" onClick={() => markOne(n.id)} title="Marcar como lida">
                           <I.Check /> Lida
@@ -166,7 +177,7 @@ export default function NotificationsPanel({ open, onClose, anchorRef, items = [
                       </div>
                     </div>
                   </article>
-                ))}
+                ); })}
               </section>
             ))
           )}

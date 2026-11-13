@@ -1931,6 +1931,9 @@
   color: var(--color-btnPrimary);
   background: var(--color-bgSecondary);
 }
+.np-item.is-approval .np-item-icon { color: #b45309; background: #fef3c7; }
+.np-item.is-ok .np-item-icon { color: #15803d; background: #dcfce7; }
+.np-item.is-warn .np-item-icon { color: #b91c1c; background: #fee2e2; }
 .np-unread {
   position: absolute;
   top: -2px;

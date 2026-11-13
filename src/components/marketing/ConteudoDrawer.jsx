@@ -6,10 +6,12 @@ import { I } from "./mkIcons";
 import { AutoText, Field, Chips, TagInput, Avatar, PersonaFace, PessoasPicker } from "./mkFields";
 import Anexos from "./Anexos";
 import {
-  ETAPAS, estadoInfo, CANAIS, FORMATOS, OBJETIVOS, ESTRATEGIAS, EDITORIAS,
+  ETAPAS, ETAPA_INICIAL, estadoInfo, CANAIS, FORMATOS, OBJETIVOS, ESTRATEGIAS, EDITORIAS,
   PRIORIDADES, METRICAS, AVALIACOES,
 } from "../../constants/marketing";
 import { toLocalInput, fromLocalInput, fmtData, tipoLink, urlSegura, termosEvitados } from "./mkUtils";
+import { METRICAS_PECA, placeholdersDe, estadoDe } from "./recursosModelo";
+import { enviarParaAprovacao, aprovar as aprovarConteudo, pedirAlteracoes as pedirAlteracoesConteudo } from "./mkAprovacao";
 
 const SECCOES = [
   { id: "plano", label: "Planeamento", icon: I.Target },
@@ -22,11 +24,11 @@ const SECCOES = [
 ];
 
 /** Campos de texto/número gravados no blur (os restantes gravam logo) */
-const CAMPOS_EDITAVEIS = ["titulo", "campanha", "variacoes", "cta_2", "notas", "headline", "briefing", "conceito", "design_ideia", "copies", "cta", "links", "alteracoes", "resultado", "verba", "verba_usada", "resultado_notas"];
+const CAMPOS_EDITAVEIS = ["titulo", "campanha", "variacoes", "cta_2", "notas", "headline", "briefing", "conceito", "design_ideia", "copies", "cta", "links", "alteracoes", "resultado", "verba", "verba_usada", "resultado_notas", "metricas", "url_publicacao", "utm_campaign"];
 
 /* ---------- painel ---------- */
 
-export default function ConteudoDrawer({ item, marca, perfis, userId, sugestoesPilar = [], personas = [], frentes = [], campanhas = [], avisar, onPatch, onClose, onArquivar, onRestaurar, onEliminar }) {
+export default function ConteudoDrawer({ item, marca, perfis, userId, userNome, secaoInicial, onAplicado, sugestoesPilar = [], personas = [], frentes = [], campanhas = [], ofertas = [], turmas = [], regras = [], avisar, onPatch, onClose, onArquivar, onRestaurar, onEliminar }) {
   const [draft, setD] = useState(item);
   // Estado, aprovação e datas podem mudar fora do painel (arrastar no quadro/calendário): vêm sempre do item
   const d = {
@@ -34,10 +36,17 @@ export default function ConteudoDrawer({ item, marca, perfis, userId, sugestoesP
     estado: item.estado,
     aprovado_em: item.aprovado_em,
     aprovado_por: item.aprovado_por,
+    aprovadores: item.aprovadores,
+    historico_aprovacao: item.historico_aprovacao,
+    enviado_aprovacao_por: item.enviado_aprovacao_por,
+    enviado_aprovacao_em: item.enviado_aprovacao_em,
     data_publicacao: item.data_publicacao,
     data_publicacao_2: item.data_publicacao_2,
   };
   const [confirmDel, setConfirmDel] = useState(false);
+  const [aprovSel, setAprovSel] = useState(() => (Array.isArray(item.aprovadores) ? item.aprovadores : []));
+  const [textoAlt, setTextoAlt] = useState("");
+  const [aGravarAprov, setAGravarAprov] = useState(false);
   const [guiaAberto, setGuiaAberto] = useState(false);
   const [copiado, setCopiado] = useState(null);
   const bodyRef = useRef(null);
@@ -111,6 +120,16 @@ export default function ConteudoDrawer({ item, marca, perfis, userId, sugestoesP
     const body = bodyRef.current;
     if (el && body) body.scrollTo({ top: el.offsetTop - 64, behavior: "smooth" });
   };
+  // Abrir já numa secção (p. ex. ao arrastar para "Aprovação")
+  useEffect(() => {
+    if (!secaoInicial) return undefined;
+    const t = setTimeout(() => {
+      const el = secRefs.current[secaoInicial];
+      const body = bodyRef.current;
+      if (el && body) body.scrollTo({ top: el.offsetTop - 64, behavior: "smooth" });
+    }, 180);
+    return () => clearTimeout(t);
+  }, [secaoInicial]);
 
   const estado = estadoInfo(d.estado);
   const ehIdeia = d.estado === "ideia";
@@ -126,6 +145,16 @@ export default function ConteudoDrawer({ item, marca, perfis, userId, sugestoesP
   const pilares = [...new Set([...(guia.personalidade?.arquetipos || []).map((a) => a.nome).filter(Boolean), ...sugestoesPilar])];
   const personasDoItem = personas.filter((p) => (d.persona_ids || []).includes(p.id));
   const links = Array.isArray(d.links) ? d.links : [];
+  const placeholders = placeholdersDe(d);
+  const ofertasDoItem = ofertas.filter((o) => (d.oferta_ids || []).includes(o.id));
+  const metricas = d.metricas && typeof d.metricas === "object" ? d.metricas : {};
+  const editMetrica = (k, v) => edit("metricas", { ...metricas, [k]: v });
+  const commitMetricas = () => {
+    const atual = dRef.current.metricas || {};
+    const antes = itemRef.current.metricas || {};
+    if (JSON.stringify(atual) === JSON.stringify(antes)) return;
+    patchVarios({ metricas: atual });
+  };
   const setCopies = (arr, gravar = false) => { if (gravar) set("copies", arr); else edit("copies", arr); };
   const setLinks = (arr, gravar = false) => { if (gravar) set("links", arr); else edit("links", arr); };
 
@@ -133,26 +162,39 @@ export default function ConteudoDrawer({ item, marca, perfis, userId, sugestoesP
     try { await navigator.clipboard.writeText(texto || ""); setCopiado(i); setTimeout(() => setCopiado(null), 1400); } catch { /* ignora */ }
   };
 
-  const aprovar = () => patchVarios({
-    estado: ["aprovacao", "criacao", "producao", "briefing", "curadoria"].includes(d.estado) ? "agendado" : d.estado,
-    aprovado_por: userId || null,
-    aprovado_em: new Date().toISOString(),
-  });
-  const pedirAlteracoes = () => {
-    if (!String(d.alteracoes || "").trim()) {
-      const el = secRefs.current.aprovacao?.querySelector("textarea");
-      el?.focus();
-      return;
+  /* ---------- aprovação ---------- */
+  const eu = { id: userId, nome: userNome };
+  const aplicar = (patch) => {
+    setD((p) => ({ ...p, ...patch }));
+    onAplicado?.(item.id, patch);
+  };
+  const correr = async (fn, msgOk) => {
+    if (aGravarAprov) return;
+    setAGravarAprov(true);
+    try {
+      const patch = await fn();
+      aplicar(patch);
+      if (msgOk) avisar?.(msgOk);
+    } catch (e) {
+      avisar?.(e?.message || "Não foi possível gravar.", "error");
+    } finally {
+      setAGravarAprov(false);
     }
-    patchVarios({ estado: "criacao", aprovado_por: null, aprovado_em: null, alteracoes: d.alteracoes });
+  };
+  const enviarAprovacao = () => {
+    if (!aprovSel.length) { avisar?.("Escolha pelo menos uma pessoa para aprovar.", "error"); return; }
+    const nomes = aprovSel.map((id) => pessoa(id)?.nome?.split(" ")[0]).filter(Boolean).join(", ");
+    correr(() => enviarParaAprovacao({ ...item, ...dRef.current, historico_aprovacao: item.historico_aprovacao }, aprovSel, eu), `Enviado para aprovação${nomes ? ` de ${nomes}` : ""}.`);
+  };
+  const aprovar = () => correr(() => aprovarConteudo(item, eu), "Aprovado. A equipa de marketing foi avisada.");
+  const pedirAlteracoes = () => {
+    const t = String(textoAlt || "").trim();
+    if (!t) { secRefs.current.aprovacao?.querySelector("textarea")?.focus(); return; }
+    correr(async () => { const p = await pedirAlteracoesConteudo(item, t, eu); setTextoAlt(""); return p; }, "Pedido de alterações enviado à equipa de marketing.");
   };
 
-  /** Registar resultado fecha o ciclo: publicado → monitorado */
-  const setResultado = (campo, valor) => {
-    const patch = { [campo]: valor };
-    if (d.estado === "publicado" && valor !== null && valor !== "") patch.estado = "monitorado";
-    patchVarios(patch);
-  };
+  /** Registar resultado */
+  const setResultado = (campo, valor) => patchVarios({ [campo]: valor });
 
   const responsaveis = Array.isArray(d.responsavel_ids) && d.responsavel_ids.length ? d.responsavel_ids : d.responsavel_id ? [d.responsavel_id] : [];
 
@@ -186,7 +228,7 @@ export default function ConteudoDrawer({ item, marca, perfis, userId, sugestoesP
             <div className="mk-dbanner">
               <I.Bulb size={16} />
               <span>Isto ainda está no <b>Banco de Ideias</b>.</span>
-              <button type="button" className="mk-dbanner-btn" onClick={() => set("estado", "curadoria")}>Passar para o fluxo <I.ArrowRight size={14} /></button>
+              <button type="button" className="mk-dbanner-btn" onClick={() => set("estado", ETAPA_INICIAL)}>Passar para o fluxo <I.ArrowRight size={14} /></button>
             </div>
           ) : arquivado ? (
             <div className="mk-dbanner">
@@ -204,7 +246,10 @@ export default function ConteudoDrawer({ item, marca, perfis, userId, sugestoesP
                   className={`mk-step ${i < idxEtapa ? "is-done" : ""} ${i === idxEtapa ? "is-on" : ""}`}
                   style={{ "--c": e.cor }}
                   title={e.dica}
-                  onClick={() => set("estado", e.id)}
+                  onClick={() => {
+                    if (e.id === "aprovacao" && d.estado !== "aprovacao") { irPara("aprovacao"); avisar?.("Escolha quem aprova e carregue em «Enviar para aprovação»."); return; }
+                    set("estado", e.id);
+                  }}
                 >
                   <i>{i < idxEtapa ? <I.Check size={10} sw={3.5} /> : i + 1}</i>
                   <span>{e.label}</span>
@@ -279,6 +324,38 @@ export default function ConteudoDrawer({ item, marca, perfis, userId, sugestoesP
               <Field label="Editorias" wide>
                 <Chips multi options={EDITORIAS} value={d.editoria} onChange={(v) => set("editoria", v)} />
               </Field>
+              <Field label="Cursos / serviços" wide hint="do catálogo (Recursos)">
+                {ofertas.length ? (
+                  <>
+                    <div className="mk-chips">
+                      {ofertas.map((o) => {
+                        const on = (d.oferta_ids || []).includes(o.id);
+                        return (
+                          <button key={o.id} type="button" className={`mk-chip ${on ? "is-on" : ""}`} onClick={() => set("oferta_ids", on ? d.oferta_ids.filter((x) => x !== o.id) : [...(d.oferta_ids || []), o.id])}>
+                            {o.dados?.codigo || o.titulo}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {ofertasDoItem.map((o) => {
+                      const proximas = turmas.filter((t) => t.dados?.oferta === o.titulo && ["aberta", "planeada", "esgotada"].includes(t.estado));
+                      return (
+                        <div key={o.id} className="mk-oferta-ficha">
+                          <b>{o.titulo}</b>
+                          <span>{[o.dados?.duracao && `⏱ ${o.dados.duracao}`, o.dados?.preco && `💶 ${o.dados.preco}`, o.dados?.modalidade, o.dados?.certificado].filter(Boolean).join(" · ") || "Sem dados no catálogo"}</span>
+                          {proximas.map((t) => (
+                            <span key={t.id}>📅 {t.data ? fmtData(t.data, { hora: false }) : "data por definir"}{t.data_fim && t.data_fim !== t.data ? ` → ${fmtData(t.data_fim, { hora: false })}` : ""}{t.dados?.local ? ` · 📍 ${t.dados.local}` : ""} · {estadoDe("turma", t.estado)?.label}</span>
+                          ))}
+                          {o.dados?.url && <a href={urlSegura(o.dados.url)} target="_blank" rel="noreferrer noopener">{o.dados.url}</a>}
+                          {/a confirmar|a definir/i.test(`${o.dados?.duracao} ${o.dados?.preco}`) && <em><I.Alert size={12} /> Dados por confirmar no catálogo</em>}
+                        </div>
+                      );
+                    })}
+                  </>
+                ) : (
+                  <p className="mk-hint" style={{ margin: 0 }}>Crie o catálogo de cursos/serviços em <b>Recursos → Catálogo</b> para ter datas, preço e duração à mão.</p>
+                )}
+              </Field>
               <Field label="Buyer personas" wide hint="para quem é este conteúdo">
                 {personas.length ? (
                   <div className="mk-ppick">
@@ -333,6 +410,9 @@ export default function ConteudoDrawer({ item, marca, perfis, userId, sugestoesP
             <h3><I.Pen size={16} /> Copy</h3>
             {evitados.length > 0 && (
               <p className="mk-avoid"><I.Alert size={14} /> O texto usa palavras que a {marca?.nome} evita: {evitados.map((t) => <b key={t}>{t}</b>)}</p>
+            )}
+            {placeholders.length > 0 && (
+              <p className="mk-avoid"><I.Alert size={14} /> Campos por preencher antes de publicar: {placeholders.map((t) => <b key={t}>{t}</b>)}</p>
             )}
             <div className="mk-stack">
               {copies.map((c, i) => (
@@ -432,26 +512,90 @@ export default function ConteudoDrawer({ item, marca, perfis, userId, sugestoesP
           {/* APROVAÇÃO */}
           <section className="mk-sec" ref={(el) => { secRefs.current.aprovacao = el; }}>
             <h3><I.CheckCircle size={16} /> Aprovação</h3>
-            {d.aprovado_em ? (
-              <div className="mk-approved">
-                <I.CheckCircle size={20} />
-                <div>
-                  <b>Aprovado</b>
-                  <span>{aprovador?.nome ? `por ${aprovador.nome} · ` : ""}{fmtData(d.aprovado_em)}</span>
-                </div>
-                <span className="mk-spacer" />
-                <button type="button" className="mk-btn is-ghost is-sm" onClick={() => patchVarios({ aprovado_por: null, aprovado_em: null })}>Anular</button>
-              </div>
+            {ehIdeia || arquivado ? (
+              <p className="mk-hint">Passe a ideia para o fluxo para a poder enviar para aprovação.</p>
             ) : (
               <div className="mk-stack">
-                <Field label="Alterações necessárias" hint="o que tem de mudar antes de publicar">
-                  <AutoText value={d.alteracoes} rows={2} placeholder="Ex.: trocar a foto do slide 2, confirmar o preço…" onChange={(v) => edit("alteracoes", v)} onBlur={commit("alteracoes")} />
-                </Field>
-                <div className="mk-approve-row">
-                  <button type="button" className="mk-btn is-warn-soft" onClick={pedirAlteracoes}><I.Undo size={15} /> Pedir alterações</button>
-                  <button type="button" className="mk-btn is-ok" onClick={aprovar}><I.Check size={15} /> Aprovar</button>
-                </div>
-                {d.estado !== "aprovacao" && !ehIdeia && <p className="mk-hint">Quando estiver pronto, mova para <b>Aprovação</b> para avisar quem valida.</p>}
+                {d.estado === "aprovacao" && (
+                  <div className="mk-aprov-box is-wait">
+                    <I.Clock size={18} />
+                    <div>
+                      <b>À espera de aprovação</b>
+                      <span>
+                        {(d.aprovadores || []).map((id) => pessoa(id)?.nome?.split(" ")[0]).filter(Boolean).join(", ") || "Sem aprovadores escolhidos"}
+                        {d.enviado_aprovacao_em ? ` · enviado${pessoa(d.enviado_aprovacao_por)?.nome ? ` por ${pessoa(d.enviado_aprovacao_por).nome.split(" ")[0]}` : ""} ${fmtData(d.enviado_aprovacao_em)}` : ""}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                {d.estado === "alteracoes" && (
+                  <div className="mk-aprov-box is-changes">
+                    <I.Undo size={18} />
+                    <div>
+                      <b>Alterações necessárias</b>
+                      <span className="mk-aprov-txt">{d.alteracoes || "—"}</span>
+                    </div>
+                  </div>
+                )}
+                {d.aprovado_em && d.estado !== "aprovacao" && d.estado !== "alteracoes" && (
+                  <div className="mk-approved">
+                    <I.CheckCircle size={20} />
+                    <div>
+                      <b>Aprovado</b>
+                      <span>{aprovador?.nome ? `por ${aprovador.nome} · ` : ""}{fmtData(d.aprovado_em)}</span>
+                    </div>
+                  </div>
+                )}
+
+                {d.estado === "aprovacao" ? (
+                  <>
+                    <Field label="Alterações necessárias" hint="só se for pedir alterações">
+                      <AutoText value={textoAlt} rows={2} placeholder="Ex.: trocar a foto do slide 2, confirmar o preço…" onChange={setTextoAlt} />
+                    </Field>
+                    <div className="mk-approve-row">
+                      <button type="button" className="mk-btn is-warn-soft" onClick={pedirAlteracoes} disabled={aGravarAprov}><I.Undo size={15} /> Pedir alterações</button>
+                      <button type="button" className="mk-btn is-ok" onClick={aprovar} disabled={aGravarAprov}><I.Check size={15} /> Aprovar</button>
+                    </div>
+                    <Field label="Aprovadores" hint="pode mudar e reenviar o pedido">
+                      <PessoasPicker value={aprovSel} perfis={perfis} onChange={setAprovSel} />
+                    </Field>
+                    <div><button type="button" className="mk-btn is-ghost is-sm" onClick={enviarAprovacao} disabled={aGravarAprov || !aprovSel.length}><I.ArrowRight size={14} /> Reenviar pedido</button></div>
+                  </>
+                ) : (
+                  <>
+                    <Field label="Quem aprova" hint="recebem o pedido nas notificações do Dashboard; basta um aprovar">
+                      <PessoasPicker value={aprovSel} perfis={perfis} onChange={setAprovSel} />
+                    </Field>
+                    <div className="mk-approve-row">
+                      <button type="button" className="mk-btn is-primary" onClick={enviarAprovacao} disabled={aGravarAprov || !aprovSel.length}>
+                        <I.ArrowRight size={15} /> {d.estado === "alteracoes" ? "Reenviar para aprovação" : "Enviar para aprovação"}
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {Array.isArray(d.historico_aprovacao) && d.historico_aprovacao.length > 0 && (
+                  <div className="mk-aprov-hist">
+                    <h5>Histórico</h5>
+                    <ul>
+                      {[...d.historico_aprovacao].reverse().map((h, i) => (
+                        <li key={i} className={`is-${h.tipo}`}>
+                          <i />
+                          <div>
+                            <b>
+                              {pessoa(h.por)?.nome?.split(" ")[0] || "Alguém"}{" "}
+                              {h.tipo === "enviado"
+                                ? `enviou para ${(h.para || []).map((id) => pessoa(id)?.nome?.split(" ")[0]).filter(Boolean).join(", ") || "aprovação"}`
+                                : h.tipo === "aprovado" ? "aprovou" : "pediu alterações"}
+                            </b>
+                            <span>{fmtData(h.em)}</span>
+                            {h.texto && <p>{h.texto}</p>}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             )}
           </section>
@@ -469,6 +613,22 @@ export default function ConteudoDrawer({ item, marca, perfis, userId, sugestoesP
               <Field label="Avaliação">
                 <Chips options={AVALIACOES} value={d.avaliacao} onChange={(v) => setResultado("avaliacao", v)} colorOf={(o) => o.cor} />
               </Field>
+              <Field label="Métricas da publicação" wide hint="valores do Meta Business Suite / LinkedIn / Brevo">
+                <div className="mk-metricas">
+                  {METRICAS_PECA.map((m) => (
+                    <label key={m.k}>
+                      <span>{m.label}</span>
+                      <input type="number" min="0" className="mk-input" value={metricas[m.k] ?? ""} placeholder="—" onChange={(e) => editMetrica(m.k, e.target.value === "" ? null : Number(e.target.value))} onBlur={commitMetricas} />
+                    </label>
+                  ))}
+                </div>
+              </Field>
+              <Field label="Link da publicação">
+                <input className="mk-input" value={d.url_publicacao || ""} placeholder="https://instagram.com/p/…" onChange={(e) => edit("url_publicacao", e.target.value)} onBlur={commit("url_publicacao")} />
+              </Field>
+              <Field label="utm_campaign" hint="frente_tema_data">
+                <input className="mk-input" value={d.utm_campaign || ""} placeholder="ex.: ciber_lancamento_2611" onChange={(e) => edit("utm_campaign", e.target.value.toLowerCase().replace(/\s+/g, "_"))} onBlur={commit("utm_campaign")} />
+              </Field>
               <Field label="Verba da campanha (€)">
                 <input type="number" step="0.01" className="mk-input" value={d.verba ?? ""} placeholder="0,00" onChange={(e) => edit("verba", e.target.value === "" ? null : Number(e.target.value))} onBlur={commit("verba")} />
               </Field>
@@ -479,11 +639,10 @@ export default function ConteudoDrawer({ item, marca, perfis, userId, sugestoesP
                 <AutoText value={d.resultado_notas} rows={2} placeholder="O que correu bem, o que repetir, o que evitar…" onChange={(v) => edit("resultado_notas", v)} onBlur={commit("resultado_notas")} />
               </Field>
             </div>
-            {d.estado === "publicado" && <p className="mk-hint">Ao registar o resultado ou a avaliação, o conteúdo passa para <b>Monitorado</b>.</p>}
           </section>
         </div>
 
-        {guiaAberto && <GuiaPeek marca={marca} canais={d.canais || []} personas={personasDoItem} onClose={() => setGuiaAberto(false)} />}
+        {guiaAberto && <GuiaPeek marca={marca} canais={d.canais || []} personas={personasDoItem} regras={regras} onClose={() => setGuiaAberto(false)} />}
 
         <footer className="mk-dfoot">
           <span className="mk-dmeta">

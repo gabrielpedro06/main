@@ -40,6 +40,7 @@ import Cursos from "./pages/Cursos";
 import AtivosTIDashboard from "./pages/AtivosTIDashboard";
 import AcoesFormacao from "./pages/AcoesFormacao";
 import OrganizadorPdf from "./pages/OrganizadorPdf";
+import RegistoAtividade from "./pages/RegistoAtividade";
 
 export default function App() {
   return (
@@ -86,6 +87,7 @@ export default function App() {
             <Route path="avisos" element={<GestaoAvisos />} />
             
             <Route path="admin" element={<ProtectedRoute allowedRoles={["admin", "administrador"]}><AdminDashboard /></ProtectedRoute>} />
+            <Route path="registos" element={<ProtectedRoute allowedRoles={["admin", "administrador"]}><RegistoAtividade /></ProtectedRoute>} />
             
             {/* MUDAMOS DE /templates PARA /modelos PARA COMBINAR COM O MENU */}
             <Route path="modelos" element={<GestaoTemplates />} />

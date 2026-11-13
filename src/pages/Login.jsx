@@ -2,6 +2,7 @@ import { useState } from "react"
 import { supabase } from "../services/supabase"
 import { useNavigate, Link } from "react-router-dom"
 import { resetBrandIntro } from "../utils/brandIntro"
+import { registarEvento } from "../utils/registarEvento"
 import { useAuth } from "../context/AuthContext"
 import AuthLayout, { AuthField, AuthAlert, AuthSubmit } from "../components/AuthLayout"
 import OtpInput from "../components/OtpInput"
@@ -28,6 +29,7 @@ export default function Login() {
   async function entrar() {
     resetBrandIntro()
     await checkMfa?.()
+    registarEvento("login", { via: "password + 2FA", agente: navigator.userAgent })
     navigate("/dashboard")
   }
 

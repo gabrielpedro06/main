@@ -40,6 +40,8 @@ Como trabalhas:
 - Usa as personas da marca pelo nome exato que aparece no contexto (campo "nome"). Escolhe as personas a quem a ideia se dirige de facto.
 - Liga cada ideia à estratégia ativa quando existir: frentes/objetivos, narrativas e etapas do funil. Usa o nome exato da frente.
 - Inspira-te nas ideias e conteúdos que tiveram melhor avaliação (estilo, estrutura, CTAs), mas não repitas temas que já existem no Banco de Ideias ou no fluxo.
+- As "regras_de_comunicacao" são obrigatórias: o que é "nunca" não aparece em nenhuma ideia; o que é "sempre" cumpre-se.
+- Preços, durações, locais e datas vêm do "catalogo_de_cursos_e_servicos" e das "proximas_turmas". Valores "A confirmar" continuam a ser [confirmar: ...]. Usa os "factos_verificados_e_por_confirmar": os que estão "a_confirmar" ou "a_rever" não se afirmam como certos.
 - Não inventes factos: preços, datas de cursos, números, nomes de formadores, prazos legais ou estatísticas que não estejam no contexto ficam como [confirmar: ...] no copy e são listados no campo briefing ("A CONFIRMAR: ...").
 - Quando a ideia depende de datas comemorativas, notícias ou alterações legais recentes e tiveres a pesquisa na web disponível, pesquisa primeiro e cita as fontes no briefing (nome do site e data). Sem pesquisa, sê prudente e marca como [confirmar].
 - Copy pronto a publicar: frase de abertura forte (o hook), parágrafos curtos, emojis com moderação, CTA claro. copy_2 é uma variação para outro canal (ex.: versão LinkedIn) ou fica vazio.
@@ -144,7 +146,7 @@ function historicoValido(h) {
    --------------------------------------------------------------------- */
 async function contextoDaMarca(sb, marcaId) {
   const hoje = new Date().toISOString().slice(0, 10);
-  const [marcaR, personasR, ciclosR, conteudosR] = await Promise.all([
+  const [marcaR, personasR, ciclosR, conteudosR, recursosR] = await Promise.all([
     sb.from("marketing_marcas").select("id, nome, guia").eq("id", marcaId).single(),
     sb.from("marketing_personas").select("*").eq("marca_id", marcaId).order("ordem", { ascending: true }),
     sb.from("marketing_ciclos").select("nome, inicio, fim, dados").eq("marca_id", marcaId).order("inicio", { ascending: false }),
@@ -153,6 +155,7 @@ async function contextoDaMarca(sb, marcaId) {
       .eq("marca_id", marcaId)
       .order("created_at", { ascending: false })
       .limit(250),
+    sb.from("marketing_recursos").select("tipo, titulo, estado, data, data_fim, dados").eq("marca_id", marcaId).in("tipo", ["oferta", "turma", "regra", "facto", "campanha"]),
   ]);
   if (marcaR.error || !marcaR.data) throw new Error("Marca não encontrada.");
   const marca = marcaR.data;
@@ -205,7 +208,7 @@ async function contextoDaMarca(sb, marcaId) {
 
   const pesoAval = { excelente: 3, bom: 2 };
   const melhores = todos
-    .filter((c) => pesoAval[c.avaliacao] || (c.resultado != null && ["publicado", "monitorado"].includes(c.estado)))
+    .filter((c) => pesoAval[c.avaliacao] || (c.resultado != null && c.estado === "publicado"))
     .sort((a, b) => (pesoAval[b.avaliacao] || 0) - (pesoAval[a.avaliacao] || 0) || (Number(b.resultado) || 0) - (Number(a.resultado) || 0))
     .slice(0, 6)
     .map((c) => semVazios({
@@ -221,6 +224,17 @@ async function contextoDaMarca(sb, marcaId) {
       hashtags: listaDe(c.hashtags).join(" "),
     }));
 
+  // Recursos (a tabela pode ainda não existir: ignora erros)
+  const rec = recursosR?.error ? [] : recursosR?.data || [];
+  const doTipo = (t) => rec.filter((r) => r.tipo === t);
+  const regras = doTipo("regra").map((r) => semVazios({ tipo: r.estado, regra: r.titulo, porque: r.dados?.porque }));
+  const catalogo = doTipo("oferta").filter((r) => r.estado !== "suspensa").map((r) => semVazios({ nome: r.titulo, estado: r.estado, ...r.dados }));
+  const turmas = doTipo("turma").filter((r) => ["aberta", "planeada", "esgotada"].includes(r.estado) && (!r.data_fim || r.data_fim >= hoje) && (!r.data || r.data >= hoje || r.data_fim))
+    .map((r) => semVazios({ turma: r.titulo, estado: r.estado, inicio: r.data, fim: r.data_fim, curso: r.dados?.oferta, local: r.dados?.local, horario: r.dados?.horario }));
+  const factos = doTipo("facto").filter((r) => r.estado !== "desatualizado").map((r) => semVazios({ facto: r.titulo, estado: r.estado, referencia: r.dados?.referencia, resumo: corta(r.dados?.resumo, 500) }));
+  const campanhasAtivas = doTipo("campanha").filter((r) => ["ativa", "planeada"].includes(r.estado))
+    .map((r) => semVazios({ campanha: r.titulo, estado: r.estado, inicio: r.data, fim: r.data_fim, objetivo: r.dados?.objetivo, kpi: r.dados?.kpi, meta: r.dados?.meta, notas: corta(r.dados?.notas, 300) }));
+
   const bloco = (titulo, obj) => (obj && (Array.isArray(obj) ? obj.length : Object.keys(obj).length) ? `<${titulo}>\n${JSON.stringify(obj, null, 1)}\n</${titulo}>` : "");
   const guiaResumo = semVazios({
     sobre: guia.sobre,
@@ -235,6 +249,11 @@ async function contextoDaMarca(sb, marcaId) {
     `<hoje>${hoje}</hoje>`,
     bloco("guia_da_marca", guiaResumo),
     bloco("personas", personas),
+    bloco("regras_de_comunicacao", regras),
+    bloco("catalogo_de_cursos_e_servicos", catalogo),
+    bloco("proximas_turmas", turmas),
+    bloco("factos_verificados_e_por_confirmar", factos),
+    bloco("campanhas", campanhasAtivas),
     bloco("estrategia_ativa", estrategia),
     bloco("melhores_conteudos_para_inspiracao", melhores),
     bloco("ideias_e_conteudos_que_ja_existem", existentes),

@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from "react"
 import { supabase } from "../services/supabase"
 import { closeAllActiveTaskLogsForUser } from "../utils/taskTimerLifecycle"
+import { registarEvento } from "../utils/registarEvento"
 
 const AuthContext = createContext()
 
@@ -90,6 +91,7 @@ export function AuthProvider({ children }) {
         detail: { reason: "logout", closedCount: closeResult.closedCount || 0 }
       }))
       window.dispatchEvent(new Event("attendance-updated"))
+      await registarEvento("logout", { timers_fechados: closeResult.closedCount || 0 })
     }
     await supabase.auth.signOut();
 

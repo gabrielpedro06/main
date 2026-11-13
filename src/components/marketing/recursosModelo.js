@@ -16,6 +16,8 @@ export const TIPOS_CONVERSAO = [
   { id: "venda", label: "Venda" },
 ];
 
+export const TIPOS_METRICA = ["Tráfego", "Impressões", "Engajamento", "Seguidores", "Conversão", "Outro"];
+
 export const TIPOS = {
   oferta: {
     label: "Catálogo",
@@ -106,6 +108,28 @@ export const TIPOS = {
       { k: "notas", label: "Notas", tipo: "area", wide: true },
     ],
   },
+  metrica: {
+    label: "Métricas",
+    singular: "métrica",
+    icon: "Chart",
+    dica: "Analytics por canal: o valor apurado de cada métrica no período, a meta e a variação face ao período anterior.",
+    estados: [est("mensal", "Mensal", "#0ea5e9"), est("semanal", "Semanal", "#8b5cf6"), est("trimestral", "Trimestral", "#f59e0b"), est("anual", "Anual", "#10b981")],
+    estadoLabel: "Período",
+    resumo: ["canal", "valor", "variacao"],
+    campos: [
+      { k: "titulo", label: "Métrica", tipo: "text", wide: true, hint: "ex.: Alcance, Visualizações, Novos seguidores" },
+      { k: "estado", label: "Período", tipo: "estado" },
+      { k: "data", label: "Data do apuramento", tipo: "date" },
+      { k: "canal", label: "Canal", tipo: "canal" },
+      { k: "tipo_metrica", label: "Tipo de métrica", tipo: "select", opcoes: TIPOS_METRICA.map((x) => ({ id: x, label: x })) },
+      { k: "valor", label: "Valor apurado", tipo: "number" },
+      { k: "meta", label: "Meta", tipo: "number" },
+      { k: "variacao", label: "Variação vs período anterior (%)", tipo: "number", hint: "negativo = queda" },
+      { k: "campanha", label: "Campanha", tipo: "campanha" },
+      { k: "url", label: "Print / relatório", tipo: "url" },
+      { k: "analise", label: "Análise", tipo: "area", wide: true },
+    ],
+  },
   ativo: {
     label: "Ativos",
     singular: "ativo",
@@ -178,7 +202,7 @@ export const TIPOS = {
   },
 };
 
-export const ORDEM_TIPOS = ["oferta", "turma", "campanha", "lead", "ativo", "facto", "regra", "canal"];
+export const ORDEM_TIPOS = ["oferta", "turma", "campanha", "lead", "metrica", "ativo", "facto", "regra", "canal"];
 
 export const estadoDe = (tipo, id) => TIPOS[tipo]?.estados.find((e) => e.id === id) || null;
 

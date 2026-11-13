@@ -54,8 +54,9 @@ const ESTRATEGIA_ALIAS = [
 const mapEstrategia = (v) => ESTRATEGIA_ALIAS.find(([k]) => norm(v).includes(k))?.[1] || v;
 
 const ESTADO_ALIAS = {
-  curadoria: "curadoria", briefing: "briefing", programacao: "producao", producao: "producao", criacao: "criacao",
-  aprovacao: "aprovacao", agendado: "agendado", publicado: "publicado", monitorado: "monitorado", arquivado: "arquivado", arquivada: "arquivado",
+  curadoria: "curadoria", briefing: "briefing", programacao: "programacao", producao: "programacao", agendamento: "programacao", criacao: "criacao",
+  revisao: "revisao", aprovacao: "aprovacao", alteracoes: "alteracoes", "alteracoes necessarias": "alteracoes",
+  agendado: "publicado", publicado: "publicado", monitorado: "publicado", arquivado: "arquivado", arquivada: "arquivado",
 };
 const AVALIACAO_ALIAS = { excelente: "excelente", bom: "bom", razoavel: "razoavel", ruim: "fraco", fraco: "fraco", mau: "fraco" };
 const PRIORIDADE_ALIAS = { alta: "alta", media: "media", baixa: "baixa" };
@@ -111,7 +112,7 @@ export function conteudosDoCsv(texto, { personas = [], perfis = [], existentes =
     if (status === "prioridade") prioridade = "alta";
     if (!estado) {
       if (estadoIdeia.startsWith("arquivad")) estado = "arquivado";
-      else if (estadoIdeia.startsWith("passou")) estado = "curadoria";
+      else if (estadoIdeia.startsWith("passou")) estado = "briefing";
       else estado = "ideia";
     }
 

@@ -15,6 +15,8 @@ import "./../styles/home.css";
 import SlidingTabs from "../components/SlidingTabs";
 import ProfilePeek from "../components/ProfilePeek";
 import NotificationsPanel from "../components/NotificationsPanel";
+import AprovacaoModal from "../components/marketing/AprovacaoModal";
+import { TIPOS_NOTIF_MK } from "../components/marketing/mkAprovacao";
 
 // --- MEGA ÍCONES SVG PROFISSIONAIS ---
 const Icons = {
@@ -154,6 +156,7 @@ export default function DashboardHome() {
     const [notification, setNotification] = useState(null);
     const [projectNotifications, setProjectNotifications] = useState([]);
     const [notificationsLoading, setNotificationsLoading] = useState(false);
+    const [aprovacaoConteudoId, setAprovacaoConteudoId] = useState(null);
     const [showBellDropdown, setShowBellDropdown] = useState(false);
     const [homeTab, setHomeTab] = useState('hoje');
     const [horasMesAtual, setHorasMesAtual] = useState({ h: 0, m: 0 });
@@ -186,15 +189,26 @@ export default function DashboardHome() {
         try {
             const { data, error } = await supabase
                 .from("notificacoes_projetos")
-                .select("id, project_id, titulo, mensagem, link, tipo, is_read, created_at")
+                .select("id, project_id, conteudo_id, titulo, mensagem, link, tipo, is_read, created_at, conteudo:marketing_conteudos(estado)")
                 .eq("user_id", user.id)
                 .eq("is_read", false)
-                .eq("tipo", "project_created")
+                .in("tipo", ["project_created", ...TIPOS_NOTIF_MK])
                 .order("created_at", { ascending: false })
-                .limit(10);
+                .limit(20);
 
             if (error) throw error;
-            setProjectNotifications(Array.isArray(data) ? data : []);
+            const rows = Array.isArray(data) ? data : [];
+            // Pedidos de aprovação já decididos por outra pessoa deixam de fazer sentido
+            const fechados = rows.filter((n) => n.tipo === "mk_aprovacao" && n.conteudo?.estado !== "aprovacao");
+            if (fechados.length) {
+                supabase
+                    .from("notificacoes_projetos")
+                    .update({ is_read: true, read_at: new Date().toISOString() })
+                    .in("id", fechados.map((n) => n.id))
+                    .eq("user_id", user.id)
+                    .then(({ error: e }) => { if (e) console.error("Erro ao fechar pedidos de aprovação:", e); });
+            }
+            setProjectNotifications(rows.filter((n) => !fechados.includes(n)));
         } catch (error) {
             console.error("Erro ao carregar notificações de projeto:", error);
         } finally {
@@ -221,7 +235,16 @@ export default function DashboardHome() {
 
     async function openProjectNotification(notificationItem) {
         if (!notificationItem) return;
+        // Pedido de aprovação: abre o modal; a notificação fecha quando houver decisão
+        if (notificationItem.tipo === "mk_aprovacao" && notificationItem.conteudo_id) {
+            setAprovacaoConteudoId(notificationItem.conteudo_id);
+            return;
+        }
         await markProjectNotificationAsRead(notificationItem.id);
+        if (notificationItem.conteudo_id) {
+            navigate(`/dashboard/marketing?conteudo=${notificationItem.conteudo_id}`);
+            return;
+        }
         if (notificationItem.project_id) {
             navigate(`/dashboard/projetos/${notificationItem.project_id}`);
             return;
@@ -2024,6 +2047,17 @@ export default function DashboardHome() {
         onMarkRead={markProjectNotificationAsRead}
         onMarkAll={() => Promise.all(projectNotifications.map(n => markProjectNotificationAsRead(n.id)))}
       />
+
+      {/* ✅ APROVAÇÃO DE CONTEÚDO DE MARKETING */}
+      {aprovacaoConteudoId && (
+        <AprovacaoModal
+          conteudoId={aprovacaoConteudoId}
+          user={{ id: user?.id, nome: userProfile?.nome }}
+          onClose={() => setAprovacaoConteudoId(null)}
+          onDecidido={(msg) => { showToast(msg); loadProjectNotifications(); }}
+          onAbrirNoMarketing={(id) => navigate(`/dashboard/marketing?conteudo=${id}`)}
+        />
+      )}
 
       {/* 👤 PERFIL DE UM COLEGA (EQUIPA ONLINE) */}
       {selectedOnlineUser && (

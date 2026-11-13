@@ -5,14 +5,16 @@ import { normalizarHex, textoSobre } from "./mkColor";
 import { norm } from "./mkUtils";
 
 /** Painel lateral com o essencial do guia da marca, para consultar enquanto se escreve */
-export default function GuiaPeek({ marca, canais = [], personas = [], onClose }) {
+const TIPO_REGRA = { nunca: { label: "Nunca", cor: "#dc2626" }, sempre: { label: "Sempre", cor: "#16a34a" }, confirmar: { label: "Confirmar", cor: "#d97706" } };
+
+export default function GuiaPeek({ marca, canais = [], personas = [], regras = [], onClose }) {
   const g = marca?.guia || {};
   const [copiado, setCopiado] = useState(null);
   const voz = g.voz || {};
   const canaisGuia = (voz.canais || []).filter((c) => canais.some((x) => norm(c.canal).includes(norm(x)) || norm(x).includes(norm(c.canal).split(" ")[0])));
   const cores = (g.visual?.cores || []).filter((c) => normalizarHex(c.hex));
   const copiar = (hex) => navigator.clipboard?.writeText(hex).then(() => { setCopiado(hex); setTimeout(() => setCopiado(null), 1100); }).catch(() => {});
-  const nada = !voz.tom && !voz.usamos?.length && !voz.evitamos?.length && !cores.length && !g.e_nao_e?.e?.length && !personas.length;
+  const nada = !voz.tom && !voz.usamos?.length && !voz.evitamos?.length && !cores.length && !g.e_nao_e?.e?.length && !personas.length && !regras.length;
 
   return (
     <aside className="mk-peek" aria-label="Guia da marca">
@@ -24,6 +26,19 @@ export default function GuiaPeek({ marca, canais = [], personas = [], onClose })
       </header>
       <div className="mk-peek-body">
         {nada && <p className="mk-hint" style={{ margin: 0 }}>Esta marca ainda não tem guia. Preencha-o no separador <b>Marca</b>.</p>}
+
+        {regras.length > 0 && (
+          <section>
+            <h5>Regras de comunicação</h5>
+            <ul className="mk-peek-regras">
+              {["nunca", "confirmar", "sempre"].flatMap((t) => regras.filter((r) => r.estado === t)).map((r) => (
+                <li key={r.id} title={r.dados?.porque || ""}>
+                  <b style={{ color: TIPO_REGRA[r.estado]?.cor }}>{TIPO_REGRA[r.estado]?.label}</b> {r.titulo}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {personas.length > 0 && (
           <section>

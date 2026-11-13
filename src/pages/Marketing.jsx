@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
 import SlidingTabs from "../components/SlidingTabs";
@@ -11,10 +12,12 @@ import ImportarFluxo from "../components/marketing/ImportarFluxo";
 import AssistenteIdeias from "../components/marketing/AssistenteIdeias";
 import MarcaGuia from "../components/marketing/MarcaGuia";
 import Estrategia from "../components/marketing/Estrategia";
+import Recursos from "../components/marketing/Recursos";
+import { placeholdersDe } from "../components/marketing/recursosModelo";
 import { frentesDoCiclo } from "../components/marketing/estrategiaModelo";
 import MarcasModal, { MarcaLogo } from "../components/marketing/MarcasModal";
 import { I } from "../components/marketing/mkIcons";
-import { ETAPAS, ETAPAS_ANTES_AGENDAR, estadoInfo, canalInfo, CANAIS, prioridadeInfo, avaliacaoInfo } from "../constants/marketing";
+import { ETAPAS, ETAPAS_ANTES_AGENDAR, ETAPA_INICIAL, estadoInfo, canalInfo, CANAIS, prioridadeInfo, avaliacaoInfo } from "../constants/marketing";
 import { fmtData, diasAte, norm } from "../components/marketing/mkUtils";
 import "../styles/marketing.css";
 
@@ -29,7 +32,7 @@ const ordemAgora = () => Date.now() / 1000;
 /* =========================================================================
    Cartão do quadro
    ========================================================================= */
-function Cartao({ it, pessoas = [], personasDoItem = [], onAbrir, onDragStart, onDragEnd, arrastando, dropAntes, onDragOverCard }) {
+function Cartao({ it, pessoas = [], aprovadores = [], personasDoItem = [], onAbrir, onDragStart, onDragEnd, arrastando, dropAntes, onDragOverCard }) {
   const prio = prioridadeInfo(it.prioridade);
   const antesDeAgendar = ETAPAS_ANTES_AGENDAR.includes(it.estado);
   let data = null;
@@ -60,7 +63,13 @@ function Cartao({ it, pessoas = [], personasDoItem = [], onAbrir, onDragStart, o
       {it.campanha && <span className="mk-camp" title={`Campanha: ${it.campanha}`}><I.Flag size={11} /> {it.campanha}</span>}
       <h4>{it.titulo || <span className="mk-untitled">Sem título</span>}</h4>
       {it.headline && <p className="mk-card-hook">{it.headline}</p>}
-      {["producao", "criacao"].includes(it.estado) && it.alteracoes && <span className="mk-card-alert"><I.Undo size={12} /> Alterações pedidas</span>}
+      {it.estado === "alteracoes" && it.alteracoes && <span className="mk-card-alert is-red" title={it.alteracoes}><I.Undo size={12} /> {it.alteracoes.length > 70 ? `${it.alteracoes.slice(0, 70)}…` : it.alteracoes}</span>}
+      {it.estado === "aprovacao" && (
+        (it.aprovadores || []).length
+          ? <span className="mk-card-alert" title={aprovadores.map((p) => p.nome).join(", ")}><I.Clock size={12} /> À espera de {aprovadores.map((p) => p.nome?.split(" ")[0]).filter(Boolean).join(", ") || "aprovação"}</span>
+          : <span className="mk-card-alert is-red"><I.Alert size={12} /> Sem aprovador: abra e envie</span>
+      )}
+      {(() => { const ph = placeholdersDe(it); return ph.length > 0 && !["curadoria", "briefing"].includes(it.estado) ? <span className="mk-card-alert is-red" title={ph.join(" ")}><I.Alert size={12} /> Por preencher: {ph.slice(0, 2).join(" ")}{ph.length > 2 ? "…" : ""}</span> : null; })()}
       <div className="mk-card-foot">
         <span className="mk-canais">
           {(it.canais || []).slice(0, 4).map((c) => { const ci = canalInfo(c); return <b key={c} style={{ background: ci.cor }} title={c}>{ci.sigla}</b>; })}
@@ -92,6 +101,7 @@ export default function Marketing() {
   const [carregadoPara, setCarregadoPara] = useState(null);
   const [personas, setPersonas] = useState([]);
   const [ciclos, setCiclos] = useState([]);
+  const [recursos, setRecursos] = useState([]);
   const [baseOk, setBaseOk] = useState(false);
   const [tab, setTab] = useState("fluxo");
   const [busca, setBusca] = useState("");
@@ -108,6 +118,9 @@ export default function Marketing() {
   const [dropCol, setDropCol] = useState(null);
   const [dropAntes, setDropAntes] = useState(null);
   const [recarregar, setRecarregar] = useState(0);
+  const [abrirSecao, setAbrirSecao] = useState(null);
+  const location = useLocation();
+  const navigate = useNavigate();
   const toastTimer = useRef(null);
 
   const avisar = useCallback((msg, tipo = "ok") => {
@@ -145,16 +158,36 @@ export default function Marketing() {
       supabase.from("marketing_conteudos").select("*").eq("marca_id", marcaAtual).order("ordem", { ascending: true }),
       supabase.from("marketing_personas").select("*").eq("marca_id", marcaAtual).order("ordem", { ascending: true }),
       supabase.from("marketing_ciclos").select("*").eq("marca_id", marcaAtual).order("inicio", { ascending: false }),
-    ]).then(([c, p, cc]) => {
+      supabase.from("marketing_recursos").select("*").eq("marca_id", marcaAtual).order("ordem", { ascending: true }),
+    ]).then(([c, p, cc, rr]) => {
       if (!vivo) return;
       if (c.error) avisar("Não foi possível carregar os conteúdos.", "error");
       setConteudos(c.data || []);
       setPersonas(p.error ? [] : p.data || []);
       setCiclos(cc.error ? [] : cc.data || []);
+      setRecursos(rr.error ? [] : rr.data || []);
       setCarregadoPara(marcaAtual);
     });
     return () => { vivo = false; };
   }, [marcaAtual, recarregar, avisar]);
+
+  /* ---------- abrir uma peça a partir de um link (?conteudo=id), p. ex. das notificações ---------- */
+  useEffect(() => {
+    const id = new URLSearchParams(location.search).get("conteudo");
+    if (!id) return undefined;
+    let vivo = true;
+    supabase.from("marketing_conteudos").select("id, marca_id").eq("id", id).maybeSingle().then(({ data }) => {
+      if (!vivo) return;
+      if (data) {
+        setMarcaId(data.marca_id);
+        gravarLS(LS_MARCA, data.marca_id);
+        setTab("fluxo");
+        setAbertoId(data.id);
+      } else avisar("Esse conteúdo já não existe.", "error");
+      navigate(location.pathname, { replace: true });
+    });
+    return () => { vivo = false; };
+  }, [location.search, location.pathname, navigate, avisar]);
 
   const escolherMarca = (id) => {
     setMarcaId(id);
@@ -172,11 +205,16 @@ export default function Marketing() {
     }
   }, [avisar]);
 
+  /** Atualiza só o estado local (quando a gravação já foi feita noutro sítio, p. ex. aprovação) */
+  const aplicarLocal = useCallback((id, campos) => {
+    setConteudos((prev) => prev.map((c) => (c.id === id ? { ...c, ...campos } : c)));
+  }, []);
+
   const criar = useCallback(async (base = {}) => {
     if (!marcaAtual) return;
     const { data, error } = await supabase
       .from("marketing_conteudos")
-      .insert({ marca_id: marcaAtual, estado: "curadoria", titulo: "", ordem: ordemAgora(), ...base })
+      .insert({ marca_id: marcaAtual, estado: ETAPA_INICIAL, titulo: "", ordem: ordemAgora(), ...base })
       .select()
       .single();
     if (error) { avisar(`Não foi possível criar: ${error.message}`, "error"); return; }
@@ -303,6 +341,47 @@ export default function Marketing() {
     return true;
   };
 
+  /* ---------- recursos (catálogo, turmas, campanhas, leads, ativos, factos, regras, canais) ---------- */
+  const criarRecurso = async (campos) => {
+    const { data, error } = await supabase.from("marketing_recursos").insert({ marca_id: marcaAtual, ordem: ordemAgora(), ...campos }).select().single();
+    if (error) { avisar(`Não foi possível criar: ${error.message}`, "error"); return null; }
+    setRecursos((prev) => [...prev, data]);
+    return data;
+  };
+  const patchRecurso = useCallback(async (id, campos) => {
+    const antes = recursos.find((r) => r.id === id);
+    setRecursos((prev) => prev.map((r) => (r.id === id ? { ...r, ...campos } : r)));
+    const { error } = await supabase.from("marketing_recursos").update(campos).eq("id", id);
+    if (error) { avisar(`Não foi possível guardar: ${error.message}`, "error"); setRecarregar((n) => n + 1); return; }
+    // Renomear uma campanha renomeia-a nas peças e nos registos que a usam
+    if (antes?.tipo === "campanha" && campos.titulo !== undefined && antes.titulo && campos.titulo.trim() && campos.titulo.trim() !== antes.titulo.trim()) {
+      const velho = antes.titulo.trim();
+      const novo = campos.titulo.trim();
+      for (const c of conteudos.filter((x) => (x.campanha || "").trim() === velho)) patch(c.id, { campanha: novo });
+      for (const l of recursos.filter((x) => x.tipo === "lead" && x.dados?.campanha === velho)) {
+        const dados = { ...l.dados, campanha: novo };
+        setRecursos((prev) => prev.map((r) => (r.id === l.id ? { ...r, dados } : r)));
+        supabase.from("marketing_recursos").update({ dados }).eq("id", l.id).then(() => {});
+      }
+    }
+    // Renomear um curso atualiza as turmas e os registos que o referem
+    if (antes?.tipo === "oferta" && campos.titulo !== undefined && antes.titulo && campos.titulo.trim() && campos.titulo !== antes.titulo) {
+      for (const t of recursos.filter((x) => x.dados?.oferta === antes.titulo)) {
+        const dados = { ...t.dados, oferta: campos.titulo };
+        setRecursos((prev) => prev.map((r) => (r.id === t.id ? { ...r, dados } : r)));
+        supabase.from("marketing_recursos").update({ dados }).eq("id", t.id).then(() => {});
+      }
+    }
+  }, [recursos, conteudos, patch, avisar]);
+  const eliminarRecurso = async (id) => {
+    const r = recursos.find((x) => x.id === id);
+    setRecursos((prev) => prev.filter((x) => x.id !== id));
+    const { error } = await supabase.from("marketing_recursos").delete().eq("id", id);
+    if (error) { avisar(`Não foi possível eliminar: ${error.message}`, "error"); setRecarregar((n) => n + 1); return; }
+    if (r?.tipo === "oferta") for (const c of conteudos.filter((x) => (x.oferta_ids || []).includes(id))) patch(c.id, { oferta_ids: c.oferta_ids.filter((x) => x !== id) });
+    avisar("Eliminado.");
+  };
+
   /* ---------- derivados ---------- */
   const pessoa = useCallback((id) => perfis.find((p) => p.id === id) || null, [perfis]);
 
@@ -347,7 +426,7 @@ export default function Marketing() {
     const emCurso = conteudos.filter((c) => ETAPAS_ANTES_AGENDAR.includes(c.estado)).length;
     const paraAprovar = conteudos.filter((c) => c.estado === "aprovacao").length;
     const semana = conteudos.filter((c) => c.estado !== "arquivado" && c.data_publicacao && (() => { const n = diasAte(c.data_publicacao); return n >= 0 && n <= 7; })()).length;
-    const publicados = conteudos.filter((c) => ["publicado", "monitorado"].includes(c.estado) && c.data_publicacao && new Date(c.data_publicacao).getMonth() === agora.getMonth() && new Date(c.data_publicacao).getFullYear() === agora.getFullYear()).length;
+    const publicados = conteudos.filter((c) => c.estado === "publicado" && c.data_publicacao && new Date(c.data_publicacao).getMonth() === agora.getMonth() && new Date(c.data_publicacao).getFullYear() === agora.getFullYear()).length;
     const atrasados = conteudos.filter((c) => ETAPAS_ANTES_AGENDAR.includes(c.estado) && c.data_entrega && diasAte(c.data_entrega) < 0).length;
     return { emCurso, paraAprovar, semana, publicados, atrasados };
   }, [conteudos]);
@@ -356,7 +435,14 @@ export default function Marketing() {
   const marcos = useMemo(() => ciclos.flatMap((c) => (c.dados?.analise?.marcos || []).filter((m) => m.data).map((m) => ({ ...m, ciclo: c.nome }))), [ciclos]);
   const personaPorId = useMemo(() => Object.fromEntries(personas.map((p) => [p.id, p])), [personas]);
   const sugestoesPilar = useMemo(() => [...new Set(conteudos.flatMap((c) => lista(c.pilar)))], [conteudos]);
-  const campanhas = useMemo(() => [...new Set(conteudos.map((c) => (c.campanha || "").trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt")), [conteudos]);
+  const campanhas = useMemo(() => [...new Set([
+    ...recursos.filter((r) => r.tipo === "campanha").map((r) => (r.titulo || "").trim()),
+    ...conteudos.map((c) => (c.campanha || "").trim()),
+  ].filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt")), [conteudos, recursos]);
+  const ofertas = useMemo(() => recursos.filter((r) => r.tipo === "oferta"), [recursos]);
+  const turmas = useMemo(() => recursos.filter((r) => r.tipo === "turma"), [recursos]);
+  const regras = useMemo(() => recursos.filter((r) => r.tipo === "regra"), [recursos]);
+  const factosPendentes = useMemo(() => recursos.filter((r) => r.tipo === "facto" && r.estado === "a_confirmar").length, [recursos]);
 
   const aberto = conteudos.find((c) => c.id === abertoId) || null;
 
@@ -374,7 +460,12 @@ export default function Marketing() {
       ordem = lista.length ? lista[lista.length - 1].ordem + 1 : ordemAgora();
     }
     const it = conteudos.find((c) => c.id === drag.id);
-    if (it && (it.estado !== colId || it.ordem !== ordem)) patch(it.id, { estado: colId, ordem });
+    if (it && colId === "aprovacao" && it.estado !== "aprovacao") {
+      // Para ir para aprovação é preciso escolher quem aprova: abre a peça nessa secção
+      setAbrirSecao("aprovacao");
+      setAbertoId(it.id);
+      avisar("Escolha quem aprova e carregue em «Enviar para aprovação».");
+    } else if (it && (it.estado !== colId || it.ordem !== ordem)) patch(it.id, { estado: colId, ordem });
     setDrag(null);
     setDropCol(null);
     setDropAntes(null);
@@ -413,7 +504,7 @@ export default function Marketing() {
           <div className="mk-hero-actions">
             <button type="button" className="mk-hero-btn mk-ia-hero-btn" onClick={() => { setTab("ideias"); setIaAberto(true); }} disabled={!marcaAtual}><I.Sparkle size={16} /> Ideias com IA</button>
             <button type="button" className="mk-hero-btn" onClick={() => setTab("ideias")}><I.Bulb size={16} /> Nova ideia</button>
-            <button type="button" className="mk-cta" onClick={() => criar({ estado: "curadoria" })} disabled={!marcaAtual}><I.Plus size={16} sw={2.6} /> Novo conteúdo</button>
+            <button type="button" className="mk-cta" onClick={() => criar({ estado: ETAPA_INICIAL })} disabled={!marcaAtual}><I.Plus size={16} sw={2.6} /> Novo conteúdo</button>
           </div>
         </div>
 
@@ -448,6 +539,7 @@ export default function Marketing() {
             { id: "personas", label: "Personas", icon: <I.User size={16} />, count: personas.length },
             { id: "estrategia", label: "Estratégia", icon: <I.Target size={16} />, count: ciclos.length || undefined },
             { id: "marca", label: "Marca", icon: <I.Book size={16} /> },
+            { id: "recursos", label: "Recursos", icon: <I.Layers size={16} />, count: factosPendentes || undefined },
             { id: "arquivo", label: "Arquivo", icon: <I.Archive size={16} />, count: arquivo.length },
           ]}
         />
@@ -526,6 +618,7 @@ export default function Marketing() {
                       key={it.id}
                       it={it}
                       pessoas={idsResp(it).map(pessoa).filter(Boolean)}
+                      aprovadores={(it.aprovadores || []).map(pessoa).filter(Boolean)}
                       personasDoItem={(it.persona_ids || []).map((id) => personaPorId[id]).filter(Boolean)}
                       arrastando={drag?.id === it.id}
                       dropAntes={dropAntes === it.id && drag?.id !== it.id}
@@ -566,6 +659,18 @@ export default function Marketing() {
           onEliminar={eliminarCiclo}
           avisar={avisar}
         />
+      ) : tab === "recursos" ? (
+        <Recursos
+          key={marcaAtual}
+          marca={marca}
+          recursos={recursos}
+          conteudos={conteudos}
+          frentes={frentes}
+          onCriar={criarRecurso}
+          onPatch={patchRecurso}
+          onEliminar={eliminarRecurso}
+          onAbrirConteudo={setAbertoId}
+        />
       ) : tab === "marca" ? (
         <MarcaGuia marca={marca} onSalvarGuia={salvarGuia} avisar={avisar} />
       ) : tab === "personas" ? (
@@ -580,7 +685,7 @@ export default function Marketing() {
           avisar={avisar}
         />
       ) : tab === "calendario" ? (
-        <CalendarioEditorial itens={noCalendario} marcos={marcos} onAbrir={setAbertoId} onPatch={patch} onCriar={(base) => criar({ estado: "curadoria", ...base })} />
+        <CalendarioEditorial itens={noCalendario} marcos={marcos} onAbrir={setAbertoId} onPatch={patch} onCriar={(base) => criar({ estado: ETAPA_INICIAL, ...base })} />
       ) : tab === "ideias" ? (
         <div className="mk-ideas">
           <form className="mk-idea-new" onSubmit={adicionarIdeia}>
@@ -620,7 +725,7 @@ export default function Marketing() {
                       <span>{autor?.nome?.split(" ")[0] || "—"} · {fmtData(it.created_at, { hora: false })}</span>
                       <span className="mk-spacer" />
                       <button type="button" className="mk-icon-btn is-sm" title="Arquivar" onClick={(e) => { e.stopPropagation(); arquivar(it); }}><I.Archive size={14} /></button>
-                      <button type="button" className="mk-btn is-soft is-sm" onClick={(e) => { e.stopPropagation(); patch(it.id, { estado: "curadoria", ordem: ordemAgora() }); avisar("Passou para o fluxo (Curadoria)."); }}>
+                      <button type="button" className="mk-btn is-soft is-sm" onClick={(e) => { e.stopPropagation(); patch(it.id, { estado: ETAPA_INICIAL, ordem: ordemAgora() }); avisar("Passou para o fluxo (Curadoria)."); }}>
                         Para o fluxo <I.ArrowRight size={13} />
                       </button>
                     </div>
@@ -657,13 +762,19 @@ export default function Marketing() {
           marca={marca}
           perfis={perfis}
           userId={user?.id}
+          userNome={pessoa(user?.id)?.nome}
+          secaoInicial={abrirSecao}
           sugestoesPilar={sugestoesPilar}
           personas={personas}
           frentes={frentes}
           campanhas={campanhas}
+          ofertas={ofertas}
+          turmas={turmas}
+          regras={regras}
           avisar={avisar}
           onPatch={patch}
-          onClose={() => setAbertoId(null)}
+          onAplicado={aplicarLocal}
+          onClose={() => { setAbertoId(null); setAbrirSecao(null); }}
           onArquivar={arquivar}
           onRestaurar={restaurar}
           onEliminar={eliminar}

@@ -1,0 +1,126 @@
+/* Registo de atividade (audit log) — usa as variáveis do tema da aplicação */
+.rg-page {
+  min-height: 100vh;
+  padding: 24px 22px 40px;
+  background: var(--color-bgSecondary, #f8fafc);
+  color: var(--color-textPrimary, #0f172a);
+}
+.rg-head { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+.rg-head > div { flex: 1; min-width: 240px; }
+.rg-head h1 { margin: 0 0 4px; font-size: 24px; font-weight: 800; }
+.rg-head p { margin: 0; color: var(--color-textSecondary, #64748b); font-size: 14px; }
+
+.rg-btn {
+  border: 0;
+  border-radius: 10px;
+  padding: 9px 14px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  background: var(--color-btnPrimary, #2563eb);
+  color: #fff;
+}
+.rg-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.rg-btn.is-soft { background: var(--color-bgPrimary, #fff); color: var(--color-textPrimary, #0f172a); border: 1px solid var(--color-borderColor, #e2e8f0); }
+
+.rg-filtros { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 14px; }
+.rg-seg {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 11px;
+  background: var(--color-bgPrimary, #fff);
+  border: 1px solid var(--color-borderColor, #e2e8f0);
+}
+.rg-seg button {
+  border: 0;
+  background: transparent;
+  padding: 6px 11px;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-textSecondary, #64748b);
+  cursor: pointer;
+}
+.rg-seg button.is-on { background: var(--color-btnPrimary, #2563eb); color: #fff; }
+
+.rg-chip-filtro {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 6px 8px 6px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  background: var(--color-bgPrimary, #fff);
+  border: 1px solid var(--color-borderColor, #e2e8f0);
+}
+.rg-chip-filtro button { border: 0; background: transparent; font-size: 18px; line-height: 1; cursor: pointer; color: var(--color-textSecondary, #64748b); }
+
+.rg-erro { padding: 12px 14px; border-radius: 12px; background: #fef2f2; color: #b91c1c; margin-bottom: 12px; font-size: 14px; }
+.rg-vazio { padding: 26px; text-align: center; color: var(--color-textSecondary, #64748b); font-size: 14px; }
+
+.rg-lista { display: flex; flex-direction: column; gap: 6px; }
+.rg-row {
+  background: var(--color-bgPrimary, #fff);
+  border: 1px solid var(--color-borderColor, #e2e8f0);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.rg-row-main {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.rg-row-main:hover { background: color-mix(in srgb, var(--color-btnPrimary, #2563eb) 5%, transparent); }
+.rg-op { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: #94a3b8; }
+.rg-row.is-insert .rg-op { background: #16a34a; }
+.rg-row.is-update .rg-op { background: #f59e0b; }
+.rg-row.is-delete .rg-op { background: #ef4444; }
+.rg-row.is-evento .rg-op { background: #6366f1; }
+.rg-av {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 800;
+  background: var(--color-bgSecondary, #f1f5f9);
+  color: var(--color-textSecondary, #475569);
+}
+.rg-av img { width: 100%; height: 100%; object-fit: cover; }
+.rg-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.rg-frase { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rg-rot { color: var(--color-textSecondary, #64748b); }
+.rg-campos { font-size: 12px; color: var(--color-textSecondary, #64748b); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rg-hora { font-size: 12px; color: var(--color-textSecondary, #64748b); white-space: nowrap; }
+
+.rg-det { padding: 4px 14px 14px; border-top: 1px solid var(--color-borderColor, #e2e8f0); }
+.rg-diff { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; table-layout: fixed; }
+.rg-diff th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-textSecondary, #64748b); padding: 4px 8px; }
+.rg-diff td { vertical-align: top; padding: 6px 8px; border-top: 1px solid var(--color-borderColor, #e2e8f0); }
+.rg-diff pre { margin: 0; white-space: pre-wrap; word-break: break-word; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; max-height: 220px; overflow: auto; }
+.rg-k { width: 26%; font-weight: 700; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+.rg-antes pre { color: #b91c1c; }
+.rg-depois pre { color: #15803d; }
+.rg-det-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; font-size: 12px; color: var(--color-textSecondary, #64748b); }
+.rg-det-foot span { flex: 1; min-width: 0; word-break: break-all; }
+.rg-mais { align-self: center; margin-top: 8px; }
+
+@media (max-width: 640px) {
+  .rg-page { padding: 16px 12px 32px; }
+  .rg-hora { display: none; }
+  .rg-frase { white-space: normal; }
+}

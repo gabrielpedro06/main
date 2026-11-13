@@ -2,14 +2,14 @@
 
 /** Etapas do fluxo, por ordem. "ideia" e "arquivado" ficam fora do quadro. */
 export const ETAPAS = [
-  { id: "curadoria", label: "Curadoria", cor: "#8b5cf6", dica: "Escolher o tema e recolher referências" },
   { id: "briefing", label: "Briefing", cor: "#0ea5e9", dica: "Objetivo, público, mensagem e formato" },
-  { id: "producao", label: "Programação", cor: "#f97316", dica: "Copy, datas e plano da peça" },
+  { id: "curadoria", label: "Curadoria", cor: "#8b5cf6", dica: "Tema, referências e copy" },
   { id: "criacao", label: "Criação", cor: "#ec4899", dica: "Design e produção da peça" },
-  { id: "aprovacao", label: "Aprovação", cor: "#f59e0b", dica: "À espera de validação" },
-  { id: "agendado", label: "Agendado", cor: "#6366f1", dica: "Aprovado e com data marcada" },
-  { id: "publicado", label: "Publicado", cor: "#10b981", dica: "Já está no ar" },
-  { id: "monitorado", label: "Monitorado", cor: "#14b8a6", dica: "Resultados registados" },
+  { id: "revisao", label: "Revisão", cor: "#06b6d4", dica: "Revisão interna antes de enviar para aprovação" },
+  { id: "aprovacao", label: "Aprovação", cor: "#f59e0b", dica: "Enviado a quem aprova" },
+  { id: "alteracoes", label: "Alterações necessárias", cor: "#ef4444", dica: "Quem aprovou pediu alterações" },
+  { id: "programacao", label: "Agendamento / Programação", cor: "#6366f1", dica: "Aprovado: falta agendar ou programar" },
+  { id: "publicado", label: "Publicado / Agendado", cor: "#10b981", dica: "Agendado na plataforma ou já no ar" },
 ];
 
 export const ESTADO_IDEIA = { id: "ideia", label: "Ideia", cor: "#eab308" };
@@ -17,7 +17,9 @@ export const ESTADO_ARQUIVO = { id: "arquivado", label: "Arquivado", cor: "#94a3
 
 export const ESTADOS_TODOS = [ESTADO_IDEIA, ...ETAPAS, ESTADO_ARQUIVO];
 export const estadoInfo = (id) => ESTADOS_TODOS.find((e) => e.id === id) || ESTADO_IDEIA;
-export const ETAPAS_ANTES_AGENDAR = ["curadoria", "briefing", "producao", "criacao", "aprovacao"];
+export const ETAPAS_ANTES_AGENDAR = ["briefing", "curadoria", "criacao", "revisao", "aprovacao", "alteracoes"];
+/** Etapa onde entra um conteúdo novo ou uma ideia que passa para o fluxo */
+export const ETAPA_INICIAL = "briefing";
 
 export const CANAIS = [
   { id: "Instagram", cor: "#e1306c", sigla: "IG" },
