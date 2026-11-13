@@ -13,6 +13,7 @@
     "send:campaign": "node scripts/sendMarketingCampaign.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.8.0",
     "@supabase/supabase-js": "^2.94.1",
     "cors": "^2.8.6",
     "dotenv": "^16.6.1",

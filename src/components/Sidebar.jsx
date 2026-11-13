@@ -33,6 +33,7 @@ const Icons = {
   Graduation: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5z"></path><path d="M6 12v5c3 3 9 3 12 0v-5"></path></svg>,
   Megaphone: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 11 18-5v12L3 14v-3z"></path><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"></path></svg>,
   Transfer: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3 4 7l4 4"></path><path d="M4 7h16"></path><path d="m16 21 4-4-4-4"></path><path d="M20 17H4"></path></svg>,
+  Palette: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22a10 10 0 1 1 10-10c0 2.8-2.2 4-4 4h-2.1a1.9 1.9 0 0 0-1.4 3.2A1.6 1.6 0 0 1 12 22z"></path><circle cx="7.5" cy="10.5" r="1.2"></circle><circle cx="10.5" cy="6.8" r="1.2"></circle><circle cx="15" cy="7" r="1.2"></circle><circle cx="17.5" cy="11" r="1.2"></circle></svg>,
   ChevronDown: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
 };
 
@@ -500,6 +501,14 @@ export default function Sidebar({ menuOpen, setMenuOpen, isMobile = false }) {
                     <Link to="/dashboard/leads" title={getSidebarTooltip("Leads")}>
                       <span className="icon"><Icons.Target /></span> 
                       <span className="link-text">Leads</span>
+                    </Link>
+                  </li>
+                )}
+                {['admin', 'gestor', 'marketing', 'marketing plus'].includes(userProfile?.role) && (
+                  <li className={isActive('/dashboard/marketing')}>
+                    <Link to="/dashboard/marketing" title={getSidebarTooltip("Marketing")}>
+                      <span className="icon"><Icons.Palette /></span> 
+                      <span className="link-text">Marketing</span>
                     </Link>
                   </li>
                 )}

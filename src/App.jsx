@@ -28,6 +28,7 @@ import RecursosHumanos from "./pages/RecursosHumanos";
 import Ferias from "./pages/Ausencias"; 
 import PedidoKm from "./pages/PedidoKm";
 import GestaoLeads from "./pages/GestaoLeads"; 
+import Marketing from "./pages/Marketing";
 import TransferGest from "./pages/TransferGest";
 import Perfil from "./pages/Perfil";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -74,6 +75,7 @@ export default function App() {
             <Route path="pedido-km" element={<PedidoKm />} />
             <Route path="perfil" element={<Perfil />} />
             <Route path="leads" element={<GestaoLeads />} />
+            <Route path="marketing" element={<Marketing />} />
             <Route path="transfergest" element={<TransferGest />} />
             <Route path="ativos-ti" element={<AtivosTIDashboard />} />
             

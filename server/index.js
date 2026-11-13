@@ -6,11 +6,12 @@ import { getCaeDescriptions } from "./caeCatalog.js";
 import { lookupSicaeCaesByNif } from "./sicaeCaeLookup.js";
 import absenceSendRequest from "../api/absence-notifications/send-request.js";
 import absenceAction, { buildActionToken } from "../api/absence-notifications/action.js";
+import marketingIdeias from "../api/marketing/ideias.js";
 
 const app = express();
 
 app.use(cors());
-app.use(express.json({ limit: "2mb" }));
+app.use(express.json({ limit: "5mb" }));
 
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, service: "marketing-email-sender" });
@@ -197,6 +198,7 @@ app.get("/api/cae-descriptions", (req, res) => {
 });
 
 app.post("/api/absence-notifications/send-request", (req, res) => absenceSendRequest(req, res));
+app.post("/api/marketing/ideias", (req, res) => marketingIdeias(req, res));
 app.get("/api/absence-notifications/action", (req, res) => absenceAction(req, res));
 
 const PORT = Number(process.env.PORT || 8787);

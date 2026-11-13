@@ -12,5 +12,10 @@
       "source": "/((?!api/|api$).*)",
       "destination": "/index.html"
     }
-  ]
+  ],
+  "functions": {
+    "api/marketing/ideias.js": {
+      "maxDuration": 300
+    }
+  }
 }
