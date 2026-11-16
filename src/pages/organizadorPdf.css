@@ -16,6 +16,8 @@
   gap: 16px;
   padding-bottom: 60px;
 }
+/* Ocupa a largura toda da área de trabalho (sem o limite do .page-container) */
+.pdfo.page-container { width: 100%; max-width: none; margin: 0; }
 .pdfo.is-drag { outline: 3px dashed var(--pdfo-accent); outline-offset: -6px; border-radius: 22px; }
 .pdfo button { font-family: inherit; }
 .pdfo-muted { color: var(--pdfo-muted); }
