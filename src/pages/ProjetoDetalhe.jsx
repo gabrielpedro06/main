@@ -15,6 +15,7 @@ import "../styles/projeto-detalhe.css";
 
 // 💡 IMPORTAÇÃO CORRIGIDA (SEM CHAVETAS):
 import gerarRelatorioProjeto from "../components/pdfGenerator"; 
+import ProjetoTracker from "../components/ProjetoTracker";
 
 // --- ÍCONES SVG PROFISSIONAIS COMPLETOS ---
 const Icons = {
@@ -2554,6 +2555,7 @@ export default function ProjetoDetalhe() {
           {[
               ['atividades', 'Atividades', <Icons.ClipboardList size={16} />, atividades.length],
               ['gantt', 'Gantt', <Icons.Calendar size={16} />],
+              ['seguimento', 'Seguimento', <Icons.Target size={16} />],
               ['relatorio', 'Relatório de tempos', <Icons.Clock size={16} />],
               ['execucao', 'Execução financeira', <Icons.Dollar size={16} />],
               ['geral', 'Configurações e dados', <Icons.Settings size={16} />],
@@ -3188,6 +3190,10 @@ export default function ProjetoDetalhe() {
         {/* =========================================
             ABA 2: RELATÓRIO DE TEMPOS
         ========================================= */}
+        {activeTab === 'seguimento' && projeto && (
+            <ProjetoTracker projeto={projeto} atividades={atividades} historicoAberto />
+        )}
+
         {activeTab === 'relatorio' && (() => {
             const totalMin = getProjectTotalTime();
             const validLogs = logs.filter((l) => (l.duration_minutes || 0) > 0);
