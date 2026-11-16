@@ -52,3 +52,9 @@
 .sgm-dialog p { margin: 0 0 10px; font-size: 0.9rem; line-height: 1.5; color: #334155; }
 .sgm-dialog p.sgm-muted { font-size: 0.82rem; color: #64748b; }
 .sgm-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+
+.sgm-aviso.is-alerta { align-items: center; background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; }
+.sgm-aviso.is-alerta .sgm-btn { flex-shrink: 0; }
+.sgm-tag { display: inline-flex; margin-left: 6px; padding: 1px 8px; border-radius: 99px; font-style: normal; font-size: 0.68rem; font-weight: 800; vertical-align: middle; }
+.sgm-tag.is-blocked { background: #f1f5f9; color: #475569; }
+.sgm-tag.is-open { background: #fee2e2; color: #b91c1c; }

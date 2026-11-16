@@ -1532,11 +1532,16 @@ export default function RecursosHumanos() {
       const actionLabel = nextActive ? "reativado" : "desativado";
 
       try {
-          const { error } = await supabase
-              .from("profiles")
-              .update({ ativo: nextActive })
-              .eq("id", profile.id);
-          if (error) throw error;
+          // Passa pelo servidor: além do perfil, bloqueia/desbloqueia a conta no Supabase
+          // (um colaborador desativado deixa de conseguir entrar no Bizin)
+          const { data: { session } } = await supabase.auth.getSession();
+          const resp = await fetch(`${import.meta.env.VITE_MARKETING_API_BASE || ""}/api/admin/contas`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token || ""}` },
+              body: JSON.stringify({ acao: "definir", userId: profile.id, ativo: nextActive }),
+          });
+          const out = await resp.json().catch(() => ({ ok: false, error: `Erro ${resp.status} do servidor.` }));
+          if (!resp.ok || !out.ok) throw new Error(out.error || `Erro ${resp.status} do servidor.`);
 
           setColaboradores((prev) => prev.map((c) => (c.id === profile.id ? { ...c, ativo: nextActive } : c)));
           if (selectedUser === profile.id && !nextActive) {

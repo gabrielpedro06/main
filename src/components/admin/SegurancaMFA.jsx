@@ -3,7 +3,9 @@ import { createPortal } from "react-dom";
 import { supabase } from "../../services/supabase";
 import "../../styles/seguranca-mfa.css";
 
-const API = `${import.meta.env.VITE_MARKETING_API_BASE || ""}/api/admin/mfa`;
+const API_BASE = import.meta.env.VITE_MARKETING_API_BASE || "";
+const API = `${API_BASE}/api/admin/mfa`;
+const API_CONTAS = `${API_BASE}/api/admin/contas`;
 
 const iniciais = (nome) => {
   const p = String(nome || "").trim().split(/\s+/).filter(Boolean);
@@ -15,9 +17,9 @@ const fmt = (iso) => (iso ? new Date(iso).toLocaleDateString("pt-PT", { day: "nu
 const Shield = ({ size = 18 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>;
 const Reset = ({ size = 15 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></svg>;
 
-async function chamar(body) {
+async function chamar(body, url = API) {
   const { data: { session } } = await supabase.auth.getSession();
-  const resp = await fetch(API, {
+  const resp = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token || ""}` },
     body: JSON.stringify(body),
@@ -37,6 +39,7 @@ export default function SegurancaMFA({ profiles = [] }) {
   const [alvo, setAlvo] = useState(null);
   const [aRepor, setARepor] = useState(false);
   const [aviso, setAviso] = useState(null);
+  const [aBloquear, setABloquear] = useState(false);
 
   const carregar = useCallback(async () => {
     try {
@@ -72,6 +75,22 @@ export default function SegurancaMFA({ profiles = [] }) {
     }
   }
 
+  async function bloquearInativos() {
+    setABloquear(true);
+    try {
+      const out = await chamar({ acao: "sincronizar" }, API_CONTAS);
+      setAviso({ tipo: "ok", texto: `${out.bloqueados} conta(s) inativa(s) bloqueada(s). Essas pessoas já não conseguem entrar no Bizin.` });
+      carregar();
+    } catch (e) {
+      setAviso({ tipo: "erro", texto: e.message });
+    } finally {
+      setABloquear(false);
+    }
+  }
+
+  // Inativos nos RH cuja conta ainda não está bloqueada no Supabase (ainda conseguem entrar)
+  const inativosComAcesso = estado ? profiles.filter((p) => p.ativo === false && estado[p.id] && !estado[p.id].bloqueado) : [];
+
   const lista = profiles
     .filter((p) => !busca || `${p.nome || ""} ${p.email || ""}`.toLowerCase().includes(busca.toLowerCase()))
     .map((p) => ({ ...p, mfa: estado?.[p.id] }));
@@ -96,6 +115,15 @@ export default function SegurancaMFA({ profiles = [] }) {
       )}
       {erro && <div className="sgm-aviso is-erro" role="alert"><span>{erro}</span></div>}
 
+      {inativosComAcesso.length > 0 && (
+        <div className="sgm-aviso is-alerta" role="alert">
+          <span>
+            <b>{inativosComAcesso.length} colaborador(es) inativo(s) ainda conseguem entrar no Bizin</b> ({inativosComAcesso.map((p) => p.nome || p.email).join(", ")}). Foram desativados antes de o bloqueio automático existir.
+          </span>
+          <button type="button" className="sgm-btn is-danger" onClick={bloquearInativos} disabled={aBloquear}>{aBloquear ? "A bloquear…" : "Bloquear acesso"}</button>
+        </div>
+      )}
+
       <input className="sgm-search" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Procurar pessoa por nome ou email" />
 
       <div className="sgm-table-wrap">
@@ -109,7 +137,10 @@ export default function SegurancaMFA({ profiles = [] }) {
                 <td>
                   <span className="sgm-person">
                     <span className="sgm-av">{p.avatar_url ? <img src={p.avatar_url} alt="" /> : iniciais(p.nome)}</span>
-                    <span><strong>{p.nome || "—"}</strong><small>{p.email || ""}</small></span>
+                    <span>
+                      <strong>{p.nome || "—"} {p.ativo === false && <em className={`sgm-tag ${p.mfa?.bloqueado ? "is-blocked" : "is-open"}`}>{p.mfa?.bloqueado ? "Inativo · bloqueado" : "Inativo · ainda entra"}</em>}</strong>
+                      <small>{p.email || ""}</small>
+                    </span>
                   </span>
                 </td>
                 <td>

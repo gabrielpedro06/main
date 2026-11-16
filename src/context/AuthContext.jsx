@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect } from "react"
 import { supabase } from "../services/supabase"
 import { closeAllActiveTaskLogsForUser } from "../utils/taskTimerLifecycle"
 import { registarEvento } from "../utils/registarEvento"
+import { AVISO_LOGIN_KEY, CONTA_DESATIVADA } from "../utils/contaDesativada"
 
 const AuthContext = createContext()
 
@@ -134,6 +135,20 @@ export function AuthProvider({ children }) {
       .eq("id", userId)
       .single();
       
+    if (!error && data && data.ativo === false) {
+      // Colaborador desativado nos RH: termina a sessão (também quem já tinha o Bizin aberto)
+      try { await registarEvento("acesso_negado", { motivo: "conta_inativa" }) } catch { /* ignora */ }
+      try { sessionStorage.setItem(AVISO_LOGIN_KEY, CONTA_DESATIVADA) } catch { /* ignora */ }
+      limparMfaVerificado()
+      await supabase.auth.signOut({ scope: "local" })
+      setUser(null)
+      setUserProfile(null)
+      setMfaPending(false)
+      setMfaSetup(false)
+      setLoading(false)
+      if (window.location.pathname !== "/") window.location.replace("/")
+      return
+    }
     if (!error && data) {
       setUserProfile(data);
     } else {

@@ -3,6 +3,7 @@ import { supabase } from "../services/supabase"
 import { useNavigate, Link } from "react-router-dom"
 import { resetBrandIntro } from "../utils/brandIntro"
 import { registarEvento } from "../utils/registarEvento"
+import { AVISO_LOGIN_KEY, CONTA_DESATIVADA } from "../utils/contaDesativada"
 import { useAuth } from "../context/AuthContext"
 import AuthLayout, { AuthField, AuthAlert, AuthSubmit } from "../components/AuthLayout"
 import OtpInput from "../components/OtpInput"
@@ -12,7 +13,16 @@ import useTotpEnroll from "../hooks/useTotpEnroll"
 export default function Login() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [error, setError] = useState(null)
+  // Aviso deixado pelo AuthContext quando terminou a sessão de uma conta desativada
+  const [error, setError] = useState(() => {
+    try {
+      const aviso = sessionStorage.getItem(AVISO_LOGIN_KEY)
+      if (aviso) sessionStorage.removeItem(AVISO_LOGIN_KEY)
+      return aviso || null
+    } catch {
+      return null
+    }
+  })
   const [loading, setLoading] = useState(false)
   const [capsLock, setCapsLock] = useState(false)
 
@@ -44,7 +54,21 @@ export default function Login() {
     })
 
     if (error) {
-      setError("Email ou password inválidos")
+      // Conta bloqueada no Supabase (colaborador desativado nos RH)
+      setError(/banned/i.test(error.message || "") ? CONTA_DESATIVADA : "Email ou password inválidos")
+      setLoading(false)
+      return
+    }
+
+    // Colaborador desativado nos RH (mesmo que a conta ainda não esteja bloqueada)
+    const { data: { user: entrou } } = await supabase.auth.getUser()
+    const { data: perfil } = entrou
+      ? await supabase.from("profiles").select("ativo").eq("id", entrou.id).single()
+      : { data: null }
+    if (perfil?.ativo === false) {
+      registarEvento("acesso_negado", { motivo: "conta_inativa" })
+      await supabase.auth.signOut({ scope: "local" })
+      setError(CONTA_DESATIVADA)
       setLoading(false)
       return
     }

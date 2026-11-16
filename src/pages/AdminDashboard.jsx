@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../services/supabase";
 import SegurancaMFA from "../components/admin/SegurancaMFA";
+import AdminVisaoGeral from "../components/admin/AdminVisaoGeral";
+import "../styles/admin.css";
 
 const PROFILE_TAG_PASSWORD = "admin123";
 
@@ -210,7 +212,7 @@ export default function AdminDashboard() {
 
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
-  const [activeTab, setActiveTab] = useState("analytics");
+  const [activeTab, setActiveTab] = useState("geral");
   const [projectModalOpen, setProjectModalOpen] = useState(false);
   const [userModalOpen, setUserModalOpen] = useState(false);
 
@@ -460,98 +462,83 @@ export default function AdminDashboard() {
     ? "Todos os Projetos" 
     : (projects.find(p => p.id === selectedProjectId)?.titulo || "Projeto selecionado");
 
-  const TabButton = ({ id, label, icon }) => {
-    const isActive = activeTab === id;
-    return (
-      <button
-        onClick={() => setActiveTab(id)}
-        style={{
-          display: "flex", alignItems: "center", gap: "8px", padding: "12px 18px",
-          background: isActive ? "#fff" : "transparent",
-          color: isActive ? "var(--color-textPrimary)" : "var(--color-textSecondary)",
-          border: "1px solid",
-          borderColor: isActive ? "var(--color-borderColor)" : "transparent",
-          borderBottom: isActive ? "1px solid #fff" : "1px solid transparent",
-          borderTopLeftRadius: "10px", borderTopRightRadius: "10px",
-          marginBottom: "-1px", 
-          fontWeight: isActive ? 800 : 600, fontSize: "0.9rem", cursor: "pointer", transition: "all 0.2s",
-          transform: isActive ? "translateY(1px)" : "none",
-        }}
-      >
-        {icon} {label}
-      </button>
-    );
-  };
+
+  const TABS = [
+    { id: "geral", label: "Visão geral", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5" /><rect x="14" y="3" width="7" height="5" rx="1.5" /><rect x="14" y="12" width="7" height="9" rx="1.5" /><rect x="3" y="16" width="7" height="5" rx="1.5" /></svg> },
+    { id: "analytics", label: "Tempo & Projetos", icon: Icons.Analytics },
+    { id: "equipa", label: "Equipa & Assiduidade", icon: Icons.Equipa },
+    { id: "gestao", label: "Gestão individual", icon: Icons.Gestao },
+    { id: "seguranca", label: "Segurança", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg> },
+  ];
+  const mostraFiltros = ["analytics", "equipa", "gestao"].includes(activeTab);
+  const ativosCount = profiles.filter((p) => p.ativo !== false).length;
+  const saudacao = currentTime.getHours() < 12 ? "Bom dia" : currentTime.getHours() < 20 ? "Boa tarde" : "Boa noite";
 
   return (
-    <div style={{ padding: "24px", display: "grid", gap: "18px" }}>
-      {/* CABEÇALHO DA PÁGINA */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "white", padding: "18px 24px", borderRadius: "16px", boxShadow: "0 2px 10px rgba(15,23,42,0.04)", border: "1px solid var(--color-borderColor)", flexWrap: "wrap", gap: "12px" }}>
-        <div>
-          <h1 style={{ margin: 0, color: "var(--color-textPrimary)", fontSize: "1.65rem", fontWeight: 800, letterSpacing: "-0.02em" }}>Painel de Administração</h1>
-          <p style={{ margin: "6px 0 0 0", color: "var(--color-textSecondary)" }}>Visão global de utilizadores, assiduidade e gestão de equipa.</p>
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: "12px", background: "var(--color-bgTertiary)", border: "1px solid var(--color-borderColor)", borderRadius: "12px", padding: "8px 12px" }}>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ color: "var(--color-textPrimary)", fontWeight: 700, fontSize: "0.9rem" }}>{firstName}</div>
-            <div style={{ color: "var(--color-textSecondary)", fontSize: "0.75rem", fontWeight: 600 }}>Admin · {currentTime.toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" })}</div>
-          </div>
-          <div style={{ width: "40px", height: "40px", borderRadius: "999px", background: "linear-gradient(135deg, var(--color-btnPrimary), var(--color-btnPrimaryDark))", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, overflow: "hidden" }}>
-            {userProfile?.avatar_url ? (
-              <img src={userProfile.avatar_url} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-            ) : (
-              getInitials(userProfile?.nome)
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* ÁREA DE CONTROLO: TABS EM CIMA + FILTROS NUMA LINHA */}
-      <div style={{ background: "#fff", border: "1px solid var(--color-borderColor)", borderRadius: "14px", display: "flex", flexDirection: "column" }}>
-        
-        <div style={{ display: "flex", gap: "4px", background: "var(--color-bgTertiary)", padding: "14px 14px 0 14px", borderBottom: "1px solid var(--color-borderColor)", borderTopLeftRadius: "14px", borderTopRightRadius: "14px" }}>
-          <TabButton id="analytics" label="Visão Global" icon={Icons.Analytics} />
-          <TabButton id="equipa" label="Equipa & Assiduidade" icon={Icons.Equipa} />
-          <TabButton id="gestao" label="Gestão Individual" icon={Icons.Gestao} />
-          <TabButton id="seguranca" label="Segurança" icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>} />
-        </div>
-
-        {activeTab !== "seguranca" && (
-        <div style={{ display: "flex", gap: "10px", alignItems: "center", padding: "14px", overflowX: "auto", whiteSpace: "nowrap" }}>
-          <select value={mode} onChange={(e) => setMode(e.target.value)} style={{ border: "1px solid var(--color-borderColor)", borderRadius: "10px", padding: "8px 12px", fontWeight: 700, color: "var(--color-textSecondary)", background: "var(--color-bgTertiary)", outline: "none", cursor: "pointer" }}>
-            <option value="day">Modo Diário</option>
-            <option value="month">Modo Mensal</option>
-            <option value="interval">Personalizado</option>
-          </select>
-          
-          {mode === "day" && <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} style={{ border: "1px solid var(--color-borderColor)", borderRadius: "10px", padding: "8px 10px", color: "var(--color-textSecondary)", background: "var(--color-textWhite)", outline: "none" }} />}
-          {mode === "month" && <input type="month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} style={{ border: "1px solid var(--color-borderColor)", borderRadius: "10px", padding: "8px 10px", color: "var(--color-textSecondary)", background: "var(--color-textWhite)", outline: "none" }} />}
-          {mode === "interval" && (
-            <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ border: "1px solid var(--color-borderColor)", borderRadius: "10px", padding: "8px 10px", color: "var(--color-textSecondary)", background: "var(--color-textWhite)", outline: "none" }} />
-              <span style={{ color: "var(--color-textSecondary)", fontSize: "0.85rem", fontWeight: 600 }}>até</span>
-              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ border: "1px solid var(--color-borderColor)", borderRadius: "10px", padding: "8px 10px", color: "var(--color-textSecondary)", background: "var(--color-textWhite)", outline: "none" }} />
+    <div className="adm-page">
+      {/* CABEÇALHO */}
+      <header className="adm-hero">
+        <span className="adm-hero-orb is-a" aria-hidden="true" />
+        <span className="adm-hero-orb is-b" aria-hidden="true" />
+        <div className="adm-hero-row">
+          <div className="adm-hero-main">
+            <span className="adm-hero-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="M9 12l2 2 4-4" /></svg>
+            </span>
+            <div>
+              <span className="adm-hero-kicker">Administração</span>
+              <h1>{saudacao}, {firstName}</h1>
+              <p>{currentTime.toLocaleDateString("pt-PT", { weekday: "long", day: "numeric", month: "long" })} · tudo o que se passa na empresa, num só sítio.</p>
             </div>
+          </div>
+          <div className="adm-hero-side">
+            <span className="adm-chip"><strong>{loading ? "…" : onlineUsers.length}</strong> online</span>
+            <span className="adm-chip"><strong>{loading ? "…" : ativosCount}</strong> colaboradores</span>
+            <span className="adm-me">
+              <span><strong>{firstName}</strong><small>Admin · {currentTime.toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" })}</small></span>
+              <i>{userProfile?.avatar_url ? <img src={userProfile.avatar_url} alt="" /> : getInitials(userProfile?.nome)}</i>
+            </span>
+          </div>
+        </div>
+        <nav className="adm-tabs" role="tablist" aria-label="Secções da administração">
+          {TABS.map((t) => (
+            <button key={t.id} type="button" role="tab" aria-selected={activeTab === t.id} className={activeTab === t.id ? "is-on" : ""} onClick={() => setActiveTab(t.id)}>
+              {t.icon} {t.label}
+            </button>
+          ))}
+        </nav>
+      </header>
+
+      {/* FILTROS (só nas abas de tempo e equipa) */}
+      {mostraFiltros && (
+        <div className="adm-filters">
+          <span>Período</span>
+          <select value={mode} onChange={(e) => setMode(e.target.value)} aria-label="Tipo de período">
+            <option value="day">Dia</option>
+            <option value="month">Mês</option>
+            <option value="interval">Intervalo</option>
+          </select>
+          {mode === "day" && <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} aria-label="Dia" />}
+          {mode === "month" && <input type="month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} aria-label="Mês" />}
+          {mode === "interval" && (
+            <>
+              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} aria-label="Desde" />
+              <em>até</em>
+              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} aria-label="Até" />
+            </>
           )}
-
-          <button
-            onClick={() => setProjectModalOpen(true)}
-            style={{ border: "1px solid var(--color-borderColor)", borderRadius: "10px", padding: "8px 12px", minWidth: "180px", maxWidth: "260px", color: "var(--color-textSecondary)", background: "var(--color-textWhite)", outline: "none", textAlign: "left", fontWeight: 600, cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}
-          >
-            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{currentProjectLabel}</span>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginLeft: "8px" }}><polyline points="6 9 12 15 18 9"></polyline></svg>
+          <button type="button" className="adm-filter-btn" onClick={() => setProjectModalOpen(true)}>
+            <span>{currentProjectLabel}</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
           </button>
-
           {activeTab === "analytics" && (
-            <select value={selectedUserId} onChange={(e) => setSelectedUserId(e.target.value)} style={{ border: "1px solid var(--color-borderColor)", borderRadius: "10px", padding: "8px 12px", minWidth: "180px", color: "var(--color-textSecondary)", background: "var(--color-textWhite)", outline: "none", cursor: "pointer" }}>
-              <option value="all">Todos os Colaboradores</option>
+            <select value={selectedUserId} onChange={(e) => setSelectedUserId(e.target.value)} aria-label="Colaborador">
+              <option value="all">Todos os colaboradores</option>
               {profiles.map(p => <option key={p.id} value={p.id}>{p.nome || p.email}</option>)}
             </select>
           )}
         </div>
-        )}
-      </div>
+      )}
 
       {loading ? (
         <div style={{ background: "#fff", border: "1px solid var(--color-borderColor)", borderRadius: "14px", padding: "16px", color: "var(--color-textSecondary)" }}>A carregar dados de administração...</div>
@@ -559,6 +546,20 @@ export default function AdminDashboard() {
         <div style={{ background: "#fff", border: "1px solid #fecaca", borderRadius: "14px", padding: "16px", color: "#b91c1c" }}>{errorMessage}</div>
       ) : (
         <>
+          {activeTab === "geral" && (
+            <AdminVisaoGeral
+              profiles={profiles}
+              projects={projects}
+              activities={activities}
+              tasks={tasks}
+              taskLogs={taskLogs}
+              onlineUsers={onlineUsers}
+              minutesOf={getMinutesFromLog}
+              projectOfLog={resolveProjectIdForLog}
+              activeLabelFor={(id) => { const log = activeLogsByUser.get(String(id)); return log ? resolveActiveLabel(log) : null; }}
+              irPara={setActiveTab}
+            />
+          )}
           {activeTab === "seguranca" && <SegurancaMFA profiles={profiles} />}
 
           {/* TAB 1: VISÃO GLOBAL (ANALYTICS) */}

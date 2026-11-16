@@ -13,6 +13,13 @@ export const config = { runtime: "nodejs", maxDuration: 30 };
 
 const PAPEIS_ADMIN = ["admin", "administrador"];
 
+// Fatores MFA de uma pessoa (endpoint próprio; o objeto do utilizador não os traz)
+async function fatoresDe(admin, userId) {
+  const { data, error } = await admin.auth.admin.mfa.listFactors({ userId });
+  if (error) throw error;
+  return data?.factors || [];
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.status(405).json({ ok: false, error: "Método não permitido." });
@@ -44,22 +51,28 @@ export default async function handler(req, res) {
 
   try {
     if (acao === "estado") {
-      // Estado de todos: { userId: { fatores, verificado, ultimo } }
-      const estado = {};
+      // Estado de todos: { userId: { fatores, verificado, desde, ultimoLogin } }
+      // A lista de utilizadores NÃO traz os fatores: pergunta-se pessoa a pessoa (/admin/users/{id}/factors)
+      const users = [];
       for (let page = 1; page <= 20; page += 1) {
         const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 200 });
         if (error) throw error;
-        (data?.users || []).forEach((u) => {
-          const fs = u.factors || [];
+        users.push(...(data?.users || []));
+        if ((data?.users || []).length < 200) break;
+      }
+      const estado = {};
+      for (let i = 0; i < users.length; i += 10) {
+        await Promise.all(users.slice(i, i + 10).map(async (u) => {
+          const fs = await fatoresDe(admin, u.id);
           const ok = fs.filter((f) => f.status === "verified");
           estado[u.id] = {
             fatores: fs.length,
             verificado: ok.length > 0,
             desde: ok.map((f) => f.created_at).sort()[0] || null,
             ultimoLogin: u.last_sign_in_at || null,
+            bloqueado: Boolean(u.banned_until && new Date(u.banned_until) > new Date()),
           };
-        });
-        if ((data?.users || []).length < 200) break;
+        }));
       }
       res.status(200).json({ ok: true, estado });
       return;
@@ -75,7 +88,7 @@ export default async function handler(req, res) {
         res.status(404).json({ ok: false, error: "Utilizador não encontrado." });
         return;
       }
-      const fatores = alvo.user.factors || [];
+      const fatores = await fatoresDe(admin, userId);
       for (const f of fatores) {
         const { error } = await admin.auth.admin.mfa.deleteFactor({ userId, id: f.id });
         if (error) throw error;
