@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../services/supabase";
+import SegurancaMFA from "../components/admin/SegurancaMFA";
 
 const PROFILE_TAG_PASSWORD = "admin123";
 
@@ -513,8 +514,10 @@ export default function AdminDashboard() {
           <TabButton id="analytics" label="Visão Global" icon={Icons.Analytics} />
           <TabButton id="equipa" label="Equipa & Assiduidade" icon={Icons.Equipa} />
           <TabButton id="gestao" label="Gestão Individual" icon={Icons.Gestao} />
+          <TabButton id="seguranca" label="Segurança" icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>} />
         </div>
 
+        {activeTab !== "seguranca" && (
         <div style={{ display: "flex", gap: "10px", alignItems: "center", padding: "14px", overflowX: "auto", whiteSpace: "nowrap" }}>
           <select value={mode} onChange={(e) => setMode(e.target.value)} style={{ border: "1px solid var(--color-borderColor)", borderRadius: "10px", padding: "8px 12px", fontWeight: 700, color: "var(--color-textSecondary)", background: "var(--color-bgTertiary)", outline: "none", cursor: "pointer" }}>
             <option value="day">Modo Diário</option>
@@ -547,6 +550,7 @@ export default function AdminDashboard() {
             </select>
           )}
         </div>
+        )}
       </div>
 
       {loading ? (
@@ -555,6 +559,8 @@ export default function AdminDashboard() {
         <div style={{ background: "#fff", border: "1px solid #fecaca", borderRadius: "14px", padding: "16px", color: "#b91c1c" }}>{errorMessage}</div>
       ) : (
         <>
+          {activeTab === "seguranca" && <SegurancaMFA profiles={profiles} />}
+
           {/* TAB 1: VISÃO GLOBAL (ANALYTICS) */}
           {activeTab === "analytics" && (
             <div className="bz-tab-panel" style={{ display: "flex", flexDirection: "column", gap: "18px" }}>

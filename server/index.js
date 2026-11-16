@@ -8,6 +8,7 @@ import absenceSendRequest from "../api/absence-notifications/send-request.js";
 import absenceAction, { buildActionToken } from "../api/absence-notifications/action.js";
 import marketingIdeias from "../api/marketing/ideias.js";
 import organizadorIa from "../api/organizador/ia.js";
+import adminMfa from "../api/admin/mfa.js";
 
 const app = express();
 
@@ -201,6 +202,7 @@ app.get("/api/cae-descriptions", (req, res) => {
 app.post("/api/absence-notifications/send-request", (req, res) => absenceSendRequest(req, res));
 app.post("/api/marketing/ideias", (req, res) => marketingIdeias(req, res));
 app.post("/api/organizador/ia", (req, res) => organizadorIa(req, res));
+app.post("/api/admin/mfa", (req, res) => adminMfa(req, res));
 app.get("/api/absence-notifications/action", (req, res) => absenceAction(req, res));
 
 const PORT = Number(process.env.PORT || 8787);

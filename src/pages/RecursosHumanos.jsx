@@ -6,6 +6,7 @@ import gerarRelatorioRecursosHumanos from "../components/pdfRecursosHumanos";
 import gerarRelatorioIndividual from "../components/pdfIndividual";
 import gerarRelatorioDeslocacoesMensais from "../components/pdfDeslocacoesMensais";
 import CalendarioColaborador from "../components/CalendarioColaborador";
+import MedalhasRH from "../components/medalhas/MedalhasRH";
 import FancySelect from "../components/FancySelect";
 import * as XLSX from "xlsx";
 import {
@@ -32,6 +33,7 @@ import "./../styles/rh.css";
 
 // --- ÍCONES SVG ESTILO SAAS ---
 const Icons = {
+  Medal: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7.2 2h9.6l-3 6.5h-3.6z"></path><circle cx="12" cy="15" r="6"></circle><path d="M12 12.4l.9 1.8 2 .3-1.4 1.4.3 2-1.8-1-1.8 1 .3-2-1.4-1.4 2-.3z"></path></svg>,
   Users: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>,
   Chart: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>,
   Inbox: ({ size = 18, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path></svg>,
@@ -2761,6 +2763,7 @@ export default function RecursosHumanos() {
       { id: 'pedidos', label: 'Pedidos', icon: Icons.Inbox, badge: totalPedidos },
       { id: 'tolerancias', label: 'Tolerâncias', icon: Icons.Clock },
       { id: 'formacoes', label: 'Formação', icon: Icons.FileText },
+      { id: 'medalhas', label: 'Medalhas', icon: Icons.Medal },
       { id: 'inativos', label: 'Colab. Inativos', icon: Icons.User },
   ];
 
@@ -3063,6 +3066,10 @@ export default function RecursosHumanos() {
                     )}
                 </section>
             </div>
+        )}
+
+        {activeView === 'medalhas' && (
+            <MedalhasRH colaboradores={colaboradoresAtivos} notify={showNotification} />
         )}
 
         {activeView === 'inativos' && (

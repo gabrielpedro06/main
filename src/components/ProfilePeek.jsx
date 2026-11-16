@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { supabase } from "../services/supabase";
+import { fmtDataMedalha } from "./medalhas/medalhasConfig";
+import "../styles/medalhas.css";
 
 const I = {
   Close: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>,
@@ -8,7 +11,30 @@ const I = {
   Cake: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8" /><path d="M4 16s.5-1 2-1 2.5 2 4 2 2.5-2 4-2 2.5 2 4 2 2-1 2-1" /><path d="M2 21h20" /><path d="M7 8v3" /><path d="M12 8v3" /><path d="M17 8v3" /><path d="M7 4h.01" /><path d="M12 4h.01" /><path d="M17 4h.01" /></svg>,
   Copy: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>,
   Check: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>,
+  Medal: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7.2 2h9.6l-3 6.5h-3.6z" /><circle cx="12" cy="15" r="6" /><path d="M12 12.4l.9 1.8 2 .3-1.4 1.4.3 2-1.8-1-1.8 1 .3-2-1.4-1.4 2-.3z" /></svg>,
 };
+
+// Medalhas do colaborador (null = a carregar; [] = nenhuma ou módulo ainda não ativo)
+function useMedalhas(userId) {
+  const [res, setRes] = useState({ userId: null, lista: null });
+  useEffect(() => {
+    if (!userId) return undefined;
+    let vivo = true;
+    supabase
+      .from("medalhas_colaboradores")
+      .select("medalhas(id, nome, data, descricao, imagem_url)")
+      .eq("user_id", userId)
+      .then(({ data, error }) => {
+        if (!vivo) return;
+        const ms = error ? [] : (data || []).map((r) => r.medalhas).filter(Boolean);
+        ms.sort((a, b) => String(b.data).localeCompare(String(a.data)));
+        setRes({ userId, lista: ms });
+      });
+    return () => { vivo = false; };
+  }, [userId]);
+  if (!userId) return [];
+  return res.userId === userId ? res.lista : null;
+}
 
 const getInitials = (name) => {
   const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
@@ -23,6 +49,7 @@ const getInitials = (name) => {
 export default function ProfilePeek({ entry, onClose }) {
   const [copied, setCopied] = useState(null);
   const profile = entry?.profiles || {};
+  const medalhas = useMedalhas(entry?.user_id || profile.id);
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
@@ -60,7 +87,8 @@ export default function ProfilePeek({ entry, onClose }) {
       style={{ position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(15, 23, 42, 0.5)", zIndex: 100000, padding: 16 }}
       onClick={onClose}
     >
-      <div className="pp-card" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={profile.nome || "Perfil"}>
+      <div className="mdl-peek-wrap" onClick={(e) => e.stopPropagation()}>
+      <div className="pp-card" role="dialog" aria-label={profile.nome || "Perfil"}>
         <div className="pp-cover">
           <span className="pp-cover-shine" aria-hidden="true" />
           <button type="button" className="pp-close" onClick={onClose} aria-label="Fechar">
@@ -117,6 +145,32 @@ export default function ProfilePeek({ entry, onClose }) {
             )}
           </div>
         )}
+      </div>
+
+      {/* Painel lateral: só aparece quando a pessoa tem medalhas */}
+      {medalhas && medalhas.length > 0 && (
+        <aside className="mdl-panel" aria-label={`Medalhas de ${profile.nome || "colaborador"}`}>
+          <div className="mdl-panel-head">
+            <span><I.Medal /></span>
+            <div>
+              <strong>Medalhas</strong>
+              <small>{medalhas.length} {medalhas.length === 1 ? "conquista" : "conquistas"}</small>
+            </div>
+          </div>
+          <div className="mdl-panel-list">
+            {medalhas.map((m, i) => (
+              <div key={m.id} className="mdl-panel-item" style={{ animationDelay: `${0.08 + i * 0.05}s` }}>
+                <img src={m.imagem_url} alt="" loading="lazy" />
+                <div>
+                  <strong>{m.nome}</strong>
+                  <small>{fmtDataMedalha(m.data)}</small>
+                  {m.descricao && <p>{m.descricao}</p>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </aside>
+      )}
       </div>
     </div>,
     document.body

@@ -1,0 +1,135 @@
+/* =========================================================================
+   MEDALHAS — aba dos RH (MedalhasRH.jsx) e painel do perfil (ProfilePeek)
+   Prefixo único: mdl-
+   ========================================================================= */
+
+/* ---------- Aba dos RH ---------- */
+.mdl-head-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.mdl-search {
+  display: inline-flex; align-items: center; gap: 7px; min-width: 0;
+  padding: 0 11px; height: 38px; border-radius: 11px;
+  border: 1px solid var(--rh-field-line, #cfd6df); background: var(--rh-field-bg, #f3f5f8); color: var(--rh-muted, #64748b);
+}
+.mdl-search input { border: 0; outline: 0; background: transparent; font: inherit; font-size: 0.85rem; color: var(--rh-ink, #0f172a); min-width: 0; width: 180px; }
+.mdl-search:focus-within { border-color: var(--color-btnPrimary, #2563eb); }
+
+.mdl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-top: 14px; }
+.mdl-card {
+  position: relative; display: flex; gap: 14px; align-items: flex-start;
+  padding: 14px; border-radius: 18px; background: #fff;
+  border: 1px solid var(--rh-line, #e2e8f0);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: transform 0.2s var(--rh-ease, ease), box-shadow 0.2s ease;
+}
+.mdl-card:hover { transform: translateY(-2px); box-shadow: 0 14px 28px -18px rgba(15, 23, 42, 0.35); }
+.mdl-card.is-skeleton { height: 118px; background: linear-gradient(90deg, #f1f5f9, #f8fafc, #f1f5f9); background-size: 200% 100%; animation: mdlShimmer 1.2s linear infinite; }
+@keyframes mdlShimmer { to { background-position: -200% 0; } }
+.mdl-card-img {
+  flex-shrink: 0; width: 76px; height: 76px; border-radius: 16px; display: grid; place-items: center;
+  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--color-btnPrimary, #2563eb) 10%, #fff), #f8fafc 70%);
+}
+.mdl-card-img img { width: 68px; height: 68px; object-fit: contain; filter: drop-shadow(0 4px 6px rgba(15, 23, 42, 0.18)); }
+.mdl-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; padding-right: 28px; }
+.mdl-card-body strong { font-size: 0.95rem; font-weight: 800; color: var(--rh-ink, #0f172a); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mdl-card-body small { font-size: 0.76rem; font-weight: 700; color: var(--rh-muted, #64748b); }
+.mdl-card-body p { margin: 4px 0 0; font-size: 0.8rem; line-height: 1.4; color: var(--rh-text, #334155); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.mdl-card-actions { position: absolute; top: 10px; right: 10px; display: flex; flex-direction: column; gap: 4px; opacity: 0; transition: opacity 0.15s ease; }
+.mdl-card:hover .mdl-card-actions, .mdl-card:focus-within .mdl-card-actions { opacity: 1; }
+@media (hover: none) { .mdl-card-actions { opacity: 1; } }
+
+.mdl-people { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.mdl-avatars { display: inline-flex; }
+.mdl-av {
+  width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; overflow: hidden;
+  display: grid; place-items: center; font-size: 0.62rem; font-weight: 800; color: #fff;
+  background: var(--color-btnPrimary, #2563eb); border: 2px solid #fff;
+}
+.mdl-avatars .mdl-av + .mdl-av { margin-left: -8px; }
+.mdl-av img { width: 100%; height: 100%; object-fit: cover; }
+.mdl-av.is-more { background: #e2e8f0; color: #475569; }
+.mdl-people-n { display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; font-weight: 700; color: var(--rh-muted, #64748b); }
+
+/* Modal */
+.mdl-form-top { display: grid; grid-template-columns: 150px 1fr; gap: 14px; align-items: stretch; }
+.mdl-form-fields { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.mdl-drop {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  min-height: 150px; padding: 10px; border-radius: 16px; cursor: pointer; font: inherit; overflow: hidden;
+  border: 2px dashed var(--rh-field-line, #cfd6df); background: var(--rh-field-bg, #f3f5f8); color: var(--rh-muted, #64748b);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.mdl-drop:hover { border-color: var(--color-btnPrimary, #2563eb); color: var(--color-btnPrimary, #2563eb); }
+.mdl-drop strong { font-size: 0.8rem; color: var(--rh-ink, #0f172a); }
+.mdl-drop small { font-size: 0.72rem; }
+.mdl-drop.has-img { border-style: solid; background: radial-gradient(circle at 50% 40%, #fff, #f1f5f9 75%); }
+.mdl-drop.has-img img { max-width: 100%; max-height: 120px; object-fit: contain; filter: drop-shadow(0 6px 10px rgba(15, 23, 42, 0.2)); }
+.mdl-drop-change {
+  position: absolute; left: 8px; right: 8px; bottom: 8px; padding: 4px; border-radius: 8px;
+  font-size: 0.7rem; font-weight: 800; color: #fff; background: rgba(15, 23, 42, 0.7);
+  opacity: 0; transform: translateY(4px); transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.mdl-drop:hover .mdl-drop-change, .mdl-drop:focus-visible .mdl-drop-change { opacity: 1; transform: none; }
+.mdl-opt { font-weight: 600; color: var(--rh-faint, #94a3b8); text-transform: none; letter-spacing: 0; }
+
+.mdl-picker { border: 1px solid var(--rh-field-line, #cfd6df); border-radius: 14px; background: #fff; overflow: hidden; }
+.mdl-picker-top { display: flex; gap: 8px; padding: 8px; border-bottom: 1px solid var(--rh-line, #e2e8f0); }
+.mdl-picker-top .mdl-search { flex: 1; }
+.mdl-picker-top .mdl-search input { width: 100%; }
+.mdl-picker-list { max-height: 240px; overflow-y: auto; padding: 6px; display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 4px; }
+.mdl-person {
+  display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 10px; min-width: 0;
+  border: 1px solid transparent; background: transparent; cursor: pointer; font: inherit; text-align: left; color: var(--rh-text, #334155);
+}
+.mdl-person:hover { background: var(--rh-soft, #f1f5f9); }
+.mdl-person.is-on { background: color-mix(in srgb, var(--color-btnPrimary, #2563eb) 9%, #fff); border-color: color-mix(in srgb, var(--color-btnPrimary, #2563eb) 30%, #fff); color: var(--rh-ink, #0f172a); }
+.mdl-person-name { flex: 1; min-width: 0; font-size: 0.82rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mdl-tick {
+  width: 20px; height: 20px; flex-shrink: 0; border-radius: 6px; display: grid; place-items: center;
+  border: 1.5px solid var(--rh-field-line, #cfd6df); color: #fff;
+}
+.mdl-person.is-on .mdl-tick { background: var(--color-btnPrimary, #2563eb); border-color: var(--color-btnPrimary, #2563eb); }
+.mdl-none { grid-column: 1 / -1; margin: 10px; font-size: 0.82rem; color: var(--rh-muted, #64748b); text-align: center; }
+.mdl-del-text { margin: 0; font-size: 0.9rem; color: var(--rh-text, #334155); line-height: 1.5; }
+
+@media (max-width: 560px) {
+  .mdl-form-top { grid-template-columns: 1fr; }
+  .mdl-drop { min-height: 130px; }
+  .mdl-search input { width: 120px; }
+}
+
+/* ---------- Painel lateral no cartão de perfil (ProfilePeek) ---------- */
+.mdl-peek-wrap { display: flex; align-items: stretch; gap: 12px; max-width: 100%; max-height: calc(100vh - 32px); }
+.mdl-peek-wrap > .pp-card { flex-shrink: 0; }
+.mdl-panel {
+  width: 280px; display: flex; flex-direction: column; border-radius: 24px; overflow: hidden;
+  background: #fff; color: #0f172a; box-shadow: 0 30px 70px -25px rgba(15, 23, 42, 0.55);
+  font-family: "Manrope", "Segoe UI", system-ui, sans-serif;
+  animation: mdlSlide 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes mdlSlide { from { opacity: 0; transform: translateX(-18px) scale(0.98); } }
+.mdl-panel-head {
+  display: flex; align-items: center; gap: 10px; padding: 16px 16px 12px;
+  border-bottom: 1px solid #eef2f7;
+}
+.mdl-panel-head span {
+  width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; flex-shrink: 0;
+  background: #fef3c7; color: #b45309;
+}
+.mdl-panel-head strong { display: block; font-size: 0.95rem; font-weight: 800; }
+.mdl-panel-head small { display: block; font-size: 0.74rem; color: #64748b; font-weight: 600; }
+.mdl-panel-list { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 4px; }
+.mdl-panel-item { display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: 14px; animation: mdlSlide 0.4s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.mdl-panel-item:hover { background: #f8fafc; }
+.mdl-panel-item img { width: 52px; height: 52px; object-fit: contain; flex-shrink: 0; filter: drop-shadow(0 4px 6px rgba(15, 23, 42, 0.2)); transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.mdl-panel-item:hover img { transform: scale(1.12) rotate(-6deg); }
+.mdl-panel-item div { min-width: 0; }
+.mdl-panel-item strong { display: block; font-size: 0.86rem; font-weight: 800; line-height: 1.25; }
+.mdl-panel-item small { display: block; font-size: 0.74rem; font-weight: 600; color: #64748b; margin-top: 2px; }
+.mdl-panel-item p { margin: 3px 0 0; font-size: 0.74rem; color: #475569; line-height: 1.35; }
+.mdl-panel-empty { padding: 26px 18px; text-align: center; color: #64748b; font-size: 0.82rem; line-height: 1.5; }
+
+@media (max-width: 760px) {
+  .mdl-peek-wrap { flex-direction: column; align-items: center; overflow-y: auto; }
+  .mdl-panel { width: min(380px, 100%); max-height: 46vh; flex-shrink: 0; animation-name: mdlSlideUp; }
+  @keyframes mdlSlideUp { from { opacity: 0; transform: translateY(-12px); } }
+}
