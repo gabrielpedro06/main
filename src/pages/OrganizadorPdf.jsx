@@ -1,1231 +1,1269 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
+  AlertTriangle,
+  CheckCircle2,
+  ChevronDown,
+  Copy,
   Download,
-  FileArchive,
-  FilePlus2,
+  FileText,
   FolderOpen,
-  Save,
+  FolderTree,
+  Layers,
+  Lock,
+  Merge,
+  MoreHorizontal,
+  QrCode,
+  RotateCw,
+  Scissors,
+  ShieldCheck,
+  Sparkles,
   Trash2,
+  Undo2,
   Upload,
   X,
-  Scissors,
-  RotateCw,
-  Sparkles,
-  Eye,
-  Merge,
-  CheckCircle2,
-  AlertCircle,
-  FileText,
-  Ban,
-  Undo2,
 } from "lucide-react";
 import { PDFDocument, degrees } from "pdf-lib";
 import JSZip from "jszip";
-
-// ALTERAÇÃO CRÍTICA: Importar a build normal em vez da 'legacy' para melhor suporte a compressões nativas (JBIG2/CCITT)
 import * as pdfjsLib from "pdfjs-dist/build/pdf.mjs";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.mjs?url";
-
 import { createWorker } from "tesseract.js";
+import { scoreOcrText } from "../utils/pdfOrganizerEngine";
+import { redigir } from "../utils/iaRedacao";
+import { supabase } from "../services/supabase";
 import {
   PDF_CATEGORIES,
-  extractGroupMetadata,
+  TIPOS_DOC,
+  buildDocMeta,
+  buildFilename,
+  buildFolder,
+  cropCanvas,
+  findFiscalQr,
+  inkStrip,
   isBlankPage,
-  shouldBreakPage,
-  scoreOcrText,
-} from "../utils/pdfOrganizerEngine";
+  segmentPages,
+} from "../utils/faturasQr";
 import "./organizadorPdf.css";
-
-const DB_NAME = "bizin-pdf-organizer";
-const STORE_NAME = "sessions";
-const SESSION_ID = "current";
-const SUGGESTIONS_VERSION = 30;
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
-// Operações IndexedDB
-function openDatabase() {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 2);
-    request.onupgradeneeded = () => {
-      if (!request.result.objectStoreNames.contains(STORE_NAME)) {
-        request.result.createObjectStore(STORE_NAME);
-      }
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-}
+// Descodificadores do pdf.js (JBIG2/JPEG2000 em WebAssembly, perfis de cor, fontes).
+// Sem eles, digitalizações a preto e branco (ex.: comprovativos do banco) aparecem em branco.
+// URL absoluto: o worker do pdf.js resolve caminhos relativos a partir do seu próprio ficheiro
+const PDFJS_BASE = new URL(`${import.meta.env.BASE_URL || "/"}pdfjs/`, window.location.href).href;
 
-async function saveSession(value) {
-  const database = await openDatabase();
-  await new Promise((resolve, reject) => {
-    const request = database.transaction(STORE_NAME, "readwrite").objectStore(STORE_NAME).put(value, SESSION_ID);
-    request.onsuccess = resolve;
-    request.onerror = () => reject(request.error);
-  });
-  database.close();
-}
-
-async function readSession() {
-  const database = await openDatabase();
-  const value = await new Promise((resolve, reject) => {
-    const request = database.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME).get(SESSION_ID);
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-  database.close();
-  return value;
-}
-
-async function clearSession() {
-  const database = await openDatabase();
-  await new Promise((resolve, reject) => {
-    const request = database.transaction(STORE_NAME, "readwrite").objectStore(STORE_NAME).delete(SESSION_ID);
-    request.onsuccess = resolve;
-    request.onerror = () => reject(request.error);
-  });
-  database.close();
-}
-
-function safePart(value, fallback) {
-  return String(value || fallback).trim().replace(/[\\/:*?"<>|]/g, "-") || fallback;
-}
-
-function shouldUseOcr(text) {
-  const clean = text.replace(/\s+/g, " ").trim();
-  const words = clean.match(/[A-Za-zÀ-ÿ]{3,}/g) || [];
-  const readableWords = words.filter((w) => /[aeiouáéíóúâêôãõ]/i.test(w)).length;
-  // Se o texto tiver menos de 35 caracteres ou se menos de 30% das palavras forem legíveis
-  return clean.length < 35 || (words.length > 5 && readableWords / words.length < 0.3);
-}
-
-function rotateCanvas(sourceCanvas, deg) {
-  const rotated = document.createElement("canvas");
-  const quarterTurn = Math.abs(deg) % 180 === 90;
-  rotated.width = quarterTurn ? sourceCanvas.height : sourceCanvas.width;
-  rotated.height = quarterTurn ? sourceCanvas.width : sourceCanvas.height;
-  const ctx = rotated.getContext("2d");
-  ctx.translate(rotated.width / 2, rotated.height / 2);
-  ctx.rotate((deg * Math.PI) / 180);
-  ctx.drawImage(sourceCanvas, -sourceCanvas.width / 2, -sourceCanvas.height / 2);
-  return rotated;
-}
-
-/**
- * Determina o ângulo de rotação que garante que a página é apresentada na vertical (portrait).
- * Evita que faturas e recibos digitalizados fiquem deitados na horizontal.
- */
-function getPortraitAngle(page) {
-  const nativeVp = page.getViewport({ scale: 1 });
-  if (nativeVp.width <= nativeVp.height) {
-    return page.rotate || 0;
+// Confirma que o descodificador JBIG2 está publicado (se faltar, o servidor devolve HTML em vez de WebAssembly)
+let decodersCheck = null;
+const checkDecoders = () => {
+  if (!decodersCheck) {
+    decodersCheck = fetch(`${PDFJS_BASE}wasm/jbig2.wasm`, { cache: "force-cache" })
+      .then(async (r) => {
+        if (!r.ok) return false;
+        const b = new Uint8Array(await r.arrayBuffer());
+        return b[0] === 0 && b[1] === 0x61 && b[2] === 0x73 && b[3] === 0x6d; // "\0asm"
+      })
+      .catch(() => false);
   }
-  for (const r of [0, 90, 270, 180]) {
-    const vp = page.getViewport({ scale: 1, rotation: r });
-    if (vp.width <= vp.height) {
-      return r;
-    }
+  return decodersCheck;
+};
+const openPdf = (data) => pdfjsLib.getDocument({
+  data,
+  wasmUrl: `${PDFJS_BASE}wasm/`,
+  iccUrl: `${PDFJS_BASE}iccs/`,
+  standardFontDataUrl: `${PDFJS_BASE}standard_fonts/`,
+  cMapUrl: `${PDFJS_BASE}cmaps/`,
+  cMapPacked: true,
+});
+
+// =====================================================================
+// Organizador de faturas (v2)
+// 1. Lê cada página: texto, QR fiscal da AT e (se preciso) OCR — tudo local
+// 2. Separa documentos (o QR fiscal manda; o texto decide onde não há QR)
+// 3. Revisão rápida e exportação em ZIP organizado + resumo.csv
+// =====================================================================
+
+const DB_NAME = "bizin-pdf-organizer";
+const STORE = "sessions";
+const STATE_KEY = "v2-state";
+const FILES_KEY = "v2-files";
+const LEARNED_KEY = "bz-pdf-fornecedores";
+
+// ---------------- IndexedDB ----------------
+function openDb() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 2);
+    req.onupgradeneeded = () => {
+      if (!req.result.objectStoreNames.contains(STORE)) req.result.createObjectStore(STORE);
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function dbDo(mode, fn) {
+  const db = await openDb();
+  try {
+    return await new Promise((resolve, reject) => {
+      const req = fn(db.transaction(STORE, mode).objectStore(STORE));
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  } finally {
+    db.close();
+  }
+}
+const dbGet = (k) => dbDo("readonly", (s) => s.get(k));
+const dbPut = (k, v) => dbDo("readwrite", (s) => s.put(v, k));
+const dbDel = (k) => dbDo("readwrite", (s) => s.delete(k));
+
+// ---------------- Utilidades ----------------
+const readLearned = () => {
+  try { return JSON.parse(localStorage.getItem(LEARNED_KEY) || "{}") || {}; } catch { return {}; }
+};
+const fmtEur = (v) => (v == null || Number.isNaN(v) ? "—" : Number(v).toLocaleString("pt-PT", { style: "currency", currency: "EUR" }));
+const fmtData = (iso) => (iso && /^\d{4}-\d{2}-\d{2}$/.test(iso) ? new Date(`${iso}T00:00:00`).toLocaleDateString("pt-PT") : iso || "—");
+const isPdf = (f) => f.type === "application/pdf" || /\.pdf$/i.test(f.name || "");
+
+function portraitRotation(page) {
+  const vp = page.getViewport({ scale: 1 });
+  if (vp.width <= vp.height) return page.rotate || 0;
+  for (const r of [90, 270, 0, 180]) {
+    const v = page.getViewport({ scale: 1, rotation: r });
+    if (v.width <= v.height) return r;
   }
   return page.rotate || 0;
 }
 
+function rotate180(src) {
+  const c = document.createElement("canvas");
+  c.width = src.width;
+  c.height = src.height;
+  const ctx = c.getContext("2d");
+  ctx.translate(c.width, c.height);
+  ctx.rotate(Math.PI);
+  ctx.drawImage(src, 0, 0);
+  return c;
+}
+
 /**
- * Lê o ficheiro PDF, extrai o texto de cada página e executa OCR inteligente apenas se necessário
+ * Páginas digitalizadas muito claras (texto cinzento-claro): estica o contraste
+ * para que miniatura, QR e OCR "vejam" o texto. Não mexe em páginas já nítidas.
  */
-async function readPdf(file, onProgress) {
-  const bytes = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: bytes.slice(0) }).promise;
-  const pages = [];
-  let worker = null;
-
-  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
-    onProgress?.(pageNumber, pdf.numPages, "A analisar página...");
-    const page = await pdf.getPage(pageNumber);
-    const content = await page.getTextContent();
-    let text = content.items.map((item) => item.str || "").join(" ").trim();
-    const basePortraitRotation = getPortraitAngle(page);
-    let bestRotation = basePortraitRotation;
-
-    // Se o texto for escasso (documento digitalizado / imagem) ou de baixa qualidade, recorrer ao OCR
-    if (shouldUseOcr(text) || scoreOcrText(text) < 20) {
-      onProgress?.(pageNumber, pdf.numPages, "A aplicar OCR com deteção inteligente de rotação...");
-      if (!worker) {
-        worker = await createWorker("por+eng");
-      }
-
-      // Renderiza o canvas já na orientação vertical portrait correta
-      const renderViewport = page.getViewport({ scale: 1.25 * 1.25, rotation: basePortraitRotation });
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.ceil(renderViewport.width);
-      canvas.height = Math.ceil(renderViewport.height);
-      
-      // ALTERAÇÃO CRÍTICA: intent 'print' assegura que a imagem JBIG2 não fique em branco na tela HTML
-      await page.render({ 
-        canvasContext: canvas.getContext("2d"), 
-        viewport: renderViewport,
-        intent: 'print' 
-      }).promise;
-
-      // O canvas já está na vertical! Testa 0° (vertical direito) primeiro, depois 180°
-      const rotationsToTry = [0, 180, 270, 90];
-      let bestScore = -1;
-      let bestCandidate = "";
-      let bestRotOffset = 0;
-
-      for (const rot of rotationsToTry) {
-        const rotatedImage = rot !== 0 ? rotateCanvas(canvas, rot) : canvas;
-        const result = await worker.recognize(rotatedImage);
-        const candidate = result.data.text.trim();
-        const score = scoreOcrText(candidate);
-
-        if (score > bestScore) {
-          bestScore = score;
-          bestCandidate = candidate;
-          bestRotOffset = rot;
-        }
-
-        // Se encontrámos excelente texto fiscal/contabilístico em português (> 60 pontos),
-        // aceitamos imediatamente e poupamos tempo!
-        if (score >= 60) {
-          break;
-        }
-      }
-
-      text = bestCandidate || text;
-      bestRotation = (basePortraitRotation + bestRotOffset) % 360;
+function enhanceContrast(canvas) {
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const d = img.data;
+  const hist = new Uint32Array(256);
+  for (let i = 0; i < d.length; i += 16) hist[(d[i] * 77 + d[i + 1] * 150 + d[i + 2] * 29) >> 8] += 1;
+  const total = d.length / 16;
+  // tom mais escuro "real" (0,3% mais escuro) e fundo (percentil 60)
+  let acc = 0; let dark = 0; let light = 255;
+  for (let v = 0; v < 256; v += 1) { acc += hist[v]; if (acc >= total * 0.003) { dark = v; break; } }
+  acc = 0;
+  for (let v = 0; v < 256; v += 1) { acc += hist[v]; if (acc >= total * 0.6) { light = v; break; } }
+  if (dark < 90 || light - dark < 25) return false; // já tem preto suficiente (ou página vazia)
+  const lo = dark;
+  const hi = Math.max(lo + 20, light - 8);
+  const k = 255 / (hi - lo);
+  for (let i = 0; i < d.length; i += 4) {
+    for (let c = 0; c < 3; c += 1) {
+      const v = (d[i + c] - lo) * k;
+      d[i + c] = v < 0 ? 0 : v > 255 ? 255 : v;
     }
-
-    pages.push({
-      pageNumber,
-      text,
-      rotation: bestRotation, // Guarda a orientação correta absoluta para miniatura e exportação
-      aspect: 0.7,
-    });
   }
+  ctx.putImageData(img, 0, 0);
+  return true;
+}
 
-  if (worker) {
-    await worker.terminate();
+function stepDown(canvas, width) {
+  let src = canvas;
+  let w = canvas.width;
+  let h = canvas.height;
+  while (w / 2 >= width) {
+    const c = document.createElement("canvas");
+    c.width = Math.round(w / 2);
+    c.height = Math.round(h / 2);
+    const ctx = c.getContext("2d");
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(src, 0, 0, c.width, c.height);
+    if (src !== canvas) src.width = 0;
+    src = c;
+    w = c.width;
+    h = c.height;
   }
+  const out = document.createElement("canvas");
+  out.width = width;
+  out.height = Math.round((h / w) * width);
+  const octx = out.getContext("2d");
+  octx.imageSmoothingEnabled = true;
+  octx.imageSmoothingQuality = "high";
+  octx.drawImage(src, 0, 0, out.width, out.height);
+  if (src !== canvas) src.width = 0;
+  return out;
+}
 
-  return { bytes, pageCount: pdf.numPages, pages };
+function thumbOf(canvas, width = 240) {
+  const t = stepDown(canvas, width);
+  const url = t.toDataURL("image/jpeg", 0.75);
+  t.width = 0;
+  return url;
 }
 
 /**
- * Renderiza uma miniatura da página com a rotação aplicada
+ * Texto muito fino (traços de 1 píxel, pontilhados): engrossa os traços escuros
+ * (filtro de mínimo 3x3). Ajuda o OCR e a miniatura em digitalizações de baixa qualidade.
  */
-async function renderPagePreview(bytes, pageNumber, scale = 0.28, rotation = 0) {
-  const pdf = await pdfjsLib.getDocument({ data: bytes.slice(0) }).promise;
-  const page = await pdf.getPage(pageNumber);
-  const viewport = page.getViewport({ scale, rotation });
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.ceil(viewport.width);
-  canvas.height = Math.ceil(viewport.height);
-  
-  // ALTERAÇÃO CRÍTICA: intent 'print' assegura que JBIG2 carrega na miniatura/zoom de visualização
-  await page.render({ 
-    canvasContext: canvas.getContext("2d"), 
-    viewport,
-    intent: 'print'
-  }).promise;
-  
-  return canvas.toDataURL("image/jpeg", 0.82);
+function thickenStrokes(canvas) {
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  const W = canvas.width;
+  const H = canvas.height;
+  const img = ctx.getImageData(0, 0, W, H);
+  const d = img.data;
+  const g = new Uint8Array(W * H);
+  for (let i = 0, j = 0; j < g.length; i += 4, j += 1) g[j] = (d[i] * 77 + d[i + 1] * 150 + d[i + 2] * 29) >> 8;
+  const tmp = new Uint8Array(W * H);
+  for (let y = 0; y < H; y += 1) {
+    const row = y * W;
+    for (let x = 0; x < W; x += 1) {
+      const a = g[row + x];
+      const l = x > 0 ? g[row + x - 1] : a;
+      const r = x < W - 1 ? g[row + x + 1] : a;
+      tmp[row + x] = a < l ? (a < r ? a : r) : (l < r ? l : r);
+    }
+  }
+  for (let y = 0; y < H; y += 1) {
+    for (let x = 0; x < W; x += 1) {
+      const i = y * W + x;
+      const a = tmp[i];
+      const u = y > 0 ? tmp[i - W] : a;
+      const dn = y < H - 1 ? tmp[i + W] : a;
+      const v = a < u ? (a < dn ? a : dn) : (u < dn ? u : dn);
+      const k = i * 4;
+      d[k] = v; d[k + 1] = v; d[k + 2] = v;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
 }
 
+// Mantém as quebras de linha (servem para encontrar o nome no cabeçalho)
+const tidy = (t) => String(t || "").replace(/[ \t]+/g, " ").replace(/\s*\n\s*/g, "\n").trim();
+
+const textIsWeak = (t) => {
+  const c = (t || "").replace(/\s+/g, " ").trim();
+  return c.length < 60 || scoreOcrText(c) < 40;
+};
+
+// Fração de "tinta" numa página (para detetar desenhos que saíram em branco)
+function inkRatio(canvas) {
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  const d = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+  let ink = 0;
+  let n = 0;
+  for (let i = 0; i < d.length; i += 4 * 7) { // 1 em cada 7 píxeis
+    n += 1;
+    if (d[i] * 0.3 + d[i + 1] * 0.59 + d[i + 2] * 0.11 < 160) ink += 1;
+  }
+  return n ? ink / n : 0;
+}
+
+const wait = (ms) => new Promise((r) => { window.setTimeout(r, ms); });
+
+/**
+ * Lê uma página: desenha (3x), reforça contraste, procura o QR fiscal e faz OCR se não houver texto.
+ * Se a página sair em branco (descodificador de imagens ainda a carregar), volta a desenhar.
+ */
+async function readPdfPage(pdf, n, getOcr) {
+  let page = await pdf.getPage(n);
+  const content = await page.getTextContent();
+  let text = tidy(content.items.map((it) => (it.str || "") + (it.hasEOL ? "\n" : " ")).join(""));
+  let rotation = portraitRotation(page);
+  const vp = page.getViewport({ scale: 3, rotation });
+  let canvas = null;
+  let blankRender = false;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    if (canvas) {
+      // A imagem saiu em branco: descarta a imagem já descodificada (senão o pdf.js reutiliza-a) e volta a ler
+      canvas.width = 0;
+      page.cleanup();
+      await wait(400 * attempt);
+      page = await pdf.getPage(n);
+    }
+    canvas = document.createElement("canvas");
+    canvas.width = Math.ceil(vp.width);
+    canvas.height = Math.ceil(vp.height);
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    await page.render({ canvasContext: ctx, viewport: vp, intent: "print" }).promise;
+    blankRender = inkRatio(canvas) <= 0.0005;
+    if (!blankRender || text.length > 40) break;
+  }
+
+  // Digitalizações desbotadas: reforça o contraste
+  enhanceContrast(canvas);
+  const strip = inkStrip(canvas);
+  const qr = findFiscalQr(canvas, strip);
+  if (inkRatio(canvas) < 0.03) thickenStrokes(canvas);
+
+  if (textIsWeak(text)) {
+    const worker = await getOcr();
+    // OCR só na tira do talão: mais rápido e sem o carimbo do scanner ao lado
+    const area = cropCanvas(canvas, strip);
+    const a = (await worker.recognize(area)).data.text || "";
+    let best = a;
+    if (scoreOcrText(a) < 40) {
+      const flipped = rotate180(area);
+      const b = (await worker.recognize(flipped)).data.text || "";
+      // Só vira se ao contrário se ler claramente melhor (OCR fraco não deve virar páginas direitas)
+      if (scoreOcrText(b) >= 40 && scoreOcrText(b) > scoreOcrText(a) + 15) {
+        best = b;
+        rotation = (rotation + 180) % 360;
+        const fullFlip = rotate180(canvas);
+        canvas.width = 0;
+        canvas = fullFlip;
+      }
+      flipped.width = 0;
+    }
+    if (area !== canvas) {
+      area.width = 0;
+      // Rede de segurança: se a tira escolhida não tinha texto, lê a página inteira
+      if (textIsWeak(best)) {
+        const full = (await worker.recognize(canvas)).data.text || "";
+        if (scoreOcrText(full) > scoreOcrText(best)) best = full;
+      }
+    }
+    text = tidy(best) || text;
+  }
+
+  const thumb = thumbOf(canvas);
+  canvas.width = 0;
+  page.cleanup();
+  return { text, qr, rotation, thumb, thumbRot: rotation, blankRender };
+}
+
+// "Pedir à IA": rota no servidor (mesma base da API do Marketing)
+const IA_API = `${import.meta.env.VITE_MARKETING_API_BASE || ""}/api/organizador/ia`;
+const IA_MAX_PAGINAS = 40;
+
+// Página sem conteúdo lido ou cuja imagem saiu em branco ao desenhar
+const needsReread = (p) => !p.qr && (isBlankPage(p.text) || Boolean(p.blankRender));
+
+const DECODERS_MISSING = "Faltam os descodificadores de imagem do leitor de PDF (pasta public/pdfjs não publicada). "
+  + "Páginas digitalizadas podem sair em branco: publiquem essa pasta e usem Mais → Reler páginas em branco.";
+
+// Pré-visualização grande: um documento pdf.js por ficheiro
+const docCache = new Map();
+function pdfOf(file) {
+  if (!docCache.has(file.id)) {
+    const task = openPdf(file.bytes.slice(0));
+    task.promise.catch(() => docCache.delete(file.id));
+    docCache.set(file.id, task);
+  }
+  return docCache.get(file.id).promise;
+}
+function releaseDocs() {
+  docCache.forEach((t) => t.destroy().catch(() => {}));
+  docCache.clear();
+}
+
+// =====================================================================
 export default function OrganizadorPdf() {
   const inputRef = useRef(null);
+  const cancelRef = useRef(false);
+  const [ready, setReady] = useState(false);
   const [files, setFiles] = useState([]);
   const [pages, setPages] = useState([]);
-  const [status, setStatus] = useState("idle");
-  const [statusText, setStatusText] = useState("");
-  const [savedAt, setSavedAt] = useState(null);
-  const [loadedLocal, setLoadedLocal] = useState(false);
-  const [documentMeta, setDocumentMeta] = useState({});
-  const [previews, setPreviews] = useState({});
-  const [previewLoading, setPreviewLoading] = useState(false);
-  const [previewZoom, setPreviewZoom] = useState(null);
-  const previewCacheRef = useRef(new Map());
+  const [overrides, setOverrides] = useState({});
+  const [learned, setLearned] = useState(readLearned);
+  const [progress, setProgress] = useState(null);
+  const [notice, setNotice] = useState(null);
+  const [filter, setFilter] = useState("todos");
+  const [expanded, setExpanded] = useState(() => new Set());
+  const [zoom, setZoom] = useState(null);
+  const [menu, setMenu] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
 
-  // Páginas ativas (não excluídas pelo utilizador)
-  const activePages = useMemo(() => pages.filter((p) => !p.excluded), [pages]);
+  const busy = Boolean(progress);
 
-  // Agrupamento de páginas por quebra
-  const groups = useMemo(() => {
-    const list = [];
-    activePages.forEach((page, index) => {
-      if (page.breakBefore || index === 0 || !list.length) {
-        list.push([]);
-      }
-      list[list.length - 1].push(page);
-    });
-    return list;
-  }, [activePages]);
-
-  // Documentos resultantes combinados com metadados
-  const documents = useMemo(() => {
-    return groups.map((group, groupIndex) => {
-      const firstPage = group[0];
-      const key = firstPage?.id || `doc-${groupIndex}`;
-      const autoMeta = extractGroupMetadata(group, firstPage?.fileName || "documento.pdf");
-      const userMeta = documentMeta[key] || {};
-
-      return {
-        id: key,
-        pages: group,
-        year: userMeta.year || autoMeta.year,
-        category: userMeta.category || autoMeta.category,
-        entity: userMeta.entity || autoMeta.entity,
-        person: userMeta.person || autoMeta.person,
-        docNumber: userMeta.docNumber || autoMeta.docNumber,
-        filename: userMeta.filename || autoMeta.filename,
-        isBlank: autoMeta.isBlank,
-      };
-    });
-  }, [documentMeta, groups]);
-
-  // Árvore de pastas do ZIP
-  const folderTree = useMemo(() => {
-    const years = new Map();
-    documents.forEach((item) => {
-      const year = safePart(item.year, "Sem ano");
-      const category = safePart(item.category, "Outros");
-      const entityOrPerson = (item.entity || item.person || "").trim();
-      const entityFolder = entityOrPerson ? safePart(entityOrPerson, "") : "__direct__";
-
-      if (!years.has(year)) years.set(year, new Map());
-      const categoriesByYear = years.get(year);
-      if (!categoriesByYear.has(category)) categoriesByYear.set(category, new Map());
-      const entitiesByCategory = categoriesByYear.get(category);
-      if (!entitiesByCategory.has(entityFolder)) entitiesByCategory.set(entityFolder, []);
-      entitiesByCategory.get(entityFolder).push(item);
-    });
-    return years;
-  }, [documents]);
-
-  // Restaurar sessão do IndexedDB
+  // Pré-visualização: fecha com Esc e não deixa a página de trás fazer scroll
+  const zoomOpen = Boolean(zoom);
+  // Diálogo de confirmação (substitui o window.confirm): askConfirm({...}) → Promise<boolean>
+  const [dialog, setDialog] = useState(null);
+  const askConfirm = useCallback((opts) => new Promise((resolve) => setDialog({ ...opts, resolve })), []);
+  const closeDialog = useCallback((value) => {
+    setDialog((d) => { d?.resolve(value); return null; });
+  }, []);
   useEffect(() => {
-    let cancelled = false;
-    async function restoreSession() {
-      try {
-        const session = await readSession();
-        if (!session) {
-          if (!cancelled) setLoadedLocal(true);
-          return;
+    if (!dialog) return undefined;
+    const onKey = (e) => { if (e.key === "Escape") closeDialog(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [dialog, closeDialog]);
+
+  useEffect(() => {
+    if (!zoomOpen) return undefined;
+    const onKey = (e) => { if (e.key === "Escape") setZoom(null); };
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [zoomOpen]);
+
+  // ---------------- Sessão guardada ----------------
+  useEffect(() => {
+    let alive = true;
+    Promise.all([dbGet(STATE_KEY), dbGet(FILES_KEY)])
+      .then(([state, saved]) => {
+        if (!alive) return;
+        if (state && Array.isArray(saved)) {
+          setFiles(saved);
+          setPages(state.pages || []);
+          setOverrides(state.overrides || {});
         }
-
-        const restoredFiles = session.files || [];
-        let restoredPages = session.pages || [];
-
-        // Se a sessão local é de uma versão anterior, re-analisar com o motor atualizado!
-        if (session.suggestionsVersion !== SUGGESTIONS_VERSION && restoredFiles.length) {
-          setStatus("loading");
-          setStatusText("A atualizar a orientação e datas dos documentos...");
-          const newPages = [];
-          for (const file of restoredFiles) {
-            const pdf = await pdfjsLib.getDocument({ data: file.bytes.slice(0) }).promise;
-            const existingFilePages = restoredPages.filter((p) => p.fileId === file.id);
-            const hasExistingOcr = existingFilePages.length === pdf.numPages && existingFilePages.some((p) => (p.text || "").length > 20);
-
-            if (hasExistingOcr) {
-              // Já temos o texto extraído! Apenas atualizamos a rotação portrait e mantemos o texto existente
-              for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
-                const pdfPage = await pdf.getPage(pageNumber);
-                const portraitRot = getPortraitAngle(pdfPage);
-                const existingPage = existingFilePages.find((p) => p.pageNumber === pageNumber) || {};
-                newPages.push({
-                  ...existingPage,
-                  rotation: portraitRot,
-                  aspect: 0.7,
-                });
-              }
-            } else {
-              // Se não tínhamos texto completo, recorre ao leitor completo com OCR
-              const blob = new Blob([file.bytes], { type: file.type || "application/pdf" });
-              const parsed = await readPdf(blob, (pageNum, total, msg) => {
-                if (!cancelled) setStatusText(`${file.name}: ${msg} (${pageNum}/${total})`);
-              });
-              parsed.pages.forEach((page) => {
-                newPages.push({
-                  id: `${file.id}-${page.pageNumber}`,
-                  fileId: file.id,
-                  fileName: file.name,
-                  pageNumber: page.pageNumber,
-                  text: page.text,
-                  rotation: page.rotation || 0,
-                  aspect: page.aspect,
-                  breakBefore: true,
-                  excluded: false,
-                });
-              });
-            }
-          }
-
-          // Recalcula quebras com as páginas atualizadas
-          newPages.forEach((page, index) => {
-            const prevPage = index > 0 ? newPages[index - 1] : null;
-            const isBreak = shouldBreakPage(page, prevPage, index, index === 0);
-            page.breakBefore = isBreak;
-          });
-
-          if (newPages.length) {
-            restoredPages = newPages;
-          }
-        } else if (restoredFiles.length && restoredPages.length) {
-          // Assegura que nenhuma página fica na horizontal (rotation 0) se o PDF requerer orientação portrait
-          for (const file of restoredFiles) {
-            const filePages = restoredPages.filter((p) => p.fileId === file.id);
-            if (filePages.some((p) => !p.rotation)) {
-              try {
-                const pdf = await pdfjsLib.getDocument({ data: file.bytes.slice(0) }).promise;
-                for (const p of filePages) {
-                  if (!p.rotation) {
-                    const pdfPage = await pdf.getPage(p.pageNumber);
-                    const portraitRot = getPortraitAngle(pdfPage);
-                    if (portraitRot) {
-                      p.rotation = portraitRot;
-                    }
-                  }
-                }
-              } catch {
-                // Silencioso se o ficheiro estiver indisponível
-              }
-            }
-          }
-        }
-
-        if (!cancelled) {
-          setFiles(restoredFiles);
-          setPages(restoredPages);
-          setDocumentMeta(session.suggestionsVersion === SUGGESTIONS_VERSION ? (session.documentMeta || {}) : {});
-          setSavedAt(session.savedAt || null);
-          setLoadedLocal(true);
-          if (session.suggestionsVersion !== SUGGESTIONS_VERSION && restoredFiles.length) {
-            setStatus("success");
-            setStatusText("Organização e rotações atualizadas com sucesso!");
-          }
-        }
-      } catch {
-        if (!cancelled) setLoadedLocal(true);
-      }
-    }
-    restoreSession();
-    return () => { cancelled = true; };
+      })
+      .catch(() => {})
+      .finally(() => { if (alive) setReady(true); });
+    return () => { alive = false; releaseDocs(); };
   }, []);
 
-  // Gravação automática em IndexedDB
   useEffect(() => {
-    if (!files.length || !pages.length) return undefined;
-    const timer = window.setTimeout(() => {
-      saveSession({
-        files,
-        pages,
-        documentMeta,
-        suggestionsVersion: SUGGESTIONS_VERSION,
-        savedAt: new Date().toISOString(),
-      })
-        .then(() => setSavedAt(new Date().toISOString()))
-        .catch(() => setStatusText("Não foi possível gravar a sessão local."));
-    }, 600);
-    return () => window.clearTimeout(timer);
-  }, [documentMeta, files, pages]);
+    if (!ready || busy) return undefined;
+    const t = window.setTimeout(() => {
+      dbPut(STATE_KEY, { pages, overrides, savedAt: Date.now() }).catch(() => {});
+    }, 500);
+    return () => window.clearTimeout(t);
+  }, [pages, overrides, ready, busy]);
 
-  // Alerta ao fechar aba se houver trabalho em curso
   useEffect(() => {
-    const warnBeforeExit = (event) => {
-      if (pages.length) {
-        event.preventDefault();
-        event.returnValue = "";
-      }
-    };
-    window.addEventListener("beforeunload", warnBeforeExit);
-    return () => window.removeEventListener("beforeunload", warnBeforeExit);
-  }, [pages.length]);
+    if (!ready) return;
+    dbPut(FILES_KEY, files).catch(() => {});
+  }, [files, ready]);
 
-  // Geração de miniaturas (previews) com rotação e cache de alta performance
   useEffect(() => {
-    if (!files.length || !pages.length) {
-      setPreviews({});
-      previewCacheRef.current.clear();
-      return undefined;
+    if (!busy) return undefined;
+    const warn = (e) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [busy]);
+
+  // ---------------- Documentos ----------------
+  const docs = useMemo(() => {
+    // NIF do cliente (a própria empresa): vem no campo B dos QR lidos
+    const clientNifs = new Set(pages.map((p) => p.qr?.nifCliente).filter(Boolean));
+    const groups = [];
+    pages.forEach((p, i) => {
+      if (i === 0 || p.breakBefore || !groups.length) groups.push({ key: p.id, all: [] });
+      groups[groups.length - 1].all.push(p);
+    });
+    const list = groups
+      .map((g) => ({ ...g, pages: g.all.filter((p) => !p.excluded) }))
+      .filter((g) => g.pages.length)
+      .map((g) => {
+        const auto = buildDocMeta(g.pages, learned, clientNifs);
+        const o = overrides[g.key] || {};
+        const m = { ...auto, ...o };
+        if (o.date !== undefined) m.year = (o.date || "").slice(0, 4) || auto.year;
+        if (o.entity !== undefined || o.date !== undefined || o.numero !== undefined) {
+          m.missing = [!m.entity && "fornecedor", !m.date && "data", !m.numero && !m.atcud && "nº"].filter(Boolean);
+          if (!m.missing.length) m.confidence = "alta";
+        }
+        if (o.aiDuvida) m.confidence = "media";
+        return { ...g, meta: m, filename: o.filename || buildFilename(m), folder: buildFolder(m) };
+      });
+    const seen = new Map();
+    list.forEach((d) => {
+      if (d.meta.atcud) seen.set(d.meta.atcud, (seen.get(d.meta.atcud) || 0) + 1);
+    });
+    return list.map((d, i) => ({ ...d, index: i, duplicate: Boolean(d.meta.atcud && seen.get(d.meta.atcud) > 1) }));
+  }, [pages, overrides, learned]);
+
+  const stats = useMemo(() => ({
+    docs: docs.length,
+    pages: pages.filter((p) => !p.excluded).length,
+    excluded: pages.filter((p) => p.excluded).length,
+    qr: docs.filter((d) => d.meta.hasQr).length,
+    review: docs.filter((d) => d.meta.confidence !== "alta").length,
+    dup: docs.filter((d) => d.duplicate).length,
+    blank: pages.filter((p) => !p.excluded && needsReread(p)).length,
+    total: docs.reduce((s, d) => s + (Number(d.meta.total) || 0), 0),
+  }), [docs, pages]);
+
+  // Estrutura do ZIP: Ano → Categoria → ficheiros (com nomes repetidos numerados, como na exportação)
+  const tree = useMemo(() => {
+    const years = new Map();
+    const used = new Set();
+    docs.forEach((d) => {
+      const [year, category] = d.folder.split("/");
+      let name = `${d.filename}.pdf`;
+      for (let n = 2; used.has(`${d.folder}/${name}`.toLowerCase()); n += 1) name = `${d.filename} (${n}).pdf`;
+      used.add(`${d.folder}/${name}`.toLowerCase());
+      if (!years.has(year)) years.set(year, new Map());
+      const cats = years.get(year);
+      if (!cats.has(category)) cats.set(category, []);
+      cats.get(category).push({ name, doc: d });
+    });
+    const sum = (list) => list.reduce((s, f) => s + (Number(f.doc.meta.total) || 0), 0);
+    return [...years.entries()]
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([year, cats]) => {
+        const categories = [...cats.entries()]
+          .sort((a, b) => a[0].localeCompare(b[0]))
+          .map(([category, files]) => ({ category, files: files.sort((a, b) => a.name.localeCompare(b.name)), total: sum(files) }));
+        return { year, categories, count: categories.reduce((s, c) => s + c.files.length, 0), total: categories.reduce((s, c) => s + c.total, 0) };
+      });
+  }, [docs]);
+  const [treeOpen, setTreeOpen] = useState(true);
+
+  const visible = docs.filter((d) =>
+    filter === "rever" ? d.meta.confidence !== "alta" : filter === "duplicados" ? d.duplicate : true);
+
+  // ---------------- Importação ----------------
+  async function importFiles(list) {
+    const selected = Array.from(list || []).filter(isPdf);
+    if (!selected.length) {
+      if (list?.length) setNotice({ type: "error", text: "Só são aceites ficheiros PDF." });
+      return;
     }
+    if (busy) return;
+    cancelRef.current = false;
+    setNotice(null);
 
-    let cancelled = false;
-    const fileMap = new Map(files.map((file) => [file.id, file]));
-    setPreviewLoading(true);
-
-    const renderPromises = pages.map(async (page) => {
-      const source = fileMap.get(page.fileId);
-      if (!source) return [page.id, null];
-
-      const cacheKey = `${page.fileId}-${page.pageNumber}-${page.rotation || 0}`;
-      if (previewCacheRef.current.has(cacheKey)) {
-        return [page.id, previewCacheRef.current.get(cacheKey)];
+    let ocr = null;
+    const getOcr = async () => {
+      if (!ocr) {
+        setProgress((p) => ({ ...p, label: "A preparar o reconhecimento de texto (na 1.ª vez demora mais)…" }));
+        ocr = await createWorker("por+eng");
       }
-
-      try {
-        const url = await renderPagePreview(source.bytes, page.pageNumber, 0.28, page.rotation || 0);
-        previewCacheRef.current.set(cacheKey, url);
-        return [page.id, url];
-      } catch {
-        return [page.id, null];
-      }
-    });
-
-    Promise.all(renderPromises).then((entries) => {
-      if (cancelled) return;
-      setPreviews(Object.fromEntries(entries));
-      setPreviewLoading(false);
-    });
-
-    return () => {
-      cancelled = true;
+      return ocr;
     };
-  }, [files, pages]);
 
-  // Importar ficheiros PDF com análise inteligente
-  async function importFiles(event) {
-    const selected = Array.from(event.target.files || []).filter((file) => file.type === "application/pdf");
-    if (!selected.length) return;
-
-    setStatus("loading");
-    setStatusText("A analisar documentos com o novo motor inteligente...");
-
+    const newFiles = [];
+    const newPages = [];
+    const tasks = [];
     try {
-      const newFiles = [];
-      const newPages = [];
-
+      // Abre tudo primeiro, para a barra de progresso contar as páginas reais
+      const loaded = [];
+      let totalPages = 0;
       for (const file of selected) {
-        const fileId = `${file.name}-${file.lastModified}-${Math.random().toString(36).slice(2, 7)}`;
-        const parsed = await readPdf(file, (pageNum, total, msg) => {
-          setStatusText(`${file.name}: ${msg} (${pageNum}/${total})`);
-        });
+        const bytes = await file.arrayBuffer();
+        const task = openPdf(bytes.slice(0));
+        tasks.push(task);
+        const pdf = await task.promise;
+        totalPages += pdf.numPages;
+        loaded.push({ file, bytes, pdf });
+      }
+      let done = 0;
+      setProgress({ done, total: totalPages, label: "A analisar…" });
 
-        newFiles.push({
-          id: fileId,
-          name: file.name,
-          type: file.type,
-          size: file.size,
-          bytes: parsed.bytes,
-        });
+      for (const { file, bytes, pdf } of loaded) {
+        const fileId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+        newFiles.push({ id: fileId, name: file.name, size: file.size, bytes });
 
-        // Avaliação de quebras com o motor heurístico
-        parsed.pages.forEach((page, index) => {
-          const prevPage = index > 0 ? parsed.pages[index - 1] : null;
-          const isBreak = shouldBreakPage(page, prevPage, index, index === 0);
-          const pageId = `${fileId}-${page.pageNumber}`;
-
+        for (let n = 1; n <= pdf.numPages; n += 1) {
+          if (cancelRef.current) throw new Error("cancelado");
+          setProgress({ done, total: totalPages, label: `${file.name} · página ${n} de ${pdf.numPages}` });
+          const read = await readPdfPage(pdf, n, getOcr);
           newPages.push({
-            id: pageId,
+            id: `${fileId}-${n}`,
             fileId,
             fileName: file.name,
-            pageNumber: page.pageNumber,
-            text: page.text,
-            rotation: page.rotation || 0,
-            aspect: page.aspect,
-            breakBefore: isBreak,
+            pageNumber: n,
+            ...read,
+            breakBefore: false,
             excluded: false,
+            engine: 3,
           });
-        });
-      }
-
-      setFiles((curr) => [...curr, ...newFiles]);
-      setPages((curr) => [...curr, ...newPages]);
-      setStatus("success");
-      setStatusText("Documentos importados e organizados com inteligência fiscal portuguesa!");
-    } catch (error) {
-      setStatus("error");
-      setStatusText(`Erro ao importar PDF: ${error.message}`);
-    } finally {
-      event.target.value = "";
-    }
-  }
-
-  // Ações de Página e Documento
-  const splitAtPage = useCallback((pageId) => {
-    setPages((curr) =>
-      curr.map((p) => (p.id === pageId ? { ...p, breakBefore: true } : p))
-    );
-  }, []);
-
-  const mergeWithPrevious = useCallback((docIndex) => {
-    if (docIndex <= 0) return;
-    const targetDoc = documents[docIndex];
-    if (!targetDoc || !targetDoc.pages.length) return;
-    const firstPageId = targetDoc.pages[0].id;
-
-    setPages((curr) =>
-      curr.map((p) => (p.id === firstPageId ? { ...p, breakBefore: false } : p))
-    );
-  }, [documents]);
-
-  const rotatePage = useCallback((pageId) => {
-    setPages((curr) =>
-      curr.map((p) =>
-        p.id === pageId ? { ...p, rotation: ((p.rotation || 0) + 90) % 360 } : p
-      )
-    );
-  }, []);
-
-  const rotateDocument = useCallback((doc) => {
-    const pageIds = new Set(doc.pages.map((p) => p.id));
-    setPages((curr) =>
-      curr.map((p) =>
-        pageIds.has(p.id) ? { ...p, rotation: ((p.rotation || 0) + 90) % 360 } : p
-      )
-    );
-  }, []);
-
-  const toggleExcludePage = useCallback((pageId) => {
-    setPages((curr) =>
-      curr.map((p) => (p.id === pageId ? { ...p, excluded: !p.excluded } : p))
-    );
-  }, []);
-
-  const deleteDocument = useCallback((doc) => {
-    if (!window.confirm(`Tem a certeza de que quer excluir o documento "${doc.filename}" (${doc.pages.length} páginas)?`)) return;
-    const pageIds = new Set(doc.pages.map((p) => p.id));
-    setPages((curr) => curr.map((p) => (pageIds.has(p.id) ? { ...p, excluded: true } : p)));
-  }, []);
-
-  // Remover automaticamente todas as páginas em branco
-  const removeBlankPages = useCallback(() => {
-    let count = 0;
-    setPages((curr) =>
-      curr.map((p) => {
-        if (!p.excluded && isBlankPage(p.text)) {
-          count += 1;
-          return { ...p, excluded: true };
+          done += 1;
         }
-        return p;
-      })
-    );
-    setStatus("success");
-    setStatusText(count > 0 ? `${count} páginas em branco foram removidas automaticamente.` : "Nenhuma página em branco encontrada.");
-  }, []);
-
-  // Reanalisar tudo com o motor heurístico
-  const reanalyzeAll = useCallback(() => {
-    setStatus("loading");
-    setStatusText("A reavaliar todas as quebras e metadados...");
-
-    setPages((curr) => {
-      const active = curr.filter((p) => !p.excluded);
-      const newPages = curr.map((page) => {
-        if (page.excluded) return page;
-        const activeIdx = active.findIndex((a) => a.id === page.id);
-        const prevPage = activeIdx > 0 ? active[activeIdx - 1] : null;
-        const isNewFile = prevPage ? prevPage.fileId !== page.fileId : true;
-        const shouldBreak = shouldBreakPage(page, prevPage, activeIdx, isNewFile);
-        return { ...page, breakBefore: shouldBreak };
-      });
-      return newPages;
-    });
-
-    // Limpar overrides para recalcular metadados com precisão
-    setDocumentMeta({});
-    setStatus("success");
-    setStatusText("Reanálise completa! Todos os documentos foram reorganizados.");
-  }, []);
-
-  // Reprocessar OCR e rotação para todos os ficheiros carregados
-  const rescanOcr = useCallback(async () => {
-    if (!files.length) return;
-    setStatus("loading");
-    setStatusText("A reprocessar OCR e deteção de rotação para todas as páginas...");
-    try {
-      const updatedPages = [];
-      for (const file of files) {
-        const blob = new Blob([file.bytes], { type: file.type || "application/pdf" });
-        const parsed = await readPdf(blob, (p, tot, msg) => {
-          setStatusText(`${file.name}: ${msg} (${p}/${tot})`);
-        });
-        parsed.pages.forEach((page, index) => {
-          const prevPage = index > 0 ? parsed.pages[index - 1] : null;
-          const isBreak = shouldBreakPage(page, prevPage, index, index === 0);
-          updatedPages.push({
-            id: `${file.id}-${page.pageNumber}`,
-            fileId: file.id,
-            fileName: file.name,
-            pageNumber: page.pageNumber,
-            text: page.text,
-            rotation: page.rotation || 0,
-            aspect: page.aspect,
-            breakBefore: isBreak,
-            excluded: false,
-          });
-        });
       }
-      setPages(updatedPages);
-      setDocumentMeta({});
-      setStatus("success");
-      setStatusText("OCR e rotações recalculadas com sucesso!");
+
+      const breaks = segmentPages(newPages);
+      newPages.forEach((p, i) => { p.breakBefore = breaks[i]; });
+      setFiles((c) => [...c, ...newFiles]);
+      setPages((c) => [...c, ...newPages]);
+      const comQr = newPages.filter((p) => p.qr).length;
+      const brancas = newPages.filter((p) => p.blankRender && isBlankPage(p.text)).length;
+      if (brancas && !(await checkDecoders())) setNotice({ type: "error", text: DECODERS_MISSING });
+      else setNotice({ type: "ok", text: `${newPages.length} página(s) analisada(s). QR fiscal lido em ${comQr}.${brancas ? ` ${brancas} saíram em branco — usem Mais → Reler.` : ""}` });
     } catch (err) {
-      setStatus("error");
-      setStatusText(`Erro ao reprocessar OCR: ${err.message}`);
-    }
-  }, [files]);
-
-  // Unir todos os documentos em 1
-  const mergeAll = useCallback(() => {
-    if (!window.confirm("Pretende juntar todas as páginas num único documento?")) return;
-    setPages((curr) =>
-      curr.map((p, index) => ({ ...p, breakBefore: index === 0 }))
-    );
-  }, []);
-
-  // Separar todas as páginas individualmente
-  const splitAll = useCallback(() => {
-    if (!window.confirm("Pretende separar cada página num documento individual?")) return;
-    setPages((curr) => curr.map((p) => ({ ...p, breakBefore: true })));
-  }, []);
-
-  // Abrir Zoom de Pré-visualização
-  async function openPreview(page) {
-    const source = files.find((file) => file.id === page.fileId);
-    if (!source) return;
-    setPreviewZoom({ pageId: page.id, src: null, title: `${page.fileName} · Página ${page.pageNumber}` });
-    try {
-      const src = await renderPagePreview(source.bytes, page.pageNumber, 1.0, page.rotation || 0);
-      setPreviewZoom((curr) => (curr ? { ...curr, src } : null));
-    } catch {
-      setPreviewZoom(null);
+      if (err?.message === "cancelado") setNotice({ type: "warn", text: "Importação cancelada." });
+      else setNotice({ type: "error", text: `Não foi possível ler o PDF: ${err?.message || err}` });
+    } finally {
+      tasks.forEach((t) => t.destroy().catch(() => {}));
+      if (ocr) await ocr.terminate().catch(() => {});
+      setProgress(null);
+      if (inputRef.current) inputRef.current.value = "";
     }
   }
 
-  // Apagar sessão local
-  async function forgetLocalSession() {
-    if (!window.confirm("Tem a certeza de que quer apagar toda a organização guardada?")) return;
-    await clearSession();
+  // ---------------- Ações ----------------
+  const updatePages = (fn) => setPages((curr) => fn(curr));
+  // Editar à mão um campo conta como confirmação: tira a dúvida deixada pela IA
+  const setField = (key, patch) => setOverrides((o) => ({ ...o, [key]: { ...(o[key] || {}), aiDuvida: false, ...patch } }));
+
+  const learnEntity = useCallback((doc, name) => {
+    const nif = doc.meta.nif;
+    const value = String(name || "").trim();
+    if (!nif || !value) return;
+    setLearned((curr) => {
+      const next = { ...curr, [nif]: value };
+      try { localStorage.setItem(LEARNED_KEY, JSON.stringify(next)); } catch { /* ignora */ }
+      return next;
+    });
+  }, []);
+
+  const splitAt = (pageId) => updatePages((c) => c.map((p) => (p.id === pageId ? { ...p, breakBefore: true } : p)));
+  const mergePrev = (doc) => updatePages((c) => c.map((p) => (p.id === doc.key ? { ...p, breakBefore: false } : p)));
+  const rotatePage = (pageId) => updatePages((c) => c.map((p) => (p.id === pageId ? { ...p, rotation: ((p.rotation || 0) + 90) % 360 } : p)));
+  const toggleExclude = (pageId) => updatePages((c) => c.map((p) => (p.id === pageId ? { ...p, excluded: !p.excluded } : p)));
+  const removeDoc = (doc) => {
+    const ids = new Set(doc.pages.map((p) => p.id));
+    updatePages((c) => c.map((p) => (ids.has(p.id) ? { ...p, excluded: true } : p)));
+  };
+  const toggleExpand = (key) => setExpanded((s) => {
+    const n = new Set(s);
+    if (n.has(key)) n.delete(key); else n.add(key);
+    return n;
+  });
+
+  function resegment() {
+    setMenu(false);
+    updatePages((c) => {
+      const active = c.filter((p) => !p.excluded);
+      const b = segmentPages(active);
+      const map = new Map(active.map((p, i) => [p.id, b[i]]));
+      return c.map((p) => ({ ...p, breakBefore: p.excluded ? false : map.get(p.id) }));
+    });
+    setNotice({ type: "ok", text: "Separações recalculadas." });
+  }
+  function onePerPage() {
+    setMenu(false);
+    updatePages((c) => c.map((p) => ({ ...p, breakBefore: true })));
+  }
+  async function joinAll() {
+    setMenu(false);
+    const ok = await askConfirm({
+      icon: <Merge size={20} />,
+      title: "Juntar tudo num documento?",
+      body: <p>Todas as páginas passam a ser um único documento. Pode voltar a separá-las com a tesoura entre páginas ou com <b>Recalcular separações</b>.</p>,
+      okLabel: "Juntar tudo",
+    });
+    if (!ok) return;
+    updatePages((c) => c.map((p, i) => ({ ...p, breakBefore: i === 0 })));
+  }
+  async function rereadBlanks() {
+    setMenu(false);
+    const targets = pages.filter((p) => !p.excluded && needsReread(p));
+    if (!targets.length) { setNotice({ type: "ok", text: "Não há páginas em branco para reler." }); return; }
+    if (!(await checkDecoders())) { setNotice({ type: "error", text: DECODERS_MISSING }); return; }
+    let ocr = null;
+    const getOcr = async () => { if (!ocr) ocr = await createWorker("por+eng"); return ocr; };
+    const fileMap = new Map(files.map((f) => [f.id, f]));
+    const updates = new Map();
+    const opened = new Map(); // documento novo (sem imagens em cache da leitura anterior)
+    try {
+      for (let i = 0; i < targets.length; i += 1) {
+        const p = targets[i];
+        setProgress({ done: i, total: targets.length, label: `A reler ${p.fileName} · página ${p.pageNumber}` });
+        const f = fileMap.get(p.fileId);
+        if (!f) continue;
+        if (!opened.has(f.id)) opened.set(f.id, openPdf(f.bytes.slice(0)));
+        const pdf = await opened.get(f.id).promise;
+        updates.set(p.id, await readPdfPage(pdf, p.pageNumber, getOcr));
+      }
+      setPages((curr) => {
+        const next = curr.map((p) => (updates.has(p.id) ? { ...p, ...updates.get(p.id), engine: 3 } : p));
+        const active = next.filter((p) => !p.excluded);
+        const b = segmentPages(active);
+        const map = new Map(active.map((p, i) => [p.id, b[i]]));
+        return next.map((p) => ({ ...p, breakBefore: p.excluded ? false : map.get(p.id) }));
+      });
+      const fixed = [...updates.values()].filter((u) => !u.blankRender || !isBlankPage(u.text)).length;
+      setNotice({ type: "ok", text: `${fixed} de ${targets.length} página(s) relida(s) com conteúdo. Separações recalculadas.` });
+    } catch (err) {
+      setNotice({ type: "error", text: `Erro ao reler: ${err?.message || err}` });
+    } finally {
+      opened.forEach((t) => t.destroy().catch(() => {}));
+      if (ocr) await ocr.terminate().catch(() => {});
+      setProgress(null);
+    }
+  }
+
+  /**
+   * Pedir à IA: envia o TEXTO (sem imagens, com dados pessoais tapados) dos documentos
+   * para rever — e dos vizinhos, para a IA poder juntar ou separar — e aplica a resposta.
+   */
+  async function askAi() {
+    setMenu(false);
+    const review = docs.filter((d) => d.meta.confidence !== "alta");
+    if (!review.length) { setNotice({ type: "ok", text: "Não há documentos para rever." }); return; }
+    const sameFile = (a, b) => a && b && a.pages[0].fileId === b.pages[0].fileId;
+
+    // Janelas: cada documento a rever + o anterior e o seguinte do mesmo ficheiro
+    const idx = new Set();
+    review.forEach((d) => [d.index - 1, d.index, d.index + 1].forEach((k) => { if (sameFile(docs[k], d)) idx.add(k); }));
+    const ranges = [];
+    [...idx].sort((a, b) => a - b).forEach((k) => {
+      const last = ranges[ranges.length - 1];
+      if (last && last[last.length - 1] === k - 1 && sameFile(docs[k], docs[k - 1])) last.push(k);
+      else ranges.push([k]);
+    });
+    // Blocos de até 40 páginas, sempre cortados na fronteira de um documento
+    const chunks = [];
+    let skipped = 0;
+    ranges.forEach((r) => {
+      let cur = [];
+      r.forEach((k) => {
+        const ps = docs[k].pages;
+        if (ps.length > IA_MAX_PAGINAS) { skipped += 1; return; }
+        if (cur.length + ps.length > IA_MAX_PAGINAS) { chunks.push(cur); cur = []; }
+        cur.push(...ps);
+      });
+      if (cur.length) chunks.push(cur);
+    });
+    if (!chunks.length) { setNotice({ type: "warn", text: "Os documentos para rever são demasiado grandes para enviar à IA." }); return; }
+
+    const totalPages = chunks.reduce((s, c) => s + c.length, 0);
+    const ok = await askConfirm({
+      tone: "ai",
+      icon: <Sparkles size={20} />,
+      title: "Pedir à IA?",
+      body: (
+        <>
+          <p>A IA (Claude, da Anthropic) vai separar e identificar <b>{review.length} documento(s) para rever</b>, com os documentos vizinhos — <b>{totalPages} página(s)</b> no total.</p>
+          <ul className="pdfo-dialog-list">
+            <li><ShieldCheck size={15} /> Só vai o <b>texto lido</b> — nenhuma imagem sai do computador.</li>
+            <li><Lock size={15} /> Antes de sair são tapados: NIF de pessoas, NISS, nomes de trabalhadores e de transferências, IBAN, nºs de conta e de cartão, emails e telemóveis.</li>
+            <li><CheckCircle2 size={15} /> O resultado fica marcado com <b>IA</b> para confirmar antes de exportar.</li>
+          </ul>
+        </>
+      ),
+      okLabel: "Enviar à IA",
+    });
+    if (!ok) return;
+
+    const { data: { session } } = await supabase.auth.getSession();
+    let custo = 0;
+    let feitos = 0;
+    try {
+      for (let c = 0; c < chunks.length; c += 1) {
+        const chunk = chunks[c];
+        setProgress({ done: c, total: chunks.length, label: `A IA está a analisar ${chunk.length} página(s)…` });
+        const resp = await fetch(IA_API, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token || ""}` },
+          body: JSON.stringify({
+            paginas: chunk.map((p) => ({
+              texto: redigir(p.text),
+              qr: p.qr ? { nifEmitente: p.qr.nifEmitente, data: p.qr.data, numero: p.qr.numero, total: p.qr.total, tipo: p.qr.tipo } : null,
+            })),
+          }),
+        });
+        const out = await resp.json().catch(() => ({ ok: false, error: `Erro ${resp.status} do servidor.` }));
+        if (!resp.ok || !out.ok) throw new Error(out.error || `Erro ${resp.status} do servidor.`);
+        custo += out.uso?.custo_usd || 0;
+
+        const starts = new Set();
+        const patch = {};
+        out.documentos.forEach((d) => {
+          const first = chunk[d.paginas[0] - 1];
+          starts.add(first.id);
+          const fields = { ai: true, aiDuvida: d.confianca !== "alta", category: d.categoria };
+          if (d.entidade) fields.entity = d.entidade;
+          if (d.data) fields.date = d.data;
+          if (d.numero) fields.numero = d.numero;
+          if (d.total != null) fields.total = d.total;
+          if (d.descricao) fields.label = d.descricao;
+          patch[first.id] = fields;
+        });
+        const ids = new Set(chunk.map((p) => p.id));
+        setPages((curr) => {
+          const a = curr.findIndex((p) => p.id === chunk[0].id);
+          const b = curr.findIndex((p) => p.id === chunk[chunk.length - 1].id);
+          return curr.map((p, i) => {
+            if (ids.has(p.id)) return { ...p, breakBefore: starts.has(p.id) };
+            if (i > a && i <= b && p.excluded) return { ...p, breakBefore: false }; // páginas retiradas não cortam
+            return p;
+          });
+        });
+        setOverrides((o) => {
+          const next = { ...o };
+          Object.entries(patch).forEach(([k, v]) => { next[k] = { ...(o[k] || {}), filename: undefined, ...v }; });
+          return next;
+        });
+        feitos += out.documentos.length;
+      }
+      setNotice({
+        type: "ok",
+        text: `A IA reviu ${totalPages} página(s) e devolveu ${feitos} documento(s). Confirme os marcados com "IA".`
+          + `${skipped ? ` ${skipped} documento(s) grande(s) de mais ficaram de fora.` : ""} Custo: ~${custo.toFixed(4)} US$.`,
+      });
+    } catch (err) {
+      setNotice({ type: "error", text: `Pedir à IA: ${err?.message || err}` });
+    } finally {
+      setProgress(null);
+    }
+  }
+
+  function removeBlanks() {
+    setMenu(false);
+    updatePages((c) => c.map((p) => (!p.excluded && !p.qr && isBlankPage(p.text) ? { ...p, excluded: true } : p)));
+  }
+  async function clearAll() {
+    setMenu(false);
+    const ok = await askConfirm({
+      tone: "danger",
+      icon: <Trash2 size={20} />,
+      title: "Limpar tudo?",
+      body: <p>Apaga todos os documentos e correções deste organizador. Os seus ficheiros PDF originais não são afetados.</p>,
+      okLabel: "Limpar tudo",
+    });
+    if (!ok) return;
+    await Promise.all([dbDel(STATE_KEY), dbDel(FILES_KEY)]).catch(() => {});
+    releaseDocs();
     setFiles([]);
     setPages([]);
-    setDocumentMeta({});
-    setSavedAt(null);
-    setStatus("idle");
-    setStatusText("Sessão limpa.");
+    setOverrides({});
+    setExpanded(new Set());
+    setNotice(null);
   }
 
-  // Exportar ZIP com rotação real e estrutura organizada
-  async function exportZip() {
-    if (!documents.length) return;
-    if (!window.confirm(`Tem a certeza de que quer gerar o ZIP com ${documents.length} documento(s)?`)) return;
-
-    setStatus("loading");
-    setStatusText("A construir os PDFs finais com alta qualidade e a estruturar as pastas...");
-
+  async function openZoom(page) {
+    const file = files.find((f) => f.id === page.fileId);
+    if (!file) return;
+    setZoom({ page, src: null });
     try {
-      const zip = new JSZip();
-      const fileMap = new Map(files.map((file) => [file.id, file]));
-
-      for (const doc of documents) {
-        if (!doc.pages.length) continue;
-        const outputPdf = await PDFDocument.create();
-
-        for (const page of doc.pages) {
-          const source = fileMap.get(page.fileId);
-          if (!source) continue;
-          const sourcePdf = await PDFDocument.load(source.bytes);
-          const [copiedPage] = await outputPdf.copyPages(sourcePdf, [page.pageNumber - 1]);
-
-          // Aplicação da rotação absoluta definida para a página (0, 90, 180 ou 270 graus)
-          const targetRotation = ((Number(page.rotation) || 0) % 360 + 360) % 360;
-          copiedPage.setRotation(degrees(targetRotation));
-          outputPdf.addPage(copiedPage);
-        }
-
-        const pdfBytes = await outputPdf.save();
-        const folderParts = [safePart(doc.year, "Sem ano"), safePart(doc.category, "Outros")];
-        const entityOrPerson = doc.entity || doc.person;
-        if (entityOrPerson && entityOrPerson.trim()) {
-          folderParts.push(safePart(entityOrPerson, ""));
-        }
-        const folder = folderParts.join("/");
-        zip.file(`${folder}/${safePart(doc.filename, "documento")}.pdf`, pdfBytes);
-      }
-
-      const blob = await zip.generateAsync({ type: "blob" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `organizacao-pdf-${new Date().toISOString().slice(0, 10)}.zip`;
-      link.click();
-      URL.revokeObjectURL(url);
-
-      setStatus("success");
-      setStatusText("ZIP transferido com sucesso! Todos os ficheiros foram processados localmente.");
-    } catch (error) {
-      setStatus("error");
-      setStatusText(`Erro ao gerar ZIP: ${error.message}`);
+      const pdf = await pdfOf(file);
+      const pg = await pdf.getPage(page.pageNumber);
+      const vp = pg.getViewport({ scale: 1.6, rotation: page.rotation || 0 });
+      const c = document.createElement("canvas");
+      c.width = Math.ceil(vp.width);
+      c.height = Math.ceil(vp.height);
+      await pg.render({ canvasContext: c.getContext("2d"), viewport: vp, intent: "print" }).promise;
+      const src = c.toDataURL("image/jpeg", 0.88);
+      c.width = 0;
+      setZoom((z) => (z && z.page.id === page.id ? { ...z, src } : z));
+    } catch {
+      setZoom(null);
     }
   }
 
-  if (!loadedLocal) {
-    return (
-      <div className="pdf-organizer page-container">
-        <p>A carregar o organizador de documentos...</p>
-      </div>
-    );
+  // ---------------- Exportação ----------------
+  async function exportZip() {
+    if (!docs.length || busy) return;
+    setMenu(false);
+    try {
+      const zip = new JSZip();
+      const fileMap = new Map(files.map((f) => [f.id, f]));
+      const sources = new Map();
+      const source = (f) => {
+        if (!sources.has(f.id)) sources.set(f.id, PDFDocument.load(f.bytes, { ignoreEncryption: true }));
+        return sources.get(f.id);
+      };
+      const used = new Set();
+      const rows = [["Data", "Fornecedor", "NIF fornecedor", "Tipo", "Número", "ATCUD", "Total (EUR)", "Categoria", "Ficheiro", "Páginas"]];
+
+      for (let i = 0; i < docs.length; i += 1) {
+        const d = docs[i];
+        setProgress({ done: i, total: docs.length, label: `A criar ${d.filename}.pdf` });
+        const out = await PDFDocument.create();
+        for (const p of d.pages) {
+          const f = fileMap.get(p.fileId);
+          if (!f) continue;
+          const [copy] = await out.copyPages(await source(f), [p.pageNumber - 1]);
+          copy.setRotation(degrees((((p.rotation || 0) % 360) + 360) % 360));
+          out.addPage(copy);
+        }
+        let path = `${d.folder}/${d.filename}.pdf`;
+        for (let n = 2; used.has(path.toLowerCase()); n += 1) path = `${d.folder}/${d.filename} (${n}).pdf`;
+        used.add(path.toLowerCase());
+        zip.file(path, await out.save());
+        const m = d.meta;
+        const total = m.total == null || Number.isNaN(Number(m.total)) ? "" : Number(m.total).toFixed(2).replace(".", ",");
+        rows.push([m.date, m.entity, m.nif, TIPOS_DOC[m.tipo] || m.tipo || m.category, m.numero, m.atcud, total, m.category, path, String(d.pages.length)]);
+      }
+      const csv = String.fromCharCode(0xfeff) + rows.map((r) => r.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(";")).join("\r\n");
+      zip.file("resumo.csv", csv);
+
+      setProgress({ done: docs.length, total: docs.length, label: "A comprimir o ZIP…" });
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `documentos-organizados-${new Date().toISOString().slice(0, 10)}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 30000);
+      setNotice({ type: "ok", text: `ZIP criado com ${docs.length} documento(s) e o resumo.csv.` });
+    } catch (err) {
+      setNotice({ type: "error", text: `Erro ao criar o ZIP: ${err?.message || err}` });
+    } finally {
+      setProgress(null);
+    }
   }
 
-  const blankCount = pages.filter((p) => !p.excluded && isBlankPage(p.text)).length;
-  const excludedCount = pages.filter((p) => p.excluded).length;
+  // ---------------- Render ----------------
+  if (!ready) return <div className="po page-container"><p className="pdfo-muted">A carregar…</p></div>;
+
+  const hasDocs = pages.length > 0;
+  // Páginas importadas com a leitura antiga (sem tira do talão / linhas): convém voltar a importar
+  const stale = !busy && pages.some((p) => (p.engine || 0) < 3);
+  const pct = progress ? Math.round((progress.done / Math.max(1, progress.total)) * 100) : 0;
+  const thumbStyle = (p) => ({ transform: `rotate(${(p.rotation || 0) - (p.thumbRot || 0)}deg)` });
 
   return (
-    <div className="pdf-organizer page-container">
-      {/* Header */}
-      <header className="pdf-organizer-header">
-        <div>
-          <span className="eyebrow">Ferramenta Inteligente</span>
-          <h1>Organizador de PDFs</h1>
-          <p>Deteção inteligente de faturas, contratos, extratos e vencimentos com processamento 100% privado.</p>
+    <div
+      className={`pdfo page-container ${dragOver ? "is-drag" : ""}`}
+      onDragOver={(e) => { e.preventDefault(); if (!dragOver) setDragOver(true); }}
+      onDragLeave={(e) => { if (e.currentTarget === e.target) setDragOver(false); }}
+      onDrop={(e) => { e.preventDefault(); setDragOver(false); importFiles(e.dataTransfer?.files); }}
+    >
+      <header className="pdfo-hero">
+        <span className="pdfo-hero-ico" aria-hidden="true"><FolderTree size={26} /></span>
+        <div className="pdfo-hero-text">
+          <span className="pdfo-eyebrow">Ferramenta</span>
+          <h1>Organizador de faturas</h1>
+          <p>Separa, identifica e arruma faturas e talões digitalizados.</p>
         </div>
-        <div className="pdf-privacy-badge">
-          <FolderOpen size={16} /> Processamento 100% Local (Privado)
-        </div>
+        <ul className="pdfo-hero-badges">
+          <li><QrCode size={14} /> Lê o QR fiscal da AT</li>
+          <li><Download size={14} /> ZIP por ano e categoria</li>
+          <li className="is-lock"><Lock size={14} /> 100% local · nada é enviado</li>
+        </ul>
       </header>
 
-      {/* Toolbar Principal */}
-      <section className="pdf-organizer-toolbar">
-        <button className="pdf-btn pdf-btn-primary" onClick={() => inputRef.current?.click()}>
-          <Upload size={16} /> Importar PDFs
-        </button>
-        <input ref={inputRef} type="file" accept="application/pdf" multiple hidden onChange={importFiles} />
+      <input ref={inputRef} type="file" accept="application/pdf,.pdf" multiple hidden onChange={(e) => importFiles(e.target.files)} />
 
-        {pages.length > 0 && (
-          <>
-            <button className="pdf-btn pdf-btn-ai" onClick={reanalyzeAll} title="Recalcular divisões e metadados com as regras inteligentes">
-              <Sparkles size={16} /> Reanalisar com IA
-            </button>
-
-            <button className="pdf-btn pdf-btn-ai" onClick={rescanOcr} title="Re-executar OCR e auto-rotação dos PDFs a partir do ficheiro original">
-              <RotateCw size={15} /> Re-executar OCR / Rotação
-            </button>
-
-            {blankCount > 0 && (
-              <button className="pdf-btn pdf-btn-secondary" onClick={removeBlankPages} title="Excluir páginas em branco detetadas">
-                <Ban size={15} /> Limpar {blankCount} Página(s) em Branco
-              </button>
-            )}
-
-            <button className="pdf-btn pdf-btn-secondary" onClick={mergeAll} title="Unir todas as páginas num único ficheiro">
-              <Merge size={15} /> Unir Tudo
-            </button>
-
-            <button className="pdf-btn pdf-btn-secondary" onClick={splitAll} title="Separar todas as páginas individualmente">
-              <Scissors size={15} /> Separar Todas
-            </button>
-
-            <button className="pdf-btn pdf-btn-primary" onClick={exportZip}>
-              <Download size={16} /> Rever e Transferir ZIP
-            </button>
-
-            <button className="pdf-btn pdf-btn-danger" onClick={forgetLocalSession} title="Apagar sessão guardada neste navegador">
-              <Trash2 size={15} /> Limpar Sessão
-            </button>
-          </>
-        )}
-      </section>
-
-      {/* Status Banner */}
-      {statusText && (
-        <div className={`pdf-status ${status}`} role="status">
-          {status === "success" && <CheckCircle2 size={18} />}
-          {status === "error" && <AlertCircle size={18} />}
-          {status === "loading" && <Sparkles size={18} />}
-          <span>{statusText}</span>
+      {notice && !busy && (
+        <div className={`pdfo-notice is-${notice.type}`} role="status">
+          {notice.type === "ok" ? <CheckCircle2 size={17} /> : <AlertTriangle size={17} />}
+          <span>{notice.text}</span>
+          <button type="button" onClick={() => setNotice(null)} aria-label="Fechar"><X size={15} /></button>
         </div>
       )}
 
-      {/* Empty State */}
-      {!pages.length ? (
-        <section className="pdf-empty-state" onClick={() => inputRef.current?.click()}>
-          <div className="pdf-empty-icon-wrap">
-            <FilePlus2 size={32} />
-          </div>
-          <h2>Importa os teus ficheiros PDF</h2>
-          <p>
-            Arrasta ou seleciona os PDFs que queres organizar. O novo motor inteligente deteta automaticamente se uma fatura ou contrato tem várias páginas, identifica NIFs, números de fatura e emissores portugueses.
-          </p>
-          <button className="pdf-btn pdf-btn-primary" type="button">
-            <Upload size={16} /> Selecionar PDFs do Computador
+      {stale && (
+        <div className="pdfo-notice is-warn" role="status">
+          <AlertTriangle size={17} />
+          <span>Estes documentos foram lidos com a versão anterior do organizador. Volte a importar o PDF para usar a leitura nova (QR e nomes mais certos).</span>
+          <button
+            type="button"
+            className="pdfo-btn"
+            onClick={async () => {
+              await Promise.all([dbDel(STATE_KEY), dbDel(FILES_KEY)]).catch(() => {});
+              releaseDocs();
+              setFiles([]);
+              setPages([]);
+              setOverrides({});
+              setExpanded(new Set());
+              inputRef.current?.click();
+            }}
+          >
+            <Upload size={14} /> Limpar e importar de novo
           </button>
-          {savedAt && (
-            <p className="pdf-muted" style={{ marginTop: "16px" }}>
-              <Save size={14} /> Última sessão guardada localmente em {new Date(savedAt).toLocaleString("pt-PT")}
-            </p>
-          )}
+        </div>
+      )}
+
+      {busy && (
+        <section className="pdfo-progress">
+          <div className="pdfo-progress-top">
+            <strong>{progress.label}</strong>
+            <span>{progress.done} / {progress.total}</span>
+          </div>
+          <div className="pdfo-bar"><i style={{ width: `${pct}%` }} /></div>
+          <button type="button" className="pdfo-link" onClick={() => { cancelRef.current = true; }}>Cancelar</button>
         </section>
-      ) : (
+      )}
+
+      {!hasDocs && !busy && (
+        <button type="button" className="pdfo-drop" onClick={() => inputRef.current?.click()}>
+          <span className="pdfo-drop-ico"><Upload size={28} /></span>
+          <strong>Arraste os PDFs para aqui ou clique para escolher</strong>
+          <span>Pode juntar vários talões no mesmo PDF digitalizado: o organizador separa-os.</span>
+          <ol className="pdfo-how">
+            <li><QrCode size={16} /> Lê o QR fiscal de cada fatura</li>
+            <li><Layers size={16} /> Separa e dá nome a cada documento</li>
+            <li><Download size={16} /> Exporta ZIP por ano/categoria + resumo.csv</li>
+          </ol>
+        </button>
+      )}
+
+      {hasDocs && (
         <>
-          {/* Summary / Stats Bar */}
-          <section className="pdf-stats-bar">
-            <div className="pdf-stats-group">
-              <div className="pdf-stats-item">
-                <strong>{activePages.length}</strong> páginas ativas
-              </div>
-              <span>•</span>
-              <div className="pdf-stats-item">
-                <strong>{documents.length}</strong> documentos detetados
-              </div>
-              {excludedCount > 0 && (
-                <>
-                  <span>•</span>
-                  <div className="pdf-stats-item" style={{ color: "#b91c1c" }}>
-                    <strong>{excludedCount}</strong> página(s) excluída(s)
-                  </div>
-                </>
-              )}
+          <section className="pdfo-summary">
+            <div className="pdfo-kpis">
+              <div><strong>{stats.docs}</strong><span>documentos</span></div>
+              <div><strong>{stats.pages}</strong><span>páginas</span></div>
+              <div className="is-good"><strong>{stats.qr}</strong><span>com QR fiscal</span></div>
+              <div className={stats.review ? "is-warn" : ""}><strong>{stats.review}</strong><span>para rever</span></div>
+              <div><strong>{fmtEur(stats.total)}</strong><span>total</span></div>
             </div>
-            <div>
-              {savedAt ? `Guardado às ${new Date(savedAt).toLocaleTimeString("pt-PT")}` : "A guardar..."}
+            <div className="pdfo-actions">
+              <button type="button" className="pdfo-btn" onClick={() => inputRef.current?.click()} disabled={busy}><Upload size={15} /> Adicionar PDFs</button>
+              {stats.review > 0 && (
+                <button type="button" className="pdfo-btn is-ai" onClick={askAi} disabled={busy} title="Envia só o texto (sem imagens e com dados pessoais tapados) dos documentos para rever">
+                  <Sparkles size={15} /> Pedir à IA ({stats.review})
+                </button>
+              )}
+              <div className="pdfo-menu-wrap">
+                <button type="button" className="pdfo-btn" onClick={() => setMenu((v) => !v)} aria-expanded={menu}><MoreHorizontal size={16} /> Mais</button>
+                {menu && (
+                  <div className="pdfo-menu" role="menu">
+                    <button type="button" onClick={resegment}><RotateCw size={14} /> Recalcular separações</button>
+                    {stats.blank > 0 && <button type="button" onClick={rereadBlanks}><RotateCw size={14} /> Reler {stats.blank} página(s) em branco</button>}
+                    <button type="button" onClick={onePerPage}><Scissors size={14} /> 1 página = 1 documento</button>
+                    <button type="button" onClick={joinAll}><Merge size={14} /> Juntar tudo num documento</button>
+                    {stats.blank > 0 && <button type="button" onClick={removeBlanks}><Trash2 size={14} /> Retirar {stats.blank} página(s) em branco</button>}
+                    <hr />
+                    <button type="button" className="is-danger" onClick={clearAll}><Trash2 size={14} /> Limpar tudo</button>
+                  </div>
+                )}
+              </div>
+              <button type="button" className="pdfo-btn is-primary" onClick={exportZip} disabled={busy}><Download size={15} /> Exportar ZIP</button>
             </div>
           </section>
 
-          {/* Lista de Documentos Agrupados (Document Cards) */}
-          <section className="pdf-documents-container">
-            {documents.map((doc, docIndex) => (
-              <div className={`pdf-doc-card ${doc.isBlank ? "is-blank-doc" : ""}`} key={doc.id}>
-                {/* Header do Documento */}
-                <div className="pdf-doc-header">
-                  <div className="pdf-doc-index-badge">{docIndex + 1}</div>
+          <nav className="pdfo-tabs" role="tablist">
+            <button type="button" className={filter === "todos" ? "is-on" : ""} onClick={() => setFilter("todos")}>Todos <span>{stats.docs}</span></button>
+            <button type="button" className={filter === "rever" ? "is-on" : ""} onClick={() => setFilter("rever")}>Para rever <span>{stats.review}</span></button>
+            {stats.dup > 0 && <button type="button" className={filter === "duplicados" ? "is-on" : ""} onClick={() => setFilter("duplicados")}>Duplicados <span>{stats.dup}</span></button>}
+          </nav>
 
-                  <div className="pdf-doc-meta-inputs">
-                    {/* Nome do Ficheiro */}
-                    <input
-                      className="pdf-input-title"
-                      value={doc.filename}
-                      placeholder="Nome do Documento"
-                      aria-label="Nome do Documento"
-                      onChange={(e) =>
-                        setDocumentMeta((curr) => ({
-                          ...curr,
-                          [doc.id]: { ...doc, filename: e.target.value },
-                        }))
-                      }
-                    />
+          <section className="pdfo-list">
+            {visible.length === 0 && <p className="pdfo-empty">Nada para mostrar aqui.</p>}
+            {visible.map((d) => {
+              const m = d.meta;
+              const open = expanded.has(d.key);
+              const first = d.pages[0];
+              return (
+                <article key={d.key} className={`pdfo-doc is-${m.confidence} ${d.duplicate ? "is-dup" : ""}`}>
+                  <button type="button" className="pdfo-thumb" onClick={() => openZoom(first)} title="Ver em grande">
+                    {first.thumb ? <img src={first.thumb} alt="" style={thumbStyle(first)} /> : <FileText size={22} />}
+                    {d.pages.length > 1 && <span className="pdfo-thumb-count">{d.pages.length} pág.</span>}
+                  </button>
 
-                    {/* Categoria */}
-                    <select
-                      className="pdf-select-category"
-                      value={doc.category}
-                      aria-label="Categoria"
-                      onChange={(e) =>
-                        setDocumentMeta((curr) => ({
-                          ...curr,
-                          [doc.id]: { ...doc, category: e.target.value },
-                        }))
-                      }
-                    >
-                      {PDF_CATEGORIES.map((cat) => (
-                        <option key={cat} value={cat}>
-                          {cat}
-                        </option>
-                      ))}
-                    </select>
-
-                    {/* Ano */}
-                    <input
-                      className="pdf-input-chip year"
-                      value={doc.year}
-                      placeholder="Ano"
-                      aria-label="Ano"
-                      onChange={(e) =>
-                        setDocumentMeta((curr) => ({
-                          ...curr,
-                          [doc.id]: { ...doc, year: e.target.value },
-                        }))
-                      }
-                    />
-
-                    {/* Entidade / Fornecedor */}
-                    <input
-                      className="pdf-input-chip entity"
-                      value={doc.entity}
-                      placeholder="Entidade / Fornecedor"
-                      aria-label="Entidade"
-                      onChange={(e) =>
-                        setDocumentMeta((curr) => ({
-                          ...curr,
-                          [doc.id]: { ...doc, entity: e.target.value, person: e.target.value },
-                        }))
-                      }
-                    />
-
-                    {/* Nº de Documento (opcional) */}
-                    {doc.docNumber && (
+                  <div className="pdfo-doc-main">
+                    <div className="pdfo-doc-head">
+                      <span className="pdfo-num">{d.index + 1}</span>
                       <input
-                        className="pdf-input-chip doc-num"
-                        value={doc.docNumber}
-                        placeholder="Nº Doc"
-                        aria-label="Número de documento"
-                        onChange={(e) =>
-                          setDocumentMeta((curr) => ({
-                            ...curr,
-                            [doc.id]: { ...doc, docNumber: e.target.value },
-                          }))
-                        }
+                        className="pdfo-entity"
+                        value={m.entity || ""}
+                        placeholder="Fornecedor desconhecido"
+                        onChange={(e) => setField(d.key, { entity: e.target.value })}
+                        onBlur={(e) => { if (overrides[d.key]?.entity !== undefined) learnEntity(d, e.target.value); }}
+                        title="Se corrigir, o nome fica memorizado para este NIF"
                       />
-                    )}
+                      {m.hasQr
+                        ? <span className="pdfo-pill is-qr"><QrCode size={12} /> QR fiscal</span>
+                        : <span className="pdfo-pill is-text">Lido do texto</span>}
+                      {m.ai && <span className="pdfo-pill is-ai" title="Separação e dados propostos pela IA"><Sparkles size={12} /> IA</span>}
+                      {m.confidence !== "alta" && (
+                        <span className="pdfo-pill is-warn" title="Confirme estes campos">
+                          <AlertTriangle size={12} /> Rever{m.missing.length ? `: ${m.missing.join(", ")}` : ""}
+                        </span>
+                      )}
+                      {d.duplicate && <span className="pdfo-pill is-dup"><Copy size={12} /> Duplicado</span>}
+                    </div>
+
+                    <div className="pdfo-fields">
+                      <label><span>Data</span>
+                        <input type="date" value={/^\d{4}-\d{2}-\d{2}$/.test(m.date || "") ? m.date : ""} onChange={(e) => setField(d.key, { date: e.target.value })} />
+                      </label>
+                      <label><span>Categoria</span>
+                        <select value={m.category} onChange={(e) => setField(d.key, { category: e.target.value })}>
+                          {PDF_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      </label>
+                      <label><span>Nº documento</span>
+                        <input value={m.numero || ""} placeholder="—" onChange={(e) => setField(d.key, { numero: e.target.value })} />
+                      </label>
+                      <label className="is-num"><span>Total (€)</span>
+                        <input
+                          defaultValue={m.total == null ? "" : String(m.total).replace(".", ",")}
+                          key={`${d.key}-${m.total}`}
+                          placeholder="—"
+                          onBlur={(e) => {
+                            const v = e.target.value.trim().replace(/\s/g, "").replace(",", ".");
+                            if (v === "") setField(d.key, { total: null });
+                            else if (!Number.isNaN(Number(v))) setField(d.key, { total: Number(v) });
+                          }}
+                        />
+                      </label>
+                      <div className="pdfo-ro"><span>NIF</span><strong>{m.nif || "—"}</strong></div>
+                      <div className="pdfo-ro"><span>Tipo</span><strong>{m.tipoLabel || "—"}</strong></div>
+                    </div>
+
+                    <div className="pdfo-path" title="Onde fica no ZIP">
+                      <span>{d.folder}/</span>
+                      <input value={d.filename} onChange={(e) => setField(d.key, { filename: e.target.value })} aria-label="Nome do ficheiro" />
+                      <span>.pdf</span>
+                    </div>
                   </div>
 
-                  {/* Ações do Documento */}
-                  <div className="pdf-doc-actions">
-                    {docIndex > 0 && (
-                      <button
-                        className="pdf-btn-icon-subtle merge-btn"
-                        onClick={() => mergeWithPrevious(docIndex)}
-                        title="Fundir este documento com o anterior"
-                      >
-                        <Merge size={14} /> Fundir com Anterior
-                      </button>
-                    )}
-                    <button
-                      className="pdf-btn-icon-subtle"
-                      onClick={() => rotateDocument(doc)}
-                      title="Rodar todas as páginas deste documento (+90°)"
-                    >
-                      <RotateCw size={14} /> Rodar Doc
+                  <div className="pdfo-doc-side">
+                    <button type="button" className="pdfo-icon" onClick={() => toggleExpand(d.key)} title="Ver páginas">
+                      <ChevronDown size={16} className={open ? "is-open" : ""} /> {d.pages.length}
                     </button>
-                    <button
-                      className="pdf-btn-icon-subtle delete-doc-btn"
-                      onClick={() => deleteDocument(doc)}
-                      title="Excluir documento"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    {d.index > 0 && <button type="button" className="pdfo-icon" onClick={() => mergePrev(d)} title="Juntar ao documento anterior"><Merge size={15} /></button>}
+                    <button type="button" className="pdfo-icon is-danger" onClick={() => removeDoc(d)} title="Retirar documento"><Trash2 size={15} /></button>
                   </div>
-                </div>
 
-                {/* Carrossel / Faixa de Páginas do Documento */}
-                <div className="pdf-doc-pages-body">
-                  {doc.pages.map((page, pageIdx) => {
-                    const isBlank = isBlankPage(page.text);
-                    return (
-                      <div className="pdf-page-item-wrap" key={page.id}>
-                        {/* Se não for a primeira página deste documento, permitir dividir aqui */}
-                        {pageIdx > 0 && (
-                          <div className="pdf-split-handle-wrap">
-                            <button
-                              className="pdf-split-btn"
-                              onClick={() => splitAtPage(page.id)}
-                              title="Dividir aqui (criar novo documento a partir desta página)"
-                            >
-                              <Scissors size={14} />
-                              <span>Dividir</span>
+                  {open && (
+                    <div className="pdfo-pages">
+                      {d.pages.map((p, i) => (
+                        <div key={p.id} className="pdfo-page-wrap">
+                          {i > 0 && (
+                            <button type="button" className="pdfo-split" onClick={() => splitAt(p.id)} title="Separar aqui">
+                              <Scissors size={13} />
                             </button>
-                          </div>
-                        )}
-
-                        {/* Cartão da Página */}
-                        <div className={`pdf-page-card ${isBlank ? "is-blank" : ""}`}>
-                          <div
-                            className="pdf-page-thumb"
-                            onClick={() => previews[page.id] && openPreview(page)}
-                            title="Clique para ampliar"
-                          >
-                            {previews[page.id] ? (
-                              <img src={previews[page.id]} alt={`Página ${page.pageNumber}`} />
-                            ) : (
-                              <span className="pdf-page-thumb-placeholder">
-                                {previewLoading ? "..." : "PDF"}
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="pdf-page-info">
-                            <span className="pdf-page-badge">Pág. {pageIdx + 1} de {doc.pages.length}</span>
-                            <span className="pdf-page-source" title={page.fileName}>
-                              orig: {page.pageNumber}
-                              {page.rotation ? ` · ${page.rotation}°` : ""}
-                            </span>
-                            {isBlank && (
-                              <span style={{ fontSize: "0.65rem", color: "#e11d48", fontWeight: 700 }}>
-                                Possível Vazio
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="pdf-page-controls">
-                            <button
-                              className="pdf-page-btn"
-                              onClick={() => rotatePage(page.id)}
-                              title={`Rodar 90º (atualmente ${page.rotation || 0}º)`}
-                            >
-                              <RotateCw size={13} />
+                          )}
+                          <div className="pdfo-page">
+                            <button type="button" className="pdfo-page-img" onClick={() => openZoom(p)}>
+                              {p.thumb ? <img src={p.thumb} alt="" style={thumbStyle(p)} /> : <FileText size={18} />}
                             </button>
-                            <button
-                              className="pdf-page-btn delete"
-                              onClick={() => toggleExcludePage(page.id)}
-                              title="Excluir esta página"
-                            >
-                              <Trash2 size={13} />
-                            </button>
+                            <div className="pdfo-page-bar">
+                              <span title={p.fileName}>p.{p.pageNumber}{p.qr ? " · QR" : ""}</span>
+                              <button type="button" onClick={() => rotatePage(p.id)} title="Rodar 90°"><RotateCw size={12} /></button>
+                              <button type="button" onClick={() => toggleExclude(p.id)} title="Retirar página"><Trash2 size={12} /></button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
+                      ))}
+                    </div>
+                  )}
+                </article>
+              );
+            })}
           </section>
 
-          {/* Páginas Excluídas (se houver) */}
-          {excludedCount > 0 && (
-            <section style={{ margin: "16px 0", padding: "14px 18px", background: "#f8fafc", borderRadius: "10px", border: "1px dashed #cbd5e1" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-                <strong style={{ fontSize: "0.85rem", color: "#64748b" }}>
-                  {excludedCount} Página(s) Excluída(s) / Descartada(s)
-                </strong>
-                <button
-                  className="pdf-btn pdf-btn-secondary"
-                  style={{ padding: "4px 8px", fontSize: "0.75rem" }}
-                  onClick={() => setPages((curr) => curr.map((p) => ({ ...p, excluded: false })))}
-                >
-                  <Undo2 size={12} /> Restaurar Todas
-                </button>
-              </div>
-              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-                {pages.filter((p) => p.excluded).map((p) => (
-                  <div key={p.id} style={{ display: "flex", alignItems: "center", gap: "6px", background: "white", padding: "4px 8px", borderRadius: "6px", border: "1px solid #e2e8f0", fontSize: "0.75rem" }}>
-                    <span>{p.fileName} · pág. {p.pageNumber}</span>
-                    <button
-                      type="button"
-                      style={{ border: "none", background: "none", color: "#2563eb", cursor: "pointer", fontWeight: 700 }}
-                      onClick={() => toggleExcludePage(p.id)}
-                    >
-                      Restaurar
-                    </button>
+          <section className="pdfo-tree">
+            <button type="button" className="pdfo-tree-head" onClick={() => setTreeOpen((v) => !v)} aria-expanded={treeOpen}>
+              <FolderTree size={18} />
+              <strong>Estrutura do ZIP</strong>
+              <span>{stats.docs} ficheiro(s) + resumo.csv</span>
+              <ChevronDown size={16} className={treeOpen ? "is-open" : ""} />
+            </button>
+            {treeOpen && (
+              <div className="pdfo-tree-body">
+                {tree.map((y) => (
+                  <div key={y.year} className="pdfo-tree-node">
+                    <div className="pdfo-tree-folder is-year">
+                      <FolderOpen size={17} /><strong>{y.year}</strong>
+                      <em>{y.count} doc. · {fmtEur(y.total)}</em>
+                    </div>
+                    <div className="pdfo-tree-children">
+                      {y.categories.map((c) => (
+                        <div key={c.category} className="pdfo-tree-node">
+                          <div className="pdfo-tree-folder">
+                            <FolderOpen size={15} /><strong>{c.category}</strong>
+                            <em>{c.files.length} doc. · {fmtEur(c.total)}</em>
+                          </div>
+                          <ul className="pdfo-tree-files">
+                            {c.files.map((f) => (
+                              <li key={f.doc.key} className={f.doc.meta.confidence !== "alta" ? "is-warn" : ""}>
+                                <span className="pdfo-tree-pdf">PDF</span>
+                                <span className="pdfo-tree-name" title={f.name}>{f.name}</span>
+                                <em>{f.doc.pages.length} pág. · {fmtEur(f.doc.meta.total)}</em>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ))}
+                <div className="pdfo-tree-folder is-csv">
+                  <FileText size={15} /><strong>resumo.csv</strong>
+                  <em>lista de todos os documentos (abre no Excel)</em>
+                </div>
               </div>
+            )}
+          </section>
+
+          {stats.excluded > 0 && (
+            <section className="pdfo-excluded">
+              <div>
+                <strong>{stats.excluded} página(s) retirada(s)</strong>
+                <button type="button" className="pdfo-link" onClick={() => updatePages((c) => c.map((p) => ({ ...p, excluded: false })))}>
+                  <Undo2 size={13} /> Repor todas
+                </button>
+              </div>
+              <ul>
+                {pages.filter((p) => p.excluded).map((p) => (
+                  <li key={p.id}>
+                    {p.fileName} · p.{p.pageNumber}
+                    <button type="button" onClick={() => toggleExclude(p.id)}>Repor</button>
+                  </li>
+                ))}
+              </ul>
             </section>
           )}
 
-          {/* Árvore de Pastas do ZIP */}
-          <section className="pdf-tree-panel">
-            <div className="pdf-panel-heading">
-              <div>
-                <span className="eyebrow">Estrutura Final</span>
-                <h2>Pré-visualização das Pastas do ZIP</h2>
-              </div>
-              <span className="pdf-hint">Os PDFs serão organizados exatamente nesta hierarquia</span>
-            </div>
-
-            <div className="pdf-tree">
-              {Array.from(folderTree.entries()).map(([year, categoriesByYear]) => {
-                const totalYearDocs = Array.from(categoriesByYear.values()).reduce(
-                  (tot, entities) => tot + Array.from(entities.values()).reduce((cnt, items) => cnt + items.length, 0),
-                  0
-                );
-
-                return (
-                  <div className="pdf-tree-level pdf-tree-year" key={year}>
-                    <div className="pdf-tree-folder">
-                      <FolderOpen size={18} />
-                      <strong>{year}</strong>
-                      <span>{totalYearDocs} documento(s)</span>
-                    </div>
-
-                    <div className="pdf-tree-children">
-                      {Array.from(categoriesByYear.entries()).map(([category, entitiesByCategory]) => {
-                        const totalCatDocs = Array.from(entitiesByCategory.values()).reduce(
-                          (tot, items) => tot + items.length,
-                          0
-                        );
-
-                        return (
-                          <div className="pdf-tree-level" key={`${year}-${category}`}>
-                            <div className="pdf-tree-folder">
-                              <FolderOpen size={16} />
-                              <strong>{category}</strong>
-                              <span>{totalCatDocs} documento(s)</span>
-                            </div>
-
-                            <div className="pdf-tree-children">
-                              {Array.from(entitiesByCategory.entries()).map(([entity, items]) => (
-                                <div className="pdf-tree-level" key={`${year}-${category}-${entity}`}>
-                                  {entity !== "__direct__" && (
-                                    <div className="pdf-tree-folder">
-                                      <FolderOpen size={15} />
-                                      <strong>{entity}</strong>
-                                      <span>{items.length} documento(s)</span>
-                                    </div>
-                                  )}
-
-                                  <div className="pdf-tree-files">
-                                    {items.map((item) => (
-                                      <div className="pdf-tree-file" key={`tree-${item.id}`}>
-                                        <span className="pdf-tree-file-icon">PDF</span>
-                                        <strong>{safePart(item.filename, "documento")}.pdf</strong>
-                                        <span>{item.pages.length} pág.</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-
-          {/* Botão de Exportação no Final */}
-          <div style={{ display: "flex", gap: "12px", alignItems: "center", marginTop: "24px" }}>
-            <button className="pdf-btn pdf-btn-primary" style={{ padding: "12px 24px", fontSize: "1rem" }} onClick={exportZip}>
-              <Download size={20} /> Transferir ZIP Organizado
-            </button>
-          </div>
+          <p className="pdfo-foot"><ShieldCheck size={14} /> Os nomes de fornecedores que corrigir ficam memorizados neste computador (pelo NIF) e são usados automaticamente da próxima vez.</p>
         </>
       )}
 
-      {/* Modal de Zoom */}
-      {previewZoom && (
-        <div className="pdf-preview-modal" role="dialog" aria-modal="true" onClick={() => setPreviewZoom(null)}>
-          <div className="pdf-preview-dialog" onClick={(e) => e.stopPropagation()}>
-            <div className="pdf-preview-header">
-              <span className="pdf-preview-title">{previewZoom.title}</span>
-              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                <button
-                  type="button"
-                  className="pdf-btn pdf-btn-secondary"
-                  style={{ padding: "6px 12px", fontSize: "0.82rem" }}
-                  onClick={async () => {
-                    if (!previewZoom.pageId) return;
-                    rotatePage(previewZoom.pageId);
-                    const targetPage = pages.find((p) => p.id === previewZoom.pageId);
-                    const source = files.find((f) => f.id === targetPage?.fileId);
-                    if (source && targetPage) {
-                      const newRot = ((targetPage.rotation || 0) + 90) % 360;
-                      const src = await renderPagePreview(source.bytes, targetPage.pageNumber, 1.0, newRot);
-                      setPreviewZoom((curr) => (curr ? { ...curr, src } : null));
-                    }
-                  }}
-                  title="Rodar 90 graus"
-                >
-                  <RotateCw size={14} /> Rodar 90°
-                </button>
-                <button
-                  type="button"
-                  className="pdf-preview-close"
-                  onClick={() => setPreviewZoom(null)}
-                  aria-label="Fechar pré-visualização"
-                >
-                  <X size={20} />
-                </button>
-              </div>
+      {dialog && createPortal(
+        <div className="pdfo-dialog-back" onClick={() => closeDialog(false)}>
+          <div
+            className={`pdfo-dialog${dialog.tone ? ` is-${dialog.tone}` : ""}`}
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="pdfo-dialog-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button type="button" className="pdfo-dialog-x" onClick={() => closeDialog(false)} aria-label="Fechar"><X size={16} /></button>
+            {dialog.icon && <span className="pdfo-dialog-ico">{dialog.icon}</span>}
+            <h3 id="pdfo-dialog-title">{dialog.title}</h3>
+            <div className="pdfo-dialog-body">{dialog.body}</div>
+            <div className="pdfo-dialog-actions">
+              <button type="button" className="pdfo-btn" onClick={() => closeDialog(false)}>{dialog.cancelLabel || "Cancelar"}</button>
+              <button type="button" className="pdfo-btn is-primary" onClick={() => closeDialog(true)} autoFocus>{dialog.okLabel || "Confirmar"}</button>
             </div>
-            {previewZoom.src ? (
-              <img src={previewZoom.src} alt={previewZoom.title} />
-            ) : (
-              <div className="pdf-preview-loading">A carregar pré-visualização...</div>
-            )}
           </div>
-        </div>
+        </div>,
+        document.body,
+      )}
+
+      {zoom && createPortal(
+        <div className="pdfo-modal" role="dialog" aria-modal="true" onClick={() => setZoom(null)}>
+          <div className="pdfo-modal-box" onClick={(e) => e.stopPropagation()}>
+            <div className="pdfo-modal-head">
+              <span>{zoom.page.fileName} · página {zoom.page.pageNumber}{zoom.page.qr ? ` · ${fmtData(zoom.page.qr.data)} · ${fmtEur(zoom.page.qr.total)}` : ""}</span>
+              <button type="button" onClick={() => { rotatePage(zoom.page.id); openZoom({ ...zoom.page, rotation: ((zoom.page.rotation || 0) + 90) % 360 }); }}>
+                <RotateCw size={15} /> Rodar
+              </button>
+              <button type="button" onClick={() => setZoom((z) => ({ ...z, showText: !z.showText }))}>
+                <FileText size={15} /> {zoom.showText ? "Ver imagem" : "Texto lido"}
+              </button>
+              <button type="button" onClick={() => setZoom(null)} aria-label="Fechar"><X size={18} /></button>
+            </div>
+            {zoom.showText ? (
+              <div className="pdfo-modal-text">
+                <p>
+                  Leitura: {zoom.page.qr ? "QR fiscal lido ✓" : "sem QR (só texto)"} · versão {zoom.page.engine || 1}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const info = `[QR: ${zoom.page.qr ? JSON.stringify(zoom.page.qr) : "não lido"} | versão ${zoom.page.engine || 1}]\n${zoom.page.text || ""}`;
+                      navigator.clipboard?.writeText(info).catch(() => {});
+                    }}
+                  >
+                    <Copy size={13} /> Copiar
+                  </button>
+                </p>
+                <pre>{zoom.page.text || "(sem texto)"}</pre>
+              </div>
+            ) : zoom.src ? (
+              <div className="pdfo-modal-scroll"><img src={zoom.src} alt="" /></div>
+            ) : <div className="pdfo-modal-loading">A carregar…</div>}
+          </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

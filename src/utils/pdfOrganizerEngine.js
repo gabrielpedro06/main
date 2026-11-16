@@ -74,23 +74,26 @@ const KNOWN_ENTITIES = [
   { name: "El Corte Inglés", pattern: /\bel\s*corte\s*ingl[eé]s\b/i, nifs: ["502506829"] },
   { name: "Mercadona", pattern: /\bmercadona\s*(?:portugal)?\b/i, nifs: ["513998595"] },
   { name: "Note!", pattern: /\b(?:note!|mundo\s*note)\b/i, nifs: ["517309505"] },
-  { name: "Levi's", pattern: /\blevi'?s\b/i },
+  { name: "Levi's", pattern: /\blevi'?s\b/i, nifs: ["509684831"] },
+  { name: "O Seu Bitoque", pattern: /\bo\s*seu\s*bitoque\b/i, nifs: ["507602101"] },
+  { name: "Snack Bar A Madrugada", pattern: /\bsnack\s*bar\s*a\s*madrugada\b/i, nifs: ["515371599"] },
+  { name: "Restaurante Chefe Branco", pattern: /\bchefe\s*branco\b/i, nifs: ["503166820"] },
+  { name: "A. Pinto Combustíveis", pattern: /\ba\.?\s*pinto\s*-?\s*com[eé]rcio\s*de\s*combust/i, nifs: ["509033687"] },
 
   // Restauração Rápida & Cadeias
   { name: "McDonald's", pattern: /\bmcdonald'?s\b/i, nifs: ["502167017", "505538725", "505323745", "505166690"] },
-  { name: "Burger King", pattern: /\b(?:burger\s*king|food4kings)\b/i, nifs: ["510728090"] },
+  { name: "Burger King", pattern: /\b(?:burg[e3]r\s*k[il1|!]ng|food4kings|bk\s*portugal)\b/i, nifs: ["510728090"] },
   { name: "KFC", pattern: /\b(?:kfc|iberusa)\b/i, nifs: ["502604735"] },
   { name: "Pans & Company", pattern: /\b(?:pans\s*(?:&|e)\s*company|ibersande)\b/i, nifs: ["503799149"] },
   { name: "Taco Bell", pattern: /\b(?:taco\s*bell|firmoven)\b/i, nifs: ["507517970"] },
   { name: "Pizza Hut", pattern: /\bpizza\s*hut\b/i },
   { name: "Wok to Walk", pattern: /\bwok\s*to\s*walk\b/i },
-  { name: "Qualitalhos", pattern: /\bqualitalhos\b/i, nifs: ["503290688"] },
+  { name: "Qualitalhos", pattern: /\bqual[il1]ta[l1]h[oe0]s\b/i, nifs: ["503290688"] },
   { name: "Sirius Fuel", pattern: /\bsirius\s*fuel\b/i, nifs: ["510958427"] },
   { name: "Hora Doce", pattern: /\bhora\s*doce\b/i, nifs: ["509396100"] },
   { name: "Sushi Mundo", pattern: /\bsushi\s*mundo\b/i, nifs: ["506290174"] },
-  { name: "Yummy Sweet", pattern: /\byummy\s*sweet\b/i },
-  { name: "Talho Burger", pattern: /\btalho\s*burger\b/i },
-  { name: "O Seu Bitoque", pattern: /\bo\s*seu\s*bitoque\b/i },
+  { name: "Yummy Sweet", pattern: /\byummy\s*swee[tl]\b/i, nifs: ["518140105"] },
+  { name: "Talho Burger", pattern: /\b[tf]al[e]?h[o0]\s*(?:&\s*)?burger\b/i },
   { name: "Cantinho da Ronha", pattern: /\bcantinho\s*da\s*ronha\b/i, nifs: ["514493020"] },
   { name: "Portis Hoteis", pattern: /\bportis\b/i, nifs: ["502033568"] },
 
@@ -158,6 +161,16 @@ const KNOWN_ENTITIES = [
   { name: "Matidiver", pattern: /\b(?:matidiver|mativiver)\b/i },
 ];
 
+// Entidades que aparecem em quase todos os documentos (pagamentos, descontos, clientes)
+// e que por isso só contam como emissor quando o tipo de documento bate certo.
+const BANK_ENTITIES = new Set([
+  "Caixa Geral de Depósitos", "Millennium BCP", "Banco Santander", "Banco BPI", "Novo Banco",
+  "Banco Montepio", "Banco CTT", "ActivoBank", "Bankinter", "Crédito Agrícola", "EuroBic",
+]);
+const STATE_ENTITIES = new Set(["Autoridade Tributária", "Segurança Social"]);
+// Empresas do próprio grupo: costumam ser o CLIENTE da fatura, não o emissor
+const OWN_ENTITIES = new Set(["Factor Triplo", "Geoflicks", "Duas Siglas", "Neomarca", "Topázio", "Matidiver"]);
+
 /**
  * Remove espaços múltiplos e normaliza caracteres
  */
@@ -167,38 +180,27 @@ export function normalizeText(text) {
 }
 
 /**
- * Deteta a numeração de páginas indicada no próprio conteúdo do documento.
- * Ex: "Página 2 de 4", "Pág. 2/3", "Page 1 of 2", "2 de 3", "2/4"
+ * Numeração de páginas escrita no próprio documento.
+ * Só aceita numeração ROTULADA ("Página 2 de 4", "Pág. 2/3", "Page 1 of 2", "Folha 2").
+ * (Antes, qualquer "1/3" ou "01/03/2024" era lido como "página 1 de 3".)
  */
 export function extractPageNumbering(text) {
   if (!text) return null;
   const normalized = normalizeText(text);
 
-  // Padrões comuns de paginação
-  const patterns = [
-    // Página 2 de 4 / Page 2 of 4 / Pág. 2 de 4 / Folha 2 de 4
-    /(?:p[aá]gina|p[aá]g\.?|page|folha)\s*(\d{1,3})\s*(?:de|\/|of)\s*(\d{1,3})/i,
-    // [Página] 2 / 4 ou 2 de 4 isolados no texto
-    /\b(\d{1,3})\s*(?:\/|de)\s*(\d{1,3})\b/i,
-  ];
-
-  for (const regex of patterns) {
-    const match = normalized.match(regex);
-    if (match) {
-      const current = parseInt(match[1], 10);
-      const total = parseInt(match[2], 10);
-      // Validações razoáveis de bom senso (evita apanhar datas 12/2024 ou rácios)
-      if (current >= 1 && total >= 1 && current <= total && total <= 50) {
-        return { current, total, isContinuation: current > 1, isFirst: current === 1 };
-      }
+  const full = normalized.match(/\b(?:p[aá]gina|p[aá]g|page|folha|fl)\.?\s*(?:n\.?[ºo]\s*)?(\d{1,3})\s*(?:de|\/|of|-)\s*(\d{1,3})\b/i);
+  if (full) {
+    const current = parseInt(full[1], 10);
+    const total = parseInt(full[2], 10);
+    if (current >= 1 && total >= 1 && current <= total && total <= 200) {
+      return { current, total, isContinuation: current > 1, isFirst: current === 1 };
     }
   }
 
-  // Padrões com apenas número da página: "Página 2", "Pág 3"
-  const singlePageMatch = normalized.match(/(?:p[aá]gina|p[aá]g\.?|page)\s*(\d{1,3})\b/i);
-  if (singlePageMatch) {
-    const current = parseInt(singlePageMatch[1], 10);
-    if (current >= 1 && current <= 50) {
+  const single = normalized.match(/\b(?:p[aá]gina|p[aá]g|page|folha)\.?\s*(\d{1,3})\b(?!\s*[/.-]\s*\d)/i);
+  if (single) {
+    const current = parseInt(single[1], 10);
+    if (current >= 1 && current <= 200) {
       return { current, total: null, isContinuation: current > 1, isFirst: current === 1 };
     }
   }
@@ -208,248 +210,298 @@ export function extractPageNumbering(text) {
 
 /**
  * Avalia a qualidade e legibilidade de um texto OCR em português
- * Permite detetar instantaneamente se a rotação do OCR está correta
+ * Permite detetar se a rotação do OCR está correta
  */
 export function scoreOcrText(text) {
   if (!text) return 0;
-  const keywords = (text.match(/\b(?:fatura|factura|invoice|extrato|extracto|recibo|vencimento|conta|cliente|fornecedor|total|iva|nif|nipc|contribuinte|data|pagamento|banco|bpi|cgd|santander|millennium|makro|endesa|top[aá]zio|valor|eur|euros|lda|sa|unipessoal|portugal|movimentos|saldo|cr[eé]dito)\b/gi) || []).length;
+  const keywords = (text.match(/\b(?:fatura|factura|invoice|extrato|extracto|recibo|vencimento|conta|cliente|fornecedor|total|iva|nif|nipc|contribuinte|data|pagamento|banco|valor|eur|euros|lda|unipessoal|portugal|movimentos|saldo|cr[eé]dito|morada|quantidade|pre[cç]o|desconto)\b/gi) || []).length;
   const ptWords = (text.match(/\b(?:de|da|do|dos|das|em|para|por|com|não|na|no|nas|nos|um|uma|os|as|ao|aos|que|se)\b/gi) || []).length;
   const clean = text.replace(/[^a-zA-ZÀ-ÿ]/g, "");
   return (keywords * 25) + (ptWords * 10) + Math.min(clean.length * 0.1, 30);
 }
 
 /**
- * Extrai número de conta bancária ou cartão (ex: 4-4698307-035-001)
+ * Valida um NIF/NIPC português (dígito de controlo módulo 11).
+ * Evita usar "NIFs" lidos mal pelo OCR como sinal de mudança de documento.
+ */
+export function isValidNif(nif) {
+  if (!/^[1235689]\d{8}$/.test(nif || "")) return false;
+  let sum = 0;
+  for (let i = 0; i < 8; i += 1) sum += Number(nif[i]) * (9 - i);
+  const check = 11 - (sum % 11);
+  return Number(nif[8]) === (check >= 10 ? 0 : check);
+}
+
+/**
+ * Todos os NIF válidos presentes no texto (emissor e cliente)
+ */
+export function extractNifs(text) {
+  if (!text) return [];
+  const found = new Set();
+  const normalized = normalizeText(text).replace(/(\d)\s(?=\d)/g, "$1");
+  const re = /(?:^|[^\d])([1235689]\d{8})(?!\d)/g;
+  let m;
+  while ((m = re.exec(normalized))) {
+    if (isValidNif(m[1])) found.add(m[1]);
+  }
+  return [...found];
+}
+
+/**
+ * NIF principal (o primeiro rotulado; senão o primeiro válido)
+ */
+export function extractNif(text) {
+  if (!text) return "";
+  const normalized = normalizeText(text);
+  const labeled = normalized.match(/(?:n\.?i\.?f\.?|nipc|contribuinte|vat|n\.?[ºo]?\s*de\s*identifica[cç][aã]o\s*fiscal)[\s:.nº°]*(?:PT)?\s*([1235689]\d{8})\b/i);
+  if (labeled && isValidNif(labeled[1])) return labeled[1];
+  return extractNifs(text)[0] || "";
+}
+
+/**
+ * Conta bancária / IBAN (só faz sentido em extratos)
  */
 export function extractBankAccount(text) {
   if (!text) return "";
   const normalized = normalizeText(text);
-  const match = normalized.match(/(?:conta\s*(?:n[ºo.]?|corrente|cart[aã]o\s*n[ºo.]?)?)\s*([0-9-]{7,25})/i);
-  return match ? match[1].trim() : "";
+  const iban = normalized.match(/\bPT\s?50(?:\s?\d){21}\b/i);
+  if (iban) return iban[0].replace(/\s/g, "").toUpperCase();
+  const match = normalized.match(/\b(?:conta|n\.?[ºo]\s*conta|conta\s*n\.?[ºo]?|conta\s*(?:dep[oó]sitos\s*[aà]\s*ordem|corrente)\s*n?\.?[ºo]?)\s*[:.]?\s*((?:\d[\s-]?){7,20}\d)\b/i);
+  if (!match) return "";
+  const digits = match[1].replace(/\D/g, "");
+  // Ignora datas (ex.: "conta 2024-03-15")
+  if (/^20\d{2}(0[1-9]|1[0-2])/.test(digits) && digits.length === 8) return "";
+  return digits;
 }
 
 /**
- * Extrai número de fatura, documento ou recibo.
- * Ex: "FT 2024/104", "FS A/123", "FAC 10207202601/007642", "VFAT15/FV2600493", "Extracto 005/2026"
+ * ATCUD: código único que todas as faturas portuguesas trazem desde 2023
+ */
+export function extractAtcud(text) {
+  if (!text) return "";
+  // Tolera leituras do OCR como "AICUD", "ATCILD;", "ATC D :"
+  const m = normalizeText(text).match(/\bA[TI1]C\s?[UVIL1]{0,2}\s?D\s*[:;.]?\s*([A-Z0-9]{8,12}\s*-\s*\d{1,10})\b/i);
+  return m ? m[1].replace(/\s+/g, "").toUpperCase() : "";
+}
+
+/**
+ * Número de fatura, documento ou recibo.
+ * Ex: "FT 2024/104", "FR A1/123", "FAC 10207202601/007642", "VFAT15/FV2600493", "Extracto 005/2026"
+ * (Antes "FS", "NE", "GR"… seguidos de QUALQUER palavra contavam como número.)
  */
 export function extractDocumentNumber(text) {
   if (!text) return "";
   const normalized = normalizeText(text);
+  const hasDigit = (v) => /\d/.test(v);
 
   const patterns = [
-    // Séries fiscais portuguesas: FT, FS, FR, NC, ND, FAC, VFAT, GT, GR, FP, RC, NE
-    /\b(?:FT|FS|FR|NC|ND|FAC|VFAT|GT|GR|FP|RC|NE)\b\s*([A-Z0-9.\-_]+(?:\s*\/\s*[A-Z0-9]+)?)/i,
-    // Séries personalizadas com barra: Nº F2/483, Nº A/105395, Nº 125143
-    /(?:n[ºo.]?|n[uú]mero)\s*([A-Z0-9]{1,6}\s*\/\s*[0-9]{1,10})/i,
-    // Fatura / Factura n.º 123456
-    /(?:fatura|factura|invoice|nota\s*de\s*cr[eé]dito|recibo|guia)\s*(?:n[ºo.]?|n[uú]mero|num\.?|#|[:-]?)\s*([A-Z0-9/\-_]{3,24})/i,
-    // Extrato de Conta número sequencial: Extracto 005/2026
-    /(?:extrato|extracto)\s*[-:]?\s*(\d{3}\/\d{4})\b/i,
-    // Extrato de Conta nº 12345
-    /(?:extrato|extracto)\s*(?:n[ºo.]?|de\s*conta\s*n[ºo.]?)\s*([A-Z0-9/\-_]{3,24})/i,
+    // Séries fiscais (prefixo em MAIÚSCULAS): FT 2024A/104, FR FR2024/12, NC A/3, VFAT15/FV2600493
+    /\b((?:FT|FR|FS|NC|ND|GT|GR|GD|RC|RG|VD|FAC|VFAT)\s*[A-Z0-9]{0,14}\s*\/\s*[A-Z0-9]{1,14})\b/,
+    // Fatura / Recibo / Nota de crédito / Guia n.º 123456
+    /\b(?:fatura|factura|fatura-recibo|invoice|nota\s*de\s*cr[eé]dito|nota\s*de\s*d[eé]bito|recibo|guia(?:\s*de\s*remessa|\s*de\s*transporte)?)\s*(?:n\.?[ºo°]|n[uú]mero|num\.?|no\.?|#)\s*[:.]?\s*([A-Z0-9][A-Z0-9/\-_.]{2,24})/i,
+    // Extrato 005/2026
+    /\b(?:extrato|extracto)\s*(?:n\.?[ºo°]\s*)?[-:]?\s*(\d{1,4}\s*\/\s*\d{4})\b/i,
     // Documento n.º 12345
-    /(?:documento|doc\.?)\s*(?:n[ºo.]?|#)\s*([A-Z0-9/\-_]{3,24})/i,
+    /\b(?:documento|doc\.?)\s*(?:n\.?[ºo°]|#)\s*[:.]?\s*([A-Z0-9][A-Z0-9/\-_.]{2,24})/i,
   ];
 
   for (const regex of patterns) {
     const match = normalized.match(regex);
     if (match && match[1]) {
-      const clean = match[1].replace(/\s+/g, " ").trim();
-      // Não aceitar apenas números pequenos ou datas
-      if (clean.length >= 3 && !/^\d{4}$/.test(clean)) {
+      const clean = match[1].replace(/\s+/g, "").replace(/[.\-_]+$/, "");
+      if (clean.length >= 3 && hasDigit(clean) && !/^(?:19|20)\d{2}$/.test(clean)) {
         return clean;
       }
     }
   }
-
   return "";
 }
 
+// Nomes aprendidos com as correções do utilizador: { nif: "Nome" }
+let learnedEntities = {};
+export function setLearnedEntities(map) {
+  learnedEntities = map && typeof map === "object" ? map : {};
+}
+
+// Texto com as trocas mais comuns do OCR desfeitas (1/l/| → i, 0 → o, 3 → e)
+function ocrFuzzy(text) {
+  return text.replace(/[1|!]/g, "i").replace(/0/g, "o").replace(/(?<=[a-z])3|3(?=[a-z])/gi, "e");
+}
+
 /**
- * Extrai NIF / NIPC português (9 dígitos com validação de formato fiscal)
+ * Parece um nome de empresa a sério? Rejeita lixo do OCR como "GripaPTE xQ".
  */
-export function extractNif(text) {
+export function looksLikeName(name) {
+  const clean = String(name || "").trim();
+  if (clean.length < 3 || clean.length > 60) return false;
+  const words = clean.split(/\s+/);
+  const okWord = (w) =>
+    /^(?:de|da|do|dos|das|e|&|y)$/i.test(w)
+    || /^[A-ZÁÀÃÂÉÊÍÓÔÕÚÇ][a-zà-ÿ'’.&-]+$/.test(w)       // Palavra Normal
+    || /^[A-ZÁÀÃÂÉÊÍÓÔÕÚÇ&'’.-]{2,}$/.test(w);            // SIGLA / MAIÚSCULAS
+  if (!words.every(okWord)) return false;
+  const letters = clean.replace(/[^A-Za-zÀ-ÿ]/g, "");
+  const vowels = letters.replace(/[^aeiouáàãâéêíóôõúAEIOUÁÀÃÂÉÊÍÓÔÕÚ]/g, "");
+  return letters.length >= 3 && vowels.length / letters.length >= 0.25;
+}
+
+/**
+ * Nome da Entidade (emissor / fornecedor / organismo).
+ * Ordem: 1) nomes aprendidos pelo NIF, 2) entidades conhecidas (as que aparecem mais cedo),
+ * 3) nome com sufixo societário perto do NIF do emissor, 4) "Fornecedor: …".
+ * Não usa bancos, Estado ou empresas do próprio grupo quando não fazem sentido.
+ */
+export function extractEntity(text, category = "") {
   if (!text) return "";
   const normalized = normalizeText(text);
+  const fuzzy = ocrFuzzy(normalized);
+  const digitsOnly = normalized.replace(/(\d)\s(?=\d)/g, "$1");
 
-  // Procura por NIF rotulado explicitamente (incluindo N.I.F. com pontos)
-  const labeled = normalized.match(/(?:n\.?i\.?f\.?|nipc|contribuinte|vat|cif|n\.?[ºo]?\s*de\s*identifica[cç][aã]o\s*fiscal)[\s:.]*([A-Z]{2})?\s*([1235689]\d{8})\b/i);
-  if (labeled && labeled[2]) {
-    return labeled[2];
+  // 1. Aprendido com correções anteriores (o NIF que aparece primeiro ganha)
+  let learned = null;
+  Object.entries(learnedEntities).forEach(([nif, name]) => {
+    if (!name) return;
+    const i = digitsOnly.indexOf(nif);
+    if (i >= 0 && (!learned || i < learned.pos)) learned = { name, pos: i };
+  });
+  if (learned) return learned.name;
+
+  const allowed = (name) => {
+    if (BANK_ENTITIES.has(name)) return category === "Extratos bancários";
+    if (STATE_ENTITIES.has(name)) return category === "Impostos / Estado";
+    return true;
+  };
+
+  // 2. Entidades conhecidas (por NIF ou nome, também com erros típicos de OCR)
+  const candidates = [];
+  KNOWN_ENTITIES.forEach((item) => {
+    if (!allowed(item.name)) return;
+    let pos = Infinity;
+    (item.nifs || []).forEach((nif) => {
+      const i = digitsOnly.indexOf(nif);
+      if (i >= 0) pos = Math.min(pos, i - 5000); // NIF conhecido ganha a qualquer nome solto
+    });
+    const m = normalized.match(item.pattern) || fuzzy.match(item.pattern);
+    if (m && m.index !== undefined) pos = Math.min(pos, m.index);
+    if (pos !== Infinity) candidates.push({ name: item.name, pos, own: OWN_ENTITIES.has(item.name) });
+  });
+  candidates.sort((a, b) => (a.own - b.own) || (a.pos - b.pos));
+  const best = candidates.find((c) => !c.own);
+  if (best) return best.name;
+
+  // 3. Nomes com sufixo societário ("Sabores do Sul, Lda"), só os que parecem nomes a sério.
+  //    Preferência pelo que está mais perto (antes) do primeiro NIF rotulado = o emissor.
+  const companyRe = /\b((?:[A-ZÁÀÃÂÉÊÍÓÔÕÚÇ][\wÀ-ÿ&.'’-]*|de|da|do|dos|das|e|&)(?:\s+(?:[A-ZÁÀÃÂÉÊÍÓÔÕÚÇ][\wÀ-ÿ&.'’-]*|de|da|do|dos|das|e|&)){0,5}),?\s+(?:Lda\.?|LDA\.?|Limitada|S\.A\.|SA|Unipessoal,?\s*Lda\.?|Unipessoal|E\.I\.R\.L\.?|SGPS)(?=$|[\s,.;:)])/g;
+  const firstNif = normalized.search(/\b(?:n\.?i\.?f|nipc|contribuinte)\b/i);
+  const companies = [];
+  let cm;
+  const STREET = /^(?:rua|r\.|av\.?|avenida|travessa|tv\.?|estrada|largo|pra[cç]a|urb\.?|urbaniza[cç][aã]o|bairro|quinta|lote|edif[ií]cio|zona)$/i;
+  while ((cm = companyRe.exec(normalized))) {
+    const words = cm[1].split(/\s+/);
+    while (words.length && HEADER_WORDS.test(words[0])) words.shift();
+    // Morada ("Rua Sporting Clube Farense Lda n19") não é nome de empresa
+    // olha até 3 palavras para trás (o OCR parte nomes: "Rua Spor ting Clube Farense")
+    const before = normalized.slice(Math.max(0, cm.index - 30), cm.index).trim().split(/\s+/).slice(-3);
+    if (words.some((w) => STREET.test(w)) || before.some((w) => STREET.test(w))) continue;
+    let name = words.join(" ").trim();
+    // "Qualitalhos, Ind e Com. de Carnes Lda" → o nome é a palavra antes da vírgula
+    const prevWord = normalized.slice(Math.max(0, cm.index - 40), cm.index).match(/([A-ZÁÀÃÂÉÊÍÓÔÕÚÇ][\wÀ-ÿ&'’-]{3,}),\s*$/);
+    if (prevWord && !STREET.test(prevWord[1])) name = prevWord[1];
+    if (looksLikeName(name) && !OWN_ENTITIES.has(name)) {
+      const dist = firstNif >= 0 && cm.index <= firstNif ? firstNif - cm.index : 100000 + cm.index;
+      companies.push({ name, dist });
+    }
   }
+  companies.sort((a, b) => a.dist - b.dist);
+  if (companies.length) return companies[0].name.slice(0, 50);
 
-  // Procura padrão PT + 9 dígitos
-  const ptNif = normalized.match(/\bPT\s*([1235689]\d{8})\b/i);
-  if (ptNif && ptNif[1]) {
-    return ptNif[1];
-  }
+  // 4. "Fornecedor: …"
+  const supplierMatch = normalized.match(/(?:fornecedor|prestador|emitente|vendedor)\s*[:-]\s*([A-ZÁÀÃÂÉÊÍÓÔÕÚÇ][\wÀ-ÿ&.'’ -]{2,45})/i);
+  if (supplierMatch && looksLikeName(supplierMatch[1].trim())) return supplierMatch[1].trim();
 
-  return "";
+  const own = candidates.find((c) => c.own);
+  return own ? own.name : "";
 }
 
-/**
- * Extrai o nome da Entidade (Empresa / Fornecedor / Organismo)
- */
-export function extractEntity(text) {
-  if (!text) return "";
-  const normalized = normalizeText(text);
+const HEADER_WORDS = /^(?:de|da|do|dos|das|e|&|recibo|vencimento|remunera[cç][aã]o|fatura|factura|fatura-recibo|nota|cr[eé]dito|empresa|entidade|cliente|fornecedor|emitente|nome|original|duplicado|triplicado|exmo\.?|exmos\.?|sr\.?|sra\.?|guia|remessa|extrato|extracto|or[cç]amento|proposta)$/i;
 
-  // 1. Procura correspondência por NIF conhecido no texto do documento
-  for (const item of KNOWN_ENTITIES) {
-    if (item.nifs && item.nifs.some((nif) => normalized.includes(nif))) {
-      return item.name;
-    }
-  }
-
-  // 2. Catálogo de entidades conhecidas (por padrões textuais contextuais)
-  for (const item of KNOWN_ENTITIES) {
-    if (item.pattern.test(normalized)) {
-      return item.name;
-    }
-  }
-
-  // 3. Procura sufixos de empresas em Portugal (LDA, UNIPESSOAL, S.A., etc.)
-  const companyMatch = normalized.match(
-    /\b([A-ZÁÀÃÂÉÊÍÓÔÕÚÜ][\w&.-]+(?:\s+[A-ZÁÀÃÂÉÊÍÓÔÕÚÜ][\w&.-]+){0,5})\s+(?:Lda\.?|Limitada|S\.?A\.?|SA|Unipessoal\s+Lda\.?|Unipessoal|Sociedade\s+Unipessoal|E\.?I\.?R\.?L\.?|SGPS)\b/i
-  );
-  if (companyMatch && companyMatch[1]) {
-    const name = companyMatch[1].trim();
-    if (name.length > 2 && !/^(?:O|A|Os|As|De|Do|Da|Em|Por|Para|Nos|Nas|Pelo|Pela|Com|Sem)$/i.test(name)) {
-      return name;
-    }
-  }
-
-  // 4. Procura cabeçalho com fornecedor / prestador
-  const supplierMatch = normalized.match(/(?:fornecedor|prestador|emitente|cedente)\s*[:-]\s*([A-ZÁÀÃÂÉÊÍÓÔÕÚÜ\w\s&.-]{3,45})/i);
-  if (supplierMatch && supplierMatch[1]) {
-    return supplierMatch[1].trim();
-  }
-
-  return "";
-}
+const MONTHS = {
+  janeiro: "01", fevereiro: "02", março: "03", marco: "03", abril: "04", maio: "05", junho: "06",
+  julho: "07", agosto: "08", setembro: "09", outubro: "10", novembro: "11", dezembro: "12",
+};
 
 /**
- * Extrai a data do documento (dia/mês/ano) e calcula o ano principal com alta precisão
+ * Data do documento (dia/mês/ano) e ano principal.
+ * Se não houver nenhuma data, o ano fica vazio ("Sem ano") em vez de inventar o ano atual.
  */
 export function extractDocumentDate(text) {
-  if (!text) return { dateStr: "", year: String(new Date().getFullYear()), month: "" };
+  if (!text) return { dateStr: "", year: "", month: "" };
   const normalized = normalizeText(text);
+  const label = "(?:data(?:\\s*de\\s*emiss[aã]o|\\s*do\\s*documento|\\s*da\\s*fatura|\\s*doc\\.?)?|emitid[ao]\\s*em|emiss[aã]o)";
 
-  // 1. Procurar PRIMEIRO datas explicitamente rotuladas (têm máxima fiabilidade)
-  const labeledPatterns = [
-    // Data rotulada com AAAA-MM-DD ou AAAA/MM/DD
-    /(?:data(?:\s*de\s*emiss[aã]o|\s*do\s*documento|\s*hora)?|emitid[ao]\s*em)\s*[:-]?\s*(20[12]\d)[/\-.](0?[1-9]|1[0-2])[/\-.](0?[1-9]|[12]\d|3[01])\b/i,
-    // Data rotulada com DD-MM-AAAA ou DD/MM/AAAA
-    /(?:data(?:\s*de\s*emiss[aã]o|\s*do\s*documento|\s*hora)?|emitid[ao]\s*em)\s*[:-]?\s*(0?[1-9]|[12]\d|3[01])[/\-.](0?[1-9]|1[0-2])[/\-.](20[12]\d)\b/i,
-    // Data rotulada com ano a 2 dígitos: DD-MM-YY (ex: 04-09-26)
-    /(?:data(?:\s*de\s*emiss[aã]o|\s*do\s*documento|\s*hora)?|emitid[ao]\s*em)\s*[:-]?\s*(0?[1-9]|[12]\d|3[01])[/\-.](0?[1-9]|1[0-2])[/\-.](2[0-9])\b/i,
-    // Data rotulada com ano a 2 dígitos: YY-MM-DD (ex: 26-09-10)
-    /(?:data(?:\s*de\s*emiss[aã]o|\s*do\s*documento|\s*hora)?|emitid[ao]\s*em)\s*[:-]?\s*(2[0-9])[/\-.](0?[1-9]|1[0-2])[/\-.](0?[1-9]|[12]\d|3[01])\b/i,
-    // Fatura / Factura ... de DD/MM/AAAA
-    /(?:fatura|factura|documento|estadia\s*de)\s*[^;\n\r]{0,35}?\s*de\s*(0?[1-9]|[12]\d|3[01])[/\-.](0?[1-9]|1[0-2])[/\-.](20[12]\d)\b/i,
+  const build = (y, mo, d) => {
+    const yy = y.length === 2 ? `20${y}` : y;
+    const n = Number(yy);
+    if (n < 2000 || n > new Date().getFullYear() + 1) return null;
+    return { dateStr: `${yy}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`, year: yy, month: String(mo).padStart(2, "0") };
+  };
+
+  // 1. Datas rotuladas
+  const labeled = [
+    [new RegExp(`${label}\\s*[:-]?\\s*(20\\d{2})[/\\-.](0?[1-9]|1[0-2])[/\\-.](0?[1-9]|[12]\\d|3[01])\\b`, "i"), (m) => build(m[1], m[2], m[3])],
+    [new RegExp(`${label}\\s*[:-]?\\s*(0?[1-9]|[12]\\d|3[01])[/\\-.](0?[1-9]|1[0-2])[/\\-.](20\\d{2})\\b`, "i"), (m) => build(m[3], m[2], m[1])],
+    [new RegExp(`${label}\\s*[:-]?\\s*(0?[1-9]|[12]\\d|3[01])[/\\-.](0?[1-9]|1[0-2])[/\\-.](\\d{2})\\b`, "i"), (m) => build(m[3], m[2], m[1])],
+    [/(?:fatura|factura|documento)\s*[^;\n\r]{0,35}?\s*de\s*(0?[1-9]|[12]\d|3[01])[/\-.](0?[1-9]|1[0-2])[/\-.](20\d{2})\b/i, (m) => build(m[3], m[2], m[1])],
   ];
-
-  for (const regex of labeledPatterns) {
-    const m = normalized.match(regex);
-    if (m) {
-      let d; let mo; let y;
-      if (m[1].length === 4) {
-        y = m[1]; mo = m[2].padStart(2, "0"); d = m[3].padStart(2, "0");
-      } else if (m[3].length === 4) {
-        d = m[1].padStart(2, "0"); mo = m[2].padStart(2, "0"); y = m[3];
-      } else if (m[1].length === 2 && Number(m[1]) >= 20 && Number(m[1]) <= 35) {
-        y = `20${m[1]}`; mo = m[2].padStart(2, "0"); d = m[3].padStart(2, "0");
-      } else if (m[3].length === 2 && Number(m[3]) >= 20 && Number(m[3]) <= 35) {
-        d = m[1].padStart(2, "0"); mo = m[2].padStart(2, "0"); y = `20${m[3]}`;
-      }
-      if (y && mo && d) return { dateStr: `${y}-${mo}-${d}`, year: y, month: mo };
-    }
+  for (const [re, fn] of labeled) {
+    const m = normalized.match(re);
+    const r = m && fn(m);
+    if (r) return r;
   }
 
-  // 2. Limpar menções a leis fiscais, decretos, portarias e certificados que induzem em erro anos passados
+  // 2. Limpa leis, decretos e certificados (trazem anos antigos)
   const cleanedText = normalized
-    .replace(/\b(?:decreto(?:[- ]lei)?|lei|portaria)\s*(?:n[ºo.]?)?\s*[\w\-/]+(?:\s*de\s*\d{1,2}\/\d{1,2})?/gi, " ")
-    .replace(/\b(?:certificado|programa\s*certificado)\s*(?:n[ºo.]?)?\s*[\w\-/]+/gi, " ")
-    .replace(/\b(?:art(?:igo)?\.?\s*\d+[^.,\n\r]*)/gi, " ")
-    .replace(/\b(?:capital\s*social)\s*[:.]?\s*[\d.,]+/gi, " ");
+    .replace(/\b(?:decreto(?:[- ]lei)?|lei|portaria|despacho|regulamento)\s*(?:n\.?[ºo]?)?\s*[\w\-/]+(?:\s*,?\s*de\s*\d{1,2}(?:\s*de\s*\w+|\/\d{1,2}))?/gi, " ")
+    .replace(/\b(?:certificado|programa\s*certificado|processado\s*por\s*programa)\s*(?:n\.?[ºo]?)?\s*[\w\-/]+/gi, " ")
+    .replace(/\bart(?:igo)?\.?\s*\d+[^.,\n\r]*/gi, " ")
+    .replace(/\bcapital\s*social\s*[:.]?\s*[\d.,]+/gi, " ");
 
-  // 3. Data não rotulada formato AAAA/MM/DD ou AAAA-MM-DD
-  const ymdMatch = cleanedText.match(/\b(20[12]\d)[/\-.](0?[1-9]|1[0-2])[/\-.](0?[1-9]|[12]\d|3[01])\b/);
-  if (ymdMatch) {
-    const year = ymdMatch[1];
-    const month = ymdMatch[2].padStart(2, "0");
-    const day = ymdMatch[3].padStart(2, "0");
-    return { dateStr: `${year}-${month}-${day}`, year, month };
+  // 3. Datas não rotuladas
+  const unlabeled = [
+    [/\b(20\d{2})[/\-.](0?[1-9]|1[0-2])[/\-.](0?[1-9]|[12]\d|3[01])\b/, (m) => build(m[1], m[2], m[3])],
+    [/\b(0?[1-9]|[12]\d|3[01])[/\-.](0?[1-9]|1[0-2])[/\-.](20\d{2})\b/, (m) => build(m[3], m[2], m[1])],
+    [/\b(0?[1-9]|[12]\d|3[01])\s+de\s+(janeiro|fevereiro|março|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s+(?:de\s+)?(20\d{2})\b/i, (m) => build(m[3], MONTHS[m[2].toLowerCase()], m[1])],
+    [/\b(0?[1-9]|[12]\d|3[01])[/\-.](0?[1-9]|1[0-2])[/\-.](2\d)\b/, (m) => build(m[3], m[2], m[1])],
+  ];
+  for (const [re, fn] of unlabeled) {
+    const m = cleanedText.match(re);
+    const r = m && fn(m);
+    if (r) return r;
   }
 
-  // 4. Data não rotulada formato DD/MM/AAAA ou DD-MM-AAAA
-  const dmyMatch = cleanedText.match(/\b(0?[1-9]|[12]\d|3[01])[/\-.](0?[1-9]|1[0-2])[/\-.](20[12]\d)\b/);
-  if (dmyMatch) {
-    const day = dmyMatch[1].padStart(2, "0");
-    const month = dmyMatch[2].padStart(2, "0");
-    const year = dmyMatch[3];
-    return { dateStr: `${year}-${month}-${day}`, year, month };
+  // 4. Mês/ano de referência: "Mês: 02/2026", "Período: 03-2026", "março de 2026"
+  const monthYear = cleanedText.match(/(?:m[eê]s|per[ií]odo|vencimento|refer[eê]ncia)\s*[:-]?\s*(0?[1-9]|1[0-2])[/\-.](20\d{2})\b/i);
+  if (monthYear) return { dateStr: `${monthYear[2]}-${monthYear[1].padStart(2, "0")}`, year: monthYear[2], month: monthYear[1].padStart(2, "0") };
+  const monthName = cleanedText.match(/\b(janeiro|fevereiro|março|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s+(?:de\s+)?(20\d{2})\b/i);
+  if (monthName) {
+    const mo = MONTHS[monthName[1].toLowerCase()];
+    return { dateStr: `${monthName[2]}-${mo}`, year: monthName[2], month: mo };
   }
 
-  // 5. Data por extenso em Português: "15 de março de 2026"
-  const textMonthMatch = cleanedText.match(/\b(0?[1-9]|[12]\d|3[01])\s+de\s+(janeiro|fevereiro|março|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s+(?:de\s+)?(20[12]\d)\b/i);
-  if (textMonthMatch) {
-    const months = {
-      janeiro: "01", fevereiro: "02", março: "03", marco: "03", abril: "04",
-      maio: "05", junho: "06", julho: "07", agosto: "08", setembro: "09",
-      outubro: "10", novembro: "11", dezembro: "12",
-    };
-    const day = textMonthMatch[1].padStart(2, "0");
-    const month = months[textMonthMatch[2].toLowerCase()] || "01";
-    const year = textMonthMatch[3];
-    return { dateStr: `${year}-${month}-${day}`, year, month };
+  // 5. Só o ano
+  const yearOnly = cleanedText.match(/\b(20[0-4]\d)\b/);
+  if (yearOnly && Number(yearOnly[1]) <= new Date().getFullYear() + 1) {
+    return { dateStr: "", year: yearOnly[1], month: "" };
   }
-
-  // 6. Data com ano de 2 dígitos não rotulada: YY-MM-DD ou DD-MM-YY (onde YY >= 20 e <= 35)
-  const yymmddMatch = cleanedText.match(/\b(2[0-9])[/\-.](0?[1-9]|1[0-2])[/\-.](0?[1-9]|[12]\d|3[01])\b/);
-  if (yymmddMatch) {
-    const year = `20${yymmddMatch[1]}`;
-    const month = yymmddMatch[2].padStart(2, "0");
-    const day = yymmddMatch[3].padStart(2, "0");
-    return { dateStr: `${year}-${month}-${day}`, year, month };
-  }
-  const ddmmyyMatch = cleanedText.match(/\b(0?[1-9]|[12]\d|3[01])[/\-.](0?[1-9]|1[0-2])[/\-.](2[0-9])\b/);
-  if (ddmmyyMatch) {
-    const day = ddmmyyMatch[1].padStart(2, "0");
-    const month = ddmmyyMatch[2].padStart(2, "0");
-    const year = `20${ddmmyyMatch[3]}`;
-    return { dateStr: `${year}-${month}-${day}`, year, month };
-  }
-
-  // 7. Mês e Ano de Processamento: "Mês: 02/2026", "Período: 2026-03"
-  const monthYearMatch = cleanedText.match(/(?:m[eê]s|per[ií]odo|vencimento|refer[eê]ncia)\s*[:-]?\s*(0?[1-9]|1[0-2])[/\-.](20[12]\d)\b/i);
-  if (monthYearMatch) {
-    const month = monthYearMatch[1].padStart(2, "0");
-    const year = monthYearMatch[2];
-    return { dateStr: `${year}-${month}`, year, month };
-  }
-
-  // 8. Fallback seguro de ano (procura anos contemporâneos 202X primeiro)
-  const recentYearMatch = cleanedText.match(/\b(202[0-9])\b/);
-  if (recentYearMatch) {
-    return { dateStr: "", year: recentYearMatch[1], month: "" };
-  }
-
-  const anyYearMatch = cleanedText.match(/\b(20[12]\d)\b/);
-  if (anyYearMatch) {
-    return { dateStr: "", year: anyYearMatch[1], month: "" };
-  }
-
-  return { dateStr: "", year: String(new Date().getFullYear()), month: "" };
+  return { dateStr: "", year: "", month: "" };
 }
 
 /**
  * Classifica a categoria do documento com pontuação ponderada
  */
 export function classifyCategory(text, fileName = "") {
-  const source = `${fileName} ${text}`.toLowerCase();
-
-  let scores = {
+  const source = `${fileName} ${text || ""}`.toLowerCase();
+  const scores = {
     "Faturas": 0,
     "Vencimentos": 0,
     "Extratos bancários": 0,
@@ -459,242 +511,345 @@ export function classifyCategory(text, fileName = "") {
     "Impostos / Estado": 0,
   };
 
-  // Pontuação Faturas
-  if (/(?:fatura|factura|invoice|ft\s*\d|fs\s*\d|nc\s*\d|iva\s*a\s*\d+%)/i.test(source)) scores["Faturas"] += 5;
-  if (/(?:total\s*(?:a\s*pagar|do\s*documento|fatura)|incidência|taxa\s*iva|valor\s*tribut[aá]vel)/i.test(source)) scores["Faturas"] += 4;
-  if (/(?:cliente\s*n[ºo.]?|nif|nipc|contribuinte)/i.test(source)) scores["Faturas"] += 2;
+  // Faturas / recibos
+  if (/\b(?:fatura|factura|fatura-recibo|invoice|nota\s*de\s*cr[eé]dito|atcud)\b/i.test(source)) scores["Faturas"] += 5;
+  if (/(?:total\s*(?:a\s*pagar|do\s*documento|da\s*fatura|l[ií]quido)|incid[eê]ncia|taxa\s*(?:de\s*)?iva|valor\s*tribut[aá]vel|base\s*tribut[aá]vel)/i.test(source)) scores["Faturas"] += 4;
+  if (/\brecibo\s*(?:n\.?[ºo°]|de\s*quita[cç][aã]o)/i.test(source)) scores["Faturas"] += 3;
 
-  // Pontuação Vencimentos / Salários
-  if (/(?:recibo\s*de\s*vencimento|folha\s*(?:salarial|de\s*vencimento)|processamento\s*salarial|demonstra[cç][aã]o\s*de\s*remunera[cç][oõ]es)/i.test(source)) scores["Vencimentos"] += 8;
-  if (/(?:vencimento\s*base|subs[ií]dio\s*de\s*alimenta[cç][aã]o|reten[cç][aã]o\s*irs|seguran[cç]a\s*social\s*11%|tsu)/i.test(source)) scores["Vencimentos"] += 6;
-  if (/(?:remunera[cç][aã]o|sal[aá]rio\s*base|dias\s*trabalhados|vencimento\s*l[ií]quido)/i.test(source)) scores["Vencimentos"] += 4;
+  // Vencimentos
+  if (/(?:recibo\s*de\s*vencimento|recibo\s*de\s*remunera|folha\s*(?:salarial|de\s*vencimento)|processamento\s*salarial|demonstra[cç][aã]o\s*de\s*remunera[cç][oõ]es)/i.test(source)) scores["Vencimentos"] += 9;
+  if (/(?:vencimento\s*base|subs[ií]dio\s*de\s*(?:alimenta[cç][aã]o|refei[cç][aã]o|f[eé]rias|natal)|reten[cç][aã]o\s*(?:na\s*fonte\s*)?(?:de\s*)?irs|seg(?:uran[cç]a)?\.?\s*social\s*\(?11\s*%)/i.test(source)) scores["Vencimentos"] += 6;
+  if (/(?:sal[aá]rio\s*base|dias\s*trabalhados|vencimento\s*l[ií]quido|l[ií]quido\s*a\s*receber|abonos|descontos)/i.test(source)) scores["Vencimentos"] += 3;
 
-  // Pontuação Extratos Bancários
-  if (/(?:extrato|extracto)\s*(?:de\s*conta|banc[aá]rio|combinado|mensal|do\s*cart[aã]o)|posi[cç][aã]o\s*integrada/i.test(source)) scores["Extratos bancários"] += 9;
-  if (/(?:saldo\s*(?:inicial|final|dispon[ií]vel|autorizado|utilizado)|movimentos\s*(?:da\s*conta|do\s*m[eê]s)|data\s*valor|iban|bic\/swift)/i.test(source)) scores["Extratos bancários"] += 5;
-  if (/\b(?:bpi|cgd|santander|millennium|novo\s*banco|montepio|activobank|banco)\b/i.test(source) && /(?:conta|extrato|extracto)/i.test(source)) scores["Extratos bancários"] += 4;
+  // Extratos
+  if (/(?:extrato|extracto)\s*(?:de\s*conta|banc[aá]rio|combinado|integrado|mensal|do\s*cart[aã]o)|posi[cç][aã]o\s*integrada/i.test(source)) scores["Extratos bancários"] += 9;
+  if (/(?:saldo\s*(?:inicial|final|anterior|dispon[ií]vel|contabil[ií]stico)|movimentos\s*(?:da\s*conta|do\s*m[eê]s|do\s*per[ií]odo)|data\s*(?:-\s*)?valor|data\s*mov)/i.test(source)) scores["Extratos bancários"] += 5;
 
-  // Pontuação Guias
-  if (/(?:guia\s*de\s*(?:remessa|transporte|devolu[cç][aã]o|movimenta[cç][aã]o)|c[oó]digo\s*at\s*da\s*guia)/i.test(source)) scores["Guias"] += 8;
+  // Guias
+  if (/(?:guia\s*de\s*(?:remessa|transporte|devolu[cç][aã]o|movimenta[cç][aã]o)|c[oó]digo\s*(?:de\s*)?at\s*(?:da\s*guia)?|local\s*de\s*carga)/i.test(source)) scores["Guias"] += 8;
 
-  // Pontuação Impostos / Estado
-  if (/(?:documento\s*[uú]nico\s*de\s*cobran[cç]a|duc\b|autoridade\s*tribut[aá]ria|declara[cç][aã]o\s*peri[oó]dica|modelo\s*22|ies\b)/i.test(source)) scores["Impostos / Estado"] += 8;
+  // Impostos / Estado (com \b — antes "ies" apanhava "séries", "propriedades"…)
+  if (/(?:documento\s*[uú]nico\s*de\s*cobran[cç]a|declara[cç][aã]o\s*peri[oó]dica\s*(?:de\s*)?iva|declara[cç][aã]o\s*(?:modelo\s*)?(?:22|10)\b|informa[cç][aã]o\s*empresarial\s*simplificada|nota\s*de\s*liquida[cç][aã]o|guia\s*de\s*pagamento\s*(?:de\s*)?(?:imposto|iva|irs|irc|contribui)|refer[eê]ncia\s*para\s*pagamento\s*(?:de\s*)?(?:imposto|contribui[cç][oõ]es)|imposto\s*municipal\s*sobre\s*im[oó]veis|imposto\s*[uú]nico\s*de\s*circula[cç][aã]o)/i.test(source)) scores["Impostos / Estado"] += 8;
+  // Siglas só em MAIÚSCULAS e com contexto fiscal (antes "ies" de "Nações" partido pelo OCR contava como IES)
+  if (/\b(?:DUC|IES|IMI|IUC|IRC|IRS)\b/.test(text || "") && /\b(?:autoridade\s*tribut|finan[cç]as|liquida[cç][aã]o|declara[cç][aã]o|pagamento\s*de\s*imposto|seguran[cç]a\s*social)/i.test(source)) scores["Impostos / Estado"] += 8;
+  if (/\b(?:autoridade\s*tribut[aá]ria|portal\s*das\s*finan[cç]as|seguran[cç]a\s*social\s*direta|instituto\s*da\s*seguran[cç]a\s*social)\b/i.test(source)) scores["Impostos / Estado"] += 3;
 
-  // Pontuação Gastos / Talões
-  if (/(?:tal[aã]o\s*de\s*compra|simplificada|via\s*verde|combust[ií]vel|despesa|parqu[ií]metro|portagem)/i.test(source)) scores["Gastos"] += 5;
+  // Gastos / talões
+  if (/(?:tal[aã]o\s*de\s*(?:compra|venda)|fatura\s*simplificada|consumidor\s*final|combust[ií]vel|gas[oó]leo|gasolina|parqu[ií]metro|estacionamento|portagem|via\s*verde)/i.test(source)) scores["Gastos"] += 6;
 
-  // Pontuação Contratos
-  if (/(?:contrato\s*de\s*trabalho|contrato\s*de\s*presta[cç][aã]o|primeiro\s*outorgante|segundo\s*outorgante|cl[aá]usula)/i.test(source)) scores["Contratos"] += 8;
+  // Contratos
+  if (/(?:contrato\s*de\s*(?:trabalho|presta[cç][aã]o|arrendamento|fornecimento|compra\s*e\s*venda)|primeiro\s*outorgante|segundo\s*outorgante|entre\s*:?\s*.{0,80}\s*e\s*.{0,80}\s*[eé]\s*celebrado)/i.test(source)) scores["Contratos"] += 9;
+  if (/\bcl[aá]usula\s*(?:1|primeira|i)\b/i.test(source)) scores["Contratos"] += 3;
 
-  // Determinar vencedor
   let bestCategory = "Outros";
-  let maxScore = 2; // threshold mínimo para não classificar com falso positivo
-
+  let maxScore = 4; // mínimo para não classificar por acaso
   for (const [cat, score] of Object.entries(scores)) {
     if (score > maxScore) {
       maxScore = score;
       bestCategory = cat;
     }
   }
-
   return bestCategory;
 }
 
 /**
- * Deteta se a página é provavelmente uma folha em branco ou verso de digitalização vazio
+ * Página em branco ou verso de digitalização vazio
  */
 export function isBlankPage(text) {
   if (!text) return true;
-  const clean = text.replace(/[^a-zA-Z0-9]/g, "");
-  // Se tiver menos de 10 caracteres alfanuméricos, é praticamente em branco / lixo de scanner
+  const clean = text.replace(/[^a-zA-Z0-9À-ÿ]/g, "");
   return clean.length < 10;
 }
 
+// ---------------------------------------------------------------------
+// ANÁLISE POR PÁGINA (com cache: o mesmo texto não é analisado 2 vezes)
+// ---------------------------------------------------------------------
+const analysisCache = new Map();
+
+function hasDocumentTitle(text) {
+  return /\b(?:fatura(?:-recibo)?|factura(?:-recibo)?|fatura\s*simplificada|nota\s*de\s*cr[eé]dito|nota\s*de\s*d[eé]bito|recibo(?:\s*de\s*vencimento)?|guia\s*de\s*(?:remessa|transporte)|extrato|extracto|contrato\s*de|or[cç]amento|proposta|documento\s*[uú]nico\s*de\s*cobran[cç]a|declara[cç][aã]o)\b/i.test(text);
+}
+
 /**
- * Sinais fortes de que a página é a continuação direta da página anterior
+ * Tipo de página para documentos que não são faturas:
+ *  extrato   → extrato / consulta de movimentos do banco
+ *  pagamento → comprovativo de pagamento (detalhe de movimento, talão MB, guia AT/SS)
+ *  declRem   → extrato da declaração de remunerações (Segurança Social)
  */
-export function hasContinuationSignals(currentPage, previousPage) {
-  if (!currentPage || !previousPage) return false;
+export function pageKind(text) {
+  const t = String(text || "");
+  if (/consulta\s*de\s*movimentos|extra[c]?to\s*(?:de\s*conta|banc[aá]rio|combinado|integrado|mensal)|saldo\s*contabil[ií]stico/i.test(t)) return "extrato";
+  const fatura = /\bfa[ck]?tura\b|\bA[TI1]C\s?[UVIL1]{0,2}\s?D\b/i.test(t);
+  if (/extra[c]?to\s*da\s*declara[cç][aã]o\s*de\s*remunera|declara[cç][aã]o\s*de\s*remunera[cç][oõ]es\s*abaixo/i.test(t)) return "declRem";
+  // Tolerante a erros de OCR: "Detalhe da Movimento", "OCUMENTO DE PAG", "Multi-~Imposto"…
+  if (!fatura && /detalhe\s*d[aeo]\s*mov[il1]mento|pagamentos?\s*ao\s*estado|pagamento\s*de\s*servi[cç]os|refer[eêé]n?c[il1]?a\s*(?:\(s\)\s*)?para\s*pagamento|ocumento\s*de\s*pag|import[aâ]ncia\s*a\s*pagar|multi\W{0,3}imposto|pag\.?\s*esp\.?\s*pag\W{0,2}estado|pag\.?\s*serv\.?\s*\d{5}/i.test(t)) return "pagamento";
+  return "";
+}
 
-  const currentText = currentPage.text || "";
-  const prevText = previousPage.text || "";
+/**
+ * Referências de pagamento citadas na página (ligam detalhe do banco, talão MB e guia):
+ *  - AT: 15 dígitos (156 290 268 798 176 / 156.290.268.798.176)
+ *  - Pagamento de serviços: entidade (5 dígitos) + referência (9 dígitos)
+ */
+export function paymentRefs(text) {
+  const t = String(text || "");
+  const out = new Set();
+  for (const m of t.matchAll(/(?<!\d)(1\d{2})[ .]?(\d{3})[ .]?(\d{3})[ .]?(\d{3})[ .]?(\d{3})(?!\d)/g)) out.add(m.slice(1).join(""));
+  const ent = (t.match(/entidade\W{0,6}(\d{5})(?!\d)/i) || t.match(/pag\.?\s*serv\.?\s*(\d{5})(?!\d)/i) || [])[1];
+  const ref = (t.match(/refer[eêé]n?c?[il1]?a\W{0,6}(\d{3}\s?\d{3}\s?\d{3})(?![\d])/i) || t.match(/pag\.?\s*serv\.?\s*\d{5}\s+(\d{3}\s?\d{3}\s?\d{3})(?!\d)/i) || [])[1];
+  if (ref) out.add(`${ent || ""}:${ref.replace(/\s/g, "")}`);
+  return [...out];
+}
 
-  // Se a página anterior atingiu o total de páginas (ex: 2 de 2), o documento anterior TERMINOU!
-  const prevNum = extractPageNumbering(prevText);
-  if (prevNum && prevNum.total && prevNum.current >= prevNum.total) {
-    return false;
+/**
+ * Valores em euros escritos na página (formato português: 1.188,00), em cêntimos
+ */
+export function pageAmounts(text) {
+  const out = new Set();
+  const re = /(?<![\d.,])(\d{1,3}(?:[.\s]\d{3})+|\d+),(\d{2})(?![\d])/g;
+  let m;
+  while ((m = re.exec(String(text || "")))) {
+    const v = Number(m[1].replace(/[.\s]/g, "")) * 100 + Number(m[2]);
+    if (v >= 100) out.add(v);
   }
+  return [...out];
+}
 
-  // Se a página atual diz explicitamente que é a Página 1, NUNCA é continuação!
-  const currentNum = extractPageNumbering(currentText);
-  if (currentNum && currentNum.isFirst) {
-    return false;
-  }
+export function analyzePage(text) {
+  const key = text || "";
+  if (analysisCache.has(key)) return analysisCache.get(key);
+  const t = normalizeText(key);
+  const category = classifyCategory(t);
+  const atcud = extractAtcud(t);
+  const result = {
+    blank: isBlankPage(t),
+    num: extractPageNumbering(t),
+    atcud,
+    docNum: extractDocumentNumber(t).toLowerCase(),
+    docId: atcud || extractDocumentNumber(t),
+    statementNo: (t.match(/\b(?:extrato|extracto)\s*(?:n\.?[ºo°]\s*)?[-:]?\s*(\d{1,4}\s*\/\s*\d{4})\b/i)?.[1] || "").replace(/\s+/g, ""),
+    nifs: extractNifs(t),
+    entity: extractEntity(t, category),
+    account: category === "Extratos bancários" ? extractBankAccount(t) : "",
+    category,
+    title: hasDocumentTitle(t),
+    hasTotal: /\btotal\b/i.test(t),
+    date: extractDocumentDate(t).dateStr,
+    transportOut: /\b(?:a\s*transportar|continua(?:\s*na\s*p[aá]gina\s*seguinte)?\s*[.…]*$|continua\s*\.{2,})/i.test(t),
+    kind: pageKind(t),
+    amounts: pageAmounts(key),
+    refs: paymentRefs(t),
+    declRef: (t.match(/ano\s*\/\s*m[eêé]s\s*de\s*refer[eê]ncia[^\d]{0,40}(20\d{2})\s*\/\s*(\d{1,2})/i) || []).slice(1).join("-"),
+    niss: (t.match(/seguran[cç]a\s*social\s*(?:\(niss\))?\s*:?\s*(\d{11})\b/i) || [])[1] || "",
+    stmtHead: /dados\s*da\s*conta|saldo\s*contabil[ií]stico|n[ºo°]?\s*conta\b.{0,40}\bproduto/i.test(t),
+    transportIn: /\b(?:transporte|de\s*transporte|continua[cç][aã]o|subtotal\s*anterior|vem\s*de\s*tr[aá]s)\b/i.test(t),
+  };
+  if (analysisCache.size > 5000) analysisCache.clear();
+  analysisCache.set(key, result);
+  return result;
+}
 
-  // Se ambos têm número de documento e são DIFERENTES, NUNCA é continuação!
-  const currentDocNum = extractDocumentNumber(currentText);
-  const prevDocNum = extractDocumentNumber(prevText);
-  if (currentDocNum && prevDocNum && currentDocNum.toLowerCase() !== prevDocNum.toLowerCase()) {
-    return false;
-  }
+function newGroupState(a) {
+  return {
+    docIds: new Set(a.docId ? [a.docId.toLowerCase()] : []),
+    atcuds: new Set(a.atcud ? [a.atcud] : []),
+    docNums: new Set(a.docNum ? [a.docNum] : []),
+    stmtIds: new Set(a.statementNo ? [a.statementNo] : []),
+    nifs: new Set(a.nifs),
+    accounts: new Set(a.account ? [a.account] : []),
+    category: a.category,
+    entity: a.entity,
+    date: a.date,
+    hasTotal: a.hasTotal,
+    title: a.title,
+    pages: 1,
+    kind: a.kind,
+    amounts: new Set(a.amounts),
+    declRef: a.declRef,
+    niss: a.niss,
+    refs: new Set(a.refs),
+  };
+}
 
-  // Se ambos têm número de conta bancária e são DIFERENTES, NUNCA é continuação!
-  const currentAccount = extractBankAccount(currentText);
-  const prevAccount = extractBankAccount(prevText);
-  if (currentAccount && prevAccount && currentAccount !== prevAccount) {
-    return false;
-  }
+function addToGroup(g, a) {
+  if (a.docId) g.docIds.add(a.docId.toLowerCase());
+  if (a.atcud) g.atcuds.add(a.atcud);
+  if (a.docNum) g.docNums.add(a.docNum);
+  if (a.statementNo) g.stmtIds.add(a.statementNo);
+  a.nifs.forEach((n) => g.nifs.add(n));
+  if (a.account) g.accounts.add(a.account);
+  if (g.category === "Outros" && a.category !== "Outros") g.category = a.category;
+  if (!g.entity && a.entity) g.entity = a.entity;
+  if (!g.date && a.date) g.date = a.date;
+  g.hasTotal = g.hasTotal || a.hasTotal;
+  g.title = g.title || a.title;
+  g.pages += 1;
+  if (!g.kind && a.kind) g.kind = a.kind;
+  a.amounts.forEach((v) => g.amounts.add(v));
+  if (!g.declRef && a.declRef) g.declRef = a.declRef;
+  if (!g.niss && a.niss) g.niss = a.niss;
+  a.refs.forEach((r) => g.refs.add(r));
+}
 
-  // Se ambos têm NIF emissor e são DIFERENTES, NUNCA é continuação!
-  const currentNif = extractNif(currentText);
-  const prevNif = extractNif(prevText);
-  if (currentNif && prevNif && currentNif !== prevNif) {
-    return false;
-  }
+/**
+ * Decide se a página `a` começa um documento novo, sabendo o que já se viu
+ * no documento atual (`g`) e na página imediatamente anterior (`prev`).
+ * Regra de ouro: na dúvida, NÃO corta (é mais fácil dividir do que reconstruir).
+ */
+function decideBreak(a, prev, g, hubNifs = new Set()) {
+  // Folhas em branco ficam com o documento atual (podem ser removidas depois)
+  if (a.blank) return false;
+  if (prev.blank && g.pages === 1 && !g.title) return false;
 
-  // 1. Paginação explícita: "Página 2 de X", "3/4", "Pág. 2/2"
-  if (currentNum && currentNum.isContinuation) {
-    return true; // Continuação clara: Página > 1
+  // Documentos do banco e do Estado (sem QR nem ATCUD)
+  if (a.kind && g.kind && a.kind !== g.kind) return true;
+  if (a.kind === "extrato" && g.kind === "extrato") return a.stmtHead; // cabeçalho novo = outro extrato
+  if (a.kind === "pagamento" && g.kind === "pagamento") {
+    // Detalhe do banco + talão MB + guia do mesmo pagamento: mesmo valor ou mesma referência de pagamento
+    if (a.refs.some((r) => g.refs.has(r))) return false;
+    return !a.amounts.some((v) => g.amounts.has(v));
   }
+  if (a.kind === "declRem" && g.kind === "declRem") {
+    // Declarações do mesmo mês e da mesma entidade (ex.: uma por taxa contributiva) ficam juntas
+    if (!a.declRef || !g.declRef || a.declRef !== g.declRef) return true;
+    return Boolean(a.niss && g.niss && a.niss !== g.niss);
+  }
+  if (a.kind && !g.kind && g.pages && (g.title || g.hasTotal)) return true;
 
-  // 2. Mesmo número de fatura ou documento
-  if (currentDocNum && prevDocNum && currentDocNum.toLowerCase() === prevDocNum.toLowerCase()) {
-    return true; // Continuação exata do mesmo documento!
-  }
+  // 0. ATCUD: código único por fatura. Comparado só com outros ATCUD.
+  if (a.atcud && g.atcuds.size) return !g.atcuds.has(a.atcud);
 
-  // 3. Mesma conta bancária com sequência de extrato
-  if (currentAccount && prevAccount && currentAccount === prevAccount && !extractDocumentNumber(currentText)) {
-    return true;
-  }
+  // Nos extratos, os movimentos citam nºs de faturas: aí só conta o nº do próprio extrato
+  const extrato = a.category === "Extratos bancários" || g.category === "Extratos bancários";
+  const id = extrato ? a.statementNo : a.docNum;
+  const ids = extrato ? g.stmtIds : g.docNums;
 
-  // 4. Termos contabilísticos de transporte para a próxima página (na anterior)
-  // Ex: "A transportar...", "Continua...", "Continua na página seguinte"
-  if (/\b(?:a\s*transportar|continua\b|continua\s*na\s*p[aá]gina|segue\b)\b/i.test(prevText)) {
-    return true;
-  }
+  // 1. Nº do documento (comparado só com nºs do mesmo tipo)
+  if (id && ids.size) return !ids.has(id);
 
-  // 5. Termos de continuação na PRÓPRIA página atual
-  // Ex: "Continuação da fatura...", "Transporte", "Subtotal anterior"
-  if (/\b(?:continua[cç][aã]o|transporte|de\s*transporte|subtotal\s*anterior|vem\s*de\s*tr[aá]s)\b/i.test(currentText)) {
-    return true;
+  // 2. Numeração rotulada, só se fizer sentido em sequência com a página anterior
+  //    (os carimbos do scanner, ex. "Página 4 de 4" em todas as folhas, já vêm filtrados)
+  if (a.num?.isFirst) return true;
+  if (a.num?.isContinuation) {
+    const seguida = !prev.num || a.num.current === prev.num.current + 1;
+    if (seguida) return false;
   }
+  if (id && a.title) return true; // cabeçalho com número depois de páginas sem número
+
+  // 3. O documento anterior anunciou que acabou ("Página 3 de 3")
+  if (prev.num?.total && prev.num.current >= prev.num.total) return true;
+
+  // 4. Avisos de transporte → continua
+  if (prev.transportOut || a.transportIn) return false;
+
+  // 5. Emissor diferente (Sushi Mundo → Hora Doce), quando a página tem cara de documento
+  if (a.entity && g.entity && a.entity.toLowerCase() !== g.entity.toLowerCase()
+      && (a.title || a.hasTotal || a.nifs.length)) return true;
+
+  // 6. NIFs de emissor diferentes. O NIF do CLIENTE (a própria empresa) aparece em
+  //    talões de vários fornecedores, por isso não conta como "NIF em comum".
+  const aNifs = a.nifs.filter((n) => !hubNifs.has(n));
+  const gNifs = [...g.nifs].filter((n) => !hubNifs.has(n));
+  if (aNifs.length && gNifs.length && !aNifs.some((n) => gNifs.includes(n))) return true;
+
+  // 6. Extratos: conta diferente
+  if (a.account && g.accounts.size && !g.accounts.has(a.account)) return true;
+
+  // 7. Tipos de documento diferentes (só quando AMBOS são reconhecidos;
+  //    antes uma 2.ª página sem palavras-chave era sempre cortada)
+  if (a.category !== "Outros" && g.category !== "Outros" && a.category !== g.category && a.title) return true;
+
+  // 7b. Recibos de vencimento: cada cabeçalho novo é o recibo de outro trabalhador/mês
+  if (a.category === "Vencimentos" && g.category === "Vencimentos" && a.title && g.title) return true;
+
+  // 8. Dois talões/faturas completos seguidos, com datas diferentes
+  if (a.title && a.hasTotal && g.hasTotal && a.date && g.date && a.date !== g.date
+      && a.category !== "Extratos bancários" && g.category !== "Extratos bancários") return true;
 
   return false;
 }
 
 /**
- * Sinais fortes de que a página é o INÍCIO de um novo documento
+ * Calcula as quebras de documento para uma lista de páginas (por ordem).
+ * Cada ficheiro importado começa sempre um documento novo.
+ * Devolve um array de booleanos (true = esta página começa um documento).
  */
+function findHubNifs(analyses) {
+  const partners = new Map();
+  analyses.forEach((a) => {
+    a.nifs.forEach((n) => {
+      if (!partners.has(n)) partners.set(n, new Set());
+      a.nifs.forEach((o) => { if (o !== n) partners.get(n).add(o); });
+    });
+  });
+  const hub = new Set();
+  partners.forEach((set, nif) => { if (set.size >= 2) hub.add(nif); });
+  return hub;
+}
+
+export function computeBreaks(pages) {
+  const analyses = pages.map((page) => analyzePage(page?.text || ""));
+  const hubByFile = new Map();
+  pages.forEach((page, i) => {
+    const key = page?.fileId ?? "_";
+    if (!hubByFile.has(key)) hubByFile.set(key, []);
+    hubByFile.get(key).push(analyses[i]);
+  });
+  hubByFile.forEach((list, key) => hubByFile.set(key, findHubNifs(list)));
+
+  // "Página 4 de 4" carimbado pelo scanner em todas as folhas → ignorar
+  const numCount = new Map();
+  pages.forEach((page, i) => {
+    const n = analyses[i].num;
+    if (!n) return;
+    const k = `${page?.fileId ?? "_"}|${n.current}/${n.total}`;
+    numCount.set(k, (numCount.get(k) || 0) + 1);
+  });
+  pages.forEach((page, i) => {
+    const n = analyses[i].num;
+    if (n && (numCount.get(`${page?.fileId ?? "_"}|${n.current}/${n.total}`) || 0) >= 3) {
+      analyses[i] = { ...analyses[i], num: null };
+    }
+  });
+  const result = [];
+  let group = null;
+  let prev = null;
+  pages.forEach((page, index) => {
+    const a = analyses[index];
+    const newFile = index === 0 || !pages[index - 1] || pages[index - 1].fileId !== page.fileId;
+    const brk = newFile || !group ? true : decideBreak(a, prev, group, hubByFile.get(page?.fileId ?? "_"));
+    if (brk) group = newGroupState(a);
+    else addToGroup(group, a);
+    result.push(brk);
+    prev = a;
+  });
+  return result;
+}
+
+/**
+ * Compatibilidade: decisão só com a página anterior
+ */
+export function shouldBreakPage(currentPage, previousPage, pageIndex, isNewFile = false) {
+  if (pageIndex === 0 || isNewFile || !previousPage) return true;
+  const prev = analyzePage(previousPage.text || "");
+  return decideBreak(analyzePage(currentPage?.text || ""), prev, newGroupState(prev));
+}
+
+export function hasContinuationSignals(currentPage, previousPage) {
+  if (!currentPage || !previousPage) return false;
+  return !shouldBreakPage(currentPage, previousPage, 1, false);
+}
+
 export function hasNewDocumentSignals(currentPage, previousPage) {
   if (!currentPage) return false;
   if (!previousPage) return true;
-
-  const currentText = currentPage.text || "";
-  const prevText = previousPage.text || "";
-
-  // 1. Paginação explícita: "Página 1 de X", "Page 1 of Y", "1 / 4", "Original - Pág. 1/1"
-  const currentNum = extractPageNumbering(currentText);
-  if (currentNum && currentNum.isFirst) {
-    return true; // Início inequívoco de documento
-  }
-
-  // 2. Mudança explícita de número de documento (ex: FT, FAC, VFAT, Extracto 005 vs 006)
-  const currentDocNum = extractDocumentNumber(currentText);
-  const prevDocNum = extractDocumentNumber(prevText);
-  if (currentDocNum && prevDocNum && currentDocNum.toLowerCase() !== prevDocNum.toLowerCase()) {
-    return true;
-  }
-
-  // 3. Mudança explícita de conta bancária (ex: 4-4698307 vs 5-4081335)
-  const currentAccount = extractBankAccount(currentText);
-  const prevAccount = extractBankAccount(prevText);
-  if (currentAccount && prevAccount && currentAccount !== prevAccount) {
-    return true;
-  }
-
-  // 4. Mudança explícita de NIF do emissor ou cliente
-  const currentNif = extractNif(currentText);
-  const prevNif = extractNif(prevText);
-  if (currentNif && prevNif && currentNif !== prevNif) {
-    return true;
-  }
-
-  // 5. Mudança de Entidade reconhecida com certeza (ex: Factor Triplo vs Geoflicks vs Makro)
-  const currentEntity = extractEntity(currentText);
-  const prevEntity = extractEntity(prevText);
-  if (currentEntity && prevEntity && currentEntity.toLowerCase() !== prevEntity.toLowerCase()) {
-    return true;
-  }
-
-  // 6. Cabeçalho de Extrato Bancário
-  // Um extrato bancário inicia sempre um novo documento a menos que haja sinal claro de continuação (ex: Pág 2/2)
-  const isBankCurrent = /(?:extrato|extracto)\s*(?:de\s*conta|banc[aá]rio|do\s*cart[aã]o)|posi[cç][aã]o\s*integrada/i.test(currentText);
-  if (isBankCurrent && (!currentNum || currentNum.isFirst)) {
-    if (!hasContinuationSignals(currentPage, previousPage)) {
-      return true;
-    }
-  }
-
-  // 7. Cabeçalho de Fatura / Factura
-  const hasInvoiceHeader = /\b(?:fatura|factura|invoice|resumo\s*da\s*fatura|fatura-recibo)\b/i.test(currentText)
-    && /\b(?:n[ºo.]?|total|iva|cliente|data|contribuinte|venda|makro|endesa|top[aá]zio|vfat|fac)\b/i.test(currentText);
-  if (hasInvoiceHeader && (!currentNum || currentNum.isFirst)) {
-    return true;
-  }
-
-  return false;
+  return shouldBreakPage(currentPage, previousPage, 1, false);
 }
 
 /**
- * Decide com alta precisão se uma página deve iniciar um novo documento
- */
-export function shouldBreakPage(currentPage, previousPage, pageIndex, isNewFile = false) {
-  // A primeira página do primeiro ficheiro é sempre quebra
-  if (pageIndex === 0) return true;
-
-  // Se mudou de ficheiro original importado, é quebra por defeito
-  if (isNewFile) return true;
-
-  // 1. Sinais explícitos de novo documento (mudança de entidade, número de doc, nova conta bancária ou cabeçalho novo)
-  if (hasNewDocumentSignals(currentPage, previousPage)) {
-    return true; // QUEBRA!
-  }
-
-  // 2. Verificar primeiro se há sinal INEQUÍVOCO de continuação (Pág. 2, mesmo docNum, transporte)
-  if (hasContinuationSignals(currentPage, previousPage)) {
-    return false; // NÃO QUEBRA! Pertence ao documento anterior.
-  }
-
-  // 3. Se a página anterior previa mais páginas (ex: "Página 1 de 3") E a atual é o número seguinte
-  const prevNum = extractPageNumbering(previousPage?.text || "");
-  if (prevNum && prevNum.total && prevNum.current < prevNum.total) {
-    const currentNum = extractPageNumbering(currentPage?.text || "");
-    if (currentNum && currentNum.current === prevNum.current + 1) {
-      return false; // Continuação confirmada
-    }
-  }
-
-  // 4. Mudança de Categoria estrutural
-  const currentCat = classifyCategory(currentPage?.text || "");
-  const prevCat = classifyCategory(previousPage?.text || "");
-  if (currentCat !== prevCat) {
-    if (currentCat !== "Outros" || prevCat !== "Outros") {
-      return true;
-    }
-  }
-
-  // 5. Fallback seguro: se não temos razão forte para quebrar, mantém junto para evitar fatiar faturas
-  return false;
-}
-
-/**
- * Gera um nome limpo e normalizado para o documento PDF
- * Ex: Fatura_Makro_FT2024-104_2024-03-15.pdf
+ * Nome limpo e normalizado para o PDF. Ex: Fatura_Makro_FT2024-104_2024-03-15
  */
 export function generateSmartFilename({ category, entity, docNumber, dateStr, year, person, fallbackTitle = "Documento" }) {
-  const parts = [];
-
-  // 1. Categoria limpa
   const catMap = {
     "Faturas": "Fatura",
     "Vencimentos": "Recibo_Vencimento",
@@ -705,65 +860,50 @@ export function generateSmartFilename({ category, entity, docNumber, dateStr, ye
     "Impostos / Estado": "Imposto_Estado",
     "Outros": "Documento",
   };
-  const catLabel = catMap[category] || "Documento";
-  parts.push(catLabel);
+  const parts = [catMap[category] || "Documento"];
 
-  // 2. Entidade ou Pessoa
-  const namePart = (entity || person || "").trim().replace(/[\\/:*?"<>|\s]+/g, "_");
-  if (namePart) {
-    parts.push(namePart);
-  }
-
-  // 3. Número de Documento (se existir)
-  if (docNumber) {
-    const cleanDocNum = docNumber.replace(/[\\/:*?"<>|\s]+/g, "-");
-    parts.push(cleanDocNum);
-  }
-
-  // 4. Data ou Ano
-  if (dateStr) {
-    parts.push(dateStr);
-  } else if (year) {
-    parts.push(year);
-  }
+  const namePart = ((category === "Vencimentos" ? (person || entity) : (entity || person)) || "")
+    .trim().replace(/[\\/:*?"<>|\s]+/g, "_");
+  if (namePart) parts.push(namePart);
+  if (docNumber) parts.push(docNumber.replace(/[\\/:*?"<>|\s]+/g, "-"));
+  if (dateStr) parts.push(dateStr);
+  else if (year) parts.push(year);
 
   const filename = parts.length > 1 ? parts.join("_") : (fallbackTitle || "Documento");
-  return filename.slice(0, 70);
+  return filename.slice(0, 80);
 }
 
 /**
- * Analisa e extrai metadados completos de um conjunto de páginas que formam um documento
+ * Metadados de um conjunto de páginas que formam um documento
  */
 export function extractGroupMetadata(pages, fallbackFileName = "") {
   if (!pages || !pages.length) {
-    return {
-      category: "Outros",
-      year: String(new Date().getFullYear()),
-      entity: "",
-      person: "",
-      docNumber: "",
-      dateStr: "",
-      filename: "Documento",
-      isBlank: false,
-    };
+    return { category: "Outros", year: "", entity: "", person: "", docNumber: "", nif: "", dateStr: "", filename: "Documento", isBlank: false };
   }
 
-  // Concatenar texto das primeiras páginas (onde costumam estar os cabeçalhos fiscais)
-  const headerText = pages.slice(0, 2).map((p) => p.text || "").join(" ");
-  const fullText = pages.map((p) => p.text || "").join(" ");
+  const texts = pages.map((p) => p.text || "");
+  const headerText = texts.slice(0, 2).join(" ");
+  const fullText = texts.join(" ");
+  const source = headerText.trim() ? headerText : fullText;
 
-  const category = classifyCategory(headerText || fullText, fallbackFileName);
-  const { dateStr, year } = extractDocumentDate(headerText || fullText);
-  const entity = extractEntity(headerText || fullText);
-  const docNumber = extractDocumentNumber(headerText || fullText);
-  const nif = extractNif(headerText || fullText);
+  // Categoria: pelo cabeçalho; se não chegar, pelo documento todo
+  let category = classifyCategory(source, fallbackFileName);
+  if (category === "Outros") category = classifyCategory(fullText, fallbackFileName);
 
-  // Se for recibo de vencimento, tentar extrair nome do funcionário
+  const { dateStr, year } = extractDocumentDate(source).year ? extractDocumentDate(source) : extractDocumentDate(fullText);
+  const statementNo = (source.match(/\b(?:extrato|extracto)\s*(?:n\.?[ºo°]\s*)?[-:]?\s*(\d{1,4}\s*\/\s*\d{4})\b/i)?.[1] || "").replace(/\s+/g, "");
+  const docNumber = category === "Extratos bancários"
+    ? statementNo
+    : (extractDocumentNumber(source) || extractAtcud(source));
+  const nif = extractNif(source);
+  const entity = extractEntity(source, category) || extractEntity(fullText, category);
+
+  // Recibo de vencimento: nome do trabalhador
   let person = "";
   if (category === "Vencimentos") {
-    const personMatch = fullText.match(/(?:nome|colaborador|trabalhador|funcion[aá]rio)\s*[:-]\s*([A-Za-zÀ-ÿ]+(?:\s+[A-Za-zÀ-ÿ]+){1,3})/i);
+    const personMatch = fullText.match(/(?:[Nn]ome|[Cc]olaborador|[Tt]rabalhador|TRABALHADOR|[Ff]uncion[aá]rio|[Ee]mpregado)\s*[:-]?\s*([A-ZÁÀÃÂÉÊÍÓÔÕÚÇ][a-zà-ÿ]+(?:\s+(?:de|da|do|dos|das|e)?\s*[A-ZÁÀÃÂÉÊÍÓÔÕÚÇ][a-zà-ÿ]+){1,4})/);
     if (personMatch) {
-      person = personMatch[1].replace(/\b(?:nif|nipc|contribuinte|vencimento|data|categoria|departamento|morada|c[oó]digo)\b.*$/i, "").trim();
+      person = personMatch[1].replace(/\b(?:nif|nipc|contribuinte|vencimento|data|categoria|departamento|morada|c[oó]digo|n\.?[ºo])\b.*$/i, "").trim();
     }
   }
 
@@ -777,8 +917,6 @@ export function extractGroupMetadata(pages, fallbackFileName = "") {
     fallbackTitle: fallbackFileName.replace(/\.pdf$/i, "").replace(/[_-]+/g, " "),
   });
 
-  const isBlank = pages.every((p) => isBlankPage(p.text));
-
   return {
     category,
     year,
@@ -788,6 +926,22 @@ export function extractGroupMetadata(pages, fallbackFileName = "") {
     nif,
     dateStr,
     filename,
-    isBlank,
+    isBlank: pages.every((p) => isBlankPage(p.text)),
   };
+}
+
+/**
+ * Nome conhecido para um NIF (catálogo interno)
+ */
+export function nameForNif(nif) {
+  if (!nif) return "";
+  const hit = KNOWN_ENTITIES.find((e) => (e.nifs || []).includes(nif));
+  return hit ? hit.name : "";
+}
+
+/**
+ * O nome pertence ao catálogo interno?
+ */
+export function isKnownName(name) {
+  return Boolean(name) && KNOWN_ENTITIES.some((e) => e.name === name);
 }
