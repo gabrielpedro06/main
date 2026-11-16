@@ -1,0 +1,206 @@
+/* =========================================================
+   TEMAS EXTRA: Café · Livraria · Fórmula 1 · Páscoa (Ressurreição)
+   ========================================================= */
+.bz-x-corner { position: absolute; right: 18px; bottom: 0; transform-origin: bottom right; }
+.bz-x-corner > span { position: absolute; bottom: 0; display: block; }
+.bz-x-corner svg { height: auto; filter: drop-shadow(0 6px 8px rgba(15, 23, 42, 0.18)); }
+
+/* ---------------- CAFÉ ---------------- */
+.bz-decor-cafe .bz-p > svg { filter: drop-shadow(0 2px 2px rgba(43, 26, 16, 0.25)); }
+.bz-x-warm {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(900px 420px at 100% 100%, rgba(180, 120, 70, 0.14), transparent 70%),
+    radial-gradient(700px 300px at 0% 0%, rgba(214, 170, 120, 0.12), transparent 70%);
+}
+.bz-x-corner.is-cafe { width: 230px; height: 190px; }
+.bz-x-corner.is-cafe .cup { right: 40px; bottom: 6px; width: 160px; }
+.bz-x-corner.is-cafe .nata { right: 168px; bottom: 6px; width: 64px; animation: bzBob 3s ease-in-out infinite alternate; }
+.bz-x-corner.is-cafe .b { width: 14px; }
+.bz-x-corner.is-cafe .b1 { right: 18px; bottom: 6px; rotate: 30deg; }
+.bz-x-corner.is-cafe .b2 { right: 8px; bottom: 4px; rotate: -20deg; width: 12px; }
+.bz-x-corner.is-cafe .steam {
+  bottom: 96px; width: 16px; height: 58px;
+  border-radius: 50%;
+  border-left: 4px solid rgba(160, 140, 120, 0.45);
+  filter: blur(0.6px);
+  animation: bzCafeSteam 3.6s ease-in-out infinite;
+}
+.bz-x-corner.is-cafe .steam.s1 { right: 140px; }
+.bz-x-corner.is-cafe .steam.s2 { right: 112px; height: 70px; animation-delay: -1.2s; }
+.bz-x-corner.is-cafe .steam.s3 { right: 86px; animation-delay: -2.4s; }
+@keyframes bzCafeSteam {
+  0% { transform: translateY(14px) scaleY(0.5) skewX(0deg); opacity: 0; }
+  35% { opacity: 0.9; }
+  70% { transform: translateY(-20px) scaleY(1.1) skewX(-12deg); opacity: 0.5; }
+  100% { transform: translateY(-46px) scaleY(1.3) skewX(10deg); opacity: 0; }
+}
+
+/* ---------------- LIVRARIA ---------------- */
+/* Fundo: estante muito suave por trás do conteúdo */
+body.bz-scene-livros .dashboard-main {
+  background:
+    linear-gradient(180deg, rgba(252, 248, 240, 0.9) 0%, rgba(250, 244, 233, 0.93) 60%, rgba(248, 241, 228, 0.95) 100%),
+    var(--bz-shelf) repeat;
+  background-attachment: local, local;
+}
+.bz-decor-livros::before {
+  content: ""; position: absolute; inset: 0;
+  background: radial-gradient(1200px 700px at 50% 0%, transparent 55%, rgba(120, 80, 40, 0.08) 100%);
+}
+.bz-decor-livros .is-spin .bz-p { opacity: 0.55; animation-duration: calc(var(--d) * 1.8); }
+.bz-x-corner.is-livros { width: 250px; height: 190px; }
+.bz-x-corner.is-livros .stack { right: 40px; bottom: 4px; width: 170px; }
+.bz-x-corner.is-livros .open { right: 64px; bottom: 82px; width: 120px; }
+.bz-x-corner.is-livros .flip {
+  right: 66px; bottom: 88px; width: 56px;
+  transform-origin: 0% 60%;
+  animation: bzPageFlip 6s ease-in-out infinite;
+}
+.bz-x-corner.is-livros .flip.f2 { animation-delay: -3s; }
+.bz-x-corner.is-livros .flip svg { filter: drop-shadow(0 2px 2px rgba(60, 40, 20, 0.15)); }
+@keyframes bzPageFlip {
+  0%, 15% { transform: perspective(300px) rotateY(0deg); opacity: 1; }
+  45% { transform: perspective(300px) rotateY(-90deg); opacity: 1; }
+  75%, 100% { transform: perspective(300px) rotateY(-180deg); opacity: 0; }
+}
+.bz-x-corner.is-livros .lamp { right: 186px; bottom: 4px; width: 70px; }
+.bz-x-corner.is-livros .lamp-glow {
+  right: 110px; bottom: 30px; width: 170px; height: 150px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(253, 230, 138, 0.55), rgba(253, 230, 138, 0) 100%);
+  animation: bzGlow 4s ease-in-out infinite alternate;
+}
+
+/* ---------------- FÓRMULA 1 ---------------- */
+.bz-f1-lights {
+  position: absolute; right: 34px; top: 10px;
+  display: flex; gap: 6px; padding: 8px 10px 10px;
+}
+.bz-f1-lights .bar { position: absolute; left: 0; right: 0; top: 0; height: 8px; border-radius: 4px; background: #1f2937; }
+.bz-f1-lights .pod {
+  position: relative; display: flex; flex-direction: column; gap: 4px;
+  padding: 5px 4px; border-radius: 6px; background: #111827;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25);
+}
+.bz-f1-lights .l { display: block; width: 14px; height: 14px; border-radius: 50%; background: #3b0d0d; }
+.bz-f1-lights .l1 { animation: bzF1L1 9s linear infinite; }
+.bz-f1-lights .l2 { animation: bzF1L2 9s linear infinite; }
+.bz-f1-lights .l3 { animation: bzF1L3 9s linear infinite; }
+.bz-f1-lights .l4 { animation: bzF1L4 9s linear infinite; }
+.bz-f1-lights .l5 { animation: bzF1L5 9s linear infinite; }
+@keyframes bzF1L1 { 0%, 7.9% { background: #3b0d0d; box-shadow: none; } 8%, 51.9% { background: #ef4444; box-shadow: 0 0 10px #ef4444; } 52%, 100% { background: #3b0d0d; box-shadow: none; } }
+@keyframes bzF1L2 { 0%, 15.9% { background: #3b0d0d; box-shadow: none; } 16%, 51.9% { background: #ef4444; box-shadow: 0 0 10px #ef4444; } 52%, 100% { background: #3b0d0d; box-shadow: none; } }
+@keyframes bzF1L3 { 0%, 23.9% { background: #3b0d0d; box-shadow: none; } 24%, 51.9% { background: #ef4444; box-shadow: 0 0 10px #ef4444; } 52%, 100% { background: #3b0d0d; box-shadow: none; } }
+@keyframes bzF1L4 { 0%, 31.9% { background: #3b0d0d; box-shadow: none; } 32%, 51.9% { background: #ef4444; box-shadow: 0 0 10px #ef4444; } 52%, 100% { background: #3b0d0d; box-shadow: none; } }
+@keyframes bzF1L5 { 0%, 39.9% { background: #3b0d0d; box-shadow: none; } 40%, 51.9% { background: #ef4444; box-shadow: 0 0 10px #ef4444; } 52%, 100% { background: #3b0d0d; box-shadow: none; } }
+
+/* Luzes apagam aos 52% → o carro arranca */
+.bz-f1-track { position: absolute; left: 0; right: 0; bottom: 12px; height: 70px; }
+.bz-f1-car {
+  position: absolute; left: 0; bottom: 0; width: 200px;
+  transform: translateX(-260px);
+  animation: bzF1Car 9s cubic-bezier(0.55, 0, 0.6, 1) infinite;
+}
+@keyframes bzF1Car {
+  0%, 52% { transform: translateX(-260px); }
+  72% { transform: translateX(calc(100vw + 40px)); }
+  100% { transform: translateX(calc(100vw + 40px)); }
+}
+.bz-f1-car svg { filter: drop-shadow(0 6px 4px rgba(0, 0, 0, 0.25)); }
+.bz-f1-car .bz-f1-rim { transform-box: fill-box; transform-origin: center; animation: bzRotate 0.25s linear infinite; }
+.bz-f1-car .speed {
+  position: absolute; right: 100%; height: 3px; border-radius: 3px;
+  background: linear-gradient(90deg, transparent, rgba(100, 116, 139, 0.55));
+}
+.bz-f1-car .s1 { bottom: 38px; width: 120px; }
+.bz-f1-car .s2 { bottom: 24px; width: 180px; margin-right: -6px; }
+.bz-f1-car .s3 { bottom: 12px; width: 90px; }
+.bz-f1-kerb {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 7px; opacity: 0.75;
+  background: repeating-linear-gradient(90deg, #dc2626 0 28px, #fff 28px 56px);
+}
+.bz-x-corner.is-f1 { width: 90px; height: 140px; bottom: 7px; }
+.bz-x-corner.is-f1 .flag { right: 10px; bottom: 0; width: 70px; }
+.bz-f1-flagcloth { transform-box: fill-box; transform-origin: 0% 50%; animation: bzF1Wave 0.9s ease-in-out infinite alternate; }
+@keyframes bzF1Wave { from { transform: skewY(-6deg) scaleX(0.94); } to { transform: skewY(6deg) scaleX(1); } }
+
+/* ---------------- PÁSCOA (Paixão e Ressurreição) ---------------- */
+.bz-pa-scene {
+  position: absolute; right: 14px; bottom: 0;
+  width: 320px; height: 246px;
+  transform-origin: bottom right;
+}
+.bz-pa-scene > svg { width: 100%; height: 100%; filter: drop-shadow(0 6px 10px rgba(15, 23, 42, 0.15)); }
+.bz-pa-scene g, .bz-pa-scene circle { transform-box: fill-box; transform-origin: center; }
+
+/* Ciclo de 26 s: cruz → ascensão → sepulcro → pedra rola → Ele aparece */
+.bz-pa-calvario { animation: bzPaCalvario 26s ease-in-out infinite; }
+.bz-pa-crucified { animation: bzPaCrucified 26s ease-in-out infinite; }
+.bz-pa-rays { animation: bzPaRays 26s ease-in-out infinite; }
+.bz-pa-ascend { animation: bzPaAscend 26s ease-in-out infinite; }
+.bz-pa-tumulo { animation: bzPaTumulo 26s ease-in-out infinite; }
+.bz-pa-stone { animation: bzPaStone 26s ease-in-out infinite; }
+.bz-pa-tomblight { animation: bzPaTombLight 26s ease-in-out infinite; }
+.bz-pa-risen { animation: bzPaRisen 26s ease-in-out infinite; }
+.bz-pa-glory { animation: bzPaGlory 26s ease-in-out infinite; }
+.bz-pa-halo { animation: bzPaHalo 2.4s ease-in-out infinite alternate; }
+
+@keyframes bzPaCalvario { 0%, 36% { opacity: 1; } 42%, 95% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes bzPaCrucified { 0%, 20% { opacity: 1; } 27%, 100% { opacity: 0; } }
+@keyframes bzPaRays { 0%, 16% { opacity: 0; transform: scale(0.6); } 26% { opacity: 1; transform: scale(1.1); } 36% { opacity: 0.8; transform: scale(1.3); } 42%, 100% { opacity: 0; transform: scale(1.3); } }
+@keyframes bzPaAscend {
+  0%, 20% { opacity: 0; transform: translate(150px, 120px) scale(0.8); }
+  26% { opacity: 1; transform: translate(150px, 112px) scale(0.85); }
+  38% { opacity: 0.9; transform: translate(150px, -10px) scale(0.7); }
+  42%, 100% { opacity: 0; transform: translate(150px, -60px) scale(0.6); }
+}
+@keyframes bzPaTumulo { 0%, 38% { opacity: 0; } 44%, 93% { opacity: 1; } 98%, 100% { opacity: 0; } }
+@keyframes bzPaStone {
+  0%, 50% { transform: translateX(0) rotate(0deg); }
+  60%, 100% { transform: translateX(58px) rotate(200deg); }
+}
+@keyframes bzPaTombLight { 0%, 53% { opacity: 0; } 62%, 93% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes bzPaRisen {
+  0%, 60% { opacity: 0; transform: translate(110px, 200px) scale(0.85); }
+  68%, 92% { opacity: 1; transform: translate(110px, 192px) scale(1); }
+  97%, 100% { opacity: 0; transform: translate(110px, 192px) scale(1); }
+}
+@keyframes bzPaGlory { 0%, 60% { opacity: 0; transform: scale(0.5); } 70% { opacity: 1; transform: scale(1.1); } 92% { opacity: 0.85; transform: scale(1); } 97%, 100% { opacity: 0; } }
+@keyframes bzPaHalo { from { opacity: 0.7; } to { opacity: 1; } }
+
+.bz-pa-label {
+  position: absolute; left: 34px; bottom: 228px;
+  padding: 3px 10px; border-radius: 99px;
+  background: #fffbeb; color: #92400e;
+  font: 800 11px/1.4 system-ui, sans-serif; white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(146, 64, 14, 0.2);
+  opacity: 0;
+  animation: bzPaLabel 26s ease-in-out infinite;
+}
+@keyframes bzPaLabel { 0%, 66% { opacity: 0; transform: translateY(6px); } 71%, 91% { opacity: 1; transform: translateY(0); } 96%, 100% { opacity: 0; } }
+
+/* ---------------- EMBLEMAS (seletor de temas) ---------------- */
+.bz-emb.is-x-cafe .cup { position: absolute; left: 50%; bottom: 6px; width: 70px; margin-left: -38px; }
+.bz-emb.is-x-cafe .st { position: absolute; bottom: 44px; width: 8px; height: 26px; border-radius: 50%; border-left: 3px solid rgba(160, 140, 120, 0.55); animation: bzCafeSteam 3s ease-in-out infinite; }
+.bz-emb.is-x-cafe .st.a { left: 44%; }
+.bz-emb.is-x-cafe .st.b { left: 56%; animation-delay: -1.5s; }
+.bz-emb.is-x-livros .stack { width: 90px; }
+.bz-emb.is-x-f1 { overflow: hidden; align-items: center; }
+.bz-emb.is-x-f1 .car { width: 110px; animation: bzBob 0.4s ease-in-out infinite alternate; }
+.bz-emb.is-x-pascoa svg { width: 110px; height: 64px; }
+
+/* ---------------- RESPONSIVO / ACESSIBILIDADE ---------------- */
+@media (max-width: 760px) {
+  .bz-x-corner, .bz-pa-scene { transform: scale(0.6); bottom: 64px; }
+  .bz-f1-lights { transform: scale(0.7); transform-origin: top right; }
+  .bz-f1-track { bottom: 70px; transform: scale(0.65); transform-origin: bottom left; }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* Sem animação: mostra o final feliz da Páscoa e o carro parado */
+  .bz-pa-calvario, .bz-pa-label { opacity: 0 !important; }
+  .bz-pa-tumulo, .bz-pa-risen, .bz-pa-glory, .bz-pa-tomblight { opacity: 1 !important; }
+  .bz-pa-stone { transform: translateX(58px) rotate(200deg) !important; }
+  .bz-f1-car { transform: translateX(24px) !important; }
+}
+@media print { body.bz-scene-livros .dashboard-main { background: none; } }

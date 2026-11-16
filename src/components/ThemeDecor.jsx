@@ -3,6 +3,7 @@ import { useTheme } from "../context/ThemeContext";
 import { THEMES } from "../constants/themes";
 import { isDecorEnabled, onDecorChange } from "../utils/themeDecor";
 import "../styles/theme-decor.css";
+import { EXTRA_SHAPES, EXTRA_DECOR, ExtraScene, ExtraEmblem } from "./ThemeDecorExtra";
 
 // =========================================================
 // Decorações dos temas de celebração
@@ -602,6 +603,7 @@ const SHAPES = {
   blossom: Blossom, gull: Gull,
   marigold: Cempasuchil, mpetal: MarigoldPetal, rpetal: RosePetal, star: Star, sparkle: Sparkle, glow: GlowOrb, coin: Coin,
   redconfetti: (p) => <Confetti {...p} palette={["#dc2626", "#f59e0b", "#facc15", "#b91c1c"]} />,
+  ...EXTRA_SHAPES,
 };
 
 const DECOR = {
@@ -624,6 +626,7 @@ const DECOR = {
   reis: { particles: { shapes: ["sparkle", "gold"], count: 22, motion: "spin", size: [7, 13] }, topRight: "estrela", corner: "reis" },
   lunar: { particles: { shapes: ["coin", "redconfetti"], count: 18, motion: "spin", size: [9, 15] }, top: "lanterns", bottomLeft: "dragon" },
   chuva: { particles: { shapes: ["drop"], count: 80, motion: "rain", size: [16, 30] }, top: "clouds", bottom: "splash", corner: "chuva" },
+  ...EXTRA_DECOR,
   mulher: { particles: { shapes: ["mimosa", "wpetal", "wflower", "wpetal"], count: 20, motion: "spin", size: [9, 17] }, top: "flores", corner: "mulher" },
 };
 
@@ -914,6 +917,7 @@ export default function ThemeDecor() {
       {cfg.bottom === "splash" && <Splashes />}
       {cfg.corner && <Corner kind={cfg.corner} />}
       {cfg.bottomLeft === "dragon" && <Dragon />}
+      {cfg.scene && <ExtraScene kind={cfg.scene} />}
     </div>
   );
 }
@@ -947,6 +951,6 @@ export function DecorEmblem({ decor }) {
       </div>
     );
     case "mulher": return <div className="bz-emb is-row is-tall is-mulher"><Tulip color="#f472b6" shade="#be185d" /><span className="bz-emb-mim"><MimosaBranch /></span><Tulip /></div>;
-    default: return null;
+    default: return <ExtraEmblem decor={decor} />;
   }
 }

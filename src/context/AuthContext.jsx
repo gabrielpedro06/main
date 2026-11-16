@@ -5,6 +5,40 @@ import { registarEvento } from "../utils/registarEvento"
 
 const AuthContext = createContext()
 
+// ---------------------------------------------------------------------
+// Validade da verificação 2FA neste dispositivo
+//  * Cookie de sessão (apaga-se ao fechar o browser/desligar o PC)
+//  * Carimbo de hora em localStorage (máximo MFA_VALIDADE_MS)
+// Se faltar um dos dois, a sessão guardada é terminada e é preciso
+// voltar a entrar com palavra-passe + código.
+// ---------------------------------------------------------------------
+const MFA_COOKIE = "bz_mfa"
+const MFA_KEY = "bz-mfa-at"
+const MFA_VALIDADE_MS = 12 * 60 * 60 * 1000 // 12 horas
+
+function marcarMfaVerificado() {
+  try {
+    const secure = window.location.protocol === "https:" ? "; Secure" : ""
+    document.cookie = `${MFA_COOKIE}=1; path=/; SameSite=Strict${secure}`
+    localStorage.setItem(MFA_KEY, String(Date.now()))
+  } catch { /* ignora */ }
+}
+function limparMfaVerificado() {
+  try {
+    document.cookie = `${MFA_COOKIE}=; path=/; max-age=0`
+    localStorage.removeItem(MFA_KEY)
+  } catch { /* ignora */ }
+}
+function mfaAindaValido() {
+  try {
+    const temCookie = document.cookie.split(";").some((c) => c.trim() === `${MFA_COOKIE}=1`)
+    const quando = Number(localStorage.getItem(MFA_KEY) || 0)
+    return temCookie && quando > 0 && Date.now() - quando < MFA_VALIDADE_MS
+  } catch {
+    return false
+  }
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [userProfile, setUserProfile] = useState(null) // AQUI GUARDAMOS O PERFIL/ROLE
@@ -31,9 +65,26 @@ export function AuthProvider({ children }) {
     }
   }
 
+  // Sessão guardada sem verificação 2FA recente → termina (pede tudo outra vez)
+  async function terminarSessaoExpirada() {
+    try { await registarEvento("sessao_expirada", { motivo: "verificacao_2fa_expirada" }) } catch { /* ignora */ }
+    limparMfaVerificado()
+    await supabase.auth.signOut({ scope: "local" })
+    setUser(null)
+    setUserProfile(null)
+    setMfaPending(false)
+    setMfaSetup(false)
+    setLoading(false)
+  }
+
   useEffect(() => {
     // 1. Vai buscar o utilizador atual (Sessão)
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (data?.user && !mfaAindaValido()) {
+        // Ex.: PC desligado / browser fechado, ou passaram mais de 12 h
+        await terminarSessaoExpirada()
+        return
+      }
       setUser(data?.user ?? null)
       if (data?.user) {
         checkMfa().finally(() => fetchProfile(data.user.id)) // Se houver user, vai buscar o Role dele
@@ -44,7 +95,12 @@ export function AuthProvider({ children }) {
 
     // 2. Fica à escuta de Logins / Logouts
     const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      (event, session) => {
+        // A sessão inicial já é tratada no passo 1 (inclui a validade do 2FA)
+        if (event === "INITIAL_SESSION") return
+        // Código 2FA confirmado (login ou configuração) → válido neste dispositivo
+        if (event === "MFA_CHALLENGE_VERIFIED") marcarMfaVerificado()
+        if (event === "SIGNED_OUT") limparMfaVerificado()
         setUser(session?.user ?? null)
         if (session?.user) {
           // Fora do callback para não bloquear o cliente do Supabase
@@ -60,6 +116,15 @@ export function AuthProvider({ children }) {
 
     return () => listener.subscription.unsubscribe()
   }, [])
+
+  // Com a app aberta: ao fim de 12 h volta a pedir o login completo
+  useEffect(() => {
+    if (!user?.id || mfaPending) return undefined
+    const id = setInterval(() => {
+      if (!mfaAindaValido()) signOut()
+    }, 5 * 60 * 1000)
+    return () => clearInterval(id)
+  }, [user?.id, mfaPending]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Função para buscar o Perfil à tabela 'profiles'
   async function fetchProfile(userId) {

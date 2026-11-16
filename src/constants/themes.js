@@ -148,6 +148,10 @@ const FESTIVE_CATALOG = [
   ["festa_verao", "Verão na Praia", "Sol, ondas e gaivotas", "#eff8fc", "#0b6a96", "verao", ["06-21", "09-15"]],
   ["festa_chuva", "Dia de Chuva", "Chuva miudinha, nuvens e um guarda-chuva amarelo", "#eef2f6", "#334e68", "chuva", ["10-01", "04-30"]],
   ["festa_mulher", "Dia da Mulher", "8 de março: mimosas, túlipas e pétalas a cair", "#faf5ff", "#6b21a8", "mulher", ["03-01", "03-10"]],
+  ["festa_pascoa_cristo", "Páscoa · Ressurreição", "A cruz, a ascensão e o sepulcro vazio: Ele ressuscitou", "#fbf8f1", "#7a5a12", "pascoa_cristo", ["03-15", "04-30"]],
+  ["tema_cafe", "Café", "Grãos a cair, chávena a fumegar e um pastel de nata", "#faf5ef", "#5b3a24", "cafe", null],
+  ["tema_livros", "Livraria", "Estante de livros ao fundo, páginas a virar e luz de candeeiro", "#fbf7f0", "#5c3d22", "livros", null],
+  ["tema_f1", "Fórmula 1", "Luzes de partida, bandeira xadrez e um F1 a passar", "#f6f7f9", "#b91c1c", "f1", null],
 ];
 
 export const THEMES = Object.fromEntries([
