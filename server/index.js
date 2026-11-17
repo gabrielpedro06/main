@@ -8,8 +8,8 @@ import absenceSendRequest from "../api/absence-notifications/send-request.js";
 import absenceAction, { buildActionToken } from "../api/absence-notifications/action.js";
 import marketingIdeias from "../api/marketing/ideias.js";
 import organizadorIa from "../api/organizador/ia.js";
-import adminMfa from "../api/admin/mfa.js";
-import adminContas from "../api/admin/contas.js";
+import adminMfa from "../api/_lib/adminMfa.js";
+import adminContas from "../api/_lib/adminContas.js";
 
 const app = express();
 

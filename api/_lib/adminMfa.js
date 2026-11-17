@@ -9,7 +9,7 @@
 // =====================================================================
 import { createClient } from "@supabase/supabase-js";
 
-export const config = { runtime: "nodejs", maxDuration: 30 };
+// (config da função: ver api/admin/[op].js)
 
 const PAPEIS_ADMIN = ["admin", "administrador"];
 
