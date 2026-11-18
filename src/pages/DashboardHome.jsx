@@ -14,6 +14,7 @@ import "./../styles/dashboard.css";
 import "./../styles/home.css";
 import SlidingTabs from "../components/SlidingTabs";
 import ProfilePeek from "../components/ProfilePeek";
+import { useMedalhasEquipa } from "../components/medalhas/useMedalhas";
 import NotificationsPanel from "../components/NotificationsPanel";
 import AprovacaoModal from "../components/marketing/AprovacaoModal";
 import { TIPOS_NOTIF_MK } from "../components/marketing/mkAprovacao";
@@ -161,6 +162,8 @@ export default function DashboardHome() {
     const [homeTab, setHomeTab] = useState('hoje');
     const [horasMesAtual, setHorasMesAtual] = useState({ h: 0, m: 0 });
     const closeProfilePeek = useCallback(() => setSelectedOnlineUser(null), []);
+    // Medalha mais recente de cada pessoa online (aparece no canto da foto)
+    const medalhasOnline = useMedalhasEquipa(usersOnline.map((u) => u.user_id));
     const closeBellPanel = useCallback(() => setShowBellDropdown(false), []);
     const bellDropdownRef = useRef(null);
     
@@ -1646,25 +1649,35 @@ export default function DashboardHome() {
 
             {usersOnline.length > 0 ? (
               <div className="hx-team-grid">
-                {usersOnline.map((u, idx) => (
+                {usersOnline.map((u, idx) => {
+                  const medalhas = medalhasOnline.get(String(u.user_id)) || [];
+                  const recente = medalhas[0];
+                  return (
                   <button
                     key={u.id}
                     type="button"
                     className="hx-person"
                     style={{ '--i': idx }}
                     onClick={() => setSelectedOnlineUser(u)}
-                    title={`${u.profiles?.nome || ''} · entrou às ${u.hora_entrada?.slice(0, 5)}`}
+                    title={`${u.profiles?.nome || ''} · entrou às ${u.hora_entrada?.slice(0, 5)}${recente ? ` · 🏅 ${medalhas.map((m) => m.nome).join(", ")}` : ""}`}
                   >
                     <span className="hx-avatar hx-avatar-lg">
                       {u.profiles?.avatar_url
                         ? <img src={u.profiles.avatar_url} alt="" />
                         : getInitials(u.profiles?.nome)}
                       <span className="hx-avatar-status" />
+                      {recente && (
+                        <span className="mdl-avatar-badge" aria-label={`${medalhas.length} medalha(s)`}>
+                          <img src={recente.imagem_url} alt="" />
+                          {medalhas.length > 1 && <b>{medalhas.length}</b>}
+                        </span>
+                      )}
                     </span>
                     <span className="hx-person-name">{getSafeFirstName(u.profiles?.nome, "")}</span>
                     <span className="hx-person-sub">{u.hora_entrada?.slice(0, 5)}</span>
                   </button>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="hx-empty hx-empty-sm">
