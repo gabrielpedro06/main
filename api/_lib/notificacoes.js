@@ -136,14 +136,14 @@ async function pedidoAusencia(req, ctx) {
 
   const { data: dono } = await ctx.admin.from("profiles").select("nome, email").eq("id", pedido.user_id).maybeSingle();
   const base = origemApp(req);
-  const requestUrl = base ? `${base}/dashboard/rh?pedidoId=${encodeURIComponent(pedido.id)}` : "";
-  const apiBase = String(process.env.MARKETING_API_BASE || process.env.APP_URL || base || "").replace(/\/+$/, "");
+  // A app usa HashRouter: /#/dashboard/pedidos/<id>
+  const requestUrl = base ? `${base}/#/dashboard/pedidos/${encodeURIComponent(pedido.id)}` : "";
 
   const isKm = /km|desloca/i.test(String(pedido.tipo || ""));
   const resultados = await Promise.allSettled(destinos.map((adminEmail) => {
     const { subject, htmlContent } = construirEmailPedido({
       pedido, isKm, isEditing: Boolean(isEditing), requesterName: dono?.nome || dono?.email || "Um colaborador",
-      requestUrl, apiBase, adminEmail,
+      requestUrl,
     });
     return sendTransactionalCampaign({ senderProfile: "marketing", emails: [adminEmail], subject, htmlContent });
   }));

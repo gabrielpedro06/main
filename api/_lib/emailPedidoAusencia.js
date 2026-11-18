@@ -1,9 +1,9 @@
 // =====================================================================
 // Email "novo pedido de ausência" enviado aos administradores.
 // Os dados vêm SEMPRE da base de dados (nunca do browser) e tudo é escapado.
-// Cada botão (Aprovar / Rejeitar) tem o seu próprio token assinado.
+// Os botões abrem a página do pedido DENTRO do Bizin (pede login + 2FA);
+// a decisão é sempre tomada lá, nunca pelo próprio link.
 // =====================================================================
-import { buildActionToken } from "../absence-notifications/action.js";
 import { escapeHtml } from "./seguranca.js";
 
 function formatDate(dateStr) {
@@ -104,43 +104,33 @@ function buildDetailsBlock(details, safeType) {
 }
 
 
-function buildActionButtons(requestId, adminEmail, safeRequestUrl, apiBase, safeRequestUrlDisplay) {
-  const tAprovar = requestId && apiBase ? buildActionToken(requestId, adminEmail, "approve") : null;
-  const tRejeitar = requestId && apiBase ? buildActionToken(requestId, adminEmail, "reject") : null;
-  if (!tAprovar || !tRejeitar) {
-    return safeRequestUrl ? `<p style="margin:20px 0">
-      <a href="${safeRequestUrl}" style="display:inline-block;background:#0f172a;color:#fff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:bold">
-        Abrir pedidos para aprovar
-      </a></p>` : "";
-  }
-  // O link abre uma página de confirmação (o pedido só muda depois de carregar no botão dessa página)
-  const approveUrl = `${apiBase}/api/absence-notifications/action?token=${encodeURIComponent(tAprovar)}`;
-  const rejectUrl = `${apiBase}/api/absence-notifications/action?token=${encodeURIComponent(tRejeitar)}`;
+function buildActionButtons(requestUrl) {
+  if (!requestUrl) return "";
+  const link = (acao) => escapeHtml(`${requestUrl}?acao=${acao}`);
   return `
-  <table cellpadding="0" cellspacing="0" style="margin:24px 0">
+  <table cellpadding="0" cellspacing="0" style="margin:24px 0 10px">
     <tr>
       <td style="padding-right:10px">
-        <a href="${approveUrl}" style="display:inline-block;background:#16a34a;color:#fff;text-decoration:none;padding:12px 24px;border-radius:10px;font-weight:bold;font-size:15px">✅ Aprovar</a>
+        <a href="${link("aprovar")}" style="display:inline-block;background:#16a34a;color:#fff;text-decoration:none;padding:12px 24px;border-radius:10px;font-weight:bold;font-size:15px">Aprovar</a>
+      </td>
+      <td style="padding-right:10px">
+        <a href="${link("rejeitar")}" style="display:inline-block;background:#dc2626;color:#fff;text-decoration:none;padding:12px 24px;border-radius:10px;font-weight:bold;font-size:15px">Rejeitar</a>
       </td>
       <td>
-        <a href="${rejectUrl}" style="display:inline-block;background:#dc2626;color:#fff;text-decoration:none;padding:12px 24px;border-radius:10px;font-weight:bold;font-size:15px">❌ Rejeitar</a>
+        <a href="${escapeHtml(requestUrl)}" style="display:inline-block;background:#f1f5f9;color:#0f172a;text-decoration:none;padding:12px 20px;border-radius:10px;font-weight:bold;font-size:15px">Ver detalhes</a>
       </td>
     </tr>
   </table>
-  ${safeRequestUrl ? `<p style="margin:6px 0 0;color:#64748b;font-size:12px">
-    Ou acede ao painel completo: <a href="${safeRequestUrl}" style="color:#0f172a">${safeRequestUrlDisplay}</a>
-  </p>` : ""}`;
+  <p style="margin:0;color:#64748b;font-size:12px">Os botões abrem o pedido no Bizin (com login e código 2FA). Confirma lá a decisão.</p>`;
 }
 
-export function construirEmailPedido({ pedido, isKm, isEditing, requesterName, requestUrl, apiBase, adminEmail }) {
+export function construirEmailPedido({ pedido, isKm, isEditing, requesterName, requestUrl }) {
   const requestType = pedido.tipo || "ausência";
   const safeType = escapeHtml(requestType);
   const safeRequesterName = escapeHtml(requesterName || "Um colaborador");
-  const safeRequestUrl = escapeHtml(requestUrl || "");
-  const safeRequestUrlDisplay = safeRequestUrl;
   const details = { ...pedido, isKmRequest: isKm };
   const detailsBlock = buildDetailsBlock(details, safeType);
-  const actionButtons = buildActionButtons(pedido.id, adminEmail, safeRequestUrl, apiBase, safeRequestUrlDisplay);
+  const actionButtons = buildActionButtons(requestUrl);
   const subject = isEditing
     ? `Pedido de ${requestType} atualizado — ação necessária`
     : `Novo pedido de ${requestType} — ação necessária`;
@@ -167,7 +157,7 @@ export function construirEmailPedido({ pedido, isKm, isEditing, requesterName, r
               ${detailsBlock}
 
               <div style="border-top:1px solid #f1f5f9;padding-top:20px">
-                <div style="font-size:0.82rem;color:#475569;margin-bottom:8px">Podes aprovar ou rejeitar diretamente:</div>
+                <div style="font-size:0.82rem;color:#475569;margin-bottom:8px">Decide no Bizin:</div>
                 ${actionButtons}
               </div>
 

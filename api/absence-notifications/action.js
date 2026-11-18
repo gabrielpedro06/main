@@ -2,327 +2,51 @@
 /**
  * api/absence-notifications/action.js
  *
- * Aprovar / rejeitar pedidos a partir do email dos administradores.
- *  - GET  ?token=…  → só mostra uma página de confirmação (os scanners de email
- *                     que "clicam" nos links não alteram nada)
- *  - POST token=…   → executa a ação
- * Token assinado (HMAC-SHA256): { pedidoId, adminEmail, action, exp } — cada token
- * serve para UMA ação e expira em 7 dias. Segredo: ABSENCE_ACTION_SECRET (obrigatório,
- * mínimo 32 caracteres; sem ele os links não funcionam).
+ * Links dos emails ANTIGOS ("Aprovar" / "Rejeitar" com token).
+ * Já não alteram nada: só reencaminham para a página do pedido dentro do Bizin,
+ * onde é preciso login + 2FA para decidir. Os emails novos já apontam diretamente
+ * para a app. Se o token não for válido, abre o painel de RH.
  */
 
-import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
 
 export const config = { runtime: "nodejs" };
 
 const SECRET = process.env.ABSENCE_ACTION_SECRET || "";
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
-function escapeHtml(v) {
-  return String(v || "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-/** Remove diacritics so "Férias" → "Ferias", allowing reliable substring matching. */
-function stripDiacritics(str) {
-  return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-}
-
-/** Portuguese public holidays for a given year (same as feriasSaldo.js). */
-function getFeriados(ano) {
-  const a = ano % 19;
-  const b = Math.floor(ano / 100);
-  const c = ano % 100;
-  const d = Math.floor(b / 4);
-  const e = b % 4;
-  const f = Math.floor((b + 8) / 25);
-  const g = Math.floor((b - f + 1) / 3);
-  const h = (19 * a + b - d - g + 15) % 30;
-  const i = Math.floor(c / 4);
-  const k = c % 4;
-  const l = (32 + 2 * e + 2 * i - h - k) % 7;
-  const m = Math.floor((a + 11 * h + 22 * l) / 451);
-  const mesPascoa = Math.floor((h + l - 7 * m + 114) / 31) - 1;
-  const diaPascoa = ((h + l - 7 * m + 114) % 31) + 1;
-
-  const pascoa = new Date(ano, mesPascoa, diaPascoa);
-  const sextaSanta = new Date(pascoa); sextaSanta.setDate(pascoa.getDate() - 2);
-  const carnaval = new Date(pascoa); carnaval.setDate(pascoa.getDate() - 47);
-  const corpoDeus = new Date(pascoa); corpoDeus.setDate(pascoa.getDate() + 60);
-
-  return [
-    { d: 1, m: 0 }, { d: carnaval.getDate(), m: carnaval.getMonth() },
-    { d: sextaSanta.getDate(), m: sextaSanta.getMonth() },
-    { d: pascoa.getDate(), m: pascoa.getMonth() },
-    { d: 25, m: 3 }, { d: 1, m: 4 },
-    { d: corpoDeus.getDate(), m: corpoDeus.getMonth() },
-    { d: 10, m: 5 }, { d: 15, m: 7 }, { d: 7, m: 8 },
-    { d: 5, m: 9 }, { d: 1, m: 10 }, { d: 1, m: 11 },
-    { d: 8, m: 11 }, { d: 25, m: 11 },
-  ];
-}
-
-function isHoliday(date) {
-  const feriados = getFeriados(date.getFullYear());
-  return feriados.some((f) => f.d === date.getDate() && f.m === date.getMonth());
-}
-
-/** Count working days (skip weekends + holidays), clamped to a specific year. */
-function calcularDiasUteisNoAno(dataInicio, dataFim, ano) {
-  const inicio = new Date(`${dataInicio}T00:00:00`);
-  const fim = new Date(`${dataFim || dataInicio}T00:00:00`);
-  const inicioAno = new Date(ano, 0, 1);
-  const fimAno = new Date(ano, 11, 31);
-
-  // Clamp to year boundaries
-  const inicioFinal = inicio < inicioAno ? inicioAno : inicio;
-  const fimFinal = fim > fimAno ? fimAno : fim;
-
-  if (inicioFinal > fimFinal) return 0;
-
-  let dias = 0;
-  for (const d = new Date(inicioFinal); d <= fimFinal; d.setDate(d.getDate() + 1)) {
-    const diaSemana = d.getDay();
-    if (diaSemana !== 0 && diaSemana !== 6 && !isHoliday(d)) dias += 1;
-  }
-  return dias;
-}
-
-function signToken(payload) {
-  const data = Buffer.from(JSON.stringify(payload)).toString("base64url");
-  const sig = crypto.createHmac("sha256", SECRET).update(data).digest("base64url");
-  return `${data}.${sig}`;
-}
-
-function verifyToken(token) {
-  if (!segredoValido()) return null;
-  const [data, sig] = (token || "").split(".");
+/** Lê o pedido e a ação de um token assinado (o prazo já não interessa: só redireciona). */
+function lerToken(token) {
+  if (SECRET.length < 32) return null;
+  const [data, sig] = String(token || "").split(".");
   if (!data || !sig) return null;
-  const expected = crypto.createHmac("sha256", SECRET).update(data).digest("base64url");
+  const esperado = crypto.createHmac("sha256", SECRET).update(data).digest("base64url");
   try {
-    if (!crypto.timingSafeEqual(Buffer.from(sig, "base64url"), Buffer.from(expected, "base64url"))) return null;
-  } catch {
-    return null;
-  }
-  try {
+    if (!crypto.timingSafeEqual(Buffer.from(sig, "base64url"), Buffer.from(esperado, "base64url"))) return null;
     const payload = JSON.parse(Buffer.from(data, "base64url").toString("utf8"));
-    if (typeof payload.exp !== "number" || Date.now() > payload.exp) return null; // sem prazo ou expirado
-    if (!["approve", "reject"].includes(payload.action) || !payload.pedidoId) return null;
-    return payload;
+    const id = String(payload.pedidoId || "");
+    if (!/^[\w-]{1,64}$/.test(id)) return null;
+    return { id, acao: payload.action === "approve" ? "aprovar" : payload.action === "reject" ? "rejeitar" : "" };
   } catch {
     return null;
   }
 }
 
-// Exported helper — used by send-request.js to build signed action tokens
-const segredoValido = () => SECRET.length >= 32;
-
-export function buildActionToken(pedidoId, adminEmail, action) {
-  if (!segredoValido() || !["approve", "reject"].includes(action)) return null;
-  return signToken({ pedidoId, adminEmail, action, exp: Date.now() + 7 * 24 * 60 * 60 * 1000 }); // 7 dias
+function baseDaApp(req) {
+  const fixa = String(process.env.APP_URL || "").trim().replace(/\/+$/, "");
+  if (fixa) return fixa;
+  const host = String(req.headers?.host || "").trim();
+  return /^[\w.-]+(:\d+)?$/.test(host) ? `https://${host}` : "";
 }
 
-// Página de confirmação: o botão faz POST com o mesmo token
-function paginaConfirmar(token, action, pedido, nome) {
-  const aprovar = action === "approve";
-  const cor = aprovar ? "#16a34a" : "#dc2626";
-  const titulo = aprovar ? "Aprovar este pedido?" : "Rejeitar este pedido?";
-  const datas = [pedido.data_inicio, pedido.data_fim && pedido.data_fim !== pedido.data_inicio ? pedido.data_fim : null].filter(Boolean).join(" a ");
-  return `<!DOCTYPE html><html lang="pt"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${escapeHtml(titulo)}</title>
-  <style>body{font-family:Arial,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f8fafc;padding:16px;box-sizing:border-box}
-  .card{background:white;border-radius:16px;padding:32px 36px;box-shadow:0 8px 32px rgba(0,0,0,0.10);text-align:center;max-width:420px;width:100%}
-  h2{color:${cor};margin:0 0 12px} p{color:#475569;margin:0 0 6px} button{margin-top:20px;border:0;border-radius:10px;padding:12px 26px;font-size:15px;font-weight:bold;color:#fff;background:${cor};cursor:pointer}</style></head>
-  <body><div class="card"><h2>${escapeHtml(titulo)}</h2>
-  <p><strong>${escapeHtml(nome || "Colaborador")}</strong></p>
-  <p>${escapeHtml(pedido.tipo || "Ausência")}${datas ? ` · ${escapeHtml(datas)}` : ""}</p>
-  <form method="POST"><input type="hidden" name="token" value="${escapeHtml(token)}"><button type="submit">${aprovar ? "✅ Confirmar aprovação" : "❌ Confirmar rejeição"}</button></form>
-  </div></body></html>`;
-}
-
-function htmlPage(title, message, color) {
-  const safeColor = escapeHtml(color || "#16a34a");
-  return `<!DOCTYPE html><html lang="pt"><head><meta charset="UTF-8"><title>${escapeHtml(title)}</title>
-  <style>body{font-family:Arial,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f8fafc;}
-  .card{background:white;border-radius:16px;padding:40px 48px;box-shadow:0 8px 32px rgba(0,0,0,0.10);text-align:center;max-width:420px;}
-  h2{color:${safeColor};margin:0 0 12px;} p{color:#475569;margin:0;}</style></head>
-  <body><div class="card"><h2>${escapeHtml(title)}</h2><p>${escapeHtml(message)}</p></div></body></html>`;
-}
-
-export default async function handler(req, res) {
+export default function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("X-Robots-Tag", "noindex");
-  if (!["GET", "POST"].includes(req.method)) {
-    res.status(405).send(htmlPage("Pedido inválido", "Método não permitido.", "#dc2626"));
-    return;
-  }
-  if (!segredoValido()) {
-    res.status(503).send(htmlPage("Indisponível", "As aprovações por email não estão configuradas. Use o painel de RH.", "#dc2626"));
-    return;
-  }
-  const params = req.method === "GET" ? (req.query || {}) : (req.body || {});
-  const token = String(params.token || "");
-
-  const payload = verifyToken(token);
-  if (!payload) {
-    res.status(403).send(htmlPage("Link expirado ou inválido", "Este link já não é válido. Por favor, acede ao painel de RH para gerir o pedido.", "#dc2626"));
-    return;
-  }
-
-  const { pedidoId, action, adminEmail } = payload;
-
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-    res.status(500).send(htmlPage("Erro de configuração", "Configuração do servidor em falta. Contacta o administrador.", "#dc2626"));
-    return;
-  }
-
-  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-
-  // Fetch the request to make sure it still exists and is pending
-  const { data: pedido, error: fetchError } = await supabase
-    .from("ferias")
-    .select("id, estado, tipo, user_id, data_inicio")
-    .eq("id", pedidoId)
-    .single();
-
-  if (fetchError || !pedido) {
-    res.status(404).send(htmlPage("Pedido não encontrado", "Este pedido não existe ou foi eliminado.", "#dc2626"));
-    return;
-  }
-
-  if (pedido.estado !== "pendente") {
-    const estadoLabel = pedido.estado === "aprovado" ? "aprovado" : pedido.estado === "rejeitado" ? "rejeitado" : pedido.estado;
-    res.status(200).send(htmlPage(
-      "Pedido já processado",
-      `Este pedido já foi ${escapeHtml(estadoLabel)} anteriormente. Sem alterações.`,
-      "#64748b"
-    ));
-    return;
-  }
-
-  // GET: só confirma (nada é alterado)
-  if (req.method === "GET") {
-    const { data: dono } = await supabase.from("profiles").select("nome").eq("id", pedido.user_id).maybeSingle();
-    res.status(200).send(paginaConfirmar(token, action, pedido, dono?.nome));
-    return;
-  }
-
-  // O token tem de ser de um administrador ainda ativo
-  const { data: aprovador } = await supabase
-    .from("profiles")
-    .select("id, nome, role, tipo, ativo")
-    .ilike("email", String(adminEmail || ""))
-    .maybeSingle();
-  const papelAprovador = String(aprovador?.role || aprovador?.tipo || "").toLowerCase();
-  if (!aprovador || aprovador.ativo === false || !["admin", "administrador"].includes(papelAprovador)) {
-    res.status(403).send(htmlPage("Sem permissão", "Este link pertence a uma conta que já não pode aprovar pedidos.", "#dc2626"));
-    return;
-  }
-
-  const novoEstado = action === "approve" ? "aprovado" : "rejeitado";
-  // Só altera se continuar pendente (evita aprovar duas vezes em simultâneo)
-  const { data: alterados, error: updateError } = await supabase
-    .from("ferias")
-    .update({ estado: novoEstado })
-    .eq("id", pedidoId)
-    .eq("estado", "pendente")
-    .select("id");
-
-  if (!updateError && (!alterados || !alterados.length)) {
-    res.status(200).send(htmlPage("Pedido já processado", "Este pedido já tinha sido tratado. Sem alterações.", "#64748b"));
-    return;
-  }
-
-  await supabase.from("audit_log").insert({
-    user_id: aprovador.id,
-    user_email: adminEmail,
-    operacao: "EVENTO",
-    acao: action === "approve" ? "pedido_aprovado_email" : "pedido_rejeitado_email",
-    tabela: "ferias",
-    registo_id: String(pedidoId),
-    detalhes: { por: aprovador.nome || adminEmail, via: "email" },
-  }).then(() => {}, () => {});
-
-  if (updateError) {
-    console.error("[absence-action] Erro ao atualizar ferias:", updateError);
-    res.status(500).send(htmlPage("Erro ao processar", "Não foi possível atualizar o pedido. Tenta novamente mais tarde.", "#dc2626"));
-    return;
-  }
-
-  if (action === "approve" && stripDiacritics(String(pedido.tipo || "")).toLowerCase().includes("fer")) {
-    const anoPedido = Number(String(pedido.data_inicio || "").slice(0, 4));
-    if (!Number.isInteger(anoPedido) || anoPedido < 2000) {
-      console.error("[absence-action] Data de início inválida para sincronizar saldo:", pedido.data_inicio);
-      res.status(500).send(htmlPage("Erro ao processar", "O pedido foi aprovado, mas não foi possível sincronizar o saldo de férias.", "#dc2626"));
-      return;
-    }
-
-    const { data: saldo, error: balanceReadError } = await supabase
-      .from("vacation_balances")
-      .select("dias_atribuidos, dias_transitados")
-      .eq("user_id", pedido.user_id)
-      .eq("ano", anoPedido)
-      .maybeSingle();
-
-    if (balanceReadError || !saldo) {
-      console.error("[absence-action] Saldo anual não encontrado:", balanceReadError);
-      res.status(500).send(htmlPage("Erro ao processar", "O pedido foi aprovado, mas não foi possível localizar o saldo anual de férias.", "#dc2626"));
-      return;
-    }
-
-    const { data: pedidosAprovados, error: approvedRequestsError } = await supabase
-      .from("ferias")
-      .select("data_inicio, data_fim, is_parcial, hora_inicio, hora_fim")
-      .eq("user_id", pedido.user_id)
-      .eq("estado", "aprovado")
-      .ilike("tipo", "%f_r%")
-      .lte("data_inicio", `${anoPedido}-12-31`)
-      .gte("data_fim", `${anoPedido}-01-01`);
-
-    if (approvedRequestsError) {
-      console.error("[absence-action] Erro ao calcular férias aprovadas:", approvedRequestsError);
-      res.status(500).send(htmlPage("Erro ao processar", "O pedido foi aprovado, mas não foi possível calcular os dias gozados.", "#dc2626"));
-      return;
-    }
-
-    const diasGozados = (pedidosAprovados || []).reduce((total, item) => {
-      if (item.is_parcial) {
-        const [horaInicio, minutoInicio] = String(item.hora_inicio || "").split(":").map(Number);
-        const [horaFim, minutoFim] = String(item.hora_fim || "").split(":").map(Number);
-        const horas = (horaFim * 60 + minutoFim - horaInicio * 60 - minutoInicio) / 60;
-        return total + (Number.isFinite(horas) && horas > 0 ? horas / 8 : 0);
-      }
-
-      return total + calcularDiasUteisNoAno(item.data_inicio, item.data_fim, anoPedido);
-    }, 0);
-
-    const { error: balanceError } = await supabase
-      .from("vacation_balances")
-      .update({
-        dias_gozados: diasGozados,
-        atualizado_em: new Date().toISOString(),
-      })
-      .eq("user_id", pedido.user_id)
-      .eq("ano", anoPedido);
-
-    if (balanceError) {
-      console.error("[absence-action] Erro ao sincronizar vacation_balances:", balanceError);
-      res.status(500).send(htmlPage("Erro ao processar", "O pedido foi aprovado, mas não foi possível sincronizar o saldo de férias.", "#dc2626"));
-      return;
-    }
-  }
-
-  const successTitle = action === "approve" ? "✅ Pedido Aprovado" : "❌ Pedido Rejeitado";
-  const successMsg = action === "approve"
-    ? "O pedido foi aprovado com sucesso. O colaborador será notificado."
-    : "O pedido foi rejeitado. O colaborador será notificado.";
-
-  res.status(200).send(htmlPage(successTitle, successMsg, action === "approve" ? "#16a34a" : "#dc2626"));
+  const params = req.method === "POST" ? (req.body || {}) : (req.query || {});
+  const alvo = lerToken(params.token);
+  const caminho = alvo
+    ? `/#/dashboard/pedidos/${encodeURIComponent(alvo.id)}${alvo.acao ? `?acao=${alvo.acao}` : ""}`
+    : "/#/dashboard/rh";
+  res.statusCode = 303;
+  res.setHeader("Location", `${baseDaApp(req)}${caminho}`);
+  res.end();
 }
-
-

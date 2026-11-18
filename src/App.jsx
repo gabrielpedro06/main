@@ -40,6 +40,7 @@ import AtivosTIDashboard from "./pages/AtivosTIDashboard";
 import AcoesFormacao from "./pages/AcoesFormacao";
 import OrganizadorPdf from "./pages/OrganizadorPdf";
 import RegistoAtividade from "./pages/RegistoAtividade";
+import AprovarPedido from "./pages/AprovarPedido";
 
 export default function App() {
   return (
@@ -71,6 +72,7 @@ export default function App() {
             <Route path="atividades" element={<Atividades />} />
             <Route path="forum" element={<Forum />} />
             <Route path="rh" element={<ProtectedRoute allowedRoles={["admin", "administrador", "gestor"]}><RecursosHumanos /></ProtectedRoute>} />
+            <Route path="pedidos/:id" element={<ProtectedRoute allowedRoles={["admin", "administrador", "gestor"]}><AprovarPedido /></ProtectedRoute>} />
             <Route path="ferias" element={<Ferias />} />
             <Route path="pedido-km" element={<PedidoKm />} />
             <Route path="perfil" element={<Perfil />} />

@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { supabase } from "../services/supabase"
-import { useNavigate, Link } from "react-router-dom"
+import { useNavigate, useLocation, Link } from "react-router-dom"
 import { resetBrandIntro } from "../utils/brandIntro"
 import { registarEvento } from "../utils/registarEvento"
 import { AVISO_LOGIN_KEY, CONTA_DESATIVADA } from "../utils/contaDesativada"
@@ -33,6 +33,10 @@ export default function Login() {
   const totp = useTotpEnroll()
 
   const navigate = useNavigate()
+  const location = useLocation()
+  // Página que a pessoa tentou abrir antes do login (só dentro da app)
+  const pedida = location.state?.from
+  const destino = typeof pedida === "string" && /^\/dashboard(\/|\?|$)/.test(pedida) && !pedida.startsWith("//") ? pedida : "/dashboard"
   // Sessão aberta mas à espera do código (ex.: recarregou a página ou veio de uma rota protegida)
   const passo = mfaStep || (user && mfaPending ? (mfaSetup ? "setup" : "code") : null)
 
@@ -40,7 +44,7 @@ export default function Login() {
     resetBrandIntro()
     await checkMfa?.()
     registarEvento("login", { via: "password + 2FA", agente: navigator.userAgent })
-    navigate("/dashboard")
+    navigate(destino, { replace: true })
   }
 
   async function handleLogin(e) {
