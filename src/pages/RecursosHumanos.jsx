@@ -28,6 +28,7 @@ import {
     validarSaldoFeriasParaIntervalo,
 } from "../utils/feriasSaldo";
 import { createDashboardNotifications } from "../utils/dashboardNotifications";
+import { guardarPrivados, juntarPrivados, separarPrivados } from "../utils/dadosPrivados";
 import "./../styles/dashboard.css"; 
 import "./../styles/rh.css";
 
@@ -1027,8 +1028,10 @@ export default function RecursosHumanos() {
 
   async function fetchColaboradores() {
     try {
-        const { data: profilesData, error: profilesError } = await supabase.from("profiles").select("*").order("nome");
+        const { data: perfisBase, error: profilesError } = await supabase.from("profiles").select("*").order("nome");
         if (profilesError) throw profilesError;
+        // NIF, NISS, CC, morada, S.A.… vêm da tabela privada (só RH e o próprio)
+        const profilesData = await juntarPrivados(perfisBase);
 
         const { data: relData, error: relError } = await supabase
             .from("profile_empresas")
@@ -1475,13 +1478,17 @@ export default function RecursosHumanos() {
               estado_temporario_motivo: estadoTemporarioTipo ? (estadoTemporarioMotivo || null) : null,
           };
 
+          const { publico: payloadPublico, privado: payloadPrivado } = separarPrivados(profilePayload);
+          const { error: erroPrivado } = await guardarPrivados(selectedUser, payloadPrivado);
+          if (erroPrivado) throw erroPrivado;
+
           let { error } = await supabase
               .from("profiles")
-              .update(profilePayload)
+              .update(payloadPublico)
               .eq("id", selectedUser);
 
           if (error && isMissingColumnError(error)) {
-              const legacyPayload = { ...profilePayload };
+              const legacyPayload = { ...payloadPublico };
               delete legacyPayload.dias_ferias_total;
               delete legacyPayload.estado_temporario_tipo;
               delete legacyPayload.estado_temporario_inicio;
@@ -1595,10 +1602,17 @@ export default function RecursosHumanos() {
                   throw new Error("Introduza um valor de S.A. válido.");
               }
 
-              const { error } = await supabase
-                  .from("profiles")
+              // O S.A. está na tabela privada (com recurso a profiles se ainda não existir)
+              let { error } = await supabase
+                  .from("profiles_privado")
                   .update({ valor_sa: valorSA })
                   .neq('id', '00000000-0000-0000-0000-000000000000');
+              if (error && (error.code === "42P01" || /profiles_privado/.test(error.message || ""))) {
+                  ({ error } = await supabase
+                      .from("profiles")
+                      .update({ valor_sa: valorSA })
+                      .neq('id', '00000000-0000-0000-0000-000000000000'));
+              }
 
               if (error) throw error;
           }

@@ -4,7 +4,7 @@
 export const TABELAS = {
   projetos: "Projetos", tarefas: "Tarefas", subtarefas: "Subtarefas", atividades: "Atividades",
   task_logs: "Registos de tempo", assiduidade: "Assiduidade", ferias: "Férias", vacation_balances: "Saldo de férias",
-  profiles: "Utilizadores", profile_empresas: "Empresas do utilizador", clientes: "Clientes", contactos_cliente: "Contactos de cliente",
+  profiles: "Utilizadores", profiles_privado: "Dados pessoais (privados)", profile_empresas: "Empresas do utilizador", clientes: "Clientes", contactos_cliente: "Contactos de cliente",
   moradas_cliente: "Moradas de cliente", caes_cliente: "CAEs de cliente", acessos: "Acessos", acessos_cliente: "Acessos de cliente",
   tipos_acessos: "Tipos de acesso", projeto_entidades: "Entidades do projeto", tipos_projeto: "Tipos de projeto",
   template_tarefas: "Modelos de tarefas", template_atividades: "Modelos de atividades", template_subtarefas: "Modelos de subtarefas",
@@ -25,7 +25,7 @@ export const nomeTabela = (t) => TABELAS[t] || t || "—";
 export const VERBO = { INSERT: "criou", UPDATE: "alterou", DELETE: "eliminou", EVENTO: "" };
 export const EVENTOS = { login: "entrou na aplicação", logout: "saiu da aplicação", exportar_registos: "exportou o registo de atividade",
   sessao_expirada: "teve a sessão terminada (2FA expirado)", acesso_negado: "tentou entrar com a conta desativada",
-  mfa_reposto: "repôs o MFA de um colaborador", colaborador_desativado: "desativou um colaborador",
+  mfa_reposto: "repôs o MFA de um colaborador", credencial_revelada: "viu ou copiou uma palavra-passe do cofre", colaborador_desativado: "desativou um colaborador",
   colaborador_reativado: "reativou um colaborador", contas_inativas_bloqueadas: "bloqueou as contas inativas",
 };
 

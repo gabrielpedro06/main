@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from "react"
+import { juntarPrivado } from "../utils/dadosPrivados"
 import { supabase } from "../services/supabase"
 import { closeAllActiveTaskLogsForUser } from "../utils/taskTimerLifecycle"
 import { registarEvento } from "../utils/registarEvento"
@@ -150,7 +151,7 @@ export function AuthProvider({ children }) {
       return
     }
     if (!error && data) {
-      setUserProfile(data);
+      setUserProfile(await juntarPrivado(data)); // NIF, NISS, CC… (tabela privada)
     } else {
       console.error("Erro ao buscar perfil:", error);
     }

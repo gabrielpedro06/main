@@ -7,6 +7,7 @@ import "./../styles/dashboard.css";
 import "../styles/profile.css";
 import FancySelect from "../components/FancySelect";
 import { postAutenticado } from "../utils/apiAutenticada";
+import { guardarPrivados, separarPrivados } from "../utils/dadosPrivados";
 
 // Portal para os Modais/Pop-ups ficarem sempre por cima de tudo
 const ModalPortal = ({ children }) => {
@@ -314,9 +315,7 @@ async function handleSave(e) {
     setLoading(true);
 
     try {
-        const { error } = await supabase
-            .from('profiles')
-            .update({
+        const { publico, privado } = separarPrivados({
                 nome: formData.nome,
                 data_nascimento: formData.data_nascimento,
                 avatar_url: formData.avatar_url,
@@ -335,8 +334,11 @@ async function handleSave(e) {
                 concelho: formData.concelho,
                 veiculos: formData.veiculos,
                 updated_at: new Date()
-            })
-            .eq('id', user.id);
+        });
+        // NIF, NISS, CC, morada… ficam na tabela privada (só o próprio e os RH os veem)
+        const { error: erroPrivado } = await guardarPrivados(user.id, privado);
+        if (erroPrivado) throw erroPrivado;
+        const { error } = await supabase.from('profiles').update(publico).eq('id', user.id);
 
         if (error) throw error;
 

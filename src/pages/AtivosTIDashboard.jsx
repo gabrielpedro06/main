@@ -5,6 +5,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import FancySelect from "../components/FancySelect";
+import { guardarPalavraPasse, revelarPalavraPasse, semPalavraPasse } from "../utils/cofre";
 import "../styles/ativos-ti.css";
 
 /* ------------------------------------------------------------------ */
@@ -332,6 +333,8 @@ export default function AtivosTIDashboard() {
   const [confirmModal, setConfirmModal] = useState(null);
   const [isConfirming, setIsConfirming] = useState(false);
   const [revealed, setRevealed] = useState({});
+  // Palavras-passe pedidas ao cofre (id → valor), só enquanto a página está aberta
+  const [senhas, setSenhas] = useState({});
   const [showFormPass, setShowFormPass] = useState(false);
 
   const notify = (message, type = "success") => {
@@ -339,8 +342,31 @@ export default function AtivosTIDashboard() {
     setTimeout(() => setNotification((n) => (n && n.message === message ? null : n)), 3000);
   };
 
-  const handleCopyPassword = async (password) => {
+  const obterSenha = async (acesso) => {
+    if (senhas[acesso.id] != null) return senhas[acesso.id];
+    const valor = await revelarPalavraPasse("acessos", acesso.id);
+    setSenhas((p) => ({ ...p, [acesso.id]: valor || "" }));
+    return valor || "";
+  };
+
+  const alternarSenha = async (acesso) => {
+    const chave = `ac-${acesso.id}`;
+    if (revealed[chave]) {
+      setRevealed((p) => ({ ...p, [chave]: false }));
+      return;
+    }
     try {
+      await obterSenha(acesso);
+      setRevealed((p) => ({ ...p, [chave]: true }));
+    } catch (err) {
+      notify(err.message, "error");
+    }
+  };
+
+  const handleCopyPassword = async (acesso) => {
+    try {
+      const password = await obterSenha(acesso);
+      if (!password) return notify("Sem palavra-passe guardada.", "error");
       await navigator.clipboard.writeText(password);
       notify("Palavra-passe copiada.");
     } catch {
@@ -404,7 +430,7 @@ export default function AtivosTIDashboard() {
       ]);
       if (equipResult.data) setEquipamentos(equipResult.data);
       if (softwareResult.data) setSoftware(softwareResult.data);
-      if (acessosResult.data) setAcessos(acessosResult.data);
+      if (acessosResult.data) setAcessos(semPalavraPasse(acessosResult.data, "acessos"));
       if (perfisResult.data) setUtilizadores(perfisResult.data);
       if (equipResult.error) throw equipResult.error;
       if (softwareResult.error) throw softwareResult.error;
@@ -492,7 +518,7 @@ export default function AtivosTIDashboard() {
         nome_plataforma: registo.nome_plataforma || "",
         url: registo.url || "",
         username: registo.username || "",
-        password: registo.password || "",
+        password: "", // em branco = manter a atual (a palavra-passe está no cofre)
         estado: registo.estado || "ativo",
       });
     }
@@ -598,10 +624,17 @@ export default function AtivosTIDashboard() {
           : await supabase.from("software").insert([payload]);
         if (error) throw error;
       } else {
-        const { error } = editingId
-          ? await supabase.from("acessos").update(formAcesso).eq("id", editingId)
-          : await supabase.from("acessos").insert([formAcesso]);
+        // A palavra-passe vai para o cofre; a tabela só guarda o resto
+        const { password: novaSenha, ...dadosAcesso } = formAcesso;
+        if (!editingId && !novaSenha) throw new Error("Indique a palavra-passe.");
+        const { data: gravado, error } = editingId
+          ? await supabase.from("acessos").update(dadosAcesso).eq("id", editingId).select("id").single()
+          : await supabase.from("acessos").insert([dadosAcesso]).select("id").single();
         if (error) throw error;
+        if (novaSenha) {
+          await guardarPalavraPasse("acessos", gravado.id, novaSenha);
+          setSenhas((p) => { const n = { ...p }; delete n[gravado.id]; return n; });
+        }
       }
       notify(editingId ? "Registo atualizado." : "Registo criado.");
       await carregarDados();
@@ -1751,9 +1784,9 @@ export default function AtivosTIDashboard() {
                               </div>
                               <div className="ti-ac-row is-pass">
                                 <span>Palavra-passe</span>
-                                <code>{visible ? a.password : "••••••••••••"}</code>
-                                <button type="button" className="ti-icon-btn is-sm" onClick={() => setRevealed((p) => ({ ...p, [`ac-${a.id}`]: !p[`ac-${a.id}`] }))} title={visible ? "Ocultar" : "Mostrar"}>{visible ? <Icons.EyeOff size={13} /> : <Icons.Eye size={13} />}</button>
-                                <button type="button" className="ti-icon-btn is-sm" title="Copiar palavra-passe" onClick={() => handleCopyPassword(a.password)}><Icons.Copy size={13} /></button>
+                                <code>{visible ? (senhas[a.id] || "—") : (a.tem_palavra_passe ? "••••••••••••" : "—")}</code>
+                                <button type="button" className="ti-icon-btn is-sm" onClick={() => alternarSenha(a)} title={visible ? "Ocultar" : "Mostrar"}>{visible ? <Icons.EyeOff size={13} /> : <Icons.Eye size={13} />}</button>
+                                <button type="button" className="ti-icon-btn is-sm" title="Copiar palavra-passe" onClick={() => handleCopyPassword(a)}><Icons.Copy size={13} /></button>
                               </div>
                             </div>
                             <div className="ti-ac-foot">
@@ -2184,9 +2217,9 @@ export default function AtivosTIDashboard() {
                           <input type="text" required value={formAcesso.username} onChange={(e) => setFormAcesso({ ...formAcesso, username: e.target.value })} placeholder="admin@…" className="ti-input" />
                         </div>
                         <div className="ti-field">
-                          <label>Palavra-passe</label>
+                          <label>{editingId ? "Nova palavra-passe (em branco = manter)" : "Palavra-passe"}</label>
                           <div className="ti-input-wrap">
-                            <input type={showFormPass ? "text" : "password"} required value={formAcesso.password} onChange={(e) => setFormAcesso({ ...formAcesso, password: e.target.value })} placeholder="Introduza a palavra-passe" className="ti-input is-mono" />
+                            <input type={showFormPass ? "text" : "password"} required={!editingId} autoComplete="new-password" value={formAcesso.password} onChange={(e) => setFormAcesso({ ...formAcesso, password: e.target.value })} placeholder={editingId ? "••••••••  (mantém a atual)" : "Introduza a palavra-passe"} className="ti-input is-mono" />
                             <button type="button" className="ti-icon-btn is-sm" onClick={() => setShowFormPass((v) => !v)} title={showFormPass ? "Ocultar" : "Mostrar"}>{showFormPass ? <Icons.EyeOff size={14} /> : <Icons.Eye size={14} />}</button>
                           </div>
                         </div>

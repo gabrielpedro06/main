@@ -14,6 +14,7 @@ import "./../styles/dashboard.css";
 import "./../styles/home.css";
 import SlidingTabs from "../components/SlidingTabs";
 import ProfilePeek from "../components/ProfilePeek";
+import { juntarPrivado } from "../utils/dadosPrivados";
 import { useMedalhasEquipa } from "../components/medalhas/useMedalhas";
 import NotificationsPanel from "../components/NotificationsPanel";
 import AprovacaoModal from "../components/marketing/AprovacaoModal";
@@ -405,7 +406,8 @@ export default function DashboardHome() {
 
   async function fetchUserProfile() {
     try {
-        const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+        const { data: base } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+        const data = await juntarPrivado(base);
         setUserProfile(data);
         if (data) checkCCExpirations(data);
     } catch (error) { console.error("Erro perfil:", error); }
@@ -432,12 +434,16 @@ export default function DashboardHome() {
           trintaDias.setDate(trintaDias.getDate() + 30);
           const dataLimite = trintaDias.toISOString().split('T')[0];
 
-          const { data } = await supabase
-              .from('profiles')
-              .select('id, nome, validade_cc')
-              .not('validade_cc', 'is', null)
-              .lte('validade_cc', dataLimite)
-              .neq('ativo', false);
+          // A validade do CC está na tabela privada: a função só responde aos RH
+          let { data, error: ccErr } = await supabase.rpc('bizin_cc_a_expirar', { p_ate: dataLimite });
+          if (ccErr) {
+              ({ data } = await supabase
+                  .from('profiles')
+                  .select('id, nome, validade_cc')
+                  .not('validade_cc', 'is', null)
+                  .lte('validade_cc', dataLimite)
+                  .neq('ativo', false));
+          }
           
           if (data && data.length > 0) {
               setCcWarning({ show: true, type: 'gestor', users: data });

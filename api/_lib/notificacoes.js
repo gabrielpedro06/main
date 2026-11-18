@@ -59,6 +59,9 @@ async function ccAlerta(req, ctx) {
   if (ctx.admin) {
     const { data } = await ctx.admin.from("profiles").select("nome, nome_completo, ncc, validade_cc").eq("id", ctx.user.id).maybeSingle();
     if (data) dados = data;
+    // Desde a migração 072 o CC vive em profiles_privado
+    const { data: priv, error: ePriv } = await ctx.admin.from("profiles_privado").select("ncc, validade_cc").eq("id", ctx.user.id).maybeSingle();
+    if (!ePriv && priv) dados = { ...dados, ncc: priv.ncc ?? dados.ncc, validade_cc: priv.validade_cc ?? dados.validade_cc };
   }
   const nome = escapeHtml(dados.nome || dados.nome_completo || ctx.user.email);
   const ncc = escapeHtml(dados.ncc || "N/A");

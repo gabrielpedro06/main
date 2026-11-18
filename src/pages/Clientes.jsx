@@ -11,6 +11,7 @@ import { resolveActiveTimerMeta } from "../utils/activeTimerResolver";
 import { applyStopStatusUpdateForLogTarget } from "../utils/taskTimerLifecycle";
 import "./../styles/dashboard.css";
 import { consultarNif } from "../utils/apiAutenticada";
+import { guardarPalavraPasse, revelarPalavraPasse, semPalavraPasse } from "../utils/cofre";
 
 // --- ÍCONES SVG PROFISSIONAIS (SaaS Premium) ---
 const Icons = {
@@ -1681,7 +1682,7 @@ export default function Clientes() {
 
     setContactos(cData.data || []); 
     setMoradas(mData.data || []); 
-    setAcessos(aData.data || []); 
+    setAcessos(semPalavraPasse(aData.data, "acessos_cliente")); setRevealedPass({});
     setTiposAcessosCatalogo(tData.data || []);
     setCaes(caeData.data || []);
     setProjetosCliente(projetosAssociados); // Injeta com segurança os 4 projetos de volta
@@ -1841,20 +1842,37 @@ export default function Clientes() {
 
     const payload = { ...dados, cliente_id: editId };
     if (tabela === 'moradas_cliente') { delete payload.distrito; delete payload.regiao; }
-    if (tabela === 'acessos_cliente') { delete payload.tipos_acessos; }
+    let novaPalavraPasse = null;
+    if (tabela === 'acessos_cliente') {
+      // A palavra-passe vai para o cofre; a tabela só guarda o resto
+      novaPalavraPasse = String(payload.codigo || "");
+      delete payload.tipos_acessos; delete payload.codigo; delete payload.tem_palavra_passe; delete payload.segredo_id;
+      if (!payload.id && !novaPalavraPasse) return showToast("Indica a password.", "warning");
+    }
+    const guardarNoCofre = async (linha) => {
+      if (tabela !== 'acessos_cliente' || !linha?.id || !novaPalavraPasse) return linha;
+      await guardarPalavraPasse('acessos_cliente', linha.id, novaPalavraPasse);
+      setRevealedPass((prev) => { const n = { ...prev }; delete n[linha.id]; return n; });
+      return { ...linha, tem_palavra_passe: true };
+    };
+    const limpar = (linha) => (tabela === 'acessos_cliente' ? semPalavraPasse([linha], tabela)[0] : linha);
 
     if (payload.id) { 
         const { id, ...updateData } = payload;
         const { data, error } = await supabase.from(tabela).update(updateData).eq("id", id).select();
         if (!error) {
-            stateSetter(listaAtual.map(i => i.id === id ? data[0] : i));
+            let linha = limpar(data[0]);
+            try { linha = await guardarNoCofre(linha); } catch (e) { return showToast("Erro ao guardar a password: " + e.message, "error"); }
+            stateSetter(listaAtual.map(i => i.id === id ? { ...i, ...linha, tipos_acessos: i.tipos_acessos } : i));
             showToast("Atualizado com sucesso!");
             if (tabela === 'moradas_cliente' || tabela === 'contactos_cliente') fetchClientes(); 
         } else showToast("Erro: " + error.message, "error");
     } else { 
         const { data, error } = await supabase.from(tabela).insert([payload]).select();
         if (!error) {
-            stateSetter([...listaAtual, data[0]]);
+            let linha = limpar(data[0]);
+            try { linha = await guardarNoCofre(linha); } catch (e) { stateSetter([...listaAtual, linha]); return showToast("Acesso criado, mas a password não foi guardada: " + e.message, "error"); }
+            stateSetter([...listaAtual, linha]);
             showToast("Adicionado com sucesso!");
             if (tabela === 'moradas_cliente' || tabela === 'contactos_cliente') fetchClientes(); 
         } else showToast("Erro: " + error.message, "error");
@@ -1885,13 +1903,42 @@ export default function Clientes() {
   }
 
   function abrirEdicaoSubItem(item, setItemState, setShowForm) {
-      setItemState(item);
+      // Acessos: a password não vem na lista; em branco = manter a atual
+      setItemState(item && "tem_palavra_passe" in item ? { ...item, codigo: "" } : item);
       setShowForm(true);
   }
 
   const getAcessoByTipoId = (tipoId) => {
     return acessos.find((acesso) => String(acesso.tipo_acesso_id) === String(tipoId)) || null;
   };
+
+  // Pede a password ao cofre (fica registado no histórico)
+  async function obterPassword(acesso) {
+    if (revealedPass[acesso.id] != null) return revealedPass[acesso.id];
+    const valor = await revelarPalavraPasse("acessos_cliente", acesso.id);
+    return valor || "";
+  }
+
+  async function alternarPassword(acesso) {
+    if (revealedPass[acesso.id] != null) {
+      setRevealedPass((prev) => { const n = { ...prev }; delete n[acesso.id]; return n; });
+      return;
+    }
+    try {
+      const valor = await obterPassword(acesso);
+      setRevealedPass((prev) => ({ ...prev, [acesso.id]: valor }));
+    } catch (e) {
+      showToast(e.message, "error");
+    }
+  }
+
+  async function copiarPassword(acesso) {
+    try {
+      handleCopyCredential(await obterPassword(acesso), "Password");
+    } catch (e) {
+      showToast(e.message, "error");
+    }
+  }
 
   async function handleCopyCredential(value, label) {
     const text = String(value || "").trim();
@@ -3331,7 +3378,7 @@ export default function Clientes() {
                           })
                           .map((acesso, index) => {
                           const tipo = acesso.tipos_acessos || tiposAcessosCatalogo.find((t) => String(t.id) === String(acesso.tipo_acesso_id)) || {};
-                          const shown = Boolean(revealedPass[acesso.id]);
+                          const shown = revealedPass[acesso.id] != null;
                           const tipoNome = tipo.nome || "Tipo sem nome";
 
                           return (
@@ -3357,11 +3404,11 @@ export default function Clientes() {
                                 </div>
                                 <div className="en-cred-row is-pass">
                                   <span className="en-cred-label"><Icons.Lock size={13} /> Pass</span>
-                                  <code>{shown ? (acesso.codigo || '—') : (acesso.codigo ? '•'.repeat(Math.min(12, String(acesso.codigo).length)) : '—')}</code>
-                                  <button type="button" className="en-copy" onClick={() => setRevealedPass((prev) => ({ ...prev, [acesso.id]: !prev[acesso.id] }))} title={shown ? 'Esconder password' : 'Mostrar password'}>
+                                  <code>{shown ? (revealedPass[acesso.id] || '—') : (acesso.tem_palavra_passe ? '••••••••••' : '—')}</code>
+                                  <button type="button" className="en-copy" onClick={() => alternarPassword(acesso)} title={shown ? 'Esconder password' : 'Mostrar password'}>
                                     {shown ? <Icons.EyeOff size={13} /> : <Icons.Eye size={13} />}
                                   </button>
-                                  <button type="button" className="en-copy is-danger" onClick={() => handleCopyCredential(acesso.codigo, 'Password')} title="Copiar password">
+                                  <button type="button" className="en-copy is-danger" onClick={() => copiarPassword(acesso)} title="Copiar password">
                                     <Icons.Copy size={13} />
                                   </button>
                                 </div>
@@ -3594,12 +3641,13 @@ export default function Clientes() {
                 </div>
 
                 <div style={{gridColumn:'1 / -1'}}>
-                  <label style={labelStyle}>Password *</label>
+                  <label style={labelStyle}>{novoAcesso.id ? 'Nova password (em branco = manter a atual)' : 'Password *'}</label>
                   <input
                     type="text"
-                    value={novoAcesso.codigo}
+                    value={novoAcesso.codigo || ''}
                     onChange={e => setNovoAcesso({...novoAcesso, codigo: e.target.value})}
-                    required
+                    required={!novoAcesso.id}
+                    autoComplete="off"
                     style={{...inputStyle, fontFamily:'monospace'}}
                     className="input-focus"
                   />
