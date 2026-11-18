@@ -6,7 +6,6 @@ import { ThemeProvider } from "./context/ThemeContext"; // 👈 IMPORTADO AQUI
 
 // Páginas de Autenticação
 import Login from "./pages/Login";
-import SignUp from "./pages/SignUp";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 
@@ -52,7 +51,7 @@ export default function App() {
           <Routes>
           {/* === ROTAS PÚBLICAS === */}
           <Route path="/" element={<Login />} />
-          <Route path="/signup" element={<SignUp />} />
+          {/* Sem registo livre: as contas são criadas por convite (Supabase → Authentication → Invite user) */}
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           
@@ -71,19 +70,19 @@ export default function App() {
             <Route path="clientes" element={<Clientes />} />
             <Route path="atividades" element={<Atividades />} />
             <Route path="forum" element={<Forum />} />
-            <Route path="rh" element={<RecursosHumanos />} />
+            <Route path="rh" element={<ProtectedRoute allowedRoles={["admin", "administrador", "gestor"]}><RecursosHumanos /></ProtectedRoute>} />
             <Route path="ferias" element={<Ferias />} />
             <Route path="pedido-km" element={<PedidoKm />} />
             <Route path="perfil" element={<Perfil />} />
-            <Route path="leads" element={<GestaoLeads />} />
-            <Route path="marketing" element={<Marketing />} />
-            <Route path="transfergest" element={<TransferGest />} />
-            <Route path="ativos-ti" element={<AtivosTIDashboard />} />
+            <Route path="leads" element={<ProtectedRoute allowedRoles={["admin", "administrador", "gestor", "marketing"]}><GestaoLeads /></ProtectedRoute>} />
+            <Route path="marketing" element={<ProtectedRoute allowedRoles={["admin", "administrador", "gestor", "marketing", "marketing plus"]}><Marketing /></ProtectedRoute>} />
+            <Route path="transfergest" element={<ProtectedRoute allowedRoles={["admin", "administrador", "gestor"]}><TransferGest /></ProtectedRoute>} />
+            <Route path="ativos-ti" element={<ProtectedRoute allowedRoles={["admin", "administrador", "gestor", "marketing plus"]}><AtivosTIDashboard /></ProtectedRoute>} />
             
             {/* ROTAS DE PROPOSTAS COMERCIAIS */}
-            <Route path="propostas" element={<ListaPropostas />} />
-            <Route path="propostas/novo" element={<PropostasComerciais />} />
-            <Route path="propostas/:id" element={<PropostasComerciais />} />
+            <Route path="propostas" element={<ProtectedRoute allowedRoles={["admin", "administrador"]}><ListaPropostas /></ProtectedRoute>} />
+            <Route path="propostas/novo" element={<ProtectedRoute allowedRoles={["admin", "administrador"]}><PropostasComerciais /></ProtectedRoute>} />
+            <Route path="propostas/:id" element={<ProtectedRoute allowedRoles={["admin", "administrador"]}><PropostasComerciais /></ProtectedRoute>} />
             <Route path="avisos" element={<GestaoAvisos />} />
             
             <Route path="admin" element={<ProtectedRoute allowedRoles={["admin", "administrador"]}><AdminDashboard /></ProtectedRoute>} />

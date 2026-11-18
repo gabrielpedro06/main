@@ -3,9 +3,9 @@ import { useAuth } from "../context/AuthContext";
 import { supabase } from "../services/supabase";
 import SegurancaMFA from "../components/admin/SegurancaMFA";
 import AdminVisaoGeral from "../components/admin/AdminVisaoGeral";
+import { postAutenticado } from "../utils/apiAutenticada";
 import "../styles/admin.css";
 
-const PROFILE_TAG_PASSWORD = "admin123";
 
 const PROFILE_TAG_OPTIONS = [
   { value: "colaborador", label: "Colaborador" },
@@ -432,16 +432,25 @@ export default function AdminDashboard() {
     return () => { cancelled = true; };
   }, [activeTab, selectedUserId]);
 
+  // Troca de papel feita no servidor: confirma a palavra-passe da conta de quem pede
   const handleUpdateRole = async () => {
-    if (profileTagModal.password !== PROFILE_TAG_PASSWORD) return setProfileTagModal(p => ({ ...p, error: "Palavra-passe incorreta." }));
+    if (!profileTagModal.password) return setProfileTagModal(p => ({ ...p, error: "Introduza a sua palavra-passe." }));
     setProfileTagSaving(true);
-    const { data, error } = await supabase.from("profiles").update({ role: profileTagModal.nextTag, tipo: profileTagModal.nextTag }).eq("id", selectedUserId).select("*").single();
-    if (!error) {
-      setProfiles(prev => prev.map(p => String(p.id) === String(selectedUserId) ? data : p));
+    try {
+      const resp = await postAutenticado(`${import.meta.env.VITE_MARKETING_API_BASE || ""}/api/admin/contas`, {
+        acao: "papel", userId: selectedUserId, papel: profileTagModal.nextTag, password: profileTagModal.password,
+      });
+      const out = await resp.json().catch(() => ({ ok: false, error: `Erro ${resp.status} do servidor.` }));
+      if (!resp.ok || !out.ok) {
+        setProfileTagModal(p => ({ ...p, error: out.error || "Não foi possível alterar o papel." }));
+        return;
+      }
+      setProfiles(prev => prev.map(p => String(p.id) === String(selectedUserId) ? out.perfil : p));
       setProfileTagFeedback("Atualizado com sucesso.");
+      setProfileTagModal({ open: false, nextTag: "", password: "", error: "" });
+    } finally {
+      setProfileTagSaving(false);
     }
-    setProfileTagSaving(false);
-    setProfileTagModal({ open: false, nextTag: "", password: "", error: "" });
   };
 
   if (!isAdmin) {
@@ -991,9 +1000,9 @@ export default function AdminDashboard() {
         <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: "16px" }} onClick={(e) => e.target === e.currentTarget && setProfileTagModal({ open: false, nextTag: "", password: "", error: "" })}>
           <div style={{ width: "100%", maxWidth: "420px", background: "#fff", borderRadius: "14px", border: "1px solid var(--color-borderColor)", boxShadow: "0 24px 48px rgba(15,23,42,0.2)", padding: "20px", display: "grid", gap: "12px" }}>
             <h3 style={{ margin: 0, color: "var(--color-textPrimary)", fontSize: "1.1rem" }}>Confirmar alteração de perfil</h3>
-            <p style={{ margin: 0, color: "var(--color-textSecondary)", fontSize: "0.9rem" }}>Introduz a palavra-passe para alterar a tag do colaborador para <b>{PROFILE_TAG_OPTIONS.find((opt) => opt.value === profileTagModal.nextTag)?.label || profileTagModal.nextTag}</b>.</p>
+            <p style={{ margin: 0, color: "var(--color-textSecondary)", fontSize: "0.9rem" }}>Confirma com a <b>tua</b> palavra-passe do Bizin para alterar o papel do colaborador para <b>{PROFILE_TAG_OPTIONS.find((opt) => opt.value === profileTagModal.nextTag)?.label || profileTagModal.nextTag}</b>.</p>
             <label style={{ display: "grid", gap: "6px", fontSize: "0.85rem", color: "var(--color-textPrimary)", fontWeight: 700, marginTop: "8px" }}>
-              Palavra-passe de administração
+              A tua palavra-passe
               <input
                 type="password"
                 value={profileTagModal.password}

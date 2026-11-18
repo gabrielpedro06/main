@@ -12,6 +12,7 @@
 // =====================================================================
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
+import { consumirQuota } from "../_lib/seguranca.js";
 import { CANAIS, FORMATOS, OBJETIVOS, ESTRATEGIAS } from "../../src/constants/marketing.js";
 
 export const config = {
@@ -21,7 +22,7 @@ export const config = {
 
 const MODELO = "claude-opus-5-5";
 const PAPEIS_PERMITIDOS = ["admin", "administrador", "gestor", "marketing", "marketing plus"];
-const MAX_HISTORICO_BYTES = 3_500_000;
+const MAX_HISTORICO_BYTES = 1_500_000;
 const MAX_TEXTO_UTILIZADOR = 6000;
 const MAX_VOLTAS = 8;
 
@@ -295,6 +296,14 @@ export default async function handler(req, res) {
     return;
   }
 
+  // Limite diário por pessoa (protege os custos da API)
+  try {
+    await consumirQuota({ user: userData.user }, "ia_ideias_marketing", 60);
+  } catch (err) {
+    res.status(err.status || 429).json({ ok: false, error: err.message });
+    return;
+  }
+
   const { marcaId, historico = [], mensagem, pesquisaWeb = true } = req.body || {};
   const texto = String(mensagem || "").trim().slice(0, MAX_TEXTO_UTILIZADOR);
   if (!marcaId || !texto) {
@@ -435,7 +444,7 @@ export default async function handler(req, res) {
     else if (err instanceof Anthropic.RateLimitError) texto = "Limite de pedidos do Claude atingido. Espere um minuto e tente de novo.";
     else if (err instanceof Anthropic.BadRequestError && /credit balance/i.test(err.message)) texto = "A conta da API do Claude não tem créditos. Carregue créditos na Claude Console (Plans & Billing) e tente de novo.";
     else if (err instanceof Anthropic.BadRequestError && /workspace/i.test(err.message)) texto = "A chave da API não está ligada a um workspace. Use uma chave criada dentro de um workspace na Claude Console, ou defina ANTHROPIC_WORKSPACE_ID no servidor.";
-    else if (err instanceof Anthropic.BadRequestError) texto = `O pedido foi recusado pela API: ${err.message}`;
+    else if (err instanceof Anthropic.BadRequestError) texto = "O pedido foi recusado pela API da IA.";
     else if (err instanceof Anthropic.APIError && err.status >= 500) texto = "O serviço do Claude está temporariamente indisponível. Tente daqui a pouco.";
     if (!fechado) enviar(res, { type: "erro", texto });
   } finally {

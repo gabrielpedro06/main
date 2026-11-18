@@ -1,3 +1,4 @@
+import { postAutenticado } from "../utils/apiAutenticada";
 const DEFAULT_MARKETING_API_BASE = import.meta.env.VITE_MARKETING_API_BASE || "";
 
 export async function checkMarketingApiHealth() {
@@ -15,15 +16,9 @@ export async function checkMarketingApiHealth() {
 }
 
 export async function sendMarketingCampaign(payload) {
-  const endpoint = `${DEFAULT_MARKETING_API_BASE}/api/marketing/send`;
+  const endpoint = `${DEFAULT_MARKETING_API_BASE}/api/notificacoes/marketing`;
 
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
+  const response = await postAutenticado(endpoint, payload);
 
   const data = await response.json().catch(() => ({}));
 

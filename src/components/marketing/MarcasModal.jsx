@@ -6,7 +6,8 @@ import { extrairCores, textoSobre, normalizarHex } from "./mkColor";
 import { iniciais } from "./mkUtils";
 import { CORES_MARCA } from "../../constants/marketing";
 
-const TIPOS_LOGO = ["image/png", "image/jpeg", "image/svg+xml", "image/webp"];
+// SVG não é aceite: pode conter código e o balde é público
+const TIPOS_LOGO = ["image/png", "image/jpeg", "image/webp"];
 const MAX_LOGO = 2 * 1024 * 1024;
 
 /** Logo da marca (ou iniciais na cor da marca) */

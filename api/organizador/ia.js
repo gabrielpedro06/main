@@ -9,7 +9,7 @@
 //   VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
 // =====================================================================
 import Anthropic from "@anthropic-ai/sdk";
-import { createClient } from "@supabase/supabase-js";
+import { autenticar, consumirQuota, ErroHttp } from "../_lib/seguranca.js";
 import { PDF_CATEGORIES } from "../../src/utils/pdfOrganizerEngine.js";
 
 export const config = {
@@ -97,19 +97,16 @@ export default async function handler(req, res) {
     return;
   }
 
-  // Autenticação: sessão Supabase do utilizador
-  const token = String(req.headers.authorization || "").replace(/^Bearer\s+/i, "");
-  const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-  const anon = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
-  if (!token || !url || !anon) {
-    res.status(401).json({ ok: false, error: "Sessão inválida." });
-    return;
-  }
-  const sb = createClient(url, anon, { global: { headers: { Authorization: `Bearer ${token}` } }, auth: { persistSession: false } });
-  const { data: userData, error: userErr } = await sb.auth.getUser(token);
-  if (userErr || !userData?.user) {
-    res.status(401).json({ ok: false, error: "Sessão expirada. Volte a entrar." });
-    return;
+  // Autenticação (sessão + conta ativa) e limite diário por pessoa
+  try {
+    const ctx = await autenticar(req);
+    await consumirQuota(ctx, "ia_organizador", 40);
+  } catch (err) {
+    if (err instanceof ErroHttp) {
+      res.status(err.status).json({ ok: false, error: err.message });
+      return;
+    }
+    throw err;
   }
 
   const paginas = Array.isArray(req.body?.paginas) ? req.body.paginas : [];
@@ -183,7 +180,7 @@ export default async function handler(req, res) {
     else if (err instanceof Anthropic.RateLimitError) { texto = "Limite de pedidos atingido. Espere um minuto e tente de novo."; status = 429; }
     else if (err instanceof Anthropic.BadRequestError && /credit balance/i.test(err.message)) texto = "A conta da API do Claude não tem créditos. Carregue créditos na Claude Console (Faturamento) e tente de novo.";
     else if (err instanceof Anthropic.BadRequestError && /workspace/i.test(err.message)) texto = "A chave da API não está ligada a um workspace. Defina ANTHROPIC_WORKSPACE_ID no servidor.";
-    else if (err instanceof Anthropic.BadRequestError) texto = `O pedido foi recusado pela API: ${err.message}`;
+    else if (err instanceof Anthropic.BadRequestError) texto = "O pedido foi recusado pela API da IA.";
     else if (err instanceof Anthropic.APIError && err.status >= 500) texto = "O serviço do Claude está temporariamente indisponível. Tente daqui a pouco.";
     res.status(status).json({ ok: false, error: texto });
   }

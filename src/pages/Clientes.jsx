@@ -10,6 +10,7 @@ import StopTimerNoteModal from "../components/StopTimerNoteModal";
 import { resolveActiveTimerMeta } from "../utils/activeTimerResolver";
 import { applyStopStatusUpdateForLogTarget } from "../utils/taskTimerLifecycle";
 import "./../styles/dashboard.css";
+import { consultarNif } from "../utils/apiAutenticada";
 
 // --- ÍCONES SVG PROFISSIONAIS (SaaS Premium) ---
 const Icons = {
@@ -1006,18 +1007,14 @@ export default function Clientes() {
           showToast(`SICAE indisponível: ${sicaeError.message}`, "warning");
         }
 
-        const params = new URLSearchParams({ json: "1", q: nifDigitado });
-        const nifApiKey = (import.meta.env.VITE_NIFPT_KEY || "9beb59d324c1477245e04e0b5988bdd2").trim();
-        if (nifApiKey) params.set("key", nifApiKey);
-
         let record = null;
         try {
-          const response = await fetch(`/nif-api/?${params.toString()}`);
+          const response = await consultarNif(nifDigitado);
           if (!response.ok) throw new Error("Erro na comunicação com a API.");
 
           const contentType = response.headers.get("content-type") || "";
           if (!contentType.includes("application/json")) {
-            throw new Error("Resposta inválida do serviço NIF. Verifica o proxy /nif-api.");
+            throw new Error("Resposta inválida do serviço NIF. Tenta de novo daqui a pouco.");
           }
 
           const data = await response.json();

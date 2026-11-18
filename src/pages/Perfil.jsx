@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import "./../styles/dashboard.css";
 import "../styles/profile.css";
 import FancySelect from "../components/FancySelect";
+import { postAutenticado } from "../utils/apiAutenticada";
 
 // Portal para os Modais/Pop-ups ficarem sempre por cima de tudo
 const ModalPortal = ({ children }) => {
@@ -361,19 +362,8 @@ async function handleSave(e) {
                 if (apiBase === null) {
                     console.info("Envio de email de CC desativado neste ambiente.");
                 } else {
-                    const colaboradorNome = formData.nome || formData.nome_completo || "Colaborador";
-                    const endpoint = `${apiBase}/api/cc-alerts/send`; 
-                    
-                    const response = await fetch(endpoint, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            emailDestino: "rh@neomarca.eu", // Ajuste para o email correto dos RH
-                            colaboradorNome: colaboradorNome,
-                            dataValidade: formData.validade_cc || "N/A",
-                            ncc: formData.ncc || "N/A"
-                        }),
-                    });
+                    // O servidor lê o nome e o CC do próprio perfil e envia para o email dos RH (RH_EMAIL)
+                    const response = await postAutenticado(`${apiBase}/api/notificacoes/cc-alerta`, {});
 
                     if (!response.ok) {
                         console.error("Falha na API ao enviar email de aviso aos RH.");

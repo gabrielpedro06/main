@@ -1,11 +1,14 @@
+/* global process, Buffer */
 /**
  * api/absence-notifications/action.js
  *
- * Handles approve / reject actions triggered directly from email links.
- * The link contains a HMAC-signed token: ?token=<base64url>&action=approve|reject
- *
- * Token payload (JSON): { pedidoId, adminEmail, exp }
- * The secret is ABSENCE_ACTION_SECRET (set in env).
+ * Aprovar / rejeitar pedidos a partir do email dos administradores.
+ *  - GET  ?token=…  → só mostra uma página de confirmação (os scanners de email
+ *                     que "clicam" nos links não alteram nada)
+ *  - POST token=…   → executa a ação
+ * Token assinado (HMAC-SHA256): { pedidoId, adminEmail, action, exp } — cada token
+ * serve para UMA ação e expira em 7 dias. Segredo: ABSENCE_ACTION_SECRET (obrigatório,
+ * mínimo 32 caracteres; sem ele os links não funcionam).
  */
 
 import { createClient } from "@supabase/supabase-js";
@@ -98,6 +101,7 @@ function signToken(payload) {
 }
 
 function verifyToken(token) {
+  if (!segredoValido()) return null;
   const [data, sig] = (token || "").split(".");
   if (!data || !sig) return null;
   const expected = crypto.createHmac("sha256", SECRET).update(data).digest("base64url");
@@ -108,7 +112,8 @@ function verifyToken(token) {
   }
   try {
     const payload = JSON.parse(Buffer.from(data, "base64url").toString("utf8"));
-    if (payload.exp && Date.now() > payload.exp) return null; // expired
+    if (typeof payload.exp !== "number" || Date.now() > payload.exp) return null; // sem prazo ou expirado
+    if (!["approve", "reject"].includes(payload.action) || !payload.pedidoId) return null;
     return payload;
   } catch {
     return null;
@@ -116,9 +121,28 @@ function verifyToken(token) {
 }
 
 // Exported helper — used by send-request.js to build signed action tokens
-export function buildActionToken(pedidoId, adminEmail) {
-  if (!SECRET) return null;
-  return signToken({ pedidoId, adminEmail, exp: Date.now() + 7 * 24 * 60 * 60 * 1000 }); // 7 days TTL
+const segredoValido = () => SECRET.length >= 32;
+
+export function buildActionToken(pedidoId, adminEmail, action) {
+  if (!segredoValido() || !["approve", "reject"].includes(action)) return null;
+  return signToken({ pedidoId, adminEmail, action, exp: Date.now() + 7 * 24 * 60 * 60 * 1000 }); // 7 dias
+}
+
+// Página de confirmação: o botão faz POST com o mesmo token
+function paginaConfirmar(token, action, pedido, nome) {
+  const aprovar = action === "approve";
+  const cor = aprovar ? "#16a34a" : "#dc2626";
+  const titulo = aprovar ? "Aprovar este pedido?" : "Rejeitar este pedido?";
+  const datas = [pedido.data_inicio, pedido.data_fim && pedido.data_fim !== pedido.data_inicio ? pedido.data_fim : null].filter(Boolean).join(" a ");
+  return `<!DOCTYPE html><html lang="pt"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${escapeHtml(titulo)}</title>
+  <style>body{font-family:Arial,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f8fafc;padding:16px;box-sizing:border-box}
+  .card{background:white;border-radius:16px;padding:32px 36px;box-shadow:0 8px 32px rgba(0,0,0,0.10);text-align:center;max-width:420px;width:100%}
+  h2{color:${cor};margin:0 0 12px} p{color:#475569;margin:0 0 6px} button{margin-top:20px;border:0;border-radius:10px;padding:12px 26px;font-size:15px;font-weight:bold;color:#fff;background:${cor};cursor:pointer}</style></head>
+  <body><div class="card"><h2>${escapeHtml(titulo)}</h2>
+  <p><strong>${escapeHtml(nome || "Colaborador")}</strong></p>
+  <p>${escapeHtml(pedido.tipo || "Ausência")}${datas ? ` · ${escapeHtml(datas)}` : ""}</p>
+  <form method="POST"><input type="hidden" name="token" value="${escapeHtml(token)}"><button type="submit">${aprovar ? "✅ Confirmar aprovação" : "❌ Confirmar rejeição"}</button></form>
+  </div></body></html>`;
 }
 
 function htmlPage(title, message, color) {
@@ -131,13 +155,18 @@ function htmlPage(title, message, color) {
 }
 
 export default async function handler(req, res) {
-  const params = req.method === "GET" ? req.query : (req.body || {});
-  const { token, action } = params;
-
-  if (!token || !["approve", "reject"].includes(action)) {
-    res.status(400).send(htmlPage("Pedido inválido", "Parâmetros em falta ou ação desconhecida.", "#dc2626"));
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("X-Robots-Tag", "noindex");
+  if (!["GET", "POST"].includes(req.method)) {
+    res.status(405).send(htmlPage("Pedido inválido", "Método não permitido.", "#dc2626"));
     return;
   }
+  if (!segredoValido()) {
+    res.status(503).send(htmlPage("Indisponível", "As aprovações por email não estão configuradas. Use o painel de RH.", "#dc2626"));
+    return;
+  }
+  const params = req.method === "GET" ? (req.query || {}) : (req.body || {});
+  const token = String(params.token || "");
 
   const payload = verifyToken(token);
   if (!payload) {
@@ -145,7 +174,7 @@ export default async function handler(req, res) {
     return;
   }
 
-  const { pedidoId } = payload;
+  const { pedidoId, action, adminEmail } = payload;
 
   if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
     res.status(500).send(htmlPage("Erro de configuração", "Configuração do servidor em falta. Contacta o administrador.", "#dc2626"));
@@ -176,11 +205,48 @@ export default async function handler(req, res) {
     return;
   }
 
+  // GET: só confirma (nada é alterado)
+  if (req.method === "GET") {
+    const { data: dono } = await supabase.from("profiles").select("nome").eq("id", pedido.user_id).maybeSingle();
+    res.status(200).send(paginaConfirmar(token, action, pedido, dono?.nome));
+    return;
+  }
+
+  // O token tem de ser de um administrador ainda ativo
+  const { data: aprovador } = await supabase
+    .from("profiles")
+    .select("id, nome, role, tipo, ativo")
+    .ilike("email", String(adminEmail || ""))
+    .maybeSingle();
+  const papelAprovador = String(aprovador?.role || aprovador?.tipo || "").toLowerCase();
+  if (!aprovador || aprovador.ativo === false || !["admin", "administrador"].includes(papelAprovador)) {
+    res.status(403).send(htmlPage("Sem permissão", "Este link pertence a uma conta que já não pode aprovar pedidos.", "#dc2626"));
+    return;
+  }
+
   const novoEstado = action === "approve" ? "aprovado" : "rejeitado";
-  const { error: updateError } = await supabase
+  // Só altera se continuar pendente (evita aprovar duas vezes em simultâneo)
+  const { data: alterados, error: updateError } = await supabase
     .from("ferias")
     .update({ estado: novoEstado })
-    .eq("id", pedidoId);
+    .eq("id", pedidoId)
+    .eq("estado", "pendente")
+    .select("id");
+
+  if (!updateError && (!alterados || !alterados.length)) {
+    res.status(200).send(htmlPage("Pedido já processado", "Este pedido já tinha sido tratado. Sem alterações.", "#64748b"));
+    return;
+  }
+
+  await supabase.from("audit_log").insert({
+    user_id: aprovador.id,
+    user_email: adminEmail,
+    operacao: "EVENTO",
+    acao: action === "approve" ? "pedido_aprovado_email" : "pedido_rejeitado_email",
+    tabela: "ferias",
+    registo_id: String(pedidoId),
+    detalhes: { por: aprovador.nome || adminEmail, via: "email" },
+  }).then(() => {}, () => {});
 
   if (updateError) {
     console.error("[absence-action] Erro ao atualizar ferias:", updateError);

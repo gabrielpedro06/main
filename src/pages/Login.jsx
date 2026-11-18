@@ -197,7 +197,7 @@ export default function Login() {
       eyebrow="Bem-vindo de volta"
       title="Entrar na sua conta"
       subtitle="Use o email e a password da sua conta Bizin."
-      footer={<>Ainda não tem conta?<Link to="/signup" className="au-link">Criar conta</Link></>}
+      footer={<>Ainda não tem conta? Peça um convite aos Recursos Humanos.</>}
     >
       <form className="au-form" onSubmit={handleLogin}>
         <AuthField

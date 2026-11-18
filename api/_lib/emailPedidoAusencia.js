@@ -1,18 +1,10 @@
-import { sendTransactionalCampaign } from "../../server/brevoCampaignSender.js";
-import { buildActionToken } from "./action.js";
-
-export const config = {
-  runtime: "nodejs",
-};
-
-function escapeHtml(value) {
-  return String(value || "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
+// =====================================================================
+// Email "novo pedido de ausência" enviado aos administradores.
+// Os dados vêm SEMPRE da base de dados (nunca do browser) e tudo é escapado.
+// Cada botão (Aprovar / Rejeitar) tem o seu próprio token assinado.
+// =====================================================================
+import { buildActionToken } from "../absence-notifications/action.js";
+import { escapeHtml } from "./seguranca.js";
 
 function formatDate(dateStr) {
   if (!dateStr) return "";
@@ -37,7 +29,7 @@ function buildDetailsBlock(details, safeType) {
   rows.push(`
     <tr>
       <td style="padding:10px 14px;color:#64748b;font-size:0.82rem;font-weight:600;white-space:nowrap;width:140px">Tipo de ausência</td>
-      <td style="padding:10px 14px;color:#0f172a;font-weight:700">${escapeHtml(safeType)}</td>
+      <td style="padding:10px 14px;color:#0f172a;font-weight:700">${safeType}</td>
     </tr>`);
 
   // Período
@@ -111,20 +103,19 @@ function buildDetailsBlock(details, safeType) {
   return tableBlock + motivoBlock;
 }
 
+
 function buildActionButtons(requestId, adminEmail, safeRequestUrl, apiBase, safeRequestUrlDisplay) {
-  const token = requestId ? buildActionToken(requestId, adminEmail) : null;
-  if (!token) {
-    return `<p style="margin:20px 0">
+  const tAprovar = requestId && apiBase ? buildActionToken(requestId, adminEmail, "approve") : null;
+  const tRejeitar = requestId && apiBase ? buildActionToken(requestId, adminEmail, "reject") : null;
+  if (!tAprovar || !tRejeitar) {
+    return safeRequestUrl ? `<p style="margin:20px 0">
       <a href="${safeRequestUrl}" style="display:inline-block;background:#0f172a;color:#fff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:bold">
         Abrir pedidos para aprovar
-      </a></p>`;
+      </a></p>` : "";
   }
-
-  // Nota: NÃO usar escapeHtml nas URLs — o & deve ficar como & para que o
-  // tracker de clicks do Brevo redirecione corretamente.
-  const approveUrl = `${apiBase}/api/absence-notifications/action?token=${encodeURIComponent(token)}&action=approve`;
-  const rejectUrl  = `${apiBase}/api/absence-notifications/action?token=${encodeURIComponent(token)}&action=reject`;
-
+  // O link abre uma página de confirmação (o pedido só muda depois de carregar no botão dessa página)
+  const approveUrl = `${apiBase}/api/absence-notifications/action?token=${encodeURIComponent(tAprovar)}`;
+  const rejectUrl = `${apiBase}/api/absence-notifications/action?token=${encodeURIComponent(tRejeitar)}`;
   return `
   <table cellpadding="0" cellspacing="0" style="margin:24px 0">
     <tr>
@@ -136,69 +127,24 @@ function buildActionButtons(requestId, adminEmail, safeRequestUrl, apiBase, safe
       </td>
     </tr>
   </table>
-  <p style="margin:6px 0 0;color:#64748b;font-size:12px">
+  ${safeRequestUrl ? `<p style="margin:6px 0 0;color:#64748b;font-size:12px">
     Ou acede ao painel completo: <a href="${safeRequestUrl}" style="color:#0f172a">${safeRequestUrlDisplay}</a>
-  </p>`;
+  </p>` : ""}`;
 }
 
-export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    res.status(405).json({ ok: false, error: "Method Not Allowed" });
-    return;
-  }
-
-  // Diagnóstico: verificar se a chave Brevo está configurada
-  if (!process.env.BREVO_API_KEY) {
-    console.error("[absence-notifications] ERRO: BREVO_API_KEY não está definida nas variáveis de ambiente.");
-    res.status(500).json({ ok: false, error: "Serviço de email não configurado (BREVO_API_KEY em falta)." });
-    return;
-  }
-
-  const {
-    emails,
-    requestType,
-    requesterName,
-    dateLabel,
-    requestUrl,
-    requestId,
-    isEditing,
-    details,
-  } = req.body || {};
-
-  const validEmails = [...new Set((Array.isArray(emails) ? emails : []).filter(Boolean))];
-
-  console.log(`[absence-notifications] Pedido recebido — tipo: ${requestType}, destinatários: ${validEmails.length}, requestId: ${requestId || "n/a"}`);
-
-  if (validEmails.length === 0 || !requestUrl) {
-    res.status(400).json({ ok: false, error: "emails and requestUrl are required." });
-    return;
-  }
-
-  const safeType = escapeHtml(requestType || "ausência");
+export function construirEmailPedido({ pedido, isKm, isEditing, requesterName, requestUrl, apiBase, adminEmail }) {
+  const requestType = pedido.tipo || "ausência";
+  const safeType = escapeHtml(requestType);
   const safeRequesterName = escapeHtml(requesterName || "Um colaborador");
-  // Nota: requestUrl vai em hrefs — não escapar & para não quebrar o tracker do Brevo
-  const safeRequestUrl = requestUrl || "";
-  const safeRequestUrlDisplay = escapeHtml(requestUrl || "");
-
-  // Construir URL base absoluta a partir dos headers da request
-  // (funciona em Vercel produção e em localhost)
-  const proto = req.headers["x-forwarded-proto"] || "https";
-  const host  = req.headers["x-forwarded-host"] || req.headers.host || "";
-  const apiBase = process.env.MARKETING_API_BASE
-    || (host ? `${proto}://${host}` : "");
-
-  const subject = isEditing
-    ? `Pedido de ${requestType || "ausência"} atualizado — ação necessária`
-    : `Novo pedido de ${requestType || "ausência"} — ação necessária`;
-
+  const safeRequestUrl = escapeHtml(requestUrl || "");
+  const safeRequestUrlDisplay = safeRequestUrl;
+  const details = { ...pedido, isKmRequest: isKm };
   const detailsBlock = buildDetailsBlock(details, safeType);
-
-  try {
-    const results = await Promise.allSettled(
-      validEmails.map((adminEmail) => {
-        const actionButtons = buildActionButtons(requestId, adminEmail, safeRequestUrl, apiBase, safeRequestUrlDisplay);
-
-        const htmlContent = `
+  const actionButtons = buildActionButtons(pedido.id, adminEmail, safeRequestUrl, apiBase, safeRequestUrlDisplay);
+  const subject = isEditing
+    ? `Pedido de ${requestType} atualizado — ação necessária`
+    : `Novo pedido de ${requestType} — ação necessária`;
+  const htmlContent = `
           <div style="font-family:Arial,sans-serif;line-height:1.6;color:#1e293b;max-width:580px">
 
             <div style="background:#0f172a;border-radius:14px 14px 0 0;padding:20px 24px;margin-bottom:0">
@@ -231,24 +177,5 @@ export default async function handler(req, res) {
               Este email foi enviado automaticamente pelo sistema de RH. Não respondas diretamente.
             </p>
           </div>`;
-
-        return sendTransactionalCampaign({
-          senderProfile: "marketing",
-          emails: [adminEmail],
-          subject,
-          htmlContent,
-        });
-      })
-    );
-
-    const failed = results.filter((r) => r.status === "rejected");
-    if (failed.length > 0) {
-      console.warn(`[absence-notifications] ${failed.length} email(s) failed to send.`, failed.map(f => f.reason?.message));
-    }
-
-    res.status(200).json({ ok: true, sent: validEmails.length - failed.length, failed: failed.length });
-  } catch (error) {
-    const statusCode = typeof error.status === "number" ? Math.min(Math.max(error.status, 400), 502) : 500;
-    res.status(statusCode).json({ ok: false, error: error.message || "Unexpected error while sending absence notification." });
-  }
+  return { subject, htmlContent };
 }

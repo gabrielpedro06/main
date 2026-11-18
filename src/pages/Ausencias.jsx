@@ -17,6 +17,7 @@ import CalculadoraKm from "../components/CalculadoraKm";
 import "./../styles/dashboard.css";
 import "../styles/absences.css";
 import FancySelect from "../components/FancySelect";
+import { postAutenticado } from "../utils/apiAutenticada";
 
 // --- ÍCONES SVG PROFISSIONAIS ---
 const Icons = {
@@ -494,53 +495,10 @@ export default function Ferias({ forcedType = null }) {
       if (dbError) throw dbError;
 
       try {
-          const { data: adminProfiles, error: adminError } = await supabase
-              .from("profiles")
-              .select("id, role, tipo, ativo, email");
-          if (adminError) throw adminError;
-
-          const adminEmails = (adminProfiles || [])
-              .filter((profile) => {
-                  const roles = [profile.role, profile.tipo].map((value) => String(value || "").toLowerCase());
-                  return profile.ativo !== false
-                      && roles.some((role) => ["admin", "administrador"].includes(role))
-                      && profile.email;
-              })
-              .map((profile) => profile.email.trim().toLowerCase())
-              .filter((email, index, emails) => emails.indexOf(email) === index);
-
-          const dateLabel = form.data_inicio ? new Date(form.data_inicio).toLocaleDateString("pt-PT") : "";
-          if (adminEmails.length > 0 && savedRequestId) {
+          if (savedRequestId) {
               const apiBase = import.meta.env.VITE_MARKETING_API_BASE || "";
-              const requestUrl = `${window.location.origin}/dashboard/rh?pedidoId=${encodeURIComponent(savedRequestId)}`;
-              const response = await fetch(`${apiBase}/api/absence-notifications/send-request`, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                      emails: adminEmails,
-                      requestType: normalizedTipo,
-                      requesterName: user.user_metadata?.nome || user.email,
-                      dateLabel,
-                      requestUrl,
-                      requestId: savedRequestId,
-                      isEditing,
-                      // Detalhes completos do pedido
-                      details: {
-                          data_inicio: form.data_inicio,
-                          data_fim: isKmRequest ? form.data_inicio : (form.is_parcial ? form.data_inicio : form.data_fim),
-                          is_parcial: form.is_parcial,
-                          hora_inicio: form.is_parcial ? form.hora_inicio : null,
-                          hora_fim: form.is_parcial ? form.hora_fim : null,
-                          motivo: form.motivo,
-                          km_origem: isKmRequest ? form.km_origem : null,
-                          km_destino: isKmRequest ? form.km_destino : null,
-                          km_total: isKmRequest ? form.km_total : null,
-                          veiculo: isKmRequest ? form.veiculo : null,
-                          km_ida_volta: isKmRequest ? Boolean(form.km_ida_volta) : false,
-                          isKmRequest,
-                      },
-                  }),
-              });
+              // O servidor lê o pedido e os administradores na base de dados (só envia o id)
+              const response = await postAutenticado(`${apiBase}/api/notificacoes/pedido-ausencia`, { requestId: savedRequestId, isEditing });
               if (!response.ok) throw new Error(`Dispatcher de email respondeu ${response.status}.`);
           }
       } catch (notificationError) {

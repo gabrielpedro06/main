@@ -14,6 +14,8 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import "./../styles/dashboard.css";
 import "../styles/portfolio.css";
+import { postAutenticado } from "../utils/apiAutenticada";
+import { consultarNif } from "../utils/apiAutenticada";
 
 // --- ÍCONES SVG PROFISSIONAIS (SaaS Premium) ---
 const Icons = {
@@ -317,17 +319,12 @@ export default function Projetos() {
               if (apiBase === null) {
                   console.info("Envio de email de notificação de projeto desativado neste ambiente.");
               } else {
-                  const endpoint = `${apiBase}/api/project-notifications/send-created`;
-                  await fetch(endpoint, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
+                  await postAutenticado(`${apiBase}/api/notificacoes/projeto-criado`, {
                       email: responsibleEmail,
                       projectTitle: project.titulo,
                       projectUrl,
                       responsibleName,
                       clientName,
-                  }),
                   });
               }
           } catch (emailError) {
@@ -2028,16 +2025,12 @@ export default function Projetos() {
       const nifSanitizado = sanitizeNif(nif);
       if (nifSanitizado.length !== 9) return null;
 
-      const params = new URLSearchParams({ json: "1", q: nifSanitizado });
-      const nifApiKey = (import.meta.env.VITE_NIFPT_KEY || "9beb59d324c1477245e04e0b5988bdd2").trim();
-      if (nifApiKey) params.set("key", nifApiKey);
-
-      const response = await fetch(`/nif-api/?${params.toString()}`);
+      const response = await consultarNif(nifSanitizado);
       if (!response.ok) throw new Error("Erro na comunicação com a API.");
 
       const contentType = response.headers.get("content-type") || "";
       if (!contentType.includes("application/json")) {
-          throw new Error("Resposta inválida do serviço NIF. Verifica o proxy /nif-api.");
+          throw new Error("Resposta inválida do serviço NIF. Tenta de novo daqui a pouco.");
       }
 
       const data = await response.json();

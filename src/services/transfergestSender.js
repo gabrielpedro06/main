@@ -1,3 +1,4 @@
+import { postAutenticado } from "../utils/apiAutenticada";
 const RAW_TRANSFERGEST_API_BASE = import.meta.env.VITE_TRANSFERGEST_API_BASE || import.meta.env.VITE_MARKETING_API_BASE || "";
 
 const trimTrailingSlash = (value) => String(value || "").replace(/\/+$/, "");
@@ -58,17 +59,11 @@ export async function checkTransfergestApiHealth() {
 }
 
 export async function sendTransfergestCampaign(payload) {
-  const endpoint = `${DEFAULT_TRANSFERGEST_API_BASE}/api/transfergest/send`;
+  const endpoint = `${DEFAULT_TRANSFERGEST_API_BASE}/api/notificacoes/transfergest`;
 
   let response;
   try {
-    response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
+    response = await postAutenticado(endpoint, payload);
   } catch {
     throw new Error(getNetworkHelpMessage());
   }

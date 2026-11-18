@@ -110,6 +110,6 @@ export default async function handler(req, res) {
     res.status(400).json({ ok: false, error: "Ação desconhecida." });
   } catch (err) {
     console.error("[admin/mfa]", err);
-    res.status(500).json({ ok: false, error: `Não foi possível concluir: ${err?.message || err}` });
+    res.status(500).json({ ok: false, error: "Não foi possível concluir. Tente de novo." });
   }
 }

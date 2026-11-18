@@ -9,6 +9,7 @@ import { applyStopStatusUpdateForLogTarget } from "../utils/taskTimerLifecycle";
 import "./../styles/dashboard.css";
 import EmojiPicker from 'emoji-picker-react';
 import "../styles/forum.css";
+import ImagemPrivada from "../components/ImagemPrivada";
 
 // --- ÍCONES SVG PROFISSIONAIS ---
 const Icons = {
@@ -1623,15 +1624,16 @@ async function sendChatMessage(rawContent) {
               setChatUploadingFile(true);
               const fileExt = chatStagedFile.name.split(".").pop();
               const fName = `${user.id}_${Date.now()}_${Math.random().toString(36).slice(2)}.${fileExt}`;
-              const filePath = `chat-files/${fName}`;
+              // Balde privado, organizado por conversa: só os participantes conseguem abrir
+              const filePath = `${activeChatRoom.id}/${fName}`;
 
               const { error: uploadError } = await supabase.storage
-                  .from("documents") // O teu bucket atual
+                  .from("chat_ficheiros")
                   .upload(filePath, chatStagedFile);
 
               if (uploadError) throw uploadError;
 
-              const { data: { publicUrl } } = supabase.storage.from("documents").getPublicUrl(filePath);
+              const { data: { publicUrl } } = supabase.storage.from("chat_ficheiros").getPublicUrl(filePath);
               fileUrl = publicUrl;
               fileName = chatStagedFile.name;
               setChatUploadingFile(false);
@@ -3171,7 +3173,7 @@ async function sendChatMessage(rawContent) {
 
                             // VERIFICA QUAL É A TUA REAÇÃO ATUAL
                             const myCurrentReaction = msg.chat_reactions?.find(r => r.user_id === user.id)?.emoji;
-                            const isImage = msg.file_url && msg.file_name && /\.(jpeg|jpg|gif|png|webp|svg)$/i.test(msg.file_name);
+                            const isImage = msg.file_url && msg.file_name && /\.(jpeg|jpg|gif|png|webp)$/i.test(msg.file_name);
                             const timeLabel = formatDate(msg.created_at || new Date().toISOString());
 
                             return (
@@ -3227,7 +3229,7 @@ async function sendChatMessage(rawContent) {
                                         {msg.file_url && (
                                             isImage ? (
                                                 <a href={msg.file_url} target="_blank" rel="noreferrer" className="fx-bubble-image">
-                                                    <img src={msg.file_url} alt={msg.file_name} />
+                                                    <ImagemPrivada src={msg.file_url} alt={msg.file_name} />
                                                 </a>
                                             ) : (
                                                 <div className="fx-bubble-file">
