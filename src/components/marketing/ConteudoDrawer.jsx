@@ -291,14 +291,15 @@ export default function ConteudoDrawer({ item, marca, perfis, userId, userNome, 
               <Field label="Prioridade">
                 <Chips options={PRIORIDADES} value={d.prioridade} onChange={(v) => set("prioridade", v)} colorOf={(o) => o.cor} />
               </Field>
-              <Field label="Data de entrega" hint="copy + design prontos">
-                <input type="date" className="mk-input" value={d.data_entrega || ""} onChange={(e) => set("data_entrega", e.target.value || null)} />
+              {/* As três datas têm a mesma marca que no calendário (Entrega / 1.ª / 2.ª) */}
+              <Field label={<><i className="mk-dt-tag is-entrega" aria-hidden="true">Entrega</i>Data de entrega</>} hint="copy + design prontos">
+                <input type="date" className="mk-input mk-dt-input is-entrega" aria-label="Data de entrega" value={d.data_entrega || ""} onChange={(e) => set("data_entrega", e.target.value || null)} />
               </Field>
-              <Field label="Publicação">
-                <input type="datetime-local" className="mk-input" value={toLocalInput(d.data_publicacao)} onChange={(e) => set("data_publicacao", fromLocalInput(e.target.value))} />
+              <Field label={<><i className="mk-dt-tag is-pub1" aria-hidden="true">1.ª</i>1.ª publicação</>} hint="publicação principal">
+                <input type="datetime-local" className="mk-input mk-dt-input is-pub1" aria-label="1.ª publicação" value={toLocalInput(d.data_publicacao)} onChange={(e) => set("data_publicacao", fromLocalInput(e.target.value))} />
               </Field>
-              <Field label="2.ª publicação" hint="opcional (repost, lembrete…)">
-                <input type="datetime-local" className="mk-input" value={toLocalInput(d.data_publicacao_2)} onChange={(e) => set("data_publicacao_2", fromLocalInput(e.target.value))} />
+              <Field label={<><i className="mk-dt-tag is-pub2" aria-hidden="true">2.ª</i>2.ª publicação</>} hint="opcional (repost, lembrete…)">
+                <input type="datetime-local" className="mk-input mk-dt-input is-pub2" aria-label="2.ª publicação" value={toLocalInput(d.data_publicacao_2)} onChange={(e) => set("data_publicacao_2", fromLocalInput(e.target.value))} />
               </Field>
               <Field label="Canais" wide>
                 <Chips multi options={CANAIS} value={d.canais} onChange={(v) => set("canais", v)} colorOf={(o) => o.cor} />

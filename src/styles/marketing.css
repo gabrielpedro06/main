@@ -217,6 +217,44 @@
 .mk-cal-item b { flex-shrink: 0; display: inline-grid; place-items: center; min-width: 17px; height: 14px; padding: 0 3px; border-radius: 4px; color: #fff; font-size: 0.5rem; font-weight: 900; }
 .mk-cal-item span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mk-cal-item.is-repeat { background: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--c) 8%, #fff) 0 6px, color-mix(in srgb, var(--c) 14%, #fff) 6px 12px); }
+
+/* --- Três tipos de data: Entrega / 1.ª publicação / 2.ª publicação ---
+   A etiqueta (tag) tem sempre a mesma cor em todo o lado; a barra lateral mostra a etapa. */
+.mk-cal-tag, .mk-dt-tag, .mk-cal-legend-btn i {
+  flex-shrink: 0; display: inline-grid; place-items: center; height: 15px; padding: 0 5px; border-radius: 4px;
+  font-style: normal; font-size: 0.62rem; font-weight: 900; letter-spacing: 0.02em; line-height: 1; text-transform: uppercase;
+}
+.is-entrega > .mk-cal-tag, .mk-dt-tag.is-entrega, .mk-cal-legend-btn.is-entrega i { background: #334155; color: #fff; }
+.is-pub1 > .mk-cal-tag, .mk-dt-tag.is-pub1, .mk-cal-legend-btn.is-pub1 i { background: var(--brand); color: #fff; }
+.is-pub2 > .mk-cal-tag, .mk-dt-tag.is-pub2, .mk-cal-legend-btn.is-pub2 i { background: #fff; color: var(--brand); box-shadow: inset 0 0 0 1.5px var(--brand); }
+
+/* Entrega: cartão "por fazer" (tracejado), sem hora nem canal */
+.mk-cal-item.is-entrega { border-left: none; background: #fff; outline: 1.5px dashed #64748b; outline-offset: -1.5px; }
+.mk-cal-item.is-entrega:hover { background: #f8fafc; }
+.mk-cal-item.is-entrega.is-late { outline-color: #dc2626; background: #fef2f2; }
+.mk-cal-item.is-entrega.is-late > .mk-cal-tag { background: #dc2626; }
+.mk-cal-item.is-entrega.is-done { opacity: 0.6; outline-style: solid; outline-color: #cbd5e1; }
+.mk-cal-item.is-entrega.is-done > .mk-cal-tag { background: #15803d; }
+.mk-cal-item.is-entrega.is-done span { text-decoration: line-through; text-decoration-color: #94a3b8; }
+/* 2.ª publicação: riscas (repetição) */
+.mk-cal-item.is-pub2 { background: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--c) 7%, #fff) 0 6px, color-mix(in srgb, var(--c) 15%, #fff) 6px 12px); border-left-style: dashed; }
+
+/* Legenda / filtro no topo do calendário */
+.mk-cal-head { flex-wrap: wrap; }
+.mk-cal-legend { display: flex; flex-wrap: wrap; gap: 6px; margin-left: 8px; }
+.mk-cal-legend-btn {
+  display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px 0 6px; border-radius: 999px;
+  border: 1px solid var(--mk-line); background: #fff; font: inherit; font-size: 0.74rem; font-weight: 700; color: var(--mk-ink);
+  cursor: pointer; transition: opacity 0.15s ease, background-color 0.15s ease;
+}
+.mk-cal-legend-btn:hover { background: var(--mk-soft); }
+.mk-cal-legend-btn:not(.is-on) { opacity: 0.45; text-decoration: line-through; }
+
+/* Formulário do conteúdo: os três campos de data com a mesma marca */
+.mk-dt-tag { margin-right: 6px; vertical-align: 1px; }
+.mk-dt-input.is-entrega { border-left: 3px dashed #64748b; }
+.mk-dt-input.is-pub1 { border-left: 3px solid var(--brand); }
+.mk-dt-input.is-pub2 { border-left: 3px dashed var(--brand); }
 .mk-cal-side { position: sticky; top: 12px; display: flex; flex-direction: column; gap: 6px; padding: 14px; border-radius: 20px; background: #fff; border: 1px solid var(--mk-line); }
 .mk-cal-side h4 { display: flex; align-items: center; gap: 7px; margin: 0; font-size: 0.88rem; font-weight: 900; color: var(--mk-ink); }
 .mk-cal-side h4 em { margin-left: auto; font-style: normal; font-size: 0.72rem; font-weight: 900; color: var(--mk-muted); background: var(--mk-soft); padding: 2px 8px; border-radius: 99px; }
