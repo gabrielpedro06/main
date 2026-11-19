@@ -894,7 +894,9 @@ export default function RecursosHumanos() {
       const idsUnicos = [...new Set((userIds || []).filter(Boolean))];
       if (idsUnicos.length === 0) return;
 
-      await Promise.all(
+      // O acerto do saldo vem DEPOIS de a ausência estar gravada: se falhar, não pode
+      // aparecer como erro do registo (a BD volta a acertar os dias gozados sozinha).
+      const resultados = await Promise.allSettled(
           idsUnicos.map(async (userId) => {
               const diasLimiteAnual = await getDiasLimiteAnualAtualPorUserId(userId);
               return sincronizarSaldoFeriasPerfil({
@@ -905,6 +907,8 @@ export default function RecursosHumanos() {
               });
           }),
       );
+      const falhas = resultados.filter((r) => r.status === "rejected");
+      if (falhas.length) console.warn("Saldo de férias não sincronizado:", falhas.map((f) => f.reason?.message));
   }
 
   async function fetchTolerancias() {
