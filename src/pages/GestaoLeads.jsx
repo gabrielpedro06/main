@@ -3,7 +3,9 @@ import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import { checkMarketingApiHealth, sendMarketingCampaign } from "../services/marketingSender";
 import "./../styles/dashboard.css";
+import { clicavel } from "../utils/clicavel";
 
+import AvisoToast from "../components/AvisoToast";
 // --- ÍCONES SVG PROFISSIONAIS ---
 const Icons = {
   Search: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>,
@@ -501,22 +503,22 @@ export default function GestaoLeads() {
 
   const CardActions = ({ item, isInactive, isMissingData }) => (
     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingTop: '15px', borderTop: '1px solid #f1f5f9'}}>
-        <button onClick={() => openForm(true, item)} title="Ver Dados Completos" style={{background: '#f8fafc', border: '1px solid #cbd5e1', color: '#475569', width: '30px', height: '30px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s', position: 'relative'}} className="hover-shadow">
+        <button aria-label="Ver Dados Completos" onClick={() => openForm(true, item)} title="Ver Dados Completos" style={{background: '#f8fafc', border: '1px solid #cbd5e1', color: '#475569', width: '30px', height: '30px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s', position: 'relative'}} className="hover-shadow">
             <Icons.Eye />
             {isMissingData && <span style={{position: 'absolute', top: '-4px', right: '-4px', width: '8px', height: '8px', background: '#ef4444', borderRadius: '50%', border: '2px solid white'}}></span>}
         </button>
 
         <div style={{display: 'flex', gap: '6px'}}>
-            <button onClick={() => openForm(true, item)} title="Editar" className="action-btn hover-orange-text"><Icons.Edit /></button>
+            <button aria-label="Editar" onClick={() => openForm(true, item)} title="Editar" className="action-btn hover-orange-text"><Icons.Edit /></button>
             
             {!isInactive && activeTab === "prospects" && (
-                <button onClick={() => promoteToLead(item)} title="Promover a Lead" className="action-btn hover-blue-text"><Icons.Rocket /></button>
+                <button aria-label="Promover a Lead" onClick={() => promoteToLead(item)} title="Promover a Lead" className="action-btn hover-blue-text"><Icons.Rocket /></button>
             )}
             {!isInactive && activeTab === "leads" && item.estado === 'convertido' && (
-                <button onClick={() => promoteToClient(item)} title="Tornar Cliente Oficial" className="action-btn hover-green-text"><Icons.Handshake /></button>
+                <button aria-label="Tornar Cliente Oficial" onClick={() => promoteToClient(item)} title="Tornar Cliente Oficial" className="action-btn hover-green-text"><Icons.Handshake /></button>
             )}
 
-            <button onClick={() => toggleAtivo(item.id, item.ativo)} title={isInactive ? "Restaurar" : "Arquivar"} className={`action-btn ${isInactive ? "hover-green-text" : "hover-red-text"}`}>
+            <button aria-label={isInactive ? "Restaurar" : "Arquivar"} onClick={() => toggleAtivo(item.id, item.ativo)} title={isInactive ? "Restaurar" : "Arquivar"} className={`action-btn ${isInactive ? "hover-green-text" : "hover-red-text"}`}>
                 {isInactive ? <Icons.Restore /> : <Icons.Archive />}
             </button>
         </div>
@@ -552,11 +554,11 @@ export default function GestaoLeads() {
         {/* FILTROS */}
         <div style={{ display: "flex", flexWrap: 'wrap', gap: 15, marginBottom: 20, paddingBottom: 20, borderBottom: (!selectedSetor && viewMode === 'kanban') ? 'none' : '1px solid #f1f5f9', alignItems: 'center', background: (!selectedSetor && viewMode==='kanban') ? 'white' : 'transparent', padding: (!selectedSetor && viewMode==='kanban') ? '20px' : '0', borderRadius: (!selectedSetor && viewMode==='kanban') ? '12px' : '0', border: (!selectedSetor && viewMode==='kanban') ? '1px solid #e2e8f0' : 'none' }}>
           <div style={{flex: 1, minWidth: '250px', position: 'relative'}}>
-            <span style={{position: 'absolute', left: '12px', top: '12px', color: '#94a3b8'}}><Icons.Search /></span>
-            <input placeholder="Pesquisar empresa ou NIF..." value={searchTerm} onChange={e => {setSearchTerm(e.target.value); setCurrentPage(1);}} style={{...inputStyle, width: '100%', paddingLeft: '38px'}} />
+            <span style={{position: 'absolute', left: '12px', top: '12px', color: '#64748b'}}><Icons.Search /></span>
+            <input aria-label="Pesquisar empresa ou NIF" placeholder="Pesquisar empresa ou NIF…" value={searchTerm} onChange={e => {setSearchTerm(e.target.value); setCurrentPage(1);}} style={{...inputStyle, width: '100%', paddingLeft: '38px'}} />
           </div>
-          <input placeholder="Localidade..." value={filterLocalidade} onChange={(e) => {setFilterLocalidade(e.target.value); setCurrentPage(1);}} style={{...inputStyle, width: '150px'}} />
-          <input placeholder="CAE..." value={filterCae} onChange={(e) => {setFilterCae(e.target.value); setCurrentPage(1);}} style={{...inputStyle, width: '100px'}} />
+          <input aria-label="Localidade" placeholder="Localidade…" value={filterLocalidade} onChange={(e) => {setFilterLocalidade(e.target.value); setCurrentPage(1);}} style={{...inputStyle, width: '150px'}} />
+          <input aria-label="CAE" placeholder="CAE…" value={filterCae} onChange={(e) => {setFilterCae(e.target.value); setCurrentPage(1);}} style={{...inputStyle, width: '100px'}} />
           
           <label style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold', color: '#475569', background: '#f8fafc', padding: '10px 15px', borderRadius: '8px', border: '1px solid #e2e8f0'}}>
               <input type="checkbox" checked={mostrarInativos} onChange={e => {setMostrarInativos(e.target.checked); setCurrentPage(1);}} style={{accentColor:'#1e293b', width:'14px', height:'14px'}} /> Arquivo
@@ -594,7 +596,7 @@ export default function GestaoLeads() {
                         return (
                             <div 
                                 key={setor} 
-                                onClick={() => setSelectedSetor(setor)}
+                                {...clicavel(() => setSelectedSetor(setor))}
                                 className="category-card"
                                 style={{ borderTop: `5px solid ${color}` }}
                             >
@@ -602,14 +604,14 @@ export default function GestaoLeads() {
                                     <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.2rem'}}>{setor}</h3>
                                     <span style={{background: `${color}20`, color: color, padding: '4px 12px', borderRadius: '20px', fontWeight: 'bold', fontSize: '0.85rem'}}>{count}</span>
                                 </div>
-                                <p style={{margin: '15px 0 0 0', fontSize: '0.85rem', color: '#94a3b8', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px'}}>Ver Mais <Icons.ArrowRight /></p>
+                                <p style={{margin: '15px 0 0 0', fontSize: '0.85rem', color: '#64748b', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px'}}>Ver Mais <Icons.ArrowRight /></p>
                             </div>
                         );
                     })}
 
                     {(countsPerSetor['sem-setor'] > 0) && (
                         <div 
-                            onClick={() => setSelectedSetor('sem-setor')}
+                            {...clicavel(() => setSelectedSetor('sem-setor'))}
                             className="category-card"
                             style={{ borderTop: `5px solid #94a3b8` }}
                         >
@@ -617,7 +619,7 @@ export default function GestaoLeads() {
                                 <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.2rem'}}>Sem Setor Definido</h3>
                                 <span style={{background: `#f1f5f9`, color: '#64748b', padding: '4px 12px', borderRadius: '20px', fontWeight: 'bold', fontSize: '0.85rem'}}>{countsPerSetor['sem-setor']}</span>
                             </div>
-                            <p style={{margin: '15px 0 0 0', fontSize: '0.85rem', color: '#94a3b8', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px'}}>Ver não categorizados <Icons.ArrowRight /></p>
+                            <p style={{margin: '15px 0 0 0', fontSize: '0.85rem', color: '#64748b', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px'}}>Ver não categorizados <Icons.ArrowRight /></p>
                         </div>
                     )}
                 </div>
@@ -694,7 +696,7 @@ export default function GestaoLeads() {
                                             >
                                                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px'}}>
                                                     <strong style={{color: '#1e293b', fontSize: '0.9rem', lineHeight: '1.2'}}>{item.nome}</strong>
-                                                    <button onClick={() => openForm(true, item)} style={{background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: '0 0 0 5px'}} className="hover-blue-text"><Icons.Edit/></button>
+                                                    <button aria-label="Editar lead" onClick={() => openForm(true, item)} style={{background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b', padding: '0 0 0 5px'}} className="hover-blue-text"><Icons.Edit/></button>
                                                 </div>
                                                 
                                                 <div style={{fontSize: '0.7rem', color: '#64748b', display: 'flex', flexDirection: 'column', gap: '4px'}}>
@@ -705,7 +707,7 @@ export default function GestaoLeads() {
                                                 </div>
 
                                                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px', paddingTop: '8px', borderTop: '1px solid #f1f5f9'}}>
-                                                    <span style={{fontFamily: 'monospace', fontSize: '0.65rem', background: '#f8fafc', padding: '2px 6px', borderRadius: '4px', color: '#94a3b8'}}>{item.nif || 'S/ NIF'}</span>
+                                                    <span style={{fontFamily: 'monospace', fontSize: '0.65rem', background: '#f8fafc', padding: '2px 6px', borderRadius: '4px', color: '#64748b'}}>{item.nif || 'S/ NIF'}</span>
                                                     
                                                     {item.estado === 'convertido' && !isInactive && (
                                                         <button onClick={() => promoteToClient(item)} title="Criar Cliente Oficial" style={{background: '#dcfce7', color: '#16a34a', border: '1px solid #bbf7d0', padding: '4px 6px', borderRadius: '6px', fontSize: '0.65rem', fontWeight: 'bold', cursor: 'pointer', display:'flex', alignItems:'center', gap:'4px'}}><Icons.Rocket /> Cliente</button>
@@ -713,7 +715,7 @@ export default function GestaoLeads() {
                                                 </div>
                                             </div>
                                         )})}
-                                        {colItems.length === 0 && <div style={{textAlign: 'center', padding: '15px', color: '#cbd5e1', fontSize: '0.75rem', fontStyle: 'italic', border: '1px dashed #e2e8f0', borderRadius: '8px'}}>Larga aqui...</div>}
+                                        {colItems.length === 0 && <div style={{textAlign: 'center', padding: '15px', color: '#cbd5e1', fontSize: '0.75rem', fontStyle: 'italic', border: '1px dashed #e2e8f0', borderRadius: '8px'}}>Larga aqui…</div>}
                                     </div>
                                 </div>
                             )
@@ -730,7 +732,7 @@ export default function GestaoLeads() {
                             const statusObj = statusOptions.find(o => o.value === item.estado) || {};
 
                             return (
-                                <div key={item.id} className="lead-card hover-shadow" style={{background: isInactive ? '#f8fafc' : 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '15px', display: 'flex', flexDirection: 'column', opacity: isInactive ? 0.6 : 1, transition: 'all 0.2s', borderTop: `4px solid ${activeTab === 'leads' ? statusObj.color : '#cbd5e1'}`}}>
+                                <div key={item.id} className="lead-card hover-shadow" style={{background: isInactive ? '#f8fafc' : 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '15px', display: 'flex', flexDirection: 'column', opacity: isInactive ? 0.6 : 1, transition: 'background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s, opacity 0.2s, width 0.2s, filter 0.2s', borderTop: `4px solid ${activeTab === 'leads' ? statusObj.color : '#cbd5e1'}`}}>
                                     
                                     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px'}}>
                                         <div style={{display: 'flex', gap: '6px', alignItems: 'center'}}>
@@ -825,19 +827,19 @@ export default function GestaoLeads() {
 
                                     <td style={{padding: '15px', textAlign: 'right'}}>
                                         <div style={{display: 'flex', justifyContent: 'flex-end', gap: '6px'}}>
-                                            <button onClick={() => openForm(true, item)} title="Ver / Completar Dados" style={{background: 'white', border: '1px solid #cbd5e1', color: '#475569', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s', position: 'relative'}} className="hover-shadow">
+                                            <button aria-label="Ver / Completar Dados" onClick={() => openForm(true, item)} title="Ver / Completar Dados" style={{background: 'white', border: '1px solid #cbd5e1', color: '#475569', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s', position: 'relative'}} className="hover-shadow">
                                                 <Icons.Eye />
                                                 {isMissingData && <span style={{position: 'absolute', top: '-4px', right: '-4px', width: '10px', height: '10px', background: '#ef4444', borderRadius: '50%', border: '2px solid white'}}></span>}
                                             </button>
 
                                             {!isInactive && activeTab === "prospects" && (
-                                                <button onClick={() => promoteToLead(item)} title="Mover para Leads" style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', border: '1px solid var(--color-borderColor)', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow"><Icons.Rocket /></button>
+                                                <button aria-label="Mover para Leads" onClick={() => promoteToLead(item)} title="Mover para Leads" style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', border: '1px solid var(--color-borderColor)', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow"><Icons.Rocket /></button>
                                             )}
                                             {!isInactive && activeTab === "leads" && item.estado === 'convertido' && (
-                                                <button onClick={() => promoteToClient(item)} title="Criar Cliente Oficial" style={{background: '#dcfce7', color: '#16a34a', border: '1px solid #bbf7d0', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow"><Icons.Handshake /></button>
+                                                <button aria-label="Criar Cliente Oficial" onClick={() => promoteToClient(item)} title="Criar Cliente Oficial" style={{background: '#dcfce7', color: '#16a34a', border: '1px solid #bbf7d0', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow"><Icons.Handshake /></button>
                                             )}
 
-                                            <button onClick={() => toggleAtivo(item.id, item.ativo)} title={isInactive ? "Restaurar" : "Arquivar"} style={{background: isInactive ? '#dcfce7' : '#fee2e2', color: isInactive ? '#16a34a' : '#ef4444', border: 'none', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">
+                                            <button aria-label={isInactive ? "Restaurar" : "Arquivar"} onClick={() => toggleAtivo(item.id, item.ativo)} title={isInactive ? "Restaurar" : "Arquivar"} style={{background: isInactive ? '#dcfce7' : '#fee2e2', color: isInactive ? '#16a34a' : '#ef4444', border: 'none', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">
                                                 {isInactive ? <Icons.Restore /> : <Icons.Archive />}
                                             </button>
                                         </div>
@@ -851,7 +853,7 @@ export default function GestaoLeads() {
                 
                 {/* MENSAGEM VAZIA */}
                 {filteredList.length === 0 && viewMode !== "kanban" && (
-                    <div style={{textAlign: 'center', padding: '60px', color: '#94a3b8'}}>
+                    <div style={{textAlign: 'center', padding: '60px', color: '#64748b'}}>
                         <span style={{display: 'block', marginBottom: '10px', opacity: 0.5}}><Icons.Search /></span>
                         <p style={{margin: 0, fontWeight: '500'}}>Nenhum registo encontrado com estes filtros.</p>
                     </div>
@@ -883,13 +885,13 @@ export default function GestaoLeads() {
       {/* --- MODAL FORMULÁRIO (CRIAR / COMPLETAR DADOS) --- */}
       {modalForm.show && (
           <ModalPortal>
-              <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999}}>
+              <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: "calc(var(--z-modal) + 13)"}}>
                   <div style={{background: 'white', width: '95%', maxWidth: '700px', borderRadius: '16px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', overflow: 'hidden'}}>
                       <div style={{padding: '20px 25px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
                           <h3 style={{margin: 0, color: '#0f172a', fontSize: '1.25rem', fontWeight: '800'}}>
                               {modalForm.isEdit ? `Completar Dados: ${modalForm.data.nome}` : `Novo Registo (${activeTab === 'leads' ? 'Lead' : 'Prospect'})`}
                           </h3>
-                          <button onClick={() => setModalForm({show: false, isEdit: false, data: {}})} style={{background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer'}}><Icons.Close /></button>
+                          <button aria-label="Fechar" onClick={() => setModalForm({show: false, isEdit: false, data: {}})} style={{background: 'none', border: 'none', color: '#64748b', cursor: 'pointer'}}><Icons.Close /></button>
                       </div>
 
                       <form onSubmit={handleSaveForm} style={{padding: '25px'}}>
@@ -906,7 +908,7 @@ export default function GestaoLeads() {
                               </div>
                               <div>
                                   <label style={labelStyle}>NIF</label>
-                                  <input type="text" value={modalForm.data.nif || ''} onChange={e => setModalForm({...modalForm, data: {...modalForm.data, nif: e.target.value}})} maxLength="9" style={{...inputStyle, width: '100%', borderColor: isDuplicateNif ? '#ef4444' : '#cbd5e1', background: isDuplicateNif ? '#fef2f2' : 'white'}} placeholder="Ex: 500000000" />
+                                  <input aria-label="NIF" type="text" value={modalForm.data.nif || ''} onChange={e => setModalForm({...modalForm, data: {...modalForm.data, nif: e.target.value}})} maxLength="9" style={{...inputStyle, width: '100%', borderColor: isDuplicateNif ? '#ef4444' : '#cbd5e1', background: isDuplicateNif ? '#fef2f2' : 'white'}} placeholder="Ex: 500000000" />
                                   {isDuplicateNif && <span style={{fontSize: '0.7rem', color: '#ef4444', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px'}}><Icons.Alert /> NIF já existe!</span>}
                               </div>
                           </div>
@@ -932,10 +934,10 @@ export default function GestaoLeads() {
                                   >
                                       <option value="">-- Selecione --</option>
                                       {dynamicSetores.map(s => <option key={s} value={s}>{s}</option>)}
-                                      <option value="__outro__">Outro (Criar novo)...</option>
+                                      <option value="__outro__">Outro (Criar novo)…</option>
                                   </select>
                                   {isOutroSetor && (
-                                      <input 
+                                      <input aria-label="Escreva o novo setor" 
                                           type="text" 
                                           autoFocus
                                           placeholder="Escreva o novo setor" 
@@ -951,7 +953,7 @@ export default function GestaoLeads() {
                           <div style={{background: '#f8fafc', padding: '15px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '25px'}}>
                               <h4 style={{margin: '0 0 10px 0', fontSize: '0.9rem', color: '#1e293b'}}>Informação de Contacto</h4>
                               <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
-                                  <div style={{gridColumn: '1 / -1'}}><label style={labelStyle}>Pessoa Titular / Responsável</label><input type="text" value={modalForm.data.titular || ''} onChange={e => setModalForm({...modalForm, data: {...modalForm.data, titular: e.target.value}})} style={{...inputStyle, width: '100%'}} placeholder="Nome da pessoa..." /></div>
+                                  <div style={{gridColumn: '1 / -1'}}><label style={labelStyle}>Pessoa Titular / Responsável</label><input aria-label="Pessoa Titular / Responsável" type="text" value={modalForm.data.titular || ''} onChange={e => setModalForm({...modalForm, data: {...modalForm.data, titular: e.target.value}})} style={{...inputStyle, width: '100%'}} placeholder="Nome da pessoa…" /></div>
                                   <div><label style={labelStyle}>Email</label><input type="email" value={modalForm.data.email || ''} onChange={e => setModalForm({...modalForm, data: {...modalForm.data, email: e.target.value}})} style={{...inputStyle, width: '100%'}} /></div>
                                   <div><label style={labelStyle}>Telefone / Telemóvel</label><input type="text" value={modalForm.data.contacto || ''} onChange={e => setModalForm({...modalForm, data: {...modalForm.data, contacto: e.target.value}})} style={{...inputStyle, width: '100%'}} /></div>
                               </div>
@@ -970,7 +972,7 @@ export default function GestaoLeads() {
       {/* --- MODAL DE IMPORTAÇÃO CSV --- */}
       {showImportModal && (
         <ModalPortal>
-            <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999}}>
+            <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: "calc(var(--z-modal) + 13)"}}>
                 <div style={{background: 'white', width: '90%', maxWidth: '500px', borderRadius: '16px', padding: '30px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'}}>
                     <div style={{marginBottom: '20px'}}>
                         <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.5rem', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Download /> Importar CSV</h3>
@@ -994,11 +996,11 @@ export default function GestaoLeads() {
 
                     <div style={{marginBottom: '25px'}}>
                         <label 
-                            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '30px', border: '2px dashed #cbd5e1', borderRadius: '12px', cursor: 'pointer', background: '#f8fafc', transition: 'all 0.2s' }}
+                            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '30px', border: '2px dashed #cbd5e1', borderRadius: '12px', cursor: 'pointer', background: '#f8fafc', transition: 'background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s, opacity 0.2s, width 0.2s, filter 0.2s' }}
                             onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--color-btnPrimary)'}
                             onMouseOut={(e) => e.currentTarget.style.borderColor = '#cbd5e1'}
                         >
-                            <span style={{marginBottom: '10px', color: '#94a3b8'}}><Icons.Doc /></span>
+                            <span style={{marginBottom: '10px', color: '#64748b'}}><Icons.Doc /></span>
                             <span style={{fontSize: '0.9rem', color: '#64748b', fontWeight: '500', textAlign: 'center'}}>
                                 {file ? file.name : "Clica aqui para escolher o ficheiro CSV"}
                             </span>
@@ -1009,7 +1011,7 @@ export default function GestaoLeads() {
                     <div style={{display: 'flex', gap: '10px'}}>
                         <button onClick={() => setShowImportModal(false)} style={{flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white', color: '#64748b', fontWeight: 'bold', cursor: 'pointer'}}>Cancelar</button>
                         <button className="btn-primary" onClick={handleFileUpload} disabled={importing} style={{flex: 1, borderRadius: '8px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px'}}>
-                            {importing ? "A processar..." : "Carregar Dados"}
+                            {importing ? "A processar…" : "Carregar Dados"}
                         </button>
                     </div>
                 </div>
@@ -1019,11 +1021,11 @@ export default function GestaoLeads() {
 
       {showSendModal && (
         <ModalPortal>
-            <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999}}>
+            <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: "calc(var(--z-modal) + 13)"}}>
                 <div style={{background: 'white', width: '95%', maxWidth: '760px', borderRadius: '16px', padding: '24px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'}}>
                     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px'}}>
                         <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.35rem'}}>Enviar Campanha por Email</h3>
-                        <button onClick={() => setShowSendModal(false)} style={{background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer'}}><Icons.Close /></button>
+                        <button aria-label="Fechar" onClick={() => setShowSendModal(false)} style={{background: 'none', border: 'none', color: '#64748b', cursor: 'pointer'}}><Icons.Close /></button>
                     </div>
 
                     <div style={{background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '12px 15px', marginBottom: '15px', fontSize: '0.85rem', color: '#475569'}}>
@@ -1060,7 +1062,7 @@ export default function GestaoLeads() {
                                     type="text"
                                     disabled
                                     value="Template gerido no Brevo"
-                                    style={{...inputStyle, width: '100%', background: '#f8fafc', color: '#94a3b8'}}
+                                    style={{...inputStyle, width: '100%', background: '#f8fafc', color: '#64748b'}}
                                 />
                                 <input
                                     type="number"
@@ -1105,7 +1107,7 @@ export default function GestaoLeads() {
                     ) : (
                         <>
                             <div style={{display: 'grid', gridTemplateColumns: '1fr 130px 130px 120px', gap: '10px', marginBottom: '12px'}}>
-                                <input
+                                <input aria-label="Assunto da campanha"
                                     type="text"
                                     value={campaignForm.subject}
                                     onChange={(e) => setCampaignForm(prev => ({ ...prev, subject: e.target.value }))}
@@ -1147,10 +1149,10 @@ export default function GestaoLeads() {
                                 <span>Retries</span>
                             </div>
 
-                            <textarea
+                            <textarea aria-label="Cole aqui o HTML da campanha"
                                 value={campaignForm.htmlContent}
                                 onChange={(e) => setCampaignForm(prev => ({ ...prev, htmlContent: e.target.value }))}
-                                placeholder="Cole aqui o HTML da campanha..."
+                                placeholder="Cole aqui o HTML da campanha…"
                                 style={{...inputStyle, width: '100%', minHeight: '180px', resize: 'vertical', marginBottom: '14px', fontFamily: 'monospace'}}
                             />
                         </>
@@ -1170,7 +1172,7 @@ export default function GestaoLeads() {
                     <div style={{display: 'flex', justifyContent: 'flex-end', gap: '10px'}}>
                         <button onClick={() => setShowSendModal(false)} style={{padding: '12px 18px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white', color: '#64748b', fontWeight: 'bold', cursor: 'pointer'}}>Fechar</button>
                         <button onClick={handleSendCampaign} disabled={sendingCampaign} className="btn-primary" style={{padding: '12px 20px', borderRadius: '8px'}}>
-                            {sendingCampaign ? "A enviar..." : "Enviar Agora"}
+                            {sendingCampaign ? "A enviar…" : "Enviar Agora"}
                         </button>
                     </div>
                 </div>
@@ -1181,7 +1183,7 @@ export default function GestaoLeads() {
       {/* --- MODAL CONFIRMAÇÃO GLOBAL --- */}
       {confirmDialog.show && (
           <ModalPortal>
-              <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999}}>
+              <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: "calc(var(--z-modal-max) + 1)"}}>
                   <div style={{background: 'white', padding: '30px', borderRadius: '16px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out'}}>
                       <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px'}}><Icons.Alert color={confirmDialog.isDanger ? "#ef4444" : "var(--color-btnPrimary)"} /></div>
                       <h3 style={{margin: '0 0 10px 0', color: '#1e293b', fontSize: '1.25rem'}}>Confirmação</h3>
@@ -1195,7 +1197,7 @@ export default function GestaoLeads() {
           </ModalPortal>
       )}
 
-      {notification && <div className={`toast-container ${notification.type}`}>{notification.type === 'success' ? '✅' : '⚠️'} {notification.message}</div>}
+      {notification && <AvisoToast tipo={notification.type} mensagem={notification.message} />}
 
       <style>{`
         .table-row-hover:hover { background-color: #f8fafc !important; }
@@ -1225,7 +1227,7 @@ export default function GestaoLeads() {
         .category-card {
             background: white; padding: 25px; border-radius: 12px;
             box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;
-            cursor: pointer; transition: all 0.2s ease;
+            cursor: pointer; transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease;
         }
         .category-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); border-color: #cbd5e1; }
       `}</style>

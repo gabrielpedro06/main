@@ -495,7 +495,7 @@ async function handleSave(e) {
                           <Field label="Email de login" hint="Não pode ser alterado aqui">
                               <div className="pf-locked"><Icons.Lock size={13} />{formData.email}</div>
                           </Field>
-                          <Field label="Nome completo (oficial)" span={2}><input type="text" value={formData.nome_completo} onChange={set('nome_completo')} placeholder="Como está no Cartão de Cidadão" /></Field>
+                          <Field label="Nome completo (oficial)" span={2}><input aria-label="Como está no Cartão de Cidadão" type="text" value={formData.nome_completo} onChange={set('nome_completo')} placeholder="Como está no Cartão de Cidadão" /></Field>
                           <Field label="Email pessoal" span={2}><input type="email" value={formData.email_pessoal} onChange={set('email_pessoal')} placeholder="nome@exemplo.com" /></Field>
                       </div>
                   </section>
@@ -508,14 +508,14 @@ async function handleSave(e) {
                           <Field label="Nacionalidade"><input type="text" value={formData.nacionalidade} onChange={set('nacionalidade')} /></Field>
                           <Field label="Telemóvel"><input type="tel" value={formData.telemovel} onChange={set('telemovel')} placeholder="9xx xxx xxx" /></Field>
                           <Field label="Concelho"><input type="text" value={formData.concelho} onChange={set('concelho')} /></Field>
-                          <Field label="Morada completa" span={2}><input type="text" value={formData.morada} onChange={set('morada')} placeholder="Rua, nº, código postal, localidade" /></Field>
+                          <Field label="Morada completa" span={2}><input aria-label="Rua, nº, código postal, localidade" type="text" value={formData.morada} onChange={set('morada')} placeholder="Rua, nº, código postal, localidade" /></Field>
                       </div>
                       <div className="pf-grid pf-grid-3">
                           <Field label="Estado civil">
-                              <FancySelect value={formData.estado_civil} onChange={(v) => setFormData((prev) => ({ ...prev, estado_civil: v }))} options={ESTADO_CIVIL_OPTIONS} placeholder="Selecionar..." menuWidth={240} className="pf-select" ariaLabel="Estado civil" />
+                              <FancySelect value={formData.estado_civil} onChange={(v) => setFormData((prev) => ({ ...prev, estado_civil: v }))} options={ESTADO_CIVIL_OPTIONS} placeholder="Selecionar…" menuWidth={240} className="pf-select" ariaLabel="Estado civil" />
                           </Field>
                           <Field label="Sexo">
-                              <FancySelect value={formData.sexo} onChange={(v) => setFormData((prev) => ({ ...prev, sexo: v }))} options={SEXO_OPTIONS} placeholder="Selecionar..." menuWidth={240} className="pf-select" ariaLabel="Sexo" />
+                              <FancySelect value={formData.sexo} onChange={(v) => setFormData((prev) => ({ ...prev, sexo: v }))} options={SEXO_OPTIONS} placeholder="Selecionar…" menuWidth={240} className="pf-select" ariaLabel="Sexo" />
                           </Field>
                           <Field label="Nº de dependentes">
                               <div className="pf-stepper">
@@ -649,7 +649,7 @@ async function handleSave(e) {
               <span className="pf-savebar-text">Tens alterações por guardar</span>
               <button type="button" className="pf-btn pf-btn-ghost" onClick={discardChanges} disabled={loading} tabIndex={isDirty ? 0 : -1}>Descartar</button>
               <button type="submit" className="pf-btn pf-btn-primary" disabled={loading} tabIndex={isDirty ? 0 : -1}>
-                  {loading ? <><span className="pf-spinner" />A guardar...</> : <><Icons.Check size={15} />Guardar alterações</>}
+                  {loading ? <><span className="pf-spinner" />A guardar…</> : <><Icons.Check size={15} />Guardar alterações</>}
               </button>
           </div>
       </form>
@@ -682,7 +682,7 @@ async function handleSave(e) {
               </div>
               <div className="pf-crop-actions">
                 <button type="button" className="pf-btn pf-btn-ghost" onClick={() => setCropModal({ show: false, src: null })}>Cancelar</button>
-                <button type="button" className="pf-btn pf-btn-primary" onClick={confirmCrop} disabled={uploading}>{uploading ? 'A guardar...' : 'Usar esta foto'}</button>
+                <button type="button" className="pf-btn pf-btn-primary" onClick={confirmCrop} disabled={uploading}>{uploading ? 'A guardar…' : 'Usar esta foto'}</button>
               </div>
             </div>
           </div>

@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { supabase } from "../services/supabase";
 import { generateFormacaoPDF } from "../components/pdfFormacaoGenerator";
 import "./../styles/dashboard.css";
+import { Pencil } from "lucide-react";
 
 const stepTitles = [
   "Empresa Consultora",
@@ -877,8 +878,8 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
     showToast("Formulário limpo.");
   }
 
-  if (isLoading) return <div className="page-container">A carregar dados...</div>;
-  if (isLoadingDb) return <div className="page-container">A carregar proposta...</div>;
+  if (isLoading) return <div className="page-container">A carregar dados…</div>;
+  if (isLoadingDb) return <div className="page-container">A carregar proposta…</div>;
 
   const consultoraDadosReadOnly = Boolean(empresaConsultora.id);
   const clienteDadosReadOnly = Boolean(cliente.id);
@@ -998,7 +999,7 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
                 <div className="field-grid">
                   <div className="field">
                     <label>ID da Proposta</label>
-                    <input
+                    <input aria-label="ID da Proposta"
                       type="text"
                       readOnly
                       placeholder="Auto: SIGLA-2026-{id}"
@@ -1207,15 +1208,15 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
                                   {modulo.conteudo && <div style={{ color: "#64748b", fontSize: "0.84rem", marginTop: 4, lineHeight: 1.4 }}>{modulo.conteudo}</div>}
                                 </div>
                                 <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                                  <button
+                                  <button aria-label="Editar módulo"
                                     type="button"
                                     onClick={() => setEditingModulo({ cursoId: curso.id, index })}
                                     style={{ border: "1px solid #dbeafe", background: "#eff6ff", color: "#0284c7", borderRadius: 10, width: 34, height: 34, display: "grid", placeItems: "center", cursor: "pointer" }}
                                     title="Editar módulo"
                                   >
-                                    ✎
+                                    <Pencil size={15} aria-hidden="true" />
                                   </button>
-                                  <button
+                                  <button aria-label="Remover módulo"
                                     type="button"
                                     onClick={() => {
                                       const updatedModulos = modulos.filter((_, i) => i !== index);
@@ -1397,7 +1398,7 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
                   </div>
                   <div className="field">
                     <label>Nota dos honorários</label>
-                    <textarea rows={3} value={condicoes.nota_honorarios} onChange={setField(setCondicoes, "nota_honorarios")} placeholder='Os valores apresentados estão isentos de IVA. Proposta para um máx. 15 pax' />
+                    <textarea aria-label="Nota dos honorários" rows={3} value={condicoes.nota_honorarios} onChange={setField(setCondicoes, "nota_honorarios")} placeholder='Os valores apresentados estão isentos de IVA. Proposta para um máx. 15 pax' />
                   </div>
                   <div className="field">
                     <label>Plano de pagamento</label>
@@ -1523,10 +1524,10 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
             ) : (
               <div style={{ display: "flex", gap: 8 }}>
                 <button className="btn-primary" type="button" onClick={guardarPropostaEmBD} disabled={isSavingDb}>
-                  {isSavingDb ? "A guardar..." : "Guardar Proposta"}
+                  {isSavingDb ? "A guardar…" : "Guardar Proposta"}
                 </button>
                 <button className="btn-primary" type="button" onClick={gerarPDF} disabled={isGeneratingPDF}>
-                  {isGeneratingPDF ? "A gerar..." : "Gerar PDF"}
+                  {isGeneratingPDF ? "A gerar…" : "Gerar PDF"}
                 </button>
               </div>
             )}

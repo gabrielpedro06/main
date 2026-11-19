@@ -5,6 +5,8 @@ import { MarcaLogo } from "./MarcasModal";
 import { personasDoCsv } from "./mkCsv";
 import { CANAIS, canalInfo, GENEROS, RENDIMENTOS } from "../../constants/marketing";
 import { corPessoa, norm } from "./mkUtils";
+import { clicavel } from "../../utils/clicavel";
+import { MapPin } from "lucide-react";
 
 const LISTAS = ["localizacao", "canais", "comportamento", "desafios", "necessidades", "objetivos", "solucoes", "gatilhos"];
 const TEXTOS = ["papel", "nome_persona", "faixa_etaria", "ocupacao", "frase", "decisao", "formacao_ancora", "canal_chave", "como_abordar", "mensagem_chave"];
@@ -60,8 +62,8 @@ function PersonaDrawer({ persona, marca, sugestoes, usos, onPatch, onClose, onEl
           <div className="mk-phead-main">
             <PersonaFace persona={d} size={64} />
             <div className="mk-phead-names">
-              <input className="mk-phead-name" value={d.nome_persona || ""} placeholder="Nome (ex.: João)" autoFocus={!persona.nome_persona} onChange={(e) => edit("nome_persona", e.target.value)} onBlur={commit("nome_persona")} />
-              <input className="mk-phead-role" value={d.papel || ""} placeholder="Papel (ex.: Empregador / Empresário)" onChange={(e) => edit("papel", e.target.value)} onBlur={commit("papel")} />
+              <input aria-label="Nome (ex.: João)" className="mk-phead-name" value={d.nome_persona || ""} placeholder="Nome (ex.: João)" autoFocus={!persona.nome_persona} onChange={(e) => edit("nome_persona", e.target.value)} onBlur={commit("nome_persona")} />
+              <input aria-label="Papel (ex.: Empregador / Empresário)" className="mk-phead-role" value={d.papel || ""} placeholder="Papel (ex.: Empregador / Empresário)" onChange={(e) => edit("papel", e.target.value)} onBlur={commit("papel")} />
             </div>
           </div>
           <div className="mk-pquote">
@@ -293,7 +295,7 @@ export default function Personas({ marca, personas, conteudos, onCriar, onPatch,
               <thead><tr><th>Persona</th><th>Gatilho</th><th>Formação âncora</th><th>Canal</th><th>Mensagem-chave</th></tr></thead>
               <tbody>
                 {ordenadas.map((p) => (
-                  <tr key={p.id} onClick={() => setAbertaId(p.id)} style={{ "--pc": corDe(p) }}>
+                  <tr key={p.id} {...clicavel(() => setAbertaId(p.id), { papel: null })} style={{ "--pc": corDe(p) }}>
                     <td><span className="mk-matrix-who"><PersonaFace persona={p} size={28} /><span><b>{p.nome_persona || "—"}</b><small>{p.papel}</small></span></span></td>
                     <td>{p.gatilhos?.length ? p.gatilhos.join(" · ") : <span className="mk-nil">—</span>}</td>
                     <td>{p.formacao_ancora || <span className="mk-nil">—</span>}</td>
@@ -311,7 +313,7 @@ export default function Personas({ marca, personas, conteudos, onCriar, onPatch,
                 {g.titulo && <h4 className="mk-pgroup-title">{g.titulo} <em>{g.lista.length}</em><span>{g.sub}</span></h4>}
                 <div className="mk-pgrid">
                   {g.lista.map((p, i) => (
-                <article key={p.id} className="mk-pcard" style={{ "--pc": corDe(p), animationDelay: `${Math.min(i, 12) * 35}ms` }} onClick={() => setAbertaId(p.id)}>
+                <article key={p.id} className="mk-pcard" style={{ "--pc": corDe(p), animationDelay: `${Math.min(i, 12) * 35}ms` }} {...clicavel(() => setAbertaId(p.id))}>
                   <div className="mk-pcard-band">{p.tipo && <span className="mk-pcard-tipo">{p.tipo === "principal" ? "Principal" : "Complementar"}</span>}</div>
                   <div className="mk-pcard-top">
                     <PersonaFace persona={p} size={52} />
@@ -323,7 +325,7 @@ export default function Personas({ marca, personas, conteudos, onCriar, onPatch,
                   <div className="mk-pcard-meta">
                     {p.faixa_etaria && <span>{p.faixa_etaria}</span>}
                     {p.genero && <span>{p.genero}</span>}
-                    {p.localizacao?.length > 0 && <span>📍 {p.localizacao.join(", ")}</span>}
+                    {p.localizacao?.length > 0 && <span><MapPin size={13} aria-hidden="true" style={{ verticalAlign: '-2px' }} /> {p.localizacao.join(", ")}</span>}
                     {p.rendimento && <span>{p.rendimento}</span>}
                   </div>
                   {p.frase && <blockquote>“{p.frase}”</blockquote>}

@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { supabase } from "../services/supabase";
 import { generateProposalPDF } from "../components/pdfProposalGenerator";
 import "./../styles/dashboard.css";
+import { confirmar } from "../utils/dialogo";
 
 // ============================================================================
 // CONSTANTES E HELPERS
@@ -2032,8 +2033,8 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
     plano_pagamentos: planoPagamentosConsolidado,
   });
 
-  const resetForm = () => {
-    if (!window.confirm("Limpar todos os dados?")) return;
+  const resetForm = async () => {
+    if (!(await confirmar("Limpar todos os dados?", { mensagem: "O formulário volta ao início. Esta ação não se desfaz.", perigoso: true, botao: "Limpar" }))) return;
     setCurrentStep(1);
     setEmpresaConsultora(INITIAL_EMPRESA_CONSULTORA);
     setCliente(INITIAL_CLIENTE);
@@ -2078,11 +2079,11 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
   // ========================================================================
   
   if (isLoadingData) {
-    return <div className="page-container">A carregar dados...</div>;
+    return <div className="page-container">A carregar dados…</div>;
   }
 
   if (isLoadingDb) {
-    return <div className="page-container">A carregar proposta...</div>;
+    return <div className="page-container">A carregar proposta…</div>;
   }
 
   const consultoraDadosReadOnly = Boolean(empresaConsultora.id);
@@ -2208,27 +2209,27 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
 
                   <div className="field">
                     <label>NIPC</label>
-                    <input type="text" value={empresaConsultora.nipc} onChange={setField(setEmpresaConsultora, "nipc")} readOnly={consultoraDadosReadOnly} placeholder="ex. 503 495 140" />
+                    <input aria-label="NIPC" type="text" value={empresaConsultora.nipc} onChange={setField(setEmpresaConsultora, "nipc")} readOnly={consultoraDadosReadOnly} placeholder="ex. 503 495 140" />
                   </div>
                   <div className="field">
                     <label>Morada completa</label>
-                    <input type="text" value={empresaConsultora.morada} onChange={setField(setEmpresaConsultora, "morada")} readOnly={consultoraDadosReadOnly} placeholder="ex. Rua Horta Machado, 2 – 8000-362 Faro" />
+                    <input aria-label="Morada completa" type="text" value={empresaConsultora.morada} onChange={setField(setEmpresaConsultora, "morada")} readOnly={consultoraDadosReadOnly} placeholder="ex. Rua Horta Machado, 2 – 8000-362 Faro" />
                   </div>
                   <div className="field">
                     <label>Telefone</label>
-                    <input type="text" value={empresaConsultora.telefone} onChange={setField(setEmpresaConsultora, "telefone")} readOnly={consultoraDadosReadOnly} placeholder="ex. 289 098 720" />
+                    <input aria-label="Telefone" type="text" value={empresaConsultora.telefone} onChange={setField(setEmpresaConsultora, "telefone")} readOnly={consultoraDadosReadOnly} placeholder="ex. 289 098 720" />
                   </div>
                   <div className="field">
                     <label>Email</label>
-                    <input type="email" value={empresaConsultora.email} onChange={setField(setEmpresaConsultora, "email")} readOnly={consultoraDadosReadOnly} placeholder="ex. info@consultora.pt" />
+                    <input aria-label="Email" type="email" value={empresaConsultora.email} onChange={setField(setEmpresaConsultora, "email")} readOnly={consultoraDadosReadOnly} placeholder="ex. info@consultora.pt" />
                   </div>
                   <div className="field">
                     <label>Website</label>
-                    <input type="text" value={empresaConsultora.website} onChange={setField(setEmpresaConsultora, "website")} readOnly={consultoraDadosReadOnly} placeholder="ex. www.consultora.pt" />
+                    <input aria-label="Website" type="text" value={empresaConsultora.website} onChange={setField(setEmpresaConsultora, "website")} readOnly={consultoraDadosReadOnly} placeholder="ex. www.consultora.pt" />
                   </div>
                   <div className="field">
                     <label>Cargo do signatário</label>
-                    <input type="text" value={empresaConsultora.cargo_signatario} onChange={setField(setEmpresaConsultora, "cargo_signatario")} readOnly={consultoraDadosReadOnly} placeholder="ex. Diretor" />
+                    <input aria-label="Cargo do signatário" type="text" value={empresaConsultora.cargo_signatario} onChange={setField(setEmpresaConsultora, "cargo_signatario")} readOnly={consultoraDadosReadOnly} placeholder="ex. Diretor" />
                   </div>
                 </div>
               </div>
@@ -2238,7 +2239,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                 <div className="field-grid">
                   <div className="field">
                     <label>ID da Proposta</label>
-                    <input
+                    <input aria-label="ID da Proposta"
                       type="text"
                       placeholder="Auto: SIGLA-ANO-{id}"
                       readOnly
@@ -2272,16 +2273,16 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                 <div className="field-grid field-grid-1">
                   <div className="field">
                     <label>Apresentação da Empresa</label>
-                    <textarea
+                    <textarea aria-label="Apresentação da Empresa"
                       rows={5}
                       value={entidadeConfig.texto_apresentacao_empresa || ""}
                       onChange={(e) => setEntidadeConfig(p => ({ ...p, texto_apresentacao_empresa: e.target.value }))}
-                      placeholder="Breve apresentação da consultora..."
+                      placeholder="Breve apresentação da consultora…"
                     />
                   </div>
                   <div className="field">
                     <label>Mensagem de Abertura / Compromisso</label>
-                    <textarea
+                    <textarea aria-label="Mensagem de Abertura / Compromisso"
                       rows={5}
                       value={entidadeConfig.texto_compromisso || ""}
                       onChange={(e) => setEntidadeConfig(p => ({ ...p, texto_compromisso: e.target.value }))}
@@ -2290,7 +2291,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                   </div>
                   <div className="field">
                     <label>Metodologia e Documentos Necessários</label>
-                    <textarea
+                    <textarea aria-label="Metodologia e Documentos Necessários"
                       rows={5}
                       value={entidadeConfig.texto_processo_trabalho || ""}
                       onChange={(e) => setEntidadeConfig(p => ({ ...p, texto_processo_trabalho: e.target.value }))}
@@ -2323,15 +2324,15 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                   </div>
                   <div className="field">
                     <label>NIPC</label>
-                    <input type="text" value={cliente.nipc || ""} onChange={setField(setCliente, "nipc")} readOnly={clienteDadosReadOnly} placeholder="ex. 507 123 456" />
+                    <input aria-label="NIPC" type="text" value={cliente.nipc || ""} onChange={setField(setCliente, "nipc")} readOnly={clienteDadosReadOnly} placeholder="ex. 507 123 456" />
                   </div>
                   <div className="field">
                     <label>Morada</label>
-                    <input type="text" value={cliente.morada || ""} onChange={setField(setCliente, "morada")} readOnly={clienteDadosReadOnly} placeholder="ex. Rua da Liberdade, 10 – 8000-000 Faro" />
+                    <input aria-label="Morada" type="text" value={cliente.morada || ""} onChange={setField(setCliente, "morada")} readOnly={clienteDadosReadOnly} placeholder="ex. Rua da Liberdade, 10 – 8000-000 Faro" />
                   </div>
                   <div className="field">
                     <label>Código Postal</label>
-                    <input 
+                    <input aria-label="Código Postal" 
                       type="text" 
                       value={cliente.codigo_postal || ""} 
                       onChange={setField(setCliente, "codigo_postal")} 
@@ -2341,7 +2342,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                   </div>
                   <div className="field">
                     <label>Distrito / Cidade</label>
-                    <input type="text" value={cliente.distrito_cidade || ""} onChange={setField(setCliente, "distrito_cidade")} readOnly={clienteDadosReadOnly} placeholder="ex. Faro" />
+                    <input aria-label="Distrito / Cidade" type="text" value={cliente.distrito_cidade || ""} onChange={setField(setCliente, "distrito_cidade")} readOnly={clienteDadosReadOnly} placeholder="ex. Faro" />
                   </div>
                 </div>
               </div>
@@ -2376,15 +2377,15 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                   </div>
                   <div className="field">
                     <label>Cargo</label>
-                    <input type="text" value={cliente.contacto_cargo || ""} onChange={setField(setCliente, "contacto_cargo")} readOnly={clienteDadosReadOnly} placeholder="ex. Gerente" />
+                    <input aria-label="Cargo" type="text" value={cliente.contacto_cargo || ""} onChange={setField(setCliente, "contacto_cargo")} readOnly={clienteDadosReadOnly} placeholder="ex. Gerente" />
                   </div>
                   <div className="field">
                     <label>Email</label>
-                    <input type="email" value={cliente.contacto_email || ""} onChange={setField(setCliente, "contacto_email")} readOnly={clienteDadosReadOnly} placeholder="ex. agomes@empresa.pt" />
+                    <input aria-label="Email" type="email" value={cliente.contacto_email || ""} onChange={setField(setCliente, "contacto_email")} readOnly={clienteDadosReadOnly} placeholder="ex. agomes@empresa.pt" />
                   </div>
                   <div className="field">
                     <label>Telefone</label>
-                    <input type="text" value={cliente.contacto_telefone || ""} onChange={setField(setCliente, "contacto_telefone")} readOnly={clienteDadosReadOnly} placeholder="ex. 289 000 000" />
+                    <input aria-label="Telefone" type="text" value={cliente.contacto_telefone || ""} onChange={setField(setCliente, "contacto_telefone")} readOnly={clienteDadosReadOnly} placeholder="ex. 289 000 000" />
                   </div>
                 </div>
               </div>
@@ -2442,7 +2443,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                           background: programa.id === programaId ? "#f0f4ff" : "#f8f9fa",
                           textAlign: "left",
                           cursor: "pointer",
-                          transition: "all 0.2s ease",
+                          transition: "background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease",
                         }}
                       >
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px" }}>
@@ -2694,11 +2695,11 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                              <label style={{ marginBottom: 8 }}>
                                Atividade {idx + 1}: <strong style={{ color: '#0f172a' }}>{atividade.nome}</strong>
                              </label>
-                             <textarea
+                             <textarea aria-label="Atividade :"
                                rows={3}
                                value={atividade.descricao || ""}
                                onChange={(e) => updateAtividadeModelo(atividade.id, "descricao", e.target.value)}
-                               placeholder="Descrição desta atividade na proposta..."
+                               placeholder="Descrição desta atividade na proposta…"
                                style={{ background: '#fff' }}
                              />
                            </div>
@@ -2963,7 +2964,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                                         <input type="number" step="0.01" min="0" value={Number(v.percentagem || 0)} onChange={(e) => updateVariavelTipoProjeto(item.tipo_projeto_id, vi, "percentagem", e.target.value)} style={{ width: "100%", minWidth: 56, textAlign: "center" }} />
                                       </td>
                                       <td style={{ padding: "6px 8px" }}>
-                                        <input type="text" value={v.descricao || ""} onChange={(e) => updateVariavelTipoProjeto(item.tipo_projeto_id, vi, "descricao", e.target.value)} placeholder="Descrição" style={{ width: "100%", minWidth: 180 }} />
+                                        <input aria-label="Descrição" type="text" value={v.descricao || ""} onChange={(e) => updateVariavelTipoProjeto(item.tipo_projeto_id, vi, "descricao", e.target.value)} placeholder="Descrição" style={{ width: "100%", minWidth: 180 }} />
                                       </td>
                                       <td style={{ padding: "6px 8px", textAlign: "center" }}>
                                         <input type="number" min="1" step="1" value={Number(v.num_parcelas || 1)} onChange={(e) => updateVariavelTipoProjeto(item.tipo_projeto_id, vi, "num_parcelas", e.target.value)} style={{ width: "100%", minWidth: 70, textAlign: "center" }} />
@@ -3014,15 +3015,15 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                 <div className="field-grid field-grid-1">
                   <div className="field">
                     <label>Plano de Pagamento Geral (Texto Curto)</label>
-                    <textarea rows={3} value={entidadeConfig.texto_plano_pagamento || ""} onChange={(e) => setEntidadeConfig(p => ({ ...p, texto_plano_pagamento: e.target.value }))} placeholder="Ex: Faturado e cobrado a 30 dias..." />
+                    <textarea aria-label="Plano de Pagamento Geral (Texto Curto)" rows={3} value={entidadeConfig.texto_plano_pagamento || ""} onChange={(e) => setEntidadeConfig(p => ({ ...p, texto_plano_pagamento: e.target.value }))} placeholder="Ex: Faturado e cobrado a 30 dias…" />
                   </div>
                   <div className="field">
                     <label>Condições Gerais / Termos</label>
-                    <textarea rows={4} value={condicoesGerais.termos_gerais || ""} onChange={(e) => setCondicoesGerais({ termos_gerais: e.target.value })} placeholder="Termos padrão da consultora..." />
+                    <textarea aria-label="Condições Gerais / Termos" rows={4} value={condicoesGerais.termos_gerais || ""} onChange={(e) => setCondicoesGerais({ termos_gerais: e.target.value })} placeholder="Termos padrão da consultora…" />
                   </div>
                   <div className="field">
                     <label>Exclusões / Notas Legais (Opcional)</label>
-                    <textarea rows={3} value={entidadeConfig.texto_exclusoes || ""} onChange={(e) => setEntidadeConfig(p => ({ ...p, texto_exclusoes: e.target.value }))} placeholder="O que não está incluído..." />
+                    <textarea aria-label="Exclusões / Notas Legais (Opcional)" rows={3} value={entidadeConfig.texto_exclusoes || ""} onChange={(e) => setEntidadeConfig(p => ({ ...p, texto_exclusoes: e.target.value }))} placeholder="O que não está incluído…" />
                   </div>
                 </div>
               </div>
@@ -3151,7 +3152,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                   disabled={isSavingDb}
                   style={{ minWidth: 180 }}
                 >
-                  {isSavingDb ? "A guardar..." : "Guardar Proposta"}
+                  {isSavingDb ? "A guardar…" : "Guardar Proposta"}
                 </button>
                 <button
                   className="btn-primary"

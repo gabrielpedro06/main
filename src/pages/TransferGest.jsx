@@ -3,7 +3,10 @@ import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import { checkTransfergestApiHealth, sendTransfergestCampaign } from "../services/transfergestSender";
 import "./../styles/dashboard.css";
+import { clicavel } from "../utils/clicavel";
 
+import AvisoToast from "../components/AvisoToast";
+import { Globe, Megaphone } from "lucide-react";
 const ModalPortal = ({ children }) => createPortal(children, document.body);
 
 const STATUS_OPTIONS = [
@@ -850,7 +853,7 @@ export default function TransferGest() {
         <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
           <div
             style={{ background: "var(--color-bgSecondary)", color: "var(--color-btnPrimary)", padding: "12px", borderRadius: "12px", display: "flex", cursor: "pointer" }}
-            onClick={() => setSelectedCampanha("")}
+            {...clicavel(() => setSelectedCampanha(""))}
             title="Voltar ao menu de campanhas"
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -957,7 +960,7 @@ export default function TransferGest() {
            }}
            className="hover-shadow"
         >
-           🌍 Todas
+           <Globe size={15} aria-hidden="true" style={{ verticalAlign: '-3px', marginRight: 6 }} />Todas
         </button>
 
         {campanhasDisponiveis.map(c => (
@@ -978,7 +981,7 @@ export default function TransferGest() {
               }}
               className="hover-shadow"
            >
-              🚀 {c}
+              <Megaphone size={15} aria-hidden="true" style={{ verticalAlign: '-3px', marginRight: 6 }} />{c}
            </button>
         ))}
       </div>
@@ -1004,7 +1007,7 @@ export default function TransferGest() {
       <div className="card" style={{ padding: "16px", border: "1px solid var(--color-borderColor)", background: "var(--color-cardBg, #fff)", borderRadius: "0 12px 12px 12px" }}>
         <div className="tg-search-row">
           <div className="tg-search-box">
-            <input
+            <input aria-label="Pesquisar: nome, nif, registo, email | localidade:porto ano:2026 target:industria interesse:sim"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Pesquisar: nome, nif, registo, email | localidade:porto ano:2026 target:industria interesse:sim"
@@ -1085,22 +1088,22 @@ export default function TransferGest() {
 
                 <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.15fr) minmax(220px, 0.85fr)", gap: "12px", marginTop: "14px" }}>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: "0.72rem", color: "#94a3b8", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.04em" }}>Contacto</div>
+                    <div style={{ fontSize: "0.72rem", color: "#64748b", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.04em" }}>Contacto</div>
                     <div style={{ fontSize: "0.84rem", color: "#334155", marginTop: "4px" }}>{formatDisplayValue(item.contacto_telefone)}</div>
                     <div style={{ fontSize: "0.84rem", color: "var(--color-btnPrimary)", marginTop: "2px" }}>{formatDisplayValue(item.contacto_email)}</div>
                   </div>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: "0.72rem", color: "#94a3b8", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.04em" }}>Registo</div>
+                    <div style={{ fontSize: "0.72rem", color: "#64748b", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.04em" }}>Registo</div>
                     <div style={{ fontSize: "0.84rem", color: "#334155", marginTop: "4px" }}>{formatDisplayValue(item.numero_registo)}</div>
                     <div style={{ fontSize: "0.84rem", color: "#64748b", marginTop: "2px" }}>{formatDisplayValue(item.data_registo)}</div>
                   </div>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: "0.72rem", color: "#94a3b8", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.04em" }}>Localidade</div>
+                    <div style={{ fontSize: "0.72rem", color: "#64748b", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.04em" }}>Localidade</div>
                     <div style={{ fontSize: "0.84rem", color: "#334155", marginTop: "4px" }}>{formatDisplayValue(item.sede_localidade)}</div>
                     <div style={{ fontSize: "0.84rem", color: "#64748b", marginTop: "2px" }}>{formatDisplayValue(item.sede_concelho)} / {formatDisplayValue(item.sede_distrito)}</div>
                   </div>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: "0.72rem", color: "#94a3b8", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.04em" }}>Target / Classificação</div>
+                    <div style={{ fontSize: "0.72rem", color: "#64748b", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.04em" }}>Target / Classificação</div>
                     <div style={{ fontSize: "0.84rem", color: "#334155", marginTop: "4px" }}>{formatDisplayValue(item.target)}</div>
                     <div style={{ fontSize: "0.84rem", color: "#64748b", marginTop: "2px" }}>{formatDisplayValue(item.classificacao_transfergest)}</div>
                   </div>
@@ -1132,7 +1135,7 @@ export default function TransferGest() {
 
       {showFormModal && (
         <ModalPortal>
-          <div style={{ position: "fixed", inset: 0, background: "rgba(2, 6, 23, 0.65)", backdropFilter: "blur(4px)", zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+          <div style={{ position: "fixed", inset: 0, background: "rgba(2, 6, 23, 0.65)", backdropFilter: "blur(4px)", zIndex: "calc(var(--z-modal) + 13)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
             <div style={{ width: "100%", maxWidth: "960px", maxHeight: "90vh", overflowY: "auto", background: "var(--color-cardBg, #fff)", borderRadius: "14px", border: "1px solid var(--color-borderColor)", padding: "18px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
                 <h3 style={{ margin: 0 }}>{isEditForm ? "Editar registo TransferGest" : "Novo registo TransferGest"}</h3>
@@ -1145,7 +1148,7 @@ export default function TransferGest() {
                   {/* 💡 INPUT PARA CAMPANHA NO FORMULÁRIO */}
                   <div style={{ gridColumn: "span 2", background: "var(--color-bgSecondary)", padding: "10px", borderRadius: "8px", border: "1px solid var(--color-borderColor)" }}>
                     <label style={{...labelStyle, color: "var(--color-btnPrimaryDark)"}}>Associar a Campanha *</label>
-                    <input 
+                    <input aria-label="Associar a Campanha" 
                        required 
                        list="campanhas-list"
                        value={formData.campanha || ""} 
@@ -1268,7 +1271,7 @@ export default function TransferGest() {
 
       {showDetailModal && detailItem && (
         <ModalPortal>
-          <div style={{ position: "fixed", inset: 0, background: "rgba(2, 6, 23, 0.65)", backdropFilter: "blur(4px)", zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+          <div style={{ position: "fixed", inset: 0, background: "rgba(2, 6, 23, 0.65)", backdropFilter: "blur(4px)", zIndex: "calc(var(--z-modal) + 13)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
             <div style={{ width: "100%", maxWidth: "980px", maxHeight: "90vh", overflowY: "auto", background: "var(--color-cardBg, #fff)", borderRadius: "14px", border: "1px solid var(--color-borderColor)", padding: "18px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px", marginBottom: "16px", flexWrap: "wrap" }}>
                 <div>
@@ -1286,7 +1289,7 @@ export default function TransferGest() {
 
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
                 <div style={{ padding: "12px", borderRadius: "12px", border: "1px solid var(--color-borderColor)", background: "#f8fafc" }}>
-                  <div style={{ fontSize: "0.72rem", color: "#94a3b8", fontWeight: 800, textTransform: "uppercase" }}>Identificação</div>
+                  <div style={{ fontSize: "0.72rem", color: "#64748b", fontWeight: 800, textTransform: "uppercase" }}>Identificação</div>
                   <div style={{ marginTop: "8px", color: "#334155", fontSize: "0.9rem" }}>NIF: {formatDisplayValue(detailItem.numero_contribuinte)}</div>
                   <div style={{ color: "#334155", fontSize: "0.9rem" }}>N registo: {formatDisplayValue(detailItem.numero_registo)}</div>
                   <div style={{ color: "#334155", fontSize: "0.9rem" }}>Data: {formatDisplayValue(detailItem.data_registo)}</div>
@@ -1294,7 +1297,7 @@ export default function TransferGest() {
                 </div>
 
                 <div style={{ padding: "12px", borderRadius: "12px", border: "1px solid var(--color-borderColor)", background: "#f8fafc" }}>
-                  <div style={{ fontSize: "0.72rem", color: "#94a3b8", fontWeight: 800, textTransform: "uppercase" }}>Contacto</div>
+                  <div style={{ fontSize: "0.72rem", color: "#64748b", fontWeight: 800, textTransform: "uppercase" }}>Contacto</div>
                   <div style={{ marginTop: "8px", color: "#334155", fontSize: "0.9rem" }}>Telefone: {formatDisplayValue(detailItem.contacto_telefone)}</div>
                   <div style={{ color: "#334155", fontSize: "0.9rem" }}>Email: {formatDisplayValue(detailItem.contacto_email)}</div>
                   <div style={{ color: "#334155", fontSize: "0.9rem" }}>Interesse: {detailItem.interesse_email_marketing ? "SIM" : "NAO"}</div>
@@ -1302,7 +1305,7 @@ export default function TransferGest() {
                 </div>
 
                 <div style={{ padding: "12px", borderRadius: "12px", border: "1px solid var(--color-borderColor)", background: "#f8fafc" }}>
-                  <div style={{ fontSize: "0.72rem", color: "#94a3b8", fontWeight: 800, textTransform: "uppercase" }}>Geografia</div>
+                  <div style={{ fontSize: "0.72rem", color: "#64748b", fontWeight: 800, textTransform: "uppercase" }}>Geografia</div>
                   <div style={{ marginTop: "8px", color: "#334155", fontSize: "0.9rem" }}>Sede: {formatDisplayValue(detailItem.sede_endereco)}</div>
                   <div style={{ color: "#334155", fontSize: "0.9rem" }}>CP: {formatDisplayValue(detailItem.sede_codigo_postal)}</div>
                   <div style={{ color: "#334155", fontSize: "0.9rem" }}>Localidade: {formatDisplayValue(detailItem.sede_localidade)}</div>
@@ -1310,7 +1313,7 @@ export default function TransferGest() {
                 </div>
 
                 <div style={{ padding: "12px", borderRadius: "12px", border: "1px solid var(--color-borderColor)", background: "#f8fafc" }}>
-                  <div style={{ fontSize: "0.72rem", color: "#94a3b8", fontWeight: 800, textTransform: "uppercase" }}>Enquadramento</div>
+                  <div style={{ fontSize: "0.72rem", color: "#64748b", fontWeight: 800, textTransform: "uppercase" }}>Enquadramento</div>
                   <div style={{ marginTop: "8px", color: "#334155", fontSize: "0.9rem" }}>ERT DRT: {formatDisplayValue(detailItem.ert_drt)}</div>
                   <div style={{ color: "#334155", fontSize: "0.9rem" }}>NUT II: {formatDisplayValue(detailItem.nut_ii)}</div>
                   <div style={{ color: "#334155", fontSize: "0.9rem" }}>NUT III: {formatDisplayValue(detailItem.nut_iii)}</div>
@@ -1318,15 +1321,15 @@ export default function TransferGest() {
                 </div>
 
                 <div style={{ padding: "12px", borderRadius: "12px", border: "1px solid var(--color-borderColor)", background: "#f8fafc" }}>
-                  <div style={{ fontSize: "0.72rem", color: "#94a3b8", fontWeight: 800, textTransform: "uppercase" }}>Classificação</div>
+                  <div style={{ fontSize: "0.72rem", color: "#64748b", fontWeight: 800, textTransform: "uppercase" }}>Classificação</div>
                   <div style={{ marginTop: "8px", color: "#334155", fontSize: "0.9rem" }}>{formatDisplayValue(detailItem.classificacao_transfergest)}</div>
-                  <div style={{ marginTop: "10px", fontSize: "0.72rem", color: "#94a3b8", fontWeight: 800, textTransform: "uppercase" }}>Estado</div>
+                  <div style={{ marginTop: "10px", fontSize: "0.72rem", color: "#64748b", fontWeight: 800, textTransform: "uppercase" }}>Estado</div>
                   <div style={{ marginTop: "6px", color: "#334155", fontSize: "0.9rem" }}>{formatDisplayValue(detailItem.estado).toUpperCase()}</div>
                   <div style={{ color: "#64748b", fontSize: "0.82rem", marginTop: "4px" }}>{detailItem.estado_historico && detailItem.estado_historico[detailItem.estado] ? `Desde ${detailItem.estado_historico[detailItem.estado]}` : "Sem data de estado"}</div>
                 </div>
 
                 <div style={{ gridColumn: "1 / -1", padding: "12px", borderRadius: "12px", border: "1px solid var(--color-borderColor)", background: "#f8fafc" }}>
-                  <div style={{ fontSize: "0.72rem", color: "#94a3b8", fontWeight: 800, textTransform: "uppercase" }}>Observacoes</div>
+                  <div style={{ fontSize: "0.72rem", color: "#64748b", fontWeight: 800, textTransform: "uppercase" }}>Observacoes</div>
                   <div style={{ marginTop: "8px", color: "#334155", fontSize: "0.9rem", whiteSpace: "pre-wrap" }}>{formatDisplayValue(detailItem.observacoes)}</div>
                 </div>
               </div>
@@ -1337,14 +1340,14 @@ export default function TransferGest() {
 
       {showImportModal && (
         <ModalPortal>
-          <div style={{ position: "fixed", inset: 0, background: "rgba(2, 6, 23, 0.65)", backdropFilter: "blur(4px)", zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+          <div style={{ position: "fixed", inset: 0, background: "rgba(2, 6, 23, 0.65)", backdropFilter: "blur(4px)", zIndex: "calc(var(--z-modal) + 13)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
             <div style={{ width: "100%", maxWidth: "760px", background: "var(--color-cardBg, #fff)", borderRadius: "14px", border: "1px solid var(--color-borderColor)", padding: "18px" }}>
               <h3 style={{ marginTop: 0 }}>Importar CSV TransferGest</h3>
               
               {/* 💡 INPUT PARA CAMPANHA NO IMPORT (Livre + Sugestões) */}
               <div style={{ background: "var(--color-bgSecondary)", padding: "12px", borderRadius: "8px", border: "1px solid var(--color-btnPrimary)", marginBottom: "14px" }}>
                 <label style={{...labelStyle, color: "var(--color-btnPrimaryDark)"}}>Para que campanha vai este ficheiro?</label>
-                <input 
+                <input aria-label="Para que campanha vai este ficheiro?" 
                    type="text"
                    list="import-campanhas-list"
                    value={importCampanha} 
@@ -1369,7 +1372,7 @@ export default function TransferGest() {
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "14px" }}>
                 <button className="tg-modal-btn" onClick={() => setShowImportModal(false)} disabled={importing}>Cancelar</button>
-                <button className="tg-modal-btn tg-modal-btn-primary" onClick={handleImport} disabled={importing}>{importing ? "A importar..." : "Importar"}</button>
+                <button className="tg-modal-btn tg-modal-btn-primary" onClick={handleImport} disabled={importing}>{importing ? "A importar…" : "Importar"}</button>
               </div>
             </div>
           </div>
@@ -1378,7 +1381,7 @@ export default function TransferGest() {
 
       {showBulkStatusModal && (
         <ModalPortal>
-          <div style={{ position: "fixed", inset: 0, background: "rgba(2, 6, 23, 0.65)", backdropFilter: "blur(4px)", zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+          <div style={{ position: "fixed", inset: 0, background: "rgba(2, 6, 23, 0.65)", backdropFilter: "blur(4px)", zIndex: "calc(var(--z-modal) + 13)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
             <div style={{ width: "100%", maxWidth: "520px", background: "var(--color-cardBg, #fff)", borderRadius: "14px", border: "1px solid var(--color-borderColor)", padding: "18px" }}>
               <h3 style={{ marginTop: 0 }}>Alterar estado em massa</h3>
               <p style={{ color: "var(--color-textSecondary)" }}>Registos selecionados: {selectedIds.length}</p>
@@ -1395,7 +1398,7 @@ export default function TransferGest() {
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "14px" }}>
                 <button className="tg-modal-btn" onClick={() => setShowBulkStatusModal(false)} disabled={bulkUpdating}>Cancelar</button>
-                <button className="tg-modal-btn tg-modal-btn-primary" onClick={handleBulkStatusUpdate} disabled={bulkUpdating}>{bulkUpdating ? "A atualizar..." : "Aplicar"}</button>
+                <button className="tg-modal-btn tg-modal-btn-primary" onClick={handleBulkStatusUpdate} disabled={bulkUpdating}>{bulkUpdating ? "A atualizar…" : "Aplicar"}</button>
               </div>
             </div>
           </div>
@@ -1404,7 +1407,7 @@ export default function TransferGest() {
 
       {showSendModal && (
         <ModalPortal>
-          <div style={{ position: "fixed", inset: 0, background: "rgba(2, 6, 23, 0.65)", backdropFilter: "blur(4px)", zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+          <div style={{ position: "fixed", inset: 0, background: "rgba(2, 6, 23, 0.65)", backdropFilter: "blur(4px)", zIndex: "calc(var(--z-modal) + 13)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
             <div style={{ width: "100%", maxWidth: "760px", background: "var(--color-cardBg, #fff)", borderRadius: "14px", border: "1px solid var(--color-borderColor)", padding: "18px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
                 <h3 style={{ margin: 0 }}>Enviar campanha TransferGest</h3>
@@ -1439,8 +1442,8 @@ export default function TransferGest() {
                 </div>
               ) : (
                 <>
-                  <input type="text" placeholder="Assunto" value={campaignForm.subject} onChange={(e) => setCampaignForm((prev) => ({ ...prev, subject: e.target.value }))} style={{ ...inputStyle, marginBottom: "8px" }} />
-                  <textarea placeholder="HTML da campanha" value={campaignForm.htmlContent} onChange={(e) => setCampaignForm((prev) => ({ ...prev, htmlContent: e.target.value }))} style={{ ...inputStyle, minHeight: "180px", resize: "vertical", marginBottom: "8px" }} />
+                  <input aria-label="Assunto" type="text" placeholder="Assunto" value={campaignForm.subject} onChange={(e) => setCampaignForm((prev) => ({ ...prev, subject: e.target.value }))} style={{ ...inputStyle, marginBottom: "8px" }} />
+                  <textarea aria-label="HTML da campanha" placeholder="HTML da campanha" value={campaignForm.htmlContent} onChange={(e) => setCampaignForm((prev) => ({ ...prev, htmlContent: e.target.value }))} style={{ ...inputStyle, minHeight: "180px", resize: "vertical", marginBottom: "8px" }} />
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", marginBottom: "8px" }}>
                     <input type="number" min="1" max="100" value={campaignForm.batchSize} onChange={(e) => setCampaignForm((prev) => ({ ...prev, batchSize: e.target.value }))} style={inputStyle} />
                     <input type="number" min="0" value={campaignForm.batchDelayMs} onChange={(e) => setCampaignForm((prev) => ({ ...prev, batchDelayMs: e.target.value }))} style={inputStyle} />
@@ -1466,7 +1469,7 @@ export default function TransferGest() {
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
                 <button className="tg-modal-btn" onClick={() => setShowSendModal(false)} disabled={sendingCampaign}>Cancelar</button>
-                <button className="tg-modal-btn tg-modal-btn-primary" onClick={handleSendCampaign} disabled={sendingCampaign}>{sendingCampaign ? "A enviar..." : "Enviar"}</button>
+                <button className="tg-modal-btn tg-modal-btn-primary" onClick={handleSendCampaign} disabled={sendingCampaign}>{sendingCampaign ? "A enviar…" : "Enviar"}</button>
               </div>
             </div>
           </div>
@@ -1475,7 +1478,7 @@ export default function TransferGest() {
 
       {confirmDialog.show && (
         <ModalPortal>
-          <div style={{ position: "fixed", inset: 0, background: "rgba(2, 6, 23, 0.65)", backdropFilter: "blur(4px)", zIndex: 999999, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+          <div style={{ position: "fixed", inset: 0, background: "rgba(2, 6, 23, 0.65)", backdropFilter: "blur(4px)", zIndex: "calc(var(--z-modal-max) + 1)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
             <div style={{ width: "100%", maxWidth: "420px", background: "var(--color-cardBg, #fff)", borderRadius: "14px", border: "1px solid var(--color-borderColor)", padding: "18px" }}>
               <h3 style={{ marginTop: 0 }}>Confirmacao</h3>
               <p style={{ color: "var(--color-textSecondary)" }}>{confirmDialog.message}</p>
@@ -1488,7 +1491,7 @@ export default function TransferGest() {
         </ModalPortal>
       )}
 
-      {notification && <div className={`toast-container ${notification.type}`}>{notification.message}</div>}
+      {notification && <AvisoToast tipo={notification.type} mensagem={notification.message} />}
 
       <style>{`
         .transfergest-page .campaign-menu-grid {
@@ -1576,7 +1579,7 @@ export default function TransferGest() {
           letter-spacing: 0.02em;
           color: var(--color-textSecondary);
           background: color-mix(in srgb, var(--color-borderColor) 55%, transparent);
-          transition: all 0.2s ease;
+          transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease;
         }
 
         .transfergest-page .tg-status-tab:hover {
@@ -1755,7 +1758,7 @@ export default function TransferGest() {
           align-items: center;
           justify-content: center;
           line-height: 1;
-          transition: all 0.2s ease;
+          transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease;
         }
 
         .transfergest-page .btn-outline:hover,
@@ -1773,7 +1776,7 @@ export default function TransferGest() {
           font-size: 0.8rem;
           font-weight: 700;
           cursor: pointer;
-          transition: all 0.18s ease;
+          transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease, opacity 0.18s ease, width 0.18s ease, filter 0.18s ease;
           box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
         }
 
@@ -1833,7 +1836,7 @@ export default function TransferGest() {
           align-items: center;
           justify-content: center;
           cursor: pointer;
-          transition: all 0.18s ease;
+          transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease, opacity 0.18s ease, width 0.18s ease, filter 0.18s ease;
         }
 
         .tg-modal-btn:hover {

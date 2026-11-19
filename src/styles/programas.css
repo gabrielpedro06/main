@@ -120,7 +120,7 @@
 .pa-deadline:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--t) 40%, #eef2f6); box-shadow: 0 12px 22px -16px var(--t); }
 .pa-deadline-days { width: 46px; height: 46px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 12px; background: color-mix(in srgb, var(--t) 12%, #fff); color: var(--t); line-height: 1; }
 .pa-deadline-days strong { font-size: 1.1rem; font-weight: 900; font-variant-numeric: tabular-nums; }
-.pa-deadline-days small { font-size: 0.6rem; font-weight: 800; text-transform: uppercase; margin-top: 2px; }
+.pa-deadline-days small { font-size: 0.66rem; font-weight: 800; text-transform: uppercase; margin-top: 2px; }
 .pa-deadline.is-urgent .pa-deadline-days { animation: paPulse 1.8s ease-out infinite; }
 @keyframes paPulse { 0% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.4); } 100% { box-shadow: 0 0 0 8px rgba(225, 29, 72, 0); } }
 .pa-deadline-text { min-width: 0; display: flex; flex-direction: column; }
@@ -157,11 +157,11 @@
 .pa-ring circle { fill: none; stroke: color-mix(in srgb, var(--c) 14%, #eef2f6); stroke-width: 4.5; }
 .pa-ring .pa-ring-fg { stroke: var(--c); stroke-linecap: round; stroke-dasharray: 113.1; stroke-dashoffset: calc(113.1 - 113.1 * var(--p) / 100); transition: stroke-dashoffset 0.8s var(--pa-ease); }
 .pa-ring > span { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 1px; font-size: 0.92rem; font-weight: 900; color: var(--pa-ink); font-variant-numeric: tabular-nums; }
-.pa-ring small { font-size: 0.6rem; font-weight: 800; color: var(--pa-faint); }
+.pa-ring small { font-size: 0.66rem; font-weight: 800; color: var(--pa-faint); }
 .pa-card-title { min-width: 0; flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
 .pa-card-title h2 { margin: 0; font-size: 1.05rem; font-weight: 900; color: var(--pa-ink); line-height: 1.25; letter-spacing: -0.01em; }
 .pa-code { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 6px; background: color-mix(in srgb, var(--c) 11%, #fff); color: color-mix(in srgb, var(--c) 80%, #0f172a); font-size: 0.66rem; font-weight: 900; letter-spacing: 0.04em; }
-.pa-badge-off { display: inline-flex; height: 19px; padding: 0 7px; align-items: center; border-radius: 6px; background: #fee2e2; color: #dc2626; font-size: 0.6rem; font-weight: 900; letter-spacing: 0.06em; }
+.pa-badge-off { display: inline-flex; height: 19px; padding: 0 7px; align-items: center; border-radius: 6px; background: #fee2e2; color: #dc2626; font-size: 0.66rem; font-weight: 900; letter-spacing: 0.06em; }
 
 .pa-card-info { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 7px; }
 .pa-card-info > div { display: flex; align-items: center; gap: 8px; font-size: 0.84rem; color: var(--pa-text); line-height: 1.35; }
@@ -272,8 +272,8 @@
 /* =========================================================================
    MODAIS
    ========================================================================= */
-.pa-overlay { position: fixed; inset: 0; z-index: 1050; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(15, 23, 42, 0.55); backdrop-filter: blur(6px); animation: paFade 0.2s ease both; color: var(--pa-text); }
-.pa-overlay.is-top { z-index: 99998; }
+.pa-overlay { position: fixed; inset: 0; z-index: calc(var(--z-app) + 5); display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(15, 23, 42, 0.55); backdrop-filter: blur(6px); animation: paFade 0.2s ease both; color: var(--pa-text); }
+.pa-overlay.is-top { z-index: calc(var(--z-modal) + 12); }
 .pa-modal {
   width: min(720px, 100%); max-height: 92vh;
   display: flex; flex-direction: column;
@@ -383,7 +383,7 @@ select.pa-input { cursor: pointer; }
 .pa-confirm-actions .pa-btn { flex: 1; }
 
 /* Toast */
-.pa-toast { position: fixed; left: 50%; bottom: 32px; transform: translateX(-50%); z-index: 99999; display: inline-flex; align-items: center; gap: 9px; padding: 12px 20px; border-radius: 14px; background: #0f172a; color: #fff; font-size: 0.88rem; font-weight: 700; box-shadow: 0 20px 40px -16px rgba(15, 23, 42, 0.6); animation: paToast 0.35s var(--pa-spring) both; }
+.pa-toast { position: fixed; left: 50%; bottom: 32px; transform: translateX(-50%); z-index: calc(var(--z-modal) + 13); display: inline-flex; align-items: center; gap: 9px; padding: 12px 20px; border-radius: 14px; background: #0f172a; color: #fff; font-size: 0.88rem; font-weight: 700; box-shadow: 0 20px 40px -16px rgba(15, 23, 42, 0.6); animation: paToast 0.35s var(--pa-spring) both; }
 .pa-toast > svg { color: #4ade80; }
 .pa-toast.is-error { background: #b91c1c; }
 .pa-toast.is-error > svg { color: #fff; }

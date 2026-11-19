@@ -12,7 +12,9 @@ import { applyStopStatusUpdateForLogTarget } from "../utils/taskTimerLifecycle";
 import "./../styles/dashboard.css";
 import { consultarNif } from "../utils/apiAutenticada";
 import { guardarPalavraPasse, revelarPalavraPasse, semPalavraPasse } from "../utils/cofre";
+import { clicavel } from "../utils/clicavel";
 
+import AvisoToast from "../components/AvisoToast";
 // --- ÍCONES SVG PROFISSIONAIS (SaaS Premium) ---
 const Icons = {
   Search: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>,
@@ -331,7 +333,7 @@ export default function Clientes() {
       const timerMeta = await resolveActiveTimerMeta(supabase, activeLog);
       if (cancelled) return;
 
-      setActiveLogTitle(timerMeta.title || "Tempo a decorrer...");
+      setActiveLogTitle(timerMeta.title || "Tempo a decorrer…");
       setActiveLogRoute(timerMeta.route || "/dashboard/tarefas");
     };
 
@@ -567,7 +569,7 @@ export default function Clientes() {
     if (activeLog) {
       setTimerSwitchModal({
         show: true,
-        message: `Já tens um cronómetro ativo em "${activeLogTitle || "Tempo a decorrer..."}". Pretendes parar o atual para iniciar "${pending.targetLabel}"?`,
+        message: `Já tens um cronómetro ativo em "${activeLogTitle || "Tempo a decorrer…"}". Pretendes parar o atual para iniciar "${pending.targetLabel}"?`,
         pending
       });
       return;
@@ -782,7 +784,7 @@ export default function Clientes() {
 
     try {
       setIsFetchingCaeByNif(true);
-      showToast("A consultar CAEs no SICAE...", "info");
+      showToast("A consultar CAEs no SICAE…", "info");
 
       const caesSicae = await fetchCaesFromSicae(nif);
       if (caesSicae.length === 0) {
@@ -999,7 +1001,7 @@ export default function Clientes() {
           return;
         }
 
-        showToast("A consultar dados no NIF.pt e SICAE...", "info");
+        showToast("A consultar dados no NIF.pt e SICAE…", "info");
 
         let caesSicae = [];
         try {
@@ -1163,7 +1165,7 @@ export default function Clientes() {
   async function fetchMoradaByCodigoPostal(cp) {
       if (!cp || cp.length < 8) return; 
       
-      showToast("A procurar localização pelo Código Postal...", "info");
+      showToast("A procurar localização pelo Código Postal…", "info");
       
       try {
           // TENTATIVA 1: API Nacional (GeoAPI) - Super precisa
@@ -1185,7 +1187,7 @@ export default function Clientes() {
               }
           }
       } catch (err) {
-          console.warn("GeoAPI falhou ou não respondeu, a tentar OpenStreetMap...", err);
+          console.warn("GeoAPI falhou ou não respondeu, a tentar OpenStreetMap…", err);
       }
 
       // TENTATIVA 2: Plano B (OpenStreetMap) - Caso a GeoAPI falhe ou atinja limite
@@ -1220,7 +1222,7 @@ export default function Clientes() {
       // Se o distrito e a região já estiverem preenchidos, não vale a pena gastar pedidos à API
       if (novaMorada.distrito && novaMorada.regiao) return;
 
-      showToast("A procurar detalhes do concelho...", "info");
+      showToast("A procurar detalhes do concelho…", "info");
       
       try {
           // TENTATIVA 1: GeoAPI (Procura direta pelo município)
@@ -1233,12 +1235,12 @@ export default function Clientes() {
                       distrito: prev.distrito || dataGeo.distrito,
                       regiao: prev.regiao || dataGeo.regiao || dataGeo.distrito
                   }));
-                  showToast("Distrito e Região preenchidos! 📍", "success");
+                  showToast("Distrito e Região preenchidos!", "success");
                   return; // Sucesso, sai da função
               }
           }
       } catch (err) {
-          console.warn("GeoAPI falhou na busca por concelho, a tentar OpenStreetMap...", err);
+          console.warn("GeoAPI falhou na busca por concelho, a tentar OpenStreetMap…", err);
       }
 
       // TENTATIVA 2: OpenStreetMap (Plano B)
@@ -1990,7 +1992,7 @@ export default function Clientes() {
     ...(form.eh_empresa_consultora ? [{ id: 'configuracoes', label: 'Configurações', icon: Icons.FileText }] : [])
   ];
 
-  if (loading) return <div className="page-container en-loading"><span className="en-spinner" /> A carregar entidades...</div>;
+  if (loading) return <div className="page-container en-loading"><span className="en-spinner" /> A carregar entidades…</div>;
 
   const entCounts = {
     ativos: clientes.filter((c) => c.ativo === true && !c.eh_organismo).length,
@@ -2132,7 +2134,7 @@ export default function Clientes() {
     { key: 'em_analise', label: 'em análise', color: '#8b5cf6', match: (e) => e === 'em_analise' || e === 'analise' },
     { key: 'pendente', label: 'pend.', color: '#f59e0b', match: (e) => e === 'pendente' },
     { key: 'concluido', label: 'concl.', color: '#2563eb', match: (e) => e === 'concluido' },
-    { key: 'cancelado', label: 'canc.', color: '#94a3b8', match: (e) => e === 'cancelado' },
+    { key: 'cancelado', label: 'canc.', color: '#64748b', match: (e) => e === 'cancelado' },
     { key: 'encerrado', label: 'encerr.', color: '#475569', match: (e) => e === 'encerrado' },
   ];
   const renderEntProjetos = (c, compact = false) => {
@@ -2180,9 +2182,9 @@ export default function Clientes() {
           </div>
           <div className="en-hero-actions">
             {activeLog && (
-              <div className="en-live" onClick={() => navigate(activeLogRoute || '/dashboard/tarefas')} title="Ir para o item com cronómetro em curso">
+              <div className="en-live" {...clicavel(() => navigate(activeLogRoute || '/dashboard/tarefas'))} title="Ir para o item com cronómetro em curso">
                 <span className="en-live-dot" />
-                <span className="en-live-title">{activeLogTitle || 'Tempo a decorrer...'}</span>
+                <span className="en-live-title">{activeLogTitle || 'Tempo a decorrer…'}</span>
                 <button type="button" className="en-live-stop" onClick={(e) => { e.stopPropagation(); openStopNoteModal(e); }}><Icons.Stop /> Parar</button>
               </div>
             )}
@@ -2213,12 +2215,12 @@ export default function Clientes() {
       <div className="en-toolbar">
         <label className="en-search">
           <Icons.Search size={16} />
-          <input type="text" placeholder="Procurar por Entidade, Sigla, NIF ou Nome de Pessoa..." value={busca} onChange={(e) => setBusca(e.target.value)} />
+          <input type="text" placeholder="Procurar por Entidade, Sigla, NIF ou Nome de Pessoa…" value={busca} onChange={(e) => setBusca(e.target.value)} />
           {busca ? <button type="button" className="en-search-clear" onClick={() => setBusca('')} aria-label="Limpar"><Icons.Close size={13} /></button> : null}
         </label>
         <span className="en-count">{processedClientes.length} {processedClientes.length === 1 ? 'resultado' : 'resultados'}</span>
         <button type="button" className="en-export" onClick={handleExportEntidades} disabled={isExporting || processedClientes.length === 0} title="Exportar as entidades visíveis e os respetivos contactos para Excel">
-          {isExporting ? <span className="en-spinner is-sm" /> : <Icons.Download size={15} />} {isExporting ? 'A exportar...' : 'Exportar Excel'}
+          {isExporting ? <span className="en-spinner is-sm" /> : <Icons.Download size={15} />} {isExporting ? 'A exportar…' : 'Exportar Excel'}
         </button>
         <div className="en-seg">
           <button type="button" onClick={() => setViewMode("cards")} className={viewMode === "cards" ? "is-on" : ""}>
@@ -2284,11 +2286,11 @@ export default function Clientes() {
                     </button>
                     {!isInactive ? (
                       <>
-                        <button type="button" className="en-icon-btn is-edit" onClick={() => handleEdit(c)} title="Edição Rápida"><Icons.Edit size={15} /></button>
-                        <button type="button" className="en-icon-btn is-archive" onClick={() => handleToggleAtivo(c.id, c.ativo)} title="Arquivar Entidade"><Icons.Archive size={15} /></button>
+                        <button aria-label="Edição Rápida" type="button" className="en-icon-btn is-edit" onClick={() => handleEdit(c)} title="Edição Rápida"><Icons.Edit size={15} /></button>
+                        <button aria-label="Arquivar Entidade" type="button" className="en-icon-btn is-archive" onClick={() => handleToggleAtivo(c.id, c.ativo)} title="Arquivar Entidade"><Icons.Archive size={15} /></button>
                       </>
                     ) : (
-                      <button type="button" className="en-icon-btn is-restore" onClick={() => handleToggleAtivo(c.id, c.ativo)} title="Reativar Entidade"><Icons.Restore size={15} /></button>
+                      <button aria-label="Reativar Entidade" type="button" className="en-icon-btn is-restore" onClick={() => handleToggleAtivo(c.id, c.ativo)} title="Reativar Entidade"><Icons.Restore size={15} /></button>
                     )}
                   </div>
                 </article>
@@ -2345,14 +2347,14 @@ export default function Clientes() {
                         </td>
                         <td>
                           <div className="en-row-actions">
-                            <button type="button" onClick={() => handleView(c)} className="en-icon-btn is-view" title="Ver Perfil"><Icons.Eye size={15} /></button>
+                            <button aria-label="Ver Perfil" type="button" onClick={() => handleView(c)} className="en-icon-btn is-view" title="Ver Perfil"><Icons.Eye size={15} /></button>
                             {!isInactive ? (
                               <>
-                                <button type="button" onClick={() => handleEdit(c)} className="en-icon-btn is-edit" title="Editar"><Icons.Edit size={15} /></button>
-                                <button type="button" onClick={() => handleToggleAtivo(c.id, c.ativo)} className="en-icon-btn is-archive" title="Arquivar"><Icons.Archive size={15} /></button>
+                                <button aria-label="Editar" type="button" onClick={() => handleEdit(c)} className="en-icon-btn is-edit" title="Editar"><Icons.Edit size={15} /></button>
+                                <button aria-label="Arquivar" type="button" onClick={() => handleToggleAtivo(c.id, c.ativo)} className="en-icon-btn is-archive" title="Arquivar"><Icons.Archive size={15} /></button>
                               </>
                             ) : (
-                              <button type="button" onClick={() => handleToggleAtivo(c.id, c.ativo)} className="en-icon-btn is-restore" title="Reativar"><Icons.Restore size={15} /></button>
+                              <button aria-label="Reativar" type="button" onClick={() => handleToggleAtivo(c.id, c.ativo)} className="en-icon-btn is-restore" title="Reativar"><Icons.Restore size={15} /></button>
                             )}
                           </div>
                         </td>
@@ -2366,46 +2368,7 @@ export default function Clientes() {
         ) : entEmpty
       )}
 
-      {notification && (
-        <div
-          style={{
-            position: 'fixed',
-            left: '50%',
-            bottom: '22px',
-            transform: 'translateX(-50%)',
-            maxWidth: 'min(90vw, 460px)',
-            minHeight: '40px',
-            padding: '9px 14px',
-            borderRadius: '12px',
-            color: '#fff',
-            background:
-              notification.type === 'success'
-                ? 'linear-gradient(135deg, #166534, #15803d)'
-                : notification.type === 'error'
-                  ? 'linear-gradient(135deg, #b91c1c, #991b1b)'
-                  : notification.type === 'warning'
-                    ? 'linear-gradient(135deg, #b45309, #92400e)'
-                    : 'linear-gradient(135deg, var(--color-btnPrimaryDark), var(--color-btnPrimaryHover))',
-            border: '1px solid rgba(255,255,255,0.25)',
-            boxShadow: '0 12px 28px rgba(15, 23, 42, 0.35)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            zIndex: 2147483000,
-            fontSize: '0.86rem',
-            fontWeight: 700,
-            lineHeight: 1.35,
-            textAlign: 'center',
-            animation: 'fadeIn 0.2s ease-out'
-          }}
-        >
-          <span style={{fontSize:'0.9rem'}}>
-            {notification.type === 'success' ? '✅' : notification.type === 'error' ? '⛔' : notification.type === 'warning' ? '⚠️' : 'ℹ️'}
-          </span>
-          <span>{notification.message}</span>
-        </div>
-      )}
+      {notification && <AvisoToast tipo={notification.type} mensagem={notification.message} />}
 
       <StopTimerNoteModal
         open={stopNoteModal.show}
@@ -2433,7 +2396,7 @@ export default function Clientes() {
         <ModalPortal>
           <div
             onClick={closeProjectTimerModal}
-            style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.72)', backdropFilter:'blur(5px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:100001, padding:'20px'}}
+            style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.72)', backdropFilter:'blur(5px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:"calc(var(--z-modal-topo) + 1)", padding:'20px'}}
           >
             <div
               onClick={(e) => e.stopPropagation()}
@@ -2445,14 +2408,14 @@ export default function Clientes() {
                   <h3 style={{margin:0, color:'#0f172a', fontSize:'1.35rem', fontWeight:'900'}}>{projectTimerModal.project?.titulo || 'Projeto selecionado'}</h3>
                   <p style={{margin:'6px 0 0 0', color:'#475569', fontSize:'0.9rem'}}>Escolhe primeiro a atividade e, se quiseres, uma tarefa específica.</p>
                 </div>
-                <button onClick={closeProjectTimerModal} style={{background:'#fff', border:'1px solid #cbd5e1', width:'36px', height:'36px', borderRadius:'10px', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#475569'}} className="hover-shadow">
+                <button aria-label="Fechar" onClick={closeProjectTimerModal} style={{background:'#fff', border:'1px solid #cbd5e1', width:'36px', height:'36px', borderRadius:'10px', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#475569'}} className="hover-shadow">
                   <Icons.Close size={18} />
                 </button>
               </div>
 
               <div style={{padding:'20px', overflowY:'auto', display:'grid', gap:'14px'}}>
                 {projectTimerModal.loading ? (
-                  <div style={{padding:'32px', textAlign:'center', color:'#64748b', fontWeight:'600'}}>A carregar atividades e tarefas...</div>
+                  <div style={{padding:'32px', textAlign:'center', color:'#64748b', fontWeight:'600'}}>A carregar atividades e tarefas…</div>
                 ) : projectTimerModal.atividades.length === 0 ? (
                   <div style={{padding:'36px', textAlign:'center', border:'1px dashed #cbd5e1', borderRadius:'14px', background:'#f8fafc'}}>
                     <h4 style={{margin:'0 0 6px 0', color:'#1e293b'}}>Sem atividades neste projeto</h4>
@@ -2520,7 +2483,7 @@ export default function Clientes() {
                             );
                           })
                         ) : (
-                          <p style={{margin:0, color:'#94a3b8', fontSize:'0.85rem'}}>Esta atividade não tem tarefas registadas.</p>
+                          <p style={{margin:0, color:'#64748b', fontSize:'0.85rem'}}>Esta atividade não tem tarefas registadas.</p>
                         )}
                       </div>
                     </div>
@@ -2648,12 +2611,12 @@ export default function Clientes() {
                             <label>NIF * <span className="en-hint-inline">(Pesquisa Auto)</span></label>
                             <div className="en-input-icon is-accent">
                               <Icons.Search />
-                              <input type="text" className="en-input" maxLength="9" value={form.nif} onChange={handleNifChange} required placeholder="Ex: 500000000" />
+                              <input aria-label="NIF * (Pesquisa Auto)" type="text" className="en-input" maxLength="9" value={form.nif} onChange={handleNifChange} required placeholder="Ex: 500000000" />
                             </div>
                           </div>
                           <div className="en-field">
                             <label>Sigla</label>
-                            <input type="text" className="en-input" value={form.sigla || ""} onChange={e => setForm({...form, sigla: e.target.value})} maxLength="20" placeholder="Ex: UAlg" />
+                            <input aria-label="Sigla" type="text" className="en-input" value={form.sigla || ""} onChange={e => setForm({...form, sigla: e.target.value})} maxLength="20" placeholder="Ex: UAlg" />
                           </div>
                           <div className="en-field">
                             <label>Entidade Legal</label>
@@ -2662,7 +2625,7 @@ export default function Clientes() {
                           <div className="en-field">
                             <label>Website</label>
                             <div className="en-input-row">
-                              <input type="text" className="en-input" value={form.website} onChange={e => setForm({...form, website: e.target.value})} placeholder="www.entidade.pt" />
+                              <input aria-label="Website" type="text" className="en-input" value={form.website} onChange={e => setForm({...form, website: e.target.value})} placeholder="www.entidade.pt" />
                               {form.website && (
                                 <a href={form.website.startsWith('http') ? form.website : `https://${form.website}`} target="_blank" rel="noopener noreferrer" title="Abrir Website" className="en-link-btn">
                                   <Icons.ExternalLink />
@@ -2759,7 +2722,7 @@ export default function Clientes() {
                                   }
 
                                   return (
-                                      <div key={p.id} onClick={() => navigate(`/dashboard/projetos/${p.id}`)} className={`en-pcard ${p.estado === 'encerrado' ? 'is-done' : ''}`} style={{ '--s': estadoMeta.color }}>
+                                      <div key={p.id} {...clicavel(() => navigate(`/dashboard/projetos/${p.id}`))} className={`en-pcard ${p.estado === 'encerrado' ? 'is-done' : ''}`} style={{ '--s': estadoMeta.color }}>
                                           <div className="en-pcard-tags">
                                               <span className="en-pcard-state"><i />{String(p.estado || '').replace('_', ' ')}</span>
                                               <span className={`en-rel is-${relacaoInfo.tone}`}>{relacaoInfo.label}</span>
@@ -2838,7 +2801,7 @@ export default function Clientes() {
                             disabled={isFetchingCaeByNif}
                             title="Consulta automática de CAE com base no NIF"
                           >
-                            {isFetchingCaeByNif ? <span className="en-spinner is-sm" /> : <Icons.Search />} {isFetchingCaeByNif ? "A procurar..." : "Procurar CAE pelo NIF"}
+                            {isFetchingCaeByNif ? <span className="en-spinner is-sm" /> : <Icons.Search />} {isFetchingCaeByNif ? "A procurar…" : "Procurar CAE pelo NIF"}
                           </button>
                           {!showAddCae && <button type="button" className="en-btn is-primary" onClick={() => {setNovoCae(initCae); setShowAddCae(true)}}><Icons.Plus /> Adicionar CAE</button>}
                         </div>
@@ -2849,8 +2812,8 @@ export default function Clientes() {
                       <section className="en-fcard is-editing">
                         <div className="en-fcard-title"><span className="en-fcard-ico"><Icons.Edit size={14} /></span> {novoCae.id ? 'Editar CAE' : 'Novo CAE'}</div>
                         <div className="en-cae-form">
-                          <input type="text" className="en-input" placeholder="Código (Ex: 62010)" value={novoCae.codigo} onChange={e => setNovoCae({...novoCae, codigo: e.target.value})} />
-                          <input type="text" className="en-input" placeholder="Descrição" value={novoCae.descricao} onChange={e => setNovoCae({...novoCae, descricao: e.target.value})} />
+                          <input aria-label="Código (Ex: 62010)" type="text" className="en-input" placeholder="Código (Ex: 62010)" value={novoCae.codigo} onChange={e => setNovoCae({...novoCae, codigo: e.target.value})} />
+                          <input aria-label="Descrição" type="text" className="en-input" placeholder="Descrição" value={novoCae.descricao} onChange={e => setNovoCae({...novoCae, descricao: e.target.value})} />
                           <label className={`en-check ${novoCae.principal ? 'is-on' : ''}`}>
                             <input type="checkbox" checked={novoCae.principal} onChange={e => setNovoCae({...novoCae, principal: e.target.checked})} />
                             <span className="en-check-box"><Icons.Check size={12} /></span> Principal
@@ -2874,8 +2837,8 @@ export default function Clientes() {
                             </div>
                             {!isViewOnly && (
                               <div className="en-item-actions">
-                                 <button type="button" onClick={() => abrirEdicaoSubItem(c, setNovoCae, setShowAddCae)} className="en-icon-btn is-edit" title="Editar"><Icons.Edit size={15} /></button>
-                                 <button type="button" onClick={() => deleteItem('caes_cliente', c.id, setCaes, caes)} className="en-icon-btn is-archive" title="Eliminar"><Icons.Trash size={15} /></button>
+                                 <button aria-label="Editar" type="button" onClick={() => abrirEdicaoSubItem(c, setNovoCae, setShowAddCae)} className="en-icon-btn is-edit" title="Editar"><Icons.Edit size={15} /></button>
+                                 <button aria-label="Eliminar" type="button" onClick={() => deleteItem('caes_cliente', c.id, setCaes, caes)} className="en-icon-btn is-archive" title="Eliminar"><Icons.Trash size={15} /></button>
                               </div>
                             )}
                           </li>
@@ -2908,7 +2871,7 @@ export default function Clientes() {
                                 <label>{doc.label}</label>
                                 <div className="en-input-row">
                                   <input type="text" className="en-input is-mono" disabled={isViewOnly} value={form[doc.key]} onChange={e => setForm({...form, [doc.key]: e.target.value})} placeholder={doc.placeholder} />
-                                  <button type="button" onClick={() => handleCopyCredential(form[doc.key], doc.copyLabel)} title={doc.copyTitle} className="en-link-btn">
+                                  <button aria-label={doc.copyTitle} type="button" onClick={() => handleCopyCredential(form[doc.key], doc.copyLabel)} title={doc.copyTitle} className="en-link-btn">
                                     <Icons.Copy />
                                   </button>
                                   <a href={doc.url} target="_blank" rel="noopener noreferrer" title={doc.urlTitle} className="en-link-btn">
@@ -2982,7 +2945,7 @@ export default function Clientes() {
                         <div className="en-grid is-2">
                           <div className="en-field">
                               <label>Nome Completo *</label>
-                              <input type="text" className="en-input" placeholder="João Silva" value={novoContacto.nome_contacto} onChange={e => setNovoContacto({...novoContacto, nome_contacto: e.target.value})} required />
+                              <input aria-label="Nome Completo" type="text" className="en-input" placeholder="João Silva" value={novoContacto.nome_contacto} onChange={e => setNovoContacto({...novoContacto, nome_contacto: e.target.value})} required />
                           </div>
                           <div className="en-field">
                               <label>Cargo</label>
@@ -3009,7 +2972,7 @@ export default function Clientes() {
                                 <option value={OUTRO_CARGO_VALUE}>Outro</option>
                               </select>
                               {isOutroCargo && (
-                                <input
+                                <input aria-label="Escreve o cargo"
                                   type="text"
                                   className="en-input"
                                   placeholder="Escreve o cargo"
@@ -3020,11 +2983,11 @@ export default function Clientes() {
                           </div>
                           <div className="en-field">
                               <label>Email</label>
-                              <div className="en-input-icon"><Icons.Mail /><input type="email" className="en-input" placeholder="joao@entidade.pt" value={novoContacto.email} onChange={e => setNovoContacto({...novoContacto, email: e.target.value})} /></div>
+                              <div className="en-input-icon"><Icons.Mail /><input aria-label="Email" type="email" className="en-input" placeholder="joao@entidade.pt" value={novoContacto.email} onChange={e => setNovoContacto({...novoContacto, email: e.target.value})} /></div>
                           </div>
                           <div className="en-field">
                               <label>Telefone / Telemóvel</label>
-                              <div className="en-input-icon"><Icons.Phone /><input type="text" className="en-input" placeholder="+351 900 000 000" value={novoContacto.telefone} onChange={e => setNovoContacto({...novoContacto, telefone: e.target.value})} /></div>
+                              <div className="en-input-icon"><Icons.Phone /><input aria-label="Telefone / Telemóvel" type="text" className="en-input" placeholder="+351 900 000 000" value={novoContacto.telefone} onChange={e => setNovoContacto({...novoContacto, telefone: e.target.value})} /></div>
                           </div>
                         </div>
                         <label className={`en-check is-block ${novoContacto.faz_propostas ? 'is-on' : ''}`} htmlFor="faz_propostas">
@@ -3058,8 +3021,8 @@ export default function Clientes() {
                             </div>
                             {!isViewOnly && (
                               <div className="en-item-actions">
-                                 <button type="button" onClick={() => { setNovoContacto(c); setIsOutroCargo(Boolean(c.cargo) && !isKnownCargo(c.cargo)); setShowAddContacto(true); }} className="en-icon-btn is-edit" title="Editar"><Icons.Edit size={15} /></button>
-                                 <button type="button" onClick={() => deleteItem('contactos_cliente', c.id, setContactos, contactos)} className="en-icon-btn is-archive" title="Eliminar"><Icons.Trash size={15} /></button>
+                                 <button aria-label="Editar" type="button" onClick={() => { setNovoContacto(c); setIsOutroCargo(Boolean(c.cargo) && !isKnownCargo(c.cargo)); setShowAddContacto(true); }} className="en-icon-btn is-edit" title="Editar"><Icons.Edit size={15} /></button>
+                                 <button aria-label="Eliminar" type="button" onClick={() => deleteItem('contactos_cliente', c.id, setContactos, contactos)} className="en-icon-btn is-archive" title="Eliminar"><Icons.Trash size={15} /></button>
                               </div>
                             )}
                           </li>
@@ -3087,13 +3050,13 @@ export default function Clientes() {
 
                         <div className="en-field">
                           <label>Rua / Lote / Porta</label>
-                          <input type="text" className="en-input" placeholder="Ex: Rua Direita, nº 10" value={novaMorada.morada} onChange={e => setNovaMorada({...novaMorada, morada: e.target.value})} />
+                          <input aria-label="Rua / Lote / Porta" type="text" className="en-input" placeholder="Ex: Rua Direita, nº 10" value={novaMorada.morada} onChange={e => setNovaMorada({...novaMorada, morada: e.target.value})} />
                         </div>
 
                         <div className="en-grid" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 2fr)' }}>
                             <div className="en-field">
                                 <label>Cód. Postal <span className="en-hint-inline">(Preenchimento Auto)</span></label>
-                                <input
+                                <input aria-label="Cód. Postal (Preenchimento Auto)"
                                     type="text"
                                     className="en-input is-accent"
                                     placeholder="Ex: 8000-000"
@@ -3116,14 +3079,14 @@ export default function Clientes() {
                             </div>
                             <div className="en-field">
                                 <label>Localidade</label>
-                                <input type="text" className="en-input" placeholder="Ex: Faro" value={novaMorada.localidade} onChange={e => setNovaMorada({...novaMorada, localidade: e.target.value})} />
+                                <input aria-label="Localidade" type="text" className="en-input" placeholder="Ex: Faro" value={novaMorada.localidade} onChange={e => setNovaMorada({...novaMorada, localidade: e.target.value})} />
                             </div>
                         </div>
 
                         <div className="en-grid is-3">
                             <div className="en-field">
                                 <label>Concelho <span className="en-hint-inline">(Preenche o resto)</span></label>
-                                <input
+                                <input aria-label="Concelho (Preenche o resto)"
                                     type="text"
                                     className="en-input is-accent"
                                     value={novaMorada.concelho || ""}
@@ -3144,7 +3107,7 @@ export default function Clientes() {
 
                         <div className="en-field">
                           <label>Tipo / Notas Opcionais</label>
-                          <input type="text" className="en-input" placeholder="Ex: Sede, Armazém, Local de Faturação..." value={novaMorada.notas} onChange={e => setNovaMorada({...novaMorada, notas: e.target.value})} />
+                          <input aria-label="Tipo / Notas Opcionais" type="text" className="en-input" placeholder="Ex: Sede, Armazém, Local de Faturação…" value={novaMorada.notas} onChange={e => setNovaMorada({...novaMorada, notas: e.target.value})} />
                         </div>
 
                         <div className="en-form-actions">
@@ -3170,8 +3133,8 @@ export default function Clientes() {
                               </div>
                               {!isViewOnly && (
                                 <div className="en-item-actions">
-                                   <button type="button" onClick={() => abrirEdicaoSubItem(m, setNovaMorada, setShowAddMorada)} className="en-icon-btn is-edit" title="Editar"><Icons.Edit size={15} /></button>
-                                   <button type="button" onClick={() => deleteItem('moradas_cliente', m.id, setMoradas, moradas)} className="en-icon-btn is-archive" title="Eliminar"><Icons.Trash size={15} /></button>
+                                   <button aria-label="Editar" type="button" onClick={() => abrirEdicaoSubItem(m, setNovaMorada, setShowAddMorada)} className="en-icon-btn is-edit" title="Editar"><Icons.Edit size={15} /></button>
+                                   <button aria-label="Eliminar" type="button" onClick={() => deleteItem('moradas_cliente', m.id, setMoradas, moradas)} className="en-icon-btn is-archive" title="Eliminar"><Icons.Trash size={15} /></button>
                                 </div>
                               )}
                             </li>
@@ -3213,9 +3176,9 @@ export default function Clientes() {
 
                     <section className="en-fcard">
                       <div className="en-fcard-title"><span className="en-fcard-ico"><Icons.FileText size={15} /></span> Textos de Introdução</div>
-                      {cfgArea('Texto de Compromisso', 'texto_compromisso', 3, 'O nosso compromisso...')}
-                      {cfgArea('Texto para Aprovação', 'texto_para_aprovacao', 2, 'Texto a apresentar para aprovação...')}
-                      {cfgArea('Esperamos que Corresponda', 'texto_esperamos_que_corresponda', 2, 'Mensagem de fechamento...')}
+                      {cfgArea('Texto de Compromisso', 'texto_compromisso', 3, 'O nosso compromisso…')}
+                      {cfgArea('Texto para Aprovação', 'texto_para_aprovacao', 2, 'Texto a apresentar para aprovação…')}
+                      {cfgArea('Esperamos que Corresponda', 'texto_esperamos_que_corresponda', 2, 'Mensagem de fechamento…')}
                     </section>
 
                     {/* NEOMARCA - Campos de Financiamento */}
@@ -3223,34 +3186,34 @@ export default function Clientes() {
                       <>
                         <section className="en-fcard">
                           <div className="en-fcard-title"><span className="en-fcard-ico"><Icons.Building size={15} /></span> Apresentação da Empresa</div>
-                          {cfgArea('Texto de Apresentação Empresa', 'texto_apresentacao_empresa', 4, 'Texto de apresentação da empresa...')}
-                          {cfgArea('Texto de Compromisso', 'texto_compromisso', 3, 'Nosso compromisso...')}
+                          {cfgArea('Texto de Apresentação Empresa', 'texto_apresentacao_empresa', 4, 'Texto de apresentação da empresa…')}
+                          {cfgArea('Texto de Compromisso', 'texto_compromisso', 3, 'Nosso compromisso…')}
                         </section>
 
                         <section className="en-fcard">
                           <div className="en-fcard-title"><span className="en-fcard-ico"><Icons.ClipboardList size={15} /></span> Documentação</div>
                           <div className="en-grid is-2">
-                            {cfgArea('Documentos da Empresa', 'texto_documentos_empresa', 3, 'Descreva os documentos fornecidos pela empresa...')}
-                            {cfgArea('Documentos de Incentivo', 'texto_documentos_incentivo', 3, 'Informações sobre incentivos...')}
+                            {cfgArea('Documentos da Empresa', 'texto_documentos_empresa', 3, 'Descreva os documentos fornecidos pela empresa…')}
+                            {cfgArea('Documentos de Incentivo', 'texto_documentos_incentivo', 3, 'Informações sobre incentivos…')}
                           </div>
                         </section>
 
                         <section className="en-fcard">
                           <div className="en-fcard-title"><span className="en-fcard-ico"><Icons.Rocket size={15} /></span> Processo e Financiamento</div>
                           <div className="en-grid is-2">
-                            {cfgArea('Demonstração de Financiamento', 'texto_demonstracao_financiamento', 3, 'Como o financiamento funciona...')}
-                            {cfgArea('Como Ajudamos', 'texto_como_ajudamos', 3, 'Descreva como a empresa ajuda os clientes...')}
-                            {cfgArea('Processo de Trabalho', 'texto_processo_trabalho', 3, 'Descreva o processo de trabalho...')}
-                            {cfgArea('Plano de Pagamento', 'texto_plano_pagamento', 3, 'Condições de pagamento...')}
-                            {cfgArea('Exclusões/Condições Especiais', 'texto_exclusoes', 3, 'Exclusões ou condições especiais...')}
+                            {cfgArea('Demonstração de Financiamento', 'texto_demonstracao_financiamento', 3, 'Como o financiamento funciona…')}
+                            {cfgArea('Como Ajudamos', 'texto_como_ajudamos', 3, 'Descreva como a empresa ajuda os clientes…')}
+                            {cfgArea('Processo de Trabalho', 'texto_processo_trabalho', 3, 'Descreva o processo de trabalho…')}
+                            {cfgArea('Plano de Pagamento', 'texto_plano_pagamento', 3, 'Condições de pagamento…')}
+                            {cfgArea('Exclusões/Condições Especiais', 'texto_exclusoes', 3, 'Exclusões ou condições especiais…')}
                             {cfgArea('Nota dos Honorários', 'texto_nota_honorarios', 3, 'Os valores apresentados estão isentos de IVA. Proposta para um máx. 15 pax')}
                           </div>
                         </section>
 
                         <section className="en-fcard">
                           <div className="en-fcard-title"><span className="en-fcard-ico"><Icons.Check size={15} /></span> Aprovação</div>
-                          {cfgArea('Texto para Aprovação', 'texto_para_aprovacao', 2, 'Texto a apresentar para aprovação...')}
-                          {cfgArea('Esperamos que Corresponda', 'texto_esperamos_que_corresponda', 2, 'Mensagem de fechamento...')}
+                          {cfgArea('Texto para Aprovação', 'texto_para_aprovacao', 2, 'Texto a apresentar para aprovação…')}
+                          {cfgArea('Esperamos que Corresponda', 'texto_esperamos_que_corresponda', 2, 'Mensagem de fechamento…')}
                         </section>
                       </>
                     )}
@@ -3260,39 +3223,39 @@ export default function Clientes() {
                       <>
                         <section className="en-fcard">
                           <div className="en-fcard-title"><span className="en-fcard-ico"><Icons.Building size={15} /></span> Apresentação (Formação)</div>
-                          {cfgArea('Apresentação da Empresa - Formação', 'texto_apresentacao_empresa_formacao', 4, 'Apresentação da empresa para propostas de formação...')}
-                          {cfgArea('Áreas de Formação', 'texto_areas_formacao', 3, 'Principais áreas de formação oferecidas...')}
+                          {cfgArea('Apresentação da Empresa - Formação', 'texto_apresentacao_empresa_formacao', 4, 'Apresentação da empresa para propostas de formação…')}
+                          {cfgArea('Áreas de Formação', 'texto_areas_formacao', 3, 'Principais áreas de formação oferecidas…')}
                         </section>
 
                         <section className="en-fcard">
                           <div className="en-fcard-title"><span className="en-fcard-ico"><Icons.FileText size={15} /></span> Proposta</div>
                           <div className="en-grid is-2">
-                            {cfgArea('Proposta de Formação', 'texto_proposta_formacao', 3, 'Descrição geral da proposta de formação...')}
-                            {cfgArea('Descrição do Serviço', 'texto_descricao_servico', 3, 'Descrição detalhada do serviço de formação...')}
+                            {cfgArea('Proposta de Formação', 'texto_proposta_formacao', 3, 'Descrição geral da proposta de formação…')}
+                            {cfgArea('Descrição do Serviço', 'texto_descricao_servico', 3, 'Descrição detalhada do serviço de formação…')}
                           </div>
                         </section>
 
                         <section className="en-fcard">
                           <div className="en-fcard-title"><span className="en-fcard-ico"><Icons.Users size={15} /></span> Obrigações</div>
                           <div className="en-grid is-2">
-                            {cfgArea('Obrigações da Consultora', 'texto_obrigacoes_consultora', 3, 'Compromissos e obrigações da consultora...')}
-                            {cfgArea('Obrigações do Cliente', 'texto_obrigacoes_cliente', 3, 'Compromissos e obrigações do cliente...')}
+                            {cfgArea('Obrigações da Consultora', 'texto_obrigacoes_consultora', 3, 'Compromissos e obrigações da consultora…')}
+                            {cfgArea('Obrigações do Cliente', 'texto_obrigacoes_cliente', 3, 'Compromissos e obrigações do cliente…')}
                           </div>
                         </section>
 
                         <section className="en-fcard">
                           <div className="en-fcard-title"><span className="en-fcard-ico"><Icons.Calendar size={15} /></span> Realização e Coordenação</div>
                           <div className="en-grid is-2">
-                            {cfgArea('Condições de Realização', 'texto_condicoes_realizacao', 3, 'Horários, locais, e outras condições de realização...')}
-                            {cfgArea('Coordenação de Formação', 'texto_coordenacao_formacao', 3, 'Informações sobre quem coordena a formação...')}
+                            {cfgArea('Condições de Realização', 'texto_condicoes_realizacao', 3, 'Horários, locais, e outras condições de realização…')}
+                            {cfgArea('Coordenação de Formação', 'texto_coordenacao_formacao', 3, 'Informações sobre quem coordena a formação…')}
                           </div>
                         </section>
 
                         <section className="en-fcard">
                           <div className="en-fcard-title"><span className="en-fcard-ico"><Icons.Diamond size={15} /></span> Condições Comerciais</div>
                           <div className="en-grid is-2">
-                            {cfgArea('Plano de Pagamento Padrão', 'texto_plano_pagamento', 3, 'Condições de pagamento a usar por defeito nas propostas de formação...')}
-                            {cfgArea('Exclusões / Notas', 'texto_exclusoes', 3, 'Exclusões, notas ou condições especiais...')}
+                            {cfgArea('Plano de Pagamento Padrão', 'texto_plano_pagamento', 3, 'Condições de pagamento a usar por defeito nas propostas de formação…')}
+                            {cfgArea('Exclusões / Notas', 'texto_exclusoes', 3, 'Exclusões, notas ou condições especiais…')}
                           </div>
                         </section>
                       </>
@@ -3303,7 +3266,7 @@ export default function Clientes() {
                       <div className="en-fcard-title"><span className="en-fcard-ico"><Icons.Diamond size={15} /></span> Certificações</div>
                       <div className="en-field">
                         <label>Imagem de Certificações</label>
-                        <input
+                        <input aria-label="Imagem de Certificações"
                           type="text"
                           className="en-input"
                           value={entidadeConfig.imagem_certificacoes || ""}
@@ -3318,12 +3281,12 @@ export default function Clientes() {
                       <div className="en-fcard-title"><span className="en-fcard-ico"><Icons.ClipboardList size={15} /></span> Termos Gerais</div>
                       <div className="en-field">
                         <label>Texto Corrido dos Termos Gerais</label>
-                        <textarea
+                        <textarea aria-label="Texto Corrido dos Termos Gerais"
                           className="en-textarea is-doc"
                           value={form.termos_gerais || ""}
                           onChange={e => setForm(f => ({ ...f, termos_gerais: e.target.value }))}
                           rows={16}
-                          placeholder="Insira aqui os Termos Gerais ou Condições Gerais da Entidade Consultora..."
+                          placeholder="Insira aqui os Termos Gerais ou Condições Gerais da Entidade Consultora…"
                           disabled={isViewOnly}
                         />
                         <div className="en-field-note">Este texto será usado automaticamente nas propostas e pode ser personalizado por Entidade.</div>
@@ -3388,8 +3351,8 @@ export default function Clientes() {
                                 <strong title={tipoNome}>{tipoNome}</strong>
                                 {!isViewOnly && (
                                   <div className="en-item-actions is-row">
-                                    <button type="button" onClick={() => abrirEdicaoSubItem(acesso, setNovoAcesso, setShowAddAcesso)} className="en-icon-btn is-edit" title="Editar"><Icons.Edit size={15} /></button>
-                                    <button type="button" onClick={() => deleteItem('acessos_cliente', acesso.id, setAcessos, acessos)} className="en-icon-btn is-archive" title="Eliminar"><Icons.Trash size={15} /></button>
+                                    <button aria-label="Editar" type="button" onClick={() => abrirEdicaoSubItem(acesso, setNovoAcesso, setShowAddAcesso)} className="en-icon-btn is-edit" title="Editar"><Icons.Edit size={15} /></button>
+                                    <button aria-label="Eliminar" type="button" onClick={() => deleteItem('acessos_cliente', acesso.id, setAcessos, acessos)} className="en-icon-btn is-archive" title="Eliminar"><Icons.Trash size={15} /></button>
                                   </div>
                                 )}
                               </div>
@@ -3398,17 +3361,17 @@ export default function Clientes() {
                                 <div className="en-cred-row">
                                   <span className="en-cred-label"><Icons.User size={13} /> User</span>
                                   <code>{acesso.utilizador || '—'}</code>
-                                  <button type="button" className="en-copy" onClick={() => handleCopyCredential(acesso.utilizador, 'Utilizador')} title="Copiar utilizador">
+                                  <button aria-label="Copiar utilizador" type="button" className="en-copy" onClick={() => handleCopyCredential(acesso.utilizador, 'Utilizador')} title="Copiar utilizador">
                                     <Icons.Copy size={13} />
                                   </button>
                                 </div>
                                 <div className="en-cred-row is-pass">
                                   <span className="en-cred-label"><Icons.Lock size={13} /> Pass</span>
                                   <code>{shown ? (revealedPass[acesso.id] || '—') : (acesso.tem_palavra_passe ? '••••••••••' : '—')}</code>
-                                  <button type="button" className="en-copy" onClick={() => alternarPassword(acesso)} title={shown ? 'Esconder password' : 'Mostrar password'}>
+                                  <button aria-label={shown ? 'Esconder password' : 'Mostrar password'} type="button" className="en-copy" onClick={() => alternarPassword(acesso)} title={shown ? 'Esconder password' : 'Mostrar password'}>
                                     {shown ? <Icons.EyeOff size={13} /> : <Icons.Eye size={13} />}
                                   </button>
-                                  <button type="button" className="en-copy is-danger" onClick={() => copiarPassword(acesso)} title="Copiar password">
+                                  <button aria-label="Copiar password" type="button" className="en-copy is-danger" onClick={() => copiarPassword(acesso)} title="Copiar password">
                                     <Icons.Copy size={13} />
                                   </button>
                                 </div>
@@ -3437,7 +3400,7 @@ export default function Clientes() {
       {cropModal.show && (
         <ModalPortal>
           <div
-            style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.92)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',zIndex:1000000,padding:'16px',boxSizing:'border-box'}}
+            style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.92)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',zIndex:"calc(var(--z-modal-max) + 2)",padding:'16px',boxSizing:'border-box'}}
             onMouseMove={handleCropMouseMove}
             onMouseUp={handleCropMouseUp}
             onMouseLeave={handleCropMouseUp}
@@ -3556,7 +3519,7 @@ export default function Clientes() {
 
             <div style={{display:'flex',gap:'10px',marginTop:'16px'}}>
               <button type="button" onClick={() => setCropModal({ show: false, src: null })} style={{padding:'10px 22px',borderRadius:'8px',border:'1px solid rgba(255,255,255,0.2)',background:'transparent',color:'white',cursor:'pointer',fontWeight:'bold'}}>Cancelar</button>
-              <button type="button" onClick={confirmCrop} disabled={uploading} style={{padding:'10px 28px',borderRadius:'8px',border:'none',background:'var(--color-btnPrimary)',color:'white',cursor:'pointer',fontWeight:'bold',fontSize:'0.95rem'}}>{uploading ? 'A guardar...' : 'Confirmar Recorte'}</button>
+              <button type="button" onClick={confirmCrop} disabled={uploading} style={{padding:'10px 28px',borderRadius:'8px',border:'none',background:'var(--color-btnPrimary)',color:'white',cursor:'pointer',fontWeight:'bold',fontSize:'0.95rem'}}>{uploading ? 'A guardar…' : 'Confirmar Recorte'}</button>
             </div>
           </div>
         </ModalPortal>
@@ -3565,7 +3528,7 @@ export default function Clientes() {
       {/* --- MODAL DE CONFIRMAÇÃO GLOBAL --- */}
       {confirmDialog.show && (
           <ModalPortal>
-              <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999}}>
+              <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: "calc(var(--z-modal-max) + 1)"}}>
                   <div style={{background: 'white', padding: '30px', borderRadius: '16px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out'}}>
                       <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px'}}><Icons.Alert size={48} color={confirmDialog.isDanger ? "#ef4444" : "var(--color-btnPrimary)"} /></div>
                       <h3 style={{margin: '0 0 10px 0', color: '#1e293b', fontSize: '1.25rem'}}>Confirmação</h3>
@@ -3583,7 +3546,7 @@ export default function Clientes() {
       {showModal && showAddAcesso && activeTab === 'acessos' && podeVerAcessos && !isViewOnly && (
         <ModalPortal>
           <div
-            style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.5)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999998}}
+            style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.5)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: "var(--z-modal-max)"}}
             onClick={() => {
               setShowAddAcesso(false);
               setNovoAcesso(initAcesso);
@@ -3598,7 +3561,7 @@ export default function Clientes() {
                   <div style={{background: 'var(--color-borderColorLight)', padding: '8px', borderRadius: '8px', display: 'flex', color: 'var(--color-btnPrimary)'}}><Icons.Lock size={20} /></div>
                   <h5 style={{margin:0, fontSize:'1.2rem', fontWeight: '800', color: 'var(--color-btnPrimaryDark)'}}>{novoAcesso.id ? 'Editar Credencial' : 'Nova Credencial'}</h5>
                 </div>
-                <button
+                <button aria-label="Fechar"
                   onClick={() => {
                     setShowAddAcesso(false);
                     setNovoAcesso(initAcesso);
@@ -3621,7 +3584,7 @@ export default function Clientes() {
                     style={inputStyle}
                     className="input-focus"
                   >
-                    <option value="">Selecionar tipo...</option>
+                    <option value="">Selecionar tipo…</option>
                     {tiposAcessosCatalogo.map((tipo) => (
                       <option key={tipo.id} value={tipo.id}>{tipo.nome}</option>
                     ))}

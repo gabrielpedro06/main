@@ -69,7 +69,7 @@ export default function ProfilePeek({ entry, onClose }) {
   return createPortal(
     <div
       className="pp-overlay"
-      style={{ position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(15, 23, 42, 0.5)", zIndex: 100000, padding: 16 }}
+      style={{ position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(15, 23, 42, 0.5)", zIndex: "var(--z-modal-topo)", padding: 16 }}
       onClick={onClose}
     >
       <div className="mdl-peek-wrap" onClick={(e) => e.stopPropagation()}>

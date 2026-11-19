@@ -16,7 +16,10 @@ import "../styles/projeto-detalhe.css";
 // 💡 IMPORTAÇÃO CORRIGIDA (SEM CHAVETAS):
 import gerarRelatorioProjeto from "../components/pdfGenerator"; 
 import ProjetoTracker from "../components/ProjetoTracker";
+import { confirmar } from "../utils/dialogo";
+import { clicavel } from "../utils/clicavel";
 
+import AvisoToast from "../components/AvisoToast";
 // --- ÍCONES SVG PROFISSIONAIS COMPLETOS ---
 const Icons = {
   Building: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><path d="M9 22v-4h6v4"></path><path d="M8 6h.01"></path><path d="M16 6h.01"></path><path d="M12 6h.01"></path><path d="M12 10h.01"></path><path d="M12 14h.01"></path><path d="M16 10h.01"></path><path d="M16 14h.01"></path><path d="M8 10h.01"></path><path d="M8 14h.01"></path></svg>,
@@ -798,7 +801,7 @@ export default function ProjetoDetalhe() {
 };  
 
   const deletePedidoReembolso = async (pedidoId) => {
-      if (!window.confirm("Apagar este pedido de reembolso?")) return;
+      if (!(await confirmar("Apagar este pedido de reembolso?", { perigoso: true, botao: "Apagar" }))) return;
       const { error } = await supabase.from("pedidos_reembolso").delete().eq("id", pedidoId);
       if (error) {
           console.error("Erro ao apagar pedido de reembolso:", error);
@@ -2033,7 +2036,7 @@ export default function ProjetoDetalhe() {
     const statusTheme = getProjectStatusTheme(projeto.estado);
     const projetoFases = normalizeProjetoFases(formGeral.prazos_fases);
   const labelStyle = { display: 'block', marginBottom: '6px', fontSize: '0.75rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' };
-  const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', marginBottom: '15px', transition: 'all 0.2s', color: '#1e293b' };
+  const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', marginBottom: '15px', transition: 'background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s, opacity 0.2s, width 0.2s, filter 0.2s', color: '#1e293b' };
   const sectionTitleStyle = { fontSize: '0.8rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px', marginBottom: '15px', marginTop: '5px' };
 
   const renderStatePills = (currentState, onChange, includeEncerrado = false) => {
@@ -2048,10 +2051,10 @@ export default function ProjetoDetalhe() {
       return (
           <div style={{display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap'}}>
               {states.map(s => (
-                  <div key={s.val} onClick={() => onChange(s.val)} style={{
+                  <div key={s.val} {...clicavel(() => onChange(s.val))} style={{
                       flex: '1 1 calc(33% - 8px)', minWidth: '95px', textAlign: 'center', padding: '10px 4px', borderRadius: '8px', cursor: 'pointer',
                       fontSize: '0.70rem', fontWeight: 'bold', border: `1px solid ${currentState === s.val ? s.color : '#cbd5e1'}`,
-                      background: currentState === s.val ? s.color : '#f8fafc', color: currentState === s.val ? '#fff' : '#64748b', transition: 'all 0.2s'
+                      background: currentState === s.val ? s.color : '#f8fafc', color: currentState === s.val ? '#fff' : '#64748b', transition: 'background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s, opacity 0.2s, width 0.2s, filter 0.2s'
                   }}>
                       {s.label}
                   </div>
@@ -2444,9 +2447,7 @@ export default function ProjetoDetalhe() {
         <div className="page-container pd-page">
 
             {notification && (
-                <div className={`toast-container ${notification.type}`} style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center' }}>
-                    <div>{notification.type === 'success' ? '✅' : '⚠️'} {notification.message}</div>
-                </div>
+                <AvisoToast tipo={notification.type} mensagem={notification.message} />
             )}
       
       {/* =========================================
@@ -2756,7 +2757,7 @@ export default function ProjetoDetalhe() {
                                         {pedidoInput("data_pagamento", "Data Pagamento", "date")}
                                         <div className="pd-field">
                                             <label>Notas</label>
-                                            <textarea
+                                            <textarea aria-label="Notas"
                                                 className="pd-input is-area"
                                                 rows="2"
                                                 value={pedidoReembolsoForm.notas ?? ""}
@@ -2768,7 +2769,7 @@ export default function ProjetoDetalhe() {
                                 </div>
                                 <div className="pd-fin-form-actions">
                                     <button type="button" className="pd-btn" onClick={() => setPedidoReembolsoForm(null)}>Cancelar</button>
-                                    <button type="submit" disabled={pedidoReembolsoSaving} className="pd-btn is-primary"><Icons.Save size={14} /> {pedidoReembolsoSaving ? 'A guardar...' : 'Guardar'}</button>
+                                    <button type="submit" disabled={pedidoReembolsoSaving} className="pd-btn is-primary"><Icons.Save size={14} /> {pedidoReembolsoSaving ? 'A guardar…' : 'Guardar'}</button>
                                 </div>
                             </form>
                         )}
@@ -2972,7 +2973,7 @@ export default function ProjetoDetalhe() {
                                 )}
 
                                 {blockedActivity && (
-                                    <button
+                                    <button aria-label={atividadeDependencyReason ? `${atividadeDependencyReason}. Clique para desbloquear manualmente.` : 'Desbloquear atividade manualmente'}
                                         type="button"
                                         onClick={() => unlockActivityForNow(ativ.id)}
                                         className="pd-icon-btn is-unlock"
@@ -2989,7 +2990,7 @@ export default function ProjetoDetalhe() {
                                     <Icons.Trash size={15} />
                                 </button>
                                 {!hasNoTasks && (
-                                    <button type="button" onClick={() => toggleCollapseAtiv(ativ.id)} className={`pd-collapse ${isCollapsed ? 'is-collapsed' : ''}`} title={isCollapsed ? 'Mostrar tarefas' : 'Recolher tarefas'} aria-expanded={!isCollapsed}>
+                                    <button aria-label={isCollapsed ? 'Mostrar tarefas' : 'Recolher tarefas'} type="button" onClick={() => toggleCollapseAtiv(ativ.id)} className={`pd-collapse ${isCollapsed ? 'is-collapsed' : ''}`} title={isCollapsed ? 'Mostrar tarefas' : 'Recolher tarefas'} aria-expanded={!isCollapsed}>
                                         <Icons.ChevronDown size={16} />
                                     </button>
                                 )}
@@ -3088,7 +3089,7 @@ export default function ProjetoDetalhe() {
                                                     {isTimerActive ? <Icons.Stop size={10} /> : <Icons.Play size={11} />}
                                                 </button>
                                                 {blockedByDependency && (
-                                                    <button
+                                                    <button aria-label={dependencyReason ? `${dependencyReason}. Clique para desbloquear manualmente.` : 'Desbloquear tarefa manualmente'}
                                                         type="button"
                                                         onClick={() => unlockTaskForNow(tar.id)}
                                                         className="pd-icon-btn is-unlock is-sm"
@@ -3098,7 +3099,7 @@ export default function ProjetoDetalhe() {
                                                     </button>
                                                 )}
                                                 {!isTarDone && (
-                                                    <button type="button" onClick={() => toggleSubtarefaComposer(tar.id)} className={`pd-icon-btn is-sm ${isComposerOpen ? 'is-on' : ''}`} title={isComposerOpen ? 'Fechar novo passo' : 'Adicionar novo passo'}>
+                                                    <button aria-label={isComposerOpen ? 'Fechar novo passo' : 'Adicionar novo passo'} type="button" onClick={() => toggleSubtarefaComposer(tar.id)} className={`pd-icon-btn is-sm ${isComposerOpen ? 'is-on' : ''}`} title={isComposerOpen ? 'Fechar novo passo' : 'Adicionar novo passo'}>
                                                         {isComposerOpen ? <Icons.Close size={14} /> : <Icons.Plus size={14} />}
                                                     </button>
                                                 )}
@@ -3132,7 +3133,7 @@ export default function ProjetoDetalhe() {
                                                     isComposerOpen ? (
                                                         <form onSubmit={(e) => handleAddSubtarefa(e, tar.id)} className="pd-add is-step">
                                                             <Icons.Plus size={12} />
-                                                            <input autoFocus type="text" placeholder="Novo passo (Enter)" value={novaSubtarefaNome.tarId === tar.id ? novaSubtarefaNome.nome : ""} onChange={e => setNovaSubtarefaNome({ tarId: tar.id, nome: e.target.value })} />
+                                                            <input aria-label="Novo passo (Enter)" autoFocus type="text" placeholder="Novo passo (Enter)" value={novaSubtarefaNome.tarId === tar.id ? novaSubtarefaNome.nome : ""} onChange={e => setNovaSubtarefaNome({ tarId: tar.id, nome: e.target.value })} />
                                                         </form>
                                                     ) : (
                                                         <button type="button" onClick={() => toggleSubtarefaComposer(tar.id)} className="pd-add-btn">
@@ -3149,7 +3150,7 @@ export default function ProjetoDetalhe() {
                                 <form onSubmit={(e) => handleAddTarefa(e, ativ.id)} className="pd-add-row">
                                     <label className="pd-add">
                                         <Icons.Plus size={14} />
-                                        <input type="text" placeholder="Adicionar tarefa (Enter)..." value={novaTarefaNome.ativId === ativ.id ? novaTarefaNome.nome : ""} onChange={e => setNovaTarefaNome({ ativId: ativ.id, nome: e.target.value, responsavel_id: novaTarefaNome.ativId === ativ.id ? novaTarefaNome.responsavel_id : "" })} />
+                                        <input type="text" placeholder="Adicionar tarefa (Enter)…" value={novaTarefaNome.ativId === ativ.id ? novaTarefaNome.nome : ""} onChange={e => setNovaTarefaNome({ ativId: ativ.id, nome: e.target.value, responsavel_id: novaTarefaNome.ativId === ativ.id ? novaTarefaNome.responsavel_id : "" })} />
                                     </label>
                                     <select
                                         value={novaTarefaNome.ativId === ativ.id ? (novaTarefaNome.responsavel_id || "") : ""}
@@ -3170,7 +3171,7 @@ export default function ProjetoDetalhe() {
                 {/* NOVO BLOCO DE ATIVIDADES */}
                 <form onSubmit={handleAddAtividade} className="pd-new-ativ">
                     <span className="pd-new-ativ-icon"><Icons.Layers size={18} /></span>
-                    <input type="text" placeholder="Nome de um novo bloco de atividades..." value={novaAtividadeNome} onChange={e => setNovaAtividadeNome(e.target.value)} />
+                    <input aria-label="Nome de um novo bloco de atividades" type="text" placeholder="Nome de um novo bloco de atividades…" value={novaAtividadeNome} onChange={e => setNovaAtividadeNome(e.target.value)} />
                     <select
                         value={novaAtividadeResponsavel}
                         onChange={e => setNovaAtividadeResponsavel(e.target.value)}
@@ -3428,7 +3429,7 @@ export default function ProjetoDetalhe() {
                             <div className="pd-field">
                                 <label>Colaborador</label>
                                 <select className="pd-input" value={timeLogForm.user_id} onChange={(e) => setTimeLogForm((prev) => ({ ...prev, user_id: e.target.value }))} required>
-                                    <option value="">Selecionar...</option>
+                                    <option value="">Selecionar…</option>
                                     {staff
                                         .filter(s => s.ativo !== false || String(s.id) === String(timeLogForm.user_id))
                                         .map((s) => <option key={s.id} value={s.id}>{s.nome || s.email}{s.ativo === false ? ' (Inativo)' : ''}</option>)}
@@ -3461,7 +3462,7 @@ export default function ProjetoDetalhe() {
                             <div className="pd-field">
                                 <label>Item</label>
                                 <select className="pd-input" value={timeLogForm.target_id} onChange={(e) => setTimeLogForm((prev) => ({ ...prev, target_id: e.target.value }))} required>
-                                    <option value="">Selecionar...</option>
+                                    <option value="">Selecionar…</option>
                                     {timeLogForm.target_type === 'atividade'
                                         ? activityOptions.map((opt) => <option key={opt.id} value={opt.id}>{opt.label}</option>)
                                         : atividades.map((ativ) => {
@@ -3487,7 +3488,7 @@ export default function ProjetoDetalhe() {
                             <div className="pd-field">
                                 <label>Tempo (minutos)</label>
                                 <div className="pd-input-eur">
-                                    <input className="pd-input" type="number" min="1" value={timeLogForm.duration_minutes} onChange={(e) => setTimeLogForm((prev) => ({ ...prev, duration_minutes: e.target.value }))} placeholder="Ex: 45" required />
+                                    <input aria-label="Tempo (minutos)" className="pd-input" type="number" min="1" value={timeLogForm.duration_minutes} onChange={(e) => setTimeLogForm((prev) => ({ ...prev, duration_minutes: e.target.value }))} placeholder="Ex: 45" required />
                                     <span>min</span>
                                 </div>
                                 <small className="pd-hint">Visualização: <b>{formatTime(Math.max(0, parseInt(timeLogForm.duration_minutes || "0", 10) || 0))}</b></small>
@@ -3496,7 +3497,7 @@ export default function ProjetoDetalhe() {
                             <div className="pd-modal-actions">
                                 <button type="button" onClick={closeTimeLogModal} className="pd-btn">Cancelar</button>
                                 <button type="submit" disabled={timeLogSaving} className="pd-btn is-primary">
-                                    <Icons.Save size={14} /> {timeLogSaving ? 'A guardar...' : 'Guardar'}
+                                    <Icons.Save size={14} /> {timeLogSaving ? 'A guardar…' : 'Guardar'}
                                 </button>
                             </div>
                         </form>
@@ -3562,7 +3563,7 @@ export default function ProjetoDetalhe() {
                             <Icons.ChevronDown size={14} /> {allCollapsed ? 'Expandir tudo' : 'Recolher tudo'}
                         </button>
                         <button type="button" className="pd-btn is-primary" onClick={exportGanttPdf} disabled={isExportingGantt}>
-                            <Icons.Download size={15} /> {isExportingGantt ? 'A exportar...' : 'Exportar PDF'}
+                            <Icons.Download size={15} /> {isExportingGantt ? 'A exportar…' : 'Exportar PDF'}
                         </button>
                     </div>
                 </header>
@@ -3623,7 +3624,7 @@ export default function ProjetoDetalhe() {
                                 <div key={item.id} className={`pd-g-row ${isGroup ? 'is-group' : ''} ${isLate ? 'is-late' : ''} ${isDone ? 'is-done' : ''}`} style={{ '--bc': base, '--bl': light }}>
                                     <div className="pd-g-label">
                                         {isGroup ? (
-                                            <button type="button" className={`pd-g-toggle ${collapsed ? 'is-collapsed' : ''}`} onClick={() => setGanttCollapsed((prev) => ({ ...prev, [item.activityId]: !prev[item.activityId] }))} aria-expanded={!collapsed} title={collapsed ? 'Mostrar tarefas' : 'Esconder tarefas'}>
+                                            <button aria-label={collapsed ? 'Mostrar tarefas' : 'Esconder tarefas'} type="button" className={`pd-g-toggle ${collapsed ? 'is-collapsed' : ''}`} onClick={() => setGanttCollapsed((prev) => ({ ...prev, [item.activityId]: !prev[item.activityId] }))} aria-expanded={!collapsed} title={collapsed ? 'Mostrar tarefas' : 'Esconder tarefas'}>
                                                 <Icons.ChevronDown size={14} />
                                             </button>
                                         ) : (
@@ -3739,11 +3740,11 @@ export default function ProjetoDetalhe() {
                                         <div className="pd-row-2 is-tight">
                                             <div className="pd-field">
                                                 <label>Código</label>
-                                                <input className="pd-input is-mono" type="text" value={formGeral.codigo_projeto || ''} placeholder={editing ? 'Ex: NORTE2030-…' : '—'} onChange={e => setFormGeral({...formGeral, codigo_projeto: e.target.value})} />
+                                                <input aria-label="Código" className="pd-input is-mono" type="text" value={formGeral.codigo_projeto || ''} placeholder={editing ? 'Ex: NORTE2030-…' : '—'} onChange={e => setFormGeral({...formGeral, codigo_projeto: e.target.value})} />
                                             </div>
                                             <div className="pd-field">
                                                 <label>Nº interno</label>
-                                                <input className="pd-input is-mono" type="text" value={formGeral.numero_projeto || ''} placeholder={editing ? 'Ex: 312' : '—'} onChange={e => setFormGeral({...formGeral, numero_projeto: e.target.value})} />
+                                                <input aria-label="Nº interno" className="pd-input is-mono" type="text" value={formGeral.numero_projeto || ''} placeholder={editing ? 'Ex: 312' : '—'} onChange={e => setFormGeral({...formGeral, numero_projeto: e.target.value})} />
                                             </div>
                                         </div>
                                     )}
@@ -3800,7 +3801,7 @@ export default function ProjetoDetalhe() {
                                                 const parceiro = clientes.find(c => String(c.id) === String(pid));
                                                 if (!parceiro) return null;
                                                 return (
-                                                    <button type="button" key={pid} onClick={() => editing && handleToggleParceiro(pid)} className="pd-pill is-on" title={editing ? 'Remover parceiro' : undefined}>
+                                                    <button aria-label={editing ? 'Remover parceiro' : undefined} type="button" key={pid} onClick={() => editing && handleToggleParceiro(pid)} className="pd-pill is-on" title={editing ? 'Remover parceiro' : undefined}>
                                                         <Icons.Handshake size={12} /> {getClientDisplayName(parceiro) || parceiro.marca}
                                                         {editing && <Icons.Close size={12} />}
                                                     </button>
@@ -4014,11 +4015,11 @@ export default function ProjetoDetalhe() {
                                 <h3><span className="pd-card-icon"><Icons.FileText size={15} /></span> Notas</h3>
                                 <div className="pd-field">
                                     <label>Descrição pública</label>
-                                    <textarea className="pd-input is-area" rows="3" value={formGeral.descricao || ''} placeholder={editing ? 'Resumo do projeto…' : 'Sem descrição.'} onChange={e => setFormGeral({...formGeral, descricao: e.target.value})} />
+                                    <textarea aria-label="Descrição pública" className="pd-input is-area" rows="3" value={formGeral.descricao || ''} placeholder={editing ? 'Resumo do projeto…' : 'Sem descrição.'} onChange={e => setFormGeral({...formGeral, descricao: e.target.value})} />
                                 </div>
                                 <div className="pd-field is-internal">
                                     <label><Icons.Eye size={12} /> Observações internas</label>
-                                    <textarea className="pd-input is-area is-note" rows="3" value={formGeral.observacoes || ''} placeholder={editing ? 'Notas só para a equipa…' : 'Sem observações.'} onChange={e => setFormGeral({...formGeral, observacoes: e.target.value})} />
+                                    <textarea aria-label="Observações internas" className="pd-input is-area is-note" rows="3" value={formGeral.observacoes || ''} placeholder={editing ? 'Notas só para a equipa…' : 'Sem observações.'} onChange={e => setFormGeral({...formGeral, observacoes: e.target.value})} />
                                 </div>
                             </section>
                         </div>
@@ -4068,7 +4069,7 @@ export default function ProjetoDetalhe() {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      zIndex: 99999,
+                      zIndex: "calc(var(--z-modal) + 13)",
                       padding: '20px'
                   }}
                   onClick={(e) => {
@@ -4117,11 +4118,11 @@ export default function ProjetoDetalhe() {
                                       <p style={{margin: 0, color: '#64748b', fontSize: '0.92rem', lineHeight: 1.55}}>{confirmModal.message}</p>
                                   </div>
                               </div>
-                              <button
+                              <button aria-label="Fechar"
                                   type="button"
                                   onClick={closeConfirmModal}
                                   disabled={projectActionLoading}
-                                  style={{background: 'transparent', border: 'none', color: '#94a3b8', cursor: projectActionLoading ? 'not-allowed' : 'pointer', padding: 0, display: 'flex'}}
+                                  style={{background: 'transparent', border: 'none', color: '#64748b', cursor: projectActionLoading ? 'not-allowed' : 'pointer', padding: 0, display: 'flex'}}
                               >
                                   <Icons.Close size={20} />
                               </button>
@@ -4194,7 +4195,7 @@ export default function ProjetoDetalhe() {
                                   }}
                               >
                                   {confirmModal.confirmTone === 'danger' ? <Icons.Trash size={15} color="#ffffff" /> : <Icons.Folder size={15} color="#ffffff" />}
-                                  {projectActionLoading ? 'A processar...' : confirmModal.confirmLabel}
+                                  {projectActionLoading ? 'A processar…' : confirmModal.confirmLabel}
                               </button>
                           </div>
                       </div>
@@ -4241,11 +4242,11 @@ export default function ProjetoDetalhe() {
       {/* MODAL 1: EDITAR ATIVIDADE */}
       {atividadeModal.show && atividadeModal.data && (
           <ModalPortal>
-              <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999}}>
+              <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: "calc(var(--z-modal) + 5)"}}>
                   <div className="custom-scrollbar" style={{background: 'white', padding: '24px', borderRadius: '16px', width: 'min(600px, 92vw)', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'}}>
                       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
                           <h3 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.ClipboardList size={20} color="var(--color-btnPrimary)" /> Editar Atividade</h3>
-                          <button onClick={() => setAtividadeModal({show:false, data:null})} style={{background:'none', border:'none', fontSize:'1.2rem', color:'#94a3b8', cursor:'pointer'}}>✕</button>
+                          <button aria-label="Fechar" onClick={() => setAtividadeModal({show:false, data:null})} style={{background:'none', border:'none', fontSize:'1.2rem', color:'#64748b', cursor:'pointer'}}>✕</button>
                       </div>
                       
                       <form onSubmit={handleSaveAtividade}>
@@ -4275,7 +4276,7 @@ export default function ProjetoDetalhe() {
                               <label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '6px', display:'block', fontWeight:'bold'}}>Outros Colaboradores Envolvidos</label>
                               <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px'}}>
                                   <div>
-                                      <div style={{fontSize: '0.7rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px'}}>Equipa Interna</div>
+                                      <div style={{fontSize: '0.7rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px'}}>Equipa Interna</div>
                                       <div className="pill-container custom-scrollbar" style={{padding: '8px', maxHeight: '88px', overflowY: 'auto'}}>
                                           {internalAssigneeOptions
                                               .filter(s => String(s.id) !== String(atividadeModal.data.responsavel_id || ''))
@@ -4285,7 +4286,7 @@ export default function ProjetoDetalhe() {
                                               return (
                                                   <div
                                                       key={`ativ-int-${s.id}`}
-                                                      onClick={() => handleToggleAtividadeColaborador(s.id)}
+                                                      {...clicavel(() => handleToggleAtividadeColaborador(s.id))}
                                                       className={`pill-checkbox ${isSelected ? 'selected' : ''}`}
                                                       style={{fontSize: '0.72rem', padding: '5px 10px'}}
                                                   >
@@ -4297,14 +4298,14 @@ export default function ProjetoDetalhe() {
                                   </div>
 
                                   <div>
-                                      <div style={{fontSize: '0.7rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px'}}>Pessoas das Entidades</div>
+                                      <div style={{fontSize: '0.7rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px'}}>Pessoas das Entidades</div>
                                       <div className="pill-container custom-scrollbar" style={{padding: '8px', maxHeight: '88px', overflowY: 'auto'}}>
                                           {entityAssigneeOptions.filter(s => String(s.id) !== String(atividadeModal.data.responsavel_id || '')).map(s => {
                                               const isSelected = Array.isArray(atividadeModal.data.colaboradores_extra) && atividadeModal.data.colaboradores_extra.map(id => String(id)).includes(String(s.id));
                                               return (
                                                   <div
                                                       key={`ativ-ent-${s.id}`}
-                                                      onClick={() => handleToggleAtividadeColaborador(s.id)}
+                                                      {...clicavel(() => handleToggleAtividadeColaborador(s.id))}
                                                       className={`pill-checkbox ${isSelected ? 'selected' : ''}`}
                                                       style={{fontSize: '0.72rem', padding: '5px 10px'}}
                                                   >
@@ -4387,10 +4388,10 @@ export default function ProjetoDetalhe() {
                           <div style={sectionTitleStyle}><Icons.FileText /> Notas</div>
                           <div style={{display: 'flex', flexWrap: 'wrap', gap: '15px'}}>
                               <div style={{flex: '1 1 250px'}}>
-                                  <textarea rows="3" placeholder="Descrição..." value={atividadeModal.data.descricao || ''} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, descricao: e.target.value}})} style={{...inputStyle, resize:'none', width: '100%'}} className="input-focus" />
+                                  <textarea aria-label="Descrição" rows="3" placeholder="Descrição…" value={atividadeModal.data.descricao || ''} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, descricao: e.target.value}})} style={{...inputStyle, resize:'none', width: '100%'}} className="input-focus" />
                               </div>
                               <div style={{flex: '1 1 250px'}}>
-                                  <textarea rows="3" placeholder="Observações..." value={atividadeModal.data.observacoes || ''} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, observacoes: e.target.value}})} style={{...inputStyle, resize:'none', background:'#fffbeb', borderColor:'#fcd34d', width: '100%'}} className="input-focus-alert" />
+                                  <textarea aria-label="Observações" rows="3" placeholder="Observações…" value={atividadeModal.data.observacoes || ''} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, observacoes: e.target.value}})} style={{...inputStyle, resize:'none', background:'#fffbeb', borderColor:'#fcd34d', width: '100%'}} className="input-focus-alert" />
                               </div>
                           </div>
 
@@ -4407,11 +4408,11 @@ export default function ProjetoDetalhe() {
       {/* MODAL 2: EDITAR TAREFA */}
       {tarefaModal.show && tarefaModal.data && (
           <ModalPortal>
-              <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999}}>
+              <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: "calc(var(--z-modal) + 5)"}}>
                   <div className="custom-scrollbar" style={{background: 'white', padding: '32px', borderRadius: '18px', width: 'min(700px, 98vw)', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out'}}>
                       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
                           <h3 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Eye size={20} color="var(--color-btnPrimary)" /> Detalhes da Tarefa</h3>
-                          <button onClick={() => { setTarefaModal({show:false, data:null, atividadeNome:''}); setTarefaFileToUpload(null); }} style={{background:'none', border:'none', cursor:'pointer'}} className="hover-red-text"><Icons.Close size={20} /></button>
+                          <button aria-label="Fechar" onClick={() => { setTarefaModal({show:false, data:null, atividadeNome:''}); setTarefaFileToUpload(null); }} style={{background:'none', border:'none', cursor:'pointer'}} className="hover-red-text"><Icons.Close size={20} /></button>
                       </div>
                       
                       <form onSubmit={handleSaveTarefa}>
@@ -4441,7 +4442,7 @@ export default function ProjetoDetalhe() {
                               <label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '6px', display:'block', fontWeight:'bold'}}>Outros Colaboradores Envolvidos</label>
                               <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px'}}>
                                   <div>
-                                      <div style={{fontSize: '0.7rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px'}}>Equipa Interna</div>
+                                      <div style={{fontSize: '0.7rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px'}}>Equipa Interna</div>
                                       <div className="pill-container custom-scrollbar" style={{padding: '8px', maxHeight: '88px', overflowY: 'auto'}}>
                                           {internalAssigneeOptions
                                               .filter(s => String(s.id) !== String(tarefaModal.data.responsavel_id || ''))
@@ -4451,7 +4452,7 @@ export default function ProjetoDetalhe() {
                                               return (
                                                   <div
                                                       key={`tar-int-${s.id}`}
-                                                      onClick={() => handleToggleTarefaColaborador(s.id)}
+                                                      {...clicavel(() => handleToggleTarefaColaborador(s.id))}
                                                       className={`pill-checkbox ${isSelected ? 'selected' : ''}`}
                                                       style={{fontSize: '0.72rem', padding: '5px 10px'}}
                                                   >
@@ -4463,14 +4464,14 @@ export default function ProjetoDetalhe() {
                                   </div>
 
                                   <div>
-                                      <div style={{fontSize: '0.7rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px'}}>Pessoas das Entidades</div>
+                                      <div style={{fontSize: '0.7rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px'}}>Pessoas das Entidades</div>
                                       <div className="pill-container custom-scrollbar" style={{padding: '8px', maxHeight: '88px', overflowY: 'auto'}}>
                                           {entityAssigneeOptions.filter(s => String(s.id) !== String(tarefaModal.data.responsavel_id || '')).map(s => {
                                               const isSelected = Array.isArray(tarefaModal.data.colaboradores_extra) && tarefaModal.data.colaboradores_extra.map(id => String(id)).includes(String(s.id));
                                               return (
                                                   <div
                                                       key={`tar-ent-${s.id}`}
-                                                      onClick={() => handleToggleTarefaColaborador(s.id)}
+                                                      {...clicavel(() => handleToggleTarefaColaborador(s.id))}
                                                       className={`pill-checkbox ${isSelected ? 'selected' : ''}`}
                                                       style={{fontSize: '0.72rem', padding: '5px 10px'}}
                                                   >
@@ -4503,10 +4504,10 @@ export default function ProjetoDetalhe() {
                               <div style={{flex: '1 1 150px'}}>
                                   <label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight:'bold'}}>Prioridade</label>
                                   <select value={tarefaModal.data.prioridade || 'normal'} onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, prioridade: e.target.value}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0, width: '100%'}} className="input-focus">
-                                      <option value="baixa">🔵 Baixa</option>
-                                      <option value="normal">🟢 Normal</option>
-                                      <option value="alta">🟠 Alta</option>
-                                      <option value="urgente">🔴 Urgente</option>
+                                      <option value="baixa">Baixa</option>
+                                      <option value="normal">Normal</option>
+                                      <option value="alta">Alta</option>
+                                      <option value="urgente">Urgente</option>
                                   </select>
                               </div>
 
@@ -4580,7 +4581,7 @@ export default function ProjetoDetalhe() {
                                       <div style={{display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '10px', marginBottom: '10px'}}>
                                           <div>
                                               <label style={{fontSize: '0.72rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight:'bold'}}>Nome / Tipo de Documento</label>
-                                              <input
+                                              <input aria-label="Nome / Tipo de Documento"
                                                   type="text"
                                                   placeholder="Ex: Relatorio Final PDF"
                                                   value={tarefaModal.data.nome_entregavel || ''}
@@ -4613,7 +4614,7 @@ export default function ProjetoDetalhe() {
                                               border: isTarefaDeliverableDragOver ? '1px dashed var(--color-btnPrimary)' : '1px dashed #cbd5e1',
                                               borderRadius: '8px',
                                               padding: '12px',
-                                              transition: 'all 0.15s ease'
+                                              transition: 'background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease, opacity 0.15s ease, width 0.15s ease, filter 0.15s ease'
                                           }}
                                           onDragOver={(e) => {
                                               e.preventDefault();
@@ -4673,7 +4674,7 @@ export default function ProjetoDetalhe() {
 
                           {/* --- DETALHES (Sempre visível) --- */}
                           <div style={sectionTitleStyle}><Icons.FileText /> Detalhes</div>
-                          <textarea rows="4" placeholder="Descreva o que é necessário fazer..." value={tarefaModal.data.descricao || ''} onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, descricao: e.target.value}})} style={{...inputStyle, resize:'none'}} className="input-focus" />
+                          <textarea aria-label="Descreva o que é necessário fazer" rows="4" placeholder="Descreva o que é necessário fazer…" value={tarefaModal.data.descricao || ''} onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, descricao: e.target.value}})} style={{...inputStyle, resize:'none'}} className="input-focus" />
 
                           <div style={{display: 'flex', gap: '10px', marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #f1f5f9'}}>
                               <button type="button" onClick={() => { setTarefaModal({show:false, data:null, atividadeNome:''}); setTarefaFileToUpload(null); }} style={{flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', background: 'white', color: '#64748b', fontWeight: 'bold', cursor:'pointer'}} className="hover-shadow">Cancelar</button>
@@ -4688,11 +4689,11 @@ export default function ProjetoDetalhe() {
       {/* MODAL 3: EDITAR SUB-TAREFA COM DATA E ESTADO */}
       {subtarefaModal.show && subtarefaModal.data && (
           <ModalPortal>
-              <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999}}>
+              <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: "calc(var(--z-modal) + 5)"}}>
                   <div style={{background: 'white', padding: '30px', borderRadius: '16px', width: 'min(500px, 92vw)', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'}}>
                       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
                           <h3 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Check size={20} color="var(--color-btnPrimary)" /> Detalhes do Passo</h3>
-                          <button onClick={() => setSubtarefaModal({show:false, data:null, tarefaNome:''})} style={{background:'none', border:'none', cursor:'pointer'}} className="hover-red-text"><Icons.Close size={20} /></button>
+                          <button aria-label="Fechar" onClick={() => setSubtarefaModal({show:false, data:null, tarefaNome:''})} style={{background:'none', border:'none', cursor:'pointer'}} className="hover-red-text"><Icons.Close size={20} /></button>
                       </div>
                       
                       <form onSubmit={handleSaveSubtarefa}>
@@ -4738,7 +4739,7 @@ export default function ProjetoDetalhe() {
             fontSize: '0.75rem',
             boxShadow: '0 10px 25px -5px rgba(0,0,0,0.3)',
             pointerEvents: 'none',
-            zIndex: 999999
+            zIndex: "calc(var(--z-modal-max) + 1)"
         }}>
             <div>Criado por: {infoTooltip.criadorNome}</div>
         </div>
@@ -4761,7 +4762,7 @@ export default function ProjetoDetalhe() {
 
           /* PILL CONTAINER & CHECKBOX (Para Parceiros e Colaboradores) */
           .pill-container { display: flex; flex-wrap: wrap; gap: 8px; padding: 15px; background: #ffffff; border-radius: 8px; border: 1px solid #cbd5e1; }
-          .pill-checkbox { padding: 8px 18px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease; border: 1px solid #e2e8f0; background: #f8fafc; color: #64748b; user-select: none; }
+          .pill-checkbox { padding: 8px 18px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease; border: 1px solid #e2e8f0; background: #f8fafc; color: #64748b; user-select: none; }
           .pill-checkbox:hover { border-color: #cbd5e1; background: #f1f5f9; }
           .pill-checkbox.selected { background: var(--color-bgSecondary); border-color: var(--color-btnPrimary); color: var(--color-btnPrimary); box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1); }
 

@@ -229,9 +229,9 @@ export function ListaEditor({ items, onChange, campos, novo = {}, addLabel = "Ad
             })}
           </div>
           <div className="mk-led-actions">
-            <button type="button" className="mk-icon-btn is-sm" title="Subir" disabled={i === 0} onClick={() => mover(i, -1)}>↑</button>
-            <button type="button" className="mk-icon-btn is-sm" title="Descer" disabled={i === lista.length - 1} onClick={() => mover(i, 1)}>↓</button>
-            <button type="button" className="mk-icon-btn is-sm is-danger" title="Remover" onClick={() => onChange(lista.filter((_, j) => j !== i))}><I.Trash size={13} /></button>
+            <button aria-label="Subir" type="button" className="mk-icon-btn is-sm" title="Subir" disabled={i === 0} onClick={() => mover(i, -1)}>↑</button>
+            <button aria-label="Descer" type="button" className="mk-icon-btn is-sm" title="Descer" disabled={i === lista.length - 1} onClick={() => mover(i, 1)}>↓</button>
+            <button aria-label="Remover" type="button" className="mk-icon-btn is-sm is-danger" title="Remover" onClick={() => onChange(lista.filter((_, j) => j !== i))}><I.Trash size={13} /></button>
           </div>
         </div>
       ))}

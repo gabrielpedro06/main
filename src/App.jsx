@@ -12,6 +12,7 @@ import ResetPassword from "./pages/ResetPassword";
 // Layout e Proteção
 import ProtectedRoute from "./components/ProtectedRoute";
 import GlobalTooltipProvider from "./components/GlobalTooltipProvider";
+import DialogoGlobal from "./components/DialogoGlobal";
 import Dashboard from "./pages/Dashboard"; 
 
 // Páginas do Dashboard
@@ -104,7 +105,7 @@ export default function App() {
           <Route path="*" element={
             <div style={{ textAlign: 'center', marginTop: '100px', color: '#64748b' }}>
               <h1 style={{ fontSize: '3rem', margin: 0, color: '#0f172a' }}>404</h1>
-              <h2>Oops! Página não encontrada 🚧</h2>
+              <h2>Oops! Página não encontrada</h2>
               <p>O link que tentaste aceder não existe.</p>
               <a href="/" style={{ display: 'inline-block', marginTop: '20px', padding: '10px 20px', background: 'var(--color-btnPrimary)', color: 'white', textDecoration: 'none', borderRadius: '8px', fontWeight: 'bold' }}>
                 Voltar ao Início
@@ -114,6 +115,7 @@ export default function App() {
 
           </Routes>
         </HashRouter>
+          <DialogoGlobal />
       </GlobalTooltipProvider>
     </AuthProvider>
     </ThemeProvider>

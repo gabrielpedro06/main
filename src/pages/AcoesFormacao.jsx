@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import * as XLSX from "xlsx";
 
+import AvisoToast from "../components/AvisoToast";
 const MODEL_NAME = "Formação Profissional";
 
 // Novas constantes para os Anos
@@ -588,7 +589,7 @@ export function EstatisticasTab({ areasFormacao, selectedYear }) {
   // 2. RENDERIZAÇÃO
   // ----------------------------------------------------------------------
 
-  if (loading) return <div className="af-loading"><span className="af-spinner" /> A carregar estatísticas e KPIs...</div>;
+  if (loading) return <div className="af-loading"><span className="af-spinner" /> A carregar estatísticas e KPIs…</div>;
 
   const tooltipStyle = { borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 12px 28px -12px rgba(15,23,42,0.3)", fontSize: 12, fontWeight: 700 };
   const renderDonut = (dataset, emptyLabel = "Sem dados") => {
@@ -1459,7 +1460,7 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
             <button type="button" className="af-hero-btn" onClick={exportarParaExcel} title="Exportar ano selecionado para Excel">
               <Icons.Download size={16} /> Download
             </button>
-            <button type="button" className="af-hero-btn is-icon" onClick={() => setShowSettingsModal(true)} title="Definições">
+            <button aria-label="Definições" type="button" className="af-hero-btn is-icon" onClick={() => setShowSettingsModal(true)} title="Definições">
               <Icons.Settings size={17} />
             </button>
             <button type="button" className="af-cta" onClick={handleOpenCreate} disabled={!user?.id}>
@@ -1491,7 +1492,7 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
         {activeTab !== "estatisticas" ? (
           <label className="af-search">
             <Icons.Search size={16} />
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Procurar por código, curso, formador, área..." />
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Procurar por código, curso, formador, área…" />
             {search ? <button type="button" className="af-search-clear" onClick={() => setSearch("")} aria-label="Limpar"><Icons.Close size={13} /></button> : null}
           </label>
         ) : <span style={{ flex: 1 }} />}
@@ -1503,7 +1504,7 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
           options={yearOptions}
           icon={<Icons.Calendar size={15} />}
           menuWidth={200}
-          searchPlaceholder="Procurar ano..."
+          searchPlaceholder="Procurar ano…"
           ariaLabel="Ano"
         />
       </div>
@@ -1519,7 +1520,7 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
 
       <div key={activeTab} className={`af-panel bz-tab-panel ${activeTab === "estatisticas" ? "is-stats" : ""}`}>
         {loading ? (
-          <div className="af-loading"><span className="af-spinner" /> A carregar dados...</div>
+          <div className="af-loading"><span className="af-spinner" /> A carregar dados…</div>
         ) : activeTab === "estatisticas" ? (
           // Renderiza a nova Tab aqui
           <EstatisticasTab areasFormacao={areasFormacao} selectedYear={selectedYear} />
@@ -1685,7 +1686,7 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
                         <InlineTableCell key={`${acao.id}-data_pagamento-${editingCell?.rowId === acao.id && editingCell?.field === "data_pagamento" ? "edit" : "view"}`} rowId={acao.id} field="data_pagamento" value={acao.data_pagamento || ""} display={displayDate(acao.data_pagamento)} type="date" align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "data_pagamento", nextValue)} />
                         <InlineTableCell key={`${acao.id}-status_dtp-${editingCell?.rowId === acao.id && editingCell?.field === "status_dtp" ? "edit" : "view"}`} rowId={acao.id} field="status_dtp" value={acao.status_dtp || ""} display={renderDtp(acao.status_dtp)} type="select" options={DTP_OPTIONS.map((option) => ({ value: option, label: option }))} align="center" editingCell={editingCell} setEditingCell={setEditingCell} onSave={(nextValue) => handleInlineCellSave(acao, "status_dtp", nextValue)} />
                         <td className="af-cell is-right af-sticky-right">
-                          <button type="button" className="af-icon-btn" onClick={() => handleOpenEdit(acao)} title="Abrir edição completa">
+                          <button aria-label="Abrir edição completa" type="button" className="af-icon-btn" onClick={() => handleOpenEdit(acao)} title="Abrir edição completa">
                             <Icons.Edit size={15} />
                           </button>
                         </td>
@@ -1799,7 +1800,7 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
                             rowId={acao.id}
                             field="notas"
                             value={acao.notas || ""}
-                            display={acao.notas || <span className="af-nil is-italic">Duplo clique para adicionar nota...</span>}
+                            display={acao.notas || <span className="af-nil is-italic">Duplo clique para adicionar nota…</span>}
                             type="text"
                             align="left"
                             className="af-ck-notes"
@@ -2176,7 +2177,7 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
                 <div className="af-modal-foot">
                   <button type="button" className="af-btn is-ghost" onClick={() => setShowModal(false)}>Cancelar</button>
                   <button type="submit" className="af-btn is-primary is-lg" disabled={isSubmitting}>
-                    <Icons.Save /> {isSubmitting ? "A guardar..." : "Guardar"}
+                    <Icons.Save /> {isSubmitting ? "A guardar…" : "Guardar"}
                   </button>
                 </div>
               </form>
@@ -2234,9 +2235,7 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
       )}
 
       {notification && (
-        <div className={`toast-container ${notification.type}`}>
-          {notification.type === "success" ? "✅" : <Icons.Alert />} {notification.message}
-        </div>
+        <AvisoToast tipo={notification.type} mensagem={notification.message} />
       )}
     </div>
   );

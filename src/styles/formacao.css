@@ -321,7 +321,7 @@ thead th.af-sticky-right { z-index: 5; }
 .af-ck-step {
   min-width: 70px;
   background: #fff !important;
-  font-size: 0.6rem !important; font-weight: 700 !important; letter-spacing: 0 !important; text-transform: none !important;
+  font-size: 0.66rem !important; font-weight: 700 !important; letter-spacing: 0 !important; text-transform: none !important;
   color: var(--af-muted) !important;
   box-shadow: inset -1px 0 0 #f1f4f8;
 }
@@ -433,7 +433,7 @@ thead th.af-sticky-right { z-index: 5; }
    MODAIS
    ========================================================================= */
 .af-overlay {
-  position: fixed; inset: 0; z-index: 99999;
+  position: fixed; inset: 0; z-index: calc(var(--z-modal) + 13);
   display: flex; align-items: center; justify-content: center;
   padding: 16px;
   background: rgba(15, 23, 42, 0.55);

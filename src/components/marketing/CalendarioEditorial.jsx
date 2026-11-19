@@ -91,7 +91,7 @@ export default function CalendarioEditorial({ itens, marcos = [], onAbrir, onPat
               >
                 <div className="mk-cal-num">
                   <span>{dia.getDate()}</span>
-                  <button type="button" className="mk-cal-add" title="Novo conteúdo neste dia" onClick={() => onCriar({ data_publicacao: moverParaDia(null, k) })}><I.Plus size={12} sw={3} /></button>
+                  <button aria-label="Novo conteúdo neste dia" type="button" className="mk-cal-add" title="Novo conteúdo neste dia" onClick={() => onCriar({ data_publicacao: moverParaDia(null, k) })}><I.Plus size={12} sw={3} /></button>
                 </div>
                 {marcos.filter((m) => m.data === k).map((m, mi) => (
                   <span key={mi} className="mk-cal-marco" title={`Ponto de controlo · ${m.ciclo}${m.notas ? ` — ${m.notas}` : ""}`}><I.Flag size={11} sw={2.5} /> {m.titulo || "Ponto de controlo"}</span>

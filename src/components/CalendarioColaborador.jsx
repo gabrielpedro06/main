@@ -763,7 +763,7 @@ export default function CalendarioColaborador({
   if (loading) {
     return (
       <div className="cc-card cc-loading">
-        <span className="cc-spinner" /> A carregar calendário...
+        <span className="cc-spinner" /> A carregar calendário…
       </div>
     );
   }
@@ -884,7 +884,7 @@ export default function CalendarioColaborador({
                   {isToleranceType(ausencia.tipo) ? (
                     <div className="cc-actions">
                       <button type="button" className="cc-btn" onClick={() => handleToggleTolerancia(diaObj)} disabled={toleranciaLoading}>
-                        {toleranciaLoading ? "A processar..." : "Remover Tolerância"}
+                        {toleranciaLoading ? "A processar…" : "Remover Tolerância"}
                       </button>
                     </div>
                   ) : null}
@@ -922,7 +922,7 @@ export default function CalendarioColaborador({
                       Cancelar
                     </button>
                     <button type="button" className="cc-btn is-primary" onClick={() => handleSaveDayAssiduidade(diaObj.dataStr)} disabled={savingDay}>
-                      {savingDay ? "A guardar..." : "Guardar"}
+                      {savingDay ? "A guardar…" : "Guardar"}
                     </button>
                   </div>
                 </div>
@@ -1046,7 +1046,7 @@ export default function CalendarioColaborador({
             <span className="cc-modal-ico is-danger">!</span>
             <h3>Apagar Assiduidade</h3>
             <p>Tem a certeza que quer apagar este registo de assiduidade? Esta ação é <b>irreversível</b>.<br/>Para confirmar, escreva <b>APAGAR</b> abaixo:</p>
-            <input
+            <input aria-label="Digite APAGAR para confirmar"
               type="text"
               className="cc-input"
               value={deleteInput}
@@ -1060,7 +1060,7 @@ export default function CalendarioColaborador({
                 Cancelar
               </button>
               <button type="button" className="cc-btn is-danger-solid" onClick={() => handleDeleteAssiduidade(deleteTarget)} disabled={deleteInput !== "APAGAR" || deleteLoading}>
-                {deleteLoading ? "A apagar..." : "Apagar"}
+                {deleteLoading ? "A apagar…" : "Apagar"}
               </button>
             </div>
           </div>
@@ -1081,7 +1081,7 @@ export default function CalendarioColaborador({
               Nota: O sistema ignora fins de semana, feriados, e dias que já tenham ausências ou registos de assiduidade marcados.
             </p>
             <p className="cc-modal-strong">Para confirmar, escreva "SIM" ou "CONFIRMO" abaixo:</p>
-            <input
+            <input aria-label="Digite SIM para confirmar"
               type="text"
               className="cc-input"
               value={bulkInput}
@@ -1095,7 +1095,7 @@ export default function CalendarioColaborador({
                 Cancelar
               </button>
               <button type="button" className="cc-btn is-green-solid" onClick={handleBulkFillMonth} disabled={!isBulkConfirmValid || bulkLoading}>
-                {bulkLoading ? "A preencher..." : "Confirmar"}
+                {bulkLoading ? "A preencher…" : "Confirmar"}
               </button>
             </div>
           </div>

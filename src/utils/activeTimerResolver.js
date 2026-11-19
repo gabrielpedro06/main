@@ -9,7 +9,7 @@ const buildActiveTimerTitle = ({ clientName, projectName, itemTitle }) => {
   const prefix = [clientName, projectName].filter(Boolean).join(" - ");
   if (prefix && itemTitle) return `${prefix} - ${itemTitle}`;
   if (itemTitle) return itemTitle;
-  return "Tempo a decorrer...";
+  return "Tempo a decorrer…";
 };
 
 export async function resolveActiveTimerMeta(supabase, activeLog) {
@@ -25,7 +25,7 @@ export async function resolveActiveTimerMeta(supabase, activeLog) {
   let projectId = activeLog.projeto_id || null;
   let clientName = "";
   let projectName = "";
-  let itemTitle = "Tempo a decorrer...";
+  let itemTitle = "Tempo a decorrer…";
 
   if (activeLog.subtarefa_id) {
     const { data } = await supabase

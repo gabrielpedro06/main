@@ -831,7 +831,7 @@ export default function Ferias({ forcedType = null }) {
                                             options={absenceTypeOptions}
                                             className="ab-select"
                                             menuWidth={380}
-                                            searchPlaceholder="Procurar motivo..."
+                                            searchPlaceholder="Procurar motivo…"
                                             ariaLabel="Motivo da ausência"
                                         />
                                     </div>
@@ -850,7 +850,7 @@ export default function Ferias({ forcedType = null }) {
                                                     value={form.veiculo}
                                                     onChange={(v) => setForm({ ...form, veiculo: v })}
                                                     options={vehicleOptions}
-                                                    placeholder="Escolher matrícula..."
+                                                    placeholder="Escolher matrícula…"
                                                     className="ab-select"
                                                     menuWidth={300}
                                                     ariaLabel="Veículo utilizado"
@@ -910,7 +910,7 @@ export default function Ferias({ forcedType = null }) {
 
                                 <div className="ab-field">
                                     <span className="ab-label">Notas <em>opcional</em></span>
-                                    <textarea rows="3" value={form.motivo} onChange={e => setForm({ ...form, motivo: e.target.value })} placeholder="Mais detalhes sobre o pedido..." />
+                                    <textarea aria-label="Mais detalhes sobre o pedido" rows="3" value={form.motivo} onChange={e => setForm({ ...form, motivo: e.target.value })} placeholder="Mais detalhes sobre o pedido…" />
                                 </div>
 
                                 <div className="ab-field">
@@ -922,7 +922,7 @@ export default function Ferias({ forcedType = null }) {
                             <div className="ab-modal-foot">
                                 <button type="button" className="ab-btn ab-btn-ghost" onClick={handleCloseModal}>Cancelar</button>
                                 <button type="submit" className="ab-btn ab-btn-primary" disabled={isSubmitting || submitBlocked}>
-                                    {isSubmitting ? <><span className="ab-spinner" />A enviar...</> : (isEditing ? <><Icons.Edit /> Guardar alterações</> : <><Icons.Plus /> Submeter pedido</>)}
+                                    {isSubmitting ? <><span className="ab-spinner" />A enviar…</> : (isEditing ? <><Icons.Edit /> Guardar alterações</> : <><Icons.Plus /> Submeter pedido</>)}
                                 </button>
                             </div>
                         </form>
@@ -951,7 +951,7 @@ export default function Ferias({ forcedType = null }) {
                       <div className="ab-modal-foot">
                           <button type="button" className="ab-btn ab-btn-ghost" onClick={() => { setUploadModal({ show: false, pedido: null }); setUploadFile(null); }}>Cancelar</button>
                           <button type="submit" className="ab-btn ab-btn-primary" disabled={isUploadingDoc || !uploadFile}>
-                              {isUploadingDoc ? <><span className="ab-spinner" />A enviar...</> : 'Guardar documento'}
+                              {isUploadingDoc ? <><span className="ab-spinner" />A enviar…</> : 'Guardar documento'}
                           </button>
                       </div>
                   </form>

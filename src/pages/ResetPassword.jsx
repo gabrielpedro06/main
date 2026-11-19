@@ -82,7 +82,7 @@ export default function ResetPassword() {
       setError("Erro ao atualizar password.")
       setLoading(false)
     } else {
-      setMessage("Password atualizada com sucesso! A redirecionar...")
+      setMessage("Password atualizada com sucesso! A redirecionar…")
       setTimeout(() => navigate("/"), 2000)
     }
   }

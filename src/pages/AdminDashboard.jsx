@@ -5,6 +5,7 @@ import SegurancaMFA from "../components/admin/SegurancaMFA";
 import AdminVisaoGeral from "../components/admin/AdminVisaoGeral";
 import { postAutenticado } from "../utils/apiAutenticada";
 import "../styles/admin.css";
+import { clicavel } from "../utils/clicavel";
 
 
 const PROFILE_TAG_OPTIONS = [
@@ -550,7 +551,7 @@ export default function AdminDashboard() {
       )}
 
       {loading ? (
-        <div style={{ background: "#fff", border: "1px solid var(--color-borderColor)", borderRadius: "14px", padding: "16px", color: "var(--color-textSecondary)" }}>A carregar dados de administração...</div>
+        <div style={{ background: "#fff", border: "1px solid var(--color-borderColor)", borderRadius: "14px", padding: "16px", color: "var(--color-textSecondary)" }}>A carregar dados de administração…</div>
       ) : errorMessage ? (
         <div style={{ background: "#fff", border: "1px solid #fecaca", borderRadius: "14px", padding: "16px", color: "#b91c1c" }}>{errorMessage}</div>
       ) : (
@@ -805,7 +806,7 @@ export default function AdminDashboard() {
                         {PROFILE_TAG_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                       </select>
                       <span style={{ fontSize: "0.78rem", color: profileTagSaving ? "var(--color-btnPrimary)" : "var(--color-textSecondary)", fontWeight: 700 }}>
-                        {profileTagSaving ? "A guardar..." : profileTagFeedback}
+                        {profileTagSaving ? "A guardar…" : profileTagFeedback}
                       </span>
                     </div>
                   </div>
@@ -815,8 +816,8 @@ export default function AdminDashboard() {
                     <div style={{ border: "1px solid var(--color-borderColor)", borderRadius: "12px", padding: "10px" }}>
                       <div style={{ fontSize: "0.85rem", fontWeight: 800, color: "#2563eb", marginBottom: "8px" }}>Atividades por fazer ({focusedAssignments.atividades.length})</div>
                       <div style={{ display: "grid", gap: "6px", maxHeight: "220px", overflowY: "auto" }}>
-                        {focusedAssignmentsLoading && <span style={{ fontSize: "0.78rem", color: "var(--color-textSecondary)" }}>A carregar...</span>}
-                        {focusedAssignments.atividades.length === 0 && <span style={{ fontSize: "0.78rem", color: "#94a3b8" }}>Sem atividades.</span>}
+                        {focusedAssignmentsLoading && <span style={{ fontSize: "0.78rem", color: "var(--color-textSecondary)" }}>A carregar…</span>}
+                        {focusedAssignments.atividades.length === 0 && <span style={{ fontSize: "0.78rem", color: "#64748b" }}>Sem atividades.</span>}
                         {focusedAssignments.atividades.map(item => (
                           <div key={item.id} style={{ fontSize: "0.8rem", color: "var(--color-textPrimary)", background: "var(--color-bgTertiary)", borderRadius: "8px", padding: "6px 8px", display: "flex", justifyContent: "space-between" }} title={item.titulo}>
                             <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.titulo}</span>
@@ -829,8 +830,8 @@ export default function AdminDashboard() {
                     <div style={{ border: "1px solid var(--color-borderColor)", borderRadius: "12px", padding: "10px" }}>
                       <div style={{ fontSize: "0.85rem", fontWeight: 800, color: "#059669", marginBottom: "8px" }}>Tarefas por fazer ({focusedAssignments.tarefas.length})</div>
                       <div style={{ display: "grid", gap: "6px", maxHeight: "220px", overflowY: "auto" }}>
-                        {focusedAssignmentsLoading && <span style={{ fontSize: "0.78rem", color: "var(--color-textSecondary)" }}>A carregar...</span>}
-                        {focusedAssignments.tarefas.length === 0 && <span style={{ fontSize: "0.78rem", color: "#94a3b8" }}>Sem tarefas.</span>}
+                        {focusedAssignmentsLoading && <span style={{ fontSize: "0.78rem", color: "var(--color-textSecondary)" }}>A carregar…</span>}
+                        {focusedAssignments.tarefas.length === 0 && <span style={{ fontSize: "0.78rem", color: "#64748b" }}>Sem tarefas.</span>}
                         {focusedAssignments.tarefas.map(item => (
                           <div key={item.id} style={{ fontSize: "0.8rem", color: "var(--color-textPrimary)", background: "var(--color-bgTertiary)", borderRadius: "8px", padding: "6px 8px", display: "flex", justifyContent: "space-between" }} title={item.titulo}>
                             <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.titulo}</span>
@@ -843,8 +844,8 @@ export default function AdminDashboard() {
                     <div style={{ border: "1px solid var(--color-borderColor)", borderRadius: "12px", padding: "10px" }}>
                       <div style={{ fontSize: "0.85rem", fontWeight: 800, color: "#7c3aed", marginBottom: "8px" }}>Subtarefas por fazer ({focusedAssignments.subtarefas.length})</div>
                       <div style={{ display: "grid", gap: "6px", maxHeight: "220px", overflowY: "auto" }}>
-                        {focusedAssignmentsLoading && <span style={{ fontSize: "0.78rem", color: "var(--color-textSecondary)" }}>A carregar...</span>}
-                        {focusedAssignments.subtarefas.length === 0 && <span style={{ fontSize: "0.78rem", color: "#94a3b8" }}>Sem subtarefas.</span>}
+                        {focusedAssignmentsLoading && <span style={{ fontSize: "0.78rem", color: "var(--color-textSecondary)" }}>A carregar…</span>}
+                        {focusedAssignments.subtarefas.length === 0 && <span style={{ fontSize: "0.78rem", color: "#64748b" }}>Sem subtarefas.</span>}
                         {focusedAssignments.subtarefas.map(item => (
                           <div key={item.id} style={{ fontSize: "0.8rem", color: "var(--color-textPrimary)", background: "var(--color-bgTertiary)", borderRadius: "8px", padding: "6px 8px", display: "flex", justifyContent: "space-between" }} title={item.titulo}>
                             <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.titulo}</span>
@@ -897,7 +898,7 @@ export default function AdminDashboard() {
                                   <td style={{ padding: "8px 12px", color: "var(--color-textSecondary)", whiteSpace: "nowrap" }}>{dateFormatted}</td>
                                   <td style={{ padding: "8px 12px", color: "var(--color-textPrimary)", fontWeight: 600 }}>{taskLabel}</td>
                                   <td style={{ padding: "8px 12px", whiteSpace: "nowrap" }}>
-                                    {tree.estado ? <span style={{ background: bgEstado, color: corEstado, padding: "2px 8px", borderRadius: "6px", fontSize: "0.75rem", fontWeight: 700, textTransform: "capitalize" }}>{labelEstado}</span> : <span style={{ color: "#94a3b8" }}>-</span>}
+                                    {tree.estado ? <span style={{ background: bgEstado, color: corEstado, padding: "2px 8px", borderRadius: "6px", fontSize: "0.75rem", fontWeight: 700, textTransform: "capitalize" }}>{labelEstado}</span> : <span style={{ color: "#64748b" }}>-</span>}
                                   </td>
                                   <td style={{ padding: "8px 12px", color: "#059669", fontWeight: 700 }}>{formatHours(mins)}</td>
                                 </tr>
@@ -918,22 +919,22 @@ export default function AdminDashboard() {
       {/* MODAL DE SELEÇÃO DE PROJETOS (CARDS) */}
       {projectModalOpen && (
         <div 
-          style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: "24px" }} 
+          style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: "calc(var(--z-modal) + 5)", padding: "24px" }} 
           onClick={(e) => e.target === e.currentTarget && setProjectModalOpen(false)}
         >
           <div style={{ width: "100%", maxWidth: "800px", maxHeight: "80vh", display: "flex", flexDirection: "column", background: "#fff", borderRadius: "16px", border: "1px solid var(--color-borderColor)", boxShadow: "0 24px 48px rgba(15,23,42,0.2)" }}>
             
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px", borderBottom: "1px solid var(--color-borderColor)" }}>
               <h3 style={{ margin: 0, color: "var(--color-textPrimary)", fontSize: "1.2rem", fontWeight: 800 }}>Filtrar por Projeto</h3>
-              <button onClick={() => setProjectModalOpen(false)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--color-textSecondary)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <button aria-label="Fechar" onClick={() => setProjectModalOpen(false)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--color-textSecondary)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
               </button>
             </div>
 
             <div style={{ padding: "20px", overflowY: "auto", display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "16px" }}>
               <div
-                onClick={() => { setSelectedProjectId("all"); setProjectModalOpen(false); }}
-                style={{ border: selectedProjectId === "all" ? "2px solid var(--color-btnPrimary)" : "1px solid var(--color-borderColor)", background: selectedProjectId === "all" ? "var(--color-bgTertiary)" : "#fff", borderRadius: "12px", padding: "16px", cursor: "pointer", transition: "all 0.2s" }}
+                {...clicavel(() => { setSelectedProjectId("all"); setProjectModalOpen(false); })}
+                style={{ border: selectedProjectId === "all" ? "2px solid var(--color-btnPrimary)" : "1px solid var(--color-borderColor)", background: selectedProjectId === "all" ? "var(--color-bgTertiary)" : "#fff", borderRadius: "12px", padding: "16px", cursor: "pointer", transition: "background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s, opacity 0.2s, width 0.2s, filter 0.2s" }}
               >
                 <div style={{ fontWeight: 800, color: "var(--color-textPrimary)" }}>Todos os Projetos</div>
                 <div style={{ fontSize: "0.8rem", color: "var(--color-textSecondary)", marginTop: "4px" }}>Ver métricas globais</div>
@@ -941,8 +942,8 @@ export default function AdminDashboard() {
               {projects.map(p => (
                 <div
                   key={p.id}
-                  onClick={() => { setSelectedProjectId(p.id); setProjectModalOpen(false); }}
-                  style={{ border: selectedProjectId === p.id ? "2px solid var(--color-btnPrimary)" : "1px solid var(--color-borderColor)", background: selectedProjectId === p.id ? "var(--color-bgTertiary)" : "#fff", borderRadius: "12px", padding: "16px", cursor: "pointer", transition: "all 0.2s" }}
+                  {...clicavel(() => { setSelectedProjectId(p.id); setProjectModalOpen(false); })}
+                  style={{ border: selectedProjectId === p.id ? "2px solid var(--color-btnPrimary)" : "1px solid var(--color-borderColor)", background: selectedProjectId === p.id ? "var(--color-bgTertiary)" : "#fff", borderRadius: "12px", padding: "16px", cursor: "pointer", transition: "background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s, opacity 0.2s, width 0.2s, filter 0.2s" }}
                 >
                   <div style={{ fontWeight: 800, color: "var(--color-textPrimary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={p.titulo}>{p.titulo}</div>
                   <div style={{ fontSize: "0.8rem", color: "var(--color-textSecondary)", marginTop: "4px" }}>Selecionar projeto</div>
@@ -957,14 +958,14 @@ export default function AdminDashboard() {
       {/* MODAL DE SELEÇÃO DE COLABORADOR (CARDS COM AVATAR) */}
       {userModalOpen && (
         <div 
-          style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: "24px" }} 
+          style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: "calc(var(--z-modal) + 5)", padding: "24px" }} 
           onClick={(e) => e.target === e.currentTarget && setUserModalOpen(false)}
         >
           <div style={{ width: "100%", maxWidth: "800px", maxHeight: "80vh", display: "flex", flexDirection: "column", background: "#fff", borderRadius: "16px", border: "1px solid var(--color-borderColor)", boxShadow: "0 24px 48px rgba(15,23,42,0.2)" }}>
             
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px", borderBottom: "1px solid var(--color-borderColor)" }}>
               <h3 style={{ margin: 0, color: "var(--color-textPrimary)", fontSize: "1.2rem", fontWeight: 800 }}>Selecionar Colaborador</h3>
-              <button onClick={() => setUserModalOpen(false)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--color-textSecondary)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <button aria-label="Fechar" onClick={() => setUserModalOpen(false)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--color-textSecondary)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
               </button>
             </div>
@@ -973,11 +974,11 @@ export default function AdminDashboard() {
               {profiles.map(p => (
                 <div
                   key={p.id}
-                  onClick={() => { setSelectedUserId(p.id); setUserModalOpen(false); }}
+                  {...clicavel(() => { setSelectedUserId(p.id); setUserModalOpen(false); })}
                   style={{
                     border: selectedUserId === p.id ? "2px solid var(--color-btnPrimary)" : "1px solid var(--color-borderColor)",
                     background: selectedUserId === p.id ? "var(--color-bgTertiary)" : "#fff",
-                    borderRadius: "12px", padding: "16px", cursor: "pointer", transition: "all 0.2s",
+                    borderRadius: "12px", padding: "16px", cursor: "pointer", transition: "background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s, opacity 0.2s, width 0.2s, filter 0.2s",
                     display: "flex", alignItems: "center", gap: "12px"
                   }}
                 >
@@ -997,7 +998,7 @@ export default function AdminDashboard() {
 
       {/* MODAL DE MUDANÇA DE PERFIL */}
       {profileTagModal.open && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: "16px" }} onClick={(e) => e.target === e.currentTarget && setProfileTagModal({ open: false, nextTag: "", password: "", error: "" })}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: "calc(var(--z-modal) + 5)", padding: "16px" }} onClick={(e) => e.target === e.currentTarget && setProfileTagModal({ open: false, nextTag: "", password: "", error: "" })}>
           <div style={{ width: "100%", maxWidth: "420px", background: "#fff", borderRadius: "14px", border: "1px solid var(--color-borderColor)", boxShadow: "0 24px 48px rgba(15,23,42,0.2)", padding: "20px", display: "grid", gap: "12px" }}>
             <h3 style={{ margin: 0, color: "var(--color-textPrimary)", fontSize: "1.1rem" }}>Confirmar alteração de perfil</h3>
             <p style={{ margin: 0, color: "var(--color-textSecondary)", fontSize: "0.9rem" }}>Confirma com a <b>tua</b> palavra-passe do Bizin para alterar o papel do colaborador para <b>{PROFILE_TAG_OPTIONS.find((opt) => opt.value === profileTagModal.nextTag)?.label || profileTagModal.nextTag}</b>.</p>
@@ -1016,7 +1017,7 @@ export default function AdminDashboard() {
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "8px" }}>
               <button type="button" onClick={() => setProfileTagModal({ open: false, nextTag: "", password: "", error: "" })} disabled={profileTagSaving} style={{ border: "1px solid var(--color-borderColor)", background: "var(--color-bgTertiary)", color: "var(--color-textSecondary)", borderRadius: "10px", padding: "8px 14px", fontWeight: 700, cursor: "pointer" }}>Cancelar</button>
               <button type="button" onClick={handleUpdateRole} disabled={profileTagSaving} style={{ border: "none", background: "linear-gradient(135deg, var(--color-btnPrimary) 0%, var(--color-btnPrimaryDark) 100%)", color: "var(--color-textWhite)", borderRadius: "10px", padding: "8px 14px", fontWeight: 700, cursor: "pointer" }}>
-                {profileTagSaving ? "A guardar..." : "Confirmar"}
+                {profileTagSaving ? "A guardar…" : "Confirmar"}
               </button>
             </div>
           </div>

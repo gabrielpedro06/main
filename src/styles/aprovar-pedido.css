@@ -136,7 +136,7 @@
 
 /* ---------- Diálogo ---------- */
 .apv-dialog {
-  position: fixed; inset: 0; z-index: 2000; display: grid; place-items: center; padding: 16px;
+  position: fixed; inset: 0; z-index: var(--z-modal); display: grid; place-items: center; padding: 16px;
   background: rgba(15, 23, 42, 0.45); backdrop-filter: blur(4px); animation: apvFade 0.2s ease both;
   font-family: "Manrope", "Segoe UI", system-ui, sans-serif;
 }

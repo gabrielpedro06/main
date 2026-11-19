@@ -142,7 +142,7 @@ export default function AccountMenu({ open, onClose, anchorRef, placement = "up"
       {showThemes && (
         <div
           className="bz-theme-overlay"
-          style={{ position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(15, 23, 42, 0.55)", zIndex: 100000, padding: 20 }}
+          style={{ position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(15, 23, 42, 0.55)", zIndex: "var(--z-modal-topo)", padding: 20 }}
           onClick={() => setShowThemes(false)}
         >
           <div className="bz-theme-modal" onClick={(e) => e.stopPropagation()}>

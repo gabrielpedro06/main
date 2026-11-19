@@ -398,7 +398,7 @@ function Ficheiros({ marca, lista, onGuardar, avisar }) {
                   <a href={f.url} target="_blank" rel="noreferrer" title={f.nome}>{f.nome}</a>
                   <small>{f.tamanho ? tam(f.tamanho) : ""}</small>
                 </div>
-                <button type="button" className="mk-icon-btn is-sm is-danger" title="Remover" onClick={() => remover(f)}><I.Trash size={13} /></button>
+                <button aria-label="Remover" type="button" className="mk-icon-btn is-sm is-danger" title="Remover" onClick={() => remover(f)}><I.Trash size={13} /></button>
               </div>
             );
           })}

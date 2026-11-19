@@ -61,7 +61,7 @@ const ESTADO_ALIAS = {
 const AVALIACAO_ALIAS = { excelente: "excelente", bom: "bom", razoavel: "razoavel", ruim: "fraco", fraco: "fraco", mau: "fraco" };
 const PRIORIDADE_ALIAS = { alta: "alta", media: "media", baixa: "baixa" };
 
-/** Lê o 1.º "[Título]" de um copy, ex.: "[Legenda Instagram]\n..." */
+/** Lê o 1.º "[Título]" de um copy, ex.: "[Legenda Instagram]\n…" */
 function copyComTitulo(txt, n) {
   const t = String(txt || "").replace(/^\s+/, "");
   const m = t.match(/^\[([^\]]{2,60})\]\s*\n?/);

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import "../styles/programas.css";
+import { Sparkles } from "lucide-react";
 
 const Icons = {
   Edit: () => (
@@ -647,7 +648,7 @@ export default function GestaoAvisos() {
               onChange={(e) => onChange(idx, "prazo", e.target.value)}
             />
             <span className={`pa-fase-badge is-${info.tone}`}>{info.days !== null && info.days >= 0 ? info.label : info.tone === "past" ? "Encerrada" : "—"}</span>
-            <button type="button" className="pa-icon-btn is-danger" onClick={() => onRemove(idx)} disabled={fases.length === 1} title="Remover fase">
+            <button aria-label="Remover fase" type="button" className="pa-icon-btn is-danger" onClick={() => onRemove(idx)} disabled={fases.length === 1} title="Remover fase">
               <Icons.Trash />
             </button>
           </div>
@@ -698,7 +699,7 @@ export default function GestaoAvisos() {
           <Icons.Search />
           <input
             type="text"
-            placeholder="Procurar por Programa, Sigla ou Código..."
+            placeholder="Procurar por Programa, Sigla ou Código…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -734,7 +735,7 @@ export default function GestaoAvisos() {
 
       {/* LISTAGEM DOS CARDS */}
       {loading ? (
-        <div className="pa-loading"><span className="pa-spinner" /> A carregar programas...</div>
+        <div className="pa-loading"><span className="pa-spinner" /> A carregar programas…</div>
       ) : filteredProgramas.length === 0 ? (
         <div className="pa-empty">
           <span className="pa-empty-ico"><Icons.Briefcase /></span>
@@ -788,12 +789,12 @@ export default function GestaoAvisos() {
                       </td>
                       <td>
                         <div className="pa-row-actions">
-                          <button type="button" className="pa-icon-btn" title="Ver Detalhes" onClick={() => handleOpenProgramaModal(programa, true)}><Icons.CardEye /></button>
-                          <button type="button" className="pa-icon-btn is-edit" title="Editar Programa" onClick={() => handleOpenProgramaModal(programa, false)}><Icons.Edit /></button>
+                          <button aria-label="Ver Detalhes" type="button" className="pa-icon-btn" title="Ver Detalhes" onClick={() => handleOpenProgramaModal(programa, true)}><Icons.CardEye /></button>
+                          <button aria-label="Editar Programa" type="button" className="pa-icon-btn is-edit" title="Editar Programa" onClick={() => handleOpenProgramaModal(programa, false)}><Icons.Edit /></button>
                           {programa.ativo ? (
-                            <button type="button" className="pa-icon-btn is-danger" title="Arquivar (Mover para Inativos)" onClick={() => handleProgramaArchive(programa.id)}><Icons.Archive /></button>
+                            <button aria-label="Arquivar (Mover para Inativos)" type="button" className="pa-icon-btn is-danger" title="Arquivar (Mover para Inativos)" onClick={() => handleProgramaArchive(programa.id)}><Icons.Archive /></button>
                           ) : (
-                            <button type="button" className="pa-icon-btn is-ok" title="Reativar programa" onClick={() => handleProgramaRestore(programa.id)}><Icons.Restore /></button>
+                            <button aria-label="Reativar programa" type="button" className="pa-icon-btn is-ok" title="Reativar programa" onClick={() => handleProgramaRestore(programa.id)}><Icons.Restore /></button>
                           )}
                         </div>
                       </td>
@@ -893,15 +894,15 @@ export default function GestaoAvisos() {
                   <button className="pa-card-main" type="button" onClick={() => handleOpenProgramaModal(programa, true)}>
                     <Icons.CardEye /> Ver Detalhes
                   </button>
-                  <button className="pa-icon-btn is-edit" type="button" title="Editar Programa" onClick={() => handleOpenProgramaModal(programa, false)}>
+                  <button aria-label="Editar Programa" className="pa-icon-btn is-edit" type="button" title="Editar Programa" onClick={() => handleOpenProgramaModal(programa, false)}>
                     <Icons.Edit />
                   </button>
                   {programa.ativo ? (
-                    <button className="pa-icon-btn is-danger" type="button" title="Arquivar (Mover para Inativos)" onClick={() => handleProgramaArchive(programa.id)}>
+                    <button aria-label="Arquivar (Mover para Inativos)" className="pa-icon-btn is-danger" type="button" title="Arquivar (Mover para Inativos)" onClick={() => handleProgramaArchive(programa.id)}>
                       <Icons.Archive />
                     </button>
                   ) : (
-                    <button className="pa-icon-btn is-ok" type="button" title="Reativar programa" onClick={() => handleProgramaRestore(programa.id)}>
+                    <button aria-label="Reativar programa" className="pa-icon-btn is-ok" type="button" title="Reativar programa" onClick={() => handleProgramaRestore(programa.id)}>
                       <Icons.Restore />
                     </button>
                   )}
@@ -941,11 +942,11 @@ export default function GestaoAvisos() {
                     <div className="pa-grid-form" style={{ gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr)" }}>
                       <div className="pa-field">
                         <label>Nome do Programa</label>
-                        <input type="text" name="nome" className="pa-input" disabled={isViewOnly} value={programaFormData.nome} onChange={handleProgramaInputChange} placeholder="ex. Compete 2030" />
+                        <input aria-label="Nome do Programa" type="text" name="nome" className="pa-input" disabled={isViewOnly} value={programaFormData.nome} onChange={handleProgramaInputChange} placeholder="ex. Compete 2030" />
                       </div>
                       <div className="pa-field">
                         <label>Sigla / Código</label>
-                        <input type="text" name="codigo" className="pa-input" disabled={isViewOnly} value={programaFormData.codigo} onChange={handleProgramaInputChange} placeholder="ex. COMPETE-2025-10" />
+                        <input aria-label="Sigla / Código" type="text" name="codigo" className="pa-input" disabled={isViewOnly} value={programaFormData.codigo} onChange={handleProgramaInputChange} placeholder="ex. COMPETE-2025-10" />
                       </div>
                       <div className="pa-field">
                         <label>Entidade Financiadora</label>
@@ -967,7 +968,7 @@ export default function GestaoAvisos() {
                       <div className="pa-field">
                         <label>Incentivo (%)</label>
                         <div className="pa-input-suffix">
-                          <input type="text" name="pct" className="pa-input" disabled={isViewOnly} value={programaFormData.pct === 0 ? "" : formatNumber(programaFormData.pct)} onChange={(e) => handleFormattedNumberChange(e, "pct")} placeholder="0" />
+                          <input aria-label="Incentivo (%)" type="text" name="pct" className="pa-input" disabled={isViewOnly} value={programaFormData.pct === 0 ? "" : formatNumber(programaFormData.pct)} onChange={(e) => handleFormattedNumberChange(e, "pct")} placeholder="0" />
                           <span>%</span>
                         </div>
                       </div>
@@ -982,13 +983,13 @@ export default function GestaoAvisos() {
                       <div className="pa-field">
                         <label>Investimento Mínimo (€)</label>
                         <div className="pa-input-suffix">
-                          <input type="text" name="investimento_minimo" className="pa-input" disabled={isViewOnly} value={programaFormData.investimento_minimo === 0 ? "" : formatNumber(programaFormData.investimento_minimo)} onChange={(e) => handleFormattedNumberChange(e, "investimento_minimo")} placeholder="0" />
+                          <input aria-label="Investimento Mínimo (€)" type="text" name="investimento_minimo" className="pa-input" disabled={isViewOnly} value={programaFormData.investimento_minimo === 0 ? "" : formatNumber(programaFormData.investimento_minimo)} onChange={(e) => handleFormattedNumberChange(e, "investimento_minimo")} placeholder="0" />
                           <span>€</span>
                         </div>
                       </div>
                       <div className="pa-field">
                         <label>Área Geográfica</label>
-                        <input type="text" name="area_geografica" className="pa-input" disabled={isViewOnly} value={programaFormData.area_geografica} onChange={handleProgramaInputChange} placeholder="Área de aplicação..." />
+                        <input aria-label="Área Geográfica" type="text" name="area_geografica" className="pa-input" disabled={isViewOnly} value={programaFormData.area_geografica} onChange={handleProgramaInputChange} placeholder="Área de aplicação…" />
                       </div>
                     </div>
                   </section>
@@ -1017,10 +1018,10 @@ export default function GestaoAvisos() {
                                 <span className="pa-aviso-code">{aviso ? aviso.codigo : `Aviso Guardado`}</span>
                                 {!isViewOnly && (
                                   <div className="pa-aviso-actions">
-                                    <button type="button" title="Editar/Gerir este aviso" className="pa-icon-btn is-edit" onClick={() => handleOpenAvisoModal(idString)}>
+                                    <button aria-label="Editar/Gerir este aviso" type="button" title="Editar/Gerir este aviso" className="pa-icon-btn is-edit" onClick={() => handleOpenAvisoModal(idString)}>
                                       <Icons.Edit />
                                     </button>
-                                    <button
+                                    <button aria-label="Remover aviso do programa"
                                       type="button"
                                       title="Remover aviso do programa"
                                       className="pa-icon-btn is-danger"
@@ -1070,7 +1071,7 @@ export default function GestaoAvisos() {
                             }
                           }}
                         >
-                          <option value="" disabled>Selecione um aviso existente da lista...</option>
+                          <option value="" disabled>Selecione um aviso existente da lista…</option>
                           {avisos.filter(a => !(programaFormData.avisos_ids || []).map(String).includes(String(a.id))).map((aviso) => (
                             <option key={aviso.id} value={aviso.id}>{aviso.codigo}</option>
                           ))}
@@ -1089,14 +1090,14 @@ export default function GestaoAvisos() {
                     {criarNovoAvisoInline && (
                       <div className="pa-add-box is-column">
                         <div className="pa-add-box-head">
-                          <h4><span>✨</span> A Configurar Novo Aviso Interno</h4>
+                          <h4><Sparkles size={16} aria-hidden="true" style={{ verticalAlign: '-2px' }} /> A Configurar Novo Aviso Interno</h4>
                           <button type="button" className="pa-link is-danger" onClick={() => { setCriarNovoAvisoInline(false); setModoAdicaoAviso(true); }}>
                             Cancelar
                           </button>
                         </div>
                         <div className="pa-field">
                           <label>Código do Novo Aviso</label>
-                          <input type="text" className="pa-input" value={novoAvisoCodigo} onChange={(e) => setNovoAvisoCodigo(e.target.value)} placeholder="ex. ALGARVE-2025-36" />
+                          <input aria-label="Código do Novo Aviso" type="text" className="pa-input" value={novoAvisoCodigo} onChange={(e) => setNovoAvisoCodigo(e.target.value)} placeholder="ex. ALGARVE-2025-36" />
                         </div>
                         <div className="pa-field">
                           <label>Fases & Prazos do Novo Aviso</label>
@@ -1111,24 +1112,24 @@ export default function GestaoAvisos() {
                     <div className="pa-grid-form is-2">
                       <div className="pa-field">
                         <label>Objetivos</label>
-                        <textarea name="objetivos" className="pa-textarea" disabled={isViewOnly} value={programaFormData.objetivos} onChange={handleProgramaInputChange} placeholder="Objetivos do programa..." rows="3" />
+                        <textarea aria-label="Objetivos" name="objetivos" className="pa-textarea" disabled={isViewOnly} value={programaFormData.objetivos} onChange={handleProgramaInputChange} placeholder="Objetivos do programa…" rows="3" />
                       </div>
                       <div className="pa-field">
                         <label>Entidades Elegíveis</label>
-                        <textarea name="entidades_elegiveis" className="pa-textarea" disabled={isViewOnly} value={programaFormData.entidades_elegiveis} onChange={handleProgramaInputChange} placeholder="Quais as entidades que se podem candidatar..." rows="3" />
+                        <textarea aria-label="Entidades Elegíveis" name="entidades_elegiveis" className="pa-textarea" disabled={isViewOnly} value={programaFormData.entidades_elegiveis} onChange={handleProgramaInputChange} placeholder="Quais as entidades que se podem candidatar…" rows="3" />
                       </div>
                       <div className="pa-field">
                         <label>Ações Elegíveis</label>
-                        <textarea name="acoes_elegiveis" className="pa-textarea" disabled={isViewOnly} value={programaFormData.acoes_elegiveis} onChange={handleProgramaInputChange} placeholder="Ações elegíveis..." rows="3" />
+                        <textarea aria-label="Ações Elegíveis" name="acoes_elegiveis" className="pa-textarea" disabled={isViewOnly} value={programaFormData.acoes_elegiveis} onChange={handleProgramaInputChange} placeholder="Ações elegíveis…" rows="3" />
                       </div>
                       <div className="pa-field">
                         <label>Condições Específicas</label>
-                        <textarea name="condicoes_especificas" className="pa-textarea" disabled={isViewOnly} value={programaFormData.condicoes_especificas} onChange={handleProgramaInputChange} placeholder="Condições específicas..." rows="3" />
+                        <textarea aria-label="Condições Específicas" name="condicoes_especificas" className="pa-textarea" disabled={isViewOnly} value={programaFormData.condicoes_especificas} onChange={handleProgramaInputChange} placeholder="Condições específicas…" rows="3" />
                       </div>
                     </div>
                     <div className="pa-field">
                       <label>Descrição Completa</label>
-                      <textarea name="descricao" className="pa-textarea" disabled={isViewOnly} value={programaFormData.descricao} onChange={handleProgramaInputChange} placeholder="Descrição detalhada do programa..." rows="3" />
+                      <textarea aria-label="Descrição Completa" name="descricao" className="pa-textarea" disabled={isViewOnly} value={programaFormData.descricao} onChange={handleProgramaInputChange} placeholder="Descrição detalhada do programa…" rows="3" />
                     </div>
                   </section>
 
@@ -1150,7 +1151,7 @@ export default function GestaoAvisos() {
                     </button>
                   ) : (
                     <button key="pa-submit" className="pa-btn is-primary" type="submit" disabled={isSubmitting}>
-                      {isSubmitting ? <span className="pa-spinner is-sm" /> : <Icons.Check />} {isSubmitting ? "A guardar..." : editingProgramaId ? "Atualizar Programa" : "Criar Programa"}
+                      {isSubmitting ? <span className="pa-spinner is-sm" /> : <Icons.Check />} {isSubmitting ? "A guardar…" : editingProgramaId ? "Atualizar Programa" : "Criar Programa"}
                     </button>
                   )}
                 </div>
@@ -1200,7 +1201,7 @@ export default function GestaoAvisos() {
                     Cancelar
                   </button>
                   <button className="pa-btn is-primary" type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? <span className="pa-spinner is-sm" /> : <Icons.Check />} {isSubmitting ? "A guardar..." : "Gravar Alterações"}
+                    {isSubmitting ? <span className="pa-spinner is-sm" /> : <Icons.Check />} {isSubmitting ? "A guardar…" : "Gravar Alterações"}
                   </button>
                 </div>
               </form>

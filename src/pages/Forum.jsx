@@ -10,6 +10,7 @@ import "./../styles/dashboard.css";
 import EmojiPicker from 'emoji-picker-react';
 import "../styles/forum.css";
 import ImagemPrivada from "../components/ImagemPrivada";
+import { clicavel } from "../utils/clicavel";
 
 // --- ÍCONES SVG PROFISSIONAIS ---
 const Icons = {
@@ -161,7 +162,7 @@ function ChatComposer({ disabled, busy, stagedFile, onStageFile, onPaste, onSend
             }}
             autoFocusSearch={false}
             theme="light"
-            searchPlaceHolder="Procurar emojis..."
+            searchPlaceHolder="Procurar emojis…"
             width={320}
             height={400}
           />
@@ -189,7 +190,7 @@ function ChatComposer({ disabled, busy, stagedFile, onStageFile, onPaste, onSend
             if (e.defaultPrevented) setShowEmoji(false);
           }}
           onClick={() => setShowEmoji(false)}
-          placeholder={stagedFile ? "Adicionar uma legenda..." : "Escreve uma mensagem..."}
+          placeholder={stagedFile ? "Adicionar uma legenda…" : "Escreve uma mensagem…"}
           disabled={disabled}
         />
         <label className={`fx-icon-btn ${disabled ? 'is-disabled' : ''}`} title="Anexar ficheiro">
@@ -212,7 +213,7 @@ function ChatComposer({ disabled, busy, stagedFile, onStageFile, onPaste, onSend
 // Pedir ao Supabase um canal com um nome que ainda existe devolve o canal ANTIGO (que pode
 // estar a fechar); quando este fecha, leva o "novo" com ele e deixam de chegar mensagens até F5.
 // Por isso: canais só de base de dados usam um nome único por subscrição; os canais das salas
-// (que precisam do mesmo nome em todos os clientes por causa do "a escrever...") são criados
+// (que precisam do mesmo nome em todos os clientes por causa do "a escrever…") são criados
 // uma vez por sala e reaproveitados, encaminhando os eventos para o Forum montado.
 const uniqueTopic = (base) => `${base}_${Math.random().toString(36).slice(2, 10)}`;
 const ROOM_CHANNELS = new Map();
@@ -401,7 +402,7 @@ export default function Forum() {
             const timerMeta = await resolveActiveTimerMeta(supabase, activeLog);
             if (cancelled) return;
 
-            setActiveLogTitle(timerMeta.title || "Tempo a decorrer...");
+            setActiveLogTitle(timerMeta.title || "Tempo a decorrer…");
             setActiveLogRoute(timerMeta.route || "/dashboard/tarefas");
         };
 
@@ -2242,7 +2243,7 @@ async function sendChatMessage(rawContent) {
   const peopleQuery = chatPeopleQuery.trim().toLowerCase();
   const filterPeople = (list) => (peopleQuery ? list.filter((c) => String(c.nome || '').toLowerCase().includes(peopleQuery)) : list);
   const addableCollaborators = chatCollaborators.filter((collab) => !existingGroupMemberIds.includes(collab.id));
-  const timerLabel = activeLogTitle || 'Tempo a decorrer...';
+  const timerLabel = activeLogTitle || 'Tempo a decorrer…';
 
   const openNewPostWithCategory = (categoria) => {
       openNewPostModal();
@@ -2512,7 +2513,7 @@ async function sendChatMessage(rawContent) {
                         {totalUnreadChats > 0 && <span className="fx-stat is-alert"><strong>{totalUnreadChats}</strong> por ler</span>}
                     </div>
                     {activeLog && (
-                        <div onClick={() => navigate(activeLogRoute || '/dashboard/tarefas')} title="Ir para o item com cronometro em curso" className="fx-live">
+                        <div {...clicavel(() => navigate(activeLogRoute || '/dashboard/tarefas'))} title="Ir para o item com cronometro em curso" className="fx-live">
                             <span className="fx-live-dot" />
                             <span className="fx-live-title">{timerLabel.length > 30 ? `${timerLabel.slice(0, 30)}...` : timerLabel}</span>
                             <button type="button" onClick={openStopNoteModal} className="fx-live-stop"><Icons.Stop /> Parar</button>
@@ -2650,12 +2651,12 @@ async function sendChatMessage(rawContent) {
 
                     <div className="fx-post-tools">
                         {canEdit(post.user_id) && (
-                            <button type="button" onClick={(e) => { e.stopPropagation(); handleStartEdit(post); }} className="fx-icon-btn" title="Editar Publicação">
+                            <button aria-label="Editar Publicação" type="button" onClick={(e) => { e.stopPropagation(); handleStartEdit(post); }} className="fx-icon-btn" title="Editar Publicação">
                                 <Icons.Edit size={16} />
                             </button>
                         )}
                         {canDelete(post.user_id) && (
-                            <button type="button" onClick={(e) => { e.stopPropagation(); requestDelete(post.id, 'post'); }} className="fx-icon-btn is-danger" title="Apagar Publicação">
+                            <button aria-label="Apagar Publicação" type="button" onClick={(e) => { e.stopPropagation(); requestDelete(post.id, 'post'); }} className="fx-icon-btn is-danger" title="Apagar Publicação">
                                 <Icons.Trash />
                             </button>
                         )}
@@ -2745,7 +2746,7 @@ async function sendChatMessage(rawContent) {
                 {showCommentBox && (
                     <div className="fx-comments">
                         {loadingInlineComments[post.id] && (
-                            <div className="fx-comments-note"><span className="fx-spinner is-dark" /> A carregar comentários...</div>
+                            <div className="fx-comments-note"><span className="fx-spinner is-dark" /> A carregar comentários…</div>
                         )}
 
                         {!loadingInlineComments[post.id] && commentsLoaded && postComments.length === 0 && (
@@ -2769,7 +2770,7 @@ async function sendChatMessage(rawContent) {
                                     type="text"
                                     value={inlineCommentDrafts[post.id] || ''}
                                     onChange={(e) => setInlineCommentDrafts((prev) => ({ ...prev, [post.id]: e.target.value }))}
-                                    placeholder={replyTargetByPost[post.id]?.nome ? `Responder a ${replyTargetByPost[post.id].nome}...` : 'Escreve um comentário...'}
+                                    placeholder={replyTargetByPost[post.id]?.nome ? `Responder a ${replyTargetByPost[post.id].nome}...` : 'Escreve um comentário…'}
                                 />
                                 <button type="submit" className="fx-send" disabled={!String(inlineCommentDrafts[post.id] || '').trim()} aria-label="Enviar comentário">
                                     <Icons.Send size={15} />
@@ -2810,7 +2811,7 @@ async function sendChatMessage(rawContent) {
       {/* --- MODAL NOVO CHAT --- */}
       {showNewChatModal && (
           <ModalPortal>
-              <div className="fx-overlay" style={{ zIndex: 1000001 }} onClick={closeNewChatDialog}>
+              <div className="fx-overlay" style={{ zIndex: "calc(var(--z-modal-max) + 3)" }} onClick={closeNewChatDialog}>
                   <div className="fx-modal fx-modal-sm" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Novo chat">
                       <div className="fx-modal-head">
                           <div>
@@ -2846,7 +2847,7 @@ async function sendChatMessage(rawContent) {
                               </span>
                               <div className="fx-search">
                                   <Icons.Search size={16} />
-                                  <input type="text" value={chatPeopleQuery} onChange={(e) => setChatPeopleQuery(e.target.value)} placeholder="Procurar colega..." />
+                                  <input type="text" value={chatPeopleQuery} onChange={(e) => setChatPeopleQuery(e.target.value)} placeholder="Procurar colega…" />
                               </div>
                               <div className="fx-people custom-scrollbar">
                                   {chatCollaborators.length === 0 && <div className="fx-people-empty">Sem colaboradores disponíveis.</div>}
@@ -2863,7 +2864,7 @@ async function sendChatMessage(rawContent) {
                       <div className="fx-modal-foot">
                           <button type="button" onClick={closeNewChatDialog} className="fx-btn fx-btn-ghost">Cancelar</button>
                           <button type="button" onClick={createNewChat} disabled={newChatDisabled} className="fx-btn fx-btn-primary">
-                              {newChatLoading ? <><span className="fx-spinner" /> A criar...</> : 'Criar chat'}
+                              {newChatLoading ? <><span className="fx-spinner" /> A criar…</> : 'Criar chat'}
                           </button>
                       </div>
                   </div>
@@ -2874,7 +2875,7 @@ async function sendChatMessage(rawContent) {
       {/* --- MODAL NOVO POST (estilo rede social) --- */}
       {showNewPostModal && (
         <ModalPortal>
-            <div className="fx-overlay" style={{ zIndex: 99999 }}>
+            <div className="fx-overlay" style={{ zIndex: "calc(var(--z-modal) + 13)" }}>
                 <div className={`fx-modal fx-modal-post ${editingPost ? 'is-editing' : ''}`} role="dialog" aria-label={editingPost ? 'Editar publicação' : 'Criar publicação'}>
                     <div className="fx-pm-head">
                         <span className="fx-pm-head-spacer" />
@@ -2914,7 +2915,7 @@ async function sendChatMessage(rawContent) {
                                 </div>
                             </div>
 
-                            <input
+                            <input aria-label="Dá um título à publicação"
                                 type="text"
                                 value={newPost.titulo}
                                 onChange={e => setNewPost({ ...newPost, titulo: e.target.value })}
@@ -2968,7 +2969,7 @@ async function sendChatMessage(rawContent) {
                                                     onChange={(e) => updateTextBlock(block.id, e.target.value)}
                                                     style={{ textAlign: block.align || 'left' }}
                                                     className={`fx-pm-text ${idx === 0 && postBlocks.length === 1 && block.text.length < 90 ? 'is-big' : ''}`}
-                                                    placeholder={idx === 0 ? `Em que estás a pensar${firstName ? `, ${firstName}` : ''}?` : 'Continua a escrever...'}
+                                                    placeholder={idx === 0 ? `Em que estás a pensar${firstName ? `, ${firstName}` : ''}?` : 'Continua a escrever…'}
                                                 />
                                             ) : imageUrl ? (
                                                 <div className="fx-pm-image" style={{ maxWidth: getImageSizeConfig(block.size).maxWidth }}>
@@ -2995,10 +2996,10 @@ async function sendChatMessage(rawContent) {
                         <div className="fx-pm-add">
                             <span>Adicionar à publicação</span>
                             <div className="fx-pm-add-btns">
-                                <button type="button" onClick={addImageBlock} className="fx-pm-add-btn is-photo" title="Foto">
+                                <button aria-label="Foto" type="button" onClick={addImageBlock} className="fx-pm-add-btn is-photo" title="Foto">
                                     <Icons.Image size={20} />
                                 </button>
-                                <button type="button" onClick={addTextBlock} className="fx-pm-add-btn is-text" title="Novo parágrafo">
+                                <button aria-label="Novo parágrafo" type="button" onClick={addTextBlock} className="fx-pm-add-btn is-text" title="Novo parágrafo">
                                     ¶
                                 </button>
                             </div>
@@ -3007,7 +3008,7 @@ async function sendChatMessage(rawContent) {
                         <div className="fx-pm-foot">
                             <button type="submit" disabled={isUploading || !newPost.titulo.trim()} className="fx-btn fx-btn-primary fx-btn-block fx-pm-submit">
                                 {isUploading ? (
-                                    <><span className="fx-spinner" /> {editingPost ? "A guardar..." : "A publicar..."}</>
+                                    <><span className="fx-spinner" /> {editingPost ? "A guardar…" : "A publicar…"}</>
                                 ) : (
                                     editingPost ? "Guardar alterações" : "Publicar"
                                 )}
@@ -3022,7 +3023,7 @@ async function sendChatMessage(rawContent) {
       {/* --- MODAL DE DETALHE DO POST --- */}
       {selectedPost && (
         <ModalPortal>
-            <div className="fx-overlay" style={{ zIndex: 99999 }} onClick={() => setSelectedPost(null)}>
+            <div className="fx-overlay" style={{ zIndex: "calc(var(--z-modal) + 13)" }} onClick={() => setSelectedPost(null)}>
             <div className="fx-modal fx-modal-detail" onClick={e => e.stopPropagation()} role="dialog" aria-label="Discussão">
                 <div className="fx-modal-head">
                     <div>
@@ -3079,7 +3080,7 @@ async function sendChatMessage(rawContent) {
                         <div className="fx-thread-form">
                             {renderReplyChip(modalReplyTarget, () => setModalReplyTarget(null))}
                             <form onSubmit={handleSendComment} className="fx-input-pill fx-input-pill-lg">
-                                <input type="text" placeholder={modalReplyTarget?.nome ? `Responder a ${modalReplyTarget.nome}...` : 'Escreve uma resposta...'} value={newCommentText} onChange={e => setNewCommentText(e.target.value)} />
+                                <input type="text" placeholder={modalReplyTarget?.nome ? `Responder a ${modalReplyTarget.nome}...` : 'Escreve uma resposta…'} value={newCommentText} onChange={e => setNewCommentText(e.target.value)} />
                                 <button type="submit" className="fx-send" disabled={!newCommentText.trim()} aria-label="Enviar">
                                     <Icons.Send size={17} />
                                 </button>
@@ -3095,7 +3096,7 @@ async function sendChatMessage(rawContent) {
       {/* --- MODAL DE CHAT --- */}
       {chatModal.show && (
     <ModalPortal>
-        <div className="fx-overlay fx-overlay-chat" style={{ zIndex: 999999 }} onClick={closeInternalChatModal}>
+        <div className="fx-overlay fx-overlay-chat" style={{ zIndex: "calc(var(--z-modal-max) + 1)" }} onClick={closeInternalChatModal}>
             <div className="fx-chat" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Chats internos">
                 <aside className="fx-chat-rooms">
                     <div className="fx-chat-rooms-head">
@@ -3134,7 +3135,7 @@ async function sendChatMessage(rawContent) {
                             <h3>{chatModal.target?.title || 'Seleciona um chat'}</h3>
                             <p className={typingNames.length ? 'is-typing' : ''}>
                                 {typingNames.length
-                                    ? `${typingNames.join(', ') || 'Alguém'} a escrever...`
+                                    ? `${typingNames.join(', ') || 'Alguém'} a escrever…`
                                     : (chatModal.target?.subtitle || (activeChatRoom?.id ? 'Conversa' : 'Sem sala ativa'))}
                             </p>
                         </div>
@@ -3149,7 +3150,7 @@ async function sendChatMessage(rawContent) {
                     {chatError && <div className="fx-alert fx-chat-alert">{chatError}</div>}
 
                     <div ref={chatMessagesContainerRef} className="fx-chat-messages custom-scrollbar">
-                        {chatLoading && <div className="fx-chat-note"><span className="fx-spinner is-dark" /> A carregar mensagens...</div>}
+                        {chatLoading && <div className="fx-chat-note"><span className="fx-spinner is-dark" /> A carregar mensagens…</div>}
 
                         {!chatLoading && chatMessages.length === 0 && (
                             <div className="fx-chat-empty">
@@ -3191,7 +3192,7 @@ async function sendChatMessage(rawContent) {
 
                                         {/* BOTÃO FLUTUANTE DE HOVER */}
                                         {reactionMenuMessageId !== msg.id && (
-                                            <button
+                                            <button aria-label="Reagir"
                                                 type="button"
                                                 title="Reagir"
                                                 className="fx-bubble-react"
@@ -3303,7 +3304,7 @@ async function sendChatMessage(rawContent) {
       {/* --- MODAL ADICIONAR PESSOAS AO GRUPO --- */}
       {showAddGroupMembersModal && (
           <ModalPortal>
-              <div className="fx-overlay" style={{ zIndex: 1000003 }} onClick={closeAddMembersDialog}>
+              <div className="fx-overlay" style={{ zIndex: "calc(var(--z-modal-max) + 5)" }} onClick={closeAddMembersDialog}>
                   <div className="fx-modal fx-modal-sm" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Adicionar pessoas">
                       <div className="fx-modal-head">
                           <div>
@@ -3317,7 +3318,7 @@ async function sendChatMessage(rawContent) {
                           <p className="fx-modal-hint">Seleciona quem queres adicionar à conversa.</p>
                           <div className="fx-search">
                               <Icons.Search size={16} />
-                              <input type="text" value={chatPeopleQuery} onChange={(e) => setChatPeopleQuery(e.target.value)} placeholder="Procurar colega..." />
+                              <input type="text" value={chatPeopleQuery} onChange={(e) => setChatPeopleQuery(e.target.value)} placeholder="Procurar colega…" />
                           </div>
                           <div className="fx-people custom-scrollbar">
                               {addableCollaborators.length === 0 && <div className="fx-people-empty">Todos os colaboradores já estão neste grupo.</div>}
@@ -3331,7 +3332,7 @@ async function sendChatMessage(rawContent) {
                       <div className="fx-modal-foot">
                           <button type="button" onClick={closeAddMembersDialog} className="fx-btn fx-btn-ghost">Cancelar</button>
                           <button type="button" onClick={addSelectedUsersToGroup} disabled={addingGroupMembers || !selectedUsersToAddInGroup.length} className="fx-btn fx-btn-primary">
-                              {addingGroupMembers ? <><span className="fx-spinner" /> A adicionar...</> : `Adicionar (${selectedUsersToAddInGroup.length})`}
+                              {addingGroupMembers ? <><span className="fx-spinner" /> A adicionar…</> : `Adicionar (${selectedUsersToAddInGroup.length})`}
                           </button>
                       </div>
                   </div>
@@ -3342,7 +3343,7 @@ async function sendChatMessage(rawContent) {
       {/* --- NOTIFICAÇÃO GLOBAL --- */}
       {notification.show && (
           <ModalPortal>
-              <div className="fx-overlay" style={{ zIndex: 999999 }}>
+              <div className="fx-overlay" style={{ zIndex: "calc(var(--z-modal-max) + 1)" }}>
                   <div className="fx-dialog" role="alertdialog">
                       <span className={`fx-dialog-icon ${notification.type === 'success' ? 'is-success' : 'is-danger'}`}>
                           {notification.type === 'success' ? <Icons.CheckCircle size={30} /> : <Icons.XCircle size={30} />}
@@ -3358,7 +3359,7 @@ async function sendChatMessage(rawContent) {
       {/* --- MODAL DE CONFIRMAÇÃO --- */}
       {confirmModal.show && (
         <ModalPortal>
-            <div className="fx-overlay" style={{ zIndex: 999999 }} onClick={() => setConfirmModal({ show: false, id: null, type: null, postId: null })}>
+            <div className="fx-overlay" style={{ zIndex: "calc(var(--z-modal-max) + 1)" }} onClick={() => setConfirmModal({ show: false, id: null, type: null, postId: null })}>
             <div className="fx-dialog" role="alertdialog" onClick={(e) => e.stopPropagation()}>
                 <span className="fx-dialog-icon is-danger"><Icons.Trash size={26} /></span>
                 <h3>Tem a certeza?</h3>
@@ -3379,7 +3380,7 @@ async function sendChatMessage(rawContent) {
 
       {chatNotice.show && (
           <ModalPortal>
-              <div className="fx-toast" style={{ zIndex: 1000002 }}>
+              <div className="fx-toast" style={{ zIndex: "calc(var(--z-modal-max) + 4)" }}>
                   <span className="fx-toast-icon"><Icons.Message size={16} /></span>
                   <div>
                       <strong>Nova mensagem interna</strong>

@@ -6,6 +6,7 @@ import { MarcaLogo } from "./MarcasModal";
 import { CANAIS, canalInfo, avaliacaoInfo } from "../../constants/marketing";
 import { fmtData, diasAte, norm, urlSegura } from "./mkUtils";
 import { TIPOS, ORDEM_TIPOS, COLUNAS, estadoDe, valorDe, patchCampo, numeroDe, METRICAS_PECA, placeholdersDe, TIPOS_CONVERSAO } from "./recursosModelo";
+import { clicavel } from "../../utils/clicavel";
 
 const LS_SUB = "bizin-mk-recursos-sub";
 const lerLS = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
@@ -182,7 +183,7 @@ function Lista({ tipo, itens, conteudos, onAbrir, onCriar }) {
             const nPecas = tipo === "campanha" ? conteudos.filter((c) => (c.campanha || "").trim() === r.titulo.trim()).length : 0;
             const rever = r.dados?.rever_em && diasAte(r.dados.rever_em) <= 7;
             return (
-              <div key={r.id} className="mk-arch-row mk-rec-row" style={{ animationDelay: `${Math.min(i, 14) * 20}ms` }} onClick={() => onAbrir(r.id)}>
+              <div key={r.id} className="mk-arch-row mk-rec-row" style={{ animationDelay: `${Math.min(i, 14) * 20}ms` }} {...clicavel(() => onAbrir(r.id))}>
                 <span className="mk-arch-dot" style={{ background: e?.cor || "#cbd5e1" }} />
                 <div className="mk-arch-main">
                   <b>{r.titulo || <span className="mk-untitled">Sem título</span>}</b>
@@ -275,7 +276,7 @@ function Resultados({ leads, campanhasR, metricas, conteudos, onAbrir, onAbrirCo
             {leads.slice(0, 12).map((l) => {
               const e = estadoDe("lead", l.estado);
               return (
-                <div key={l.id} className="mk-arch-row mk-rec-row" onClick={() => onAbrir(l.id)}>
+                <div key={l.id} className="mk-arch-row mk-rec-row" {...clicavel(() => onAbrir(l.id))}>
                   <span className="mk-arch-dot" style={{ background: e?.cor || "#cbd5e1" }} />
                   <div className="mk-arch-main">
                     <b>{l.titulo || e?.label || "Registo"}</b>
@@ -304,7 +305,7 @@ function Resultados({ leads, campanhasR, metricas, conteudos, onAbrir, onAbrirCo
                   const ci = m.dados?.canal ? canalInfo(m.dados.canal) : null;
                   const varN = vazio(m.dados?.variacao) ? null : Number(m.dados.variacao);
                   return (
-                    <tr key={m.id} onClick={() => onAbrir(m.id)}>
+                    <tr key={m.id} {...clicavel(() => onAbrir(m.id), { papel: null })}>
                       <td className="is-title">{m.titulo || "Sem nome"}{m.dados?.tipo_metrica && <small>{m.dados.tipo_metrica}</small>}</td>
                       <td>{ci ? <span className="mk-canais"><b style={{ background: ci.cor }} title={m.dados.canal}>{ci.sigla}</b></span> : <span className="mk-rec-muted">—</span>}</td>
                       <td>{fmtData(m.data, { hora: false }) || "—"}</td>
@@ -336,7 +337,7 @@ function Resultados({ leads, campanhasR, metricas, conteudos, onAbrir, onAbrirCo
                   {publicadas.map((c) => {
                     const av = avaliacaoInfo(c.avaliacao);
                     return (
-                      <tr key={c.id} onClick={() => onAbrirConteudo(c.id)}>
+                      <tr key={c.id} {...clicavel(() => onAbrirConteudo(c.id), { papel: null })}>
                         <td className="is-title">{c.titulo || "Sem título"}{c.campanha && <small>{c.campanha}</small>}</td>
                         <td>{fmtData(c.data_publicacao, { hora: false }) || "—"}</td>
                         <td><span className="mk-canais">{(c.canais || []).map((x) => { const ci = canalInfo(x); return <b key={x} style={{ background: ci.cor }} title={x}>{ci.sigla}</b>; })}</span></td>
@@ -405,7 +406,7 @@ export default function Recursos({ marca, recursos, conteudos, frentes = [], onC
           {pecas.length === 0 ? <p className="mk-hint">Nenhuma peça tem «{r.titulo}» no campo Campanha / série.</p> : (
             <div className="mk-rec-rows">
               {pecas.map((c) => (
-                <div key={c.id} className="mk-arch-row mk-rec-row" onClick={() => { setAbertoId(null); onAbrirConteudo(c.id); }}>
+                <div key={c.id} className="mk-arch-row mk-rec-row" {...clicavel(() => { setAbertoId(null); onAbrirConteudo(c.id); })}>
                   <div className="mk-arch-main"><b>{c.titulo || "Sem título"}</b><span>{[c.estado, fmtData(c.data_publicacao, { hora: false })].filter(Boolean).join(" · ")}</span></div>
                 </div>
               ))}
@@ -422,7 +423,7 @@ export default function Recursos({ marca, recursos, conteudos, frentes = [], onC
           {turmas.length === 0 ? <p className="mk-hint">Sem turmas registadas para este curso.</p> : (
             <div className="mk-rec-rows">
               {turmas.map((t) => { const e = estadoDe("turma", t.estado); return (
-                <div key={t.id} className="mk-arch-row mk-rec-row" onClick={() => setAbertoId(t.id)}>
+                <div key={t.id} className="mk-arch-row mk-rec-row" {...clicavel(() => setAbertoId(t.id))}>
                   <span className="mk-arch-dot" style={{ background: e?.cor }} />
                   <div className="mk-arch-main"><b>{t.titulo}</b><span>{[e?.label, periodo(t), t.dados?.local].filter(Boolean).join(" · ")}</span></div>
                 </div>

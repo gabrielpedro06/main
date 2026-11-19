@@ -10,7 +10,11 @@ import { resolveActiveTimerMeta } from "../utils/activeTimerResolver";
 import { concludeActivityWithChildren } from "../utils/activityStatusCascade";
 import { applyStopStatusUpdateForLogTarget } from "../utils/taskTimerLifecycle";
 import "./../styles/dashboard.css";
+import { confirmar } from "../utils/dialogo";
+import { clicavel } from "../utils/clicavel";
 
+import AvisoToast from "../components/AvisoToast";
+import { Pencil, Trash2 } from "lucide-react";
 // --- ÍCONES SVG PROFISSIONAIS ---
 const Icons = {
   Search: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>,
@@ -486,7 +490,7 @@ export default function Atividades() {
     };
 
     const handleDeleteTimeLog = async (logId) => {
-        if (!window.confirm("Apagar este registo de tempo?")) return;
+        if (!(await confirmar("Apagar este registo de tempo?", { perigoso: true, botao: "Apagar" }))) return;
         const { error } = await supabase.from("task_logs").delete().eq("id", logId);
         if (error) {
             showToast("Erro ao apagar registo.", "error");
@@ -496,7 +500,7 @@ export default function Atividades() {
         showToast("Registo de tempo apagado.");
     };
 
-  const sectionTitleStyle = { display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '15px', marginTop: '20px', borderBottom: '1px solid #e2e8f0', paddingBottom: '5px' };
+  const sectionTitleStyle = { display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '15px', marginTop: '20px', borderBottom: '1px solid #e2e8f0', paddingBottom: '5px' };
   const labelStyle = { display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' };
   const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', color: '#1e293b', outline: 'none', boxSizing: 'border-box' };
   return (
@@ -513,7 +517,7 @@ export default function Atividades() {
         </div>
         <div style={{display:'flex', gap:'10px', alignItems: 'center'}}>
             {activeLog && (
-                <div onClick={() => navigate(activeLogRoute || '/dashboard/atividades')} title="Ir para o item com cronómetro em curso" className="hover-shadow" style={{background: 'linear-gradient(to right, #ef4444, #b91c1c)', color: 'white', padding: '10px 20px', borderRadius: '30px', display: 'flex', alignItems: 'center', gap: '15px', border: '2px solid #fecaca', boxShadow: '0 4px 10px rgba(239, 68, 68, 0.4)', transition: '0.2s', whiteSpace: 'nowrap', cursor: 'pointer'}}>
+                <div {...clicavel(() => navigate(activeLogRoute || '/dashboard/atividades'))} title="Ir para o item com cronómetro em curso" className="hover-shadow" style={{background: 'linear-gradient(to right, #ef4444, #b91c1c)', color: 'white', padding: '10px 20px', borderRadius: '30px', display: 'flex', alignItems: 'center', gap: '15px', border: '2px solid #fecaca', boxShadow: '0 4px 10px rgba(239, 68, 68, 0.4)', transition: '0.2s', whiteSpace: 'nowrap', cursor: 'pointer'}}>
                     <div style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700', fontSize: '0.95rem'}}>
                         <span className="pulse-dot-white"></span>
                         {(activeLogTitle || 'Atividade em curso').length > 30 ? `${(activeLogTitle || 'Atividade em curso').slice(0, 30)}...` : (activeLogTitle || 'Atividade em curso')}
@@ -536,8 +540,8 @@ export default function Atividades() {
         {/* FILTROS */}
         <div style={{ display: "flex", flexWrap: 'wrap', gap: 15, marginBottom: 20, paddingBottom: 20, borderBottom: '1px solid #f1f5f9', alignItems: 'center' }}>
             <div style={{flex: 1, minWidth: '250px', position: 'relative'}}>
-                <span style={{position: 'absolute', left: '12px', top: '12px', color: '#94a3b8'}}><Icons.Search /></span>
-                <input type="text" placeholder="Procurar atividade ou projeto..." value={busca} onChange={(e) => setBusca(e.target.value)} style={{...inputStyle, width: '100%', paddingLeft: '38px'}} />
+                <span style={{position: 'absolute', left: '12px', top: '12px', color: '#64748b'}}><Icons.Search /></span>
+                <input aria-label="Procurar atividade ou projeto" type="text" placeholder="Procurar atividade ou projeto…" value={busca} onChange={(e) => setBusca(e.target.value)} style={{...inputStyle, width: '100%', paddingLeft: '38px'}} />
             </div>
             <label style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold', color: '#475569', background: '#f8fafc', padding: '10px 15px', borderRadius: '8px', border: '1px solid #e2e8f0'}}>
                 <input type="checkbox" checked={mostrarConcluidos} onChange={(e) => setMostrarConcluidos(e.target.checked)} style={{accentColor:'#1e293b', width:'14px', height:'14px'}} /> Mostrar Arquivados
@@ -569,11 +573,11 @@ export default function Atividades() {
                                 <td style={{padding: '15px', textAlign: 'center'}}>
                                     <div style={{display:'flex', alignItems:'center', justifyContent:'center', gap:'12px'}}>
                                         {isRunning ? (
-                                            <button onClick={openStopNoteModal} title="Parar Timer" style={{border:'none', background:'#fee2e2', color:'#ef4444', borderRadius:'50%', width:'32px', height:'32px', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', boxShadow: '0 2px 4px rgba(239, 68, 68, 0.2)'}}>
+                                            <button aria-label="Parar Timer" onClick={openStopNoteModal} title="Parar Timer" style={{border:'none', background:'#fee2e2', color:'#ef4444', borderRadius:'50%', width:'32px', height:'32px', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', boxShadow: '0 2px 4px rgba(239, 68, 68, 0.2)'}}>
                                                 <Icons.Stop size={14} />
                                             </button>
                                         ) : (
-                                            <button onClick={() => handleStartAtividade(a)} disabled={isCompleted} title="Iniciar Timer" style={{border:'none', background: isCompleted ? '#f1f5f9' : 'var(--color-borderColorLight)', color: isCompleted ? '#cbd5e1' : 'var(--color-btnPrimary)', borderRadius:'50%', width:'32px', height:'32px', cursor: isCompleted ? 'default' : 'pointer', display:'flex', alignItems:'center', justifyContent:'center', transition: '0.2s'}} className={!isCompleted ? "hover-shadow" : ""}>
+                                            <button aria-label="Iniciar Timer" onClick={() => handleStartAtividade(a)} disabled={isCompleted} title="Iniciar Timer" style={{border:'none', background: isCompleted ? '#f1f5f9' : 'var(--color-borderColorLight)', color: isCompleted ? '#cbd5e1' : 'var(--color-btnPrimary)', borderRadius:'50%', width:'32px', height:'32px', cursor: isCompleted ? 'default' : 'pointer', display:'flex', alignItems:'center', justifyContent:'center', transition: '0.2s'}} className={!isCompleted ? "hover-shadow" : ""}>
                                                 <Icons.Play size={14} />
                                             </button>
                                         )}
@@ -618,10 +622,10 @@ export default function Atividades() {
                                 
                                 <td style={{padding: '15px', textAlign: 'right'}}>
                                     <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
-                                        <button onClick={() => handleView(a)} title="Ver Detalhes" style={{background: 'white', border: '1px solid #cbd5e1', color: '#475569', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">
+                                        <button aria-label="Ver Detalhes" onClick={() => handleView(a)} title="Ver Detalhes" style={{background: 'white', border: '1px solid #cbd5e1', color: '#475569', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">
                                             <Icons.Eye />
                                         </button>
-                                        <button onClick={() => handleEdit(a)} title="Editar" className="action-btn hover-orange-text" style={{background: 'transparent', border: 'none', color: '#475569', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s', opacity: 0.6}}>
+                                        <button aria-label="Editar" onClick={() => handleEdit(a)} title="Editar" className="action-btn hover-orange-text" style={{background: 'transparent', border: 'none', color: '#475569', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s', opacity: 0.6}}>
                                             <Icons.Edit />
                                         </button>
                                     </div>
@@ -630,7 +634,7 @@ export default function Atividades() {
                         );
                     })
                 ) : (
-                    <tr><td colSpan="6" style={{textAlign: 'center', padding: '60px', color: '#94a3b8'}}>
+                    <tr><td colSpan="6" style={{textAlign: 'center', padding: '60px', color: '#64748b'}}>
                         <span style={{display: 'block', marginBottom: '10px', opacity: 0.5}}><Icons.Search /></span>
                         <p style={{margin: 0, fontWeight: '500'}}>Nenhuma atividade encontrada com estes filtros.</p>    
                     </td></tr>
@@ -643,7 +647,7 @@ export default function Atividades() {
       {/* --- MODAL FORMULÁRIO --- */}
       {showModal && (
         <ModalPortal>
-          <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(15, 23, 42, 0.7)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:99999}} onClick={() => setShowModal(false)}>
+          <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(15, 23, 42, 0.7)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:"calc(var(--z-modal) + 13)"}} onClick={() => setShowModal(false)}>
             <div style={{background:'#fff', width:'95%', maxWidth:'750px', borderRadius:'16px', boxShadow:'0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow:'hidden', display:'flex', flexDirection:'column', maxHeight:'92vh', animation: 'fadeIn 0.2s ease-out'}} onClick={e => e.stopPropagation()}>
               
               <div style={{padding:'20px 25px', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center', background:'#f8fafc'}}>
@@ -653,7 +657,7 @@ export default function Atividades() {
                         {isViewOnly ? "Ver Atividade" : (editId ? "Editar Atividade" : "Nova Atividade")}
                     </h3>
                 </div>
-                <button onClick={() => setShowModal(false)} style={{background:'transparent', border:'none', color:'#94a3b8', cursor:'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'}} className="hover-red-text"><Icons.Close /></button>
+                <button aria-label="Fechar" onClick={() => setShowModal(false)} style={{background:'transparent', border:'none', color:'#64748b', cursor:'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'}} className="hover-red-text"><Icons.Close /></button>
               </div>
 
               <div style={{padding: '25px', overflowY: 'auto', background: 'white'}}>
@@ -662,7 +666,7 @@ export default function Atividades() {
                     
                     <div style={{marginBottom: '25px'}}>
                         <label style={labelStyle}>Título da Atividade *</label>
-                        <input type="text" value={form.titulo} onChange={e => setForm({...form, titulo: e.target.value})} required style={{...inputStyle, fontSize: '1.1rem', padding: '12px', fontWeight: 'bold'}} className="input-focus" placeholder="Ex: Preparar Documentação..." />
+                        <input aria-label="Título da Atividade" type="text" value={form.titulo} onChange={e => setForm({...form, titulo: e.target.value})} required style={{...inputStyle, fontSize: '1.1rem', padding: '12px', fontWeight: 'bold'}} className="input-focus" placeholder="Ex: Preparar Documentação…" />
                     </div>
 
                     <div style={sectionTitleStyle}><Icons.Folder /> Projeto & Responsável</div>
@@ -702,14 +706,14 @@ export default function Atividades() {
                             {val: 'concluido', label: 'Concluído'}, 
                             {val: 'cancelado', label: 'Cancelado'}
                         ].map(st => (
-                            <div key={st.val} onClick={() => !isViewOnly && setForm({...form, estado: st.val})}
+                            <div key={st.val} {...clicavel(() => !isViewOnly && setForm({...form, estado: st.val}))}
                                 style={{
                                     flex: 1, textAlign: 'center', padding: '10px', borderRadius: '8px', cursor: isViewOnly ? 'default' : 'pointer',
                                     fontSize: '0.8rem', fontWeight: '700',
                                     background: form.estado === st.val ? 'var(--color-btnPrimary)' : '#f8fafc',
                                     color: form.estado === st.val ? 'white' : '#64748b',
                                     border: form.estado === st.val ? '1px solid var(--color-btnPrimary)' : '1px solid #e2e8f0',
-                                    transition: 'all 0.2s', textTransform: 'uppercase', letterSpacing: '0.05em'
+                                    transition: 'background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s, opacity 0.2s, width 0.2s, filter 0.2s', textTransform: 'uppercase', letterSpacing: '0.05em'
                                 }}
                             >
                                 {st.label}
@@ -721,11 +725,11 @@ export default function Atividades() {
                     <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px'}}>
                         <div>
                             <label style={labelStyle}>Descrição / Procedimento</label>
-                            <textarea rows="4" value={form.descricao} onChange={e => setForm({...form, descricao: e.target.value})} placeholder="Instruções para realizar a atividade..." style={{...inputStyle, resize: 'vertical'}} className="input-focus" />
+                            <textarea aria-label="Descrição / Procedimento" rows="4" value={form.descricao} onChange={e => setForm({...form, descricao: e.target.value})} placeholder="Instruções para realizar a atividade…" style={{...inputStyle, resize: 'vertical'}} className="input-focus" />
                         </div>
                         <div>
                             <label style={labelStyle}>Observações</label>
-                            <textarea rows="4" value={form.observacoes} onChange={e => setForm({...form, observacoes: e.target.value})} placeholder="Notas adicionais..." style={{...inputStyle, resize: 'vertical', background: '#fffbeb', borderColor: '#fde68a'}} className="input-focus" />
+                            <textarea aria-label="Observações" rows="4" value={form.observacoes} onChange={e => setForm({...form, observacoes: e.target.value})} placeholder="Notas adicionais…" style={{...inputStyle, resize: 'vertical', background: '#fffbeb', borderColor: '#fde68a'}} className="input-focus" />
                         </div>
                     </div>
                   </fieldset>
@@ -747,11 +751,11 @@ export default function Atividades() {
 
             {showTimeModal && (
                 <ModalPortal>
-                    <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(15, 23, 42, 0.7)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:99999}} onClick={() => !timeLogSaving && setShowTimeModal(false)}>
+                    <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(15, 23, 42, 0.7)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:"calc(var(--z-modal) + 13)"}} onClick={() => !timeLogSaving && setShowTimeModal(false)}>
                         <div style={{background:'#fff', width:'92%', maxWidth:'760px', borderRadius:'16px', boxShadow:'0 25px 50px -12px rgba(0,0,0,0.25)', overflow:'hidden'}} onClick={e => e.stopPropagation()}>
                             <div style={{padding:'18px 22px', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
                                 <h3 style={{margin:0, color:'#1e293b', fontSize:'1.1rem'}}>{editingTimeLogId ? 'Editar Registo de Tempo' : 'Novo Registo de Tempo'}</h3>
-                                <button onClick={() => !timeLogSaving && setShowTimeModal(false)} style={{background:'transparent', border:'none', color:'#94a3b8', cursor:'pointer'}}><Icons.Close /></button>
+                                <button aria-label="Fechar" onClick={() => !timeLogSaving && setShowTimeModal(false)} style={{background:'transparent', border:'none', color:'#64748b', cursor:'pointer'}}><Icons.Close /></button>
                             </div>
                             <div style={{padding:'18px 22px', background:'#f8fafc'}}>
                                 <form onSubmit={handleSaveTimeLog} style={{display:'grid', gap:'12px', marginBottom:'14px'}}>
@@ -759,7 +763,7 @@ export default function Atividades() {
                                         <div>
                                             <label style={labelStyle}>Colaborador</label>
                                             <select value={timeLogForm.user_id} onChange={e => setTimeLogForm(prev => ({...prev, user_id: e.target.value}))} style={inputStyle} required>
-                                                <option value="">Selecionar...</option>
+                                                <option value="">Selecionar…</option>
                                                 {staff
                                                     .filter(s => s.ativo !== false || String(s.id) === String(timeLogForm.user_id))
                                                     .map(s => <option key={s.id} value={s.id}>{s.nome || s.email}{s.ativo === false ? ' (Inativo)' : ''}</option>)}
@@ -773,14 +777,14 @@ export default function Atividades() {
                                     <div>
                                         <label style={labelStyle}>Atividade</label>
                                         <select value={timeLogForm.atividade_id} onChange={e => setTimeLogForm(prev => ({...prev, atividade_id: e.target.value}))} style={inputStyle} required>
-                                            <option value="">Selecionar...</option>
+                                            <option value="">Selecionar…</option>
                                             {atividadeOptions.map(opt => <option key={opt.id} value={opt.id}>{opt.label}</option>)}
                                         </select>
                                     </div>
                                     <div style={{fontSize:'0.78rem', color:'#64748b'}}>Pré-visualização: {formatDuration(timeLogForm.duration_minutes)}</div>
                                     <div style={{display:'flex', justifyContent:'flex-end', gap:'10px'}}>
                                         <button type="button" onClick={() => setShowTimeModal(false)} style={{padding:'10px 14px', borderRadius:'8px', border:'1px solid #cbd5e1', background:'white'}}>Cancelar</button>
-                                        <button type="submit" disabled={timeLogSaving} className="btn-primary hover-shadow" style={{padding:'10px 14px'}}>{timeLogSaving ? 'A guardar...' : 'Guardar'}</button>
+                                        <button type="submit" disabled={timeLogSaving} className="btn-primary hover-shadow" style={{padding:'10px 14px'}}>{timeLogSaving ? 'A guardar…' : 'Guardar'}</button>
                                     </div>
                                 </form>
 
@@ -803,13 +807,13 @@ export default function Atividades() {
                                                     <td style={{padding:'8px', fontSize:'0.8rem', color:'#334155'}}>{staff.find((s) => String(s.id) === String(log.user_id))?.nome || staff.find((s) => String(s.id) === String(log.user_id))?.email || 'Utilizador'}</td>
                                                     <td style={{padding:'8px', textAlign:'right', fontWeight:'700'}}>{formatDuration(log.duration_minutes || 0)}</td>
                                                     <td style={{padding:'8px', textAlign:'right'}}>
-                                                        <button onClick={() => openTimeEditModal(log)} style={{border:'none', background:'transparent', color:'#f97316', cursor:'pointer', marginRight:'6px'}}>✎</button>
-                                                        <button onClick={() => handleDeleteTimeLog(log.id)} style={{border:'none', background:'transparent', color:'#ef4444', cursor:'pointer'}}>🗑</button>
+                                                        <button aria-label="Editar registo de tempo" onClick={() => openTimeEditModal(log)} style={{border:'none', background:'transparent', color:'#f97316', cursor:'pointer', marginRight:'6px'}}><Pencil size={15} aria-hidden="true" /></button>
+                                                        <button aria-label="Apagar registo de tempo" onClick={() => handleDeleteTimeLog(log.id)} style={{border:'none', background:'transparent', color:'#ef4444', cursor:'pointer'}}><Trash2 size={15} aria-hidden="true" /></button>
                                                     </td>
                                                 </tr>
                                             ))}
                                             {timeLogs.filter(l => (l.duration_minutes || 0) > 0).length === 0 && (
-                                                <tr><td colSpan={5} style={{padding:'12px', textAlign:'center', color:'#94a3b8'}}>Sem registos de tempo.</td></tr>
+                                                <tr><td colSpan={5} style={{padding:'12px', textAlign:'center', color:'#64748b'}}>Sem registos de tempo.</td></tr>
                                             )}
                                         </tbody>
                                     </table>
@@ -851,7 +855,7 @@ export default function Atividades() {
                 onConfirm={confirmStopWithNote}
             />
       
-      {notification && <div className={`toast-container ${notification.type}`}>{notification.type === 'success' ? '✅' : '⚠️'} {notification.message}</div>}
+      {notification && <AvisoToast tipo={notification.type} mensagem={notification.message} />}
 
       <style>{`
         .table-row-hover:hover { background-color: #f8fafc !important; }

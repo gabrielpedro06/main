@@ -1,0 +1,13 @@
+/* Escala de camadas (z-index) da app inteira.
+   Usar sempre estas variáveis em vez de números soltos:
+     z-index: var(--z-modal);                 ou   style={{ zIndex: "var(--z-modal)" }}
+     z-index: calc(var(--z-modal) + 1);       (um degrau acima, p. ex. janela sobre janela)
+   Valores abaixo de 100 são locais (dentro de um componente) e podem continuar como números. */
+:root {
+  --z-app: 100;          /* barra lateral, barras fixas, navegação móvel, controlos do mapa (+0…+7) */
+  --z-modal: 1000;       /* janelas e painéis laterais normais (+0…+13) */
+  --z-modal-topo: 2000;  /* janelas abertas por cima de outras janelas, menus de escolha (+0…+5) */
+  --z-modal-max: 3000;   /* janelas de ecrã inteiro do Fórum, Clientes, Projeto (+0…+5) */
+  --z-dialogo: 4000;     /* caixa de confirmação/aviso global e ecrã de carregamento */
+  --z-toast: 5000;       /* avisos flutuantes: ficam sempre por cima de tudo */
+}

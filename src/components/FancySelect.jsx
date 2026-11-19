@@ -24,10 +24,10 @@ export default function FancySelect({
   onChange,
   options = [],
   icon = null,
-  placeholder = "Selecionar...",
+  placeholder = "Selecionar…",
   className = "",
   menuWidth = 320,
-  searchPlaceholder = "Procurar...",
+  searchPlaceholder = "Procurar…",
   ariaLabel,
 }) {
   const triggerRef = useRef(null);

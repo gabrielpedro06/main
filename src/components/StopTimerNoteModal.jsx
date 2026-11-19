@@ -7,7 +7,7 @@ export default function StopTimerNoteModal({
   open,
   title = "Parar cronometro",
   message = "Se quiseres, adiciona uma nota breve antes de parar.",
-  placeholder = "Escreve uma nota opcional...",
+  placeholder = "Escreve uma nota opcional…",
   confirmLabel = "Guardar e parar",
   cancelLabel = "Cancelar",
   showCompleteOption = false,
@@ -278,7 +278,7 @@ export default function StopTimerNoteModal({
             background: #ffffff !important;
           }
           .stop-note-cancel {
-            transition: all 0.2s ease;
+            transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease;
           }
           .stop-note-cancel:hover {
             background-color: #f8fafc !important;
@@ -286,7 +286,7 @@ export default function StopTimerNoteModal({
             color: #1e293b !important;
           }
           .stop-note-confirm {
-            transition: all 0.2s ease;
+            transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease;
           }
           .stop-note-confirm:hover {
             transform: translateY(-2px);
@@ -294,7 +294,7 @@ export default function StopTimerNoteModal({
             filter: brightness(1.05);
           }
           .stop-complete-option {
-            transition: all 0.2s ease;
+            transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease;
           }
           .stop-complete-option:hover {
             border-color: var(--color-borderColor) !important;
@@ -335,7 +335,7 @@ export default function StopTimerNoteModal({
             letter-spacing: 0.02em;
             white-space: nowrap;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease;
           }
           .stop-status-pill:hover {
             border-color: var(--color-btnPrimary);
@@ -363,7 +363,7 @@ export default function StopTimerNoteModal({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          zIndex: 100001,
+          zIndex: "calc(var(--z-modal-topo) + 1)",
           padding: "20px",
           animation: "stopOverlayFadeIn 0.3s ease-out forwards"
         }}
@@ -594,7 +594,7 @@ export default function StopTimerNoteModal({
                     >
                       <option value="">
                         {analysisUsersLoading
-                          ? "A carregar colegas..."
+                          ? "A carregar colegas…"
                           : (analysisUsers.length === 0 ? "Sem colegas disponiveis" : "Seleciona um colega")}
                       </option>
                       {analysisUsers.map((profile) => (
@@ -630,7 +630,7 @@ export default function StopTimerNoteModal({
                     >
                       <option value="">
                         {analysisContactsLoading
-                          ? "A carregar pessoas do cliente..."
+                          ? "A carregar pessoas do cliente…"
                           : (analysisClientContacts.length === 0 ? "Sem pessoas associadas ao cliente" : "Seleciona uma pessoa")}
                       </option>
                       {analysisClientContacts.map((contact) => {

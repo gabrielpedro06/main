@@ -65,7 +65,7 @@ export default function Anexos({ value, onChange, pasta, categoriaInicial = "out
                   {f.url ? tam(f.tamanho) : <em>por carregar</em>}
                 </span>
               </div>
-              <button type="button" className="mk-icon-btn is-sm is-danger" title="Remover" onClick={() => remover(f)}><I.Trash size={13} /></button>
+              <button aria-label="Remover" type="button" className="mk-icon-btn is-sm is-danger" title="Remover" onClick={() => remover(f)}><I.Trash size={13} /></button>
             </div>
           ))}
         </div>

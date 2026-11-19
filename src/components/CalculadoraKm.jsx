@@ -227,7 +227,7 @@ export default function CalculadoraKm({ form, setForm }) {
         if (!origem || !destino) { setRoute(null); setRouteInfo(null); return undefined; }
         const ctrl = new AbortController();
         const run = async () => {
-            setBusy('A calcular a rota...');
+            setBusy('A calcular a rota…');
             setError('');
             try {
                 const url = `https://router.project-osrm.org/route/v1/driving/${origem.lng},${origem.lat};${destino.lng},${destino.lat}?overview=full&geometries=geojson`;
@@ -276,7 +276,7 @@ export default function CalculadoraKm({ form, setForm }) {
         if (which === 'origem') setOrigem(coords); else setDestino(coords);
         setTarget(which === 'origem' && !destino ? 'destino' : null);
         setFitKey((k) => k + 1);
-        setBusy('A identificar o local...');
+        setBusy('A identificar o local…');
         const name = await reversePlace(lat, lng);
         setBusy('');
         setForm((prev) => ({ ...prev, [which === 'origem' ? 'km_origem' : 'km_destino']: name }));
@@ -298,7 +298,7 @@ export default function CalculadoraKm({ form, setForm }) {
 
     const useMyLocation = () => {
         if (!navigator.geolocation) { setError('O browser não permite obter a localização.'); return; }
-        setBusy('A obter a tua localização...');
+        setBusy('A obter a tua localização…');
         navigator.geolocation.getCurrentPosition(async (pos) => {
             const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
             setPoint('origem', coords);

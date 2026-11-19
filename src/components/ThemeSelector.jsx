@@ -126,7 +126,7 @@ export default function ThemeSelector() {
         {tab === 'basic' && (
           <label className="ts-search">
             <SearchIcon />
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Procurar tema..." aria-label="Procurar tema" />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Procurar tema…" aria-label="Procurar tema" />
           </label>
         )}
       </div>

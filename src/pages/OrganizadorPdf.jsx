@@ -1108,8 +1108,8 @@ export default function OrganizadorPdf() {
                     <button type="button" className="pdfo-icon" onClick={() => toggleExpand(d.key)} title="Ver páginas">
                       <ChevronDown size={16} className={open ? "is-open" : ""} /> {d.pages.length}
                     </button>
-                    {d.index > 0 && <button type="button" className="pdfo-icon" onClick={() => mergePrev(d)} title="Juntar ao documento anterior"><Merge size={15} /></button>}
-                    <button type="button" className="pdfo-icon is-danger" onClick={() => removeDoc(d)} title="Retirar documento"><Trash2 size={15} /></button>
+                    {d.index > 0 && <button aria-label="Juntar ao documento anterior" type="button" className="pdfo-icon" onClick={() => mergePrev(d)} title="Juntar ao documento anterior"><Merge size={15} /></button>}
+                    <button aria-label="Retirar documento" type="button" className="pdfo-icon is-danger" onClick={() => removeDoc(d)} title="Retirar documento"><Trash2 size={15} /></button>
                   </div>
 
                   {open && (
@@ -1117,18 +1117,18 @@ export default function OrganizadorPdf() {
                       {d.pages.map((p, i) => (
                         <div key={p.id} className="pdfo-page-wrap">
                           {i > 0 && (
-                            <button type="button" className="pdfo-split" onClick={() => splitAt(p.id)} title="Separar aqui">
+                            <button aria-label="Separar aqui" type="button" className="pdfo-split" onClick={() => splitAt(p.id)} title="Separar aqui">
                               <Scissors size={13} />
                             </button>
                           )}
                           <div className="pdfo-page">
-                            <button type="button" className="pdfo-page-img" onClick={() => openZoom(p)}>
+                            <button aria-label="Ampliar página" type="button" className="pdfo-page-img" onClick={() => openZoom(p)}>
                               {p.thumb ? <img src={p.thumb} alt="" style={thumbStyle(p)} /> : <FileText size={18} />}
                             </button>
                             <div className="pdfo-page-bar">
                               <span title={p.fileName}>p.{p.pageNumber}{p.qr ? " · QR" : ""}</span>
-                              <button type="button" onClick={() => rotatePage(p.id)} title="Rodar 90°"><RotateCw size={12} /></button>
-                              <button type="button" onClick={() => toggleExclude(p.id)} title="Retirar página"><Trash2 size={12} /></button>
+                              <button aria-label="Rodar 90°" type="button" onClick={() => rotatePage(p.id)} title="Rodar 90°"><RotateCw size={12} /></button>
+                              <button aria-label="Retirar página" type="button" onClick={() => toggleExclude(p.id)} title="Retirar página"><Trash2 size={12} /></button>
                             </div>
                           </div>
                         </div>

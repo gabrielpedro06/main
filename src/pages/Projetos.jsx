@@ -16,7 +16,10 @@ import "./../styles/dashboard.css";
 import "../styles/portfolio.css";
 import { postAutenticado } from "../utils/apiAutenticada";
 import { consultarNif } from "../utils/apiAutenticada";
+import { clicavel } from "../utils/clicavel";
 
+import AvisoToast from "../components/AvisoToast";
+import { Lock, TriangleAlert } from "lucide-react";
 // --- ÍCONES SVG PROFISSIONAIS (SaaS Premium) ---
 const Icons = {
   Grid: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>,
@@ -1265,7 +1268,7 @@ export default function Projetos() {
 
             // Gerar Árvore de Atividades
             if (payload.tipo_projeto_id && templateTree.length > 0) {
-                showToast("A preparar as atividades do projeto...", "info");
+                showToast("A preparar as atividades do projeto…", "info");
                 let projDateStr = payload.data_inicio || new Date().toISOString().split('T')[0];
                 const projEndStr = payload.data_fim || getLastProjetoFaseDate(payload.prazos_fases) || null; 
                 let currentAtivDate = projDateStr;
@@ -1493,7 +1496,7 @@ export default function Projetos() {
   });
 
   const renderDeadline = (dateString, estado) => {
-    if (estado === 'encerrado') return <span className="po-due is-closed">🔒 Encerrado</span>;
+    if (estado === 'encerrado') return <span className="po-due is-closed"><Lock size={12} aria-hidden="true" style={{ verticalAlign: '-2px' }} /> Encerrado</span>;
     if (estado === 'concluido') return <span className="po-due is-done"><Icons.Check size={12} /> Concluído</span>;
     if (!dateString) return <span className="po-due is-none">Sem prazo</span>;
     const deadline = new Date(dateString); deadline.setHours(0,0,0,0);
@@ -1816,7 +1819,7 @@ export default function Projetos() {
       return (
           <article
               key={p.id}
-              onClick={() => navigate(`/dashboard/projetos/${p.id}`)}
+              {...clicavel(() => navigate(`/dashboard/projetos/${p.id}`))}
               className={`po-card ${isCompleted ? 'is-closed' : ''} ${isTimerActive ? 'is-running' : ''}`}
               style={{ '--pc': isCompleted ? '#cbd5e1' : catColor, '--ec': estado.color, '--i': Math.min(index, 12) }}
           >
@@ -1873,7 +1876,7 @@ export default function Projetos() {
           <tr
               key={p.id}
               className={`po-row ${isCompleted ? 'is-closed' : ''} ${isTimerActive ? 'is-running' : ''}`}
-              onClick={() => navigate(`/dashboard/projetos/${p.id}`)}
+              {...clicavel(() => navigate(`/dashboard/projetos/${p.id}`), { papel: null })}
               style={{ '--pc': isCompleted ? '#cbd5e1' : catColor, '--ec': estado.color }}
           >
               <td>
@@ -1934,7 +1937,7 @@ export default function Projetos() {
                       </thead>
                       <tbody>
                           {visibleItems.map(item => (
-                              <tr key={item.id} className="po-row" onClick={item.onClick} style={{ '--pc': item.color }}>
+                              <tr key={item.id} className="po-row" {...clicavel(item.onClick, { papel: null })} style={{ '--pc': item.color }}>
                                   <td>
                                       <span className="po-nav-inline">
                                           <span className="po-nav-icon is-sm">{initialsOf(item.nome)}</span>
@@ -1975,7 +1978,7 @@ export default function Projetos() {
       );
   };
 
-  const sectionTitleStyle = { fontSize: '0.8rem', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '15px', marginTop: '20px', borderBottom: '1px solid #e2e8f0', paddingBottom: '5px', display: 'flex', alignItems: 'center', gap: '6px' };
+  const sectionTitleStyle = { fontSize: '0.8rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '15px', marginTop: '20px', borderBottom: '1px solid #e2e8f0', paddingBottom: '5px', display: 'flex', alignItems: 'center', gap: '6px' };
   const labelStyle = { display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' };
   const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box' };
 
@@ -2169,7 +2172,7 @@ export default function Projetos() {
       }
 
       try {
-          showToast("A consultar dados no NIF.pt...", "info");
+          showToast("A consultar dados no NIF.pt…", "info");
           const record = await fetchNifRecord(nifDigitado);
           if (!record) {
               showToast("NIF.pt não devolveu dados para este NIF.", "warning");
@@ -2229,7 +2232,7 @@ export default function Projetos() {
           id: 'sem-categoria',
           nome: 'Projetos Avulsos',
           count: countsPerCategory['sem-categoria'] || 0,
-          color: '#94a3b8',
+          color: '#64748b',
           actionLabel: selectedEstado ? 'Escolher tipo' : 'Ver projetos sem modelo',
           onClick: () => setSelectedCategoria('sem-categoria')
       }] : [])
@@ -2256,7 +2259,7 @@ export default function Projetos() {
           id: 'sem-programa',
           nome: 'Sem Programa Associado',
           count: countsPerPrograma['sem-programa'] || 0,
-          color: '#94a3b8',
+          color: '#64748b',
           actionLabel: 'Ver projetos avulsos',
           onClick: () => setSelectedProgramaNav('sem-programa')
       }] : [])
@@ -2811,7 +2814,7 @@ const exportCurrentOverviewPdf = () => {
                                       const reimbursementOverdue = hasReimbursementOverdue(project);
                                       const txe = getExecutionRate(project);
                                       return (
-                                          <tr key={project.id} onClick={() => openProjectDetails(project)} style={{ '--pc': programColor }}>
+                                          <tr key={project.id} {...clicavel(() => openProjectDetails(project), { papel: null })} style={{ '--pc': programColor }}>
                                               <td className="po-vg-ent">{getProjectInvolvedEntities(project) || "-"}</td>
                                               <td>
                                                   <div className="po-vg-proj">
@@ -2891,7 +2894,7 @@ const exportCurrentOverviewPdf = () => {
                                           const isFirstOfProject = idx === 0 || rows[idx - 1].project.id !== project.id;
                                           const span = isFirstOfProject ? rows.filter((r) => r.project.id === project.id).length : 0;
                                           return (
-                                              <tr key={`${project.id}-${entityId}`} onClick={() => openProjectDetails(project)} style={{ '--pc': programColor }} className={isFirstOfProject ? 'is-first' : ''}>
+                                              <tr key={`${project.id}-${entityId}`} {...clicavel(() => openProjectDetails(project), { papel: null })} style={{ '--pc': programColor }} className={isFirstOfProject ? 'is-first' : ''}>
                                                   {isFirstOfProject && (
                                                       <td rowSpan={span} className="po-vg-mproj">
                                                           <div className="po-vg-proj">
@@ -2991,7 +2994,7 @@ const exportCurrentOverviewPdf = () => {
 
               <div className="po-hero-actions">
                   {activeLog && (
-                      <div onClick={() => navigate(activeLogRoute || '/dashboard/projetos')} title="Ir para o item com cronómetro em curso" className="po-live">
+                      <div {...clicavel(() => navigate(activeLogRoute || '/dashboard/projetos'))} title="Ir para o item com cronómetro em curso" className="po-live">
                           <span className="po-live-dot" />
                           <span className="po-live-title">{activeLogLabel.length > 30 ? `${activeLogLabel.slice(0, 30)}...` : activeLogLabel}</span>
                           <button type="button" onClick={(e) => { e.stopPropagation(); handleStopLog(e); }} className="po-live-stop"><Icons.Stop /> Parar</button>
@@ -3013,7 +3016,7 @@ const exportCurrentOverviewPdf = () => {
               </div>
               <label className="po-search">
                   <Icons.Search size={15} />
-                  <input type="text" placeholder="Procurar projeto, código ou cliente..." value={busca} onChange={e => setBusca(e.target.value)} />
+                  <input type="text" placeholder="Procurar projeto, código ou cliente…" value={busca} onChange={e => setBusca(e.target.value)} />
                   {busca && <button type="button" className="po-search-clear" onClick={() => setBusca("")} aria-label="Limpar pesquisa"><Icons.Close size={14} /></button>}
               </label>
               <button type="button" className={`po-toggle ${mostrarConcluidos ? 'is-on' : ''}`} onClick={() => setMostrarConcluidos(!mostrarConcluidos)} aria-pressed={mostrarConcluidos}>
@@ -3172,7 +3175,7 @@ const exportCurrentOverviewPdf = () => {
 
                       <div className="po-modal-body">
                           {projectTimerModal.loading ? (
-                              <div className="po-loading-inline"><span /><span /><span /> A carregar atividades e tarefas...</div>
+                              <div className="po-loading-inline"><span /><span /><span /> A carregar atividades e tarefas…</div>
                           ) : projectTimerModal.atividades.length === 0 ? (
                               <div className="po-empty is-compact">
                                   <span className="po-empty-icon"><Icons.ClipboardList size={26} /></span>
@@ -3266,7 +3269,7 @@ const exportCurrentOverviewPdf = () => {
 {/* --- MODAL CRIAR/EDITAR PROJETO (WIZARD 5 PASSOS) --- */}
       {showModal && (
         <ModalPortal>
-          <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(15, 23, 42, 0.7)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:99999}} onClick={() => setShowModal(false)}>
+          <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(15, 23, 42, 0.7)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:"calc(var(--z-modal) + 13)"}} onClick={() => setShowModal(false)}>
             <div style={{background:'#fff', width:'95%', maxWidth:'1000px', minHeight: '650px', borderRadius:'16px', boxShadow:'0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow:'hidden', display:'flex', flexDirection:'column', maxHeight:'92vh', animation: 'fadeIn 0.2s ease-out'}} onClick={e => e.stopPropagation()}>
               
               {/* --- CABEÇALHO --- */}
@@ -3275,7 +3278,7 @@ const exportCurrentOverviewPdf = () => {
                     <span style={{background:'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding:'10px', borderRadius:'10px', display: 'flex'}}><Icons.Rocket size={24} /></span>
                     <h3 style={{margin:0, color:'#1e293b', fontSize:'1.25rem', fontWeight: '800'}}>{isViewOnly ? "Ver Projeto" : (editId ? "Editar Projeto" : "Novo Projeto")}</h3>
                 </div>
-                <button onClick={() => setShowModal(false)} style={{background:'transparent', border:'none', cursor:'pointer', color:'#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center'}} className="hover-red-text"><Icons.Close size={20} /></button>
+                <button aria-label="Fechar" onClick={() => setShowModal(false)} style={{background:'transparent', border:'none', cursor:'pointer', color:'#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center'}} className="hover-red-text"><Icons.Close size={20} /></button>
               </div>
 
               {/* --- STEPPER VISUAL --- */}
@@ -3369,8 +3372,8 @@ const exportCurrentOverviewPdf = () => {
                                                 const isParc = e.target.value === 'parceria';
                                                 setForm({...form, is_parceria: isParc, parceiros_ids: isParc ? form.parceiros_ids : []});
                                             }} style={{...inputStyle, cursor: 'pointer'}} className="input-focus">
-                                                <option value="unico">👤 Individual (Apenas Cliente Lider)</option>
-                                                <option value="parceria">🤝 Parceria (Vários Clientes/Entidades)</option>
+                                                <option value="unico">Individual (Apenas Cliente Lider)</option>
+                                                <option value="parceria">Parceria (Vários Clientes/Entidades)</option>
                                             </select>
                                         </div>
 
@@ -3428,14 +3431,14 @@ const exportCurrentOverviewPdf = () => {
                                             <div>
                                                 <label style={labelStyle}>Entidades Selecionadas</label>
                                                 <div className="pill-container" style={{width: '100%', boxSizing: 'border-box'}}>
-                                                    {(form.parceiros_ids || []).length === 0 && <span style={{color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic'}}>Sem parceiros selecionados.</span>}
+                                                    {(form.parceiros_ids || []).length === 0 && <span style={{color: '#64748b', fontSize: '0.85rem', fontStyle: 'italic'}}>Sem parceiros selecionados.</span>}
                                                     {(form.parceiros_ids || []).map(pid => {
                                                         const parceiro = clientes.find(c => String(c.id) === String(pid));
                                                         if (!parceiro) return null;
                                                         return (
                                                             <div
                                                                 key={pid}
-                                                                onClick={() => !isViewOnly && handleToggleParceiro(pid)}
+                                                                {...clicavel(() => !isViewOnly && handleToggleParceiro(pid))}
                                                                 className="pill-checkbox selected"
                                                                 title="Remover parceiro"
                                                             >
@@ -3523,7 +3526,7 @@ const exportCurrentOverviewPdf = () => {
                                                         })}
                                                     </select>
                                                     {organismoPessoas.length === 0 && (
-                                                        <div style={{marginTop: '6px', color: '#94a3b8', fontSize: '0.8rem', fontStyle: 'italic'}}>Este organismo ainda não tem contactos registados.</div>
+                                                        <div style={{marginTop: '6px', color: '#64748b', fontSize: '0.8rem', fontStyle: 'italic'}}>Este organismo ainda não tem contactos registados.</div>
                                                     )}
                                                 </div>
                                             )}
@@ -3544,7 +3547,7 @@ const exportCurrentOverviewPdf = () => {
                                                             return (
                                                                 <div 
                                                                     key={`colab-int-${s.id}`}
-                                                                    onClick={() => !isViewOnly && handleToggleColaborador(s.id)}
+                                                                    {...clicavel(() => !isViewOnly && handleToggleColaborador(s.id))}
                                                                     className={`pill-checkbox ${isSelected ? 'selected' : ''}`}
                                                                 >
                                                                     {s.nome || s.email}{s.ativo === false ? ' (Inativo)' : ''}
@@ -3552,7 +3555,7 @@ const exportCurrentOverviewPdf = () => {
                                                             )
                                                         })}
                                                     {staff.filter(s => String(s.id) !== String(form.responsavel_id || '')).length === 0 && (
-                                                        <span style={{color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic'}}>Sem pessoas internas disponíveis.</span>
+                                                        <span style={{color: '#64748b', fontSize: '0.85rem', fontStyle: 'italic'}}>Sem pessoas internas disponíveis.</span>
                                                     )}
                                                 </div>
                                             </div>
@@ -3570,7 +3573,7 @@ const exportCurrentOverviewPdf = () => {
                                                             return (
                                                                 <div 
                                                                     key={`ent-${s.id}`}
-                                                                    onClick={() => !isViewOnly && handleToggleColaborador(s.id)}
+                                                                    {...clicavel(() => !isViewOnly && handleToggleColaborador(s.id))}
                                                                     className={`pill-checkbox ${isSelected ? 'selected' : ''}`}
                                                                 >
                                                                     {`${base}${cargo}${marca}`}
@@ -3578,7 +3581,7 @@ const exportCurrentOverviewPdf = () => {
                                                             )
                                                         })}
                                                     {entidadePessoas.filter(s => String(s.id) !== String(form.responsavel_id || '')).length === 0 && (
-                                                        <span style={{color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic'}}>Sem contactos das entidades selecionadas.</span>
+                                                        <span style={{color: '#64748b', fontSize: '0.85rem', fontStyle: 'italic'}}>Sem contactos das entidades selecionadas.</span>
                                                     )}
                                                 </div>
                                             </div>
@@ -3649,11 +3652,11 @@ const exportCurrentOverviewPdf = () => {
                                             <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '20px'}}>
                                                 <div>
                                                     <label style={labelStyle}>Código de Projeto</label>
-                                                    <input type="text" value={form.codigo_projeto} onChange={e => setForm({...form, codigo_projeto: e.target.value})} placeholder="Ex: ALGARVE-FEDER-03107000" style={inputStyle} className="input-focus" />
+                                                    <input aria-label="Código de Projeto" type="text" value={form.codigo_projeto} onChange={e => setForm({...form, codigo_projeto: e.target.value})} placeholder="Ex: ALGARVE-FEDER-03107000" style={inputStyle} className="input-focus" />
                                                 </div>
                                                 <div>
                                                     <label style={labelStyle}>Número do Projeto</label>
-                                                    <input type="text" value={form.numero_projeto || ""} onChange={e => setForm({...form, numero_projeto: e.target.value})} placeholder="Ex: 12345" style={inputStyle} className="input-focus" />
+                                                    <input aria-label="Número do Projeto" type="text" value={form.numero_projeto || ""} onChange={e => setForm({...form, numero_projeto: e.target.value})} placeholder="Ex: 12345" style={inputStyle} className="input-focus" />
                                                 </div>
                                             </div>
                                         </>
@@ -3700,7 +3703,7 @@ const exportCurrentOverviewPdf = () => {
                                                         const isSelected = false;
                                                         
                                                         return (
-                                                            <div key={`fase-${fase.nome}-${index}`} style={{display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', borderRadius: '10px', background: isSelected ? 'var(--color-bgSecondary)' : 'white', border: `1px solid ${isSelected ? 'var(--color-btnPrimary)' : '#e2e8f0'}`, transition: 'all 0.2s'}}>
+                                                            <div key={`fase-${fase.nome}-${index}`} style={{display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', borderRadius: '10px', background: isSelected ? 'var(--color-bgSecondary)' : 'white', border: `1px solid ${isSelected ? 'var(--color-btnPrimary)' : '#e2e8f0'}`, transition: 'background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s, opacity 0.2s, width 0.2s, filter 0.2s'}}>
                                                                 
                                                                 {/* Controlo de Seleção (Radio) */}
                                                                 <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px', minWidth: '60px'}}>
@@ -3740,7 +3743,7 @@ const exportCurrentOverviewPdf = () => {
                                                         );
                                                     })
                                                 ) : (
-                                                    <div style={{padding: '20px', textAlign: 'center', color: '#94a3b8', background: 'white', borderRadius: '8px', border: '1px dashed #cbd5e1', fontSize: '0.9rem', fontStyle: 'italic'}}>
+                                                    <div style={{padding: '20px', textAlign: 'center', color: '#64748b', background: 'white', borderRadius: '8px', border: '1px dashed #cbd5e1', fontSize: '0.9rem', fontStyle: 'italic'}}>
                                                         Sem fases definidas. Seleciona um programa/aviso para carregar as fases.
                                                     </div>
                                                 )}
@@ -3765,10 +3768,10 @@ const exportCurrentOverviewPdf = () => {
                                                 {templateTree.map(ativ => {
                                                     const isSelected = templateSelection[`a_${ativ.id}`];
                                                     return (
-                                                        <div key={`a_${ativ.id}`} style={{ background: 'white', borderRadius: '10px', border: `1px solid ${isSelected ? 'var(--color-borderColor)' : '#e2e8f0'}`, overflow: 'hidden', transition: 'all 0.2s', boxShadow: isSelected ? '0 2px 8px rgba(59,130,246,0.05)' : 'none' }}>
+                                                        <div key={`a_${ativ.id}`} style={{ background: 'white', borderRadius: '10px', border: `1px solid ${isSelected ? 'var(--color-borderColor)' : '#e2e8f0'}`, overflow: 'hidden', transition: 'background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s, opacity 0.2s, width 0.2s, filter 0.2s', boxShadow: isSelected ? '0 2px 8px rgba(59,130,246,0.05)' : 'none' }}>
                                                             
                                                             <div 
-                                                                onClick={() => toggleTemplateSelection('a', ativ.id)}
+                                                                {...clicavel(() => toggleTemplateSelection('a', ativ.id))}
                                                                 style={{ background: isSelected ? 'var(--color-bgSecondary)' : '#f8fafc', padding: '14px 18px', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', borderBottom: isSelected && ativ.tarefas?.length ? '1px solid #e2e8f0' : 'none' }}
                                                             >
                                                                 <input type="checkbox" checked={isSelected} readOnly style={{ accentColor: 'var(--color-btnPrimary)', width: '18px', height: '18px', pointerEvents: 'none' }} />
@@ -3921,7 +3924,7 @@ const exportCurrentOverviewPdf = () => {
                                                         />
                                                         {!editId && Number(form.investimento || 0) <= 0 && (
                                                             <span style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '500' }}>
-                                                                ⚠️ Insira o valor do investimento elegível (superior a 0,00 €)
+                                                                <TriangleAlert size={14} aria-hidden="true" /> Insira o valor do investimento elegível (superior a 0,00 €)
                                                             </span>
                                                         )}
                                                     </div>
@@ -3950,7 +3953,7 @@ const exportCurrentOverviewPdf = () => {
                                                         />
                                                         {!editId && Number(form.incentivo || 0) <= 0 && (
                                                             <span style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '500' }}>
-                                                                ⚠️ Insira o valor do incentivo atribuído (superior a 0,00 €)
+                                                                <TriangleAlert size={14} aria-hidden="true" /> Insira o valor do incentivo atribuído (superior a 0,00 €)
                                                             </span>
                                                         )}
                                                     </div>
@@ -3974,11 +3977,11 @@ const exportCurrentOverviewPdf = () => {
                                     <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px', marginBottom: '30px'}}>
                                         <div>
                                             <label style={labelStyle}>Descrição Geral</label>
-                                            <textarea rows="6" value={form.descricao || ''} onChange={e => setForm({...form, descricao: e.target.value})} style={{...inputStyle, resize:'none'}} placeholder="Resumo do projeto..." className="input-focus" />
+                                            <textarea aria-label="Descrição Geral" rows="6" value={form.descricao || ''} onChange={e => setForm({...form, descricao: e.target.value})} style={{...inputStyle, resize:'none'}} placeholder="Resumo do projeto…" className="input-focus" />
                                         </div>
                                         <div>
                                             <label style={labelStyle}>Observações Internas</label>
-                                            <textarea rows="6" value={form.observacoes || ''} onChange={e => setForm({...form, observacoes: e.target.value})} style={{...inputStyle, resize:'none', background:'#fffbeb', borderColor:'#fde68a'}} placeholder="Notas importantes..." className="input-focus-alert" />
+                                            <textarea aria-label="Observações Internas" rows="6" value={form.observacoes || ''} onChange={e => setForm({...form, observacoes: e.target.value})} style={{...inputStyle, resize:'none', background:'#fffbeb', borderColor:'#fde68a'}} placeholder="Notas importantes…" className="input-focus-alert" />
                                         </div>
                                     </div>
 
@@ -3992,14 +3995,14 @@ const exportCurrentOverviewPdf = () => {
                                             {val: 'encerrado', label: 'Encerrado'},
                                             {val: 'cancelado', label: 'Cancelado'}
                                         ].map(st => (
-                                            <div key={st.val} onClick={() => !isViewOnly && setForm({...form, estado: st.val})}
+                                            <div key={st.val} {...clicavel(() => !isViewOnly && setForm({...form, estado: st.val}))}
                                                 style={{
                                                     flex: 1, minWidth: '110px', textAlign: 'center', padding: '10px', borderRadius: '8px', cursor: isViewOnly ? 'default' : 'pointer',
                                                     fontSize: '0.8rem', fontWeight: '700',
                                                     background: form.estado === st.val ? 'var(--color-btnPrimary)' : '#f8fafc',
                                                     color: form.estado === st.val ? 'white' : '#64748b',
                                                     border: form.estado === st.val ? '1px solid var(--color-btnPrimary)' : '1px solid #e2e8f0',
-                                                    transition: 'all 0.2s', textTransform: 'uppercase', letterSpacing: '0.05em'
+                                                    transition: 'background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s, opacity 0.2s, width 0.2s, filter 0.2s', textTransform: 'uppercase', letterSpacing: '0.05em'
                                                 }}
                                             >
                                                 {st.label}
@@ -4024,7 +4027,7 @@ const exportCurrentOverviewPdf = () => {
                     <button 
                       type="button" 
                       onClick={() => setShowModal(false)} 
-                      style={{background:'transparent', border:'none', color:'#94a3b8', fontWeight:'600', cursor:'pointer'}} 
+                      style={{background:'transparent', border:'none', color:'#64748b', fontWeight:'600', cursor:'pointer'}} 
                       className="hover-red-text"
                     >
                       Cancelar
@@ -4097,7 +4100,7 @@ const exportCurrentOverviewPdf = () => {
                         className="btn-primary hover-shadow" 
                         style={{padding:'12px 30px', borderRadius:'10px', border:'none', background:'var(--color-btnPrimary)', color:'white', fontWeight:'700', cursor:'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: '0.2s'}}
                       >
-                        {isSubmitting ? "A guardar..." : (editId ? <><Icons.Save /> Guardar Alterações</> : <><Icons.Rocket /> Concluir e Criar</>)}
+                        {isSubmitting ? "A guardar…" : (editId ? <><Icons.Save /> Guardar Alterações</> : <><Icons.Rocket /> Concluir e Criar</>)}
                       </button>
                     )}
                   </div>
@@ -4108,7 +4111,7 @@ const exportCurrentOverviewPdf = () => {
         </ModalPortal>
       )}
 
-      {notification && <div className={`toast-container ${notification.type}`}>{notification.type === 'success' ? '✅' : '⚠️'} {notification.message}</div>}
+      {notification && <AvisoToast tipo={notification.type} mensagem={notification.message} />}
       
       <style>{`
           .fade-in { animation: fadeIn 0.4s ease-in-out; }
@@ -4118,7 +4121,7 @@ const exportCurrentOverviewPdf = () => {
           .category-card {
               background: white; padding: 25px; border-radius: 12px;
               box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;
-              cursor: pointer; transition: all 0.2s ease;
+              cursor: pointer; transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease;
           }
           .category-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); border-color: #cbd5e1; }
 
@@ -4184,7 +4187,7 @@ const exportCurrentOverviewPdf = () => {
               font-size: 0.85rem;
               font-weight: 600;
               cursor: pointer;
-              transition: all 0.2s ease;
+              transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease;
               border: 1px solid #e2e8f0;
               background: #f8fafc;
               color: #64748b;
@@ -4204,7 +4207,7 @@ const exportCurrentOverviewPdf = () => {
           /* Botão Glow Principal */
           .btn-glow {
               position: relative; overflow: hidden; background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 8px;
-              font-weight: bold; font-size: 0.95rem; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.4); transition: all 0.3s ease; display: flex; align-items: center; gap: 8px;
+              font-weight: bold; font-size: 0.95rem; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.4); transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease, opacity 0.3s ease, width 0.3s ease, filter 0.3s ease; display: flex; align-items: center; gap: 8px;
           }
           .btn-glow::after {
               content: ''; position: absolute; top: 0; left: -150%; width: 50%; height: 100%;

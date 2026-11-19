@@ -381,7 +381,7 @@
    MODAIS / DIÁLOGOS
    ========================================================================= */
 .po-overlay {
-  position: fixed; inset: 0; z-index: 999999;
+  position: fixed; inset: 0; z-index: calc(var(--z-modal-max) + 1);
   display: flex; align-items: center; justify-content: center;
   padding: 16px;
   background: rgba(15, 23, 42, 0.55);
@@ -604,7 +604,7 @@ th.is-num .po-vg-sort { justify-content: flex-end; }
 .po-vg-track { position: relative; height: 40px; border-radius: 10px; background: #f6f8fb; overflow: hidden; }
 .po-vg-track.is-invalid { background: #fef2f2; box-shadow: inset 0 0 0 1px #fecaca; }
 .po-vg-year { position: absolute; top: 0; bottom: 0; border-left: 1px dashed #d5dde8; }
-.po-vg-year-label { position: absolute; top: 2px; transform: translateX(4px); font-style: normal; font-size: 0.6rem; font-weight: 800; color: var(--po-faint); }
+.po-vg-year-label { position: absolute; top: 2px; transform: translateX(4px); font-style: normal; font-size: 0.66rem; font-weight: 800; color: var(--po-faint); }
 .po-vg-today { position: absolute; top: 0; bottom: 0; width: 0; border-left: 2px solid #ef4444; z-index: 2; }
 .po-vg-bar { position: absolute; top: 50%; height: 14px; margin-top: -3px; border-radius: 99px; background: linear-gradient(90deg, color-mix(in srgb, var(--pc) 70%, #fff), var(--pc)); box-shadow: 0 4px 10px -6px var(--pc); z-index: 1; min-width: 6px; }
 .po-vg-invalid { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 5px; color: #dc2626; font-size: 0.72rem; font-weight: 800; z-index: 2; }
@@ -628,7 +628,7 @@ th.is-num .po-vg-sort { justify-content: flex-end; }
 .po-vg-mproj { box-shadow: inset 4px 0 0 var(--pc); background: #fff; vertical-align: middle !important; border-right: 1px solid #f1f5f9; }
 .po-vg-table.is-monthly tbody tr.is-first td { border-top: 1px solid #eef2f6; }
 .po-vg-ment { font-weight: 700; color: var(--po-ink); word-break: break-word; }
-.po-vg-leader { margin-left: 6px; height: 16px; padding: 0 5px; display: inline-grid; place-items: center; border-radius: 99px; background: #fef3c7; color: #92400e; font-size: 0.56rem; font-weight: 900; letter-spacing: 0.04em; vertical-align: middle; }
+.po-vg-leader { margin-left: 6px; height: 16px; padding: 0 5px; display: inline-grid; place-items: center; border-radius: 99px; background: #fef3c7; color: #92400e; font-size: 0.66rem; font-weight: 900; letter-spacing: 0.04em; vertical-align: middle; }
 .po-vg-cell { padding: 6px 4px !important; text-align: right; font-size: 0.72rem; font-variant-numeric: tabular-nums; white-space: nowrap; color: #cbd5e1; }
 .po-vg-cell.has-value { color: #065f46; font-weight: 800; background: color-mix(in srgb, #10b981 calc(var(--heat, 0.2) * 32%), #fff); }
 .po-vg-cell.is-foot { color: var(--po-muted); font-weight: 700; font-size: 0.7rem; }

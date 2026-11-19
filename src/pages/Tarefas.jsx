@@ -13,7 +13,10 @@ import { applyStopStatusUpdateForLogTarget } from "../utils/taskTimerLifecycle";
 import FancySelect from "../components/FancySelect";
 import "./../styles/dashboard.css";
 import "../styles/tarefas.css";
+import { confirmar } from "../utils/dialogo";
+import { clicavel } from "../utils/clicavel";
 
+import AvisoToast from "../components/AvisoToast";
 const ModalPortal = ({ children }) => {
   return createPortal(children, document.body);
 };
@@ -803,7 +806,7 @@ export default function Tarefas() {
   };
 
   const handleDeleteTimeLog = async (logId) => {
-      if (!window.confirm("Apagar este registo de tempo?")) return;
+      if (!(await confirmar("Apagar este registo de tempo?", { perigoso: true, botao: "Apagar" }))) return;
       const { error } = await supabase.from("task_logs").delete().eq("id", logId);
       if (error) {
           showToast("Erro ao apagar registo.", "error");
@@ -1390,7 +1393,7 @@ export default function Tarefas() {
       { id: "tomorrow", title: "Amanhã", color: "#2563eb" },
       { id: "upcoming", title: "Próximas", color: "#059669" },
       { id: "no-date", title: "Sem prazo", color: "#64748b" },
-      { id: "completed", title: "Concluídas", color: "#94a3b8" }
+      { id: "completed", title: "Concluídas", color: "#64748b" }
   ];
 
   const kanbanStateColumns = [
@@ -1843,9 +1846,7 @@ export default function Tarefas() {
   return (
     <div className="page-container tk-page">
       {notification && (
-          <div className={`toast-container ${notification.type}`}>
-              {notification.type === 'success' ? '✅' : '⚠️'} {notification.message}
-          </div>
+          <AvisoToast tipo={notification.type} mensagem={notification.message} />
       )}
 
       {/* HERO */}
@@ -1871,7 +1872,7 @@ export default function Tarefas() {
           <div className="tk-hero-row tk-hero-actions-row">
               <div className="tk-hero-actions">
                   {activeTask && (
-                      <div onClick={focusActiveTaskLocation} title="Clica para ir para a tarefa/atividade em curso" className="tk-live">
+                      <div {...clicavel(focusActiveTaskLocation)} title="Clica para ir para a tarefa/atividade em curso" className="tk-live">
                           <span className="tk-live-dot" />
                           <span className="tk-live-title">{timerTitle.length > 32 ? `${timerTitle.slice(0, 32)}...` : timerTitle}</span>
                           <button type="button" onClick={openStopNoteModal} className="tk-live-stop"><Icons.Stop /> Parar</button>
@@ -1895,7 +1896,7 @@ export default function Tarefas() {
               <Icons.Search size={15} />
               <input
                   type="text"
-                  placeholder="Procurar tarefa, atividade, projeto, cliente..."
+                  placeholder="Procurar tarefa, atividade, projeto, cliente…"
                   value={busca}
                   onChange={(e) => {
                       setBusca(e.target.value);
@@ -1907,8 +1908,8 @@ export default function Tarefas() {
 
           {isAdmin && (
               <>
-                  <FancySelect value={filtroCliente} onChange={setFiltroCliente} options={clientFilterOptions} className="tk-filter" searchPlaceholder="Procurar cliente..." ariaLabel="Filtrar por cliente" />
-                  <FancySelect value={filtroProjeto} onChange={setFiltroProjeto} options={projectFilterOptions} className="tk-filter" searchPlaceholder="Procurar projeto..." ariaLabel="Filtrar por projeto" menuWidth={360} />
+                  <FancySelect value={filtroCliente} onChange={setFiltroCliente} options={clientFilterOptions} className="tk-filter" searchPlaceholder="Procurar cliente…" ariaLabel="Filtrar por cliente" />
+                  <FancySelect value={filtroProjeto} onChange={setFiltroProjeto} options={projectFilterOptions} className="tk-filter" searchPlaceholder="Procurar projeto…" ariaLabel="Filtrar por projeto" menuWidth={360} />
               </>
           )}
 
@@ -1992,7 +1993,7 @@ export default function Tarefas() {
                                         <header className="tk-ativ-head">
                                             {renderCheck('atividades', ativ, { shape: 'square', noun: 'atividade' })}
                                             <div className="tk-ativ-titles">
-                                                <h3 onClick={() => handleEdit(ativ, 'atividade')} title="Editar atividade"><span className="tk-strike">{ativ.titulo}</span></h3>
+                                                <h3 {...clicavel(() => handleEdit(ativ, 'atividade'))} title="Editar atividade"><span className="tk-strike">{ativ.titulo}</span></h3>
                                                 <div className="tk-chips">
                                                     {renderStatusTag(ativ.estado)}
                                                     {renderDeadline(ativ.data_fim, isAtivCompleted)}
@@ -2065,7 +2066,7 @@ export default function Tarefas() {
                                                                         ))}
                                                                         <form onSubmit={(e) => handleAddSubtarefa(e, tar.id)} className="tk-add is-step">
                                                                             <Icons.Plus size={12} />
-                                                                            <input type="text" placeholder="Novo passo (Enter)" value={novaSubtarefaNome.tarId === tar.id ? novaSubtarefaNome.nome : ""} onChange={e => setNovaSubtarefaNome({ tarId: tar.id, nome: e.target.value })} />
+                                                                            <input aria-label="Novo passo (Enter)" type="text" placeholder="Novo passo (Enter)" value={novaSubtarefaNome.tarId === tar.id ? novaSubtarefaNome.nome : ""} onChange={e => setNovaSubtarefaNome({ tarId: tar.id, nome: e.target.value })} />
                                                                         </form>
                                                                     </div>
                                                                 )}
@@ -2079,7 +2080,7 @@ export default function Tarefas() {
                                         {!isAtivCompleted && (
                                             <form onSubmit={(e) => handleAddTarefa(e, ativ.id)} className="tk-add">
                                                 <Icons.Plus size={14} />
-                                                <input type="text" placeholder="Adicionar tarefa (Enter)" value={novaTarefaNome.ativId === ativ.id ? novaTarefaNome.nome : ""} onChange={e => setNovaTarefaNome({ ativId: ativ.id, nome: e.target.value })} />
+                                                <input aria-label="Adicionar tarefa (Enter)" type="text" placeholder="Adicionar tarefa (Enter)" value={novaTarefaNome.ativId === ativ.id ? novaTarefaNome.nome : ""} onChange={e => setNovaTarefaNome({ ativId: ativ.id, nome: e.target.value })} />
                                             </form>
                                         )}
                                     </article>
@@ -2151,12 +2152,12 @@ export default function Tarefas() {
                               <div className="tk-row-2">
                                   <div className="tk-field">
                                       <label>Colaborador</label>
-                                      <FancySelect value={timeLogForm.user_id} onChange={(v) => setTimeLogForm(prev => ({...prev, user_id: v}))} options={staffOptions} icon={<Icons.User size={14} />} className="tk-fs" placeholder="Selecionar..." searchPlaceholder="Procurar colaborador..." ariaLabel="Colaborador" />
+                                      <FancySelect value={timeLogForm.user_id} onChange={(v) => setTimeLogForm(prev => ({...prev, user_id: v}))} options={staffOptions} icon={<Icons.User size={14} />} className="tk-fs" placeholder="Selecionar…" searchPlaceholder="Procurar colaborador…" ariaLabel="Colaborador" />
                                   </div>
                                   <div className="tk-field">
                                       <label>Tempo</label>
                                       <div className="tk-input-suffix">
-                                          <input className="tk-input" type="number" min="1" value={timeLogForm.duration_minutes} onChange={(e) => setTimeLogForm(prev => ({...prev, duration_minutes: e.target.value}))} required placeholder="Ex: 45" />
+                                          <input aria-label="Tempo" className="tk-input" type="number" min="1" value={timeLogForm.duration_minutes} onChange={(e) => setTimeLogForm(prev => ({...prev, duration_minutes: e.target.value}))} required placeholder="Ex: 45" />
                                           <span>min</span>
                                       </div>
                                       <small className="tk-hint">= {formatTime(Math.max(0, parseInt(timeLogForm.duration_minutes || "0", 10) || 0))}</small>
@@ -2178,7 +2179,7 @@ export default function Tarefas() {
                                       options={getTargetOptions(timeLogForm.target_type).map((opt) => ({ value: opt.id, label: opt.label }))}
                                       icon={<Icons.ListTree size={14} />}
                                       className="tk-fs"
-                                      placeholder="Selecionar..."
+                                      placeholder="Selecionar…"
                                       menuWidth={480}
                                       ariaLabel="Item"
                                   />
@@ -2186,7 +2187,7 @@ export default function Tarefas() {
                               <div className="tk-form-actions">
                                   <button type="button" className="tk-btn" onClick={() => setShowTimeModal(false)}>Cancelar</button>
                                   <button type="submit" className="tk-btn is-primary" disabled={timeLogSaving || !timeLogForm.user_id || !timeLogForm.target_id}>
-                                      <Icons.Save size={15} /> {timeLogSaving ? 'A guardar...' : 'Guardar'}
+                                      <Icons.Save size={15} /> {timeLogSaving ? 'A guardar…' : 'Guardar'}
                                   </button>
                               </div>
                           </form>
@@ -2275,7 +2276,7 @@ export default function Tarefas() {
 
                     <div className="tk-field">
                         <label>Título <em>*</em></label>
-                        <input className="tk-input tk-input-title" type="text" value={form.titulo} onChange={e => setForm({...form, titulo: e.target.value})} required placeholder={`Nome ${editType === 'atividade' ? 'da atividade' : editType === 'subtarefa' ? 'do passo' : 'da tarefa'}...`} autoFocus={!editId} />
+                        <input aria-label="Título" className="tk-input tk-input-title" type="text" value={form.titulo} onChange={e => setForm({...form, titulo: e.target.value})} required placeholder={`Nome ${editType === 'atividade' ? 'da atividade' : editType === 'subtarefa' ? 'do passo' : 'da tarefa'}...`} autoFocus={!editId} />
                     </div>
 
                     <section className="tk-sec">
@@ -2294,8 +2295,8 @@ export default function Tarefas() {
                                         options={parentActivityOptions}
                                         icon={<Icons.Folder size={14} />}
                                         className="tk-fs"
-                                        placeholder="Escolher atividade..."
-                                        searchPlaceholder="Procurar atividade ou projeto..."
+                                        placeholder="Escolher atividade…"
+                                        searchPlaceholder="Procurar atividade ou projeto…"
                                         menuWidth={520}
                                         ariaLabel="Atividade"
                                     />
@@ -2313,8 +2314,8 @@ export default function Tarefas() {
                                     options={responsavelOptions}
                                     icon={<Icons.User size={14} />}
                                     className="tk-fs"
-                                    placeholder="Selecionar..."
-                                    searchPlaceholder="Procurar pessoa..."
+                                    placeholder="Selecionar…"
+                                    searchPlaceholder="Procurar pessoa…"
                                     menuWidth={360}
                                     ariaLabel="Responsável principal"
                                 />
@@ -2466,7 +2467,7 @@ export default function Tarefas() {
                                     <div className="tk-row-2 is-wide-first">
                                         <div className="tk-field">
                                             <label>Nome / tipo de documento</label>
-                                            <input className="tk-input" type="text" placeholder="Ex: Relatório final PDF" value={form.nome_entregavel || ''} onChange={e => setForm({...form, nome_entregavel: e.target.value})} />
+                                            <input aria-label="Nome / tipo de documento" className="tk-input" type="text" placeholder="Ex: Relatório final PDF" value={form.nome_entregavel || ''} onChange={e => setForm({...form, nome_entregavel: e.target.value})} />
                                         </div>
                                         <div className="tk-field">
                                             <label>Data p/ entrega</label>
@@ -2491,7 +2492,7 @@ export default function Tarefas() {
                                             <span className="tk-drop-icon">{fileToUpload ? <Icons.FileText size={22} /> : <Icons.UploadCloud size={22} />}</span>
                                             <span className="tk-drop-text">
                                                 <strong>{fileToUpload ? fileToUpload.name : 'Arrasta um ficheiro ou clica para escolher'}</strong>
-                                                <em>{fileToUpload ? 'Vai ser enviado quando guardares.' : 'PDF, Excel, Word...'}</em>
+                                                <em>{fileToUpload ? 'Vai ser enviado quando guardares.' : 'PDF, Excel, Word…'}</em>
                                             </span>
                                             <input type="file" onChange={(e) => applyDeliverableFile(e.target.files?.[0] || null)} hidden />
                                         </label>
@@ -2504,7 +2505,7 @@ export default function Tarefas() {
                     {editType !== 'subtarefa' && (
                         <section className="tk-sec">
                             <h4><Icons.FileText size={14} /> Detalhes & notas</h4>
-                            <textarea className="tk-input tk-notes" rows="3" value={form.descricao} onChange={e => setForm({...form, descricao: e.target.value})} placeholder="Links, notas, informações úteis..." />
+                            <textarea aria-label="Links, notas, informações úteis" className="tk-input tk-notes" rows="3" value={form.descricao} onChange={e => setForm({...form, descricao: e.target.value})} placeholder="Links, notas, informações úteis…" />
                         </section>
                     )}
 
@@ -2549,7 +2550,7 @@ export default function Tarefas() {
                         <div className="tk-foot-actions">
                             <button type="button" className="tk-btn" onClick={() => setShowModal(false)}>Cancelar</button>
                             <button type="submit" className="tk-btn is-primary" disabled={isUploading}>
-                                {isUploading ? 'A carregar...' : editId ? <><Icons.Save size={15} /> Guardar alterações</> : <><Icons.Plus size={15} /> Criar</>}
+                                {isUploading ? 'A carregar…' : editId ? <><Icons.Save size={15} /> Guardar alterações</> : <><Icons.Plus size={15} /> Criar</>}
                             </button>
                         </div>
                     )}

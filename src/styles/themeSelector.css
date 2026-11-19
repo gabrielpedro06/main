@@ -160,7 +160,7 @@
 .ts-switch-text { display: flex; flex-direction: column; }
 .ts-switch-text strong { font-size: 0.88rem; font-weight: 800; color: var(--ts-ink); }
 .ts-switch-text em { font-style: normal; font-size: 0.76rem; color: var(--ts-sub); }
-.ts-foot-note { font-size: 0.76rem; color: #94a3b8; }
+.ts-foot-note { font-size: 0.76rem; color: #64748b; }
 
 @keyframes tsFade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @keyframes tsRise { from { opacity: 0; transform: translateY(10px) scale(0.98); } to { opacity: 1; transform: none; } }

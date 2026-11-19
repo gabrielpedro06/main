@@ -20,6 +20,7 @@ import { I } from "../components/marketing/mkIcons";
 import { ETAPAS, ETAPAS_ANTES_AGENDAR, ETAPA_INICIAL, estadoInfo, canalInfo, CANAIS, prioridadeInfo, avaliacaoInfo } from "../constants/marketing";
 import { fmtData, diasAte, norm } from "../components/marketing/mkUtils";
 import "../styles/marketing.css";
+import { clicavel } from "../utils/clicavel";
 
 const LS_MARCA = "bizin-mk-marca";
 const lerLS = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
@@ -515,7 +516,7 @@ export default function Marketing() {
                 <MarcaLogo marca={m} size={20} />{m.nome}<em>{contagemMarcas[m.id] || 0}</em>
               </button>
             ))}
-            <button type="button" className="mk-brands-gear" onClick={() => setGerirMarcas(true)} title="Gerir marcas"><I.Settings size={16} /></button>
+            <button aria-label="Gerir marcas" type="button" className="mk-brands-gear" onClick={() => setGerirMarcas(true)} title="Gerir marcas"><I.Settings size={16} /></button>
           </div>
           <div className="mk-hero-stats">
             <span className="mk-stat"><strong>{stats.emCurso}</strong> em curso</span>
@@ -610,7 +611,7 @@ export default function Marketing() {
                   <h3>{etapa.label}</h3>
                   <em>{lista.length}</em>
                   <span className="mk-spacer" />
-                  <button type="button" className="mk-icon-btn is-sm" title={`Novo em ${etapa.label}`} onClick={() => criar({ estado: etapa.id })}><I.Plus size={15} /></button>
+                  <button aria-label={`Novo em ${etapa.label}`} type="button" className="mk-icon-btn is-sm" title={`Novo em ${etapa.label}`} onClick={() => criar({ estado: etapa.id })}><I.Plus size={15} /></button>
                 </header>
                 <div className="mk-col-body">
                   {lista.map((it) => (
@@ -705,7 +706,7 @@ export default function Marketing() {
               {ideias.map((it, i) => {
                 const autor = pessoa(it.created_by);
                 return (
-                  <article key={it.id} className="mk-idea" style={{ animationDelay: `${Math.min(i, 12) * 30}ms` }} onClick={() => setAbertoId(it.id)}>
+                  <article key={it.id} className="mk-idea" style={{ animationDelay: `${Math.min(i, 12) * 30}ms` }} {...clicavel(() => setAbertoId(it.id))}>
                     {(avaliacaoInfo(it.avaliacao) || prioridadeInfo(it.prioridade)) && (
                       <div className="mk-idea-badges">
                         {prioridadeInfo(it.prioridade) && <span className="mk-prio" style={{ "--c": prioridadeInfo(it.prioridade).cor }}><I.Flag size={12} sw={2.5} /> {prioridadeInfo(it.prioridade).label}</span>}
@@ -724,7 +725,7 @@ export default function Marketing() {
                       <Avatar pessoa={autor} size={22} />
                       <span>{autor?.nome?.split(" ")[0] || "—"} · {fmtData(it.created_at, { hora: false })}</span>
                       <span className="mk-spacer" />
-                      <button type="button" className="mk-icon-btn is-sm" title="Arquivar" onClick={(e) => { e.stopPropagation(); arquivar(it); }}><I.Archive size={14} /></button>
+                      <button aria-label="Arquivar" type="button" className="mk-icon-btn is-sm" title="Arquivar" onClick={(e) => { e.stopPropagation(); arquivar(it); }}><I.Archive size={14} /></button>
                       <button type="button" className="mk-btn is-soft is-sm" onClick={(e) => { e.stopPropagation(); patch(it.id, { estado: ETAPA_INICIAL, ordem: ordemAgora() }); avisar("Passou para o fluxo (Curadoria)."); }}>
                         Para o fluxo <I.ArrowRight size={13} />
                       </button>
@@ -742,7 +743,7 @@ export default function Marketing() {
           ) : arquivo.map((it) => {
             const antes = estadoInfo(it.estado_antes_arquivo || "ideia");
             return (
-              <div key={it.id} className="mk-arch-row" onClick={() => setAbertoId(it.id)}>
+              <div key={it.id} className="mk-arch-row" {...clicavel(() => setAbertoId(it.id))}>
                 <span className="mk-arch-dot" style={{ background: antes.cor }} />
                 <div className="mk-arch-main">
                   <b>{it.titulo || "Sem título"}</b>

@@ -6,6 +6,7 @@ import { supabase } from "../services/supabase";
 import WidgetCalendar from "./WidgetCalendar"; 
 import AccountMenu from "./AccountMenu";
 import "./../styles/dashboard.css";
+import { clicavel } from "../utils/clicavel";
 
 const logoFull = "/logo4.png"; 
 const logoIcon = "/logo3.png"; 
@@ -361,7 +362,7 @@ export default function Sidebar({ menuOpen, setMenuOpen, isMobile = false }) {
   const renderGroupHeader = (key, label) => {
     if (!showFull) return <div className="sidebar-divider" />;
     return (
-      <div className="sidebar-group-header" onClick={() => toggleGroup(key)}>
+      <div className="sidebar-group-header" {...clicavel(() => toggleGroup(key))}>
         <span>{label}</span>
         <span className={`chevron-icon ${openGroups[key] ? 'open' : ''}`}>
           <Icons.ChevronDown />
@@ -372,11 +373,11 @@ export default function Sidebar({ menuOpen, setMenuOpen, isMobile = false }) {
 
   return (
     <>
-      <aside className={`sidebar ${menuOpen ? "open" : "closed"} ${isMobile ? "is-mobile" : ""}`} style={{ display: 'flex', flexDirection: 'column', height: '100vh', zIndex: 100 }}>
+      <aside className={`sidebar ${menuOpen ? "open" : "closed"} ${isMobile ? "is-mobile" : ""}`} style={{ display: 'flex', flexDirection: 'column', height: '100vh', zIndex: "var(--z-app)" }}>
         
         {/* 💡 LOGO CONTAINER TRANSFORMA-SE NO BOTÃO DE TOGGLE */}
         <div 
-          onClick={() => setMenuOpen(!menuOpen)}
+          {...clicavel(() => setMenuOpen(!menuOpen))}
           className="logo-toggle-container"
         >
             <img 

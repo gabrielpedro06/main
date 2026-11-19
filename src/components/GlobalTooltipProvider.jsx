@@ -198,7 +198,7 @@ export default function GlobalTooltipProvider({ children }) {
                         left: tooltip.left,
                         top: tooltip.top,
                         transform: tooltip.placement === "top" ? "translate(-50%, -100%)" : "translate(-50%, 0)",
-                        zIndex: 12000,
+                        zIndex: "calc(var(--z-modal) + 11)",
                         pointerEvents: "none",
                         maxWidth: `${TOOLTIP_MAX_WIDTH}px`,
                         padding: "8px 10px",

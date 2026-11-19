@@ -61,10 +61,10 @@
 .fs-trigger.fs-glass .fs-caret { color: rgba(255, 255, 255, 0.75); }
 
 /* ---------- Menu ---------- */
-.fs-backdrop { position: fixed; inset: 0; z-index: 100040; }
+.fs-backdrop { position: fixed; inset: 0; z-index: calc(var(--z-modal-topo) + 3); }
 .fs-menu {
   position: fixed;
-  z-index: 100050;
+  z-index: calc(var(--z-modal-topo) + 4);
   display: flex;
   flex-direction: column;
   max-height: min(420px, 60vh);
@@ -90,7 +90,7 @@
   padding: 0 10px;
   border-radius: 11px;
   background: #f1f5f9;
-  color: #94a3b8;
+  color: #64748b;
 }
 .fs-search input {
   flex: 1;
@@ -112,7 +112,7 @@
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #94a3b8;
+  color: #64748b;
 }
 .fs-option {
   width: 100%;
@@ -147,14 +147,14 @@
 .fs-opt-hint {
   font-size: 0.72rem;
   font-weight: 600;
-  color: #94a3b8;
+  color: #64748b;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .fs-opt-check { display: flex; color: var(--color-btnPrimary); animation: fsCheck 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
 @keyframes fsCheck { from { transform: scale(0.3); } to { transform: scale(1); } }
-.fs-empty { padding: 18px 10px; text-align: center; font-size: 0.84rem; color: #94a3b8; }
+.fs-empty { padding: 18px 10px; text-align: center; font-size: 0.84rem; color: #64748b; }
 
 /* Ícones em "tile" para as opções */
 .fs-tile {

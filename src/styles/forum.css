@@ -1057,7 +1057,7 @@
   background: #fff;
   font: inherit; font-size: 0.85rem; font-weight: 700; color: var(--fx-muted);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease;
 }
 .fx-cat-option:hover { border-color: var(--cat); color: var(--cat-ink); }
 .fx-cat-option.is-on {
@@ -1482,7 +1482,7 @@
 }
 .fx-emoji-pop {
   position: absolute; bottom: calc(100% + 8px); left: 18px;
-  z-index: 100;
+  z-index: var(--z-app);
   border-radius: 16px;
   overflow: hidden;
   box-shadow: 0 24px 48px -16px rgba(15, 23, 42, 0.4);
@@ -1996,7 +1996,7 @@
   font-size: 0.75rem;
   font-weight: 800;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease;
 }
 .fx-pm-cat:hover { color: var(--cat-ink); }
 .fx-pm-cat.is-on {
@@ -2329,7 +2329,7 @@
   font-size: 0.82rem;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease;
 }
 .fx-me-link:hover { border-color: var(--color-btnPrimary); color: var(--color-btnPrimary); }
 .fx-me-link.is-on {

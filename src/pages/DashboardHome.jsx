@@ -19,7 +19,9 @@ import { useMedalhasEquipa } from "../components/medalhas/useMedalhas";
 import NotificationsPanel from "../components/NotificationsPanel";
 import AprovacaoModal from "../components/marketing/AprovacaoModal";
 import { TIPOS_NOTIF_MK } from "../components/marketing/mkAprovacao";
+import { clicavel } from "../utils/clicavel";
 
+import AvisoToast from "../components/AvisoToast";
 // --- MEGA ÍCONES SVG PROFISSIONAIS ---
 const Icons = {
   Home: ({ size = 20, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>,
@@ -480,7 +482,7 @@ export default function DashboardHome() {
           const activeRow = activeRows[0] || null;
           
           if (activeRow) {
-              let title = "Tempo a decorrer...";
+              let title = "Tempo a decorrer…";
               let foundProjectId = activeRow.projeto_id;
               let projName = "";
               let brandName = "";
@@ -555,7 +557,7 @@ export default function DashboardHome() {
 
   const getActiveTaskName = () => {
       if (!activeLog) return "";
-      return activeLog.taskTitle || "Tempo a decorrer...";
+      return activeLog.taskTitle || "Tempo a decorrer…";
   };
 
   async function handleStopGlobalLog(e, stopNote = "") {
@@ -1240,7 +1242,7 @@ export default function DashboardHome() {
   };
 
   const formatarHoras = (segundos) => {
-      if (segundos === 0) return <span style={{color: '#94a3b8', fontStyle: 'italic', fontSize: '0.75rem'}}>Em curso</span>;
+      if (segundos === 0) return <span style={{color: '#64748b', fontStyle: 'italic', fontSize: '0.75rem'}}>Em curso</span>;
       const horas = Math.floor(segundos / 3600);
       const minutos = Math.floor((segundos % 3600) / 60);
       return <span style={{fontWeight: 'bold', color: 'var(--color-btnPrimary)'}}>{horas}h{minutos.toString().padStart(2, '0')}</span>;
@@ -1446,7 +1448,7 @@ export default function DashboardHome() {
 
           {/* FOCO DE HOJE / TIMER ATIVO */}
           {activeLog ? (
-            <div className="hx-focus hx-focus-live" onClick={navigateToActiveTask} title="Clica para ir para a tarefa">
+            <div className="hx-focus hx-focus-live" {...clicavel(navigateToActiveTask)} title="Clica para ir para a tarefa">
               <div className="hx-focus-head">
                 <span className="hx-live-dot" />
                 <span className="hx-focus-kicker">A trabalhar agora</span>
@@ -1522,7 +1524,7 @@ export default function DashboardHome() {
                     <div
                       key={`recent_${t.id}`}
                       className={`hx-resume-item ${isRunning ? 'is-running' : ''}`}
-                      onClick={() => navigateToTaskCard(t)}
+                      {...clicavel(() => navigateToTaskCard(t))}
                     >
                       <div className="hx-resume-top">
                         <span className="hx-resume-client" title={t.clientLabel}>{t.clientLabel}</span>
@@ -1531,7 +1533,7 @@ export default function DashboardHome() {
                       <div className="hx-resume-title" title={t.titulo}>{t.titulo}</div>
                       <div className="hx-resume-bottom">
                         <span className="hx-resume-parent" title={t.parentTitle}>{t.parentTitle}</span>
-                        <button
+                        <button aria-label={isRunning ? 'Parar temporizador' : 'Retomar temporizador'}
                           type="button"
                           className={`hx-play ${isRunning ? 'is-running' : ''}`}
                           onClick={(e) => handleStartTaskFromHome(t, e)}
@@ -1588,7 +1590,7 @@ export default function DashboardHome() {
                         key={t.id}
                         className={`hx-task hx-task-${tone} ${isRunning ? 'is-running' : ''}`}
                         style={{ '--i': idx }}
-                        onClick={() => navigateToTaskCard(t)}
+                        {...clicavel(() => navigateToTaskCard(t))}
                       >
                         <span className="hx-task-bar" aria-hidden="true" />
                         <div className="hx-task-main">
@@ -1610,7 +1612,7 @@ export default function DashboardHome() {
                             ? <span className="hx-deadline hx-deadline-review">Em análise</span>
                             : renderDeadlineChip(t.computedDeadline)}
                           {homeTab !== 'analise' && (
-                            <button
+                            <button aria-label={isRunning ? 'Parar temporizador' : 'Iniciar temporizador'}
                               type="button"
                               className={`hx-play ${isRunning ? 'is-running' : ''}`}
                               onClick={(e) => handleStartTaskFromHome(t, e)}
@@ -1741,7 +1743,7 @@ export default function DashboardHome() {
       {/* ========================================================================= */}
       {showHistoryModal && (
         <ModalPortal>
-            <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999}} onClick={(e) => { if(e.target === e.currentTarget) setShowHistoryModal(false); }}>
+            <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: "calc(var(--z-modal) + 13)"}} onClick={(e) => { if(e.target === e.currentTarget) setShowHistoryModal(false); }}>
                 <div style={{background: '#fff', width: '95%', maxWidth: '900px', borderRadius: '16px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '90vh', animation: 'fadeIn 0.2s ease-out'}}>
                     
                     <div style={{padding: '20px 30px', borderBottom: '1px solid #e2e8f0', background: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px'}}>
@@ -1750,11 +1752,11 @@ export default function DashboardHome() {
                             <div>
                                 <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.2rem'}}>Histórico de Assiduidade</h3>
                                 <div style={{display: 'flex', alignItems: 'center', gap: '10px', marginTop: '5px'}}>
-                                    <button className="btn-small hover-shadow" onClick={() => { const d = new Date(historyDate); d.setMonth(d.getMonth() - 1); setHistoryDate(d); }}><Icons.ChevronLeft /></button>
+                                    <button aria-label="Mês anterior" className="btn-small hover-shadow" onClick={() => { const d = new Date(historyDate); d.setMonth(d.getMonth() - 1); setHistoryDate(d); }}><Icons.ChevronLeft /></button>
                                     <span style={{fontWeight: 'bold', color: '#475569', minWidth: '120px', textAlign: 'center'}}>
                                         {nomesMeses[historyDate.getMonth()]} {historyDate.getFullYear()}
                                     </span>
-                                    <button className="btn-small hover-shadow" onClick={() => { const d = new Date(historyDate); d.setMonth(d.getMonth() + 1); setHistoryDate(d); }}><Icons.ChevronRight /></button>
+                                    <button aria-label="Mês seguinte" className="btn-small hover-shadow" onClick={() => { const d = new Date(historyDate); d.setMonth(d.getMonth() + 1); setHistoryDate(d); }}><Icons.ChevronRight /></button>
                                 </div>
                             </div>
                         </div>
@@ -1769,7 +1771,7 @@ export default function DashboardHome() {
                                 <Icons.Plus /> Inserir Registo
                             </button>
                             
-                            <button onClick={() => setShowHistoryModal(false)} style={{background:'transparent', border:'none', cursor:'pointer', color:'#94a3b8', marginLeft: '10px'}} className="hover-red-text"><Icons.Close size={20} /></button>
+                            <button aria-label="Fechar" onClick={() => setShowHistoryModal(false)} style={{background:'transparent', border:'none', cursor:'pointer', color:'#64748b', marginLeft: '10px'}} className="hover-red-text"><Icons.Close size={20} /></button>
                         </div>
                     </div>
 
@@ -1816,7 +1818,7 @@ export default function DashboardHome() {
                                                 
                                                 <div style={{flex: 2, minWidth: '200px'}}>
                                                     <label style={{fontSize: '0.75rem', fontWeight: 'bold', color: '#ea580c'}}>Motivo (Obrigatório) *</label>
-                                                    <input type="text" placeholder="Ex: Fui ao médico e não piquei..." value={addForm.motivo_alteracao} onChange={e => setAddForm({...addForm, motivo_alteracao: e.target.value})} style={{...inputEditStyle, borderColor: '#fdba74', background: '#fff7ed'}} className="input-focus-alert" required />
+                                                    <input aria-label="Motivo (Obrigatório)" type="text" placeholder="Ex: Fui ao médico e não piquei…" value={addForm.motivo_alteracao} onChange={e => setAddForm({...addForm, motivo_alteracao: e.target.value})} style={{...inputEditStyle, borderColor: '#fdba74', background: '#fff7ed'}} className="input-focus-alert" required />
                                                 </div>
 
                                                 <div style={{display: 'flex', alignItems: 'flex-end', gap: '10px'}}>
@@ -1829,7 +1831,7 @@ export default function DashboardHome() {
                                 )}
 
                                 {fullHistory.length === 0 && !isAdding ? (
-                                    <tr><td colSpan="7" style={{textAlign: 'center', padding: '40px', color: '#94a3b8'}}>
+                                    <tr><td colSpan="7" style={{textAlign: 'center', padding: '40px', color: '#64748b'}}>
                                         <div style={{display: 'flex', justifyContent: 'center', marginBottom: '10px', opacity: 0.5}}><Icons.Calendar size={30} /></div>
                                         Nenhum registo neste mês.
                                     </td></tr>
@@ -1860,7 +1862,7 @@ export default function DashboardHome() {
                                                 </td>
 
                                                 <td style={{padding: '12px 15px', textAlign: 'right'}}>
-                                                    <button onClick={() => handleStartEdit(r)} style={{background: 'transparent', border: 'none', color: 'var(--color-btnPrimary)', cursor: 'pointer', padding: '4px'}} className="hover-text-blue" title="Editar este registo">
+                                                    <button aria-label="Editar este registo" onClick={() => handleStartEdit(r)} style={{background: 'transparent', border: 'none', color: 'var(--color-btnPrimary)', cursor: 'pointer', padding: '4px'}} className="hover-text-blue" title="Editar este registo">
                                                         <Icons.Edit size={16} />
                                                     </button>
                                                 </td>
@@ -1885,12 +1887,12 @@ export default function DashboardHome() {
                                                             
                                                             <div style={{flex: 2, minWidth: '200px'}}>
                                                                 <label style={{fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--color-btnPrimaryHover)'}}>Tarefas Realizadas / Resumo do Dia</label>
-                                                                <textarea rows="5" value={editForm.observacoes || ""} onChange={e => setEditForm({...editForm, observacoes: e.target.value})} placeholder="O que foi feito..." style={{...inputEditStyle, resize:'vertical'}} className="input-focus" />
+                                                                <textarea aria-label="Tarefas Realizadas / Resumo do Dia" rows="5" value={editForm.observacoes || ""} onChange={e => setEditForm({...editForm, observacoes: e.target.value})} placeholder="O que foi feito…" style={{...inputEditStyle, resize:'vertical'}} className="input-focus" />
                                                             </div>
 
                                                             <div style={{flex: 2, minWidth: '200px'}}>
                                                                 <label style={{fontSize: '0.75rem', fontWeight: 'bold', color: '#ea580c'}}>Motivo da Correção *</label>
-                                                                <input type="text" placeholder="Ex: Esqueci de picar saída" value={editForm.motivo_alteracao} onChange={e => setEditForm({...editForm, motivo_alteracao: e.target.value})} style={{...inputEditStyle, borderColor: '#fdba74', background: '#fff7ed'}} className="input-focus-alert" required />
+                                                                <input aria-label="Motivo da Correção" type="text" placeholder="Ex: Esqueci de picar saída" value={editForm.motivo_alteracao} onChange={e => setEditForm({...editForm, motivo_alteracao: e.target.value})} style={{...inputEditStyle, borderColor: '#fdba74', background: '#fff7ed'}} className="input-focus-alert" required />
                                                             </div>
 
                                                             <div style={{display: 'flex', alignItems: 'flex-end', gap: '10px'}}>
@@ -1915,7 +1917,7 @@ export default function DashboardHome() {
       {/* --- POP-UP AVISO CC EXPIRAR --- */}
       {ccWarning.show && (
           <ModalPortal>
-              <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999}}>
+              <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: "calc(var(--z-modal) + 13)"}}>
                   <div style={{background: '#fff', borderRadius: '16px', width: '90%', maxWidth: '450px', padding: '24px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', animation: 'fadeIn 0.3s ease-out'}}>
                       
                       <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px'}}>
@@ -1958,12 +1960,12 @@ export default function DashboardHome() {
           </ModalPortal>
       )}
 
-      {notification && <div className={`toast-container ${notification.type}`}>{notification.type === 'success' ? '✅' : '⚠️'} {notification.message}</div>}
+      {notification && <AvisoToast tipo={notification.type} mensagem={notification.message} />}
 
       {/* --- POP-UP DE PARABÉNS 🎉 --- */}
       {showBirthdayPopup && (
         <ModalPortal>
-            <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.8)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999}}>
+            <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.8)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: "calc(var(--z-modal) + 13)"}}>
                 <div style={{background: 'linear-gradient(135deg, #ffffff, #fef3c7)', borderRadius: '24px', width: '90%', maxWidth: '400px', padding: '40px 20px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', position: 'relative', overflow: 'hidden', animation: 'fadeIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)'}}>
                     <div style={{display: 'flex', justifyContent: 'center', color: '#f59e0b', marginBottom: '15px', animation: 'bounce 2s infinite'}}><Icons.Gift /></div>
                     <h2 style={{margin: '0 0 10px 0', color: '#b45309', fontSize: '2rem'}}>Parabéns, {userFirstName}!</h2>
@@ -1985,7 +1987,7 @@ export default function DashboardHome() {
       {/* --- MODAL DE ALERTA --- */}
       {alertModal.show && (
           <ModalPortal>
-              <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999}}>
+              <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: "calc(var(--z-modal) + 13)"}}>
                   <div style={{background: '#fff', borderRadius: '16px', width: '90%', maxWidth: '400px', padding: '24px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'}}>
                       <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px', color: '#ef4444'}}><Icons.AlertTriangle size={48} /></div>
                       <h3 style={{margin: '0 0 10px 0', color: '#1e293b'}}>Atenção</h3>

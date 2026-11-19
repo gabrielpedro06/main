@@ -317,7 +317,7 @@
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--ag-faint);
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease;
 }
 .ag-col.is-over .ag-col-empty { border-color: var(--c2); color: var(--c-ink); background: #fff; }
 
@@ -376,7 +376,7 @@
   background: transparent;
   color: transparent;
   cursor: pointer;
-  transition: all 0.2s ease, transform 0.25s var(--ag-spring);
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease, transform 0.25s var(--ag-spring);
 }
 .ag-check:hover { border-color: #22c55e; color: #22c55e; background: #f0fdf4; transform: scale(1.1); }
 .ag-check.is-on { border-color: transparent; background: #22c55e; color: #fff; animation: agCheck 0.4s var(--ag-spring); }
@@ -570,7 +570,7 @@
   background: #f1f5f9;
   color: #64748b;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease;
 }
 .ag-close:hover { background: #fef2f2; color: #ef4444; transform: rotate(90deg); }
 
@@ -651,7 +651,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.ag-done-meta { display: flex; align-items: center; gap: 6px; font-size: 0.74rem; color: #94a3b8; }
+.ag-done-meta { display: flex; align-items: center; gap: 6px; font-size: 0.74rem; color: #64748b; }
 .ag-done-meta i { width: 3px; height: 3px; border-radius: 50%; background: #cbd5e1; }
 .ag-done-actions { display: flex; align-items: center; gap: 4px; }
 .ag-restore {
@@ -668,7 +668,7 @@
   font-weight: 800;
   color: var(--color-btnPrimary);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease;
 }
 .ag-restore:hover { border-color: var(--color-btnPrimary); background: var(--color-bgSecondary); }
 .ag-icon-danger {
@@ -683,7 +683,7 @@
   background: transparent;
   color: #94a3b8;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease;
 }
 .ag-icon-danger:hover { background: #fef2f2; color: #ef4444; }
 .ag-done-empty {
@@ -693,7 +693,7 @@
   gap: 10px;
   padding: 46px 0;
   font-size: 0.92rem;
-  color: #94a3b8;
+  color: #64748b;
 }
 .ag-done-empty span {
   width: 60px;
@@ -796,7 +796,7 @@
   background: transparent;
   color: var(--ag-faint);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease;
 }
 .ag-icon-btn:hover { background: var(--color-bgSecondary); color: var(--color-btnPrimary); }
 
@@ -1015,7 +1015,7 @@
   font-weight: 700;
   color: var(--ag-muted);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease;
 }
 .ag-date-chips button:hover { color: var(--ag-ink); background: #e8edf3; }
 .ag-date-chips button.is-on { background: var(--color-bgSecondary); border-color: var(--color-btnPrimary); color: var(--color-btnPrimary); }
@@ -1041,7 +1041,7 @@
   font-weight: 700;
   color: var(--ag-muted);
   cursor: pointer;
-  transition: all 0.2s ease, transform 0.2s var(--ag-spring);
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease, transform 0.2s var(--ag-spring);
 }
 .ag-share-chip:hover { border-color: #cbd5e1; color: var(--ag-ink); transform: translateY(-1px); }
 .ag-share-chip.is-on {
@@ -1134,7 +1134,7 @@
   border-radius: 10px;
   color: var(--ag-muted);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease;
 }
 .ag-doc-btn:hover { background: var(--color-bgSecondary); color: var(--color-btnPrimary); }
 
@@ -1153,7 +1153,7 @@
   font-weight: 800;
   color: var(--color-btnPrimary);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease;
 }
 .ag-dropzone small { margin-left: 4px; font-weight: 600; color: var(--ag-faint); }
 .ag-dropzone:hover { border-color: var(--color-btnPrimary); background: var(--color-bgSecondary); }
@@ -1262,7 +1262,7 @@
   font-weight: 800;
   color: var(--ag-muted);
   cursor: pointer;
-  transition: all 0.2s ease, transform 0.2s var(--ag-spring);
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease, transform 0.2s var(--ag-spring);
 }
 .ag-presets button:hover { background: #e8edf3; color: var(--ag-ink); transform: translateY(-1px); }
 .ag-presets button.is-on { background: #f5f3ff; border-color: #8b5cf6; color: #6d28d9; }

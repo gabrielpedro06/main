@@ -1404,7 +1404,7 @@ export default function AtivosTIDashboard() {
                       onChange={(e) => setQuery(e.target.value)}
                     />
                     {query ? (
-                      <button type="button" className="ti-search-clear" onClick={() => setQuery("")} title="Limpar pesquisa"><Icons.Close size={12} /></button>
+                      <button aria-label="Limpar pesquisa" type="button" className="ti-search-clear" onClick={() => setQuery("")} title="Limpar pesquisa"><Icons.Close size={12} /></button>
                     ) : (
                       <kbd>/</kbd>
                     )}
@@ -1482,7 +1482,7 @@ export default function AtivosTIDashboard() {
                         <span className="ti-list-cell"><GarantiaChip equip={e} compact /></span>
                         <span className="ti-list-cell"><StatusPill estado={e.estado} map={ESTADO_MAP_EQUIP} /></span>
                         <span className="ti-list-actions">
-                          <button type="button" className="ti-icon-btn" title="Editar" onClick={(ev) => { ev.stopPropagation(); handleEditar("equipamento", e); }}><Icons.Edit size={15} /></button>
+                          <button aria-label="Editar" type="button" className="ti-icon-btn" title="Editar" onClick={(ev) => { ev.stopPropagation(); handleEditar("equipamento", e); }}><Icons.Edit size={15} /></button>
                           <Icons.ChevronRight size={16} />
                         </span>
                       </div>
@@ -1576,7 +1576,7 @@ export default function AtivosTIDashboard() {
                                   }))}
                                   placeholder="Atribuir do stock…"
                                   menuWidth={360}
-                                  searchPlaceholder="Procurar no stock..."
+                                  searchPlaceholder="Procurar no stock…"
                                   ariaLabel="Atribuir equipamento do stock"
                                 />
                               </div>
@@ -1661,7 +1661,7 @@ export default function AtivosTIDashboard() {
                 <label className="ti-search">
                   <Icons.Search size={16} />
                   <input ref={searchRef} type="text" placeholder="Procurar por software, entidade ou fornecedor…" value={query} onChange={(e) => setQuery(e.target.value)} />
-                  {query ? <button type="button" className="ti-search-clear" onClick={() => setQuery("")} title="Limpar pesquisa"><Icons.Close size={12} /></button> : <kbd>/</kbd>}
+                  {query ? <button aria-label="Limpar pesquisa" type="button" className="ti-search-clear" onClick={() => setQuery("")} title="Limpar pesquisa"><Icons.Close size={12} /></button> : <kbd>/</kbd>}
                 </label>
                 <div className="ti-seg">
                   {[{ value: "todos", label: "Todos" }, ...ESTADOS_SOFTWARE].map((s) => (
@@ -1712,13 +1712,13 @@ export default function AtivosTIDashboard() {
                                 <Icons.Key size={13} />
                                 <code>{revealed[`sw-${item.id}`] ? item.licenca_chave : "•••••-•••••-•••••"}</code>
                                 <button type="button" className="ti-icon-btn is-sm" onClick={() => setRevealed((p) => ({ ...p, [`sw-${item.id}`]: !p[`sw-${item.id}`] }))} title={revealed[`sw-${item.id}`] ? "Ocultar" : "Mostrar"}>{revealed[`sw-${item.id}`] ? <Icons.EyeOff size={13} /> : <Icons.Eye size={13} />}</button>
-                                <button type="button" className="ti-icon-btn is-sm" onClick={() => handleCopyText(item.licenca_chave, "Chave de licença")} title="Copiar chave"><Icons.Copy size={13} /></button>
+                                <button aria-label="Copiar chave" type="button" className="ti-icon-btn is-sm" onClick={() => handleCopyText(item.licenca_chave, "Chave de licença")} title="Copiar chave"><Icons.Copy size={13} /></button>
                               </div>
                             )}
                             <div className="ti-sw-foot">
                               <span>{item.data_aquisicao ? `Aquisição ${fmtData(item.data_aquisicao)}` : item.fornecedor || "Sem fornecedor"}</span>
-                              <button type="button" className="ti-icon-btn" title="Editar" onClick={() => handleEditar("software", item)}><Icons.Edit size={15} /></button>
-                              <button type="button" className={`ti-icon-btn ${ativo ? "is-danger" : "is-ok"}`} title={ativo ? "Arquivar software" : "Reativar software"} onClick={() => handleToggleEstado("software", item)}><Icons.Power size={15} /></button>
+                              <button aria-label="Editar" type="button" className="ti-icon-btn" title="Editar" onClick={() => handleEditar("software", item)}><Icons.Edit size={15} /></button>
+                              <button aria-label={ativo ? "Arquivar software" : "Reativar software"} type="button" className={`ti-icon-btn ${ativo ? "is-danger" : "is-ok"}`} title={ativo ? "Arquivar software" : "Reativar software"} onClick={() => handleToggleEstado("software", item)}><Icons.Power size={15} /></button>
                             </div>
                           </article>
                         );
@@ -1747,7 +1747,7 @@ export default function AtivosTIDashboard() {
                 <label className="ti-search">
                   <Icons.Search size={16} />
                   <input ref={searchRef} type="text" placeholder="Procurar por plataforma, URL ou utilizador…" value={query} onChange={(e) => setQuery(e.target.value)} />
-                  {query ? <button type="button" className="ti-search-clear" onClick={() => setQuery("")} title="Limpar pesquisa"><Icons.Close size={12} /></button> : <kbd>/</kbd>}
+                  {query ? <button aria-label="Limpar pesquisa" type="button" className="ti-search-clear" onClick={() => setQuery("")} title="Limpar pesquisa"><Icons.Close size={12} /></button> : <kbd>/</kbd>}
                 </label>
                 <div className="ti-seg">
                   {[{ value: "todos", label: "Todos", n: acessos.length }, { value: "ativo", label: "Ativos", n: acessos.filter((a) => (a.estado || "ativo") === "ativo").length }, { value: "revisao", label: "A rever", n: totalAcessosProblema }].map((s) => (
@@ -1780,20 +1780,20 @@ export default function AtivosTIDashboard() {
                               <div className="ti-ac-row">
                                 <span>Utilizador</span>
                                 <code>{a.username}</code>
-                                <button type="button" className="ti-icon-btn is-sm" title="Copiar utilizador" onClick={() => handleCopyText(a.username, "Utilizador")}><Icons.Copy size={13} /></button>
+                                <button aria-label="Copiar utilizador" type="button" className="ti-icon-btn is-sm" title="Copiar utilizador" onClick={() => handleCopyText(a.username, "Utilizador")}><Icons.Copy size={13} /></button>
                               </div>
                               <div className="ti-ac-row is-pass">
                                 <span>Palavra-passe</span>
                                 <code>{visible ? (senhas[a.id] || "—") : (a.tem_palavra_passe ? "••••••••••••" : "—")}</code>
-                                <button type="button" className="ti-icon-btn is-sm" onClick={() => alternarSenha(a)} title={visible ? "Ocultar" : "Mostrar"}>{visible ? <Icons.EyeOff size={13} /> : <Icons.Eye size={13} />}</button>
-                                <button type="button" className="ti-icon-btn is-sm" title="Copiar palavra-passe" onClick={() => handleCopyPassword(a)}><Icons.Copy size={13} /></button>
+                                <button aria-label={visible ? "Ocultar" : "Mostrar"} type="button" className="ti-icon-btn is-sm" onClick={() => alternarSenha(a)} title={visible ? "Ocultar" : "Mostrar"}>{visible ? <Icons.EyeOff size={13} /> : <Icons.Eye size={13} />}</button>
+                                <button aria-label="Copiar palavra-passe" type="button" className="ti-icon-btn is-sm" title="Copiar palavra-passe" onClick={() => handleCopyPassword(a)}><Icons.Copy size={13} /></button>
                               </div>
                             </div>
                             <div className="ti-ac-foot">
                               {a.url && <a className="ti-btn is-soft is-sm" href={a.url} target="_blank" rel="noopener noreferrer"><Icons.External size={13} /> Abrir</a>}
                               <span className="ti-spacer" />
-                              <button type="button" className="ti-icon-btn" title="Editar" onClick={() => handleEditar("acesso", a)}><Icons.Edit size={15} /></button>
-                              <button type="button" className={`ti-icon-btn ${inativo ? "is-ok" : "is-danger"}`} title={inativo ? "Reativar acesso" : "Marcar como inativo"} onClick={() => handleToggleEstado("acesso", a)}><Icons.Power size={15} /></button>
+                              <button aria-label="Editar" type="button" className="ti-icon-btn" title="Editar" onClick={() => handleEditar("acesso", a)}><Icons.Edit size={15} /></button>
+                              <button aria-label={inativo ? "Reativar acesso" : "Marcar como inativo"} type="button" className={`ti-icon-btn ${inativo ? "is-ok" : "is-danger"}`} title={inativo ? "Reativar acesso" : "Marcar como inativo"} onClick={() => handleToggleEstado("acesso", a)}><Icons.Power size={15} /></button>
                             </div>
                           </article>
                         );
@@ -1872,7 +1872,7 @@ export default function AtivosTIDashboard() {
                                 }))}
                                 placeholder="Escolher colaborador…"
                                 menuWidth={320}
-                                searchPlaceholder="Procurar colaborador..."
+                                searchPlaceholder="Procurar colaborador…"
                                 ariaLabel="Atribuir a colaborador"
                               />
                               <button type="button" className="ti-icon-btn" onClick={() => setAssignOpen(false)} aria-label="Cancelar"><Icons.Close size={14} /></button>
@@ -2027,12 +2027,12 @@ export default function AtivosTIDashboard() {
                           </div>
                           <div className="ti-field">
                             <label>Modelo</label>
-                            <input type="text" required value={formEquip.modelo} onChange={(e) => setFormEquip({ ...formEquip, modelo: e.target.value })} className="ti-input" placeholder="Ex: Lenovo ThinkPad T14" />
+                            <input aria-label="Modelo" type="text" required value={formEquip.modelo} onChange={(e) => setFormEquip({ ...formEquip, modelo: e.target.value })} className="ti-input" placeholder="Ex: Lenovo ThinkPad T14" />
                           </div>
                         </div>
                         <div className="ti-field">
                           <label>Descrição<span className="ti-optional">(opcional)</span></label>
-                          <input type="text" value={formEquip.nome_pc} onChange={(e) => setFormEquip({ ...formEquip, nome_pc: e.target.value })} className="ti-input" placeholder="Ex: PC-RECECAO, 16GB RAM…" />
+                          <input aria-label="Descrição(opcional)" type="text" value={formEquip.nome_pc} onChange={(e) => setFormEquip({ ...formEquip, nome_pc: e.target.value })} className="ti-input" placeholder="Ex: PC-RECECAO, 16GB RAM…" />
                         </div>
                       </section>
 
@@ -2053,7 +2053,7 @@ export default function AtivosTIDashboard() {
                               ...utilizadoresOrdenados.map((u) => ({ value: u.id, label: u.nome, icon: <Avatar nome={u.nome} url={u.avatar_url} size={22} /> })),
                             ]}
                             menuWidth={320}
-                            searchPlaceholder="Procurar colaborador..."
+                            searchPlaceholder="Procurar colaborador…"
                             ariaLabel="Colaborador"
                           />
                         </div>
@@ -2143,7 +2143,7 @@ export default function AtivosTIDashboard() {
                           </div>
                           <div className="ti-field">
                             <label>Nome</label>
-                            <input type="text" required value={formSoftware.nome} onChange={(e) => setFormSoftware({ ...formSoftware, nome: e.target.value })} placeholder="Ex: Windows 11 Pro" className="ti-input" />
+                            <input aria-label="Nome" type="text" required value={formSoftware.nome} onChange={(e) => setFormSoftware({ ...formSoftware, nome: e.target.value })} placeholder="Ex: Windows 11 Pro" className="ti-input" />
                           </div>
                         </div>
                         <div className="ti-fgrid is-2">
@@ -2205,22 +2205,22 @@ export default function AtivosTIDashboard() {
                       <h4>Acesso</h4>
                       <div className="ti-field">
                         <label>Nome da plataforma / sistema</label>
-                        <input type="text" required value={formAcesso.nome_plataforma} onChange={(e) => setFormAcesso({ ...formAcesso, nome_plataforma: e.target.value })} placeholder="Ex: WordPress Empresa" className="ti-input" />
+                        <input aria-label="Nome da plataforma / sistema" type="text" required value={formAcesso.nome_plataforma} onChange={(e) => setFormAcesso({ ...formAcesso, nome_plataforma: e.target.value })} placeholder="Ex: WordPress Empresa" className="ti-input" />
                       </div>
                       <div className="ti-field">
                         <label>URL de acesso</label>
-                        <input type="url" required value={formAcesso.url} onChange={(e) => setFormAcesso({ ...formAcesso, url: e.target.value })} placeholder="Ex: https://site.pt/admin" className="ti-input" />
+                        <input aria-label="URL de acesso" type="url" required value={formAcesso.url} onChange={(e) => setFormAcesso({ ...formAcesso, url: e.target.value })} placeholder="Ex: https://site.pt/admin" className="ti-input" />
                       </div>
                       <div className="ti-fgrid is-2">
                         <div className="ti-field">
                           <label>Utilizador / Email</label>
-                          <input type="text" required value={formAcesso.username} onChange={(e) => setFormAcesso({ ...formAcesso, username: e.target.value })} placeholder="admin@…" className="ti-input" />
+                          <input aria-label="Utilizador / Email" type="text" required value={formAcesso.username} onChange={(e) => setFormAcesso({ ...formAcesso, username: e.target.value })} placeholder="admin@…" className="ti-input" />
                         </div>
                         <div className="ti-field">
                           <label>{editingId ? "Nova palavra-passe (em branco = manter)" : "Palavra-passe"}</label>
                           <div className="ti-input-wrap">
                             <input type={showFormPass ? "text" : "password"} required={!editingId} autoComplete="new-password" value={formAcesso.password} onChange={(e) => setFormAcesso({ ...formAcesso, password: e.target.value })} placeholder={editingId ? "••••••••  (mantém a atual)" : "Introduza a palavra-passe"} className="ti-input is-mono" />
-                            <button type="button" className="ti-icon-btn is-sm" onClick={() => setShowFormPass((v) => !v)} title={showFormPass ? "Ocultar" : "Mostrar"}>{showFormPass ? <Icons.EyeOff size={14} /> : <Icons.Eye size={14} />}</button>
+                            <button aria-label={showFormPass ? "Ocultar" : "Mostrar"} type="button" className="ti-icon-btn is-sm" onClick={() => setShowFormPass((v) => !v)} title={showFormPass ? "Ocultar" : "Mostrar"}>{showFormPass ? <Icons.EyeOff size={14} /> : <Icons.Eye size={14} />}</button>
                           </div>
                         </div>
                       </div>

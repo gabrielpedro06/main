@@ -72,7 +72,7 @@
 .ti-spinner { width: 22px; height: 22px; border-radius: 50%; border: 2.5px solid #e2e8f0; border-top-color: var(--color-btnPrimary); animation: tiSpin 0.8s linear infinite; }
 @keyframes tiSpin { to { transform: rotate(360deg); } }
 
-.ti-toast { position: fixed; top: 20px; right: 20px; z-index: 100002; display: inline-flex; align-items: center; gap: 9px; max-width: min(90vw, 400px); padding: 12px 18px; border-radius: 14px; background: #0f172a; color: #fff; font-size: 0.86rem; font-weight: 700; box-shadow: 0 20px 40px -16px rgba(15, 23, 42, 0.6); animation: tiToast 0.35s var(--ti-spring) both; }
+.ti-toast { position: fixed; top: 20px; right: 20px; z-index: calc(var(--z-modal-topo) + 2); display: inline-flex; align-items: center; gap: 9px; max-width: min(90vw, 400px); padding: 12px 18px; border-radius: 14px; background: #0f172a; color: #fff; font-size: 0.86rem; font-weight: 700; box-shadow: 0 20px 40px -16px rgba(15, 23, 42, 0.6); animation: tiToast 0.35s var(--ti-spring) both; }
 .ti-toast > svg { color: #4ade80; flex-shrink: 0; }
 .ti-toast.is-error { background: #b91c1c; }
 .ti-toast.is-error > svg { color: #fff; }
@@ -340,7 +340,7 @@ button.ti-stat { cursor: pointer; }
 /* =========================================================================
    DETALHE (painel lateral)
    ========================================================================= */
-.ti-detail-overlay { position: fixed; inset: 0; z-index: 9990; display: flex; justify-content: flex-end; background: rgba(15, 23, 42, 0.35); backdrop-filter: blur(3px); animation: tiFade 0.2s ease both; color: var(--ti-text); }
+.ti-detail-overlay { position: fixed; inset: 0; z-index: calc(var(--z-modal) + 2); display: flex; justify-content: flex-end; background: rgba(15, 23, 42, 0.35); backdrop-filter: blur(3px); animation: tiFade 0.2s ease both; color: var(--ti-text); }
 .ti-detail { width: min(460px, 100vw); height: 100vh; display: flex; flex-direction: column; background: #f4f6f9; box-shadow: -30px 0 60px -30px rgba(15, 23, 42, 0.5); animation: tiSlide 0.4s var(--ti-ease) both; }
 @keyframes tiSlide { from { transform: translateX(60px); opacity: 0; } to { transform: none; opacity: 1; } }
 .ti-detail-head { position: relative; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 22px 22px 18px; color: #fff; background: radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--c) 70%, transparent), transparent 60%), linear-gradient(125deg, var(--color-sidebarBg) 0%, var(--color-sidebarBgSecondary) 100%); overflow: hidden; }
@@ -386,7 +386,7 @@ button.ti-stat { cursor: pointer; }
 /* =========================================================================
    FORMULÁRIO (drawer)
    ========================================================================= */
-.ti-overlay { position: fixed; inset: 0; z-index: 99999; display: flex; align-items: stretch; justify-content: flex-end; background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(5px); animation: tiFade 0.25s ease both; color: var(--ti-text); }
+.ti-overlay { position: fixed; inset: 0; z-index: calc(var(--z-modal) + 13); display: flex; align-items: stretch; justify-content: flex-end; background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(5px); animation: tiFade 0.25s ease both; color: var(--ti-text); }
 .ti-drawer { width: min(98vw, 600px); height: 100vh; display: flex; flex-direction: column; border-radius: 24px 0 0 24px; background: #f4f6f9; box-shadow: -30px 0 60px -30px rgba(15, 23, 42, 0.5); overflow: hidden; animation: tiSlide 0.45s var(--ti-ease) both; }
 .ti-drawer.is-closing { animation: tiSlideOut 0.3s ease forwards; }
 @keyframes tiSlideOut { to { transform: translateX(80px); opacity: 0; } }
@@ -443,7 +443,7 @@ button.ti-stat { cursor: pointer; }
 .ti-quick button:hover { background: color-mix(in srgb, var(--color-btnPrimary) 7%, #fff); }
 
 /* Confirmação */
-.ti-confirm-overlay { position: fixed; inset: 0; z-index: 100001; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(15, 23, 42, 0.55); backdrop-filter: blur(6px); animation: tiFade 0.2s ease both; }
+.ti-confirm-overlay { position: fixed; inset: 0; z-index: calc(var(--z-modal-topo) + 1); display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(15, 23, 42, 0.55); backdrop-filter: blur(6px); animation: tiFade 0.2s ease both; }
 .ti-confirm { width: min(420px, 100%); display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 28px 26px 22px; border-radius: 24px; background: #fff; text-align: center; box-shadow: 0 40px 80px -30px rgba(15, 23, 42, 0.55); animation: tiPop 0.3s var(--ti-ease) both; color: var(--ti-text); }
 .ti-confirm h3 { margin: 4px 0 0; font-size: 1.15rem; font-weight: 900; color: var(--ti-ink); }
 .ti-confirm p { margin: 0 0 10px; font-size: 0.9rem; color: var(--ti-muted); line-height: 1.5; }

@@ -3,7 +3,9 @@ import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import "./../styles/dashboard.css";
 import "../styles/templates.css";
+import { clicavel } from "../utils/clicavel";
 
+import AvisoToast from "./AvisoToast";
 // --- ÍCONES SVG (Premium & Minimalistas) ---
 const Icons = {
     Folder: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>,
@@ -653,7 +655,7 @@ export default function GestaoTemplates() {
                             onDragStart={() => handleDragStart(index)}
                             onDragEnter={() => handleDragEnter(index)}
                             onDragEnd={handleDragEndAtividades}
-                            onClick={() => setSelectedAtiv(a)}
+                            {...clicavel(() => setSelectedAtiv(a))}
                             className={`gm-etapa ${isSelected ? 'is-on' : ''}`}
                             style={{ '--i': Math.min(index, 12) }}
                         >
@@ -804,7 +806,7 @@ export default function GestaoTemplates() {
                           {modalConfig.tipo !== 'tipo_projeto' && (
                               <div className="gm-field">
                                   <label>Guia / Notas <em>(Opcional)</em></label>
-                                  <textarea className="gm-input is-note" value={inputDescricao} onChange={(e) => setInputDescricao(e.target.value)} rows="3" placeholder="Instruções ou procedimentos..." />
+                                  <textarea aria-label="Guia / Notas (Opcional)" className="gm-input is-note" value={inputDescricao} onChange={(e) => setInputDescricao(e.target.value)} rows="3" placeholder="Instruções ou procedimentos…" />
                               </div>
                           )}
 
@@ -875,7 +877,7 @@ export default function GestaoTemplates() {
 
                           <div className="gm-modal-foot">
                               <button type="button" onClick={closeModal} className="gm-btn">Cancelar</button>
-                              <button type="submit" disabled={isSubmitting} className="gm-btn is-primary">{isSubmitting ? 'A guardar...' : 'Guardar Alterações'}</button>
+                              <button type="submit" disabled={isSubmitting} className="gm-btn is-primary">{isSubmitting ? 'A guardar…' : 'Guardar Alterações'}</button>
                           </div>
                       </form>
                   </div>
@@ -900,7 +902,7 @@ export default function GestaoTemplates() {
           </ModalPortal>
       )}
 
-      {notification && <div className={`toast-container ${notification.type}`}>{notification.type === 'success' ? '✅' : '⚠️'} {notification.message}</div>}
+      {notification && <AvisoToast tipo={notification.type} mensagem={notification.message} />}
     </div>
   );
 }

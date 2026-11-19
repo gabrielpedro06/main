@@ -12,7 +12,9 @@ import { concludeActivityWithChildren } from "../utils/activityStatusCascade";
 import { applyStopStatusUpdateForLogTarget } from "../utils/taskTimerLifecycle";
 import "./../styles/dashboard.css";
 import "../styles/agenda.css";
+import { clicavel } from "../utils/clicavel";
 
+import AvisoToast from "../components/AvisoToast";
 // --- ÍCONES SVG PROFISSIONAIS (SaaS Premium) ---
 const Icons = {
   Kanban: ({ size = 24, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line></svg>,
@@ -960,7 +962,7 @@ export default function MinhasTarefas() {
               </button>
 
               <div className="ag-card-body">
-                  <h4 onClick={() => openEditModal(task)} className="ag-card-title">
+                  <h4 {...clicavel(() => openEditModal(task))} className="ag-card-title">
                       <span className="ag-card-title-text">{task.titulo}</span>
                   </h4>
 
@@ -1032,7 +1034,7 @@ export default function MinhasTarefas() {
                       <span className="ag-quick-icon"><Icons.Plus size={14} /></span>
                       <input
                           type="text"
-                          placeholder="Adicionar avulsa..."
+                          placeholder="Adicionar avulsa…"
                           value={newTasks[id] || ''}
                           onChange={e => setNewTasks({...newTasks, [id]: e.target.value})}
                       />
@@ -1100,13 +1102,13 @@ export default function MinhasTarefas() {
                   options={projectFilterOptions}
                   icon={<Icons.Folder size={14} />}
                   className="fs-glass ag-project-picker"
-                  searchPlaceholder="Procurar projeto..."
+                  searchPlaceholder="Procurar projeto…"
                   ariaLabel="Filtrar por projeto"
               />
 
               <div className="ag-hero-actions">
                   {activeLog && (
-                      <div onClick={openActiveTimerLocation} title="Clica para ir para a tarefa/atividade em curso" className="ag-live">
+                      <div {...clicavel(openActiveTimerLocation)} title="Clica para ir para a tarefa/atividade em curso" className="ag-live">
                           <span className="ag-live-dot" />
                           <span className="ag-live-title">{timerTitle.length > 30 ? `${timerTitle.slice(0, 30)}...` : timerTitle}</span>
                           <button type="button" onClick={openStopNoteModal} className="ag-live-stop"><Icons.Stop /> Parar</button>
@@ -1133,7 +1135,7 @@ export default function MinhasTarefas() {
       {/* MODAL DE TAREFAS CONCLUÍDAS */}
       {showCompletedModal && (
           <ModalPortal>
-              <div className="ag-overlay" style={{ zIndex: 99999 }} onClick={() => setShowCompletedModal(false)}>
+              <div className="ag-overlay" style={{ zIndex: "calc(var(--z-modal) + 13)" }} onClick={() => setShowCompletedModal(false)}>
                   <div className="ag-modal" onClick={e => e.stopPropagation()} role="dialog" aria-label="Arquivo de concluídas">
                       <div className="ag-modal-head">
                           <span className="ag-modal-icon"><Icons.History size={20} /></span>
@@ -1216,7 +1218,7 @@ export default function MinhasTarefas() {
 
           return (
           <ModalPortal>
-              <div className="ag-overlay" style={{ zIndex: 99999 }} onClick={() => setEditModal({show: false, data: null})}>
+              <div className="ag-overlay" style={{ zIndex: "calc(var(--z-modal) + 13)" }} onClick={() => setEditModal({show: false, data: null})}>
                   <form className="ag-modal ag-task" onClick={e => e.stopPropagation()} onSubmit={handleSaveModal} role="dialog" aria-label="Detalhes da tarefa">
                       <div className="ag-task-head">
                           <div className="ag-task-head-top">
@@ -1323,7 +1325,7 @@ export default function MinhasTarefas() {
                                           >
                                               <span className="ag-doc-icon">{anexo.url ? <Icons.FileText size={16} /> : <Icons.UploadCloud size={16} />}</span>
                                               <div className="ag-doc-main">
-                                                  <input type="text" placeholder="Nome do documento (ex: Contrato assinado)" value={anexo.nome} onChange={e => updateAnexo(anexo.id, 'nome', e.target.value)} className="ag-doc-name" />
+                                                  <input aria-label="Nome do documento (ex: Contrato assinado)" type="text" placeholder="Nome do documento (ex: Contrato assinado)" value={anexo.nome} onChange={e => updateAnexo(anexo.id, 'nome', e.target.value)} className="ag-doc-name" />
                                                   <div className="ag-doc-meta">
                                                       {anexo.url ? (
                                                           <a href={anexo.url} target="_blank" rel="noopener noreferrer"><Icons.ExternalLink size={12} /> Abrir ficheiro</a>
@@ -1367,7 +1369,7 @@ export default function MinhasTarefas() {
                                   <span className="ag-section-icon is-note"><Icons.Edit size={13} /></span>
                                   <h4>Notas</h4>
                               </div>
-                              <textarea rows="3" value={d.descricao || ''} onChange={e => setData({ descricao: e.target.value })} placeholder="Link do drive, apontamentos da reunião..." className="ag-notes-input" />
+                              <textarea aria-label="Link do drive, apontamentos da reunião" rows="3" value={d.descricao || ''} onChange={e => setData({ descricao: e.target.value })} placeholder="Link do drive, apontamentos da reunião…" className="ag-notes-input" />
                           </section>
                       </div>
 
@@ -1377,7 +1379,7 @@ export default function MinhasTarefas() {
                           </span>
                           <button type="button" onClick={() => setEditModal({show: false, data: null})} className="ag-btn ag-btn-ghost">Cancelar</button>
                           <button type="submit" disabled={isUploading} className="ag-btn ag-btn-primary">
-                              {isUploading ? <><span className="ag-spinner" /> A carregar...</> : <><Icons.Save size={15}/> Guardar</>}
+                              {isUploading ? <><span className="ag-spinner" /> A carregar…</> : <><Icons.Save size={15}/> Guardar</>}
                           </button>
                       </div>
                   </form>
@@ -1398,7 +1400,7 @@ export default function MinhasTarefas() {
           };
           return (
           <ModalPortal>
-              <div className="ag-overlay" style={{ zIndex: 99999 }} onClick={() => !timeLogSaving && setShowTimeModal(false)}>
+              <div className="ag-overlay" style={{ zIndex: "calc(var(--z-modal) + 13)" }} onClick={() => !timeLogSaving && setShowTimeModal(false)}>
                   <div className="ag-modal ag-timelog" onClick={e => e.stopPropagation()} role="dialog" aria-label="Registo de tempo">
                       <div className="ag-modal-head">
                           <span className="ag-modal-icon is-time"><Icons.Clock size={20} /></span>
@@ -1415,7 +1417,7 @@ export default function MinhasTarefas() {
                                   <label className="ag-field">
                                       <span>Colaborador</span>
                                       <select value={timeLogForm.user_id} onChange={e => setTimeLogForm(prev => ({...prev, user_id: e.target.value}))} required className="ag-input">
-                                          <option value="">Selecionar...</option>
+                                          <option value="">Selecionar…</option>
                                           {staff
                                               .filter(s => s.ativo !== false || String(s.id) === String(timeLogForm.user_id))
                                               .map((s) => <option key={s.id} value={s.id}>{s.nome || s.email}{s.ativo === false ? ' (Inativo)' : ''}</option>)}
@@ -1424,7 +1426,7 @@ export default function MinhasTarefas() {
                                   <label className="ag-field">
                                       <span>Tarefa</span>
                                       <select value={timeLogForm.task_id} onChange={e => setTimeLogForm(prev => ({...prev, task_id: e.target.value}))} required className="ag-input">
-                                          <option value="">Selecionar...</option>
+                                          <option value="">Selecionar…</option>
                                           {uniqueTaskOptions.map((opt) => <option key={opt.id} value={opt.id}>{opt.label}</option>)}
                                       </select>
                                   </label>
@@ -1451,7 +1453,7 @@ export default function MinhasTarefas() {
                               <div className="ag-time-actions">
                                   <button type="button" onClick={() => setShowTimeModal(false)} className="ag-btn ag-btn-ghost">Cancelar</button>
                                   <button type="submit" disabled={timeLogSaving} className="ag-btn ag-btn-primary">
-                                      {timeLogSaving ? <><span className="ag-spinner" /> A guardar...</> : <><Icons.Save size={15} /> {editingTimeLogId ? 'Guardar alterações' : 'Registar tempo'}</>}
+                                      {timeLogSaving ? <><span className="ag-spinner" /> A guardar…</> : <><Icons.Save size={15} /> {editingTimeLogId ? 'Guardar alterações' : 'Registar tempo'}</>}
                                   </button>
                               </div>
                           </form>
@@ -1529,7 +1531,7 @@ export default function MinhasTarefas() {
       {/* MODAL TAREFA RÁPIDA */}
       {showQuickTaskModal && (
           <ModalPortal>
-              <div className="ag-overlay ag-overlay-top" style={{ zIndex: 99999 }} onClick={() => setShowQuickTaskModal(false)}>
+              <div className="ag-overlay ag-overlay-top" style={{ zIndex: "calc(var(--z-modal) + 13)" }} onClick={() => setShowQuickTaskModal(false)}>
                   <form
                       className="ag-quickbar"
                       onClick={e => e.stopPropagation()}
@@ -1559,7 +1561,7 @@ export default function MinhasTarefas() {
 
       {confirmDialog.show && (
           <ModalPortal>
-              <div className="ag-overlay" style={{ zIndex: 100000 }} onClick={closeConfirmDialog}>
+              <div className="ag-overlay" style={{ zIndex: "var(--z-modal-topo)" }} onClick={closeConfirmDialog}>
                   <div className={`ag-dialog ${confirmDialog.isDanger ? 'is-danger' : ''}`} onClick={(e) => e.stopPropagation()} role="alertdialog">
                       <span className="ag-dialog-icon">{confirmDialog.isDanger ? <Icons.Trash size={24} /> : <Icons.AlertTriangle size={24} />}</span>
                       <h3>{confirmDialog.title || 'Confirmação'}</h3>
@@ -1576,7 +1578,7 @@ export default function MinhasTarefas() {
       )}
 
       {/* NOTIFICAÇÃO (TOAST) */}
-      {notification && <div className={`toast-container ${notification.type}`}>{notification.type === 'success' ? '✅' : '⚠️'} {notification.message}</div>}
+      {notification && <AvisoToast tipo={notification.type} mensagem={notification.message} />}
       
       <style>{`
 

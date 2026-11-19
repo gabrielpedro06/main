@@ -32,7 +32,7 @@ body, html {
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   flex-shrink: 0;
   overflow: hidden;
-  z-index: 100;
+  z-index: var(--z-app);
 }
 
 .sidebar.closed {
@@ -85,7 +85,7 @@ body, html {
   align-items: center;
   padding: 10px 12px;
   border-radius: 8px;
-  transition: all 0.2s;
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s, opacity 0.2s, width 0.2s, filter 0.2s;
   font-weight: 500;
   height: 45px;
   white-space: nowrap;
@@ -257,7 +257,7 @@ body, html {
   color: var(--color-textSecondary);
   cursor: pointer;
   font-weight: 500;
-  transition: all 0.2s;
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s, opacity 0.2s, width 0.2s, filter 0.2s;
 }
 
 .btn-small:hover {
@@ -405,7 +405,7 @@ body, html {
   background: rgba(15, 23, 42, 0.6); /* Fundo mais escuro */
   backdrop-filter: blur(4px);
   display: flex; justify-content: center; align-items: center;
-  z-index: 9999;
+  z-index: calc(var(--z-modal) + 5);
 }
 
 .modal-content {
@@ -552,7 +552,7 @@ label {
   color: var(--color-textLight);
   font-weight: 600;
   font-size: 0.95rem;
-  transition: all 0.2s;
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s, opacity 0.2s, width 0.2s, filter 0.2s;
 }
 
 .tabs button:hover {
@@ -698,7 +698,7 @@ label {
     /* Sombra mais suave e multicamada */
     box-shadow: 0 1px 3px rgba(0,0,0,0.02), 
                 0 4px 12px rgba(0,0,0,0.03);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1), filter 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     border: 1px solid rgba(226, 232, 240, 0.5);
 }
 
@@ -713,7 +713,7 @@ label {
 input, select, textarea {
     border: 1px solid var(--color-borderColorLight);
     background-color: var(--color-bgSecondary);
-    transition: all 0.2s ease;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease;
 }
 
 input:focus {
@@ -773,7 +773,7 @@ input:focus {
   display: flex;
   align-items: center;
   gap: 10px;
-  z-index: 2147483000;
+  z-index: var(--z-toast);
   animation: slideUp 0.3s ease-out;
   font-size: 0.9rem;
 }
@@ -892,7 +892,7 @@ input:checked + .slider:before {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  z-index: 2147483000;
+  z-index: var(--z-toast);
   animation: toastLiftFade 0.22s ease-out;
   font-size: 0.86rem;
   font-weight: 700;
@@ -901,6 +901,8 @@ input:checked + .slider:before {
   letter-spacing: 0;
   backdrop-filter: blur(8px);
 }
+
+.toast-container .toast-icon { flex-shrink: 0; }
 
 .toast-container.success {
   background: linear-gradient(135deg, #166534 0%, #15803d 100%);
@@ -1081,7 +1083,7 @@ input:focus, select:focus, textarea:focus {
 .toast-container,
 .toast-notification {
   position: fixed !important;
-  z-index: 2147483000 !important;
+  z-index: var(--z-toast) !important;
 }
 
 @media (max-width: 1024px) {
@@ -1204,7 +1206,7 @@ input:focus, select:focus, textarea:focus {
   color: #64748b;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease;
 }
 
 .propostas-status-tab span {
@@ -1277,7 +1279,7 @@ input:focus, select:focus, textarea:focus {
   color: #64748b;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease;
 }
 
 .propostas-view-toggle button.active {
@@ -1459,7 +1461,7 @@ input:focus, select:focus, textarea:focus {
   background: #f8fafc;
   color: var(--color-textSecondary);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease;
   text-align: left;
 }
 
@@ -1576,7 +1578,7 @@ input:focus, select:focus, textarea:focus {
   padding: 16px;
   text-align: left;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease;
 }
 
 .propostas-programa-card:hover {

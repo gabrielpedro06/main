@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../services/supabase";
+import { avisar } from "./dialogo";
 
 // =====================================================================
 // Ficheiros em baldes PRIVADOS do Supabase Storage.
@@ -53,7 +54,7 @@ export async function abrirFicheiro(url) {
     }
   } catch (err) {
     if (janela) janela.close();
-    window.alert(`Não foi possível abrir o ficheiro: ${err?.message || "sem acesso."}`);
+    avisar("Não foi possível abrir o ficheiro.", { mensagem: err?.message || "Sem acesso a este ficheiro." });
   }
 }
 

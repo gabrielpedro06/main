@@ -7,6 +7,8 @@ import { useAuth } from "../context/AuthContext";
 import { closeAllActiveTaskLogsForUser } from "../utils/taskTimerLifecycle";
 import { resolveActiveTimerMeta } from "../utils/activeTimerResolver";
 import "../styles/attendance.css";
+import { avisar } from "../utils/dialogo";
+import { clicavel } from "../utils/clicavel";
 
 // --- ÍCONES SVG PROFISSIONAIS ---
 const Icons = {
@@ -520,7 +522,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
       if (searchError) throw searchError;
 
       if ((existente || []).length > 1) {
-        alert("Erro: Existem múltiplos registos de assiduidade para hoje. Contacte o administrador.");
+        avisar("Existem vários registos de ponto para hoje.", { mensagem: "Contacte o administrador para corrigir o registo." });
         setLoading(false);
         return;
       }
@@ -565,7 +567,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
             return;
           }
         } else {
-          alert("Já existe um registo de assiduidade aberto para hoje. Não é possível iniciar outro.");
+          avisar("Já tem um registo de ponto aberto hoje.", { mensagem: "Termine o registo atual antes de iniciar outro." });
           setLoading(false);
           return;
         }
@@ -805,7 +807,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
         const runningLog = Array.isArray(runningLogs) ? runningLogs[0] : null;
         if (runningLog) {
           const timerMeta = await resolveActiveTimerMeta(supabase, runningLog);
-          stoppedTimerTitle = timerMeta?.title || "Tempo a decorrer...";
+          stoppedTimerTitle = timerMeta?.title || "Tempo a decorrer…";
         }
 
         const closeResult = await closeAllActiveTaskLogsForUser(supabase, user?.id, {
@@ -871,7 +873,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
   };
 
   // --- ESTILOS VISUAIS PREMIUM ---
-  const modalOverlayStyle = { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, backdropFilter: 'blur(4px)' };
+  const modalOverlayStyle = { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: "calc(var(--z-modal) + 13)", backdropFilter: 'blur(4px)' };
   const modalContainerStyle = { background: '#fff', borderRadius: '16px', width: '95%', maxWidth: '500px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow: 'hidden', display: 'flex', flexDirection: 'column', animation: 'fadeIn 0.2s ease-out' };
   const modalHeaderStyle = { padding: '20px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc' };
   const inputLabelStyle = { display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' };
@@ -902,7 +904,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
               position: 'relative'
             }}>
               {/* Botão Fechar Minimalista */}
-              <button 
+              <button aria-label="Fechar" 
                 onClick={() => handleRetomarResponse(false)} 
                 style={{
                   position:'absolute', top:20, right:20, background:'#f1f5f9', border:'none', 
@@ -994,7 +996,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
             <div style={{...modalContainerStyle, maxWidth: 520}}>
               <div style={{...modalHeaderStyle, background: 'var(--color-bgSecondary)', borderBottom: '1px solid var(--color-borderColor)'}}>
                 <h3 style={{margin: 0, color: 'var(--color-btnPrimaryDark)', fontSize: '1.05rem', fontWeight: 800}}>Nova tarefa/atividade para analise</h3>
-                <button onClick={acknowledgeIncomingAnalysisAssignments} style={{background:'transparent', border:'none', cursor:'pointer', color:'var(--color-btnPrimaryDark)'}}><Icons.Close size={18}/></button>
+                <button aria-label="Fechar" onClick={acknowledgeIncomingAnalysisAssignments} style={{background:'transparent', border:'none', cursor:'pointer', color:'var(--color-btnPrimaryDark)'}}><Icons.Close size={18}/></button>
               </div>
               <div style={{padding: '16px', display: 'grid', gap: '10px', maxHeight: '52vh', overflowY: 'auto'}}>
                 <p style={{margin: 0, color: 'var(--color-btnPrimaryHover)', fontSize: '0.88rem'}}>Recebeste novos itens para analise. Verifica no painel de tarefas.</p>
@@ -1022,7 +1024,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
             <div style={{...modalContainerStyle, maxWidth: 760}}>
               <div style={{...modalHeaderStyle, background: 'var(--color-bgSecondary)', borderBottom: '1px solid var(--color-borderColor)'}}>
                 <h3 style={{margin: 0, color: 'var(--color-btnPrimaryDark)', fontSize: '1.05rem', fontWeight: 800}}>Analises para hoje ou em atraso</h3>
-                <button onClick={() => setAnalysisFollowUpModal({ open: false, items: [] })} style={{background:'transparent', border:'none', cursor:'pointer', color:'var(--color-btnPrimaryDark)'}}><Icons.Close size={18}/></button>
+                <button aria-label="Fechar" onClick={() => setAnalysisFollowUpModal({ open: false, items: [] })} style={{background:'transparent', border:'none', cursor:'pointer', color:'var(--color-btnPrimaryDark)'}}><Icons.Close size={18}/></button>
               </div>
               <div style={{padding: '16px', display: 'grid', gap: '10px', maxHeight: '55vh', overflowY: 'auto'}}>
                 <p style={{margin: 0, color: 'var(--color-btnPrimaryHover)', fontSize: '0.88rem'}}>Confirma o estado dos itens com data expectavel para hoje ou ja ultrapassada: atualiza a data prevista ou marca como concluido.</p>
@@ -1118,7 +1120,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
           <div className={`card wa-card is-${status}`}>
             <span className="wa-glow" aria-hidden="true" />
 
-            <button
+            <button aria-label="Últimos registos"
               type="button"
               onClick={() => { setShowRecords(v => !v); if (!showRecords) fetchRecentRecords(); }}
               title="Últimos registos"
@@ -1194,7 +1196,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
                 <div className="wa-actions">
                   {status === 'stopped' && (
                     <button type="button" onClick={openStartModal} disabled={loading} className="wa-btn wa-btn-primary wa-btn-wide">
-                      <Icons.Play size={16} /> {loading ? "A iniciar..." : "Iniciar dia de trabalho"}
+                      <Icons.Play size={16} /> {loading ? "A iniciar…" : "Iniciar dia de trabalho"}
                     </button>
                   )}
                   {status === 'running' && (
@@ -1260,7 +1262,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
                   <div style={{...modalContainerStyle, maxWidth: '600px'}}>
                       <div style={modalHeaderStyle}>
                           <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.2rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Target size={20} color="var(--color-btnPrimary)" /> Bom dia! Vamos focar?</h3>
-                          <button onClick={() => setShowStartModal(false)} style={{background:'transparent', border:'none', cursor:'pointer', color:'#94a3b8'}} className="hover-red-text"><Icons.Close size={20}/></button>
+                          <button aria-label="Fechar" onClick={() => setShowStartModal(false)} style={{background:'transparent', border:'none', cursor:'pointer', color:'#64748b'}} className="hover-red-text"><Icons.Close size={20}/></button>
                       </div>
                       
                       <form onSubmit={confirmStart} style={{display: 'flex', flexDirection: 'column', maxHeight: '80vh'}}>
@@ -1311,7 +1313,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
                   <div style={{...modalContainerStyle, maxWidth: '550px'}}>
                       <div style={modalHeaderStyle}>
                           <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.2rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Stop size={20} color="#ef4444" /> Terminar Registo</h3>
-                          <button onClick={() => setShowClockOutModal(false)} style={{background:'transparent', border:'none', cursor:'pointer', color:'#94a3b8'}} className="hover-red-text"><Icons.Close size={20}/></button>
+                          <button aria-label="Fechar" onClick={() => setShowClockOutModal(false)} style={{background:'transparent', border:'none', cursor:'pointer', color:'#64748b'}} className="hover-red-text"><Icons.Close size={20}/></button>
                       </div>
                       
                       <form onSubmit={confirmFinish} style={{display: 'flex', flexDirection: 'column', maxHeight: '80vh'}}>
@@ -1322,7 +1324,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
                                       <label style={{display: 'block', marginBottom: '10px', fontSize: '0.85rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em'}}>
                                           Tarefas Planeadas / Trabalhadas Hoje:
                                       </label>
-                                      <p style={{color: '#94a3b8', fontSize: '0.85rem', marginTop: '-5px', marginBottom: '15px'}}>Desmarca o que não conseguiste terminar para não ir para o histórico.</p>
+                                      <p style={{color: '#64748b', fontSize: '0.85rem', marginTop: '-5px', marginBottom: '15px'}}>Desmarca o que não conseguiste terminar para não ir para o histórico.</p>
                                       
                                       <div style={{display: 'flex', flexDirection: 'column', gap: '8px', background: '#f8fafc', padding: '15px', borderRadius: '12px', border: '1px solid #e2e8f0'}}>
                                           {endOfDayTasks.map((taskObj, idx) => {
@@ -1330,7 +1332,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
                                               return (
                                                   <div 
                                                       key={idx} 
-                                                      onClick={() => toggleEndOfDayTask(taskObj)}
+                                                      {...clicavel(() => toggleEndOfDayTask(taskObj))}
                                                       style={{
                                                           display: 'flex', alignItems: 'flex-start', gap: '12px', color: isChecked ? '#1e293b' : '#94a3b8', 
                                                           cursor: 'pointer', transition: '0.2s', padding: '10px 12px', borderRadius: '8px',
@@ -1344,7 +1346,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
                                                       </div>
                                                       <div style={{flex: 1, textDecoration: isChecked ? 'none' : 'line-through'}}>
                                                           <div style={{fontSize: '0.95rem', fontWeight: isChecked ? '600' : '400'}}>{taskObj.titulo}</div>
-                                                          <div style={{fontSize: '0.7rem', color: '#94a3b8', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px'}}>
+                                                          <div style={{fontSize: '0.7rem', color: '#64748b', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px'}}>
                                                               <Icons.Folder size={10} /> 
                                                               {taskObj.contexto?.length > 40 ? taskObj.contexto.slice(0, 40) + '...' : taskObj.contexto}
                                                           </div>
@@ -1357,13 +1359,13 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
                               )}
 
                               <label style={inputLabelStyle}>Notas Adicionais (Opcional)</label>
-                              <textarea rows="4" value={dailySummary} onChange={e => setDailySummary(e.target.value)} style={{...inputFieldStyle, background: '#f8fafc', resize: 'vertical'}} className="input-focus" placeholder="Deixa um resumo do que ficou pendente ou notas para amanhã..." autoFocus={endOfDayTasks.length === 0} />
+                              <textarea aria-label="Notas Adicionais (Opcional)" rows="4" value={dailySummary} onChange={e => setDailySummary(e.target.value)} style={{...inputFieldStyle, background: '#f8fafc', resize: 'vertical'}} className="input-focus" placeholder="Deixa um resumo do que ficou pendente ou notas para amanhã…" autoFocus={endOfDayTasks.length === 0} />
                           </div>
 
                           <div style={{padding: '20px 25px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', gap: '10px'}}>
                               <button type="button" onClick={() => setShowClockOutModal(false)} style={{flex:1, padding:'14px', borderRadius:'10px', border:'1px solid #cbd5e1', background:'white', fontWeight:'700', color: '#64748b', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">Cancelar</button>
                               <button type="submit" disabled={loading} style={{flex:2, padding:'14px', borderRadius:'10px', border:'none', background:'#dc2626', color:'white', fontWeight:'700', cursor: 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'}} className="hover-shadow">
-                                  <Icons.Stop size={16} /> {loading ? "A guardar..." : "Confirmar Saída"}
+                                  <Icons.Stop size={16} /> {loading ? "A guardar…" : "Confirmar Saída"}
                               </button>
                           </div>
                       </form>

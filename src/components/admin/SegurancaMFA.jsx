@@ -124,7 +124,7 @@ export default function SegurancaMFA({ profiles = [] }) {
         </div>
       )}
 
-      <input className="sgm-search" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Procurar pessoa por nome ou email" />
+      <input aria-label="Procurar pessoa por nome ou email" className="sgm-search" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Procurar pessoa por nome ou email" />
 
       <div className="sgm-table-wrap">
         <table className="sgm-table">

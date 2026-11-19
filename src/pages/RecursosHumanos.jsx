@@ -31,6 +31,9 @@ import { createDashboardNotifications } from "../utils/dashboardNotifications";
 import { guardarPrivados, juntarPrivados, separarPrivados } from "../utils/dadosPrivados";
 import "./../styles/dashboard.css"; 
 import "./../styles/rh.css";
+import { confirmar } from "../utils/dialogo";
+import { clicavel } from "../utils/clicavel";
+import { Cake } from "lucide-react";
 
 // --- ÍCONES SVG ESTILO SAAS ---
 const Icons = {
@@ -149,7 +152,7 @@ const ModernTooltip = ({ content, children }) => {
                         left: position.left,
                         top: position.top,
                         transform: position.placement === "top" ? "translate(-50%, -100%)" : "translate(-50%, 0)",
-                        zIndex: 12000,
+                        zIndex: "calc(var(--z-modal) + 11)",
                         pointerEvents: "none",
                         maxWidth: "300px",
                         padding: "8px 10px",
@@ -978,7 +981,7 @@ export default function RecursosHumanos() {
   }
 
   async function handleDeleteTolerancia(id) {
-    if (!window.confirm("Eliminar esta tolerância?")) return;
+    if (!(await confirmar("Eliminar esta tolerância?", { perigoso: true, botao: "Eliminar" }))) return;
     try {
                 let toleranciaAlvo = tolerancias.find((t) => t.id === id);
                 if (!toleranciaAlvo) {
@@ -2643,7 +2646,7 @@ export default function RecursosHumanos() {
 
   // Função para apagar registo
   async function handleDeleteFormacao(id) {
-      if (!window.confirm("Eliminar este registo de formação?")) return;
+      if (!(await confirmar("Eliminar este registo de formação?", { perigoso: true, botao: "Eliminar" }))) return;
       try {
           const { error } = await supabase.from("formacoes").delete().eq("id", id);
           if (error) throw error;
@@ -2717,15 +2720,15 @@ export default function RecursosHumanos() {
   const renderPedidoAcoes = (p) => (
       <div className="rh-row-actions">
           <ModernTooltip content="Ver Detalhes do Pedido">
-              <button type="button" className="rh-icon-btn" onClick={() => abrirModalDetalhes(p)}><Icons.Eye size={16} /></button>
+              <button aria-label="Ver detalhes do pedido" type="button" className="rh-icon-btn" onClick={() => abrirModalDetalhes(p)}><Icons.Eye size={16} /></button>
           </ModernTooltip>
           {p.estado === 'pendente' ? (
               <>
                   <ModernTooltip content="Aprovar">
-                      <button type="button" className="rh-icon-btn is-ok" onClick={() => abrirModalConfirmacao(p, 'aprovar')}><Icons.Check size={16} /></button>
+                      <button aria-label="Aprovar pedido" type="button" className="rh-icon-btn is-ok" onClick={() => abrirModalConfirmacao(p, 'aprovar')}><Icons.Check size={16} /></button>
                   </ModernTooltip>
                   <ModernTooltip content="Rejeitar">
-                      <button type="button" className="rh-icon-btn is-bad" onClick={() => abrirModalConfirmacao(p, 'rejeitar')}><Icons.X size={16} /></button>
+                      <button aria-label="Rejeitar pedido" type="button" className="rh-icon-btn is-bad" onClick={() => abrirModalConfirmacao(p, 'rejeitar')}><Icons.X size={16} /></button>
                   </ModernTooltip>
               </>
           ) : (
@@ -2828,7 +2831,7 @@ export default function RecursosHumanos() {
               <div className="rh-toolbar is-pedidos">
                   <label className="rh-search">
                       <Icons.Search size={16} />
-                      <input type="text" value={pedidosBusca} onChange={(e) => setPedidosBusca(e.target.value)} placeholder="Procurar por colaborador, tipo, origem ou destino..." />
+                      <input type="text" value={pedidosBusca} onChange={(e) => setPedidosBusca(e.target.value)} placeholder="Procurar por colaborador, tipo, origem ou destino…" />
                       {pedidosBusca && <button type="button" className="rh-search-clear" onClick={() => setPedidosBusca('')} aria-label="Limpar"><Icons.X size={13} /></button>}
                   </label>
                   <div className="rh-seg">
@@ -3069,7 +3072,7 @@ export default function RecursosHumanos() {
                                             <span className="rh-tag is-brand"><Icons.Users size={12} /> Global</span>
                                         )}
                                         <ModernTooltip content="Eliminar">
-                                            <button type="button" className="rh-icon-btn is-bad" onClick={() => handleDeleteTolerancia(t.id)}>
+                                            <button aria-label="Eliminar tolerância" type="button" className="rh-icon-btn is-bad" onClick={() => handleDeleteTolerancia(t.id)}>
                                                 <Icons.Trash size={16} />
                                             </button>
                                         </ModernTooltip>
@@ -3202,7 +3205,7 @@ export default function RecursosHumanos() {
                             return acc;
                         }, {})).sort((a, b) => new Date(b.data_inicio) - new Date(a.data_inicio)).map((grupo, i) => (
                             <article key={i} className="rh-formacao">
-                                <button type="button" onClick={() => setDeleteFormacaoModal({show: true, grupo: grupo})} className="rh-icon-btn is-bad rh-formacao-del" title="Eliminar Formação">
+                                <button aria-label="Eliminar Formação" type="button" onClick={() => setDeleteFormacaoModal({show: true, grupo: grupo})} className="rh-icon-btn is-bad rh-formacao-del" title="Eliminar Formação">
                                     <Icons.Trash size={16} />
                                 </button>
                                 <h4>{grupo.nome}</h4>
@@ -3275,7 +3278,7 @@ export default function RecursosHumanos() {
                             </thead>
                             <tbody>
                                 {processamentoEquipa.map((item) => (
-                                    <tr key={item.colab.id} className="is-click" onClick={() => { setIsEditingUser(false); setSelectedUser(item.colab.id); setActiveView('gestao'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
+                                    <tr key={item.colab.id} className="is-click" {...clicavel(() => { setIsEditingUser(false); setSelectedUser(item.colab.id); setActiveView('gestao'); window.scrollTo({ top: 0, behavior: 'smooth' }); }, { papel: null })}>
                                         <td><span className="rh-who">{renderRhAvatar(item.colab.nome, item.colab.id, 'sm', item.colab.avatar_url)}<strong>{item.colab.nome}</strong></span></td>
                                         <td className="is-center"><span className="rh-num is-muted">{item.diasUteisMes}</span></td>
                                         <td className="is-center"><span className="rh-num">{item.countTrabalho}</span></td>
@@ -3330,7 +3333,7 @@ export default function RecursosHumanos() {
                             }}
                         />
                     </label>
-                    {isSavingKmRate && <span className="rh-saving">a guardar...</span>}
+                    {isSavingKmRate && <span className="rh-saving">a guardar…</span>}
                     <button type="button" onClick={handleBulkUpdateSA} className={`rh-btn is-primary is-sm ${pendingGlobalUpdates.sa || pendingGlobalUpdates.km ? 'is-pulse' : ''}`}>Aplicar</button>
                 </div>
                 <div className="rh-toolbar-actions">
@@ -3362,7 +3365,7 @@ export default function RecursosHumanos() {
                                 }),
                         ]}
                         menuWidth={340}
-                        searchPlaceholder="Procurar colaborador..."
+                        searchPlaceholder="Procurar colaborador…"
                         ariaLabel="Colaborador"
                     />
                     {!selectedUser && (
@@ -3372,7 +3375,7 @@ export default function RecursosHumanos() {
                             disabled={isGeneratingRhPdf || colaboradores.length === 0}
                             className="rh-btn is-soft"
                         >
-                            <Icons.Download size={16} /> {isGeneratingRhPdf ? 'A gerar PDF...' : 'Exportar PDF RH'}
+                            <Icons.Download size={16} /> {isGeneratingRhPdf ? 'A gerar PDF…' : 'Exportar PDF RH'}
                         </button>
                     )}
                     <button type="button" onClick={() => {
@@ -3458,10 +3461,10 @@ export default function RecursosHumanos() {
                                 </div>
                                 <div className="rh-profile-pdfs">
                                     <button type="button" onClick={downloadIndividualPDF} disabled={isGeneratingIndividualPdf} className="rh-btn is-green-soft is-sm">
-                                        <Icons.Download size={14} /> {isGeneratingIndividualPdf ? 'A gerar PDF...' : 'Relatório PDF'}
+                                        <Icons.Download size={14} /> {isGeneratingIndividualPdf ? 'A gerar PDF…' : 'Relatório PDF'}
                                     </button>
                                     <button type="button" onClick={downloadSelectedUserDeslocacoesPDF} disabled={isGeneratingDeslocacoesPdf} className="rh-btn is-orange-soft is-sm">
-                                        <Icons.Download size={14} /> {isGeneratingDeslocacoesPdf ? 'A gerar PDF...' : 'Deslocações PDF'}
+                                        <Icons.Download size={14} /> {isGeneratingDeslocacoesPdf ? 'A gerar PDF…' : 'Deslocações PDF'}
                                     </button>
                                 </div>
 
@@ -3644,7 +3647,7 @@ export default function RecursosHumanos() {
                                             <div key={c.id} className="rh-mini-row">
                                                 {renderRhAvatar(c.nome, c.id, 'sm', c.avatar_url)}
                                                 <div><b>{c.nome}</b></div>
-                                                <span className="rh-bday">🎂 Dia {new Date(c.data_nascimento).getDate()}</span>
+                                                <span className="rh-bday"><Cake size={13} aria-hidden="true" style={{ verticalAlign: '-2px' }} /> Dia {new Date(c.data_nascimento).getDate()}</span>
                                             </div>
                                         ))}
                                     </div>
@@ -3734,13 +3737,13 @@ export default function RecursosHumanos() {
                                                 <td className="is-center">
                                                     <div className="rh-row-actions">
                                                         <ModernTooltip content="Editar Registo">
-                                                            <button type="button" className="rh-icon-btn is-brand" onClick={() => handleEditClick(h)}>
+                                                            <button aria-label="Editar ausência" type="button" className="rh-icon-btn is-brand" onClick={() => handleEditClick(h)}>
                                                                 <Icons.Edit size={14} />
                                                             </button>
                                                         </ModernTooltip>
                                                         {h.estado === 'aprovado' && (
                                                             <ModernTooltip content="Cancelar e devolver dias">
-                                                                <button type="button" className="rh-icon-btn is-bad" onClick={() => abrirModalConfirmacao(h, 'cancelar_direto')}>
+                                                                <button aria-label="Cancelar ausência" type="button" className="rh-icon-btn is-bad" onClick={() => abrirModalConfirmacao(h, 'cancelar_direto')}>
                                                                     <Icons.Trash size={14} />
                                                                 </button>
                                                             </ModernTooltip>
@@ -3854,7 +3857,7 @@ export default function RecursosHumanos() {
                                   <div className="rh-field">
                                       <label>Contrato</label>
                                       <select className="rh-input" value={tempUserProfile.tipo_contrato || ''} onChange={setTemp('tipo_contrato')}>
-                                          <option value="">Selecione...</option><option value="Termo Certo">Termo Certo</option><option value="Sem Termo">Sem Termo</option><option value="Termo Incerto">Termo Incerto</option><option value="Estágio Profissional">Estágio Profissional</option><option value="Estágio Curricular">Estágio Curricular</option><option value="Prestação de Serviços">Prestação de Serviços</option><option value="N/a">N/a</option>
+                                          <option value="">Selecione…</option><option value="Termo Certo">Termo Certo</option><option value="Sem Termo">Sem Termo</option><option value="Termo Incerto">Termo Incerto</option><option value="Estágio Profissional">Estágio Profissional</option><option value="Estágio Curricular">Estágio Curricular</option><option value="Prestação de Serviços">Prestação de Serviços</option><option value="N/a">N/a</option>
                                       </select>
                                   </div>
                               </section>
@@ -3890,7 +3893,7 @@ export default function RecursosHumanos() {
                                   </div>
                                   <div className="rh-field">
                                       <label>Motivo / observações</label>
-                                      <input type="text" className="rh-input" value={tempUserProfile.estado_temporario_motivo || ''} onChange={setTemp('estado_temporario_motivo')} placeholder="Ex: Licença parental" />
+                                      <input aria-label="Motivo / observações" type="text" className="rh-input" value={tempUserProfile.estado_temporario_motivo || ''} onChange={setTemp('estado_temporario_motivo')} placeholder="Ex: Licença parental" />
                                   </div>
                                   {tempUserProfile.estado_temporario_tipo && (
                                       <button
@@ -4047,7 +4050,7 @@ export default function RecursosHumanos() {
                             <div className="rh-field">
                                 <label>Colaborador</label>
                                 <select required className="rh-input" value={newAbsence.user_id} onChange={e => setNewAbsence({...newAbsence, user_id: e.target.value})} disabled={isEditingAbsence || !!selectedUser}>
-                                    <option value="">Selecione Colaborador...</option>
+                                    <option value="">Selecione Colaborador…</option>
                                     {colaboradoresAtivos.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
                                 </select>
                             </div>
@@ -4093,16 +4096,16 @@ export default function RecursosHumanos() {
                                     <div className="rh-fgrid is-2">
                                         <div className="rh-field">
                                             <label>De</label>
-                                            <input type="text" required className="rh-input" value={newAbsence.km_origem} onChange={e=>setNewAbsence({...newAbsence, km_origem: e.target.value})} placeholder="Ex: Portimão"/>
+                                            <input aria-label="De" type="text" required className="rh-input" value={newAbsence.km_origem} onChange={e=>setNewAbsence({...newAbsence, km_origem: e.target.value})} placeholder="Ex: Portimão"/>
                                         </div>
                                         <div className="rh-field">
                                             <label>Para</label>
-                                            <input type="text" required className="rh-input" value={newAbsence.km_destino} onChange={e=>setNewAbsence({...newAbsence, km_destino: e.target.value})} placeholder="Ex: Faro"/>
+                                            <input aria-label="Para" type="text" required className="rh-input" value={newAbsence.km_destino} onChange={e=>setNewAbsence({...newAbsence, km_destino: e.target.value})} placeholder="Ex: Faro"/>
                                         </div>
                                     </div>
                                     <div className="rh-field">
                                         <label>Km total</label>
-                                        <input type="number" min="0" step="0.1" required className="rh-input" value={newAbsence.km_total} onChange={e=>setNewAbsence({...newAbsence, km_total: e.target.value})} placeholder="Ex: 72"/>
+                                        <input aria-label="Km total" type="number" min="0" step="0.1" required className="rh-input" value={newAbsence.km_total} onChange={e=>setNewAbsence({...newAbsence, km_total: e.target.value})} placeholder="Ex: 72"/>
                                     </div>
                                 </>
                             ) : !newAbsence.is_parcial ? (
@@ -4164,7 +4167,7 @@ export default function RecursosHumanos() {
 
                             <div className="rh-field">
                                 <label>Notas / Observações</label>
-                                <input type="text" className="rh-input" placeholder="Mais detalhes (Opcional)..." value={newAbsence.motivo} onChange={e=>setNewAbsence({...newAbsence, motivo: e.target.value})}/>
+                                <input aria-label="Notas / Observações" type="text" className="rh-input" placeholder="Mais detalhes (Opcional)…" value={newAbsence.motivo} onChange={e=>setNewAbsence({...newAbsence, motivo: e.target.value})}/>
                             </div>
 
                             <div className="rh-field">
@@ -4181,7 +4184,7 @@ export default function RecursosHumanos() {
                         <div className="rh-modal-foot">
                             <button type="button" className="rh-btn is-ghost" onClick={closeAbsenceModal}>Cancelar</button>
                             <button type="submit" className="rh-btn is-primary is-lg" disabled={isSubmitting}>
-                                <Icons.Check size={16} /> {isSubmitting ? 'A guardar...' : (isEditingAbsence ? 'Guardar Alterações' : 'Registar Ausência')}
+                                <Icons.Check size={16} /> {isSubmitting ? 'A guardar…' : (isEditingAbsence ? 'Guardar Alterações' : 'Registar Ausência')}
                             </button>
                         </div>
                     </form>
@@ -4246,7 +4249,7 @@ export default function RecursosHumanos() {
                       <div className="rh-confirm-actions">
                           <button type="button" className="rh-btn is-ghost" onClick={() => setShowBulkSAConfirmModal(false)} disabled={isApplyingBulkSA}>Cancelar</button>
                           <button type="button" className="rh-btn is-primary" onClick={confirmarBulkUpdateSA} disabled={isApplyingBulkSA}>
-                              {isApplyingBulkSA ? 'A aplicar...' : 'Confirmar'}
+                              {isApplyingBulkSA ? 'A aplicar…' : 'Confirmar'}
                           </button>
                       </div>
                   </div>
@@ -4313,7 +4316,7 @@ export default function RecursosHumanos() {
                           <div className="rh-modal-body">
                               <div className="rh-field">
                                   <label>Designação</label>
-                                  <input type="text" required className="rh-input" placeholder="Ex: Véspera de Natal" value={newTolerancia.nome} onChange={e => setNewTolerancia({...newTolerancia, nome: e.target.value})}/>
+                                  <input aria-label="Designação" type="text" required className="rh-input" placeholder="Ex: Véspera de Natal" value={newTolerancia.nome} onChange={e => setNewTolerancia({...newTolerancia, nome: e.target.value})}/>
                               </div>
                               <div className="rh-field">
                                   <label>Data</label>
@@ -4338,7 +4341,7 @@ export default function RecursosHumanos() {
                                   <div className="rh-field">
                                       <label>Colaborador</label>
                                       <select required className="rh-input" value={newTolerancia.user_id} onChange={e => setNewTolerancia({...newTolerancia, user_id: e.target.value})}>
-                                          <option value="">Selecione Colaborador...</option>
+                                          <option value="">Selecione Colaborador…</option>
                                           {colaboradoresAtivos.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
                                       </select>
                                   </div>
@@ -4347,7 +4350,7 @@ export default function RecursosHumanos() {
                           <div className="rh-modal-foot">
                               <button type="button" className="rh-btn is-ghost" onClick={() => setShowToleranciaModal(false)}>Cancelar</button>
                               <button type="submit" className="rh-btn is-primary is-lg" disabled={isSubmittingTolerancia}>
-                                  <Icons.Check size={16} /> {isSubmittingTolerancia ? 'A guardar...' : 'Guardar Tolerância'}
+                                  <Icons.Check size={16} /> {isSubmittingTolerancia ? 'A guardar…' : 'Guardar Tolerância'}
                               </button>
                           </div>
                       </form>
@@ -4372,7 +4375,7 @@ export default function RecursosHumanos() {
                         <div className="rh-modal-body">
                             <div className="rh-field">
                                 <label>Nome da Ação de Formação</label>
-                                <input type="text" required className="rh-input" placeholder="Ex: Curso Primeiros Socorros" value={newFormacao.nome} onChange={e => setNewFormacao({...newFormacao, nome: e.target.value})}/>
+                                <input aria-label="Nome da Ação de Formação" type="text" required className="rh-input" placeholder="Ex: Curso Primeiros Socorros" value={newFormacao.nome} onChange={e => setNewFormacao({...newFormacao, nome: e.target.value})}/>
                             </div>
                             <div className="rh-fgrid is-3">
                                 <div className="rh-field">
@@ -4403,7 +4406,7 @@ export default function RecursosHumanos() {
                                 </div>
                                 <div className="rh-field">
                                     <label>Total de Horas</label>
-                                    <input type="number" min="0.5" step="0.5" required className="rh-input" placeholder="Ex: 8" value={newFormacao.total_horas} onChange={e => setNewFormacao({...newFormacao, total_horas: e.target.value})}/>
+                                    <input aria-label="Total de Horas" type="number" min="0.5" step="0.5" required className="rh-input" placeholder="Ex: 8" value={newFormacao.total_horas} onChange={e => setNewFormacao({...newFormacao, total_horas: e.target.value})}/>
                                 </div>
                             </div>
 
@@ -4445,7 +4448,7 @@ export default function RecursosHumanos() {
                         <div className="rh-modal-foot">
                             <button type="button" className="rh-btn is-ghost" onClick={() => setShowFormacaoModal(false)}>Cancelar</button>
                             <button type="submit" className="rh-btn is-primary is-lg" disabled={isSubmittingFormacao}>
-                                <Icons.Check size={16} /> {isSubmittingFormacao ? 'A guardar...' : 'Guardar Formação'}
+                                <Icons.Check size={16} /> {isSubmittingFormacao ? 'A guardar…' : 'Guardar Formação'}
                             </button>
                         </div>
                     </form>
@@ -4468,7 +4471,7 @@ export default function RecursosHumanos() {
                       <div className="rh-confirm-actions">
                           <button type="button" className="rh-btn is-ghost" onClick={() => setDeleteFormacaoModal({show: false, grupo: null})} disabled={isSubmittingFormacao}>Cancelar</button>
                           <button type="button" className="rh-btn is-bad" onClick={confirmarDeleteFormacao} disabled={isSubmittingFormacao}>
-                              {isSubmittingFormacao ? 'A eliminar...' : 'Sim, Eliminar'}
+                              {isSubmittingFormacao ? 'A eliminar…' : 'Sim, Eliminar'}
                           </button>
                       </div>
                   </div>
@@ -4540,7 +4543,7 @@ export default function RecursosHumanos() {
                       <div className="rh-confirm-actions">
                           <button type="button" className="rh-btn is-ghost" onClick={() => setBulkApproveModal({ show: false, tipo: null, pedidos: [] })} disabled={isSubmitting}>Cancelar</button>
                           <button type="button" className="rh-btn is-ok" onClick={executarAprovarEmMassa} disabled={isSubmitting}>
-                              {isSubmitting ? 'A aprovar...' : 'Confirmar Aprovação'}
+                              {isSubmitting ? 'A aprovar…' : 'Confirmar Aprovação'}
                           </button>
                       </div>
                   </div>

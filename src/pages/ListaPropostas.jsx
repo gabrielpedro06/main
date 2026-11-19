@@ -473,9 +473,9 @@ export default function ListaPropostas() {
         <div className="propostas-toolbar">
           <div className="propostas-search">
             <span className="propostas-search-icon">⌕</span>
-            <input
+            <input aria-label="Procurar por ID, cliente, curso ou tipo de projeto"
               type="text"
-              placeholder="Procurar por ID, cliente, curso ou tipo de projeto..."
+              placeholder="Procurar por ID, cliente, curso ou tipo de projeto…"
               value={busca}
               onChange={(event) => setBusca(event.target.value)}
             />
@@ -500,7 +500,7 @@ export default function ListaPropostas() {
         </div>
 
         {loading ? (
-          <div className="muted" style={{ padding: "20px 4px" }}>A carregar...</div>
+          <div className="muted" style={{ padding: "20px 4px" }}>A carregar…</div>
         ) : visiblePropostas.length === 0 ? (
           <div className="propostas-empty-state">
             <p>Nenhuma proposta encontrada.</p>
@@ -609,7 +609,7 @@ export default function ListaPropostas() {
                       <td className="muted">{formatDatePt(proposta.created_at)}</td>
                       <td style={{ textAlign: "center" }}>
                         <div style={{ display: "flex", gap: "6px", justifyContent: "center" }}>
-                          <button
+                          <button aria-label="Editar"
                             className="btn-small"
                             type="button"
                             onClick={() => handleEditar(proposta)}
@@ -617,7 +617,7 @@ export default function ListaPropostas() {
                           >
                             <Icons.Edit />
                           </button>
-                          <button
+                          <button aria-label="Duplicar"
                             className="btn-small"
                             type="button"
                             onClick={() => handleDuplicate(proposta)}
@@ -625,7 +625,7 @@ export default function ListaPropostas() {
                           >
                             <Icons.Copy />
                           </button>
-                          <button
+                          <button aria-label="Apagar"
                             className="btn-small"
                             type="button"
                             onClick={() => openDeleteModal(proposta)}
@@ -664,7 +664,7 @@ export default function ListaPropostas() {
 
               <div className="field">
                 <label>Confirmação</label>
-                <input
+                <input aria-label="Confirmação"
                   type="text"
                   value={deleteModal.confirmText}
                   onChange={(event) => setDeleteModal((previous) => ({ ...previous, confirmText: event.target.value }))}

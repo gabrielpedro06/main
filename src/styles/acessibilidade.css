@@ -1,0 +1,56 @@
+/* =========================================================================
+   ACESSIBILIDADE (global) — regras das Web Interface Guidelines
+   ========================================================================= */
+
+/* Foco visível ao navegar com o teclado (Tab). Só aparece com teclado, nunca ao
+   clicar com o rato. Os campos de texto têm o seu próprio realce e ficam de fora. */
+:is(a[href], button, summary, select, [role="button"], [role="tab"], [role="link"],
+    [role="menuitem"], [role="option"], [role="checkbox"], [role="switch"],
+    [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline: 2px solid var(--color-btnPrimary, #2563eb) !important;
+  outline-offset: 2px !important;
+}
+
+/* Campos sem realce próprio (fundo transparente em barras de pesquisa, etc.) */
+:is(input, textarea):focus-visible:not([type="checkbox"]):not([type="radio"]) {
+  outline-color: var(--color-btnPrimary, #2563eb);
+}
+
+/* Elementos-ancorados por link (#secção) não ficam escondidos atrás do cabeçalho */
+[id] { scroll-margin-top: 80px; }
+
+/* Movimento reduzido: quem o pede no sistema não vê animações nem transições longas */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Toques: sem atraso de duplo-toque e sem o realce azul do Android/iOS */
+button, a, [role="button"], label, select, summary {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Elementos clicáveis que não são <button> (cartões, linhas) mostram a mãozinha */
+[role="button"]:not([aria-disabled="true"]) { cursor: pointer; }
+
+/* Ecrãs táteis (telemóvel/tablet): alvos de toque com pelo menos 44×44 px.
+   Botões só com ícone (os que têm aria-label) crescem até ao mínimo; o ícone fica
+   centrado e no computador nada muda. */
+@media (pointer: coarse) {
+  button[aria-label] { min-width: 44px; min-height: 44px; }
+  input[type="checkbox"], input[type="radio"] { min-width: 20px; min-height: 20px; }
+  /* Campos com letra < 16px fazem o iPhone dar zoom ao tocar; 16px evita isso */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea {
+    font-size: max(16px, 1em) !important;
+  }
+}
+
+/* Modais: o scroll de dentro não arrasta a página de trás */
+[role="dialog"], [aria-modal="true"] { overscroll-behavior: contain; }

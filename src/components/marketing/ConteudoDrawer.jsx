@@ -12,6 +12,7 @@ import {
 import { toLocalInput, fromLocalInput, fmtData, tipoLink, urlSegura, termosEvitados } from "./mkUtils";
 import { METRICAS_PECA, placeholdersDe, estadoDe } from "./recursosModelo";
 import { enviarParaAprovacao, aprovar as aprovarConteudo, pedirAlteracoes as pedirAlteracoesConteudo } from "./mkAprovacao";
+import { CalendarDays } from "lucide-react";
 
 const SECCOES = [
   { id: "plano", label: "Planeamento", icon: I.Target },
@@ -342,9 +343,9 @@ export default function ConteudoDrawer({ item, marca, perfis, userId, userNome, 
                       return (
                         <div key={o.id} className="mk-oferta-ficha">
                           <b>{o.titulo}</b>
-                          <span>{[o.dados?.duracao && `⏱ ${o.dados.duracao}`, o.dados?.preco && `💶 ${o.dados.preco}`, o.dados?.modalidade, o.dados?.certificado].filter(Boolean).join(" · ") || "Sem dados no catálogo"}</span>
+                          <span>{[o.dados?.duracao && o.dados.duracao, o.dados?.preco && o.dados.preco, o.dados?.modalidade, o.dados?.certificado].filter(Boolean).join(" · ") || "Sem dados no catálogo"}</span>
                           {proximas.map((t) => (
-                            <span key={t.id}>📅 {t.data ? fmtData(t.data, { hora: false }) : "data por definir"}{t.data_fim && t.data_fim !== t.data ? ` → ${fmtData(t.data_fim, { hora: false })}` : ""}{t.dados?.local ? ` · 📍 ${t.dados.local}` : ""} · {estadoDe("turma", t.estado)?.label}</span>
+                            <span key={t.id}><CalendarDays size={13} aria-hidden="true" style={{ verticalAlign: '-2px' }} /> {t.data ? fmtData(t.data, { hora: false }) : "data por definir"}{t.data_fim && t.data_fim !== t.data ? ` → ${fmtData(t.data_fim, { hora: false })}` : ""}{t.dados?.local ? ` · 📍 ${t.dados.local}` : ""} · {estadoDe("turma", t.estado)?.label}</span>
                           ))}
                           {o.dados?.url && <a href={urlSegura(o.dados.url)} target="_blank" rel="noreferrer noopener">{o.dados.url}</a>}
                           {/a confirmar|a definir/i.test(`${o.dados?.duracao} ${o.dados?.preco}`) && <em><I.Alert size={12} /> Dados por confirmar no catálogo</em>}
@@ -426,10 +427,10 @@ export default function ConteudoDrawer({ item, marca, perfis, userId, userNome, 
                       onBlur={commit("copies")}
                     />
                     <span className="mk-copy-count">{(c.texto || "").length} car.</span>
-                    <button type="button" className="mk-icon-btn" title="Copiar texto" onClick={() => copiar(c.texto, i)}>
+                    <button aria-label="Copiar texto" type="button" className="mk-icon-btn" title="Copiar texto" onClick={() => copiar(c.texto, i)}>
                       {copiado === i ? <I.Check size={15} /> : <I.Copy size={15} />}
                     </button>
-                    <button type="button" className="mk-icon-btn is-danger" title="Remover versão" onClick={() => setCopies(copies.filter((_, j) => j !== i), true)}>
+                    <button aria-label="Remover versão" type="button" className="mk-icon-btn is-danger" title="Remover versão" onClick={() => setCopies(copies.filter((_, j) => j !== i), true)}>
                       <I.Trash size={15} />
                     </button>
                   </div>
@@ -468,7 +469,7 @@ export default function ConteudoDrawer({ item, marca, perfis, userId, userNome, 
                 return (
                   <div className="mk-link" key={i} style={{ "--c": t.cor }}>
                     <span className="mk-link-badge">{t.label}</span>
-                    <input
+                    <input aria-label="Nome (ex.: Design 1)"
                       className="mk-link-label"
                       value={l.label || ""}
                       placeholder="Nome (ex.: Design 1)"
@@ -483,7 +484,7 @@ export default function ConteudoDrawer({ item, marca, perfis, userId, userNome, 
                       onBlur={commit("links")}
                     />
                     {href && <a className="mk-icon-btn" href={href} target="_blank" rel="noreferrer" title="Abrir"><I.External size={15} /></a>}
-                    <button type="button" className="mk-icon-btn is-danger" title="Remover" onClick={() => setLinks(links.filter((_, j) => j !== i), true)}><I.Trash size={15} /></button>
+                    <button aria-label="Remover" type="button" className="mk-icon-btn is-danger" title="Remover" onClick={() => setLinks(links.filter((_, j) => j !== i), true)}><I.Trash size={15} /></button>
                   </div>
                 );
               })}

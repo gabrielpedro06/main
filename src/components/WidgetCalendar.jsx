@@ -3,6 +3,8 @@ import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
 import { formatAbsenceTypeLabel, normalizeAbsenceType } from "../utils/feriasSaldo";
 import "../styles/calendar.css";
+import { clicavel } from "../utils/clicavel";
+import { Flag, Cake, TreePalm } from "lucide-react";
 
 export default function WidgetCalendar({ onClose }) {
   const { user } = useAuth();
@@ -303,7 +305,7 @@ export default function WidgetCalendar({ onClose }) {
       if (ev.tipo === 'ausencia') return ev.bg || '#f59e0b';
       return 'var(--color-btnPrimary)';
   };
-  const evIcon = (ev) => (ev.tipo === 'feriado' ? '🎌' : ev.tipo === 'aniversario' ? '🎂' : ev.tipo === 'ausencia' ? '🌴' : null);
+  const evIcon = (ev) => (ev.tipo === 'feriado' ? <Flag size={12} /> : ev.tipo === 'aniversario' ? <Cake size={12} /> : ev.tipo === 'ausencia' ? <TreePalm size={12} /> : null);
 
   const isSameDay = (a, b) => a.getDate() === b.getDate() && a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
   const isTodayDate = (d) => isSameDay(d, now);
@@ -439,7 +441,7 @@ export default function WidgetCalendar({ onClose }) {
                       <div className="cal-allday-list">
                           {allDayEvts.map((ev, i) => (
                               <span key={i} className="cal-allday-pill" style={{ '--ev': evColor(ev) }}>
-                                  {evIcon(ev) && <span aria-hidden="true">{evIcon(ev)}</span>} {ev.displayName}
+                                  {evIcon(ev) && <span aria-hidden="true" style={{ display: 'inline-flex', verticalAlign: '-1px' }}>{evIcon(ev)}</span>} {ev.displayName}
                               </span>
                           ))}
                       </div>
@@ -464,7 +466,7 @@ export default function WidgetCalendar({ onClose }) {
                                   key={hour}
                                   className={`cal-hour ${addingAtHour === hour ? 'is-adding' : ''}`}
                                   style={{ minHeight: ROW_H }}
-                                  onClick={() => { if (addingAtHour !== hour && !editingEvent) { setAddingAtHour(hour); setNovoEvento({ hora: hour, titulo: "" }); } }}
+                                  {...clicavel(() => { if (addingAtHour !== hour && !editingEvent) { setAddingAtHour(hour); setNovoEvento({ hora: hour, titulo: "" }); } })}
                                   onDragOver={onDragOverRow}
                                   onDrop={(e) => onDropRow(e, hour)}
                               >
@@ -475,7 +477,7 @@ export default function WidgetCalendar({ onClose }) {
                                               return (
                                                   <form key={i} onClick={e => e.stopPropagation()} onSubmit={handleEditSubmit} className="cal-inline-form">
                                                       <input type="time" value={editingEvent.hora} onChange={e => setEditingEvent({...editingEvent, hora: e.target.value})} required />
-                                                      <input autoFocus type="text" value={editingEvent.titulo} onChange={e => setEditingEvent({...editingEvent, titulo: e.target.value})} placeholder="Título do evento..." required />
+                                                      <input aria-label="Título do evento" autoFocus type="text" value={editingEvent.titulo} onChange={e => setEditingEvent({...editingEvent, titulo: e.target.value})} placeholder="Título do evento…" required />
                                                       <button type="button" className="cal-inline-cancel" onClick={() => setEditingEvent(null)} aria-label="Cancelar">✕</button>
                                                       <button type="submit" className="cal-inline-save">Gravar</button>
                                                   </form>
@@ -513,7 +515,7 @@ export default function WidgetCalendar({ onClose }) {
                                       {addingAtHour === hour && !editingEvent && (
                                           <form onClick={e => e.stopPropagation()} onSubmit={(e) => handleInlineSubmit(e, hour)} className="cal-inline-form is-new">
                                               <input type="time" value={novoEvento.hora} onChange={e => setNovoEvento({...novoEvento, hora: e.target.value})} />
-                                              <input autoFocus type="text" value={novoEvento.titulo} onChange={e => setNovoEvento({...novoEvento, titulo: e.target.value})} onBlur={() => { if (!novoEvento.titulo) setAddingAtHour(null); }} placeholder="Novo evento — Enter para gravar" />
+                                              <input aria-label="Novo evento — Enter para gravar" autoFocus type="text" value={novoEvento.titulo} onChange={e => setNovoEvento({...novoEvento, titulo: e.target.value})} onBlur={() => { if (!novoEvento.titulo) setAddingAtHour(null); }} placeholder="Novo evento — Enter para gravar" />
                                               <button type="submit" className="cal-inline-save">Adicionar</button>
                                           </form>
                                       )}

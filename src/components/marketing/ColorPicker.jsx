@@ -99,7 +99,7 @@ export default function ColorPicker({ value, onChange, presets = [], sugestoes =
           <span className="cp-hue-thumb" style={{ left: `${(hsv.h / 360) * 100}%`, background: `hsl(${hsv.h} 100% 50%)` }} />
         </div>
         {temContaGotas && (
-          <button type="button" className="cp-eye" onClick={contaGotas} title="Apanhar uma cor do ecrã">
+          <button aria-label="Apanhar uma cor do ecrã" type="button" className="cp-eye" onClick={contaGotas} title="Apanhar uma cor do ecrã">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m2 22 1-1h3l9-9" /><path d="M3 21v-3l9-9" /><path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3l.4.4Z" /></svg>
           </button>
         )}
@@ -123,7 +123,7 @@ export default function ColorPicker({ value, onChange, presets = [], sugestoes =
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); } }}
           />
         </label>
-        <button type="button" className="cp-copy" title="Copiar HEX" onClick={() => navigator.clipboard?.writeText(atual).catch(() => {})}><I.Copy size={14} /></button>
+        <button aria-label="Copiar HEX" type="button" className="cp-copy" title="Copiar HEX" onClick={() => navigator.clipboard?.writeText(atual).catch(() => {})}><I.Copy size={14} /></button>
       </div>
 
       {sugestoes.length > 0 && (

@@ -522,12 +522,12 @@ button.sidebar-user-card {
 .bz-account-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 10040;
+  z-index: calc(var(--z-modal) + 8);
 }
 
 .bz-account-menu {
   position: fixed;
-  z-index: 10050;
+  z-index: calc(var(--z-modal) + 9);
   box-sizing: border-box;
   padding: 6px;
   border-radius: 16px;
@@ -680,7 +680,7 @@ button.sidebar-user-card {
   max-width: 50%;
   font-size: 0.74rem;
   font-weight: 600;
-  color: #94a3b8;
+  color: #64748b;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -742,7 +742,7 @@ button.sidebar-user-card {
   bottom: 0;
   height: 100dvh !important;
   width: min(84vw, 300px) !important;
-  z-index: 1200 !important;
+  z-index: calc(var(--z-app) + 7) !important;
   transform: translateX(-104%);
   transition: transform 0.42s var(--bz-ease-out), box-shadow 0.42s ease !important;
   padding-top: env(safe-area-inset-top);
@@ -781,7 +781,7 @@ button.sidebar-user-card {
 .bz-drawer-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 1150;
+  z-index: calc(var(--z-app) + 6);
   background: rgba(15, 23, 42, 0.45);
   backdrop-filter: blur(3px);
   -webkit-backdrop-filter: blur(3px);
@@ -810,7 +810,7 @@ body.bz-drawer-open {
   background: linear-gradient(120deg, var(--color-sidebarBg) 0%, var(--color-sidebarBgSecondary) 100%);
   color: #fff;
   box-shadow: 0 6px 20px rgba(15, 23, 42, 0.18);
-  z-index: 1000;
+  z-index: calc(var(--z-app) + 4);
   position: relative;
 }
 
@@ -867,7 +867,7 @@ body.bz-drawer-open {
   -webkit-backdrop-filter: saturate(1.6) blur(14px);
   border-top: 1px solid var(--color-borderColorLight, #e2e8f0);
   box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.06);
-  z-index: 1000;
+  z-index: calc(var(--z-app) + 4);
 }
 
 .bz-bottom-nav-item {
@@ -1236,11 +1236,11 @@ body.bz-drawer-open {
   height: auto;
   padding: 0;
   background: transparent !important;
-  color: #94a3b8;
+  color: #64748b;
   font-weight: 600;
 }
 .bz-sliding-tabs--underline .bz-sliding-tab.active .bz-sliding-tab-count {
-  color: #94a3b8;
+  color: #64748b;
 }
 .bz-sliding-tabs--underline .bz-sliding-tab-count.tone-danger,
 .bz-sliding-tabs--underline .bz-sliding-tab.active .bz-sliding-tab-count.tone-danger {
@@ -1301,7 +1301,7 @@ body.bz-drawer-open {
 .bz-hold {
   position: fixed;
   inset: 0;
-  z-index: 200000;
+  z-index: var(--z-dialogo);
   display: flex;
   align-items: center;
   justify-content: center;

@@ -4,6 +4,8 @@ import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../context/ThemeContext';
 import { supabase } from '../services/supabase';
 import './gestao.css';
+import { confirmar } from "../utils/dialogo";
+import { OctagonX, TriangleAlert, CircleCheck } from "lucide-react";
 
 const Icons = {
   Plus: ({ size = 16, color = 'currentColor' }) => (
@@ -101,7 +103,7 @@ const labelStyle = {
 const sectionTitleStyle = {
   fontSize: '0.76rem',
   fontWeight: 800,
-  color: '#94a3b8',
+  color: '#64748b',
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
   marginBottom: '14px',
@@ -133,14 +135,14 @@ function Toast({ notification, onClose }) {
   const isWarning = notification.type === 'warning';
 
   const colors = isError
-    ? { bg: '#fef2f2', border: '#fecaca', text: '#991b1b', accent: '#dc2626', icon: '⛔' }
+    ? { bg: '#fef2f2', border: '#fecaca', text: '#991b1b', accent: '#dc2626', icon: <OctagonX size={18} aria-hidden="true" /> }
     : isWarning
-      ? { bg: '#fffbeb', border: '#fde68a', text: '#92400e', accent: '#d97706', icon: '⚠️' }
-      : { bg: '#ffffff', border: 'var(--color-borderColorLight)', text: 'var(--color-textPrimary)', accent: 'var(--color-btnPrimary)', icon: '✅' };
+      ? { bg: '#fffbeb', border: '#fde68a', text: '#92400e', accent: '#d97706', icon: <TriangleAlert size={18} aria-hidden="true" /> }
+      : { bg: '#ffffff', border: 'var(--color-borderColorLight)', text: 'var(--color-textPrimary)', accent: 'var(--color-btnPrimary)', icon: <CircleCheck size={18} aria-hidden="true" /> };
 
   return (
     <ToastPortal>
-      <div style={{ position: 'fixed', top: 22, right: 22, zIndex: 100001, width: 'min(420px, calc(100vw - 32px))', pointerEvents: 'none' }}>
+      <div style={{ position: 'fixed', top: 22, right: 22, zIndex: "calc(var(--z-modal-topo) + 1)", width: 'min(420px, calc(100vw - 32px))', pointerEvents: 'none' }}>
         <div style={{ pointerEvents: 'auto', display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 16px', borderRadius: 18, background: colors.bg, color: colors.text, border: `1px solid ${colors.border}`, borderLeft: `5px solid ${colors.accent}`, boxShadow: '0 22px 40px rgba(15, 23, 42, 0.18)', backdropFilter: 'blur(6px)' }}>
           <div style={{ width: 30, height: 30, borderRadius: 999, display: 'grid', placeItems: 'center', flexShrink: 0, background: isError ? '#fecaca' : isWarning ? '#fde68a' : 'var(--color-bgSecondary)', color: colors.accent, fontSize: '0.95rem', fontWeight: 900 }}>
             {colors.icon}
@@ -148,7 +150,7 @@ function Toast({ notification, onClose }) {
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontSize: '0.92rem', fontWeight: 800, lineHeight: 1.35 }}>{notification.message}</div>
           </div>
-          <button type="button" onClick={onClose} style={{ border: 'none', background: 'transparent', color: 'inherit', cursor: 'pointer', padding: 0, flexShrink: 0, opacity: 0.75 }}>
+          <button aria-label="Fechar" type="button" onClick={onClose} style={{ border: 'none', background: 'transparent', color: 'inherit', cursor: 'pointer', padding: 0, flexShrink: 0, opacity: 0.75 }}>
             <Icons.Close size={16} />
           </button>
         </div>
@@ -217,10 +219,10 @@ function CourseCard({ curso, onView, onEdit, onDelete }) {
           <Icons.Eye size={16} />
           Ver Curso
         </button>
-        <button type="button" onClick={onEdit} style={{ width: 38, height: 38, borderRadius: '12px', border: '1px solid #fed7aa', background: '#fff7ed', color: '#f59e0b', cursor: 'pointer', display: 'grid', placeItems: 'center' }} title="Editar">
+        <button aria-label="Editar" type="button" onClick={onEdit} style={{ width: 38, height: 38, borderRadius: '12px', border: '1px solid #fed7aa', background: '#fff7ed', color: '#f59e0b', cursor: 'pointer', display: 'grid', placeItems: 'center' }} title="Editar">
           <Icons.Edit size={16} />
         </button>
-        <button type="button" onClick={onDelete} style={{ width: 38, height: 38, borderRadius: '12px', border: '1px solid #fecaca', background: '#fff1f2', color: '#ef4444', cursor: 'pointer', display: 'grid', placeItems: 'center' }} title="Eliminar">
+        <button aria-label="Eliminar" type="button" onClick={onDelete} style={{ width: 38, height: 38, borderRadius: '12px', border: '1px solid #fecaca', background: '#fff1f2', color: '#ef4444', cursor: 'pointer', display: 'grid', placeItems: 'center' }} title="Eliminar">
           <Icons.Trash size={16} />
         </button>
       </div>
@@ -260,7 +262,7 @@ function CourseForm({ formData, setFormData, novoModulo, setNovoModulo, onAddMod
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '14px' }}>
         <div>
           <label style={labelStyle}>Nome do Curso *</label>
-          <input
+          <input aria-label="Nome do Curso"
             type="text"
             value={formData.nome}
             onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
@@ -346,10 +348,10 @@ function CourseForm({ formData, setFormData, novoModulo, setNovoModulo, onAddMod
               </div>
               {editable && (
                 <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
-                  <button type="button" onClick={() => onEditModule(idx)} style={{ border: '1px solid #dbeafe', background: '#eff6ff', color: '#0284c7', borderRadius: '10px', width: 34, height: 34, display: 'grid', placeItems: 'center', cursor: 'pointer' }} title="Editar módulo">
+                  <button aria-label="Editar módulo" type="button" onClick={() => onEditModule(idx)} style={{ border: '1px solid #dbeafe', background: '#eff6ff', color: '#0284c7', borderRadius: '10px', width: 34, height: 34, display: 'grid', placeItems: 'center', cursor: 'pointer' }} title="Editar módulo">
                     <Icons.Edit size={15} />
                   </button>
-                  <button type="button" onClick={() => onRemoveModulo(idx)} style={{ border: '1px solid #fecaca', background: '#fff1f2', color: '#dc2626', borderRadius: '10px', width: 34, height: 34, display: 'grid', placeItems: 'center', cursor: 'pointer' }} title="Remover módulo">
+                  <button aria-label="Remover módulo" type="button" onClick={() => onRemoveModulo(idx)} style={{ border: '1px solid #fecaca', background: '#fff1f2', color: '#dc2626', borderRadius: '10px', width: 34, height: 34, display: 'grid', placeItems: 'center', cursor: 'pointer' }} title="Remover módulo">
                     <Icons.Trash size={15} />
                   </button>
                 </div>
@@ -368,7 +370,7 @@ function CourseForm({ formData, setFormData, novoModulo, setNovoModulo, onAddMod
       {editable && editingModuleIdx !== null && editingModuleIdx !== undefined && (
         <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '18px', padding: '14px' }}>
           <div style={{ display: 'grid', gap: '10px' }}>
-            <input
+            <input aria-label="Nome do módulo"
               type="text"
               value={novoModulo.nome}
               onChange={(e) => setNovoModulo({ ...novoModulo, nome: e.target.value })}
@@ -376,7 +378,7 @@ function CourseForm({ formData, setFormData, novoModulo, setNovoModulo, onAddMod
               style={fieldStyle}
               disabled={isSaving}
             />
-            <input
+            <input aria-label="Duração do módulo (horas)"
               type="number"
               min="0"
               step="0.5"
@@ -386,7 +388,7 @@ function CourseForm({ formData, setFormData, novoModulo, setNovoModulo, onAddMod
               style={fieldStyle}
               disabled={isSaving}
             />
-            <textarea
+            <textarea aria-label="Conteúdo (opcional)"
               value={novoModulo.conteudo}
               onChange={(e) => setNovoModulo({ ...novoModulo, conteudo: e.target.value })}
               placeholder="Conteúdo (opcional)"
@@ -451,7 +453,7 @@ function CourseForm({ formData, setFormData, novoModulo, setNovoModulo, onAddMod
         {editable ? (
           <>
             <button type="submit" disabled={isSaving} style={{ border: 'none', borderRadius: '14px', padding: '13px 16px', background: 'linear-gradient(135deg, var(--color-btnPrimary), var(--color-btnPrimaryDark))', color: '#fff', fontWeight: 900, cursor: 'pointer', boxShadow: '0 12px 24px var(--color-btnPrimaryShadow)' }}>
-              {isSaving ? 'A guardar...' : submitLabel}
+              {isSaving ? 'A guardar…' : submitLabel}
             </button>
             <button type="button" onClick={onCancel} style={{ border: '1px solid #cbd5e1', borderRadius: '14px', padding: '13px 16px', background: '#fff', color: '#334155', fontWeight: 900, cursor: 'pointer' }}>
               Cancelar
@@ -472,14 +474,14 @@ function CreateModal({ show, title, onClose, children }) {
 
   return (
     <ModalPortal>
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.58)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: 20 }}>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.58)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: "calc(var(--z-modal) + 13)", padding: 20 }}>
         <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(920px, 96vw)', maxHeight: '92vh', overflow: 'hidden', borderRadius: 22, background: '#fff', border: '1px solid #dbe3ef', boxShadow: '0 30px 60px -20px rgba(15, 23, 42, 0.35)', display: 'flex', flexDirection: 'column' }}>
           <div style={{ padding: '20px 22px', borderBottom: '1px solid var(--color-borderColorLight)', background: 'linear-gradient(135deg, var(--color-bgSecondary), #fff)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14 }}>
             <div>
               <p style={{ margin: '0 0 4px 0', fontSize: '0.74rem', fontWeight: 900, letterSpacing: '0.08em', color: 'var(--color-btnPrimaryDark)', textTransform: 'uppercase' }}>Novo Curso</p>
               <h3 style={{ margin: 0, color: '#0f172a', fontSize: '1.32rem', fontWeight: 900 }}>{title}</h3>
             </div>
-            <button type="button" onClick={onClose} style={{ background: '#fff', border: '1px solid #cbd5e1', width: 38, height: 38, borderRadius: 12, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#475569' }}>
+            <button aria-label="Fechar" type="button" onClick={onClose} style={{ background: '#fff', border: '1px solid #cbd5e1', width: 38, height: 38, borderRadius: 12, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#475569' }}>
               <Icons.Close size={18} />
             </button>
           </div>
@@ -495,7 +497,7 @@ function SideDrawer({ show, isClosing, title, subtitle, onClose, children }) {
 
   return (
     <ModalPortal>
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.58)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'stretch', justifyContent: 'flex-end', zIndex: 99999 }}>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.58)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'stretch', justifyContent: 'flex-end', zIndex: "calc(var(--z-modal) + 13)" }}>
         <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 'min(98vw, 1180px)', height: '100vh', margin: 0, borderRadius: '18px 0 0 18px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)', overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '100vh', animation: isClosing ? 'sidePanelPullOut 0.36s cubic-bezier(0.4, 0, 0.2, 1) forwards' : 'sidePanelPullIn 0.56s cubic-bezier(0.2, 0.9, 0.2, 1)' }}>
           <div style={{ padding: '22px 24px', borderBottom: '1px solid var(--color-borderColorLight)', background: 'linear-gradient(135deg, var(--color-bgSecondary), #fff)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 18 }}>
             <div>
@@ -503,7 +505,7 @@ function SideDrawer({ show, isClosing, title, subtitle, onClose, children }) {
               <h3 style={{ margin: 0, color: '#0f172a', fontSize: '1.35rem', fontWeight: 900 }}>{title}</h3>
               {subtitle && <p style={{ margin: '6px 0 0 0', color: '#64748b', fontSize: '0.9rem' }}>{subtitle}</p>}
             </div>
-            <button onClick={onClose} style={{ background: '#fff', border: '1px solid #cbd5e1', width: 38, height: 38, borderRadius: 12, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#475569' }}>
+            <button aria-label="Fechar" onClick={onClose} style={{ background: '#fff', border: '1px solid #cbd5e1', width: 38, height: 38, borderRadius: 12, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#475569' }}>
               <Icons.Close size={18} />
             </button>
           </div>
@@ -742,7 +744,7 @@ export default function Cursos() {
   }
 
   async function handleDelete(id) {
-    if (!confirm('Tem a certeza que deseja eliminar este curso?')) return;
+    if (!(await confirmar("Eliminar este curso?", { mensagem: "Esta ação não se desfaz.", perigoso: true, botao: "Eliminar" }))) return;
 
     try {
       const { error } = await supabase
@@ -794,10 +796,10 @@ export default function Cursos() {
 
         <div style={{background: '#fff', padding: '12px 20px', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '25px', display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap'}}>
           <div style={{flex: 1, minWidth: '250px', position: 'relative'}}>
-            <span style={{position: 'absolute', left: '12px', top: '10px', color: '#94a3b8'}}><Icons.Search /></span>
-            <input
+            <span style={{position: 'absolute', left: '12px', top: '10px', color: '#64748b'}}><Icons.Search /></span>
+            <input aria-label="Procurar por curso"
               type="text"
-              placeholder="Procurar por curso..."
+              placeholder="Procurar por curso…"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               style={{width: '100%', padding: '8px 12px 8px 38px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.85rem', boxSizing: 'border-box'}}
@@ -808,7 +810,7 @@ export default function Cursos() {
         <Toast notification={notification} onClose={() => setNotification(null)} />
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '48px 0', color: '#64748b', fontWeight: 700 }}>A carregar cursos...</div>
+          <div style={{ textAlign: 'center', padding: '48px 0', color: '#64748b', fontWeight: 700 }}>A carregar cursos…</div>
         ) : (
           <>
             <div style={{ display: 'flex', gap: '4px', paddingLeft: '10px', marginBottom: '-1px', position: 'relative', zIndex: 2 }}>
@@ -827,7 +829,7 @@ export default function Cursos() {
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
-                  transition: 'all 0.2s ease'
+                  transition: 'background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease'
                 }}
               >
                 <Icons.BookOpen size={16} /> 
@@ -852,7 +854,7 @@ export default function Cursos() {
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
-                  transition: 'all 0.2s ease'
+                  transition: 'background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease'
                 }}
               >
                 <Icons.Lock size={16} /> 
@@ -967,7 +969,7 @@ export default function Cursos() {
                       ))}
                     </div>
                   ) : (
-                    <div style={{ color: '#94a3b8', fontStyle: 'italic' }}>Sem módulos registados.</div>
+                    <div style={{ color: '#64748b', fontStyle: 'italic' }}>Sem módulos registados.</div>
                   )}
                 </div>
               </div>

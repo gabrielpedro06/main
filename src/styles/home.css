@@ -294,14 +294,14 @@
 .hx-click-away {
   position: fixed;
   inset: 0;
-  z-index: 9998;
+  z-index: calc(var(--z-modal) + 4);
 }
 
 .hx-account-menu {
   position: absolute;
   top: calc(100% + 10px);
   right: 0;
-  z-index: 9999;
+  z-index: calc(var(--z-modal) + 5);
   min-width: 230px;
   overflow: hidden;
   border-radius: 16px;
@@ -1090,7 +1090,7 @@
 .hx-deadline-today  { color: #b45309; background: #fef3c7; }
 .hx-deadline-soon   { color: var(--color-btnPrimary); background: var(--color-bgSecondary); }
 .hx-deadline-later  { color: #475569; background: #f1f5f9; }
-.hx-deadline-none   { color: #94a3b8; background: #f8fafc; }
+.hx-deadline-none   { color: #64748b; background: #f8fafc; }
 .hx-deadline-review { color: #be185d; background: #fce7f3; }
 
 .hx-more-btn {
@@ -1295,7 +1295,7 @@
   width: 100%;
   padding: 2px 0;
   text-align: center;
-  font-size: 0.6rem;
+  font-size: 0.66rem;
   font-weight: 800;
   letter-spacing: 0.06em;
   color: #fff;
@@ -1679,7 +1679,7 @@
 .pp-row-label {
   font-size: 0.7rem;
   font-weight: 700;
-  color: #94a3b8;
+  color: #64748b;
 }
 .pp-row-value {
   font-size: 0.88rem;
@@ -1705,7 +1705,7 @@
   border-radius: 9px;
   border: none;
   background: transparent;
-  color: #94a3b8;
+  color: #64748b;
   cursor: pointer;
   opacity: 0;
   transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
@@ -1735,7 +1735,7 @@
 .np-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 10040;
+  z-index: calc(var(--z-modal) + 8);
 }
 .np-backdrop.is-mobile {
   background: rgba(15, 23, 42, 0.45);
@@ -1744,7 +1744,7 @@
 
 .np-panel {
   position: fixed;
-  z-index: 10050;
+  z-index: calc(var(--z-modal) + 9);
   display: flex;
   flex-direction: column;
   max-height: min(560px, calc(100dvh - 120px));
@@ -1889,7 +1889,7 @@
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #94a3b8;
+  color: #64748b;
 }
 
 .np-item {
@@ -1967,7 +1967,7 @@
   flex-shrink: 0;
   font-size: 0.72rem;
   font-weight: 600;
-  color: #94a3b8;
+  color: #64748b;
   white-space: nowrap;
 }
 .np-item-msg {

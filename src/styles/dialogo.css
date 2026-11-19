@@ -1,0 +1,37 @@
+/* Caixa de confirmação/aviso global (DialogoGlobal.jsx) — prefixo único: dlg- */
+.dlg-overlay {
+  position: fixed; inset: 0; z-index: var(--z-dialogo); display: grid; place-items: center; padding: 16px;
+  background: rgba(15, 23, 42, 0.45); backdrop-filter: blur(4px);
+  font-family: "Manrope", "Segoe UI", system-ui, sans-serif;
+  animation: dlgFade 0.18s ease both;
+}
+@keyframes dlgFade { from { opacity: 0; } }
+@keyframes dlgRise { from { opacity: 0; transform: translateY(10px) scale(0.98); } }
+.dlg-box {
+  width: 100%; max-width: 400px; padding: 24px; border-radius: 22px; background: #fff; text-align: center;
+  box-shadow: 0 30px 60px -20px rgba(15, 23, 42, 0.45); animation: dlgRise 0.25s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.dlg-icon {
+  display: inline-grid; place-items: center; width: 48px; height: 48px; margin-bottom: 10px; border-radius: 16px;
+  font-size: 1.3rem; font-weight: 900; color: var(--color-btnPrimary, #2563eb);
+  background: color-mix(in srgb, var(--color-btnPrimary, #2563eb) 12%, #fff);
+}
+.dlg-icon.is-danger { color: #dc2626; background: #fef2f2; }
+.dlg-icon.is-info { color: #0369a1; background: #e0f2fe; }
+.dlg-box h2 { margin: 0; font-size: 1.1rem; font-weight: 800; line-height: 1.35; color: #0f172a; text-wrap: balance; }
+.dlg-box p { margin: 8px 0 0; font-size: 0.88rem; line-height: 1.5; color: #475569; text-wrap: pretty; }
+.dlg-actions { display: flex; gap: 10px; justify-content: center; margin-top: 20px; }
+.dlg-btn {
+  min-width: 110px; height: 42px; padding: 0 18px; border-radius: 12px; border: 1px solid transparent;
+  font: inherit; font-size: 0.9rem; font-weight: 800; cursor: pointer;
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+.dlg-btn:hover { filter: brightness(1.05); }
+.dlg-btn:active { transform: scale(0.98); }
+.dlg-btn.is-primary { background: var(--color-btnPrimary, #2563eb); color: #fff; }
+.dlg-btn.is-danger { background: #dc2626; color: #fff; }
+.dlg-btn.is-ghost { background: #f5f7fa; color: #0f172a; border-color: #e8edf3; }
+@media (max-width: 420px) {
+  .dlg-actions { flex-direction: column-reverse; }
+  .dlg-btn { width: 100%; }
+}

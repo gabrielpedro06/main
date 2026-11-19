@@ -344,7 +344,7 @@ export default function MedalhasRH({ colaboradores = [], notify }) {
               <div className="rh-modal-foot">
                 <button type="button" className="rh-btn is-ghost" onClick={() => setForm(null)} disabled={aGuardar}>Cancelar</button>
                 <button type="submit" className="rh-btn is-primary is-lg" disabled={aGuardar}>
-                  <Ic.Check /> {aGuardar ? "A guardar..." : form.id ? "Guardar alterações" : "Criar medalha"}
+                  <Ic.Check /> {aGuardar ? "A guardar…" : form.id ? "Guardar alterações" : "Criar medalha"}
                 </button>
               </div>
             </form>
@@ -369,7 +369,7 @@ export default function MedalhasRH({ colaboradores = [], notify }) {
             </div>
             <div className="rh-modal-foot">
               <button type="button" className="rh-btn is-ghost" onClick={() => setAApagar(null)} disabled={aGuardar}>Cancelar</button>
-              <button type="button" className="rh-btn is-bad is-lg" onClick={apagar} disabled={aGuardar}><Ic.Trash /> {aGuardar ? "A eliminar..." : "Eliminar"}</button>
+              <button type="button" className="rh-btn is-bad is-lg" onClick={apagar} disabled={aGuardar}><Ic.Trash /> {aGuardar ? "A eliminar…" : "Eliminar"}</button>
             </div>
           </div>
         </div>,

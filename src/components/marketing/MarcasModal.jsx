@@ -229,7 +229,7 @@ export default function MarcasModal({ marcas, contagem, onClose, onSalvar, onEli
                   {nConteudos === 0 && (confirmDel ? (
                     <button type="button" className="mk-btn is-danger is-sm" autoFocus onBlur={() => setConfirmDel(false)} onClick={async () => { await onEliminar(sel); escolher(marcas.find((m) => m.id !== sel) || null); }}>Confirmar</button>
                   ) : (
-                    <button type="button" className="mk-icon-btn is-danger" title="Eliminar marca" onClick={() => setConfirmDel(true)}><I.Trash size={15} /></button>
+                    <button aria-label="Eliminar marca" type="button" className="mk-icon-btn is-danger" title="Eliminar marca" onClick={() => setConfirmDel(true)}><I.Trash size={15} /></button>
                   ))}
                 </>
               )}

@@ -120,9 +120,9 @@ const THEME_CATALOG = [
   ["zen_minimalista", "Zen/Minimalista", "Cinza neutro", "#fafafa", "#525252"],
   ["team_building", "Team Building", "Vermelho corporativo", "#fff1f1", "#991b1b"],
   ["cyber_monday", "Cyber Monday", "Preto/aço moderno", "#f1f5f9", "#0f172a"],
-  ["tropical", "Tropical", "Verde palmeira", "#ecfdf5", "#059669"],
+  ["tropical", "Tropical", "Verde palmeira", "#ecfdf5", "#047857"],
   ["floresta_eco", "Floresta/Eco", "Verde musgo profundo", "#f0fdf4", "#166534"],
-  ["amanhecer_startup", "Amanhecer/Startup", "Laranja aurora", "#fff7ed", "#ea580c"],
+  ["amanhecer_startup", "Amanhecer/Startup", "Laranja aurora", "#fff7ed", "#c2410c"],
 ];
 
 // Temas de celebração: paleta + decorações animadas (ver components/ThemeDecor.jsx)

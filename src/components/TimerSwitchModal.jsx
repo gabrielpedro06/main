@@ -25,7 +25,7 @@ export default function TimerSwitchModal({
             to { opacity: 1; transform: scale(1) translateY(0); }
           }
           .modal-btn-cancel {
-            transition: all 0.2s ease;
+            transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease;
           }
           .modal-btn-cancel:hover {
             background-color: #f8fafc !important;
@@ -33,7 +33,7 @@ export default function TimerSwitchModal({
             color: #1e293b !important;
           }
           .modal-btn-confirm {
-            transition: all 0.2s ease;
+            transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease;
           }
           .modal-btn-confirm:hover {
             transform: translateY(-2px);
@@ -55,7 +55,7 @@ export default function TimerSwitchModal({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          zIndex: 100000,
+          zIndex: "var(--z-modal-topo)",
           animation: "overlayFadeIn 0.3s ease-out forwards",
           padding: "20px"
         }}

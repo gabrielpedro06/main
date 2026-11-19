@@ -6,7 +6,7 @@
 .cal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 99999;
+  z-index: calc(var(--z-modal) + 13);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -158,7 +158,7 @@
   background: #f1f5f9;
   color: var(--cal-muted);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease;
 }
 .cal-close:hover { background: #fef2f2; color: var(--cal-red); transform: rotate(90deg); }
 
@@ -562,7 +562,7 @@
   font-size: 1.05rem;
   font-weight: 600;
   color: var(--cal-ink);
-  transition: all 0.25s var(--cal-spring);
+  transition: background-color 0.25s var(--cal-spring), border-color 0.25s var(--cal-spring), color 0.25s var(--cal-spring), box-shadow 0.25s var(--cal-spring), transform 0.25s var(--cal-spring), opacity 0.25s var(--cal-spring), width 0.25s var(--cal-spring), filter 0.25s var(--cal-spring);
 }
 .cal-week-day.is-today .cal-week-num { color: var(--cal-red); font-weight: 800; }
 .cal-week-day.is-selected .cal-week-num { background: var(--cal-ink); color: #fff; transform: scale(1.05); }
