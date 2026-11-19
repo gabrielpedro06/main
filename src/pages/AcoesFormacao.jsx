@@ -13,6 +13,7 @@ import {
 import * as XLSX from "xlsx";
 
 import AvisoToast from "../components/AvisoToast";
+import { registarEvento } from "../utils/registarEvento";
 const MODEL_NAME = "Formação Profissional";
 
 // Novas constantes para os Anos
@@ -1370,6 +1371,7 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
 
     // Fazer o download do ficheiro
     XLSX.writeFile(workbook, `Formacoes_${selectedYear}.xlsx`);
+    registarEvento("exportacao", { area: "Ações de formação", linhas: dadosExcel.length });
     
     showToast(`Excel de ${selectedYear} exportado com sucesso!`);
   };

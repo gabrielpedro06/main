@@ -1,3 +1,5 @@
+import { uuidSeguro } from "./filtroSeguro";
+
 export const ANNUAL_VACATION_DAYS = 22;
 export const ATTENDANCE_GLOBAL_CUTOFF = "2026-03-01";
 export const TOLERANCIA_TIPO = "Tolerância de Ponto";
@@ -119,7 +121,7 @@ export async function obterToleranciasAtivas({
     .neq("estado", "rejeitado");
 
   if (userId) {
-    query = query.or(`user_id.is.null,user_id.eq.${userId}`);
+    query = query.or(`user_id.is.null,user_id.eq.${uuidSeguro(userId)}`);
   }
 
   const { data, error } = await query;

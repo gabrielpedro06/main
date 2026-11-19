@@ -7,6 +7,7 @@ import { clicavel } from "../utils/clicavel";
 
 import AvisoToast from "../components/AvisoToast";
 import { Globe, Megaphone } from "lucide-react";
+import { registarEvento } from "../utils/registarEvento";
 const ModalPortal = ({ children }) => createPortal(children, document.body);
 
 const STATUS_OPTIONS = [
@@ -695,6 +696,7 @@ export default function TransferGest() {
     });
 
     const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+    registarEvento("exportacao", { area: "TransferGest", linhas: filteredRows.length });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;

@@ -18,6 +18,7 @@ import "./../styles/dashboard.css";
 import "../styles/absences.css";
 import FancySelect from "../components/FancySelect";
 import { postAutenticado } from "../utils/apiAutenticada";
+import { uuidSeguro } from "../utils/filtroSeguro";
 
 // --- ÍCONES SVG PROFISSIONAIS ---
 const Icons = {
@@ -265,7 +266,7 @@ export default function Ferias({ forcedType = null }) {
               .in("tipo", TOLERANCIA_TIPOS)
               .neq("estado", "cancelado")
               .neq("estado", "rejeitado")
-              .or(`user_id.is.null,user_id.eq.${user.id}`);
+              .or(`user_id.is.null,user_id.eq.${uuidSeguro(user.id)}`);
           if (error) throw error;
 
           const mapped = (data || []).map((item) => ({

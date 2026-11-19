@@ -10,6 +10,7 @@ import marketingIdeias from "../api/marketing/ideias.js";
 import organizadorIa from "../api/organizador/ia.js";
 import adminMfa from "../api/_lib/adminMfa.js";
 import adminContas from "../api/_lib/adminContas.js";
+import seguranca from "../api/_lib/alertasSeguranca.js";
 
 const app = express();
 
@@ -57,6 +58,7 @@ app.post("/api/marketing/ideias", (req, res) => marketingIdeias(req, res));
 app.post("/api/organizador/ia", (req, res) => organizadorIa(req, res));
 app.post("/api/admin/mfa", (req, res) => adminMfa(req, res));
 app.post("/api/admin/contas", (req, res) => adminContas(req, res));
+app.post("/api/seguranca/:op", (req, res) => seguranca(req.params.op, req, res));
 app.all("/api/absence-notifications/action", express.urlencoded({ extended: false }), (req, res) => absenceAction(req, res));
 
 const PORT = Number(process.env.PORT || 8787);

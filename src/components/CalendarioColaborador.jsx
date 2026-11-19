@@ -16,6 +16,7 @@ import {
   parseLocalDate,
   sincronizarSaldoFeriasPerfil,
 } from "../utils/feriasSaldo";
+import { uuidSeguro } from "../utils/filtroSeguro";
 
 export default function CalendarioColaborador({
   userId,
@@ -159,7 +160,7 @@ export default function CalendarioColaborador({
       .neq("estado", "rejeitado")
       .lte("data_inicio", data)
       .gte("data_fim", data)
-      .or(`user_id.is.null,user_id.eq.${userId}`);
+      .or(`user_id.is.null,user_id.eq.${uuidSeguro(userId)}`);
 
     if (excludeToleranceId) query = query.neq("id", excludeToleranceId);
 
@@ -254,7 +255,7 @@ export default function CalendarioColaborador({
       const { data: ausenciasData } = await supabase
         .from("ferias")
         .select("*")
-        .or(`user_id.eq.${userId},user_id.is.null`)
+        .or(`user_id.eq.${uuidSeguro(userId)},user_id.is.null`)
         .neq("estado", "rejeitado")
         .neq("estado", "cancelado")
         .lte("data_inicio", fimMesStr)

@@ -198,7 +198,7 @@ export default function DashboardHome() {
                 .select("id, project_id, conteudo_id, titulo, mensagem, link, tipo, is_read, created_at, conteudo:marketing_conteudos(estado)")
                 .eq("user_id", user.id)
                 .eq("is_read", false)
-                .in("tipo", ["project_created", ...TIPOS_NOTIF_MK])
+                .in("tipo", ["project_created", ...TIPOS_NOTIF_MK, "seguranca"])
                 .order("created_at", { ascending: false })
                 .limit(20);
 

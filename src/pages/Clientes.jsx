@@ -15,6 +15,7 @@ import { guardarPalavraPasse, revelarPalavraPasse, semPalavraPasse } from "../ut
 import { clicavel } from "../utils/clicavel";
 
 import AvisoToast from "../components/AvisoToast";
+import { registarEvento } from "../utils/registarEvento";
 // --- ÍCONES SVG PROFISSIONAIS (SaaS Premium) ---
 const Icons = {
   Search: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>,
@@ -2120,6 +2121,7 @@ export default function Clientes() {
       const separador = statusTab === 'organismos' ? 'Organismos' : statusTab === 'arquivados' ? 'Arquivados' : 'Entidades';
       const hoje = new Date().toISOString().slice(0, 10);
       XLSX.writeFile(wb, `${separador}_${hoje}.xlsx`);
+      registarEvento("exportacao", { area: "Clientes e contactos", linhas: folhaEntidades.length + folhaContactos.length });
       showToast(`${lista.length} entidades e ${contactosRows.length} contactos exportados.`, 'success');
     } catch (err) {
       console.error('Erro ao exportar entidades:', err);

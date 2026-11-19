@@ -13,6 +13,7 @@ import {
 } from "../utils/feriasSaldo";
 import { ACOES, decidirPedido, diasDoPedido, ehPedidoKm, fmtDias } from "../utils/decisaoPedido";
 import "../styles/aprovar-pedido.css";
+import { dataSegura } from "../utils/filtroSeguro";
 
 // =====================================================================
 // Página aberta a partir do email "novo pedido de ausência".
@@ -101,7 +102,7 @@ async function carregarContexto(pedido) {
       .not("user_id", "is", null)
       .neq("user_id", pedido.user_id)
       .lte("data_inicio", fim)
-      .or(`data_fim.gte.${inicio},and(data_fim.is.null,data_inicio.gte.${inicio})`)
+      .or(`data_fim.gte.${dataSegura(inicio)},and(data_fim.is.null,data_inicio.gte.${dataSegura(inicio)})`)
       .order("data_inicio")
       .then(({ data }) => data || []);
 

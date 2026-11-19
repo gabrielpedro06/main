@@ -7,6 +7,7 @@ import * as XLSX from "xlsx";
 import FancySelect from "../components/FancySelect";
 import { guardarPalavraPasse, revelarPalavraPasse, semPalavraPasse } from "../utils/cofre";
 import "../styles/ativos-ti.css";
+import { registarEvento } from "../utils/registarEvento";
 
 /* ------------------------------------------------------------------ */
 /* Ícones SVG                                                         */
@@ -1035,6 +1036,7 @@ export default function AtivosTIDashboard() {
         XLSX.utils.book_append_sheet(wb, wsStock, "Em Stock");
       }
       XLSX.writeFile(wb, "inventario_ativos_ti.xlsx");
+      registarEvento("exportacao", { area: "Ativos de TI", linhas: dadosAtribuidos.length + dadosStock.length });
       notify("Excel gerado e transferido com sucesso!");
 
     } catch (error) {

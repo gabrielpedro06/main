@@ -24,6 +24,7 @@ export const nomeTabela = (t) => TABELAS[t] || t || "—";
 
 export const VERBO = { INSERT: "criou", UPDATE: "alterou", DELETE: "eliminou", EVENTO: "" };
 export const EVENTOS = { login: "entrou na aplicação", logout: "saiu da aplicação", exportar_registos: "exportou o registo de atividade",
+  exportacao: "exportou dados para Excel/CSV",
   sessao_expirada: "teve a sessão terminada (2FA expirado)", acesso_negado: "tentou entrar com a conta desativada",
   mfa_reposto: "repôs o MFA de um colaborador", credencial_revelada: "viu ou copiou uma palavra-passe do cofre", colaborador_desativado: "desativou um colaborador",
   colaborador_reativado: "reativou um colaborador", contas_inativas_bloqueadas: "bloqueou as contas inativas",

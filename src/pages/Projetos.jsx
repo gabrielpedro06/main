@@ -20,6 +20,7 @@ import { clicavel } from "../utils/clicavel";
 
 import AvisoToast from "../components/AvisoToast";
 import { Lock, TriangleAlert } from "lucide-react";
+import { registarEvento } from "../utils/registarEvento";
 // --- ÍCONES SVG PROFISSIONAIS (SaaS Premium) ---
 const Icons = {
   Grid: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>,
@@ -2418,6 +2419,7 @@ export default function Projetos() {
               .map((row) => row.map((value) => `"${String(value ?? "").replace(/"/g, '""')}"`).join(";"))
               .join("\r\n");
           const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+          registarEvento("exportacao", { area: "Projetos (visão geral)", linhas: rows.length });
           const url = URL.createObjectURL(blob);
           const link = document.createElement("a");
           link.href = url;

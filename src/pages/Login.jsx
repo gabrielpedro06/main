@@ -3,6 +3,7 @@ import { supabase } from "../services/supabase"
 import { useNavigate, useLocation, Link } from "react-router-dom"
 import { resetBrandIntro } from "../utils/brandIntro"
 import { registarEvento } from "../utils/registarEvento"
+import { reportarTentativaFalhada, registarLoginSeguro } from "../utils/alertasSeguranca"
 import { AVISO_LOGIN_KEY, CONTA_DESATIVADA } from "../utils/contaDesativada"
 import { useAuth } from "../context/AuthContext"
 import AuthLayout, { AuthField, AuthAlert, AuthSubmit } from "../components/AuthLayout"
@@ -43,7 +44,7 @@ export default function Login() {
   async function entrar() {
     resetBrandIntro()
     await checkMfa?.()
-    registarEvento("login", { via: "password + 2FA", agente: navigator.userAgent })
+    registarLoginSeguro()
     navigate(destino, { replace: true })
   }
 
@@ -59,7 +60,9 @@ export default function Login() {
 
     if (error) {
       // Conta bloqueada no Supabase (colaborador desativado nos RH)
-      setError(/banned/i.test(error.message || "") ? CONTA_DESATIVADA : "Email ou password inválidos")
+      const bloqueada = /banned/i.test(error.message || "")
+      reportarTentativaFalhada(email, bloqueada ? "conta_bloqueada" : "password")
+      setError(bloqueada ? CONTA_DESATIVADA : "Email ou password inválidos")
       setLoading(false)
       return
     }
@@ -108,6 +111,7 @@ export default function Login() {
 
     const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId: totp.id, code: valor })
     if (error) {
+      reportarTentativaFalhada(email || user?.email, "mfa")
       setError("Código inválido ou expirado. Tente o código atual da app.")
       setCode("")
       setLoading(false)

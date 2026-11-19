@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "../services/supabase";
 import FancySelect from "../components/FancySelect";
+import AlertasSeguranca from "../components/admin/AlertasSeguranca";
 import { registarEvento } from "../utils/registarEvento";
 import { TABELAS, nomeTabela, VERBO, EVENTOS, rotuloRegisto } from "../utils/auditoria";
 import "../styles/registos.css";
@@ -30,6 +32,10 @@ const fmtValor = (v) => {
   return JSON.stringify(v, null, 1);
 };
 export default function RegistoAtividade() {
+  const [params, setParams] = useSearchParams();
+  const vista = params.get("alertas") === "1" ? "alertas" : "atividade";
+  const mudarVista = (v) => setParams(v === "alertas" ? { alertas: "1" } : {}, { replace: true });
+  const [porVer, setPorVer] = useState(null);
   const [linhas, setLinhas] = useState([]);
   const [perfis, setPerfis] = useState([]);
   const [aCarregar, setACarregar] = useState(false);
@@ -45,6 +51,9 @@ export default function RegistoAtividade() {
 
   useEffect(() => {
     supabase.from("profiles").select("id, nome, email, avatar_url").order("nome").then(({ data }) => setPerfis(data || []));
+    // Contador de alertas por ver (no separador), mesmo estando na vista de atividade
+    supabase.from("alertas_seguranca").select("id", { count: "exact", head: true }).is("visto_em", null)
+      .then(({ count, error }) => { if (!error) setPorVer(count || 0); });
   }, []);
 
   const perfil = useCallback((id) => perfis.find((p) => p.id === id) || null, [perfis]);
@@ -127,14 +136,47 @@ export default function RegistoAtividade() {
 
   return (
     <div className="rg-page">
-      <header className="rg-head">
-        <div>
-          <h1>Registo de atividade</h1>
-          <p>Tudo o que é criado, alterado ou eliminado na aplicação, por quem e quando. Passwords e tokens ficam ocultos.</p>
+      <header className="rg-hero">
+        <span className="rg-hero-orb is-a" aria-hidden="true" />
+        <span className="rg-hero-orb is-b" aria-hidden="true" />
+        <div className="rg-hero-row">
+          <div className="rg-hero-main">
+            <span className="rg-hero-icon" aria-hidden="true">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /><path d="M12 7v5l3 2" /></svg>
+            </span>
+            <div>
+              <span className="rg-hero-kicker">Administração</span>
+              <h1>Registo de atividade</h1>
+              <p>Tudo o que é criado, alterado ou eliminado na aplicação, por quem e quando. Passwords e tokens ficam ocultos.</p>
+            </div>
+          </div>
+          <div className="rg-hero-side">
+            {vista === "atividade" ? (
+              <>
+                <span className="rg-chip"><strong>{aCarregar && !linhas.length ? "…" : linhas.length}{haMais ? "+" : ""}</strong> registos</span>
+                <span className="rg-chip">{PERIODOS.find((p) => p.id === fPeriodo)?.label || "Tudo"}</span>
+                <button type="button" className="rg-hero-btn" onClick={exportar} disabled={!linhas.length}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3v12" /><path d="m7 10 5 5 5-5" /><path d="M5 21h14" /></svg>
+                  Exportar CSV
+                </button>
+              </>
+            ) : (
+              <span className="rg-chip"><strong>{porVer ?? "…"}</strong> por ver</span>
+            )}
+          </div>
         </div>
-        <button type="button" className="rg-btn" onClick={exportar} disabled={!linhas.length}>Exportar CSV</button>
+        <nav className="rg-tabs" role="tablist" aria-label="Secções do registo">
+          <button type="button" role="tab" aria-selected={vista === "atividade"} className={vista === "atividade" ? "is-on" : ""} onClick={() => mudarVista("atividade")}>
+            Atividade
+          </button>
+          <button type="button" role="tab" aria-selected={vista === "alertas"} className={vista === "alertas" ? "is-on" : ""} onClick={() => mudarVista("alertas")}>
+            Alertas de segurança{porVer ? <span className="rg-tab-badge">{porVer}</span> : null}
+          </button>
+        </nav>
       </header>
 
+      {vista === "alertas" && <AlertasSeguranca onPorVer={setPorVer} />}
+      {vista === "atividade" && (<>
       <div className="rg-filtros">
         <div className="rg-seg" role="tablist">
           {OPERACOES.map((o) => (
@@ -228,6 +270,7 @@ export default function RegistoAtividade() {
         {aCarregar && <div className="rg-vazio">A carregar…</div>}
         {haMais && !aCarregar && <button type="button" className="rg-btn is-soft rg-mais" onClick={() => carregar(false)}>Carregar mais</button>}
       </div>
+      </>)}
     </div>
   );
 }

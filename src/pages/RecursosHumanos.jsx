@@ -34,6 +34,8 @@ import "./../styles/rh.css";
 import { confirmar } from "../utils/dialogo";
 import { clicavel } from "../utils/clicavel";
 import { Cake } from "lucide-react";
+import { registarEvento } from "../utils/registarEvento";
+import { uuidSeguro } from "../utils/filtroSeguro";
 
 // --- ÍCONES SVG ESTILO SAAS ---
 const Icons = {
@@ -861,7 +863,7 @@ export default function RecursosHumanos() {
           .gte("data_fim", data);
 
       if (excludeToleranceId) query = query.neq("id", excludeToleranceId);
-      query = query.or(`user_id.is.null,user_id.eq.${userId}`);
+      query = query.or(`user_id.is.null,user_id.eq.${uuidSeguro(userId)}`);
 
       const { data: matches, error } = await query;
       if (error) throw error;
@@ -1126,7 +1128,7 @@ export default function RecursosHumanos() {
             .neq('estado', 'cancelado')
             .lte("data_inicio", endOfMonth)
             .gte("data_fim", startOfAttendanceWindow);
-        if (scopeUser) qFerias = qFerias.or(`user_id.eq.${scopeUser},user_id.is.null`);
+        if (scopeUser) qFerias = qFerias.or(`user_id.eq.${uuidSeguro(scopeUser)},user_id.is.null`);
         const { data: dFerias } = await qFerias;
         if (reqId !== dadosMensaisReqRef.current) return;
         setAssiduidadeMes(dAssiduidade || []);
@@ -2293,6 +2295,7 @@ export default function RecursosHumanos() {
       ws['!cols'] = [{ wch: 26 }, { wch: 22 }, { wch: 16 }, { wch: 22 }, { wch: 30 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 18 }, { wch: 20 }];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Processamento');
+      registarEvento("exportacao", { area: "Processamento S.A. (RH)", linhas: linhas.length });
       XLSX.writeFile(wb, `Processamento_SA_${currentDate.getFullYear()}_${String(currentDate.getMonth() + 1).padStart(2, '0')}.xlsx`);
       showNotification(`Processamento de ${mesLabel} exportado.`, 'success');
   };
