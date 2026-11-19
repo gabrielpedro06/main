@@ -280,9 +280,8 @@ export default function Projetos() {
   };
 
   const getProjectUrl = (projectId) => {
-    // Força o URL exato do Bizin Manager
-    const baseUrl = "https://bizinmanager.vercel.app";
-    return `${baseUrl}/dashboard/projetos/${projectId}`;
+    // Domínio onde a app está aberta (ex.: bizincenter.pt); a app usa HashRouter → /#/
+    return `${window.location.origin}/#/dashboard/projetos/${projectId}`;
     };
 
   const notifyProjectCreated = async (project, responsibleId) => {
