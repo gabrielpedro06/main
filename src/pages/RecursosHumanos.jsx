@@ -13,6 +13,7 @@ import {
     calcularDiasUteis as calcularDiasUteisFerias,
     buildToleranciasSkipSet,
     calcularDiasUteisNoMes,
+    calcularFeriasAnoAdmissao,
     COLLABORATOR_STATUS_TYPES,
     formatAbsenceTypeLabel,
     getAnnualVacationLimitFromProfile,
@@ -194,6 +195,24 @@ const ModernTooltip = ({ content, children }) => {
 };
 
 const EMPRESAS_INTERNAS = ["Neomarca", "Geoflicks", "2 Siglas", "Fator Triplo"];
+
+// Motivos de ausência, agrupados (os valores gravados na BD são os mesmos de sempre)
+const MOTIVOS_AUSENCIA = [
+    { value: "Férias", label: "Férias", hint: "Desconta do saldo de férias", group: "Férias e deslocações" },
+    // = KM_REQUEST_TYPE (definido dentro do componente)
+    { value: "Pedido de Km's", label: "Pedido de Km's", hint: "Quilómetros em viatura própria", group: "Férias e deslocações" },
+    { value: "Doença, acidente e obrigação legal", label: "Doença, acidente e obrigação legal", group: "Faltas justificadas" },
+    { value: "Assistência à família", label: "Assistência à família", group: "Faltas justificadas" },
+    { value: "Casamento", label: "Casamento", group: "Faltas justificadas" },
+    { value: "Falecimento de familiar", label: "Falecimento de familiar", group: "Faltas justificadas" },
+    { value: "Licença maternal/paternal", label: "Licença maternal/paternal", group: "Faltas justificadas" },
+    { value: "Deslocação a estabelecimento de ensino", label: "Deslocação a estabelecimento de ensino", group: "Faltas justificadas" },
+    { value: "Prestação de provas de avaliação", label: "Prestação de provas de avaliação", group: "Faltas justificadas" },
+    { value: "Candidato a cargo público", label: "Candidato a cargo público", group: "Faltas justificadas" },
+    { value: "Outros - Assuntos pessoais", label: "Outros - Assuntos pessoais", group: "Outras" },
+    { value: "Licença sem vencimento", label: "Licença sem vencimento", group: "Outras" },
+    { value: "Ausência sem motivo - injustificada", label: "Ausência sem motivo - injustificada", hint: "Falta injustificada", group: "Outras" },
+];
 
 const toUniqueCompanies = (values = []) => [...new Set((values || []).filter(Boolean))];
 
@@ -1461,7 +1480,7 @@ export default function RecursosHumanos() {
 
           const profilePayload = {
               valor_sa: tempUserProfile.valor_sa,
-              dias_ferias: tempUserProfile.dias_ferias,
+              // dias_ferias (coluna antiga) já não se edita aqui: o saldo real está em vacation_balances
               dias_ferias_total: hasDiasFeriasTotalColumn ? diasFeriasTotalParsed : null,
               empresa_interna: empresaPrincipal,
               funcao: tempUserProfile.funcao,
@@ -2777,6 +2796,23 @@ export default function RecursosHumanos() {
       </div>
   );
   const setTemp = (key) => (e) => setTempUserProfile({ ...tempUserProfile, [key]: e.target.value });
+  // Data de admissão → Limite Anual calculado sozinho (os RH podem alterar depois):
+  //  admissão este ano (ou futura) → regra do ano de admissão; anos anteriores → 22.
+  const limiteAutomatico = (dataAdmissao) => {
+      const ano = parseLocalDate(dataAdmissao)?.getFullYear();
+      if (!ano) return null;
+      return ano >= new Date().getFullYear() ? calcularFeriasAnoAdmissao(dataAdmissao) : 22;
+  };
+  const mudarDataAdmissao = (e) => {
+      const valor = e.target.value;
+      const limite = limiteAutomatico(valor);
+      setTempUserProfile({
+          ...tempUserProfile,
+          data_admissao: valor,
+          ...(limite !== null ? { dias_ferias_total: limite } : {}),
+      });
+  };
+  const limiteCalculado = limiteAutomatico(tempUserProfile?.data_admissao);
   const temporaryStatusAtual = getTemporaryStatusFromProfile(currentUserProfile);
   const totalPedidos = pedidosPendentes.length + pedidosKmPendentes.length;
   const formacaoAno = currentDate.getFullYear();
@@ -3794,13 +3830,26 @@ export default function RecursosHumanos() {
                                   <input type="number" step="0.01" min="0" className="rh-input is-big" value={tempUserProfile.valor_sa || ''} onChange={setTemp('valor_sa')} />
                               </div>
                               <div className="rh-field">
-                                  <label>Férias Disponíveis</label>
-                                  <input type="number" step="0.5" className="rh-input is-big" value={tempUserProfile.dias_ferias ?? ''} onChange={setTemp('dias_ferias')} />
+                                  <label>Férias Disponíveis ({currentDate.getFullYear()})</label>
+                                  {/* Calculado (limite anual + transitados − gozados): muda-se pelo Limite Anual e pelas ausências */}
+                                  <div className="rh-input is-big rh-input-static" aria-readonly="true" title="Calculado automaticamente: limite anual + dias transitados − dias gozados">
+                                      {saldoFeriasAnoSelecionado ? saldoFeriasAnoSelecionado.diasDisponiveis : "—"}
+                                  </div>
                               </div>
                               {hasDiasFeriasTotalColumn && (
                                   <div className="rh-field">
                                       <label>Limite Anual</label>
                                       <input type="number" step="1" min="0" className="rh-input is-big" value={tempUserProfile.dias_ferias_total ?? ''} onChange={setTemp('dias_ferias_total')} />
+                                      {limiteCalculado !== null && Number(tempUserProfile.dias_ferias_total) !== limiteCalculado && (
+                                          <button
+                                              type="button"
+                                              className="rh-limite-sugestao"
+                                              onClick={() => setTempUserProfile({ ...tempUserProfile, dias_ferias_total: limiteCalculado })}
+                                              title="Ano de admissão: 2 dias no mês de entrada se entrar no 1.º dia útil (1 se até dia 15), mais 2 por cada mês seguinte, até 20."
+                                          >
+                                              Pela data de admissão: <b>{limiteCalculado} dias</b> · usar
+                                          </button>
+                                      )}
                                   </div>
                               )}
                               <div className="rh-editing-pill"><span className="rh-dot" /> Edição Ativa.</div>
@@ -3821,7 +3870,7 @@ export default function RecursosHumanos() {
                                       <div className="rh-field"><label>CC (Formato auto)</label><input type="text" className="rh-input is-mono" value={tempUserProfile.ncc || ''} onChange={handleCCChange} /></div>
                                       <div className="rh-field"><label>Validade CC</label><input type="date" className="rh-input" value={tempUserProfile.validade_cc || ''} onChange={setTemp('validade_cc')} /></div>
                                       <div className="rh-field"><label>Data Nasc.</label><input type="date" className="rh-input" value={tempUserProfile.data_nascimento || ''} onChange={setTemp('data_nascimento')} /></div>
-                                      <div className="rh-field"><label>Data Admissão</label><input type="date" className="rh-input" value={tempUserProfile.data_admissao || ''} onChange={setTemp('data_admissao')} /></div>
+                                      <div className="rh-field"><label>Data Admissão</label><input type="date" className="rh-input" value={tempUserProfile.data_admissao || ''} onChange={mudarDataAdmissao} /></div>
                                       <div className="rh-field"><label>Estado Civil</label><select className="rh-input" value={tempUserProfile.estado_civil || ''} onChange={setTemp('estado_civil')}><option value="">-</option><option value="Solteiro">Solteiro</option><option value="Casado">Casado</option><option value="Divorciado">Divorciado</option><option value="União Facto">União Facto</option></select></div>
                                       <div className="rh-field"><label>Dependentes</label><input type="number" className="rh-input" value={tempUserProfile.nr_dependentes || 0} onChange={setTemp('nr_dependentes')} /></div>
                                       <div className="rh-field"><label>Sexo</label><select className="rh-input" value={tempUserProfile.sexo || ''} onChange={setTemp('sexo')}><option value="">-</option><option value="Masculino">Masculino</option><option value="Feminino">Feminino</option><option value="Outro">Outro</option></select></div>
@@ -4056,29 +4105,31 @@ export default function RecursosHumanos() {
                         <div className="rh-modal-body">
                             <div className="rh-field">
                                 <label>Colaborador</label>
-                                <select required className="rh-input" value={newAbsence.user_id} onChange={e => setNewAbsence({...newAbsence, user_id: e.target.value})} disabled={isEditingAbsence || !!selectedUser}>
-                                    <option value="">Selecione Colaborador…</option>
-                                    {colaboradoresAtivos.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                                </select>
+                                {isEditingAbsence || selectedUser ? (
+                                    <div className="rh-input rh-input-static" aria-disabled="true">
+                                        {colaboradoresAtivos.find((c) => String(c.id) === String(newAbsence.user_id))?.nome || "—"}
+                                    </div>
+                                ) : (
+                                    <FancySelect
+                                        className="rh-fs"
+                                        ariaLabel="Colaborador"
+                                        placeholder="Selecione o colaborador…"
+                                        value={newAbsence.user_id}
+                                        onChange={(v) => setNewAbsence({ ...newAbsence, user_id: v })}
+                                        options={colaboradoresAtivos.map((c) => ({ value: c.id, label: c.nome }))}
+                                    />
+                                )}
                             </div>
 
                             <div className="rh-field">
                                 <label>Motivo da Ausência</label>
-                                <select className="rh-input" value={newAbsence.tipo} onChange={e => setNewAbsence({...newAbsence, tipo: e.target.value})} required>
-                                    <option value="Férias">Férias</option>
-                                    <option value={KM_REQUEST_TYPE}>{KM_REQUEST_TYPE}</option>
-                                    <option value="Assistência à família">Assistência à família</option>
-                                    <option value="Outros - Assuntos pessoais">Outros - Assuntos pessoais</option>
-                                    <option value="Ausência sem motivo - injustificada">Ausência sem motivo - injustificada</option>
-                                    <option value="Doença, acidente e obrigação legal">Doença, acidente e obrigação legal</option>
-                                    <option value="Casamento">Casamento</option>
-                                    <option value="Deslocação a estabelecimento de ensino">Deslocação a estabelecimento de ensino</option>
-                                    <option value="Licença maternal/paternal">Licença maternal/paternal</option>
-                                    <option value="Licença sem vencimento">Licença sem vencimento</option>
-                                    <option value="Falecimento de familiar">Falecimento de familiar</option>
-                                    <option value="Prestação de provas de avaliação">Prestação de provas de avaliação</option>
-                                    <option value="Candidato a cargo público">Candidato a cargo público</option>
-                                </select>
+                                <FancySelect
+                                    className="rh-fs"
+                                    ariaLabel="Motivo da ausência"
+                                    value={newAbsence.tipo}
+                                    onChange={(v) => setNewAbsence({ ...newAbsence, tipo: v })}
+                                    options={MOTIVOS_AUSENCIA}
+                                />
                             </div>
 
                             {newAbsence.tipo !== KM_REQUEST_TYPE && (

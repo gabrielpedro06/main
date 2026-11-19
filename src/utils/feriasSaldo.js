@@ -26,6 +26,8 @@ export const getAnnualVacationLimitForYear = ({
   ano = getCurrentYear(),
 }) => {
   const anoAdmissao = parseLocalDate(dataAdmissao)?.getFullYear();
+  // Antes de entrar na empresa não há direito a férias (evita "transitar" dias de anos em que não trabalhava)
+  if (anoAdmissao && ano < anoAdmissao) return 0;
   if (anoAdmissao && anoAdmissao !== ano) return ANNUAL_VACATION_DAYS;
   return resolveAnnualVacationLimit(diasLimiteAnual);
 };
@@ -202,6 +204,26 @@ const isWeekend = (date) => {
 export const isHoliday = (date) => {
   const feriados = getFeriados(date.getFullYear());
   return feriados.some((f) => f.d === date.getDate() && f.m === date.getMonth());
+};
+
+/**
+ * Férias do ano de admissão (regra dos RH da Bizin):
+ *  - mês de entrada: 2 dias se entra no 1.º dia útil do mês (ou antes dele, ex. num fim de semana);
+ *    1 dia se entra até dia 15; 0 dias se entra depois do dia 15;
+ *  - cada mês seguinte até dezembro: 2 dias;
+ *  - no máximo 20 dias.
+ * Devolve null se a data não for válida.
+ */
+export const calcularFeriasAnoAdmissao = (dataAdmissao) => {
+  const d = parseLocalDate(dataAdmissao);
+  if (!d) return null;
+  const ano = d.getFullYear();
+  const mes = d.getMonth();
+  const primeiroUtil = new Date(ano, mes, 1);
+  while (isWeekend(primeiroUtil) || isHoliday(primeiroUtil)) primeiroUtil.setDate(primeiroUtil.getDate() + 1);
+  const dia = d.getDate();
+  const diasMesEntrada = dia <= primeiroUtil.getDate() ? 2 : dia <= 15 ? 1 : 0;
+  return Math.min(20, diasMesEntrada + 2 * (11 - mes));
 };
 
 export const calcularDiasUteis = (dataInicio, dataFim, skipDates = null) => {
@@ -453,16 +475,11 @@ export async function obterSaldoFeriasAnoComTransicao({
     tolerancias,
   });
 
+  // Só transitam dias de um saldo REAL do ano anterior (nunca de anos estimados)
   const hoje = parseLocalDate(dataReferencia);
-  const saldoAnoAnterior = await obterSaldoFeriasAno({
-    supabaseClient,
-    userId,
-    ano: ano - 1,
-    diasLimiteAnual: getAnnualVacationLimitForYear({ diasLimiteAnual, dataAdmissao, ano: ano - 1 }),
-    tolerancias,
-  });
-  const diasTransitados = ano > 1 && hoje && hoje.getFullYear() === ano && hoje <= parseLocalDate(getCarryoverDeadline(ano))
-    ? saldoAnoAnterior.diasRestantes
+  const saldoAnoAnterior = await obterSaldoFeriasTabela({ supabaseClient, userId, ano: ano - 1 });
+  const diasTransitados = saldoAnoAnterior && hoje && hoje.getFullYear() === ano && hoje <= parseLocalDate(getCarryoverDeadline(ano))
+    ? Math.max(0, Number(saldoAnoAnterior.dias_disponiveis) || 0)
     : 0;
 
   return {
@@ -563,15 +580,9 @@ export async function validarSaldoFeriasParaIntervalo({
     if (saldoTabela && (diasConsumidosAntesDoPrazo + diasPedidoAntesDoPrazo) > 0) {
       diasTransitados = Number(saldoTabela.dias_transitados) || 0;
     } else if ((diasConsumidosAntesDoPrazo + diasPedidoAntesDoPrazo) > 0) {
-      const saldoAnoAnterior = await obterSaldoFeriasAno({
-        supabaseClient,
-        userId,
-        ano: ano - 1,
-        excluirPedidoId,
-        diasLimiteAnual: getAnnualVacationLimitForYear({ diasLimiteAnual, dataAdmissao, ano: ano - 1 }),
-        tolerancias,
-      });
-      diasTransitados = Math.max(0, saldoAnoAnterior.diasRestantes);
+      // Só transitam dias de um saldo REAL do ano anterior (nunca de anos estimados)
+      const saldoAnoAnterior = await obterSaldoFeriasTabela({ supabaseClient, userId, ano: ano - 1 });
+      diasTransitados = Math.max(0, Number(saldoAnoAnterior?.dias_disponiveis) || 0);
     }
 
     const diasDisponiveis = Math.max(
@@ -619,21 +630,33 @@ export async function sincronizarSaldoFeriasPerfil({
     tolerancias: toleranciasAtivas,
   });
 
-  const diasLimite = getAnnualVacationLimitForYear({ diasLimiteAnual, dataAdmissao, ano });
-  const saldoExistente = await obterSaldoFeriasTabela({ supabaseClient, userId, ano });
-  let diasTransitados = Number(saldoExistente?.dias_transitados) || 0;
+  // Data de admissão: se não vier, lê do perfil (o painel de RH não a passava)
+  let admissao = dataAdmissao;
+  if (!admissao) {
+    const { data: perfil } = await supabaseClient.from("profiles").select("data_admissao").eq("id", userId).maybeSingle();
+    admissao = perfil?.data_admissao || null;
+  }
+  const anoAdmissao = parseLocalDate(admissao)?.getFullYear() || null;
 
-  if (!saldoExistente && ano > 1) {
-    const saldoAnoAnterior = await obterSaldoFeriasAnoComTransicao({
-      supabaseClient,
-      userId,
-      ano: ano - 1,
-      diasLimiteAnual,
-      dataAdmissao,
-      tolerancias: toleranciasAtivas,
-      dataReferencia: new Date(ano - 1, 2, 31),
-    });
-    diasTransitados = saldoAnoAnterior.diasDisponiveis;
+  const diasLimite = getAnnualVacationLimitForYear({ diasLimiteAnual, dataAdmissao: admissao, ano });
+  const saldoExistente = await obterSaldoFeriasTabela({ supabaseClient, userId, ano });
+
+  // Dias atribuídos:
+  //  - ano de admissão → o "limite anual" definido nos RH (atualiza se for alterado);
+  //  - anos anteriores à admissão → 0;
+  //  - restantes → mantém o que já estava gravado (ou o limite, se ainda não houver saldo).
+  let diasAtribuidos;
+  if (anoAdmissao && ano < anoAdmissao) diasAtribuidos = 0;
+  else if (anoAdmissao && ano === anoAdmissao) diasAtribuidos = resolveAnnualVacationLimit(diasLimiteAnual);
+  else diasAtribuidos = saldoExistente?.dias_atribuidos ?? diasLimite;
+
+  // Dias transitados: só de um saldo REAL do ano anterior; nunca no ano de admissão.
+  let diasTransitados = Number(saldoExistente?.dias_transitados) || 0;
+  if (anoAdmissao && ano <= anoAdmissao) {
+    diasTransitados = 0;
+  } else if (!saldoExistente && ano > 1) {
+    const saldoAnoAnterior = await obterSaldoFeriasTabela({ supabaseClient, userId, ano: ano - 1 });
+    diasTransitados = Math.max(0, Number(saldoAnoAnterior?.dias_disponiveis) || 0);
   }
 
   const { error } = await supabaseClient
@@ -641,7 +664,7 @@ export async function sincronizarSaldoFeriasPerfil({
     .upsert({
       user_id: userId,
       ano,
-      dias_atribuidos: saldoExistente?.dias_atribuidos ?? diasLimite,
+      dias_atribuidos: diasAtribuidos,
       dias_transitados: diasTransitados,
       dias_gozados: saldo.diasConsumidos,
       transito_expira_em: `${ano + 1}-03-31`,

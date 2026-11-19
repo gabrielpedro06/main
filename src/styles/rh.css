@@ -376,6 +376,23 @@
 select.rh-input { cursor: pointer; }
 .rh-input:focus { border-color: var(--color-btnPrimary) !important; background: #fff !important; box-shadow: 0 0 0 4px var(--color-btnPrimaryShadow, rgba(15, 23, 42, 0.08)) !important; }
 .rh-input:disabled { background: #eef2f6 !important; border-color: transparent !important; color: var(--rh-muted); cursor: not-allowed; }
+/* Sugestão do Limite Anual calculado pela data de admissão */
+.rh-limite-sugestao {
+  margin-top: 6px; padding: 5px 10px; border-radius: 999px; border: 1px dashed var(--color-btnPrimary);
+  background: transparent; color: var(--color-btnPrimary); font: inherit; font-size: 0.76rem; font-weight: 600;
+  cursor: pointer; text-align: left; transition: background-color 0.15s ease;
+}
+.rh-limite-sugestao:hover { background: color-mix(in srgb, var(--color-btnPrimary) 8%, transparent); }
+/* Campo só de leitura (ex.: colaborador fixo ao editar) */
+.rh-input-static { display: flex; align-items: center; background: #eef2f6 !important; border-color: transparent !important; color: var(--rh-muted); cursor: not-allowed; }
+/* Seletor da app (FancySelect) com o mesmo aspeto dos campos dos RH */
+.rh-field .fs-trigger.rh-fs {
+  width: 100%; min-width: 0; height: 42px; padding: 0 12px; border-radius: 12px;
+  border: 1.5px solid var(--rh-field-line); background: var(--rh-field-bg);
+  color: var(--rh-ink); font-size: 0.9rem; font-weight: 600;
+}
+.rh-field .fs-trigger.rh-fs.is-open,
+.rh-field .fs-trigger.rh-fs:focus-visible { border-color: var(--color-btnPrimary); background: #fff; }
 .rh-input.is-big { height: 48px; font-size: 1.1rem; font-weight: 900; font-variant-numeric: tabular-nums; }
 .rh-input.is-mono { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; letter-spacing: 0.03em; }
 .rh-fgrid { display: grid; gap: 12px 14px; }
