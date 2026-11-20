@@ -1,3 +1,13 @@
+// =====================================================================
+// Lista de propostas comerciais (rota /dashboard/propostas; admin/administrador).
+//
+// Lista propostas_comerciais (financiamento e formação), filtros, mudança
+// rápida de estado (em_preparacao, revisao, enviada, analise, ganha, perdida),
+// duplicar, editar (abre /dashboard/propostas/:id) e apagar (escrever "APAGAR").
+// Atenção às regras (RLS) da migração 020: cada pessoa só vê/edita as propostas
+// que criou (created_by), salvo se as regras tiverem sido mudadas no Supabase.
+// Documentação: docs/modulos/clientes-e-comercial.md
+// =====================================================================
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabase";
@@ -54,6 +64,7 @@ const LEGACY_ESTADO_MAP = {
   arquivada: "perdida",
 };
 
+/** Estados antigos (em_analise, aprovada, arquivada) passam a analise, ganha, perdida. */
 const normalizeEstado = (estado) => {
   const value = String(estado || "").trim().toLowerCase();
   if (!value) return "em_preparacao";
@@ -280,6 +291,11 @@ export default function ListaPropostas() {
     navigate(`/dashboard/propostas/${proposta.id}`, { state: { proposta } });
   };
 
+  /**
+   * Duplica como nova proposta "em_preparacao". Nota: aqui o número é
+   * contagem + 1 (não maior + 1 como nos formulários), pode repetir números se
+   * houver propostas apagadas. Na formação, os proposta_cursos não são copiados.
+   */
   const handleDuplicate = async (proposta) => {
     if (!proposta?.id) return;
 
@@ -330,6 +346,7 @@ export default function ListaPropostas() {
     }
   };
 
+  /** Muda só a coluna estado (o payload local é atualizado para manter coerência no ecrã). */
   const handleChangeEstado = async (proposta, nextEstado) => {
     if (!proposta?.id) return;
     const normalizedNext = normalizeEstado(nextEstado);

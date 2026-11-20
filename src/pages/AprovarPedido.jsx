@@ -19,6 +19,9 @@ import { dataSegura } from "../utils/filtroSeguro";
 // Página aberta a partir do email "novo pedido de ausência".
 // Só RH (rota protegida + login com 2FA). Mostra o pedido, o saldo de férias
 // e quem mais está ausente nesses dias; a decisão é tomada aqui dentro.
+// Rota: /dashboard/pedidos/:id[?acao=aprovar|rejeitar] (admin/administrador/gestor).
+// O parâmetro ?acao só abre o diálogo de confirmação; nada muda sem clicar.
+// A decisão em si está em src/utils/decisaoPedido.js (decidirPedido).
 // =====================================================================
 
 const PERFIL_COLS = "nome, email, funcao, avatar_url, empresa_interna, dias_ferias_total, dias_ferias, data_admissao";
@@ -70,6 +73,11 @@ async function carregarPedido(id) {
   return res.data;
 }
 
+/**
+ * Contexto para decidir: saldo de férias do ano do pedido (com dias transitados,
+ * se o pedido for até 31/3), dias que o pedido ocupa e colegas com ausências
+ * aprovadas que se sobrepõem (exclui Km's).
+ */
 async function carregarContexto(pedido) {
   const inicio = pedido.data_inicio;
   const fim = pedido.data_fim || pedido.data_inicio;
@@ -143,6 +151,7 @@ export default function AprovarPedido() {
 
   const { loading, erro, pedido, ctx } = estado;
 
+  /** Executa a ação do diálogo (decidirPedido) e recarrega o pedido, com ou sem sucesso. */
   async function confirmar() {
     if (!dialogo || !pedido) return;
     setAEnviar(true);

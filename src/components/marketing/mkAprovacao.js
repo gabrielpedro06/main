@@ -71,6 +71,11 @@ async function estadoAtual(id) {
   return data;
 }
 
+/**
+ * Aprova: etapa → "programacao" e avisa a equipa de marketing (mk_aprovado).
+ * Nota: a verificação do estado e o update não são atómicos — duas decisões
+ * quase simultâneas podem passar ambas.
+ */
 export async function aprovar(conteudo, user) {
   const atual = await estadoAtual(conteudo.id);
   if (atual.estado !== "aprovacao") {
@@ -97,6 +102,7 @@ export async function aprovar(conteudo, user) {
   return patch;
 }
 
+/** Pede alterações: etapa → "alteracoes", guarda o texto e avisa a equipa (mk_alteracoes). */
 export async function pedirAlteracoes(conteudo, texto, user) {
   const t = String(texto || "").trim();
   if (!t) throw new Error("Descreva as alterações necessárias.");

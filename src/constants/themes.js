@@ -1,6 +1,14 @@
 /**
  * DEFINIÇÃO DE TEMAS
  * Cada tema contém paleta de cores personalizada
+ *
+ * Cada tema gera-se a partir de 2 cores (fundo claro + cor principal escura) em
+ * createTheme. O ThemeContext copia `colors` para variáveis CSS `--color-<chave>`
+ * (ex.: --color-btnPrimary, --color-textPrimary) e os CSS usam só essas variáveis.
+ * Grupos: "basic" (só paleta) e "festive" (paleta + decoração animada em ThemeDecor.jsx,
+ * com época sugerida "MM-DD").
+ * Para acrescentar um tema: uma linha em THEME_CATALOG ou FESTIVE_CATALOG
+ * (no festivo, a `decor` tem de existir em DECOR de ThemeDecor.jsx ou ThemeDecorExtra.jsx).
  */
 
 const hexToRgb = (hex) => {
@@ -45,6 +53,14 @@ const mixHex = (hexA, hexB, ratio = 0.5) => {
   return `#${toHex(r)}${toHex(g)}${toHex(bMix)}`;
 };
 
+/**
+ * Paleta completa a partir de duas cores.
+ * @param {string} name nome mostrado no seletor
+ * @param {string} description
+ * @param {string} bgBase cor de fundo clara (#rrggbb)
+ * @param {string} darkBase cor principal escura (sidebar, botões, texto)
+ * @returns {{ name, description, bgGradient, sidebarBgSecondary, accentColor, colors: Record<string,string> }}
+ */
 const createTheme = (name, description, bgBase, darkBase) => {
   const darker = darkenHex(darkBase, 18);
   const deepest = darkenHex(darkBase, 30);
@@ -154,6 +170,7 @@ const FESTIVE_CATALOG = [
   ["tema_f1", "Fórmula 1", "Luzes de partida, bandeira xadrez e um F1 a passar", "#f6f7f9", "#b91c1c", "f1", null],
 ];
 
+/** Todos os temas por chave (a chave é o que fica em localStorage "app-theme"). */
 export const THEMES = Object.fromEntries([
   ...THEME_CATALOG.map(([key, name, description, bgBase, darkBase]) => [
     key,

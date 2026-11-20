@@ -1,3 +1,12 @@
+// =====================================================================
+// TransferGest (/dashboard/transfergest; admin, administrador, gestor).
+// Base de contactos para campanhas de email (tabela transfergest_registos),
+// agrupada por `campanha` (texto livre). Estados: novo → contactado → reuniao
+// | cancelado, com a data de cada estado em estado_historico (jsonb).
+// Importa/exporta CSV (;) e envia emails pelo Brevo via
+// POST /api/notificacoes/transfergest (src/services/transfergestSender.js).
+// Documentação: docs/modulos/ferramentas.md
+// =====================================================================
 import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
@@ -174,6 +183,7 @@ function toIsoDate(value) {
   return date.toISOString().slice(0, 10);
 }
 
+/** Junta { estado: data } ao histórico (só guarda a última data de cada estado). */
 function buildStatusHistory(previous, nextStatus, dateIso) {
   const base = previous && typeof previous === "object" && !Array.isArray(previous) ? previous : {};
   return {
@@ -202,6 +212,10 @@ const STATUS_STYLE = {
   cancelado: { bg: "#fef2f2", color: "#b91c1c", border: "#fecaca" },
 };
 
+/**
+ * Pesquisa com filtros "chave:valor": localidade|cidade|municipio, ano|year,
+ * target|alvo, interesse|email|marketing (sim/nao). O resto é texto livre (E lógico).
+ */
 function parseFilterQuery(query) {
   const tokens = String(query || "")
     .trim()
@@ -299,6 +313,7 @@ export default function TransferGest() {
     setTimeout(() => setNotification(null), 3200);
   };
 
+  /** Lista de campanhas = valores distintos de `campanha` (vazio conta como "Campanha 1"). */
   const fetchCampaignList = async () => {
     const { data } = await supabase.from("transfergest_registos").select("campanha");
     if (data) {
@@ -595,6 +610,11 @@ export default function TransferGest() {
     return firstFailure?.reason || "Motivo desconhecido.";
   };
 
+  /**
+   * Envia aos selecionados com email válido: modo template (ID numérico do Brevo,
+   * parâmetros nome/FIRSTNAME por destinatário) ou HTML manual. Opcionalmente
+   * marca-os como "contactado" com a data de hoje.
+   */
   const handleSendCampaign = async () => {
     const recipients = getSelectedRecipients();
     if (!recipients.length) {
@@ -715,6 +735,11 @@ export default function TransferGest() {
     return -1;
   };
 
+  /**
+   * Importa CSV (; ou ,) com todas as colunas de CSV_FIELDS (cabeçalhos tolerantes,
+   * ver HEADER_ALIASES). Entra como "novo" na campanha escolhida; ignora NIF que
+   * já exista em QUALQUER campanha.
+   */
   const handleImport = async (event) => {
     event.preventDefault();
     if (!importFile) {

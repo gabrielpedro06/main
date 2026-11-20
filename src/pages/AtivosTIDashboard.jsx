@@ -1,3 +1,12 @@
+// =====================================================================
+// Ativos TI (/dashboard/ativos-ti; admin, administrador, gestor, marketing plus).
+// Inventário de equipamentos (equipamentos), software/licenças (software) e
+// acessos a plataformas (acessos; palavra-passe no cofre — utils/cofre.js).
+// Separadores: painel, equip_ativos, equip_inativos, software, acessos.
+// Inativar = mudar estado (abatido / arquivado / inativo), nada é apagado.
+// Exporta PDF (jsPDF) e Excel (xlsx) com o material por colaborador e em stock.
+// Documentação: docs/modulos/ferramentas.md
+// =====================================================================
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
@@ -91,6 +100,7 @@ const ModalPortal = ({ children }) => createPortal(children, document.body);
 /* ------------------------------------------------------------------ */
 /* Helpers                                                            */
 /* ------------------------------------------------------------------ */
+/** Próximo nº de inventário (maior atual + 1, 4 dígitos). Não reserva o número. */
 async function gerarProximoInventario() {
   const { data, error } = await supabase.from("equipamentos").select("num_inventario").order("num_inventario", { ascending: false }).limit(1);
   if (error || !data || data.length === 0 || !data[0].num_inventario) return "0001";
@@ -191,6 +201,7 @@ function diasAte(dateValue) {
   return Math.ceil((d.getTime() - Date.now()) / 86400000);
 }
 
+/** Estado da garantia: expired, soon (≤90 dias), ok ou none; pct = tempo já decorrido. */
 function garantiaInfo(equip) {
   const fim = equip.prazo_garantia || equip.data_garantia;
   const dias = diasAte(fim);
@@ -343,6 +354,7 @@ export default function AtivosTIDashboard() {
     setTimeout(() => setNotification((n) => (n && n.message === message ? null : n)), 3000);
   };
 
+  /** Pede a palavra-passe ao cofre (RPC cofre_revelar, fica no histórico) e guarda-a em memória. */
   const obterSenha = async (acesso) => {
     if (senhas[acesso.id] != null) return senhas[acesso.id];
     const valor = await revelarPalavraPasse("acessos", acesso.id);
@@ -537,6 +549,7 @@ export default function AtivosTIDashboard() {
     }, 300);
   }
 
+  /** Prepara a confirmação de inativar/reativar (equip.: abatido↔em_stock; software: arquivado↔ativo; acesso: inativo↔ativo). */
   function handleToggleEstado(tipo, registo) {
     const isEquip = tipo === "equipamento";
     const isSoftware = tipo === "software";
@@ -591,6 +604,10 @@ export default function AtivosTIDashboard() {
     }
   }
 
+  /**
+   * Cria/edita o registo do tipo aberto no painel. Acessos: grava a linha sem a
+   * palavra-passe e depois guarda-a no cofre (em branco ao editar = mantém).
+   */
   async function handleSubmitAtivo(e) {
     e.preventDefault();
     setIsSaving(true);

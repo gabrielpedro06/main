@@ -1,3 +1,15 @@
+// =====================================================================
+// Marketing (/dashboard/marketing) — planeamento de conteúdos por marca.
+// Acesso (rota): admin, administrador, gestor, marketing, marketing plus.
+// Tabelas: marketing_marcas, marketing_conteudos, marketing_personas,
+//          marketing_ciclos (estratégia), marketing_recursos.
+// Separadores: Fluxo (quadro kanban por etapa), Calendário, Ideias, Personas,
+//   Estratégia, Marca (guia), Recursos, Arquivo. A marca escolhida fica em
+//   localStorage ("bizin-mk-marca"); ?conteudo=<id> abre logo uma peça.
+// Gravação otimista: o estado local muda primeiro; se o Supabase falhar,
+//   recarrega tudo da marca (setRecarregar).
+// Documentação: docs/modulos/marketing.md
+// =====================================================================
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabase";
@@ -33,6 +45,11 @@ const ordemAgora = () => Date.now() / 1000;
 /* =========================================================================
    Cartão do quadro
    ========================================================================= */
+/**
+ * Cartão de um conteúdo no quadro. Antes de agendar mostra a data de ENTREGA
+ * (vermelho se atrasada, laranja a ≤2 dias); depois mostra a 1.ª publicação.
+ * Alertas: alterações pedidas, à espera de aprovador, placeholders [..] por preencher.
+ */
 function Cartao({ it, pessoas = [], aprovadores = [], personasDoItem = [], onAbrir, onDragStart, onDragEnd, arrastando, dropAntes, onDragOverCard }) {
   const prio = prioridadeInfo(it.prioridade);
   const antesDeAgendar = ETAPAS_ANTES_AGENDAR.includes(it.estado);
@@ -197,6 +214,7 @@ export default function Marketing() {
   };
 
   /* ---------- gravar ---------- */
+  /** Grava campos de um conteúdo (otimista). Em erro avisa e recarrega a marca. */
   const patch = useCallback(async (id, campos) => {
     setConteudos((prev) => prev.map((c) => (c.id === id ? { ...c, ...campos } : c)));
     const { error } = await supabase.from("marketing_conteudos").update(campos).eq("id", id);
@@ -211,6 +229,10 @@ export default function Marketing() {
     setConteudos((prev) => prev.map((c) => (c.id === id ? { ...c, ...campos } : c)));
   }, []);
 
+  /**
+   * Cria um conteúdo na marca atual (por omissão na etapa inicial, "briefing").
+   * Abre logo o painel, exceto quando é uma ideia rápida já com título.
+   */
   const criar = useCallback(async (base = {}) => {
     if (!marcaAtual) return;
     const { data, error } = await supabase
@@ -225,6 +247,7 @@ export default function Marketing() {
     return data;
   }, [marcaAtual, avisar]);
 
+  /** Arquiva guardando a etapa anterior em estado_antes_arquivo (para restaurar). */
   const arquivar = useCallback((it) => {
     patch(it.id, { estado: "arquivado", estado_antes_arquivo: it.estado });
     setAbertoId(null);
@@ -257,6 +280,10 @@ export default function Marketing() {
     return data;
   };
   /* ---------- importar do Notion ---------- */
+  /**
+   * Insere linhas já convertidas (CSV do Notion ou ideias da IA) em blocos de 50.
+   * A ordem começa em "agora" para irem para o fim das colunas. Devolve quantas entraram.
+   */
   const importarConteudos = async (linhas, { tipo = "conteúdo" } = {}) => {
     const base = ordemAgora();
     const rows = linhas.map((l, i) => ({ ...l, marca_id: marcaAtual, ordem: base + i }));
@@ -322,6 +349,7 @@ export default function Marketing() {
     const { error } = await supabase.from("marketing_personas").update(campos).eq("id", id);
     if (error) avisar(`Não foi possível guardar a persona: ${error.message}`, "error");
   }, [avisar]);
+  /** Elimina a persona e retira-a de persona_ids dos conteúdos que a usavam. */
   const eliminarPersona = async (id) => {
     const { error } = await supabase.from("marketing_personas").delete().eq("id", id);
     if (error) { avisar(`Não foi possível eliminar: ${error.message}`, "error"); return; }
@@ -349,6 +377,11 @@ export default function Marketing() {
     setRecursos((prev) => [...prev, data]);
     return data;
   };
+  /**
+   * Grava um recurso. Efeitos em cascata feitos AQUI (não na BD): renomear uma
+   * campanha renomeia `campanha` nas peças e nos leads; renomear um curso (oferta)
+   * atualiza `dados.oferta` das turmas/registos que o referem.
+   */
   const patchRecurso = useCallback(async (id, campos) => {
     const antes = recursos.find((r) => r.id === id);
     setRecursos((prev) => prev.map((r) => (r.id === id ? { ...r, ...campos } : r)));
@@ -386,6 +419,8 @@ export default function Marketing() {
   /* ---------- derivados ---------- */
   const pessoa = useCallback((id) => perfis.find((p) => p.id === id) || null, [perfis]);
 
+  // Contagens nos botões das marcas: outras marcas vêm do `resumo` (só marca_id/estado);
+  // a marca atual conta a partir dos conteúdos já carregados.
   const contagemMarcas = useMemo(() => {
     const out = {};
     for (const r of resumo) if (r.marca_id !== marcaAtual && r.estado !== "ideia" && r.estado !== "arquivado") out[r.marca_id] = (out[r.marca_id] || 0) + 1;
@@ -448,6 +483,11 @@ export default function Marketing() {
   const aberto = conteudos.find((c) => c.id === abertoId) || null;
 
   /* ---------- arrastar no quadro ---------- */
+  /**
+   * Largar um cartão numa coluna do quadro. A `ordem` é um número real: entre dois
+   * cartões usa a média (não é preciso renumerar). Largar em "Aprovação" NÃO muda
+   * a etapa: abre a peça na secção Aprovação para escolher aprovadores.
+   */
   const largarNaColuna = (colId) => {
     if (!drag) return;
     const lista = (colunas[colId] || []).filter((c) => c.id !== drag.id);

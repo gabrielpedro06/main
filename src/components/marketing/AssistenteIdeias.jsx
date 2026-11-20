@@ -1,3 +1,8 @@
+// Assistente de ideias com IA (Marketing → Ideias). Chat com o Claude via
+// POST /api/marketing/ideias (Server-Sent Events). O servidor junta o contexto da
+// marca (guia, personas, estratégia, recursos, conteúdos) e devolve ideias
+// estruturadas que se guardam no Banco de Ideias (estado "ideia").
+// A conversa vive só em memória (Map por marca) enquanto a página estiver aberta.
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { supabase } from "../../services/supabase";
 import { I } from "./mkIcons";
@@ -149,6 +154,11 @@ export default function AssistenteIdeias({ marca, personas, onGuardar, onClose }
     return copia;
   });
 
+  /**
+   * Envia uma mensagem e lê o stream SSE. Eventos: text (delta), pesquisa (query web),
+   * estado, ideias (cartões), erro, fim (mensagens novas p/ histórico + custo em USD).
+   * O histórico completo (formato da API Anthropic) é reenviado em cada pedido.
+   */
   const enviar = async (msg) => {
     const t = String(msg ?? texto).trim();
     if (!t || aEnviar) return;
@@ -218,6 +228,7 @@ export default function AssistenteIdeias({ marca, personas, onGuardar, onClose }
     }
   };
 
+  /** Guarda ideias escolhidas no Banco de Ideias e avisa o Claude na próxima mensagem. */
   const guardar = async (iTurno, iParte, indices) => {
     const parte = turnos[iTurno]?.partes[iParte];
     if (!parte) return;

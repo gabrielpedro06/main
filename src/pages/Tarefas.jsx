@@ -1,3 +1,19 @@
+// =====================================================================
+// Tarefas (rota /dashboard/tarefas) — trabalho de projeto de toda a equipa.
+//
+// Vistas (viewMode): "projetos" (agrupado por projeto > atividade > tarefa >
+// passos), "kanban" (colunas por prazo) e "estados" (colunas por estado).
+// Quem vê o quê: admin/administrador/gestor (profiles.tipo) veem tudo e têm
+// filtros por cliente/projeto; os restantes só veem atividades/tarefas onde são
+// responsáveis ou estão em colaboradores_extra (subtarefas: só as suas).
+// Só aparecem itens ligados a projetos (as tarefas "avulsas" vivem em MinhasTarefas).
+//
+// Também: cronómetros (task_logs), registos manuais de tempo, criar/editar
+// atividade, tarefa ou passo, entregáveis no bucket "documentos" e, quando a
+// última atividade de um projeto é concluída, o projeto passa a "concluido" e é
+// proposto criar o projeto seguinte (ex.: Gestão) com dados pré-preenchidos.
+// Documentação: docs/modulos/projetos-e-tarefas.md
+// =====================================================================
 import { useState, useEffect, useRef } from "react";
 import React from "react";
 import { createPortal } from "react-dom";
@@ -258,6 +274,7 @@ export default function Tarefas() {
       } catch (err) { console.error(err); }
   }
 
+  /** Define isAdmin (tipo admin/administrador/gestor) e carrega os dados com esse âmbito. */
   async function fetchUserRoleAndData() {
       let userIsAdmin = false;
       try {
@@ -394,6 +411,11 @@ export default function Tarefas() {
       });
   };
 
+  /**
+   * Se todas as atividades do projeto estão concluídas, passa o projeto a
+   * "concluido" e abre o convite para "transmitir" para um novo projeto
+   * (navega para /dashboard/projetos com prefillData).
+   */
   const maybeConcludeProjectAndPrompt = async (projectId) => {
       if (!projectId) return;
 
@@ -443,6 +465,11 @@ export default function Tarefas() {
       return `${base}${cargo}${marca}`;
   };
 
+  /**
+   * Carrega atividades, tarefas e subtarefas (ligadas a projetos) e agrupa-as
+   * por atividade em atividadesAgrupadas. Não-admins: duas consultas por tabela
+   * (responsável + colaboradores_extra) juntas sem duplicados.
+   */
   async function fetchData(adminStatus) {
     try {
         let querySubtarefas = supabase.from("subtarefas").select(`*, tarefas!inner(*, atividades!inner(*, projetos!inner(id, titulo, clientes!cliente_id(id, marca, sigla))))`);
@@ -854,6 +881,7 @@ export default function Tarefas() {
   // Visto com animação de "concluído"
   const prefersReducedMotion = () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
+  /** Check com animação; a lógica está em handleToggleStatus. */
   async function toggleDoneAnimated(tabela, id, estadoAtual, taskIdParaTimer = null) {
       const key = `${tabela}-${id}`;
       if (celebrating.has(key)) return;
@@ -984,6 +1012,7 @@ export default function Tarefas() {
       navigate(`/dashboard/projetos/${projectId}`);
   }
 
+  /** Arranca cronómetro numa tarefa (com projeto_id se houver); pendente passa a em_curso. */
   async function startTaskDirect(tarefa) {
       try {
           const payload = { user_id: user.id, task_id: tarefa.id, start_time: new Date().toISOString() };
@@ -1008,6 +1037,7 @@ export default function Tarefas() {
       }
   }
 
+  /** Arranca cronómetro numa atividade; pendente passa a em_curso. */
   async function startAtividadeDirect(atividade) {
       try {
           const payload = {
@@ -1184,6 +1214,10 @@ export default function Tarefas() {
       return "Marcar item como concluido";
   }
 
+  /**
+   * "Parar e concluir": tarefa (com data_conclusao), senão atividade + tarefas
+   * (aqui as subtarefas não são concluídas), senão projeto.
+   */
   async function completeLogItem(logEntry) {
       if (!logEntry) return;
 
@@ -1259,6 +1293,11 @@ export default function Tarefas() {
       await finalizeStopWithNote(note, shouldComplete, statusMeta);
   }
 
+  /**
+   * Concluir/reabrir atividade, tarefa ou passo. Concluir uma atividade conclui
+   * também as suas tarefas e pode fechar o projeto (maybeConcludeProjectAndPrompt).
+   * Se o cronómetro aberto é desta tarefa, é parado antes.
+   */
   async function handleToggleStatus(tabela, id, estadoAtual, taskIdParaTimer = null) {
       const novoEstado = estadoAtual === 'concluido' ? 'pendente' : 'concluido';
       const dataConclusao = new Date().toISOString();
@@ -1589,6 +1628,11 @@ export default function Tarefas() {
     setShowModal(true);
   }
 
+  /**
+   * Grava o modal (atividade, tarefa ou passo). Carrega primeiro o entregável
+   * para o bucket "documentos". Nota: os erros do Supabase não lançam exceção,
+   * por isso uma falha de gravação também mostra "Alterações guardadas".
+   */
   async function handleSubmit(e) {
     e.preventDefault();
     let tabela = 'tarefas';

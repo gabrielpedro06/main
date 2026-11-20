@@ -1,3 +1,8 @@
+// =====================================================================
+// `npm run send:campaign` — exemplo/ferramenta manual para enviar uma campanha pelo Brevo
+// a partir da linha de comandos (usa BREVO_API_KEY do .env). Não é usado pela app.
+// Editar a lista de emails, templateId e params abaixo antes de correr.
+// =====================================================================
 import "dotenv/config";
 import { sendTransactionalCampaign } from "../server/brevoCampaignSender.js";
 

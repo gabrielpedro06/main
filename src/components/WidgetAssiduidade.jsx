@@ -28,6 +28,18 @@ const ModalPortal = ({ children }) => {
   return createPortal(children, document.body);
 };
 
+/**
+ * Cartão "Picar o ponto" do Início (pages/DashboardHome.jsx).
+ * - Entrada / pausa / retomar / saída do dia na tabela `assiduidade`
+ *   (hora_entrada, hora_saida, ultima_pausa_inicio, tempo_pausa_acumulado, tarefas_planeadas).
+ * - Na entrada pede as tarefas planeadas; na saída pede o resumo e fecha os cronómetros
+ *   abertos (task_logs) com closeAllActiveTaskLogsForUser.
+ * - Avisa de tarefas/atividades "em análise" com retorno previsto para hoje e das que
+ *   colegas encaminharam para o utilizador (campos analise_* em tarefas/atividades).
+ * - Ouve/dispara os eventos window "attendance-updated" e "task-logs-updated".
+ * Memoizado porque o Início re-renderiza muito.
+ * @param {{ onViewHistory?: () => void }} props mostra "Ver histórico →" se definido
+ */
 const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory }) {
   const { user } = useAuth();
   

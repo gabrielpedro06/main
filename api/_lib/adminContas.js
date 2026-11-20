@@ -25,6 +25,11 @@ async function bloquear(admin, userId, bloqueado) {
   if (error) throw error;
 }
 
+/**
+ * POST /api/admin/contas — usado por RecursosHumanos.jsx, AdminDashboard.jsx e SegurancaMFA.jsx.
+ * Ações e permissões descritas no cabeçalho. Toca em profiles (ativo, role, tipo),
+ * auth.users (ban_duration) e audit_log.
+ */
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.status(405).json({ ok: false, error: "Método não permitido." });

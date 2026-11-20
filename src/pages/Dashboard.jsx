@@ -1,3 +1,7 @@
+// Layout de todas as páginas /dashboard/* (rota protegida): Sidebar, introdução da
+// marca, decorações de tema e <Outlet /> com a página atual. Em mobile (≤900px)
+// a sidebar passa a gaveta e aparecem a barra de topo e a navegação inferior.
+// Documentação: docs/modulos/comunicacao-e-dashboard.md
 import { useEffect, useRef, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
@@ -7,6 +11,7 @@ import "../styles/dashboard.css";
 
 const MOBILE_QUERY = "(max-width: 900px)";
 
+// Título da barra de topo em mobile (prefixo da rota → título). Rotas em falta mostram "Início".
 const PAGE_TITLES = [
   ["/dashboard/minhas-tarefas", "Agenda"],
   ["/dashboard/tarefas", "Tarefas"],

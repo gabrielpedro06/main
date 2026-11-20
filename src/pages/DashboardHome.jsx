@@ -1,4 +1,16 @@
-﻿import { Link, useNavigate } from "react-router-dom";
+﻿// =====================================================================
+// Início (/dashboard): página inicial de cada colaborador.
+// Widgets: hero (data/hora, frase do dia, sino de notificações, foco/timer ativo),
+//   números (horas do mês, projetos ativos, entidades, publicações do fórum),
+//   "continuar onde paraste", as minhas tarefas (Hoje / Próximas / Em análise),
+//   ponto (WidgetAssiduidade), equipa online (com medalhas) e aniversários.
+// Notificações (notificacoes_projetos, não lidas, tipos project_created,
+//   mk_aprovacao, mk_aprovado, mk_alteracoes, seguranca).
+// Atualiza ao focar a janela, a cada 90 s e com os eventos globais
+//   "task-logs-updated" e "project-notifications-updated".
+// Documentação: docs/modulos/comunicacao-e-dashboard.md
+// =====================================================================
+import { Link, useNavigate } from "react-router-dom";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
@@ -188,6 +200,10 @@ export default function DashboardHome() {
         setTimeout(() => setNotification(null), 3000);
     }
 
+    /**
+     * Carrega até 20 notificações não lidas do utilizador. Pedidos de aprovação de
+     * marketing já decididos (conteúdo fora de "aprovacao") são marcados como lidos.
+     */
     async function loadProjectNotifications() {
         if (!user?.id) return;
 
@@ -239,6 +255,10 @@ export default function DashboardHome() {
         setProjectNotifications((current) => current.filter((notificationItem) => notificationItem.id !== notificationId));
     }
 
+    /**
+     * Abrir uma notificação: mk_aprovacao abre o modal de aprovação (só fecha com decisão);
+     * as restantes ficam lidas e navegam para o conteúdo, o projeto ou o `link`.
+     */
     async function openProjectNotification(notificationItem) {
         if (!notificationItem) return;
         // Pedido de aprovação: abre o modal; a notificação fecha quando houver decisão
@@ -357,6 +377,7 @@ export default function DashboardHome() {
       return client.sigla?.trim() || client.marca || "";
   };
 
+  /** Esconde tarefas/atividades bloqueadas por dependências ainda não concluídas. */
   async function filterBlockedItemsByDependencies(tarefas = [], atividades = []) {
       const projectIds = Array.from(
           new Set(
@@ -417,6 +438,10 @@ export default function DashboardHome() {
 
   // Lógica para verificar a validade do CC
 
+  /**
+   * Aviso de Cartão de Cidadão a expirar (≤30 dias), no máximo 1×/dia (localStorage).
+   * Gestores/RH veem a lista da equipa (RPC bizin_cc_a_expirar); os outros, o seu.
+   */
   async function checkCCExpirations(profile) {
       // Cria uma string com a data de hoje (ex: "2026-08-03")
       const hojeStr = new Date().toISOString().split('T')[0]; 
@@ -672,6 +697,7 @@ export default function DashboardHome() {
       window.dispatchEvent(new Event("attendance-updated"));
   }
 
+  /** Antes de iniciar/concluir trabalho: se ainda não picou o ponto hoje, pergunta se quer picar. */
   async function runActionWithAttendanceWarning(actionFn) {
       const hasStarted = await hasStartedAttendanceToday();
       if (hasStarted) {
@@ -770,6 +796,10 @@ export default function DashboardHome() {
       showToast("Mantivemos o cronómetro atual em execução.", "info");
   }
 
+  /**
+   * Botão play de uma tarefa: se já é a que corre, abre a nota de paragem; se corre
+   * outra, pede confirmação para trocar; senão inicia um task_log novo.
+   */
   async function handleStartTaskFromHome(taskCard, e) {
       if (e) e.stopPropagation();
 
@@ -824,6 +854,10 @@ export default function DashboardHome() {
       }
   }
 
+  /**
+   * "Equipa online" = registos de assiduidade de hoje sem hora de saída.
+   * Nota: "hoje" é calculado em UTC (toISOString), ao contrário da picagem (data local).
+   */
   async function loadUsersOnline() {
     const hoje = new Date().toISOString().split('T')[0];
         const { data, error } = await supabase

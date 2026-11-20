@@ -1,3 +1,14 @@
+// =====================================================================
+// Ecrã de login (rota "/"). Passos:
+//   1. email + password (supabase.auth.signInWithPassword). Falha → reportada
+//      a /api/seguranca/tentativa (motivo "password" ou "conta_bloqueada").
+//   2. Perfil com ativo = false → termina a sessão (conta desativada nos RH).
+//   3. 2FA obrigatório (TOTP): pede o código ("code") ou obriga a configurar a
+//      app autenticadora ("setup"). Código errado → tentativa "mfa" reportada.
+//   4. Sucesso → registarLoginSeguro (IP/país no servidor) e navega para a
+//      página pedida antes do login (só caminhos /dashboard…) ou /dashboard.
+// A validade da verificação 2FA (12 h / cookie de sessão) é gerida no AuthContext.
+// =====================================================================
 import { useState } from "react"
 import { supabase } from "../services/supabase"
 import { useNavigate, useLocation, Link } from "react-router-dom"
@@ -96,6 +107,7 @@ export default function Login() {
     await entrar()
   }
 
+  /** Valida o código TOTP de 6 dígitos com o fator verificado da conta (sobe a sessão para aal2). */
   async function handleVerify(valor = code) {
     if (valor.length !== 6 || loading) return
     setError(null)

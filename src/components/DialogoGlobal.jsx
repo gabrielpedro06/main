@@ -5,6 +5,11 @@ import "../styles/dialogo.css";
 
 // Caixa de confirmação/aviso do Bizin (substitui window.confirm e window.alert).
 // Montada uma vez na App; usa-se com confirmar(...) e avisar(...) de utils/dialogo.
+/**
+ * Sem props. Só existe um pedido de cada vez (um segundo confirmar() substitui o primeiro).
+ * Enter/clique no botão principal → true; Esc, Cancelar ou clique fora → false.
+ * Camada: --z-dialogo (dialogo.css).
+ */
 export default function DialogoGlobal() {
   const [pedido, setPedido] = useState(null); // { tipo, titulo, mensagem, botao, perigoso, resolver }
   const botaoRef = useRef(null);

@@ -1,3 +1,5 @@
+// Gerir marcas (criar, editar, ocultar, eliminar). Logo no balde público "avatars".
+// Eliminar uma marca apaga em cascata conteúdos, personas, ciclos e recursos (FK).
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "../../services/supabase";
 import ColorPicker from "./ColorPicker";
@@ -30,6 +32,7 @@ export function MarcaLogo({ marca, size = 28, src }) {
 
 const VAZIA = { nome: "", cor: CORES_MARCA[1], logo_url: null, ativo: true };
 
+/** @param contagem total de conteúdos por marca (para avisar antes de eliminar) */
 export default function MarcasModal({ marcas, contagem, onClose, onSalvar, onEliminar }) {
   const [sel, setSel] = useState(() => marcas[0]?.id || "nova");
   const [draft, setDraft] = useState(() => (marcas[0] ? { ...marcas[0] } : { ...VAZIA }));

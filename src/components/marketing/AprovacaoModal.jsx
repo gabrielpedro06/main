@@ -1,3 +1,5 @@
+// Modal de aprovação aberto a partir do sino do Dashboard (notificação mk_aprovacao).
+// Lê o conteúdo diretamente da BD e usa aprovar/pedirAlteracoes de mkAprovacao.js.
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../../services/supabase";

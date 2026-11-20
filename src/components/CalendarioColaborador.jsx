@@ -18,6 +18,23 @@ import {
 } from "../utils/feriasSaldo";
 import { uuidSeguro } from "../utils/filtroSeguro";
 
+// Calendário mensal de UM colaborador, usado no painel de RH (pages/RecursosHumanos.jsx).
+// Mostra assiduidade, ausências, feriados, tolerâncias e estado temporário; permite aos
+// RH editar/apagar o registo de assiduidade de um dia, preencher o mês em lote
+// (09:00–18:00, 1 h de pausa, nos dias úteis livres) e gerir tolerâncias.
+// Tabelas: assiduidade (CRUD), ferias (leitura + cancelar tolerâncias), profiles (leitura).
+// Depois de mudanças em férias chama sincronizarSaldoFeriasPerfil.
+
+/**
+ * @param {object} props
+ * @param {string} props.userId colaborador mostrado
+ * @param {string} [props.userName="Colaborador"]
+ * @param {string|null} [props.dataAdmissao] limita o início da contagem (getAttendanceCalculationStartDate)
+ * @param {{ tipo: string, data_inicio: string, data_fim?: string }|null} [props.estadoTemporario]
+ *   ex.: baixa; só conta se o tipo estiver em COLLABORATOR_STATUS_TYPES
+ * @param {() => (void|Promise<void>)} [props.onVacationBalanceUpdated] para o pai recarregar saldos
+ * @param {(data: Date) => void} [props.onMonthChange] ao navegar entre meses
+ */
 export default function CalendarioColaborador({
   userId,
   userName = "Colaborador",

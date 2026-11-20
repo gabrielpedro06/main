@@ -1,3 +1,13 @@
+// =====================================================================
+// Registos (rota /dashboard/registos) — só admin/administrador.
+// Vista "atividade": lê public.audit_log (migração 064), preenchida por
+// triggers em todas as tabelas (INSERT/UPDATE/DELETE, só campos alterados,
+// sensíveis mascarados) e por eventos da app (registarEvento: login, logout,
+// exportações…). Filtros por pessoa, área (tabela), operação e período;
+// paginação de 50 em 50; clicar num registo filtra o histórico desse registo.
+// Vista "alertas" (?alertas=1): <AlertasSeguranca/> (migração 075).
+// Exportar CSV: só as linhas já carregadas no ecrã; fica registado em audit_log.
+// =====================================================================
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "../services/supabase";

@@ -1,9 +1,19 @@
+// =====================================================================
+// GET|POST /api/sicae-caes?nif=<NIF> — lê os CAE de uma empresa no site público
+// do SICAE (sicae.pt) e junta a designação de cada código (server/caeCatalog.js).
+// Sem autenticação e sem base de dados. Usado em src/pages/Clientes.jsx; se esta
+// rota falhar, a página tenta a edge function supabase/functions/fetch-caes-sicae.
+// =====================================================================
 import { lookupSicaeCaesByNif } from "../server/sicaeCaeLookup.js";
 
 export const config = {
   runtime: "nodejs",
 };
 
+/**
+ * Saída: `{ ok: true, nif, total, caes: [{ codigo, descricao, fonte }], sourceUrl, fetchedAt }`
+ * ou `{ ok: false, error, details }` (400 NIF inválido, 502 SICAE indisponível).
+ */
 export default async function handler(req, res) {
   const method = req.method || "GET";
   if (method !== "GET" && method !== "POST") {

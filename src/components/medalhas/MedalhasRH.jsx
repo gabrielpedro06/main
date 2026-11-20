@@ -1,3 +1,12 @@
+// =====================================================================
+// Medalhas (separador dos RH). Tabelas da migração 067:
+//   medalhas                (nome, data, descricao, imagem_path, imagem_url)
+//   medalhas_colaboradores  (medalha_id, user_id) — quem recebeu
+// Imagem no balde PÚBLICO "medalhas" (PNG/WebP/JPEG, máx. 2 MB).
+// Escrita só para admin/administrador/gestor (pode_gerir_medalhas()); leitura
+// para todos. As medalhas aparecem no ProfilePeek e como badge nos avatares
+// "online" do DashboardHome (useMedalhas / useMedalhasEquipa).
+// =====================================================================
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../../services/supabase";
@@ -116,6 +125,12 @@ export default function MedalhasRH({ colaboradores = [], notify }) {
     return { ...f, users };
   });
 
+  /**
+   * Cria/edita uma medalha: 1) carrega a imagem nova (nome UUID), 2) grava a
+   * medalha, 3) acerta medalhas_colaboradores (insere novos, apaga desmarcados),
+   * 4) apaga do Storage a imagem antiga substituída. Se falhar, remove a imagem nova.
+   * Não é transacional: um erro no passo 3 deixa a medalha gravada.
+   */
   async function guardar(e) {
     e.preventDefault();
     if (!form.nome.trim() || !form.data) { avisar("Preencha o nome e a data.", "error"); return; }
@@ -174,6 +189,7 @@ export default function MedalhasRH({ colaboradores = [], notify }) {
     }
   }
 
+  /** Apaga a medalha (as atribuições caem por ON DELETE CASCADE) e depois a imagem no Storage. */
   async function apagar() {
     const m = aApagar;
     setAGuardar(true);

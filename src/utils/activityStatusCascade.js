@@ -1,3 +1,14 @@
+// Concluir uma atividade em cascata (atividade → tarefas → subtarefas).
+
+/**
+ * Marca a atividade como "concluido" e todas as suas tarefas (com data_conclusao)
+ * e subtarefas também. Não é transacional: se um passo falhar, os anteriores ficam
+ * gravados e o erro é devolvido.
+ * Tabelas: atividades, tarefas, subtarefas.
+ * @param {object} supabase
+ * @param {string} atividadeId
+ * @returns {Promise<{ error: Error|null, taskIds: string[] }>} ids das tarefas afetadas
+ */
 export async function concludeActivityWithChildren(supabase, atividadeId) {
   if (!supabase || !atividadeId) {
     return { error: new Error("Missing supabase client or atividadeId"), taskIds: [] };

@@ -31,6 +31,7 @@ function lerToken(token) {
   }
 }
 
+/** Origem da app para o redirecionamento: APP_URL (se definido) ou o Host do pedido. */
 function baseDaApp(req) {
   const fixa = String(process.env.APP_URL || "").trim().replace(/\/+$/, "");
   if (fixa) return fixa;
@@ -38,6 +39,10 @@ function baseDaApp(req) {
   return /^[\w.-]+(:\d+)?$/.test(host) ? `https://${host}` : "";
 }
 
+/**
+ * GET|POST ?token=... → 303 para `/#/dashboard/pedidos/<id>?acao=aprovar|rejeitar`
+ * (página AprovarPedido) ou, sem token válido, para `/#/dashboard/rh`. Não toca na BD.
+ */
 export default function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("X-Robots-Tag", "noindex");

@@ -1,3 +1,23 @@
+// =====================================================================
+// Detalhe do projeto (rota /dashboard/projetos/:id).
+//
+// Separadores (activeTab):
+//   - atividades: árvore atividades > tarefas > subtarefas ("passos"), com
+//     arrastar para reordenar (grava "ordem"), concluir/reabrir, cronómetro,
+//     dependências (bloqueio + "desbloquear"), reaproveitar bloco e modais de edição
+//     (estado, encaminhamento em análise, entregável com ficheiro no bucket "documentos").
+//   - gantt: cronograma com janelas de 1/2/6 meses ou total; exporta PDF.
+//   - seguimento: histórico de estados (componente ProjetoTracker,
+//     tabela projetos_estado_historico preenchida por triggers).
+//   - relatorio: registos de tempo (task_logs com projeto_id) + registos manuais
+//     e relatório PDF (components/pdfGenerator.jsx).
+//   - execucao: execução financeira — valores por entidade (projeto_entidades)
+//     e pedidos de reembolso (pedidos_reembolso).
+//   - geral: dados do projeto (cliente, parceiros, organismo, equipa, programa,
+//     aviso, fases, estado), arquivar (estado "encerrado") ou apagar de vez.
+//
+// Documentação: docs/modulos/projetos-e-tarefas.md
+// =====================================================================
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { createPortal } from "react-dom";
@@ -165,6 +185,7 @@ const dayDiff = (start, end) => {
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
+/** Progresso aproximado (%) por estado, usado quando um item não tem filhos. */
 const getProgressByState = (estado) => {
     if (estado === "concluido" || estado === "encerrado") return 100;
     if (estado === "em_curso") return 65;
@@ -173,6 +194,11 @@ const getProgressByState = (estado) => {
     return 0;
 };
 
+/**
+ * Linhas do Gantt: uma linha "group" por atividade e uma por tarefa com datas.
+ * Progresso da tarefa = % de subtarefas concluídas; da atividade = % de tarefas a 100%.
+ * Atividades sem tarefas com datas não aparecem.
+ */
 const buildGanttItems = (atividades = []) => {
     const rows = [];
     atividades.forEach((atividade) => {
@@ -621,6 +647,11 @@ export default function ProjetoDetalhe() {
       setActiveLog(data || null);
   }
 
+  /**
+   * Carrega o projeto e tudo o que os separadores usam: listas auxiliares,
+   * contactos das entidades, árvore de atividades (ordenada por ordem/criação),
+   * task_logs do projeto, pedidos de reembolso e projeto_entidades.
+   */
   async function fetchProjetoDetails() {
     setLoading(true);
 
@@ -732,6 +763,7 @@ export default function ProjetoDetalhe() {
     setLoading(false);
   }
 
+  /** Cria/edita um pedido de reembolso (entidade por omissão = cliente principal). */
   const savePedidoReembolso = async (event) => {
       event.preventDefault();
       if (!pedidoReembolsoForm || pedidoReembolsoSaving) return;
@@ -772,6 +804,10 @@ export default function ProjetoDetalhe() {
       }
   };
 
+  /**
+   * Grava investimento/incentivo de uma entidade em projeto_entidades e
+   * recalcula os totais do projeto como soma das entidades.
+   */
   const saveOrcamentoEntidade = async (entidadeId, entidadesIds) => {
     const investimento = Number(orcamentoEdit?.investimento) || 0;
     const incentivo = Number(orcamentoEdit?.incentivo) || 0;
@@ -824,6 +860,7 @@ export default function ProjetoDetalhe() {
       dragAtivOverItem.current = index;
   };
 
+  /** Reordena atividades por arrastar; grava ordem = índice em todas (em paralelo). */
   const handleDropAtiv = async (e) => {
       e.preventDefault();
       const draggedElement = e.currentTarget;
@@ -973,6 +1010,7 @@ export default function ProjetoDetalhe() {
       return message.includes("subtarefa_id") && (message.includes("schema cache") || message.includes("column"));
   };
 
+  /** Constrói o task_log de um registo manual (colaborador, item, início e minutos). */
   const buildTimeLogPayload = (formState) => {
       const userId = formState.user_id || "";
       const duration = Math.max(1, parseInt(formState.duration_minutes, 10) || 0);
@@ -1050,6 +1088,7 @@ export default function ProjetoDetalhe() {
       setTimeLogModal({ show: false, mode: "create", logId: null });
   };
 
+  /** Cria/edita registo de tempo manual; sem a coluna subtarefa_id tenta sem ela. */
   const saveTimeLog = async (e) => {
       e.preventDefault();
       if (timeLogSaving) return;
@@ -1216,6 +1255,7 @@ export default function ProjetoDetalhe() {
       return diffMins;
   }
 
+  /** Arranca cronómetro (task_log com projeto_id); numa tarefa passa-a a "em_curso". */
   async function startTimerDirect(targetId, type) {
       const payload = { user_id: user.id, projeto_id: id, start_time: new Date().toISOString() };
       if (type === 'task') payload.task_id = targetId;
@@ -1283,6 +1323,7 @@ export default function ProjetoDetalhe() {
       return "Marcar item como concluido";
   }
 
+  /** "Parar e concluir": tarefa, senão atividade (com cascata), senão projeto. */
   async function completeLogItem(logEntry) {
       if (!logEntry) return;
 
@@ -1340,6 +1381,10 @@ export default function ProjetoDetalhe() {
       await finalizeStopWithNote(note, shouldComplete, statusMeta);
   }
 
+  /**
+   * Botão play/stop de um item: se é o cronómetro atual abre a nota de paragem;
+   * se há outro aberto pede para trocar; senão arranca (após verificar picagem).
+   */
   async function handleToggleTimer(targetId, type) {
       if (activeLog) {
           const isSameTarget = (type === 'task' && activeLog.task_id === targetId) || (type === 'activity' && activeLog.atividade_id === targetId);
@@ -1365,6 +1410,10 @@ export default function ProjetoDetalhe() {
       await runActionWithAttendanceWarning(() => startTimerDirect(targetId, type));
   }
 
+  /**
+   * Concluir/reabrir atividade. Concluir propaga a tarefas e subtarefas
+   * (concludeActivityWithChildren); reabrir só muda a atividade para "pendente".
+   */
   async function toggleAtividadeStatus(ativId, estadoAtual) {
       const novoEstado = estadoAtual === 'concluido' ? 'pendente' : 'concluido';
       setAtividades(prev => prev.map(a => {
@@ -1394,6 +1443,7 @@ export default function ProjetoDetalhe() {
       await supabase.from("atividades").update({ estado: novoEstado }).eq("id", ativId);
   }
 
+  /** Concluir/reabrir tarefa (não mexe em data_conclusao nem nas subtarefas). */
   async function toggleTarefaStatus(tarefaId, estadoAtual) {
       const novoEstado = estadoAtual === 'concluido' ? 'pendente' : 'concluido';
       setAtividades(prev => prev.map(a => ({
@@ -1437,6 +1487,11 @@ export default function ProjetoDetalhe() {
       } else showToast(error.message, "error");
   }
 
+  /**
+   * Grava o modal da tarefa. Se houver ficheiro de entregável, carrega-o para
+   * documentos/<user>/<timestamp>/<nome> e guarda o URL em arquivo_url.
+   * Campos de análise só ficam preenchidos com estado "em_analise".
+   */
   async function handleSaveTarefa(e) {
       e.preventDefault();
       let finalArquivoUrl = tarefaModal.data.arquivo_url || "";
@@ -1577,6 +1632,7 @@ export default function ProjetoDetalhe() {
       });
   };
 
+  /** Grava o separador "Configurações e dados" (não mexe em projeto_entidades). */
   async function handleUpdateProjeto(e) {
       e.preventDefault();
       try {
@@ -1664,6 +1720,10 @@ export default function ProjetoDetalhe() {
       return !unlockedTasks[String(task.id)];
   };
 
+  /**
+   * "Desbloquear" tarefa dependente: grava ignorar_dependencia = true na BD,
+   * por isso o desbloqueio é permanente (não só nesta sessão).
+   */
   const unlockTaskForNow = async (taskId) => {
       const normalized = String(taskId);
       setUnlockedTasks((prev) => ({ ...prev, [normalized]: true }));
@@ -1755,6 +1815,7 @@ export default function ProjetoDetalhe() {
       fetchProjetoDetails();
   }
 
+  /** Duplica uma atividade com tarefas e subtarefas (estados a "pendente", sem datas). */
   async function handleReuseActivityBlock(atividadeId) {
       try {
           const sourceAtividade = (atividades || []).find((a) => String(a.id) === String(atividadeId));
@@ -1845,6 +1906,7 @@ export default function ProjetoDetalhe() {
       });
   }
 
+  /** Arquivar = estado "encerrado" (sai das listas normais, mantém os dados). */
   async function archiveProjectDirect() {
       if (!projeto?.id) return;
 
@@ -1878,6 +1940,11 @@ export default function ProjetoDetalhe() {
       });
   }
 
+  /**
+   * Apagar de vez (exige escrever "APAGAR"): task_logs, subtarefas, tarefas,
+   * atividades e por fim o projeto. Atenção: pelas regras de task_logs, quem não
+   * é staff só apaga os seus registos; os de colegas ficam e podem travar o resto.
+   */
   async function hardDeleteProjectDirect() {
       if (!projeto?.id) return;
 
@@ -2181,6 +2248,7 @@ export default function ProjetoDetalhe() {
   };
   const mixWhite = (rgb, t) => rgb.map((c) => Math.round(c + (255 - c) * t));
 
+  /** Exporta o Gantt visível para PDF (jsPDF, A4 horizontal). */
   const exportGanttPdf = async () => {
       if (isExportingGantt) return;
       setIsExportingGantt(true);
@@ -2407,6 +2475,7 @@ export default function ProjetoDetalhe() {
   };
 
   // Visto com animação de "concluído" (atividades, tarefas e passos)
+  /** Mostra a animação de "concluído" (se o utilizador não pediu menos movimento) e corre a ação. */
   async function celebrateThen(key, completing, action) {
       if (pdCelebrating.has(key)) return;
       const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;

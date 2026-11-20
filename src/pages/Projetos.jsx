@@ -1,3 +1,26 @@
+// =====================================================================
+// Projetos (rota /dashboard/projetos) — carteira de projetos da empresa.
+//
+// Secções da página:
+//   - Navegação "A minha carteira": por Tipo de projeto, Estado ou Programa;
+//     "Só os meus" filtra pelos projetos em que o utilizador é responsável,
+//     colaborador ou responsável de alguma atividade/tarefa/subtarefa.
+//   - Vista Geral (portfolioView "overview"): tabela de todos os projetos com
+//     filtros (tipo, programa, estado, entidade), paginação, exportação CSV/PDF
+//     e os separadores "Investimento" e "Incentivo" (pedidos de reembolso por
+//     mês e TXE = taxa de execução = investimento pedido / investimento do projeto).
+//     Os filtros ficam em localStorage ("projetos-vista-geral-filtros").
+//   - Modal de criação/edição em 5 passos: Base & Entidade, Organismo & Equipa,
+//     Planeamento (datas, programa/aviso e fases), Atividades (árvore do modelo
+//     do tipo de projeto, com caixas para escolher o que gerar), Finanças & Notas.
+//   - Cronómetro: escolher atividade/tarefa de um projeto e iniciar um task_log.
+//
+// Tabelas: projetos, projeto_entidades (valores por entidade líder/parceira),
+// pedidos_reembolso, programas_financiamento, avisos, clientes, tipos_projeto,
+// template_atividades/_tarefas/_subtarefas, atividades, tarefas, subtarefas,
+// task_logs, notificacoes_projetos, contactos_cliente.
+// Documentação: docs/modulos/projetos-e-tarefas.md
+// =====================================================================
 import { useState, useEffect, useRef } from "react";
 
 import { createPortal } from "react-dom";
@@ -121,6 +144,7 @@ const createBlankProjetoFase = (index = 0) => ({
     prazo: "",
 });
 
+/** Normaliza prazos_fases (jsonb ou string JSON) para [{ nome, data }]; descarta lixo. */
 const normalizeProjetoFases = (value) => {
     if (!Array.isArray(value) || value.length === 0) return [];
 
@@ -288,6 +312,11 @@ export default function Projetos() {
     return `${window.location.origin}/#/dashboard/projetos/${projectId}`;
     };
 
+  /**
+   * Avisa o responsável de um projeto novo: cria linha em notificacoes_projetos
+   * (sino da app) e pede ao servidor o email (/api/notificacoes/projeto-criado).
+   * Em localhost sem VITE_PROJECT_NOTIFICATIONS_API_BASE o email não é enviado.
+   */
   const notifyProjectCreated = async (project, responsibleId) => {
       if (!project?.id || !responsibleId) return;
 
@@ -338,6 +367,11 @@ export default function Projetos() {
       window.dispatchEvent(new CustomEvent("project-notifications-updated"));
   };
 
+  /**
+   * Grava projeto_entidades: cliente principal = "lider", parceiros = "parceiro".
+   * Com uma só entidade usa o investimento/incentivo do projeto; com várias usa
+   * os valores por entidade (estado "orcamentos"). Apaga entidades que saíram.
+   */
   const syncProjetoEntidades = async (projetoId, payload) => {
     const lider = String(payload.cliente_id);
     const ids = [...new Set([lider, ...(payload.parceiros_ids || []).map(String)])];
@@ -382,6 +416,10 @@ export default function Projetos() {
     const getProgramaById = (programaId) => programas.find((programa) => String(programa.id) === String(programaId)) || null;
     const getAvisoById = (avisoId) => avisos.find((aviso) => String(aviso.id) === String(avisoId)) || null;
     const normalizeCode = (v) => String(v || "").trim().toLowerCase();
+    /**
+     * Descobre o aviso de um programa: primeiro pelo id (programa.avisos_ids),
+     * depois por correspondência aproximada do código/nome (dados antigos).
+     */
     const getAvisoForPrograma = (programa) => {
       if (!programa) return null;
 
@@ -555,6 +593,11 @@ export default function Projetos() {
       setTimeout(() => setNotification(null), 3500);
   };
 
+  /**
+   * Carrega a árvore modelo (template_atividades > tarefas > subtarefas) do tipo
+   * de projeto para o passo 4 do modal. Por omissão fica tudo selecionado;
+   * as chaves de seleção são "a_<id>", "t_<id>" e "s_<id>".
+   */
   async function loadTemplateData(tipoId) {
       try {
           const { data: ativs } = await supabase.from("template_atividades").select("*").eq("tipo_projeto_id", tipoId).order("ordem");
@@ -610,6 +653,11 @@ export default function Projetos() {
       setTemplateSelection(prev => ({ ...prev, [`${type}_${id}`]: !prev[`${type}_${id}`] }));
   };
 
+  /**
+   * Carrega tudo o que a página precisa (projetos com atividades/tarefas para o
+   * filtro "Só os meus", pedidos de reembolso, projeto_entidades, programas,
+   * avisos, clientes, tipos e equipa). Chamado no arranque e depois de gravar.
+   */
   async function fetchData() {
     setLoading(true);
     const { data: projData, error } = await supabase
@@ -690,12 +738,18 @@ export default function Projetos() {
     setLoading(false);
   }
 
+  /** Procura o cronómetro aberto do utilizador (task_logs com end_time nulo). */
   async function checkActiveLog() {
     if(!user?.id) return;
     const { data } = await supabase.from("task_logs").select("*").eq("user_id", user.id).is("end_time", null).maybeSingle();
         setActiveLog(data || null);
   }
 
+    /**
+     * Fecha um task_log: end_time = agora e duration_minutes (mínimo 1).
+     * Se a coluna observacoes falhar, tenta de novo sem a nota.
+     * @returns {Promise<number|null>} minutos registados, ou null em erro
+     */
     async function stopLogById(logToStop, stopNote = "") {
         if (!logToStop) return null;
         const diffMins = Math.max(1, Math.floor((new Date() - new Date(logToStop.start_time)) / 60000));
@@ -758,6 +812,10 @@ export default function Projetos() {
         });
     }
 
+    /**
+     * Abre o modal para escolher em que atividade/tarefa do projeto arrancar o
+     * cronómetro. Projetos encerrados ou cancelados não aceitam cronómetro.
+     */
     async function openProjectTimerModal(e, proj) {
         if (e?.stopPropagation) e.stopPropagation();
         if (!proj?.id || proj.estado === "encerrado" || proj.estado === "cancelado") {
@@ -808,6 +866,7 @@ export default function Projetos() {
         }));
     }
 
+    /** Cria o task_log (sempre com projeto_id + task_id ou atividade_id). */
     async function startProjectDirect(startPayload) {
         if (!startPayload?.projectId || !startPayload?.targetType || !startPayload?.targetId) return;
 
@@ -828,6 +887,11 @@ export default function Projetos() {
         if (!error) { setActiveLog(data); showToast("Cronómetro iniciado!"); }
     }
 
+    /**
+     * Valida a escolha do modal (item não concluído, não é o cronómetro atual).
+     * Se já houver outro cronómetro aberto pede confirmação para o trocar
+     * (TimerSwitchModal); antes de arrancar verifica a picagem de ponto.
+     */
     async function handleStartFromProjectSelection() {
         if (projectTimerModal.project?.estado === "encerrado" || projectTimerModal.project?.estado === "cancelado") {
             showToast("Projeto encerrado ou cancelado. Não é possível iniciar cronómetro.", "warning");
@@ -887,6 +951,10 @@ export default function Projetos() {
         closeProjectTimerModal();
     }
 
+    /**
+     * Corre a ação se o utilizador já picou o ponto hoje; senão pergunta se quer
+     * picar agora (a ação corre na mesma, com ou sem picagem).
+     */
     async function runActionWithAttendanceWarning(actionFn) {
         const hasStarted = await hasAttendanceStartedToday(supabase, user?.id);
         if (hasStarted) {
@@ -940,6 +1008,12 @@ export default function Projetos() {
           return "Marcar item como concluido";
       }
 
+      /**
+       * "Parar e concluir": marca como concluído o item do cronómetro.
+       * Atenção: aqui o projeto é verificado primeiro e os logs criados nesta página
+       * têm sempre projeto_id, por isso conclui o PROJETO (ao contrário das outras
+       * páginas, que concluem primeiro a tarefa/atividade).
+       */
       async function completeLogItem(logEntry) {
           if (!logEntry) return;
 
@@ -975,6 +1049,11 @@ export default function Projetos() {
         setStopNoteModal({ show: false });
     }
 
+    /**
+     * Para o cronómetro com a nota do StopTimerNoteModal, aplica o novo estado
+     * escolhido (applyStopStatusUpdateForLogTarget, inclui o encaminhamento
+     * "em análise") e, se pedido, conclui o item.
+     */
     async function finalizeStopWithNote(note, shouldComplete, statusMeta = {}) {
         if (!activeLog) return;
 
@@ -1061,6 +1140,7 @@ export default function Projetos() {
     setShowModal(true);
   }
 
+  /** Apaga o projeto (só a linha de projetos; falha se a BD tiver filhos que o impeçam). */
   function askDeleteProjeto(e, id, titulo) {
       e.stopPropagation();
       setConfirmDialog({
@@ -1110,6 +1190,17 @@ export default function Projetos() {
       });
   };
 
+  /**
+   * Grava o modal de projeto.
+   * - Valida datas (início <= fim) e, na criação, os obrigatórios: nome, cliente,
+   *   tipo, responsável, data de fim, fases (se houver programa/aviso) e
+   *   investimento/incentivo > 0 (exceto tipos com eh_formacao).
+   * - Edição: update em projetos + syncProjetoEntidades.
+   * - Criação: insert, projeto_entidades e geração da árvore a partir do modelo
+   *   selecionado. As datas são encadeadas pelos dias_estimados de cada item;
+   *   as dependências do modelo (depende_de_template_*) são traduzidas para os
+   *   ids reais num segundo passo. Depois notifica o responsável e abre o detalhe.
+   */
   async function handleSubmit(e) {
     e.preventDefault();
     setIsSubmitting(true);
@@ -1429,6 +1520,7 @@ export default function Projetos() {
     }
   }
 
+  /** Filtro "Só os meus": responsável, colaborador ou responsável de algum item interno. */
   const checkUserInvolvement = (p) => {
       if (!showOnlyMine || portfolioView === "overview") return true; 
       if (!user?.id) return false;
@@ -1448,6 +1540,8 @@ export default function Projetos() {
       return false; 
   };
 
+  // Estados de projeto (coluna projetos.estado). "encerrado" e "cancelado" contam
+  // como inativos (escondidos salvo "mostrar concluídos") e bloqueiam cronómetros.
   const estadosProjeto = [
       { id: 'pendente', nome: 'Pendente', color: '#f59e0b' },
       { id: 'em_curso', nome: 'Em Curso', color: '#10b981' },
@@ -1694,6 +1788,10 @@ export default function Projetos() {
   const fasesProjeto = normalizeProjetoFases(form.prazos_fases);
   const fasesEfetivas = fasesProjeto.length > 0 ? fasesProjeto : normalizeProjetoFases(selectedAviso?.fases);
 
+  /**
+   * Ao escolher o programa preenche o texto "programa" (codigo - nome) e o aviso;
+   * o useEffect de form.avisos_ids copia as fases do aviso para prazos_fases.
+   */
   const handleProgramaChange = async (programaId) => {
     if (!programaId) {
         setForm(prev => ({
@@ -2024,6 +2122,7 @@ export default function Projetos() {
       return words.slice(0, 5).map((word) => word[0]).join("").toUpperCase().slice(0, 20);
   };
 
+  /** Consulta o NIF no nif.pt através de /api/nif (com sessão); devolve o registo ou null. */
   async function fetchNifRecord(nif) {
       const nifSanitizado = sanitizeNif(nif);
       if (nifSanitizado.length !== 9) return null;
@@ -2064,6 +2163,7 @@ export default function Projetos() {
       setQuickOrganismoModal({ show: false, marca: "", sigla: "", nif: "", entidade: "", website: "", isSubmitting: false });
   };
 
+  /** Cria rapidamente um organismo (cliente com eh_organismo = true) sem sair do modal. */
   const createQuickOrganismo = async (e) => {
       e.preventDefault();
       if (quickOrganismoModal.isSubmitting) return;
@@ -2407,6 +2507,7 @@ export default function Projetos() {
           const entityNames = uniqueEntityIds.map((entityId) => getEntityName(entityId, project)).filter(Boolean);
           return [...new Set(entityNames)].join(" / ");
       };
+      /** TXE: soma do valor_investimento dos pedidos de reembolso / investimento do projeto. */
       const getExecutionRate = (project) => {
           const projectInvestment = Number(project.investimento || 0);
           const requestedInvestment = pedidosReembolso

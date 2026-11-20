@@ -1,3 +1,5 @@
+// Separador "Personas" (Marketing): buyer personas da marca (marketing_personas).
+// Importação do CSV "Buyer Personas" do Notion em mkCsv.js.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { I } from "./mkIcons";
 import { AutoText, Field, Chips, TagInput, PersonaFace } from "./mkFields";

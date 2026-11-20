@@ -1,3 +1,10 @@
+// =====================================================================
+// Sessão do utilizador (Supabase Auth) + perfil (tabela profiles, com os dados de
+// profiles_privado juntos por juntarPrivado) + estado do 2FA obrigatório (TOTP).
+// Expõe via useAuth(): user, userProfile, setUserProfile, signOut, loading,
+// mfaPending, mfaSetup, checkMfa. Consumido por ProtectedRoute, Login, Sidebar e páginas.
+// Também termina a sessão se profiles.ativo = false (colaborador desativado nos RH).
+// =====================================================================
 import { createContext, useContext, useState, useEffect } from "react"
 import { juntarPrivado } from "../utils/dadosPrivados"
 import { supabase } from "../services/supabase"
@@ -51,6 +58,11 @@ export function AuthProvider({ children }) {
   const [mfaPending, setMfaPending] = useState(false)
   const [mfaSetup, setMfaSetup] = useState(false)
 
+  /**
+   * Lê o nível de garantia (AAL) da sessão e atualiza mfaPending/mfaSetup.
+   * nextLevel "aal2" e currentLevel ≠ "aal2" → falta o código; nextLevel ≠ "aal2" → sem fator TOTP (configurar).
+   * @returns {Promise<{pending: boolean, setup: boolean}>}
+   */
   async function checkMfa() {
     try {
       const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
@@ -159,6 +171,12 @@ export function AuthProvider({ children }) {
   }
 
   // Função para dar Logout (útil para o Navbar/Sidebar)
+  /**
+   * Fecha os cronómetros de tarefas abertos (task logs), regista "logout" em audit_log,
+   * termina a sessão no Supabase e, por omissão, recarrega em "/".
+   * @param {{forceReload?: boolean}} [options] forceReload=false evita o recarregamento
+   * @returns {Promise<{closedCount: number, errors: any[]}>}
+   */
   async function signOut(options = {}) {
     const forceReload = options.forceReload !== false
     let closeResult = { closedCount: 0, errors: [] }
@@ -199,6 +217,7 @@ export function AuthProvider({ children }) {
   )
 }
 
+/** Acesso ao contexto de autenticação (ver valores expostos no cabeçalho do ficheiro). */
 export function useAuth() {
   return useContext(AuthContext)
 }

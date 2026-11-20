@@ -1,3 +1,14 @@
+// =====================================================================
+// O meu perfil (rota /dashboard/perfil) — qualquer utilizador com sessão.
+// Secções: básico (nome, foto), pessoal, fiscal/civil, veículos (usados nos
+// pedidos de Km's), empresa (só leitura: os RH é que mudam) e segurança
+// (password + <TwoFactorSetup/>).
+// Gravação: campos sensíveis (NIF, NISS, CC, morada…) → profiles_privado via
+// guardarPrivados; restantes → profiles. O trigger profiles_proteger (068)
+// impede o próprio de mudar campos de RH (limite de férias, admissão, contrato…).
+// Se o CC mudar, avisa os RH por email: POST /api/notificacoes/cc-alerta.
+// Foto: recorte local → balde público "avatars" (<user_id>…jpg).
+// =====================================================================
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
@@ -310,6 +321,11 @@ export default function Perfil() {
     }
   }
 
+/**
+ * Grava o perfil (privado + público), muda a password se preenchida
+ * (mínimo 6 aqui; o ecrã de recuperação exige 8 + letras + números) e,
+ * se o nº/validade do CC mudou, pede ao servidor o email de aviso aos RH.
+ */
 async function handleSave(e) {
     e.preventDefault();
     setLoading(true);

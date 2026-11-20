@@ -24,6 +24,11 @@ const getInitials = (name) => {
 /**
  * Cartão de perfil de um colega (aberto a partir da "Equipa online").
  * `entry` é o registo de assiduidade com `profiles` e `hora_entrada`.
+ * Mostra contactos (copiar/ligar/email), aniversário e medalhas (useMedalhas).
+ * Usado em pages/DashboardHome.jsx. Estilos .pp-* em home.css; medalhas em medalhas.css.
+ * @param {object} props
+ * @param {{ user_id: string, hora_entrada?: string, profiles: object }} props.entry
+ * @param {() => void} props.onClose Esc (depois de fechar a ficha da medalha) ou clique fora
  */
 export default function ProfilePeek({ entry, onClose }) {
   const [copied, setCopied] = useState(null);

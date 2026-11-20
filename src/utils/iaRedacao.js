@@ -1,3 +1,5 @@
+// Anonimização de texto OCR antes de o Organizador de PDFs o mandar para a IA
+// (pages/OrganizadorPdf.jsx → api/organizador/ia.js). Só regex, corre no browser.
 import { isValidNif } from "./pdfOrganizerEngine.js";
 
 /**
@@ -6,6 +8,10 @@ import { isValidNif } from "./pdfOrganizerEngine.js";
  *
  * Tapa: NIF de pessoas singulares, NISS (e o nome que vem a seguir), IBAN, nºs de conta,
  * cartões, emails, telemóveis e nomes em transferências / listas de trabalhadores.
+ *
+ * A ordem das substituições importa (ex.: IBAN antes dos NIF, NISS antes dos NIF).
+ * @param {string} texto
+ * @returns {string} texto com marcadores [EMAIL], [IBAN], [NISS], [NIF], [NOME], [CONTA], [CARTAO], [TELEFONE]
  */
 export function redigir(texto) {
   let t = String(texto || "");

@@ -1,6 +1,22 @@
 import React from "react";
 import { createPortal } from "react-dom";
 
+// Confirmação "já tens um cronómetro a correr noutro sítio; trocar?".
+// Usado pelas páginas com cronómetros (Tarefas, Minhas Tarefas, Projetos, Atividades,
+// ProjetoDetalhe, Clientes, Início). Estilos inline (não tem CSS próprio).
+
+/**
+ * Só apresentação: a página decide o que fazer em onConfirm (normalmente
+ * closeAllActiveTaskLogsForUser + iniciar o novo task_log).
+ * @param {object} props
+ * @param {boolean} props.open
+ * @param {string} [props.title]
+ * @param {React.ReactNode} props.message normalmente o título de resolveActiveTimerMeta
+ * @param {() => void} props.onCancel
+ * @param {() => void} props.onConfirm
+ * @param {string} [props.cancelLabel="Manter Atual"]
+ * @param {string} [props.confirmLabel="Sim, Trocar"]
+ */
 export default function TimerSwitchModal({
   open,
   title = "Trocar Cronômetro",

@@ -29,9 +29,16 @@ export const ACOES = {
   recusar_cancelamento: { de: "pedido_cancelamento", para: "aprovado" },
 };
 
+/** Pedidos de km vivem na mesma tabela `ferias`, distinguidos pelo `tipo`. */
 export const ehPedidoKm = (pedido) => pedido?.tipo === KM_REQUEST_TYPE;
 
-/** Dias (ou fração, se for parcial) que o pedido ocupa. */
+/**
+ * Dias (ou fração, se for parcial) que o pedido ocupa.
+ * Parcial: horas / 8. Dias inteiros: dias úteis sem fins de semana, feriados e tolerâncias.
+ * @param {object} pedido linha de `ferias`
+ * @param {object[]} [tolerancias] de obterToleranciasAtivas
+ * @returns {number}
+ */
 export function diasDoPedido(pedido, tolerancias = []) {
   if (!pedido?.data_inicio) return 0;
   if (pedido.is_parcial && pedido.hora_inicio && pedido.hora_fim) {
@@ -69,6 +76,14 @@ async function avisarColaborador(pedido, novoEstado, acao, autorId) {
 /**
  * Executa a decisão. Devolve o novo estado; lança erro com mensagem legível.
  * `perfil` = perfil do dono do pedido (dias_ferias_total, dias_ferias, data_admissao).
+ *
+ * Passos: valida a transição (ACOES) → valida saldo se for aprovação de férias →
+ * UPDATE em `ferias` condicionado ao estado antigo (concorrência) → notifica o
+ * colaborador (notificacoes_projetos) → sincroniza vacation_balances.
+ *
+ * @param {{ pedido: object, acao: keyof ACOES, perfil: object, autorId: string }} p
+ * @returns {Promise<string>} novo estado ("aprovado" | "rejeitado" | "cancelado")
+ * @throws Error com texto para mostrar ao utilizador
  */
 export async function decidirPedido({ pedido, acao, perfil, autorId }) {
   const regra = ACOES[acao];
@@ -125,6 +140,7 @@ export async function decidirPedido({ pedido, acao, perfil, autorId }) {
   return regra.para;
 }
 
+/** "1 dia", "2 dias", "0,5 dias" (vírgula decimal PT). */
 export function fmtDias(n) {
   const v = Number(n) || 0;
   const txt = Number.isInteger(v) ? String(v) : v.toFixed(2).replace(/0+$/, "").replace(".", ",");

@@ -1,3 +1,9 @@
+// =====================================================================
+// GET|POST /api/cae-descriptions — devolve a designação oficial de códigos CAE
+// (rev. 4) a partir do CSV em src/data (ver server/caeCatalog.js).
+// Sem autenticação: só lê um catálogo público, não toca na base de dados.
+// Usado em src/pages/Clientes.jsx para descrever os CAE de uma entidade.
+// =====================================================================
 import { getCaeDescriptions } from "../server/caeCatalog.js";
 
 export const config = {
@@ -12,6 +18,10 @@ function normalizeCodes(rawCodes) {
   return [];
 }
 
+/**
+ * Entrada: `codes` na query (GET, "47111,62010") ou no corpo (POST, string ou lista).
+ * Saída: `{ ok, total, caes: [{ codigo, descricao|null }] }` (códigos inválidos são ignorados).
+ */
 export default function handler(req, res) {
   const method = req.method || "GET";
   if (method !== "GET" && method !== "POST") {

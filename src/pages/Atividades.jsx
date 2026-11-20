@@ -1,3 +1,11 @@
+// =====================================================================
+// Atividades (rota /dashboard/atividades) — lista de todas as atividades.
+//
+// Lista com pesquisa, criar/editar/ver atividade, concluir (propaga a tarefas
+// e subtarefas via concludeActivityWithChildren; reabrir volta a "em_curso"),
+// cronómetro na atividade e registos de tempo (task_logs com atividade_id).
+// Documentação: docs/modulos/projetos-e-tarefas.md
+// =====================================================================
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
@@ -116,6 +124,7 @@ export default function Atividades() {
       setTimeout(() => setNotification(null), 3000);
   };
 
+  /** Carrega atividades, projetos não cancelados, equipa e os tempos já fechados. */
   async function fetchData() {
     setLoading(true);
     const { data: ativData, error } = await supabase
@@ -298,6 +307,7 @@ export default function Atividades() {
         return "Marcar item como concluido";
     }
 
+    /** "Parar e concluir": atividade (com cascata), senão tarefa, senão projeto. */
     async function completeLogItem(logEntry) {
         if (!logEntry) return;
 
@@ -355,6 +365,7 @@ export default function Atividades() {
         await finalizeStopWithNote(note, shouldComplete, statusMeta);
     }
 
+  /** Concluir (com cascata) ou reabrir (estado "em_curso") uma atividade. */
   async function handleToggleStatus(ativ) {
     const novoEstado = ativ.estado === 'concluido' ? 'em_curso' : 'concluido';
     if (novoEstado === 'concluido' && activeLog?.atividade_id === ativ.id) {

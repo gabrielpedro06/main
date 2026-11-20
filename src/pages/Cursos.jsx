@@ -1,3 +1,15 @@
+// =====================================================================
+// Cursos (rota /dashboard/cursos) — catálogo de cursos usado nas propostas
+// de formação.
+//
+// Cada curso (tabela cursos) tem nome, duração, valor, textos para a proposta
+// (enquadramento, objetivos pedagógicos, metodologia, honorários, plano de
+// pagamento, considerações) e uma lista de módulos (jsonb).
+// Cartões + gaveta lateral para ver/editar; modal para criar.
+// Regras (migração 032): todos com sessão leem e criam; só o criador
+// (criado_por) edita e apaga (para os outros a gravação não muda nada).
+// Documentação: docs/modulos/clientes-e-comercial.md
+// =====================================================================
 import React, { useEffect, useMemo, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -677,6 +689,7 @@ export default function Cursos() {
     }
   }
 
+  /** Insert/update do curso (criado_por = utilizador atual na criação). */
   async function saveCurso(isEdit) {
     if (!formData.nome.trim()) {
       showToast('Nome do curso é obrigatório', 'error');

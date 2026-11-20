@@ -1,3 +1,6 @@
+// Layout e peças dos ecrãs públicos de autenticação (Login, ForgotPassword,
+// ResetPassword; SignUp também o usa mas não tem rota em App.jsx): janela com painel do formulário + painel de marca.
+// Exporta também AuthField, AuthAlert, AuthSubmit e AuthDone. Estilos em auth.css.
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import "../styles/auth.css";
@@ -30,6 +33,18 @@ const AuthIcons = {
 /* ------------------------------------------------------------------ */
 /* Campo de formulário com ícone (e olho para passwords)              */
 /* ------------------------------------------------------------------ */
+/**
+ * Campo com rótulo e ícone. `onChange` recebe o VALOR (não o evento).
+ * @param {object} props
+ * @param {keyof AuthIcons} [props.icon] ex.: "Mail", "Lock"
+ * @param {string} props.label
+ * @param {string} [props.type="text"] "password" mostra o botão do olho
+ * @param {string} props.value
+ * @param {(v: string) => void} props.onChange
+ * @param {boolean} [props.invalid]
+ * @param {React.ReactNode} [props.hint] por baixo do campo
+ * @param {(e: KeyboardEvent) => void} [props.onKeyEvent] keyup+keydown (ex.: detetar Caps Lock)
+ */
 export function AuthField({ icon, label, type = "text", value, onChange, autoComplete, autoFocus, required = true, placeholder, invalid, hint, onKeyEvent }) {
   const [show, setShow] = useState(false);
   const isPass = type === "password";
@@ -61,6 +76,7 @@ export function AuthField({ icon, label, type = "text", value, onChange, autoCom
   );
 }
 
+/** Caixa de erro ("error") ou sucesso (outro tom). Não renderiza nada sem children. */
 export function AuthAlert({ tone = "error", children }) {
   if (!children) return null;
   const IconC = tone === "error" ? AuthIcons.Alert : AuthIcons.Check;
@@ -72,6 +88,7 @@ export function AuthAlert({ tone = "error", children }) {
   );
 }
 
+/** Botão submit com spinner quando `loading`. */
 export function AuthSubmit({ loading, children, icon = "Arrow" }) {
   const IconC = AuthIcons[icon] || AuthIcons.Arrow;
   return (
@@ -83,6 +100,11 @@ export function AuthSubmit({ loading, children, icon = "Arrow" }) {
   );
 }
 
+/**
+ * Ecrã final de um fluxo (ex.: "email enviado").
+ * @param {{ icon?: string, text: React.ReactNode, action?: { to: string, label: string },
+ *   secondary?: { onClick: () => void, label: string } }} props
+ */
 export function AuthDone({ icon = "Check", text, action, secondary }) {
   const IconC = AuthIcons[icon] || AuthIcons.Check;
   return (
@@ -105,6 +127,16 @@ const FEATURES = [
   { icon: "Laptop", label: "Ativos TI" },
 ];
 
+/**
+ * @param {object} props
+ * @param {string} [props.eyebrow] texto pequeno acima do título
+ * @param {React.ReactNode} props.title
+ * @param {React.ReactNode} [props.subtitle]
+ * @param {React.ReactNode} props.children formulário
+ * @param {React.ReactNode} [props.footer]
+ * @param {{ to: string, label: string }} [props.back] link "voltar" no topo
+ * @param {string} [props.hello] / [props.tagline] textos do painel de marca
+ */
 export default function AuthLayout({ eyebrow, title, subtitle, children, footer, back, hello = "Bem-vindo.", tagline = "Se sonhar algo, consegue realizá-lo." }) {
   return (
     <div className="au-page">

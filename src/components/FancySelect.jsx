@@ -18,6 +18,24 @@ const normalize = (v) => String(v || "").normalize("NFD").replace(/[̀-ͯ]/g, ""
  * Dropdown moderno (substitui o <select> nativo).
  * options: [{ value, label, hint?, icon?, group? }]
  * Aparece numa "portal" para não ser cortado; pesquisa automática com 7+ opções.
+ *
+ * - `value` compara-se como string (String(o.value) === String(value)): ids numéricos funcionam.
+ * - `hint`: segunda linha cinzenta; também entra na pesquisa (sem acentos).
+ * - `group`: cabeçalho mostrado quando muda em relação à opção anterior — ordenar
+ *   as opções por grupo antes de passar.
+ * - Para "nenhum", incluir uma opção { value: "", label: "—" }.
+ * Teclado: ↓/Enter/Espaço abre; ↑↓ navega; Enter escolhe; Esc fecha.
+ *
+ * @param {object} props
+ * @param {string|number} props.value
+ * @param {(value: any) => void} props.onChange recebe o `value` da opção (não um evento)
+ * @param {Array<{ value: string|number, label: string, hint?: string, icon?: React.ReactNode, group?: string }>} props.options
+ * @param {React.ReactNode} [props.icon] ícone à esquerda no botão
+ * @param {string} [props.placeholder="Selecionar…"]
+ * @param {string} [props.className] classe extra no botão
+ * @param {number} [props.menuWidth=320] largura mínima do menu (px)
+ * @param {string} [props.searchPlaceholder="Procurar…"]
+ * @param {string} [props.ariaLabel] obrigatório se não houver <label> visível
  */
 export default function FancySelect({
   value,

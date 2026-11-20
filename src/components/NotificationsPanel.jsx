@@ -1,3 +1,5 @@
+// Painel do sino de notificações do Início (projetos novos, aprovações de Marketing,
+// alertas de segurança, decisões de ausências). Estilos .np-* em home.css.
 import { useEffect, useLayoutEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -13,7 +15,11 @@ const I = {
   BellCheck: () => <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /><path d="m9.5 9.5 1.8 1.8 3.2-3.3" /></svg>,
 };
 
-/** Aspeto de cada tipo de notificação */
+/**
+ * Aspeto de cada tipo de notificação (coluna notificacoes_projetos.tipo).
+ * Tipos sem entrada aqui caem em project_created (ícone de foguete, "Abrir projeto").
+ * Ao criar um tipo novo de notificação, acrescentar aqui o ícone e o texto do botão.
+ */
 const TIPO = {
   project_created: { Icon: I.Rocket, acao: "Abrir projeto" },
   mk_aprovacao: { Icon: I.Stamp, acao: "Rever e aprovar", tom: "is-approval" },
@@ -55,6 +61,17 @@ const groupLabel = (iso) => {
 
 /**
  * Painel de notificações ancorado ao sino (desktop) ou bottom sheet (mobile).
+ * Só apresentação: quem lê/grava em notificacoes_projetos é o pai (pages/DashboardHome.jsx).
+ *
+ * @param {object} props
+ * @param {boolean} props.open
+ * @param {() => void} props.onClose Esc, clique no fundo ou ao abrir um item
+ * @param {React.RefObject<HTMLElement>} props.anchorRef botão do sino (posição no desktop)
+ * @param {Array<{ id, tipo, titulo, mensagem?, link?, created_at }>} [props.items] não lidas
+ * @param {boolean} [props.loading]
+ * @param {(n: object) => void} [props.onOpenItem] navegar para n.link
+ * @param {(id: string) => void} [props.onMarkRead] chamado após a animação de saída (280 ms)
+ * @param {() => void} [props.onMarkAll]
  */
 export default function NotificationsPanel({ open, onClose, anchorRef, items = [], loading = false, onOpenItem, onMarkRead, onMarkAll }) {
   const [pos, setPos] = useState(null);

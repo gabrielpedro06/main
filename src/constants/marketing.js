@@ -1,4 +1,7 @@
 // Vocabulário do fluxo de conteúdos (Marketing). Baseado no fluxo que a equipa usava no Notion.
+// Os `id` são os valores gravados na BD (ex.: marketing_conteudos.estado); os `label` e
+// `cor` são só apresentação. Mudar um `id` obriga a migrar os dados existentes.
+// Usado por pages/Marketing.jsx e components/marketing/*.
 
 /** Etapas do fluxo, por ordem. "ideia" e "arquivado" ficam fora do quadro. */
 export const ETAPAS = [

@@ -1,3 +1,6 @@
+// Autenticação de dois fatores (TOTP do Supabase Auth): cartão do Perfil → Segurança
+// e passos de configuração reutilizados no Login (primeiro acesso sem 2FA).
+// A lógica de enroll/verify está em hooks/useTotpEnroll.
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../services/supabase";
 import OtpInput from "./OtpInput";
@@ -10,7 +13,14 @@ const Svg = ({ size = 18, children }) => (
 const ShieldIco = (p) => <Svg {...p}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><polyline points="9 12 11 14 15 10" /></Svg>;
 const CopyIco = (p) => <Svg {...p}><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></Svg>;
 
-/** Passos de configuração (QR + chave + código). Partilhado entre o Perfil e o Login. */
+/**
+ * Passos de configuração (QR + chave + código). Partilhado entre o Perfil e o Login.
+ * @param {object} props
+ * @param {object} props.t objeto devolvido por useTotpEnroll (enroll, code, setCode, busy, error…)
+ * @param {(code: string) => void} props.onConfirm
+ * @param {React.ReactNode} [props.actions] botões no fim (Cancelar/Confirmar)
+ * @param {string} [props.btnClass] classe do botão "Copiar"
+ */
 export function TotpEnrollSteps({ t, onConfirm, actions, btnClass = "pf-btn pf-btn-ghost" }) {
   const [copied, setCopied] = useState(false);
   if (!t.enroll) return null;

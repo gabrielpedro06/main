@@ -5,6 +5,11 @@
 // =====================================================================
 import { autenticar, responderErro, ErroHttp } from "./seguranca.js";
 
+/**
+ * GET /api/nif?q=<NIF> — chamado por consultarNif() em src/utils/apiAutenticada.js.
+ * Devolve o JSON do nif.pt tal como vem (cache privada de 1 h no browser).
+ * Aceita VITE_NIFPT_KEY como alternativa por compatibilidade; preferir NIFPT_KEY.
+ */
 export default async function nifLookup(req, res) {
   if (req.method !== "GET") {
     res.status(405).json({ ok: false, error: "Método não permitido." });

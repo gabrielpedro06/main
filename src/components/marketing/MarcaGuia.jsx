@@ -1,3 +1,6 @@
+// Separador "Marca" (Marketing): guia da marca guardado em marketing_marcas.guia
+// (jsonb): sobre, personalidade, é/não é, voz (usamos/evitamos), visual e ficheiros.
+// A lista "evitamos" é usada pelo painel do conteúdo e pela IA de ideias.
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "../../services/supabase";
 import { I } from "./mkIcons";

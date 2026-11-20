@@ -1,3 +1,9 @@
+// =====================================================================
+// Consulta dos CAE de uma empresa no SICAE (http://www.sicae.pt/Detalhe.aspx?NIPC=...).
+// Não há API oficial: faz scraping do HTML e apanha números de 5 dígitos perto da palavra
+// "CAE". Se o SICAE mudar o layout da página, é aqui que se corrige.
+// A edge function supabase/functions/fetch-caes-sicae faz o mesmo (alternativa em Deno).
+// =====================================================================
 import { getCaeDescription } from "./caeCatalog.js";
 
 const NIF_REGEX = /^\d{9}$/;
@@ -18,6 +24,11 @@ function extractCaesFromHtml(html) {
   return [...new Set(matches)].filter((code) => /^\d{5}$/.test(code));
 }
 
+/**
+ * @param {string|number} inputNif NIF/NIPC (só os dígitos contam; tem de ter 9)
+ * @returns {Promise<{nif, total, caes: Array<{codigo, descricao, fonte}>, sourceUrl, fetchedAt}>}
+ * @throws Error com `status` 400 (NIF inválido) ou 502 (SICAE respondeu com erro)
+ */
 export async function lookupSicaeCaesByNif(inputNif) {
   const nif = normalizeNif(inputNif);
   if (!NIF_REGEX.test(nif)) {

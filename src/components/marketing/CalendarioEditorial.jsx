@@ -1,3 +1,6 @@
+// Calendário editorial (Marketing → Calendário): vista mensal com os três tipos de
+// data de cada conteúdo (entrega, 1.ª e 2.ª publicação), marcos dos ciclos de
+// estratégia e lista lateral "Sem data". Arrastar um item muda só a data desse tipo.
 import { useMemo, useState } from "react";
 import { I } from "./mkIcons";
 import { estadoInfo, canalInfo, ETAPAS_ANTES_AGENDAR } from "../../constants/marketing";
@@ -24,6 +27,11 @@ function moverParaDia(iso, key) {
   return nova.toISOString();
 }
 
+/**
+ * @param itens   conteúdos visíveis (já filtrados; sem arquivados)
+ * @param marcos  pontos de controlo dos ciclos ({ data, titulo, ciclo, notas })
+ * @param onPatch grava (id, campos) · onCriar(base) cria conteúdo nesse dia
+ */
 export default function CalendarioEditorial({ itens, marcos = [], onAbrir, onPatch, onCriar }) {
   const [ref, setRef] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
   const [arrastar, setArrastar] = useState(null); // { id, campo }
@@ -76,6 +84,7 @@ export default function CalendarioEditorial({ itens, marcos = [], onAbrir, onPat
   const titulo = `${MESES_LONGOS[ref.getMonth()]} ${ref.getFullYear()}`;
   const mudarMes = (n) => setRef((r) => new Date(r.getFullYear(), r.getMonth() + n, 1));
 
+  /** Largar num dia: entrega grava só a data; publicações mantêm a hora original. */
   const largar = (key) => {
     if (!arrastar) return;
     const it = itens.find((x) => x.id === arrastar.id);

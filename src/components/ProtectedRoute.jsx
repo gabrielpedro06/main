@@ -1,3 +1,7 @@
+// Guarda de rotas (App.jsx). Sem sessão ou com 2FA por validar → volta ao Login
+// (guardando a rota de origem em state.from); com allowedRoles, compara com
+// profiles.role (ou .tipo) e manda para /dashboard se não tiver permissão.
+// ATENÇÃO: isto só esconde ecrãs; a segurança real está nas políticas RLS do Supabase.
 import { Navigate, useLocation } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 
@@ -5,6 +9,12 @@ function normalizeRole(value) {
   return String(value || "").trim().toLowerCase()
 }
 
+/**
+ * @param {object} props
+ * @param {React.ReactNode} props.children página protegida
+ * @param {string[]|null} [props.allowedRoles] papéis permitidos (comparação sem maiúsculas),
+ *   ex.: ["admin", "administrador", "gestor"]. null/[] = qualquer utilizador autenticado.
+ */
 export default function ProtectedRoute({ children, allowedRoles = null }) {
   const { user, userProfile, loading, mfaPending } = useAuth()
   const location = useLocation()

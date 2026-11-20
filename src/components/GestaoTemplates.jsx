@@ -26,6 +26,14 @@ const ModalPortal = ({ children }) => {
   return createPortal(children, document.body);
 };
 
+/**
+ * Página "Modelos de Projetos" (rota /dashboard/modelos; está em components/ por razões
+ * históricas). Gere a árvore de modelos usada ao criar um projeto:
+ *   tipos_projeto → template_atividades → template_tarefas → template_subtarefas
+ * com reordenação (coluna `ordem`). Um tipo com "Tem Programa" exige pelo menos um
+ * programas_financiamento ativo. Usa um diálogo de confirmação próprio (confirmDialog),
+ * não o confirmar() global. Sem props.
+ */
 export default function GestaoTemplates() {
   const [tipos, setTipos] = useState([]);
   const [atividades, setAtividades] = useState([]);

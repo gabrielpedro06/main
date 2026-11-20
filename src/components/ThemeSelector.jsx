@@ -1,3 +1,6 @@
+// Seletor de temas (aberto a partir do AccountMenu): separador "Celebrações"
+// (temas festivos, os da época atual primeiro) e "Básicos" (só paleta), pesquisa
+// e interruptor das decorações animadas (utils/themeDecor). Muda o tema via ThemeContext.
 import { useMemo, useState } from 'react'
 import { useTheme } from '../context/ThemeContext'
 import { THEMES, isThemeInSeason } from '../constants/themes'
@@ -75,6 +78,7 @@ function BasicCard({ id, theme, active, onPick }) {
   )
 }
 
+/** Sem props; lê e muda o tema com useTheme(). */
 export default function ThemeSelector() {
   const { currentTheme, changeTheme } = useTheme()
   const current = THEMES[currentTheme]

@@ -1,7 +1,25 @@
+// =====================================================================
+// Férias, ausências e dias úteis — regras de negócio dos RH.
+// Usado por Ausências, RH, AprovarPedido, CalendarioColaborador, WidgetCalendar,
+// decisaoPedido e PDFs de RH.
+//
+// Tabelas: `ferias` (pedidos de ausência, tolerâncias e pedidos de km, distinguidos
+// por `tipo`), `vacation_balances` (saldo anual por user_id+ano), `profiles`
+// (data_admissao, dias_ferias_total; `dias_ferias` é o campo antigo).
+//
+// Regras principais:
+//  - 22 dias por ano; no ano de admissão, ver calcularFeriasAnoAdmissao.
+//  - Dias não gozados transitam para o ano seguinte e expiram a 31 de março.
+//  - Parciais contam horas/8. Fins de semana, feriados (getFeriados) e tolerâncias não contam.
+//  - Se `vacation_balances` não existir (migração antiga), cai para cálculos sobre `ferias`.
+// =====================================================================
 import { uuidSeguro } from "./filtroSeguro";
 
+/** Dias de férias por ano completo de trabalho. */
 export const ANNUAL_VACATION_DAYS = 22;
+/** Data a partir da qual a assiduidade é contabilizada (antes disto não havia registos fiáveis). */
 export const ATTENDANCE_GLOBAL_CUTOFF = "2026-03-01";
+/** Tipo canónico em `ferias.tipo` para tolerâncias de ponto (user_id null = para todos). */
 export const TOLERANCIA_TIPO = "Tolerância de Ponto";
 export const TOLERANCIA_TIPOS = [
   TOLERANCIA_TIPO,
@@ -10,6 +28,7 @@ export const TOLERANCIA_TIPOS = [
   "tolerância",
 ];
 
+/** Número positivo recebido, ou 22 se inválido/vazio. */
 export const resolveAnnualVacationLimit = (value) => {
   const parsed = Number(value);
   if (Number.isFinite(parsed) && parsed > 0) return parsed;
@@ -20,6 +39,13 @@ export const resolveAnnualVacationLimit = (value) => {
 export const getAnnualVacationLimitFromProfile = (profile = null) =>
   resolveAnnualVacationLimit(profile?.dias_ferias_total ?? profile?.dias_ferias);
 
+/**
+ * Limite de dias para um ano concreto:
+ * antes do ano de admissão → 0; ano de admissão → `diasLimiteAnual` (definido nos RH);
+ * anos seguintes → 22.
+ * @param {{ diasLimiteAnual: number, dataAdmissao?: string|null, ano?: number }} p
+ * @returns {number}
+ */
 export const getAnnualVacationLimitForYear = ({
   diasLimiteAnual,
   dataAdmissao = null,
@@ -35,9 +61,11 @@ export const getAnnualVacationLimitForYear = ({
 const removeAccents = (value = "") =>
   String(value).normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
+/** Tipo de ausência sem acentos, minúsculas e sem espaços nas pontas (para comparar). */
 export const normalizeAbsenceType = (tipo = "") =>
   removeAccents(tipo).trim().toLowerCase();
 
+/** Tipos que podem ser "estado temporário" do colaborador (ex.: de baixa, de licença). */
 export const COLLABORATOR_STATUS_TYPES = [
   "Férias",
   "Assistência à família",
@@ -58,6 +86,7 @@ export const isCollaboratorStatusType = (tipo = "") => {
   return COLLABORATOR_STATUS_TYPES.some((statusType) => normalizeAbsenceType(statusType) === normalized);
 };
 
+/** O tipo é de férias? (qualquer variante que contenha "ferias", com ou sem acento) */
 export const isVacationType = (tipo = "") =>
   normalizeAbsenceType(tipo).includes("ferias");
 
@@ -68,6 +97,11 @@ export const formatAbsenceTypeLabel = (tipo = "") => {
   return isVacationType(trimmed) ? "Férias" : trimmed;
 };
 
+/**
+ * "AAAA-MM-DD" (ou Date) → Date à meia-noite LOCAL. Evita o desvio de fuso de
+ * `new Date("AAAA-MM-DD")`, que é interpretado em UTC.
+ * @returns {Date|null}
+ */
 export const parseLocalDate = (dateValue) => {
   if (!dateValue) return null;
 
@@ -83,6 +117,7 @@ export const parseLocalDate = (dateValue) => {
   return new Date(year, month - 1, day);
 };
 
+/** Date/string → "AAAA-MM-DD" local ("" se inválida). */
 export const formatDateKey = (dateValue) => {
   const date = parseLocalDate(dateValue);
   if (!date) return "";
@@ -111,6 +146,12 @@ export const buildToleranciasSkipSet = (tolerancias = [], userId = null) => {
   return skipSet;
 };
 
+/**
+ * Tolerâncias de ponto não canceladas/rejeitadas (linhas de `ferias` com tipo de tolerância).
+ * Com userId: só as globais (user_id null) e as desse utilizador.
+ * @returns {Promise<Array<{ id, user_id, nome, data, data_inicio, data_fim }>>}
+ * @throws erro do Supabase
+ */
 export async function obterToleranciasAtivas({
   supabaseClient,
   userId = null,
@@ -139,6 +180,7 @@ export async function obterToleranciasAtivas({
   }));
 }
 
+/** Início da contagem de assiduidade: a mais tardia entre a admissão e ATTENDANCE_GLOBAL_CUTOFF. */
 export const getAttendanceCalculationStartDate = (
   dataAdmissao,
   globalCutoff = ATTENDANCE_GLOBAL_CUTOFF,
@@ -153,6 +195,12 @@ export const getAttendanceCalculationStartDate = (
   return formatDateKey(admissionDate > cutoffDate ? admissionDate : cutoffDate);
 };
 
+/**
+ * Feriados de um ano: nacionais + Carnaval (tolerância habitual) + feriado municipal
+ * de Faro (7 de setembro). Páscoa pelo algoritmo de Meeus/Butcher.
+ * @param {number} ano
+ * @returns {Array<{ d: number, m: number, nome: string }>} m é 0-based (como Date)
+ */
 export const getFeriados = (ano) => {
   const a = ano % 19;
   const b = Math.floor(ano / 100);
@@ -213,6 +261,14 @@ export const isHoliday = (date) => {
  *  - cada mês seguinte até dezembro: 2 dias;
  *  - no máximo 20 dias.
  * Devolve null se a data não for válida.
+ * Nos anos seguintes ao da admissão aplicam-se os 22 dias (ANNUAL_VACATION_DAYS).
+ *
+ * Exemplos: admissão 2026-03-02 (1.º dia útil de março) → 2 + 2×9 = 20;
+ *           2026-09-10 → 1 + 2×3 = 7; 2026-11-20 → 0 + 2×1 = 2.
+ * Só é usada para SUGERIR o valor no painel de RH (RecursosHumanos.jsx); o valor
+ * efetivo é o que os RH gravam em profiles.dias_ferias_total.
+ * @param {string|Date} dataAdmissao
+ * @returns {number|null}
  */
 export const calcularFeriasAnoAdmissao = (dataAdmissao) => {
   const d = parseLocalDate(dataAdmissao);
@@ -226,6 +282,13 @@ export const calcularFeriasAnoAdmissao = (dataAdmissao) => {
   return Math.min(20, diasMesEntrada + 2 * (11 - mes));
 };
 
+/**
+ * Dias úteis entre duas datas (inclusive), sem fins de semana, feriados e `skipDates`.
+ * @param {string|Date} dataInicio
+ * @param {string|Date} [dataFim] por omissão = dataInicio
+ * @param {Set<string>|null} [skipDates] chaves "AAAA-MM-DD" (ver buildToleranciasSkipSet)
+ * @returns {number}
+ */
 export const calcularDiasUteis = (dataInicio, dataFim, skipDates = null) => {
   const inicio = parseLocalDate(dataInicio);
   const fim = parseLocalDate(dataFim || dataInicio);
@@ -240,6 +303,7 @@ export const calcularDiasUteis = (dataInicio, dataFim, skipDates = null) => {
   return count;
 };
 
+/** Dias úteis da interseção entre [dataInicio, dataFim] e [periodoInicio, periodoFim]. */
 export const calcularDiasUteisNoPeriodo = (
   dataInicio,
   dataFim,
@@ -264,6 +328,7 @@ export const calcularDiasUteisNoPeriodo = (
   return calcularDiasUteis(inicioFinal, fimFinal, skipDates);
 };
 
+/** Dias úteis do intervalo que caem no mês `mes` (0-based) de `ano`. */
 export const calcularDiasUteisNoMes = (dataInicio, dataFim, ano, mes, skipDates = null) => {
   const inicioMes = new Date(ano, mes, 1);
   const fimMes = new Date(ano, mes + 1, 0);
@@ -271,6 +336,7 @@ export const calcularDiasUteisNoMes = (dataInicio, dataFim, ano, mes, skipDates 
   return calcularDiasUteisNoPeriodo(dataInicio, dataFim, inicioMes, fimMes, skipDates);
 };
 
+/** Anos civis tocados pelo intervalo (ex.: 2026-12-28 a 2027-01-03 → [2026, 2027]). */
 export const getYearsInRange = (dataInicio, dataFim) => {
   const inicio = parseLocalDate(dataInicio);
   const fim = parseLocalDate(dataFim || dataInicio);
@@ -302,6 +368,7 @@ const clampRangeToYear = (dataInicio, dataFim, ano) => {
   return { inicio: inicioFinal, fim: fimFinal };
 };
 
+/** Dias úteis do intervalo que pertencem ao ano `ano` (pedidos que atravessam o ano). */
 export const calcularDiasFeriasNoAno = (dataInicio, dataFim, ano, skipDates = null) => {
   const intervaloAno = clampRangeToYear(dataInicio, dataFim, ano);
   if (!intervaloAno) return 0;
@@ -311,6 +378,10 @@ export const calcularDiasFeriasNoAno = (dataInicio, dataFim, ano, skipDates = nu
 
 export const getCurrentYear = () => new Date().getFullYear();
 
+/**
+ * Marcar férias do ano seguinte só é permitido a partir de 1 de dezembro.
+ * @returns {boolean} true se o pedido é para um ano futuro e ainda não abriu
+ */
 export const isVacationBookingBeforeAnnualOpening = (
   dataInicio,
   dataReferencia = new Date(),
@@ -323,6 +394,7 @@ export const isVacationBookingBeforeAnnualOpening = (
   return inicio.getFullYear() > referencia.getFullYear() && referencia < abertura;
 };
 
+/** Já estamos em dezembro (mostrar também o saldo do ano seguinte nos RH)? */
 export const isAnnualVacationOpeningAvailable = (dataReferencia = new Date()) => {
   const referencia = parseLocalDate(dataReferencia);
   if (!referencia) return false;
@@ -395,6 +467,11 @@ async function obterPedidosFeriasAno({
   return data || [];
 }
 
+/**
+ * Saldo calculado só a partir dos pedidos APROVADOS em `ferias` (sem transitados).
+ * Nota: o parâmetro `dataAdmissao` é aceite mas não é usado aqui.
+ * @returns {Promise<{ ano, diasConsumidos, diasLimite, diasRestantes }>}
+ */
 export async function obterSaldoFeriasAno({
   supabaseClient,
   userId,
@@ -438,6 +515,13 @@ async function obterSaldoFeriasTabela({ supabaseClient, userId, ano }) {
   return data;
 }
 
+/**
+ * Saldo de um ano para mostrar ao utilizador, incluindo dias transitados do ano anterior
+ * (válidos só até 31 de março do próprio ano).
+ * 1) Se houver linha em `vacation_balances` para o ano, é a fonte de verdade.
+ * 2) Senão, calcula a partir de `ferias` e só transita dias de um saldo REAL do ano anterior.
+ * @returns {Promise<{ ano, diasLimite, diasConsumidos, diasRestantes, diasTransitados, diasDisponiveis }>}
+ */
 export async function obterSaldoFeriasAnoComTransicao({
   supabaseClient,
   userId,
@@ -489,6 +573,14 @@ export async function obterSaldoFeriasAnoComTransicao({
   };
 }
 
+/**
+ * Valida se um pedido de férias cabe no saldo, ano a ano (um pedido pode atravessar o ano).
+ * Conta aprovados + pendentes (excepto `excluirPedidoId`, o próprio pedido ao aprovar/editar).
+ * Os transitados só entram se o pedido (ou consumos) cair até 31 de março.
+ * Se `vacation_balances` disser dias_disponiveis <= 0, recusa logo.
+ * @returns {Promise<{ ok: boolean, ano?, diasPedidoNoAno?, diasDisponiveis?, diasTransitados?, detalhes: object[] }>}
+ *   quando ok=false, os campos do topo são os do ano que falhou
+ */
 export async function validarSaldoFeriasParaIntervalo({
   supabaseClient,
   userId,
@@ -610,6 +702,13 @@ export async function validarSaldoFeriasParaIntervalo({
   return { ok: true, detalhes };
 }
 
+/**
+ * Recalcula e grava (upsert) a linha de `vacation_balances` do utilizador para `ano`.
+ * Chamar depois de aprovar/cancelar/editar férias. Se a tabela não existir, grava
+ * `profiles.dias_ferias` (modelo antigo).
+ * Efeitos: upsert em vacation_balances (onConflict user_id,ano); pode ler profiles.data_admissao.
+ * @returns {Promise<object>} o saldo calculado (ver obterSaldoFeriasAno)
+ */
 export async function sincronizarSaldoFeriasPerfil({
   supabaseClient,
   userId,

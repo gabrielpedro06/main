@@ -1,3 +1,4 @@
+// Campos de formulário e avatares reutilizados nos componentes de Marketing.
 import { useId, useLayoutEffect, useRef, useState } from "react";
 import FancySelect from "../FancySelect";
 import { I } from "./mkIcons";

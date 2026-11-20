@@ -1,6 +1,10 @@
 ﻿import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
+// Tooltips da app inteira: qualquer elemento com atributo `title` passa a mostrar
+// um balão com o tema em vez do tooltip nativo do browser. Não é preciso nada por
+// componente — basta pôr title="…". Montado uma vez em App.jsx à volta do router.
+
 const TOOLTIP_GAP = 10;
 const TOOLTIP_MAX_WIDTH = 300;
 const TOOLTIP_VIEWPORT_PADDING = 12;
@@ -12,6 +16,12 @@ const getClosestTitleTarget = (target) => {
 
 const getRelatedElement = (relatedTarget) => (relatedTarget instanceof Element ? relatedTarget : null);
 
+/**
+ * Ouve mouseover/focusin no document (fase de captura); ao entrar num elemento com
+ * `title`, remove temporariamente o atributo (para o browser não mostrar o nativo) e
+ * repõe-no ao sair. Fecha com Esc. Fica por cima/baixo do alvo conforme o espaço.
+ * @param {{ children: React.ReactNode }} props
+ */
 export default function GlobalTooltipProvider({ children }) {
     const activeRef = useRef(null);
     const tooltipRef = useRef(null);

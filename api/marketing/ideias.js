@@ -120,6 +120,10 @@ const corta = (t, n) => {
 const semVazios = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v != null && v !== "" && !(Array.isArray(v) && !v.length)));
 const listaDe = (v) => (Array.isArray(v) ? v : v ? [v] : []);
 
+/**
+ * Normaliza a entrada da ferramenta propor_ideias (máx. 12 ideias; todos os campos de
+ * CAMPOS_IDEIA presentes, strings/listas de strings). Devolve null se a forma não servir.
+ */
 function validarIdeias(input) {
   if (!input || !Array.isArray(input.ideias) || !input.ideias.length) return null;
   const out = [];
@@ -145,6 +149,13 @@ function historicoValido(h) {
 /* ---------------------------------------------------------------------
    Contexto da marca (lido do Supabase com a sessão do utilizador)
    --------------------------------------------------------------------- */
+/**
+ * Monta o texto de contexto da marca enviado ao Claude na 1.ª mensagem da conversa.
+ * Lê (com o cliente `sb` do utilizador, portanto sujeito a RLS): marketing_marcas (guia),
+ * marketing_personas, marketing_ciclos (estratégia ativa hoje), marketing_conteudos (últimos 250)
+ * e marketing_recursos (oferta, turma, regra, facto, campanha).
+ * @returns {Promise<{texto: string, marcaNome: string}>} texto cortado a 180 000 caracteres
+ */
 async function contextoDaMarca(sb, marcaId) {
   const hoje = new Date().toISOString().slice(0, 10);
   const [marcaR, personasR, ciclosR, conteudosR, recursosR] = await Promise.all([
@@ -266,6 +277,16 @@ async function contextoDaMarca(sb, marcaId) {
 /* ---------------------------------------------------------------------
    Handler
    --------------------------------------------------------------------- */
+/**
+ * POST /api/marketing/ideias — chamado por src/components/marketing/AssistenteIdeias.jsx.
+ * Corpo: `{ marcaId, mensagem, historico?: MessageParam[], pesquisaWeb?: boolean }`.
+ * Papéis: admin, administrador, gestor, marketing, marketing plus (lido de profiles.role).
+ * Limite: 60 pedidos/dia por pessoa (contados em audit_log, acao "ia_ideias_marketing").
+ * Resposta em SSE (`data: {json}\n\n`), eventos: `text` (delta), `pesquisa` (query web),
+ * `estado`, `ideias` (cartões validados), `erro`, e no fim `fim` com `novas` (mensagens a
+ * acrescentar ao histórico no browser) e `uso` (tokens e custo estimado em USD).
+ * O histórico é guardado pelo browser e reenviado em cada pedido (o servidor não guarda nada).
+ */
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.status(405).json({ ok: false, error: "Método não permitido." });

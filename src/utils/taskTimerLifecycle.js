@@ -1,3 +1,19 @@
+// Ciclo de vida dos cronómetros de tarefa (tabela task_logs).
+// Regra da app: um utilizador só tem UM cronómetro ativo (end_time null). Antes de
+// arrancar outro, as páginas fecham todos com closeAllActiveTaskLogsForUser; ao
+// parar com o StopTimerNoteModal, aplicam o novo estado com applyStopStatusUpdateForLogTarget.
+
+/**
+ * Fecha todos os task_logs abertos do utilizador (end_time = agora,
+ * duration_minutes = minutos inteiros, mínimo 1).
+ * Se a gravação com `observacoes` falhar, tenta de novo sem a nota.
+ * Também é chamada no logout (AuthContext).
+ *
+ * @param {object} supabase
+ * @param {string} userId
+ * @param {{ note?: string }} [options] nota opcional gravada em task_logs.observacoes
+ * @returns {Promise<{ closedCount: number, errors: object[] }>}
+ */
 export async function closeAllActiveTaskLogsForUser(supabase, userId, options = {}) {
   if (!supabase || !userId) {
     return { closedCount: 0, errors: [] };
@@ -150,6 +166,25 @@ function buildAnalysisPayload(nextStatus, statusMeta = {}) {
   return payload;
 }
 
+/**
+ * Ao parar um cronómetro, muda o estado do item a que o registo pertence
+ * (tarefa → atividade → subtarefa → projeto, por esta prioridade).
+ *
+ * - "concluido" numa tarefa grava também data_conclusao.
+ * - "em_analise" (só tarefas/atividades) grava os campos analise_* (destino, datas,
+ *   colega/contacto) e, se o destino for um colega, junta-o a colaboradores_extra.
+ * - Sair de "em_analise" grava analise_data_retorno.
+ * - Se as colunas analise_* não existirem (erro 42703, migração por correr), volta a
+ *   tentar com menos campos e, no limite, só com `estado`.
+ *
+ * @param {object} supabase
+ * @param {object} logEntry linha de task_logs (task_id/tarefa_id, atividade_id, subtarefa_id, projeto_id)
+ * @param {object} statusMeta o 3.º argumento do onConfirm do StopTimerNoteModal:
+ *   { nextStatus, analysisDestination, analysisDestinationUserId,
+ *     analysisDestinationContactId, analysisExpectedDate }. nextStatus "manter"/"" = não muda nada.
+ * @returns {Promise<{ applied: boolean, skipped: boolean, reason?: string, error?: object,
+ *   targetTable?: string, targetId?: string, nextStatus?: string }>}
+ */
 export async function applyStopStatusUpdateForLogTarget(supabase, logEntry, statusMeta = {}) {
   if (!supabase || !logEntry) return { applied: false, skipped: true, reason: "missing-input" };
 

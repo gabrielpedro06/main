@@ -1,3 +1,7 @@
+// =====================================================================
+// `npm run dev:full` — arranca em paralelo o servidor local (server/index.js, porta 8787)
+// e o Vite (porta 5173), no mesmo terminal. Se um dos dois morrer, termina o outro.
+// =====================================================================
 import { spawn } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';

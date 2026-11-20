@@ -1,3 +1,4 @@
+// Seletor de cor das marcas (MarcasModal). Sem dependências externas.
 import { useRef, useState } from "react";
 import { I } from "./mkIcons";
 import { clamp, normalizarHex, hexParaHsv, hsvParaHex, textoSobre } from "./mkColor";

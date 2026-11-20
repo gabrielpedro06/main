@@ -1,3 +1,10 @@
+// =====================================================================
+// Definir nova password (rota /reset-password), aberta a partir do link do
+// email de recuperação (a sessão de recuperação vem no URL e é lida pelo
+// cliente Supabase). Regras: 8+ caracteres, letras e números.
+// Contas com 2FA: o Supabase exige sessão aal2 para mudar a password, por isso
+// pede primeiro o código da app autenticadora.
+// =====================================================================
 import { useEffect, useState } from "react"
 import { supabase } from "../services/supabase"
 import { useNavigate } from "react-router-dom"

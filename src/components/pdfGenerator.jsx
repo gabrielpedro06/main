@@ -1,3 +1,12 @@
+// =====================================================================
+// Relatório PDF de um projeto (botão no detalhe do projeto).
+// Gerado no browser com jsPDF + jspdf-autotable e descarregado como
+// Relatorio_Projeto_<titulo>.pdf. Conteúdo: banner, cartão de identificação,
+// métricas (tempo, progresso, investimento/incentivo), barras de progresso,
+// Gantt simplificado e lista de atividades/tarefas com tempos por pessoa.
+// Entrada: projeto, atividades (com tarefas/subtarefas), task_logs, equipa,
+// clientes e (opcional) contactos das entidades.
+// =====================================================================
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -95,6 +104,12 @@ const getInitials = (name) => {
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 };
 
+/**
+ * Gera e descarrega o relatório do projeto.
+ * @param {object} projeto linha de projetos (com clientes/tipos_projeto)
+ * @param {Array} atividades árvore atividades > tarefas > subtarefas
+ * @param {Array} logs task_logs do projeto (duration_minutes)
+ */
 export const generateProjectPDF = async (
     projeto = {},
     atividades = [],

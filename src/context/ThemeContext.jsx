@@ -1,3 +1,8 @@
+// =====================================================================
+// Tema visual da app. Os temas estão em src/constants/themes.js; o tema ativo é
+// aplicado como variáveis CSS `--color-<chave>` em <html> e guardado em
+// localStorage ("app-theme"), ou seja, por browser e não por utilizador.
+// =====================================================================
 import { createContext, useContext, useState, useEffect } from 'react'
 import { THEMES, DEFAULT_THEME } from '../constants/themes'
 
@@ -82,6 +87,7 @@ export function ThemeProvider({ children }) {
   )
 }
 
+/** { currentTheme, changeTheme(nome), availableThemes, themeColors, isLoading }. Lança erro fora do ThemeProvider. */
 export function useTheme() {
   const context = useContext(ThemeContext)
   if (!context) {

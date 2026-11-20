@@ -3,6 +3,12 @@ import { supabase } from "../../services/supabase";
 import { useAuth } from "../../context/AuthContext";
 
 // Vista "Alertas de segurança" da página de Registos (migração 075)
+// Lê (só admins, por RLS):
+//   alertas_seguranca  alertas gerados pelo servidor/regras da BD (até 200)
+//   tentativas_login   passwords/códigos 2FA errados dos últimos 7 dias (até 50)
+//   seguranca_estado   estado da recolha de logs do Supabase (chave "recolha_logs",
+//                      atualizada a cada 10 min pelo pg_cron → /api/seguranca/recolher)
+// "Marcar como visto" grava visto_por/visto_em; onPorVer atualiza o contador do separador.
 const GRAV = { alta: "Alta", media: "Média", baixa: "Baixa" };
 const MOTIVO = { password: "Palavra-passe errada", mfa: "Código 2FA errado", conta_bloqueada: "Conta bloqueada" };
 const fmt = (iso) => (iso ? new Date(iso).toLocaleString("pt-PT", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "—");

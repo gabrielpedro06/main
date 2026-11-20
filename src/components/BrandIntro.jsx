@@ -25,6 +25,8 @@ const greeting = () => {
  * Animação de entrada da Bizin: o logo revela-se com um brilho,
  * aparece a saudação e a "cortina" sobe para mostrar a app.
  * Toca uma vez por sessão do separador (e sempre depois do login).
+ * Sem props. Montado em pages/Dashboard.jsx. Clicar salta a animação; com
+ * prefers-reduced-motion fica muito mais curta. Estilos .bz-intro-* em motion.css e theme-decor.css.
  */
 export default function BrandIntro() {
   const { userProfile } = useAuth();

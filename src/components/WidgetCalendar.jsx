@@ -6,6 +6,14 @@ import "../styles/calendar.css";
 import { clicavel } from "../utils/clicavel";
 import { Flag, Cake, TreePalm } from "lucide-react";
 
+// "Calendário de Prazos" (aberto pela Sidebar num modal): vistas ano/mês/dia com
+// feriados, aniversários (profiles.data_nascimento), ausências aprovadas (ferias) e a
+// agenda pessoal do utilizador (tabela `agenda`: criar, editar, apagar, arrastar hora).
+// Nota: tem uma cópia local de getFeriados (igual à de utils/feriasSaldo.js).
+
+/**
+ * @param {{ onClose: () => void }} props
+ */
 export default function WidgetCalendar({ onClose }) {
   const { user } = useAuth();
   

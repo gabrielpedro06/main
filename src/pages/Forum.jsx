@@ -1,3 +1,15 @@
+// =====================================================================
+// Comunicação (/dashboard/forum): feed de publicações + chat interno.
+// Feed: forum_posts (categorias geral/aviso/duvida/ideia; conteúdo em blocos
+//   "BLOCKS_V1:" com texto e imagens no balde público forum_media),
+//   forum_comments (com respostas parent_id), forum_comment_likes, forum_reactions.
+// Chat: chat_rooms (privadas e grupos), chat_participants, chat_messages,
+//   chat_reactions, chat_room_reads (lido até); ficheiros no balde privado
+//   chat_ficheiros/<room_id>/... (abertos com link temporário).
+// Tempo real: canais Supabase (ver bloco TEMPO REAL) + sincronização a cada 1,2 s
+//   enquanto uma conversa está aberta.
+// Documentação: docs/modulos/comunicacao-e-dashboard.md
+// =====================================================================
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
@@ -71,6 +83,7 @@ const getImageSizeConfig = (size) => IMAGE_SIZE_OPTIONS.find((option) => option.
 const createTextBlock = (text = "", align = "left") => ({ id: `${Date.now()}_${Math.random()}`, type: "text", text, align });
 const createImageBlock = (size = "lg") => ({ id: `${Date.now()}_${Math.random()}`, type: "image", file: null, previewUrl: "", uploadedUrl: "", size });
 
+/** Converte o conteúdo de um post em blocos editáveis (formato BLOCKS_V1 ou antigo texto + image_url). */
 const parsePostBlocks = (post) => {
     const conteudo = typeof post?.conteudo === "string" ? post.conteudo : "";
     if (conteudo.startsWith(BLOCKS_PREFIX)) {
@@ -219,6 +232,11 @@ const uniqueTopic = (base) => `${base}_${Math.random().toString(36).slice(2, 10)
 const ROOM_CHANNELS = new Map();
 const forumBridge = { current: null };
 
+/**
+ * Canal Realtime da sala (mensagens novas + broadcast "typing" e "read_receipt").
+ * Um por sala, guardado em ROOM_CHANNELS e nunca removido; encaminha para o
+ * Forum montado através de forumBridge.
+ */
 function ensureRoomChannel(roomId) {
   if (ROOM_CHANNELS.has(roomId)) return ROOM_CHANNELS.get(roomId);
   const channel = supabase
@@ -712,6 +730,7 @@ export default function Forum() {
       localStorage.setItem(getChatSeenStorageKey(user.id), JSON.stringify(nextMap || {}));
   }
 
+  /** Marca a sala como lida: localStorage + broadcast read_receipt + upsert em chat_room_reads. */
   function markRoomAsSeen(roomId, lastReadAt = null) {
       if (!roomId) return;
       const nowIso = lastReadAt || new Date().toISOString();
@@ -804,6 +823,10 @@ export default function Forum() {
       });
   }
 
+  /**
+   * Recalcula não lidas por sala: mensagens de outros depois do "lido até" mais
+   * recente (local ou BD). Só olha para as últimas 500 mensagens de todas as salas.
+   */
   async function refreshUnreadCounts(roomIds = []) {
       if (!user?.id || !roomIds.length) {
           setUnreadByRoom({});
@@ -952,6 +975,7 @@ export default function Forum() {
   }
 
   // --- CRIAR / EDITAR POST ---
+  /** Cria/edita um post: carrega as imagens novas para forum_media e grava os blocos serializados. */
   async function handleCreatePost(e) {
     e.preventDefault();
     setIsUploading(true);
@@ -1254,6 +1278,7 @@ export default function Forum() {
     }
   }
 
+  // Permissões no feed (só na interface): autor, admin ou gestor. A RLS decide no fim.
   const canDelete = (authorId) => {
       const myRole = userProfile?.role || '';
       return user.id === authorId || ['admin', 'gestor'].includes(myRole);
@@ -1378,6 +1403,7 @@ async function handleChatReaction(messageId, emoji) {
       }, 2400);
   }
 
+  /** Envia "a escrever…" pelo canal da sala (no máximo 1 envio a cada 800 ms). */
   function emitTypingStatus(isTyping) {
       if (!activeChatRoom?.id || !activeRoomChannelRef.current || !user?.id) return;
 
@@ -1424,6 +1450,7 @@ async function handleChatReaction(messageId, emoji) {
       setChatMessages(data || []);
   }
 
+  /** Rede de segurança do Realtime: vai buscar mensagens mais recentes que a última conhecida. */
   async function syncActiveChatMessages(roomId) {
       if (!roomId) return;
 
@@ -1460,6 +1487,7 @@ async function handleChatReaction(messageId, emoji) {
       });
   }
 
+  /** Grupo pelo nome: entra no existente (RLS permite juntar-se a grupos) ou cria um novo. */
   async function getOrCreateGroupRoom(groupName) {
       const { data: existing, error: existingError } = await supabase
           .from("chat_rooms")
@@ -1514,6 +1542,10 @@ async function handleChatReaction(messageId, emoji) {
       return created;
   }
 
+  /**
+   * Conversa privada com a pessoa de `profiles.nome` = targetName: reutiliza a sala
+   * privada em comum ou cria uma com os dois participantes.
+   */
   async function getOrCreatePrivateRoomByName(targetName) {
       const { data: targetProfile, error: targetProfileError } = await supabase
           .from("profiles")
@@ -1607,6 +1639,10 @@ async function handleChatReaction(messageId, emoji) {
       }
   }
 
+/**
+ * Envia texto e/ou o ficheiro em espera (upload para chat_ficheiros/<room_id>/).
+ * Devolve true se enviou (o ChatComposer limpa então o rascunho).
+ */
 async function sendChatMessage(rawContent) {
       const content = String(rawContent || "").trim();
       

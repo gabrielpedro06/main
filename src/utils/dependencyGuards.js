@@ -1,3 +1,7 @@
+// Dependências entre atividades/tarefas de um projeto:
+//   atividades.depende_de_atividade_id, tarefas.depende_de_tarefa_id
+// Um item fica bloqueado até a dependência estar "concluido", salvo se tiver
+// ignorar_dependencia = true. Funções puras (não tocam no Supabase).
 const normalizeId = (value) => {
     if (value === null || value === undefined) return null;
     const asString = String(value).trim();
@@ -8,6 +12,10 @@ const normalizeState = (estado) => String(estado || "").trim().toLowerCase();
 
 export const isConcludedState = (estado) => normalizeState(estado) === "concluido";
 
+/**
+ * Índices por id para as funções abaixo.
+ * @returns {{ activityById: Map<string, object>, taskById: Map<string, object> }}
+ */
 export const buildDependencyMaps = (atividades = [], tarefas = []) => {
     const activityById = new Map();
     const taskById = new Map();
@@ -27,6 +35,7 @@ export const buildDependencyMaps = (atividades = [], tarefas = []) => {
     return { activityById, taskById };
 };
 
+/** Motivo do bloqueio da atividade (texto para mostrar) ou null se pode avançar. */
 export const getActivityBlockReason = (atividade, activityById) => {
     if (atividade?.ignorar_dependencia === true) return null;
 
@@ -41,6 +50,10 @@ export const getActivityBlockReason = (atividade, activityById) => {
     return `Depende da atividade "${dependency.titulo || "sem titulo"}"`;
 };
 
+/**
+ * Motivo do bloqueio da tarefa ou null. Verifica primeiro a atividade-mãe
+ * (se a atividade está bloqueada, a tarefa também está) e depois a tarefa de que depende.
+ */
 export const getTaskBlockReason = (tarefa, taskById, activityById) => {
     if (tarefa?.ignorar_dependencia === true) return null;
 

@@ -189,6 +189,17 @@ const IconLocate = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="n
 const IconFit = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" /></svg>;
 const IconReset = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>;
 
+/**
+ * Mapa Leaflet + pesquisa de moradas para calcular os km de um pedido de km.
+ * Serviços externos públicos, sem chave: Photon (pesquisa), OSRM (rota) e tiles OSM.
+ * Escreve diretamente no formulário do pai (pages/Ausencias.jsx):
+ *   km_origem, km_destino (texto), km_total (rota × 2 se ida e volta), km_ida_volta.
+ * Ao editar um pedido antigo, localiza as moradas mas NÃO reescreve km_total.
+ * Moradas recentes ficam em localStorage.
+ * @param {object} props
+ * @param {object} props.form estado do formulário do pedido
+ * @param {(updater: (prev: object) => object) => void} props.setForm setter do useState do pai
+ */
 export default function CalculadoraKm({ form, setForm }) {
     const [origem, setOrigem] = useState(null);   // { lat, lng }
     const [destino, setDestino] = useState(null);

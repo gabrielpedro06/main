@@ -1,3 +1,18 @@
+// =====================================================================
+// "As minhas ausências" do colaborador (rota /dashboard/ferias) e, com
+// forcedType="Pedido de Km's", a página de deslocações (/dashboard/pedido-km,
+// ver PedidoKm.jsx). Qualquer utilizador com sessão.
+//
+// Fluxo de um pedido:
+//   1. Validações no browser (datas, sobreposição, saldo de férias, abertura
+//      do ano seguinte só a 1 de dezembro).
+//   2. Anexo (opcional) → balde privado rh_anexos, nome "<user_id>_<timestamp>".
+//   3. INSERT/UPDATE em `ferias` com estado "pendente" (o trigger ferias_proteger
+//      da migração 068 impede o colaborador de gravar outro estado).
+//   4. POST /api/notificacoes/pedido-ausencia { requestId } → o servidor lê o
+//      pedido na BD e envia email aos admins com link para AprovarPedido.
+// Cancelar: pendente → "cancelado"; aprovado → "pedido_cancelamento" (RH decide).
+// =====================================================================
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
@@ -52,6 +67,9 @@ const ModalPortal = ({ children }) => {
 };
 
 // --- TIPOS DE AUSÊNCIA: cor e ícone de cada um ---
+// Motivos que o colaborador pode escolher (guardados em ferias.tipo).
+// Mantém-se igual a COLLABORATOR_STATUS_TYPES em feriasSaldo.js; só "Férias"
+// desconta do saldo (isVacationType procura "ferias" no texto normalizado).
 const ABSENCE_TYPES = [
   "Férias",
   "Assistência à família",
@@ -175,6 +193,8 @@ export default function Ferias({ forcedType = null }) {
     }
   }, [user]);
 
+  // Dias úteis do pedido em edição (sem fins de semana, feriados e tolerâncias).
+  // Parcial: horas / 8; se ≥ 8 h passa automaticamente a dia completo.
   useEffect(() => {
       if (!form.is_parcial && form.data_inicio && form.data_fim) {
           const skipDates = buildToleranciasSkipSet(tolerancias, user?.id || null);
@@ -214,6 +234,11 @@ export default function Ferias({ forcedType = null }) {
       }
   }, [form.data_inicio, form.data_fim, form.is_parcial, form.hora_inicio, form.hora_fim, tolerancias]);
 
+  /**
+   * Lê do perfil o limite anual (dias_ferias_total), a data de admissão e os
+   * veículos (para os pedidos de Km's) e calcula o saldo disponível do ano
+   * corrente (vacation_balances, ou estimativa se ainda não houver linha).
+   */
   async function fetchDiasReais() {
       let data = null;
       let error = null;
@@ -323,6 +348,11 @@ export default function Ferias({ forcedType = null }) {
       setForm({ tipo: forcedType || "Férias", data_inicio: "", data_fim: "", is_parcial: false, hora_inicio: "", hora_fim: "", motivo: "", km_origem: "", km_destino: "", km_total: "", veiculo: "", km_ida_volta: false });
   };
 
+  /**
+   * Cria ou edita um pedido (ausência ou Km's). Editar volta a pôr o pedido
+   * "pendente" e reenvia o email aos admins (isEditing). Se o email falhar o
+   * pedido fica gravado e o colaborador é avisado para contactar os RH.
+   */
   async function handleSubmit(e) {
     e.preventDefault();
         const normalizedTipo = form.tipo === KM_REQUEST_TYPE ? KM_REQUEST_TYPE : formatAbsenceTypeLabel(form.tipo);
@@ -523,6 +553,11 @@ export default function Ferias({ forcedType = null }) {
     }
   }
   // --- ANEXAR DOCUMENTO A POSTERIORI ---
+  /**
+   * Junta/substitui o anexo de um pedido existente (só muda ferias.anexo_url).
+   * Nota: num pedido já "aprovado" o trigger ferias_proteger (068) recusa o
+   * UPDATE feito por um colaborador, porque o estado gravado não é um dos permitidos.
+   */
   async function handleUploadOnly(e) {
       e.preventDefault();
       if (!uploadFile) return;
@@ -551,6 +586,7 @@ export default function Ferias({ forcedType = null }) {
       }
   }
 
+  /** Pendente → "cancelado" (direto). Aprovado → "pedido_cancelamento" (fica à espera dos RH). */
   async function executarCancelamento() {
       const { pedido } = confirmCancel;
       try {

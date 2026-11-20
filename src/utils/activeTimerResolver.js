@@ -1,3 +1,9 @@
+// Descobre "onde" está a correr o cronómetro ativo (task_logs sem end_time):
+// título legível "Cliente - Projeto - Item" e rota para onde o utilizador deve ir.
+// Usado pelas páginas com cronómetro (Tarefas, Projetos, Atividades, Fórum…) para o
+// texto do TimerSwitchModal / barra "a decorrer" e pelo WidgetAssiduidade.
+
+// Os joins do Supabase podem vir como objeto ou array de 1 elemento
 const getSingle = (value) => (Array.isArray(value) ? value[0] : value);
 
 const getClientDisplayName = (client) => {
@@ -12,6 +18,16 @@ const buildActiveTimerTitle = ({ clientName, projectName, itemTitle }) => {
   return "Tempo a decorrer…";
 };
 
+/**
+ * Resolve os metadados de um registo de tempo ativo, por ordem de especificidade:
+ * subtarefa → tarefa (task_id ou tarefa_id) → atividade → projeto.
+ * Tabelas lidas: subtarefas, tarefas, atividades, projetos, clientes (só leitura).
+ *
+ * @param {object} supabase
+ * @param {object|null} activeLog linha de task_logs
+ * @returns {Promise<{ title: string, route: string, projectId: string|null, locationLabel: string }>}
+ *   route: /dashboard/projetos/:id se houver projeto; senão atividades / minhas-tarefas / tarefas
+ */
 export async function resolveActiveTimerMeta(supabase, activeLog) {
   if (!activeLog) {
     return {

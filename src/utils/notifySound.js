@@ -46,6 +46,7 @@ export const bindNotificationUnlock = () => {
   window.addEventListener("keydown", unlock);
 };
 
+/** Preferência do som (localStorage "bz-notify-sound"; ligado por omissão). Mudada no AccountMenu. */
 export const isNotifySoundEnabled = () => {
   try { return localStorage.getItem(SOUND_KEY) !== "off"; } catch { return true; }
 };
@@ -89,6 +90,8 @@ export const playNotifySound = () => {
  * Chamado quando o número de não lidas aumenta.
  * - separador visível: toca o som
  * - separador escondido/minimizado: notificação do sistema (que traz o som do Windows)
+ * Quem chama: Sidebar (contagem de não lidas do Fórum + Chat).
+ * @param {{ total?: number, onClick?: () => void }} opts total de não lidas; onClick ao clicar na notificação
  */
 export const announceNewMessages = ({ total, onClick } = {}) => {
   if (typeof document === "undefined") return;

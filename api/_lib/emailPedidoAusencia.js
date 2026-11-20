@@ -124,6 +124,14 @@ function buildActionButtons(requestUrl) {
   <p style="margin:0;color:#64748b;font-size:12px">Os botões abrem o pedido no Bizin (com login e código 2FA). Confirma lá a decisão.</p>`;
 }
 
+/**
+ * Monta assunto + HTML do email de pedido de ausência / km (chamado por notificacoes.js → pedidoAusencia).
+ * @param {object} p.pedido linha de `ferias` lida no servidor
+ * @param {boolean} p.isKm pedido de deslocação (km) em vez de ausência
+ * @param {boolean} p.isEditing pedido editado (muda o assunto)
+ * @param {string} p.requestUrl `<app>/#/dashboard/pedidos/<id>`; os botões acrescentam `?acao=aprovar|rejeitar`
+ * @returns {{subject: string, htmlContent: string}}
+ */
 export function construirEmailPedido({ pedido, isKm, isEditing, requesterName, requestUrl }) {
   const requestType = pedido.tipo || "ausência";
   const safeType = escapeHtml(requestType);

@@ -1,4 +1,21 @@
-﻿import { useState, useEffect, useMemo, useRef } from "react";
+﻿// =====================================================================
+// Proposta de financiamento (assistente por passos). Aberto por
+// PropostasComerciais.jsx quando a consultora não é de formação.
+//
+// Passos: 1 Identificação (consultora + estado), 2 Cliente, 3 Tipos de projeto
+// (serviços), 4 Programa/aviso, 5..(4+N) um passo por tipo de projeto (etapas
+// do modelo e honorários), depois Revisão de descrições, Orçamento/fecho e
+// Revisão final.
+// Honorários por tipo de projeto: "fixo" (horas x €/hora), "variavel"
+// (soma de valor_base x % de cada linha) ou "ambos".
+// Numeração: SIGLA-ANO-NNN (sigla da consultora), calculada no browser a partir
+// do maior numero_proposta_str existente; o número só fica fixo ao gravar.
+// Gravação: propostas_comerciais (colunas-chave + payload jsonb com TODO o
+// formulário, que é o que se usa para reabrir e para o PDF).
+// PDF: components/pdfProposalGenerator.jsx (grava sempre antes de gerar).
+// Documentação: docs/modulos/clientes-e-comercial.md
+// =====================================================================
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "../services/supabase";
 import { generateProposalPDF } from "../components/pdfProposalGenerator";
@@ -9,6 +26,7 @@ import { confirmar } from "../utils/dialogo";
 // CONSTANTES E HELPERS
 // ============================================================================
 
+// Serviços por omissão (Pedido de Financiamento, etc.) com textos e honorários base.
 const SERVICOS_BASE = [
   {
     id: "pedido_financiamento",
@@ -249,6 +267,7 @@ const getValorVariavelOrcamentoTipo = (item = {}) =>
     0
   );
 
+/** Calcula valor_fixo, valor_variavel e valor (total) de uma linha do orçamento conforme o modo. */
 const calcularOrcamentoTipoProjeto = (item = {}) => {
   const modo = normalizeModoHonorario(item?.modo_honorario, item);
   const valorFixo = modo === "variavel" ? 0 : getValorFixoOrcamentoTipo(item);
@@ -264,6 +283,11 @@ const calcularOrcamentoTipoProjeto = (item = {}) => {
   };
 };
 
+/**
+ * Normaliza uma linha do orçamento (inclui propostas antigas que só tinham
+ * "valor": converte para horas x base). Garante pelo menos uma linha variável
+ * nos modos "variavel"/"ambos".
+ */
 const normalizeOrcamentoTipoProjetoItem = (item = {}, index = 0, fallbackHoras = DEFAULT_ORCAMENTO_HORAS, fallbackBase = DEFAULT_ORCAMENTO_BASE_EUR) => {
   const defaultServicoNome = getVariavelServicoPadrao(item);
   const hasHoras = item?.num_horas !== undefined && item?.num_horas !== null;
@@ -329,6 +353,7 @@ const PROPOSTA_ESTADOS = [
   { value: "perdida", label: "Perdida" },
 ];
 
+/** Converte estados antigos (em_analise/aprovada/arquivada) para o fluxo atual. */
 const normalizePropostaEstado = (estado) => {
   const value = String(estado || "").trim().toLowerCase();
   if (!value) return "em_preparacao";
@@ -468,6 +493,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
   const [tipoProposta, setTipoProposta] = useState("financiamento"); // financiamento | formacao
 
   // Gera um preview do número da proposta (não grava nada)
+  /** Mostra o número que a proposta vai ter (não reserva nada; pode mudar até gravar). */
   const gerarPreviewNumero = async () => {
     try {
       if (!empresaConsultora?.sigla || proposta?.db_id) {
@@ -897,6 +923,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
     window.setTimeout(() => setToastMessage(""), 2500);
   };
 
+  /** Lê as etapas (template_atividades/_tarefas) dos tipos de projeto escolhidos para o texto da proposta. */
   const carregarModeloEstrutura = async (tipoProjetoIds) => {
     const ids = Array.isArray(tipoProjetoIds)
       ? tipoProjetoIds.filter(Boolean)
@@ -958,6 +985,13 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
   // CORE FUNCTIONS: PDF & PERSISTENCE
   // ========================================================================
 
+  /**
+   * Grava a proposta. Nova: calcula SIGLA-ANO-NNN (maior número existente + 1)
+   * e faz insert; existente: update. Nota: o número é calculado no browser e as
+   * regras da tabela só deixam cada pessoa ver as suas propostas, por isso dois
+   * utilizadores podem chegar ao mesmo número (o índice único rejeita o segundo).
+   * @returns {Promise<{db_id: string, numero: string}|null>}
+   */
   const guardarPropostaEmBD = async ({ silent = false } = {}) => {
     if (!empresaConsultora.id || !cliente.id || tiposProjetoSelecionados.length === 0) {
       if (!silent) showToast("Preencha empresa consultora, cliente e pelo menos um tipo de projeto");
@@ -1055,6 +1089,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
     }
   };
 
+  /** Grava (silenciosamente) e gera o PDF com os dados recolhidos do formulário. */
   const gerarPDF = async () => {
     try {
       const saved = await guardarPropostaEmBD({ silent: true });
@@ -1635,6 +1670,10 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
     }
   };
 
+  /**
+   * Carrega morada, contactos (faz_propostas) e entidade_configuracoes da
+   * consultora (textos da carta, assinatura, plano de pagamento, exclusões...).
+   */
   const carregarDadosConsultora = async (consultoraId, baseConsultora = null, skipConfigOverride = false) => {
     if (!consultoraId) {
       setContatosConsultora([]);
@@ -2008,6 +2047,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
   }, [avisos, programa]);
 
   // Data collection for saving
+  /** Fotografia completa do formulário: é o "payload" gravado e a fonte do PDF. */
   const recolherDados = () => ({
     empresa_consultora: empresaConsultora,
     cliente,

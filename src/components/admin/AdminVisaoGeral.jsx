@@ -129,6 +129,10 @@ function Medidor({ itens, formato = (v) => v, vazio }) {
 
 /**
  * Visão geral da empresa no painel de administração.
+ * Recebe do AdminDashboard os dados já carregados (perfis, projetos, tarefas,
+ * task_logs, online) e lê à parte: pedidos de ausência pendentes (ferias),
+ * propostas comerciais dos últimos 90 dias, leads ativas e as 8 últimas linhas
+ * de audit_log. `irPara(tab)` muda de separador no painel.
  */
 export default function AdminVisaoGeral({ profiles, projects, activities, tasks, taskLogs, onlineUsers, minutesOf, projectOfLog, activeLabelFor, irPara }) {
   const [extra, setExtra] = useState({ ferias: null, propostas: null, leads: null, atividade: null });

@@ -20,6 +20,12 @@ async function fatoresDe(admin, userId) {
   return data?.factors || [];
 }
 
+/**
+ * POST /api/admin/mfa — usado por src/components/admin/SegurancaMFA.jsx.
+ * Corpo `{ acao: "estado" }` → `{ ok, estado: { [userId]: { fatores, verificado, desde, ultimoLogin, bloqueado } } }`
+ * (percorre auth.users até 20×200 contas). Corpo `{ acao: "repor", userId }` → apaga todos os
+ * fatores MFA da pessoa e regista "mfa_reposto" em audit_log → `{ ok, removidos }`.
+ */
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.status(405).json({ ok: false, error: "Método não permitido." });

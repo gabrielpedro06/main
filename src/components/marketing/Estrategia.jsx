@@ -1,3 +1,7 @@
+// Separador "Estratégia" (Marketing): ciclos (marketing_ciclos) com o Guia de
+// Estratégia de Marca. Estrutura das secções/blocos em estrategiaModelo.js; os
+// dados de cada ciclo ficam em `dados` (jsonb). As "frentes" dos objetivos
+// alimentam o campo Frente dos conteúdos; os marcos aparecem no calendário.
 import { useMemo, useRef, useState } from "react";
 import FancySelect from "../FancySelect";
 import { I } from "./mkIcons";

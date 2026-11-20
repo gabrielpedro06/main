@@ -1,3 +1,6 @@
+// Separador "Recursos" (Marketing): catálogo, turmas, campanhas, leads, métricas,
+// ativos, factos, regras e canais — tudo em marketing_recursos (campo `tipo`).
+// Campos por tipo definidos em recursosModelo.js.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import FancySelect from "../FancySelect";
 import { I } from "./mkIcons";

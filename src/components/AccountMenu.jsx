@@ -22,6 +22,17 @@ const Icon = {
  * Renderizado num portal para não ser cortado pelo overflow da sidebar.
  *  - placement "up":    abre por cima do cartão (sidebar aberta / gaveta mobile)
  *  - placement "right": abre ao lado do cartão (sidebar encolhida)
+ * Contém: Perfil, Ausências (/dashboard/ferias), Pedido de km, seletor de tema (ThemeSelector), som das notificações
+ * (notifySound) e Terminar sessão.
+ *
+ * @param {object} props
+ * @param {boolean} props.open
+ * @param {() => void} props.onClose
+ * @param {React.RefObject<HTMLElement>} props.anchorRef cartão do utilizador na Sidebar
+ * @param {"up"|"right"} [props.placement="up"]
+ * @param {string} props.displayName
+ * @param {string} props.initials usado quando não há avatar_url
+ * @param {string} [props.roleLabel] papel com inicial maiúscula
  */
 export default function AccountMenu({ open, onClose, anchorRef, placement = "up", displayName, initials, roleLabel }) {
   const navigate = useNavigate();

@@ -51,6 +51,10 @@ function exigirServico() {
   return admin;
 }
 
+/**
+ * Cria um alerta via RPC seguranca_criar_alerta (tabela alertas_seguranca, migração 075).
+ * A RPC deduplica por `chave` (1 por hora); devolve o id ou null se foi repetido.
+ */
 async function criarAlerta(admin, a) {
   const { data, error } = await admin.rpc("seguranca_criar_alerta", {
     p_tipo: a.tipo,
@@ -143,6 +147,11 @@ export async function enviarAlertasPendentes(admin, req) {
 }
 
 // ---- 1) Tentativa falhada (sem sessão) -------------------------------
+/**
+ * Corpo `{ email?, motivo: "password"|"mfa"|"conta_bloqueada" }` (de src/utils/alertasSeguranca.js).
+ * Grava em tentativas_login e cria alertas se ≥5 falhas por email ou IP em 15 min.
+ * Responde sempre `{ ok: true }` para não dar pistas a quem ataca.
+ */
 async function tentativa(req, res) {
   const admin = exigirServico();
   const body = req.body || {};
@@ -193,6 +202,7 @@ async function tentativa(req, res) {
 }
 
 // ---- 2) Login com sucesso -------------------------------------------
+/** Regista "login" em audit_log (IP, país pelo cabeçalho x-vercel-ip-country) e alerta se país ≠ PT. */
 async function login(req, res) {
   const ctx = await autenticar(req);
   const admin = ctx.admin || exigirServico();
@@ -295,6 +305,11 @@ async function guardarEstado(admin, valor) {
   await admin.from("seguranca_estado").upsert({ chave: "recolha_logs", valor, atualizado_em: new Date().toISOString() });
 }
 
+/**
+ * Lê os edge_logs e auth_logs do Supabase (Management API) desde o último `ate` guardado em
+ * seguranca_estado (máx. 23 h atrás), grava-os em logs_supabase_api / logs_supabase_auth e
+ * aplica as regras de LIM para criar alertas. Devolve um resumo com a janela processada.
+ */
 async function recolherLogs(admin) {
   const { data: est } = await admin.from("seguranca_estado").select("valor").eq("chave", "recolha_logs").maybeSingle();
   const agora = new Date();
@@ -417,6 +432,10 @@ async function recolher(req, res) {
 // ---- Router ----------------------------------------------------------
 const OPS = { tentativa, login, recolher };
 
+/**
+ * Ponto de entrada de POST /api/seguranca/:op (Vercel: api/seguranca/[op].js; local: server/index.js).
+ * @param {"tentativa"|"login"|"recolher"} op
+ */
 export default async function seguranca(op, req, res) {
   if (req.method !== "POST") return res.status(405).json({ ok: false, error: "Método não permitido." });
   const fn = OPS[op];

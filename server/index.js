@@ -1,3 +1,11 @@
+/* global process */
+// =====================================================================
+// Servidor Express SÓ PARA DESENVOLVIMENTO LOCAL (porta 8787, apenas 127.0.0.1).
+// Replica as rotas de api/ (que no Vercel são funções serverless) reutilizando os
+// mesmos handlers. O Vite (vite.config.js) faz proxy de /api → http://localhost:8787.
+// Arranque: `npm run dev:server` ou `npm run dev:full` (Vite + este servidor).
+// Lê o .env da raiz via dotenv. Ao acrescentar uma rota em api/, acrescentá-la aqui também.
+// =====================================================================
 import "dotenv/config";
 import cors from "cors";
 import express from "express";

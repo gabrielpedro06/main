@@ -1,3 +1,12 @@
+/* global process */
+// =====================================================================
+// Envio de emails transacionais pela API do Brevo (POST /v3/smtp/email).
+// Usado por TODOS os emails da app: campanhas (marketing/TransferGest), avisos internos
+// (api/_lib/notificacoes.js) e alertas de segurança (api/_lib/alertasSeguranca.js).
+// Dois perfis de remetente: "marketing" (BREVO_*) e "transfergest" (TRANSFERGEST_BREVO_*,
+// com recurso às BREVO_* se faltarem). Envia em lotes com novas tentativas e backoff;
+// se um lote falhar, tenta destinatário a destinatário para isolar as falhas.
+// =====================================================================
 const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 const BREVO_TEMPLATE_API_BASE = "https://api.brevo.com/v3/smtp/templates";
 
@@ -66,6 +75,11 @@ function getBackoffDelay(baseDelayMs, attempt) {
   return Math.min(baseDelayMs * 2 ** (attempt - 1) + jitter, 30000);
 }
 
+/**
+ * Corpo do pedido ao Brevo. Atenção: sem `recipientParamsByEmail`, todos os emails do lote
+ * vão juntos no campo `to` do MESMO email (os destinatários veem-se uns aos outros).
+ * Com `recipientParamsByEmail` (só em modo template) usa `messageVersions`, um envio por pessoa.
+ */
 function buildPayload({
   to,
   subject,
@@ -172,6 +186,7 @@ async function callBrevoApi({ apiKey, payload, timeoutMs }) {
   }
 }
 
+/** Confirma no Brevo (GET /v3/smtp/templates/:id) que o template existe e está ativo; lança erro se não. */
 async function verifyTemplateIsActive({ apiKey, templateId, timeoutMs = 10000 }) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -289,6 +304,7 @@ async function sendSingleWithRetry({ email, apiKey, campaign, config, logger }) 
   };
 }
 
+/** Normaliza (trim + minúsculas), valida e remove duplicados. Devolve { validUniqueEmails, invalidEmails, duplicates }. */
 export function prepareRecipients(rawEmails) {
   const invalidEmails = [];
   const duplicates = [];
@@ -318,6 +334,17 @@ export function prepareRecipients(rawEmails) {
   };
 }
 
+/**
+ * Envia um email (ou campanha) pelo Brevo.
+ * Modo template (preferido): `templateId` + `params` (+ `recipientParamsByEmail` para personalizar
+ * por pessoa). Modo HTML: `subject` + `htmlContent`. Um dos dois é obrigatório.
+ * @param {"marketing"|"transfergest"} p.senderProfile perfil de chave/remetente
+ * @param {string[]} p.emails destinatários (inválidos e duplicados são descartados)
+ * @param {object} [p.options] batchSize (máx. 100), batchDelayMs, maxRetries, requestTimeoutMs
+ * @returns {Promise<object>} resumo: totalInput, acceptedRecipients, sentRecipients,
+ *   failedRecipients[{email, reason, status}], invalidEmails, duplicates, batchesProcessed, message
+ * @throws se faltar a chave da API, o conteúdo, ou o template estiver inativo
+ */
 export async function sendTransactionalCampaign({
   senderProfile = "marketing",
   emails,

@@ -9,6 +9,16 @@ import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
  *   onChange={setActiveTab}
  *   variant="pill" | "underline"
  * />
+ *
+ * @param {object} props
+ * @param {Array<{ id: string, label: string, count?: number, tone?: string, icon?: React.ReactNode }>} props.tabs
+ *   `tone` muda a cor do contador (classe tone-<tone>)
+ * @param {string} props.value id da aba ativa (componente controlado)
+ * @param {(id: string) => void} props.onChange
+ * @param {string} [props.className]
+ * @param {string} [props.ariaLabel="Separadores"]
+ * @param {"pill"|"underline"} [props.variant="pill"]
+ * Usado no Início (DashboardHome) e no Marketing. Não renderiza o conteúdo das abas.
  */
 export default function SlidingTabs({ tabs, value, onChange, className = "", ariaLabel = "Separadores", variant = "pill" }) {
   const listRef = useRef(null);

@@ -3,6 +3,27 @@ import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
 
+// Janela "Parar cronómetro": nota opcional e (opcionalmente) novo estado do item.
+// Se o novo estado for "em_analise", pede destino (próprio/colega/cliente/contabilista/
+// organismo), data prevista de retorno e, conforme o destino, o colega (profiles) ou a
+// pessoa de contacto do cliente (contactos_cliente). Só lê da BD; quem grava é a página,
+// com closeAllActiveTaskLogsForUser + applyStopStatusUpdateForLogTarget (taskTimerLifecycle).
+
+/**
+ * @param {object} props
+ * @param {boolean} props.open
+ * @param {string} [props.title] / [props.message] / [props.placeholder] / [props.confirmLabel] / [props.cancelLabel]
+ * @param {boolean} [props.showCompleteOption] checkbox "Marcar como concluído" (modo antigo; ignorado se showStatusOption)
+ * @param {string} [props.completeLabel]
+ * @param {boolean} [props.defaultComplete]
+ * @param {boolean} [props.showStatusOption] mostra o seletor de estado
+ * @param {string} [props.defaultStatus="manter"] "manter" = não muda o estado
+ * @param {object|null} [props.analysisTargetLog] task_log ativo; serve para descobrir o(s)
+ *   cliente(s) do projeto e listar os contactos
+ * @param {(note: string, shouldComplete: boolean, extra: { nextStatus, analysisDestination,
+ *   analysisDestinationUserId, analysisDestinationContactId, analysisExpectedDate }) => void} props.onConfirm
+ * @param {() => void} props.onCancel
+ */
 export default function StopTimerNoteModal({
   open,
   title = "Parar cronometro",

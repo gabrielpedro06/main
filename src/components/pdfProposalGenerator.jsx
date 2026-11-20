@@ -1,3 +1,14 @@
+// =====================================================================
+// PDF da proposta de FINANCIAMENTO (chamado por PropostasFinanciamento.jsx).
+// jsPDF no browser, descarregado como Proposta-<numero>.pdf.
+// Secções: capa, carta de apresentação (textos de entidade_configuracoes da
+// consultora), serviços/etapas por tipo de projeto, programa/aviso e fases,
+// orçamento e honorários, plano de pagamentos, exclusões/notas, condições
+// gerais e assinatura.
+// Os dados preferidos são os do "proposalData" (payload gravado); os restantes
+// parâmetros são alternativa. O logotipo é escolhido pelo nome da consultora
+// (ficheiros em /public). Se faltar o código postal, lê moradas_cliente.
+// =====================================================================
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { supabase } from '../services/supabase';
@@ -84,6 +95,7 @@ const loadImage = (url) =>
     img.onerror = () => resolve(null);
   });
 
+/** Logotipo pelo nome da consultora (factortriplo, 2siglas, geoflicks; por omissão neomarca). */
 const getLogoPath = (empresaConsultora) => {
   if (!empresaConsultora) return '/neomarca.png';
   const nome = (empresaConsultora.nome || '').toLowerCase();
@@ -120,6 +132,7 @@ const sanitizeText = (text) => {
 // ============================================================================
 // GERAÇÃO DO PDF
 // ============================================================================
+/** Gera e descarrega o PDF da proposta de financiamento. */
 export const generateProposalPDF = async (params) => {
   const {
     propostaNumero,

@@ -30,6 +30,11 @@ function opcoesSeguras(body) {
   };
 }
 
+/**
+ * Campanha em massa (marketing / transfergest). Corpo: `{ emails[], templateId? , params?,
+ * recipientParamsByEmail?, subject?, htmlContent?, batchSize?, ... }` (ver server/brevoCampaignSender.js).
+ * Máx. 2000 destinatários. Regista "campanha_<perfil>" em audit_log. Devolve `{ ok, summary }`.
+ */
 async function campanha(req, ctx, perfilEnvio, papeis) {
   exigirPapel(ctx, papeis);
   const body = req.body || {};
@@ -167,6 +172,11 @@ export function tipoValido(tipo) {
   return Object.prototype.hasOwnProperty.call(TIPOS, tipo);
 }
 
+/**
+ * Ponto de entrada de POST /api/notificacoes/:tipo (Vercel: api/notificacoes/[tipo].js;
+ * local: server/index.js). Autentica, chama TIPOS[tipo] e responde JSON `{ ok, ... }`.
+ * @param {string} tipo marketing | transfergest | cc-alerta | projeto-criado | pedido-ausencia
+ */
 export default async function notificar(tipo, req, res) {
   if (req.method !== "POST") {
     res.status(405).json({ ok: false, error: "Método não permitido." });

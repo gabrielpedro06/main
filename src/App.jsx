@@ -1,3 +1,12 @@
+// =====================================================================
+// Árvore de rotas da app (HashRouter: os URLs são /#/dashboard/...).
+// Providers: ThemeProvider > AuthProvider > GlobalTooltipProvider > HashRouter.
+// /dashboard/* passa por <ProtectedRoute> (sessão + 2FA); rotas com `allowedRoles`
+// também exigem um papel (profiles.role/tipo). Isto é só UX: a proteção real dos dados
+// está nas políticas RLS do Supabase e nas verificações das rotas em api/.
+// Ao criar uma página: importar aqui, acrescentar a <Route>, o título em
+// pages/Dashboard.jsx (PAGE_TITLES) e o link em components/Sidebar.jsx.
+// =====================================================================
 import { HashRouter, Routes, Route } from "react-router-dom";
 
 // Contexto de Autenticação e Tema

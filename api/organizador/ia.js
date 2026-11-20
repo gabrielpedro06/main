@@ -87,6 +87,14 @@ function validar(docs, n) {
 
 const limpar = (s, max = 80) => String(s || "").replace(/[\r\n\t]+/g, " ").trim().slice(0, max);
 
+/**
+ * POST /api/organizador/ia — chamado por src/pages/OrganizadorPdf.jsx.
+ * Qualquer pessoa com sessão ativa; limite de 40 pedidos/dia (audit_log, acao "ia_organizador").
+ * Corpo: `{ paginas: [{ texto, qr?: { nifEmitente, data, numero, total, tipo } }] }` (1 a 40 páginas;
+ * o texto já vem com dados pessoais tapados por src/utils/iaRedacao.js).
+ * Saída: `{ ok, documentos: [{ paginas, entidade, data, numero, total, categoria, descricao, confianca }], uso }`.
+ * Tenta 2 vezes se a separação devolvida não cobrir as páginas 1..n por ordem.
+ */
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.status(405).json({ ok: false, error: "Método não permitido." });

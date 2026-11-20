@@ -1,3 +1,4 @@
+// Ícones SVG do módulo de Marketing (uso: <I.Nome size={16} />).
 /* eslint-disable react-refresh/only-export-components -- conjunto de ícones (objeto de componentes) */
 const Svg = ({ size = 18, sw = 2, children, ...rest }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...rest}>{children}</svg>

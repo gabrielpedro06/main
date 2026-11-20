@@ -1,3 +1,11 @@
+// =====================================================================
+// PDF da proposta de FORMAÇÃO (chamado por PropostasFormacao.jsx).
+// jsPDF no browser, descarregado como Proposta-Formacao-<numero>.pdf.
+// Secções: capa, âmbito, informações gerais e condições, uma secção por curso
+// (com módulos e horas), condições finais e rodapés.
+// Cores e logotipo dependem da consultora (2siglas tem paleta própria).
+// Os textos aceitam variáveis {nome} via interpolate().
+// =====================================================================
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -129,6 +137,7 @@ const getLogoPath = (empresaConsultora) => {
   return '/neomarca.png';
 };
 
+/** Substitui {chave} no texto pelos valores de vars (chaves em falta ficam vazias). */
 const interpolate = (text, vars = {}) => {
   if (!text) return '';
   return String(text).replace(/\{([a-zA-Z0-9_]+)\}/g, (match, key) => {
@@ -140,6 +149,7 @@ const interpolate = (text, vars = {}) => {
 // ============================================================================
 // GERAÇÃO DO PDF
 // ============================================================================
+/** Gera e descarrega o PDF da proposta de formação. */
 export const generateFormacaoPDF = async (params) => {
   const {
     propostaNumero,

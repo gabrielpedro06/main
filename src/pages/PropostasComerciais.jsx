@@ -1,3 +1,15 @@
+// =====================================================================
+// Propostas comerciais — ponto de entrada (rotas /dashboard/propostas/novo e
+// /dashboard/propostas/:id; só admin/administrador).
+//
+// Escolhe o formulário certo:
+//   - nova proposta: pede a empresa consultora (clientes ativos com
+//     eh_empresa_consultora); se a consultora tem tem_cursos -> Formação,
+//     senão -> Financiamento.
+//   - proposta existente: usa payload.tipo_proposta (ou proposta.tipo) e, em
+//     último caso, a mesma regra da consultora.
+// Documentação: docs/modulos/clientes-e-comercial.md
+// =====================================================================
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "../services/supabase";
@@ -75,6 +87,7 @@ export default function PropostasComerciais() {
     [empresasConsultoras]
   );
 
+  /** Decide "formacao" ou "financiamento" pelo payload gravado ou pela flag tem_cursos da consultora. */
   const resolveTipoProposta = (empresa, payload = {}) => {
     const payloadTipo = String(payload?.tipo_proposta || payload?.proposta?.tipo || "").toLowerCase();
     if (payloadTipo.includes("form")) return "formacao";

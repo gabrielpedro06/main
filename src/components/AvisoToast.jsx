@@ -23,6 +23,15 @@ const ICONES = {
   ),
 };
 
+/**
+ * Toast de aviso. Não se fecha sozinho: o pai controla o tempo (normalmente um
+ * estado `notification` + setTimeout de ~3 s). Estilos `.toast-container` em dashboard.css.
+ * @param {object} props
+ * @param {"success"|"error"|"warning"|"info"} [props.tipo="info"]
+ * @param {React.ReactNode} props.mensagem
+ * @param {React.ReactNode} [props.children] extra à direita (ex.: botão "Anular")
+ * @param {React.CSSProperties} [props.style]
+ */
 export default function AvisoToast({ tipo = "info", mensagem, children, style }) {
   const t = ICONES[tipo] ? tipo : "info";
   const urgente = t === "error" || t === "warning";

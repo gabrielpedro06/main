@@ -12,6 +12,7 @@ export const config = { runtime: "nodejs", maxDuration: 60 };
 
 const ROTAS = { mfa: adminMfa, contas: adminContas };
 
+/** Encaminha para o handler de api/_lib conforme o segmento dinâmico `[op]` (req.query.op). */
 export default async function handler(req, res) {
   const op = String(req.query?.op || "");
   const rota = ROTAS[op];

@@ -1,3 +1,11 @@
+// =====================================================================
+// Programas/Avisos (/dashboard/avisos): catálogo de programas de financiamento
+// (programas_financiamento) e dos avisos de candidatura (avisos) com as fases
+// e prazos. Um programa liga-se a avisos por avisos_ids (array). Arquivar =
+// ativo:false (nada é apagado). Mostra os próximos prazos (≤60 dias).
+// Sem restrição de papel na rota: qualquer colaborador autenticado edita.
+// Documentação: docs/modulos/comunicacao-e-dashboard.md
+// =====================================================================
 import React, { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
@@ -86,6 +94,7 @@ const createBlankFase = (index = 0) => ({
   prazo: "",
 });
 
+/** Normaliza `avisos.fases` para [{ nome, prazo }] (aceita JSON em texto, até duplamente serializado, e listas de strings). */
 const normalizeFases = (value) => {
   if (!value) return [createBlankFase(0)];
   
@@ -422,6 +431,7 @@ export default function GestaoAvisos() {
     setProgramaFormData((prev) => ({ ...prev, [field]: numValue }));
   };
 
+  /** Grava o programa; se pedido, cria primeiro o aviso novo e junta o id a avisos_ids. */
   const handleProgramaSubmit = async (e) => {
     e.preventDefault();
     if (isViewOnly) return;
@@ -532,6 +542,7 @@ export default function GestaoAvisos() {
     setConfirmModalOpen(true);
   };
 
+  /** Tom e etiqueta de um prazo: past (encerrada), urgent (≤7 dias), soon (≤30), future. */
   const getPrazoInfo = (prazo) => {
     if (!prazo) return { tone: "none", label: "Sem data", days: null };
     const date = new Date(`${prazo}T23:59:59`);

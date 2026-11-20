@@ -1,3 +1,6 @@
+// Cliente do browser para as campanhas de marketing (usado em pages/GestaoLeads.jsx):
+// GET /api/health e POST /api/notificacoes/marketing (com sessão). Por omissão usa a mesma
+// origem; VITE_MARKETING_API_BASE só serve para apontar para outro servidor.
 import { postAutenticado } from "../utils/apiAutenticada";
 const DEFAULT_MARKETING_API_BASE = import.meta.env.VITE_MARKETING_API_BASE || "";
 
@@ -15,6 +18,10 @@ export async function checkMarketingApiHealth() {
   return response.json().catch(() => ({ ok: true }));
 }
 
+/**
+ * Envia uma campanha pelo servidor (Brevo). `payload` = { emails, templateId|subject+htmlContent, params, ... }.
+ * @returns {Promise<object>} o `summary` de sendTransactionalCampaign; lança Error com .status/.details
+ */
 export async function sendMarketingCampaign(payload) {
   const endpoint = `${DEFAULT_MARKETING_API_BASE}/api/notificacoes/marketing`;
 

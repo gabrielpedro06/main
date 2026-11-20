@@ -17,6 +17,7 @@ const fmt = (iso) => (iso ? new Date(iso).toLocaleDateString("pt-PT", { day: "nu
 const Shield = ({ size = 18 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>;
 const Reset = ({ size = 15 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></svg>;
 
+/** POST autenticado (Bearer da sessão) a /api/admin/mfa ou /api/admin/contas; lança erro com a mensagem do servidor. */
 async function chamar(body, url = API) {
   const { data: { session } } = await supabase.auth.getSession();
   const resp = await fetch(url, {
@@ -31,6 +32,12 @@ async function chamar(body, url = API) {
 
 /**
  * Admin → Segurança: estado do MFA de cada pessoa + "Repor MFA".
+ * - acao "estado"  (api/_lib/adminMfa.js): por utilizador, se tem fator TOTP
+ *   verificado e se a conta está bloqueada no Supabase Auth.
+ * - acao "repor":  apaga os fatores MFA da pessoa; na próxima entrada o Login
+ *   obriga a configurar a app de novo (útil se perdeu o telemóvel).
+ * - "Bloquear inativos" → /api/admin/contas acao "sincronizar": bane no Auth
+ *   todas as contas com profiles.ativo = false que ainda conseguiam entrar.
  */
 export default function SegurancaMFA({ profiles = [] }) {
   const [estado, setEstado] = useState(null);

@@ -20,9 +20,15 @@ export const TABELAS = {
   marketing_ciclos: "Marketing: estratégia", marketing_recursos: "Marketing: recursos", marketing_leads: "Leads", marketing_prospects: "Prospects",
   medalhas: "Medalhas", medalhas_colaboradores: "Medalhas atribuídas",
 };
+/** Nome legível de uma tabela (ou o nome técnico se não estiver em TABELAS). */
 export const nomeTabela = (t) => TABELAS[t] || t || "—";
 
+/** Verbo por operação do audit_log (`operacao`): INSERT/UPDATE/DELETE/EVENTO. */
 export const VERBO = { INSERT: "criou", UPDATE: "alterou", DELETE: "eliminou", EVENTO: "" };
+/**
+ * Frase legível para cada `acao` registada com registarEvento().
+ * Ao criar um evento novo, acrescentar aqui a frase (senão aparece a chave técnica).
+ */
 export const EVENTOS = { login: "entrou na aplicação", logout: "saiu da aplicação", exportar_registos: "exportou o registo de atividade",
   exportacao: "exportou dados para Excel/CSV",
   sessao_expirada: "teve a sessão terminada (2FA expirado)", acesso_negado: "tentou entrar com a conta desativada",

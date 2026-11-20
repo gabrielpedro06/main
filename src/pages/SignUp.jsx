@@ -1,3 +1,9 @@
+// =====================================================================
+// Registo livre de conta — ATUALMENTE NÃO USADO: não tem rota em App.jsx
+// (as contas são criadas por convite no Supabase → Authentication → Invite user).
+// Mantido como referência; se voltar a ser ligado, o trigger handle_new_user
+// cria o perfil e profiles_proteger só deixa criar perfis "colaborador".
+// =====================================================================
 import { useState } from "react";
 import { supabase } from "../services/supabase";
 import { Link } from "react-router-dom";

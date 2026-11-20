@@ -5,7 +5,12 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const DATA_RE = /^\d{4}-\d{2}-\d{2}(T[\d:.]+(Z|[+-]\d{2}:?\d{2})?)?$/;
 const NENHUM = "00000000-0000-0000-0000-000000000000";
 
-/** UUID válido, ou um UUID que não corresponde a ninguém. */
+/**
+ * UUID válido, ou um UUID que não corresponde a ninguém.
+ * Usar SEMPRE ao interpolar ids em `.or("user_id.eq.${…}")`.
+ * @param {unknown} v
+ * @returns {string}
+ */
 export const uuidSeguro = (v) => (UUID_RE.test(String(v ?? "")) ? String(v) : NENHUM);
 
 /** Data ISO (AAAA-MM-DD…) válida, ou 1970-01-01. */

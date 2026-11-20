@@ -1,3 +1,16 @@
+// =====================================================================
+// Gestão de Leads (rota /dashboard/leads; admin, administrador, gestor, marketing).
+//
+// Dois separadores: "prospects" (marketing_prospects, contactos frios em grelha)
+// e "leads" (marketing_leads, em kanban por estado):
+//   novo -> contactado -> reuniao -> proposta -> convertido ("Ganho") | perdido
+// Fluxo: prospect "Promover a Lead" (copia e desativa o prospect) e lead
+// "Tornar Cliente" (cria linha em clientes e arquiva a lead como convertido).
+// Também: filtros por setor/localidade/CAE, importação CSV (separador ";",
+// ignora NIF já existentes), exportação CSV, copiar emails e envio de campanhas
+// Brevo pelo servidor de marketing (services/marketingSender).
+// Documentação: docs/modulos/clientes-e-comercial.md
+// =====================================================================
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
@@ -141,6 +154,7 @@ export default function GestaoLeads() {
     setLoading(false);
   }
 
+  /** Muda o estado (kanban); atualiza o ecrã antes da BD e não verifica erro. */
   async function updateStatus(id, newStatus) {
     const tableName = activeTab === "leads" ? "marketing_leads" : "marketing_prospects";
     setDataList(prev => prev.map(item => item.id === id ? { ...item, estado: newStatus } : item));
@@ -166,6 +180,7 @@ export default function GestaoLeads() {
       });
   }
 
+  /** Prospect -> Lead: cria em marketing_leads (estado "novo") e desativa o prospect. */
   async function promoteToLead(prospect) {
     setConfirmDialog({
         show: true, message: `Promover "${prospect.nome}" para os Leads?`, confirmText: "Promover a Lead", isDanger: false,
@@ -185,6 +200,7 @@ export default function GestaoLeads() {
     });
   }
 
+  /** Lead -> Cliente: cria em clientes (marca, entidade, NIF) e arquiva a lead como "convertido". */
   async function promoteToClient(lead) {
       setConfirmDialog({
           show: true, message: `Promover "${lead.nome}" a Cliente Oficial no sistema?\nA Lead será transferida para a carteira de Clientes e arquivada.`, confirmText: "Tornar Cliente", isDanger: false,
@@ -276,6 +292,10 @@ export default function GestaoLeads() {
       return firstFailure?.reason || "Motivo desconhecido.";
   }
 
+  /**
+   * Envia campanha de email para os emails da lista filtrada, por template Brevo
+   * ou HTML livre, em lotes (batchSize, batchDelayMs, maxRetries).
+   */
   async function handleSendCampaign() {
       const emails = getFilteredEmailsForCampaign();
       const isTemplateMode = campaignForm.mode === "template";
@@ -376,6 +396,10 @@ export default function GestaoLeads() {
       }
   }
 
+  /**
+   * Importa CSV (; como separador, 1.ª linha = cabeçalho) para a tabela do
+   * separador ativo. NIF já existentes nessa tabela são ignorados.
+   */
   async function handleFileUpload(e) {
     e.preventDefault();
     if (!file) return showToast("Escolhe um ficheiro CSV primeiro.", "warning");

@@ -357,6 +357,11 @@ export const EXTRA_DECOR = {
   pascoa_cristo: { particles: { shapes: ["sparkle", "glow"], count: 16, motion: "rise", size: [6, 14] }, glow: true, scene: "pascoa_cristo" },
 };
 
+/**
+ * Cena fixa dos temas extra (DECOR[...].scene). No tema "livros" também põe a classe
+ * bz-scene-livros e a variável --bz-shelf no <body> (removidas ao desmontar).
+ * @param {{ kind: "cafe"|"livros"|"f1"|"pascoa_cristo" }} props
+ */
 export function ExtraScene({ kind }) {
   // Fundo de livraria aplicado à área principal enquanto o tema está ativo
   useEffect(() => {
@@ -415,6 +420,7 @@ export function ExtraScene({ kind }) {
   return null;
 }
 
+/** Emblema do seletor de temas para as decorações extra (fallback de DecorEmblem). */
 export function ExtraEmblem({ decor }) {
   switch (decor) {
     case "cafe":

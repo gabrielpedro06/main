@@ -1,3 +1,9 @@
+// =====================================================================
+// Recuperar password (rota /forgot-password). Pede ao Supabase o email com
+// link de recuperação (resetPasswordForEmail). A mensagem de sucesso é sempre
+// igual, exista ou não a conta (não revela emails registados).
+// O link volta para `${origin}/reset-password` (ver ResetPassword.jsx).
+// =====================================================================
 import { useState } from "react"
 import { supabase } from "../services/supabase"
 import AuthLayout, { AuthField, AuthAlert, AuthSubmit, AuthDone } from "../components/AuthLayout"

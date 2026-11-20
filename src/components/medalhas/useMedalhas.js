@@ -1,3 +1,7 @@
+// Leitura das medalhas de colaboradores (medalhas_colaboradores + medalhas).
+// useMedalhas → ProfilePeek (vitrine no cartão de perfil).
+// useMedalhasEquipa → DashboardHome (badge 🏅 nos avatares de quem está online).
+// Se a migração 067 não existir, devolvem lista vazia sem erro.
 import { useEffect, useState } from "react";
 import { supabase } from "../../services/supabase";
 

@@ -38,6 +38,17 @@ function descrever(e) {
     return { titulo: `${nome} ${lbl(e.estado_novo).toLowerCase()}: ${titulo}`, sub };
 }
 
+/**
+ * Linha de progresso do projeto (Pendente → Em curso → Em análise → Concluído → Encerrado)
+ * e histórico de mudanças de estado do projeto, atividades e tarefas.
+ * Lê `projetos_estado_historico` (preenchida por triggers na BD); recarrega quando muda
+ * o estado do projeto ou de qualquer atividade/tarefa recebida.
+ * Usado em pages/ProjetoDetalhe.jsx.
+ * @param {object} props
+ * @param {{ id: string, estado: string, created_at?: string }} props.projeto
+ * @param {Array<{ id, estado, tarefas?: Array<{ estado }> }>} [props.atividades]
+ * @param {boolean} [props.historicoAberto=false] histórico expandido ao abrir
+ */
 export default function ProjetoTracker({ projeto, atividades = [], historicoAberto = false }) {
     const [hist, setHist] = useState([]);
     const [aberto, setAberto] = useState(historicoAberto);

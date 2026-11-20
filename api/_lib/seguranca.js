@@ -26,6 +26,7 @@ export function clienteServico() {
   return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
 }
 
+/** Erro com código HTTP: a mensagem é mostrada ao utilizador tal como está (ver responderErro). */
 export class ErroHttp extends Error {
   constructor(status, mensagem) {
     super(mensagem);
@@ -36,6 +37,10 @@ export class ErroHttp extends Error {
 /**
  * Confirma o token Supabase do pedido e devolve { user, perfil, papel, admin }.
  * Lança ErroHttp(401) se não houver sessão válida ou se a conta estiver desativada.
+ *
+ * Nota: só valida o JWT (getUser); NÃO verifica o nível 2FA (`aal`) do token. As tabelas
+ * exigem aal2 via RLS (migração 071), mas `admin` é o cliente service_role e ignora RLS.
+ * `admin` é null se SUPABASE_SERVICE_ROLE_KEY não estiver definida (modo só-RLS).
  */
 export async function autenticar(req) {
   const token = String(req.headers?.authorization || "").replace(/^Bearer\s+/i, "").trim();
@@ -67,6 +72,7 @@ export async function autenticar(req) {
   return { user, perfil, papel, admin };
 }
 
+/** Lança ErroHttp(403) se `ctx.papel` (de autenticar) não estiver em `lista` (ex.: PAPEIS.gestao). */
 export function exigirPapel(ctx, lista) {
   if (!lista.includes(ctx.papel)) throw new ErroHttp(403, "Sem permissão para esta ação.");
 }
@@ -81,6 +87,7 @@ export function responderErro(res, err, contexto = "api") {
   res.status(500).json({ ok: false, error: "Ocorreu um erro no servidor. Tente de novo." });
 }
 
+/** Escapa & < > " ' — obrigatório para qualquer valor interpolado no HTML de um email. */
 export function escapeHtml(valor) {
   return String(valor ?? "")
     .replaceAll("&", "&amp;")

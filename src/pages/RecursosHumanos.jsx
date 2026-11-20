@@ -1,3 +1,26 @@
+// =====================================================================
+// Painel de Recursos Humanos (rota /dashboard/rh)
+// Acesso: só admin/administrador/gestor (ProtectedRoute em App.jsx; a BD
+// confirma com bizin_e_staff() nas regras RLS e nos triggers da migração 068).
+//
+// Separadores (activeView):
+//   gestao        ficha do colaborador (financeiro, dados pessoais, saldo de
+//                 férias, calendário do mês, histórico de ausências, PDFs)
+//   processamento S.A. (subsídio de alimentação) de toda a equipa + export Excel
+//   pedidos       pedidos pendentes / pedidos de cancelamento (ausências e Km's),
+//                 aprovação individual ou em massa
+//   tolerancias   tolerâncias de ponto (linhas em `ferias` com tipo "Tolerância
+//                 de Ponto"; user_id null = global)
+//   formacoes     horas de formação por colaborador (tabela `formacoes`)
+//   medalhas      <MedalhasRH /> (tabelas medalhas / medalhas_colaboradores)
+//   inativos      colaboradores desativados (reativar via /api/admin/contas)
+//
+// Tabelas principais: profiles (+ profiles_privado via dadosPrivados),
+// profile_empresas, ferias (ausências, Km's e tolerâncias), vacation_balances,
+// assiduidade, formacoes, app_settings (€/km).
+// Regras de saldo de férias: src/utils/feriasSaldo.js e
+// docs/modulos/rh-ferias-ausencias.md.
+// =====================================================================
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
@@ -248,6 +271,11 @@ const isMissingFunctionError = (error) => {
     return error.code === "42883" || /function .* does not exist/i.test(error.message || "");
 };
 
+// ---------------------------------------------------------------------
+// S.A. (subsídio de alimentação): um dia útil só conta como trabalhado se o
+// tempo efetivo (saída - entrada - pausas) chegar a este mínimo.
+// ATENÇÃO: os PDFs (pdfRecursosHumanos / pdfIndividual) usam 4 h, não 5 h.
+// ---------------------------------------------------------------------
 const MIN_SA_WORK_SECONDS = 5 * 60 * 60;
 
 const timeToSeconds = (timeValue) => {
@@ -326,6 +354,11 @@ const createHolidaySetForMonth = (year, month) => {
     );
 };
 
+/**
+ * Dias com direito a S.A. dentro de [startDate, endDate]: dias úteis (sem
+ * fins de semana nem feriados do holidaySet), anteriores a hoje, com pelo
+ * menos MIN_SA_WORK_SECONDS de trabalho efetivo (somando os registos do dia).
+ */
 const countMealAllowanceEligibleDaysInPeriod = (
     attendanceRows = [],
     { startDate = "", endDate = "", holidaySet = new Set() } = {},
@@ -537,6 +570,11 @@ export default function RecursosHumanos() {
       return parsed;
   };
 
+  /**
+   * Grava o valor de reembolso €/km em app_settings (chave "rh_km_reembolso_eur")
+   * e numa cópia local (localStorage). Usado no PDF de deslocações.
+   * Se a tabela não existir, fica só no localStorage deste browser.
+   */
   const saveKmRateSetting = async (rawValue, { showError = true } = {}) => {
       const normalized = String(rawValue ?? "").replace(",", ".").trim();
       const parsed = Number(normalized);
@@ -583,6 +621,9 @@ export default function RecursosHumanos() {
       return getAttendanceCalculationStartDate(profile?.data_admissao);
   };
 
+    // Arranque do painel. Em dezembro chama também provisionar_saldos_ferias(ano+1)
+    // (redundante com o pg_cron de 1 de dezembro da migração 040; serve de rede
+    // de segurança se o cron não existir). Cria/atualiza vacation_balances do ano seguinte.
     useEffect(() => {
         async function provisionarSaldosFeriasAnoSeguinte() {
             const hoje = new Date();
@@ -660,6 +701,8 @@ export default function RecursosHumanos() {
             fetchDadosMensais();
         }, [selectedUser, currentDate, colaboradores, isProcessamentoView]);
 
+    // Saldo de férias do colaborador selecionado: ano do mês visível e, a partir
+    // de 1 de dezembro, também o ano seguinte (marcações já abertas).
     useEffect(() => {
         if (!selectedUser) {
             setSaldoFeriasAnoSelecionado(null);
@@ -839,6 +882,11 @@ export default function RecursosHumanos() {
       return true;
   }
 
+  /**
+   * MODO ANTIGO (sem a coluna dias_ferias_total): soma `delta` a profiles.dias_ferias.
+   * Só é usado quando hasDiasFeriasTotalColumn = false; no modo atual o saldo
+   * vive em vacation_balances e é recalculado por sincronizarSaldoFeriasDosPerfis.
+   */
   async function atualizarSaldoFeriasDireto(userId, delta) {
       if (!userId || !Number.isFinite(delta) || delta === 0) return;
 
@@ -890,6 +938,11 @@ export default function RecursosHumanos() {
       return (matches || []).length > 0;
   }
 
+  /**
+   * MODO ANTIGO: ao criar ("add") ou remover ("remove") uma tolerância num dia em
+   * que o colaborador já tinha férias aprovadas, devolve/retira 1 dia em
+   * profiles.dias_ferias (só se não houver outra tolerância nesse dia).
+   */
   async function aplicarAjusteToleranciaLegacy({ userId, data, movimento, excludeToleranceId = null }) {
       const existeOutra = await existeOutraToleranciaAtivaNoDia({
           userId,
@@ -907,6 +960,12 @@ export default function RecursosHumanos() {
       await atualizarSaldoFeriasDireto(userId, delta);
   }
 
+  /**
+   * Recalcula e grava (upsert) vacation_balances de cada colaborador para `ano`
+   * via sincronizarSaldoFeriasPerfil (feriasSaldo.js). Falhas só vão para a
+   * consola: a ausência já foi gravada e o trigger da BD (migração 042) acerta
+   * dias_gozados. NOTA: por omissão sincroniza só o ANO CORRENTE.
+   */
   async function sincronizarSaldoFeriasDosPerfis(userIds = [], ano = new Date().getFullYear()) {
       if (!hasDiasFeriasTotalColumn) return;
 
@@ -954,6 +1013,12 @@ export default function RecursosHumanos() {
     }
   }
 
+  /**
+   * Cria uma tolerância de ponto: linha em `ferias` com tipo "Tolerância de Ponto",
+   * estado "aprovado", data_inicio = data_fim e user_id null (global) ou do colaborador.
+   * Os dias de tolerância não contam como férias gozadas, por isso o saldo dos
+   * colaboradores afetados é ressincronizado.
+   */
   async function handleSaveTolerancia(e) {
     e.preventDefault();
     if (newTolerancia.tipo === 'individual' && !newTolerancia.user_id) {
@@ -1005,6 +1070,7 @@ export default function RecursosHumanos() {
     }
   }
 
+  /** "Elimina" uma tolerância passando-a a estado "cancelado" (não apaga a linha) e ressincroniza saldos. */
   async function handleDeleteTolerancia(id) {
     if (!(await confirmar("Eliminar esta tolerância?", { perigoso: true, botao: "Eliminar" }))) return;
     try {
@@ -1054,6 +1120,11 @@ export default function RecursosHumanos() {
     }
   }
 
+  /**
+   * Carrega todos os perfis (ativos e inativos), junta os dados privados
+   * (profiles_privado: NIF, NISS, CC, morada, S.A.…) e as empresas internas
+   * (profile_empresas; se a tabela não existir usa profiles.empresa_interna).
+   */
   async function fetchColaboradores() {
     try {
         const { data: perfisBase, error: profilesError } = await supabase.from("profiles").select("*").order("nome");
@@ -1127,6 +1198,14 @@ export default function RecursosHumanos() {
       if (data) setHistoricoUser(data);
   }
 
+  /**
+   * Assiduidade e ausências usadas no calendário/estatísticas.
+   * - Vista "processamento": toda a equipa, a partir do mês visível.
+   * - Colaborador selecionado: desde a data de início de cálculo dele
+   *   (admissão ou ATTENDANCE_GLOBAL_CUTOFF) até ao fim do mês visível —
+   *   ou seja, pode trazer VÁRIOS meses (relevante para o PDF individual).
+   * dadosMensaisReqRef descarta respostas de pedidos antigos (corrida).
+   */
   async function fetchDadosMensais() {
     const reqId = ++dadosMensaisReqRef.current;
     const scopeUser = activeView === 'processamento' ? null : selectedUser;
@@ -1200,6 +1279,18 @@ export default function RecursosHumanos() {
       }
   }
 
+  /**
+   * Executa a ação confirmada no modal sobre um pedido de `ferias`:
+   *   aprovar               pendente → aprovado (valida o saldo se for férias)
+   *   rejeitar              pendente → rejeitado
+   *   aceitar_cancelamento  pedido_cancelamento → cancelado (dias voltam ao saldo)
+   *   recusar_cancelamento  pedido_cancelamento → aprovado
+   *   cancelar_direto       RH cancela uma ausência do histórico → cancelado
+   * Depois: notificação no sino ao colaborador (notificacoes_projetos) e
+   * ressincronização de vacation_balances do ano do pedido.
+   * Lógica equivalente (com proteção contra decisões em simultâneo) em
+   * src/utils/decisaoPedido.js, usada pela página AprovarPedido.
+   */
   async function executarAcaoRH() {
       const { pedido, acao } = confirmModal;
       try {
@@ -1310,6 +1401,11 @@ export default function RecursosHumanos() {
   }
 
   // 2. Executa a aprovação de facto (substitui o antigo handleAprovarEmMassa)
+  /**
+   * Aprova os pedidos selecionados UM A UM (valida saldo → update → notifica).
+   * Se um falhar a meio, os anteriores JÁ ficaram aprovados (não há rollback).
+   * Os saldos são sincronizados no fim, por colaborador e por ano do pedido.
+   */
   async function executarAprovarEmMassa() {
       const { tipo, pedidos } = bulkApproveModal;
       const ids = pedidos.map(p => p.id);
@@ -1451,6 +1547,15 @@ export default function RecursosHumanos() {
       setIsEditingUser(false);
   };
 
+  /**
+   * Grava a ficha do colaborador editada pelos RH.
+   * - Campos sensíveis vão para profiles_privado (separarPrivados/guardarPrivados).
+   * - Campos de RH (dias_ferias_total = "Limite anual", data_admissao, contrato,
+   *   estado temporário…) só passam para admin/gestor: trigger profiles_proteger (068).
+   * - Empresas internas: apaga e volta a inserir em profile_empresas.
+   * - No fim ressincroniza vacation_balances do ano corrente (o limite anual
+   *   passa a ser os dias atribuídos do ano de admissão).
+   */
   async function handleUpdateUserProfile() {
       if(!selectedUser) return;
       try {
@@ -1559,6 +1664,11 @@ export default function RecursosHumanos() {
       } catch (err) { showNotification("Erro ao atualizar: " + err.message, "error"); }
   }
 
+  /**
+   * Desativa/reativa um colaborador através de POST /api/admin/contas (acao "definir").
+   * O servidor (service_role) muda profiles.ativo E bloqueia/desbloqueia a conta
+   * no Supabase Auth (ban), para que deixe de conseguir entrar.
+   */
   async function handleToggleUserActive() {
       const profile = userStatusModal.profile;
       if (!profile) return;
@@ -1615,6 +1725,11 @@ export default function RecursosHumanos() {
       setShowBulkSAConfirmModal(true);
   }
 
+  /**
+   * Aplica a TODOS os colaboradores o valor diário de S.A. (profiles_privado.valor_sa,
+   * com recurso a profiles se a tabela privada não existir) e/ou grava o €/km.
+   * O filtro .neq(id, zeros) existe só porque o PostgREST não deixa update sem filtro.
+   */
   async function confirmarBulkUpdateSA() {
       if (!pendingGlobalUpdates.sa && !pendingGlobalUpdates.km) {
           setShowBulkSAConfirmModal(false);
@@ -1700,6 +1815,13 @@ export default function RecursosHumanos() {
       setShowAbsenceModal(true);
   };
 
+  /**
+   * Registo/edição de uma ausência PELOS RH (modal "Nova ausência").
+   * Fica logo com estado "aprovado" (não passa pelo fluxo de pedido nem envia email).
+   * Se for férias valida o saldo (excluindo o próprio pedido em edição).
+   * Anexo vai para o balde privado rh_anexos com nome "<user_id>_RH_<timestamp>".
+   * Depois ressincroniza vacation_balances — ATENÇÃO: só do ano corrente.
+   */
   async function handleSaveAbsence(e) {
       e.preventDefault();
       const isKmRequest = newAbsence.tipo === KM_REQUEST_TYPE;
@@ -1867,6 +1989,11 @@ export default function RecursosHumanos() {
       }
   }
 
+  /**
+   * PDF individual do colaborador selecionado (pdfIndividual.jsx) com os dados
+   * já carregados por fetchDadosMensais + faltas injustificadas automáticas.
+   * Nota: assiduidadeMes pode conter meses anteriores (ver fetchDadosMensais).
+   */
   const downloadIndividualPDF = async () => {
       if (!selectedUser || isGeneratingIndividualPdf) return;
 
@@ -1902,6 +2029,7 @@ export default function RecursosHumanos() {
       }
   };
 
+  /** PDF geral do mês (pdfRecursosHumanos.jsx): um ficheiro por empresa interna, só ausências aprovadas. */
   const downloadRHGeneralPDF = async () => {
       if (isGeneratingRhPdf) return;
 
@@ -1952,6 +2080,7 @@ export default function RecursosHumanos() {
       }
   };
 
+  /** Mapa de deslocações do mês (pedidos de Km's aprovados) do colaborador selecionado, ao valor €/km atual. */
   const downloadSelectedUserDeslocacoesPDF = async () => {
       if (!selectedUser || isGeneratingDeslocacoesPdf) return;
 
@@ -1988,6 +2117,13 @@ export default function RecursosHumanos() {
       }
   };
 
+  /**
+   * Estatísticas do mês do colaborador selecionado (cartões da Gestão):
+   * dias com S.A., férias, faltas (inclui as automáticas), baixas e valor de S.A.
+   * S.A. = (dias úteis do mês desde o início de cálculo − dias descontados) × valor diário.
+   * Descontado: dia com ausência de dia inteiro (mesmo pendente) ou dia passado com < 5 h.
+   * Dias futuros contam como pagos (é uma previsão até ao fim do mês).
+   */
   const getStats = () => {
       let countTrabalho = 0, countFerias = 0, countFaltas = 0, countBaixas = 0;
       const year = currentDate.getFullYear();
@@ -2089,6 +2225,11 @@ export default function RecursosHumanos() {
       return { countTrabalho, countFerias, countFaltas, countBaixas, valorSA, diasUteisMes, diasDescontadosSA };
   };
 
+  /**
+   * Faltas "virtuais" (não gravadas na BD): cada dia útil passado, a partir do
+   * início de cálculo, sem nenhum registo em `assiduidade` e sem ausência que o
+   * justifique (pendente ou aprovada, exceto Km's). Entram nas estatísticas e no PDF individual.
+   */
   const gerarFaltasInjustificadasAutomaticas = () => {
       if (!selectedUser) return [];
 
@@ -2619,6 +2760,8 @@ export default function RecursosHumanos() {
   
 
   // Função para ir buscar as formações
+  // Formação: uma linha em `formacoes` por colaborador e ação (nome, datas, total_horas, ano).
+  // O ecrã destaca quem cumpre as 40 h anuais.
   async function fetchFormacoes() {
       try {
           const { data, error } = await supabase
@@ -2796,6 +2939,8 @@ export default function RecursosHumanos() {
       </div>
   );
   const setTemp = (key) => (e) => setTempUserProfile({ ...tempUserProfile, [key]: e.target.value });
+  // Sugestão automática do "Limite anual" (dias_ferias_total) ao mudar a data de
+  // admissão; regra em calcularFeriasAnoAdmissao (feriasSaldo.js).
   // Data de admissão → Limite Anual calculado sozinho (os RH podem alterar depois):
   //  admissão este ano (ou futura) → regra do ano de admissão; anos anteriores → 22.
   const limiteAutomatico = (dataAdmissao) => {

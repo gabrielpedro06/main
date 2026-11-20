@@ -8,7 +8,16 @@ import AccountMenu from "./AccountMenu";
 import "./../styles/dashboard.css";
 import { clicavel } from "../utils/clicavel";
 
-const logoFull = "/logo4.png"; 
+// Barra lateral (menu principal) da área /dashboard, montada em pages/Dashboard.jsx.
+//  - Grupos recolhíveis (planeamento, produção, comercial, gestão) e destaque deslizante do item ativo.
+//  - Itens visíveis consoante profiles.role (admin, gestor, marketing, marketing plus…).
+//    Isto só ESCONDE links: a rota tem de ter a mesma regra no ProtectedRoute (App.jsx)
+//    e a BD nas políticas RLS.
+//  - Contador "Comunicação Interna" = publicações novas do Fórum (desde lastForumVisit em
+//    localStorage) + mensagens de chat por ler (chat_participants, chat_room_reads,
+//    chat_messages, com subscrição realtime). Quando sobe, toca som/notificação (notifySound).
+//  - "Calendário de Prazos" abre o WidgetCalendar num modal; cartão do utilizador abre o AccountMenu.
+const logoFull = "/logo4.png";
 const logoIcon = "/logo3.png"; 
 const getChatSeenStorageKey = (userId) => `chat_seen_rooms_${userId}`;
 
@@ -39,6 +48,12 @@ const Icons = {
   ChevronDown: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
 };
 
+/**
+ * @param {object} props
+ * @param {boolean} props.menuOpen sidebar aberta (desktop) / gaveta aberta (mobile)
+ * @param {(open: boolean) => void} props.setMenuOpen
+ * @param {boolean} [props.isMobile=false] no mobile mostra sempre o menu completo (gaveta)
+ */
 export default function Sidebar({ menuOpen, setMenuOpen, isMobile = false }) {
   const location = useLocation();
   const { user, userProfile } = useAuth();

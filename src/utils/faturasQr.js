@@ -44,6 +44,12 @@ export const TIPOS_DOC = {
 // ---------------------------------------------------------------------
 // QR fiscal
 // ---------------------------------------------------------------------
+/**
+ * Lê o texto de um QR fiscal da AT.
+ * @param {string} raw texto do QR ("A:123456789*B:…")
+ * @returns {object|null} { nifEmitente, nifCliente, tipo, data (AAAA-MM-DD), numero, atcud, total }
+ *   (+ iva), ou null se não for um QR fiscal. NIF cliente 999999990 (consumidor final) → "".
+ */
 export function parseFiscalQr(raw) {
   if (!raw || !/^A:\d{9}\*B:/.test(raw)) return null;
   const f = {};
@@ -128,6 +134,7 @@ export function inkStrip(canvas) {
   return { x, w: xe - x };
 }
 
+/** Novo canvas só com a tira {x, w} (de inkStrip); sem tira devolve o original. */
 export function cropCanvas(canvas, strip) {
   if (!strip) return canvas;
   const c = document.createElement("canvas");
@@ -194,6 +201,12 @@ export function findFiscalQr(canvas, strip = null) {
 // ---------------------------------------------------------------------
 const qrKey = (p) => (p.qr ? (p.qr.atcud || `${p.qr.nifEmitente}|${p.qr.numero}`) : "");
 
+/**
+ * Quebras de documento: parte das regras de texto (computeBreaks) e corrige-as com o QR —
+ * páginas com o mesmo QR (ATCUD ou NIF+nº) ficam juntas; um QR diferente começa documento novo.
+ * @param {Array<{ fileId: string, text: string, qr: object|null }>} pages por ordem
+ * @returns {boolean[]} true = a página começa um documento
+ */
 export function segmentPages(pages) {
   const base = computeBreaks(pages);
   const out = [];
@@ -425,6 +438,14 @@ function kindMeta(kind, pages, text) {
   return meta;
 }
 
+/**
+ * Metadados de um documento (conjunto de páginas): categoria, fornecedor, NIF, data,
+ * número, ATCUD, total e confiança ("alta" só com QR e nada em falta).
+ * @param {Array<{ text: string, qr: object|null }>} pages
+ * @param {Record<string,string>} [learned] { nif: "Nome" } corrigidos pelo utilizador
+ * @param {Set<string>} [clientNifs] NIF do cliente (empresa do utilizador) a ignorar como emissor
+ * @returns {object} inclui `missing` (campos por preencher) e `isBlank`
+ */
 export function buildDocMeta(pages, learned = {}, clientNifs = new Set()) {
   {
     const kinds = pages.map((p) => pageKind(p.text)).filter(Boolean);
@@ -492,6 +513,7 @@ export function buildDocMeta(pages, learned = {}, clientNifs = new Set()) {
 
 const slug = (s) => clean(s).replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, "_");
 
+/** Nome do ficheiro: data_Fornecedor_Tipo_Numero (máx. 90 caracteres, sem extensão). */
 export function buildFilename(m) {
   const parts = [];
   parts.push(m.date || m.year || "sem-data");
@@ -503,6 +525,7 @@ export function buildFilename(m) {
   return parts.join("_").slice(0, 90);
 }
 
+/** Pasta no ZIP: "Ano/Categoria" (ex.: "2026/Faturas"). */
 export function buildFolder(m) {
   return [m.year || "Sem data", m.category || "Outros"].map((s) => String(s).replace(/[\\/:*?"<>|]+/g, "-")).join("/");
 }

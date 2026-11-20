@@ -4,6 +4,16 @@ import "../styles/otp.css";
 /**
  * Campo de código de 6 dígitos (uma caixa por dígito).
  * Suporta colar o código inteiro, setas, backspace e preenchimento automático (one-time-code).
+ * Usado no Login (2FA), ResetPassword e TwoFactorSetup.
+ *
+ * @param {object} props
+ * @param {string} props.value código atual (só dígitos, contínuo da esquerda)
+ * @param {(v: string) => void} props.onChange
+ * @param {number} [props.length=6]
+ * @param {boolean} [props.autoFocus=false]
+ * @param {boolean} [props.disabled=false]
+ * @param {boolean} [props.invalid=false] borda de erro
+ * @param {(v: string) => void} [props.onComplete] chamado quando o código fica completo ou com Enter
  */
 export default function OtpInput({ value, onChange, length = 6, autoFocus = false, disabled = false, invalid = false, onComplete }) {
   const refs = useRef([]);

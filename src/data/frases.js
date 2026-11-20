@@ -1,3 +1,5 @@
+// Frases motivacionais do cartão de boas-vindas do Início (pages/DashboardHome.jsx).
+// A frase do dia é escolhida por uma "semente" (seed % length): para acrescentar, basta pôr mais linhas.
 export const frasesMotivacionais = [
   "Juntos fazemos mais e melhor.",
   "O sucesso começa com dedicação.",

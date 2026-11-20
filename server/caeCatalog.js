@@ -1,3 +1,10 @@
+// =====================================================================
+// Catálogo CAE rev. 4 (código de 5 dígitos → designação), lido do CSV
+// "src/data/CAE rev4.xlsx - Table 1.csv" (colunas classe, subclasse, designacao).
+// Carregado uma vez e guardado em memória. Usado por /api/cae-descriptions e /api/sicae-caes.
+// Se o ficheiro for renomeado/movido, atualizar CSV_FILE_URL. Manter a forma
+// new URL(..., import.meta.url): é o que permite ao Vercel detetar e incluir o CSV na função.
+// =====================================================================
 import fs from "node:fs";
 
 const CSV_FILE_URL = new URL("../src/data/CAE rev4.xlsx - Table 1.csv", import.meta.url);
@@ -96,12 +103,14 @@ function loadCaeCatalogMap() {
   return cachedMap;
 }
 
+/** Designação de um CAE de 5 dígitos, ou null se o código for inválido/desconhecido. */
 export function getCaeDescription(code) {
   const key = String(code || "").trim();
   if (!/^\d{5}$/.test(key)) return null;
   return loadCaeCatalogMap().get(key) || null;
 }
 
+/** Lista sem duplicados de { codigo, descricao|null } para os códigos válidos de `codes`. */
 export function getCaeDescriptions(codes) {
   if (!Array.isArray(codes) || codes.length === 0) return [];
 

@@ -1,3 +1,18 @@
+// =====================================================================
+// Ações de Formação (rota /dashboard/acoes-formacao) — gestão das turmas.
+//
+// Separadores: formacoes (tabela editável por ano), checklist (estado de cada
+// documento por ação), ccdr e dgadr (campos de homologação específicos),
+// estatisticas (gráficos) e definições (áreas de formação e homologações).
+// Código da ação: "C" + ano(2 dígitos) + sequência(2 dígitos), ex. C2503;
+// a sequência é por ano (maior + 1, lido da BD ao criar).
+// Checklist: colunas = modelo do tipo de projeto "Formação Profissional"
+// (template_atividades > tarefas > subtarefas); cada clique roda o estado
+// na -> em_falta -> incompleto -> falta_assinar -> concluido.
+// Tabelas: acoes_formacao, acoes_formacao_checklist, areas_formacao,
+// homologacoes_formacao (N/A, CCDR, IPDJ, DGADR).
+// Documentação: docs/modulos/clientes-e-comercial.md
+// =====================================================================
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
@@ -14,6 +29,7 @@ import * as XLSX from "xlsx";
 
 import AvisoToast from "../components/AvisoToast";
 import { registarEvento } from "../utils/registarEvento";
+// Nome do tipo de projeto cujo modelo define as colunas do checklist (tem de existir com este nome exato).
 const MODEL_NAME = "Formação Profissional";
 
 // Novas constantes para os Anos
@@ -203,6 +219,7 @@ function mapChecklistRows(rows = []) {
   }, {});
 }
 
+/** Lê a árvore do modelo "Formação Profissional" que serve de colunas ao checklist. */
 async function fetchChecklistTemplate() {
   const { data: tipoProjeto, error: tipoError } = await supabase
     .from("tipos_projeto")
@@ -1053,6 +1070,7 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
     setShowModal(true);
   };
 
+  /** Roda o estado de uma célula do checklist; faz update e, se não existir linha, insert. */
   const handleChecklistCellClick = async (acaoId, leaf, currentState) => {
     const nextState = getNextChecklistState(currentState || "na");
     try {
@@ -1104,6 +1122,10 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
     }
   };
 
+  /**
+   * Cria/edita uma ação. Na criação recalcula a sequência do ano na BD e cria o
+   * checklist inicial (tudo "na") para todas as colunas do modelo.
+   */
   const handleFormSubmit = async (event) => {
     event.preventDefault();
 

@@ -1,3 +1,7 @@
+// Cliente do browser para as campanhas TransferGest (pages/TransferGest.jsx):
+// GET /api/health e POST /api/notificacoes/transfergest (com sessão; papéis admin/gestor).
+// A base (VITE_TRANSFERGEST_API_BASE ou VITE_MARKETING_API_BASE) é ignorada se apontar para
+// localhost com a app aberta noutro host, ou para a própria origem → usa /api da mesma origem.
 import { postAutenticado } from "../utils/apiAutenticada";
 const RAW_TRANSFERGEST_API_BASE = import.meta.env.VITE_TRANSFERGEST_API_BASE || import.meta.env.VITE_MARKETING_API_BASE || "";
 
@@ -58,6 +62,7 @@ export async function checkTransfergestApiHealth() {
   return response.json().catch(() => ({ ok: true }));
 }
 
+/** Igual a sendMarketingCampaign, mas com o perfil de remetente "transfergest". Devolve o `summary`. */
 export async function sendTransfergestCampaign(payload) {
   const endpoint = `${DEFAULT_TRANSFERGEST_API_BASE}/api/notificacoes/transfergest`;
 

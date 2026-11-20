@@ -1,6 +1,11 @@
 /**
  * Motor Inteligente de Análise e Separação de Documentos PDF
  * Especializado em documentação administrativa, fiscal e empresarial (Portugal & Internacional)
+ *
+ * Funções puras sobre texto (OCR/pdf.js); não acede à rede nem ao Supabase.
+ * Usado por pages/OrganizadorPdf.jsx, utils/faturasQr.js, utils/iaRedacao.js e
+ * também pelo servidor (api/organizador/ia.js) — não importar nada do browser aqui.
+ * Para reconhecer um fornecedor novo de forma fiável, acrescentar a KNOWN_ENTITIES.
  */
 
 // Categorias suportadas
@@ -318,6 +323,8 @@ export function extractDocumentNumber(text) {
 }
 
 // Nomes aprendidos com as correções do utilizador: { nif: "Nome" }
+// Nota: setLearnedEntities não é chamado em lado nenhum; os nomes aprendidos chegam
+// por outro caminho (parâmetro `learned` de buildDocMeta em faturasQr.js).
 let learnedEntities = {};
 export function setLearnedEntities(map) {
   learnedEntities = map && typeof map === "object" ? map : {};
@@ -615,6 +622,12 @@ export function pageAmounts(text) {
   return [...out];
 }
 
+/**
+ * Análise de uma página (categoria, NIFs, ATCUD, nº, datas, tipo, refs. de pagamento…)
+ * usada pelas regras de quebra. Resultado em cache pelo texto.
+ * @param {string} text
+ * @returns {object}
+ */
 export function analyzePage(text) {
   const key = text || "";
   if (analysisCache.has(key)) return analysisCache.get(key);
@@ -835,11 +848,13 @@ export function shouldBreakPage(currentPage, previousPage, pageIndex, isNewFile 
   return decideBreak(analyzePage(currentPage?.text || ""), prev, newGroupState(prev));
 }
 
+/** Compatibilidade (sem uso atual): a página continua a anterior? */
 export function hasContinuationSignals(currentPage, previousPage) {
   if (!currentPage || !previousPage) return false;
   return !shouldBreakPage(currentPage, previousPage, 1, false);
 }
 
+/** Compatibilidade (sem uso atual): a página começa documento novo? */
 export function hasNewDocumentSignals(currentPage, previousPage) {
   if (!currentPage) return false;
   if (!previousPage) return true;

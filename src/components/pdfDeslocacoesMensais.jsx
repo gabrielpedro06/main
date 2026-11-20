@@ -1,3 +1,10 @@
+// =====================================================================
+// Mapa mensal de deslocações (pedidos "Pedido de Km's" aprovados).
+// Um PDF por colaborador com pedidos no mês: data, percurso (com "ida e volta"
+// e viatura), km e reembolso = km × valorPorKm (valor €/km definido nos RH,
+// app_settings "rh_km_reembolso_eur"; 0,40 € por omissão).
+// Lança erro se não houver deslocações aprovadas no mês.
+// =====================================================================
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 

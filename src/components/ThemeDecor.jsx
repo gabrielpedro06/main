@@ -885,6 +885,13 @@ function Particles({ cfg }) {
   );
 }
 
+/**
+ * Camada de decoração do tema atual (montada em pages/Dashboard.jsx). Sem props.
+ * Só aparece se o tema tiver `decor` (temas festivos de constants/themes.js), essa
+ * chave existir em DECOR e o utilizador não tiver desligado as decorações.
+ * Para uma decoração nova: formas em SHAPES, configuração em DECOR, emblema em
+ * DecorEmblem (ou em ThemeDecorExtra.jsx: EXTRA_SHAPES/EXTRA_DECOR/ExtraScene/ExtraEmblem).
+ */
 export default function ThemeDecor() {
   const { currentTheme } = useTheme();
   const [enabled, setEnabled] = useState(isDecorEnabled);
@@ -923,6 +930,7 @@ export default function ThemeDecor() {
 }
 
 // Emblema usado nos cartões do seletor de temas
+/** @param {{ decor: string }} props chave `decor` do tema; desconhecida → ExtraEmblem */
 export function DecorEmblem({ decor }) {
   switch (decor) {
     case "natal": return <div className="bz-emb is-natal"><span className="t"><Tree /></span><span className="c"><CandyCane /></span><span className="b1"><Bauble color="#f2b134" /></span></div>;

@@ -6,6 +6,10 @@ import { supabase } from "../services/supabase";
 // e separam-nos ao guardar. Se a tabela ainda não existir, usam profiles.
 // =====================================================================
 
+/**
+ * Colunas que vivem em profiles_privado e não em profiles.
+ * Ao acrescentar um campo sensível novo: migração + esta lista.
+ */
 export const CAMPOS_PRIVADOS = [
   "nif", "niss", "ncc", "validade_cc", "morada", "concelho", "estado_civil",
   "nacionalidade", "sexo", "nr_dependentes", "valor_sa",

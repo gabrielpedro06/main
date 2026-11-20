@@ -1,3 +1,17 @@
+// =====================================================================
+// Proposta de formação (assistente em 5 passos: Empresa Consultora, Cliente,
+// Cursos, Condições, Revisão). Aberto por PropostasComerciais.jsx quando a
+// consultora tem tem_cursos.
+//
+// Os cursos vêm da tabela cursos (página Cursos); as condições são pré-
+// preenchidas a partir dos textos dos cursos escolhidos e de
+// entidade_configuracoes da consultora.
+// Gravação: propostas_comerciais (tipo_proposta "formacao" no payload,
+// sem tipo_projeto nem programa) + proposta_cursos (apagadas e reinseridas a
+// cada gravação). Numeração SIGLA-ANO-NNN igual às de financiamento.
+// PDF: components/pdfFormacaoGenerator.jsx.
+// Documentação: docs/modulos/clientes-e-comercial.md
+// =====================================================================
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "../services/supabase";
@@ -223,6 +237,7 @@ const joinCursoTexts = (cursos, field) =>
     .filter(Boolean)
     .join("\n\n");
 
+/** Junta os textos (enquadramento, objetivos, metodologia...) dos cursos escolhidos. */
 const buildCondicoesFromCursos = (cursosSelecionados, previous = {}) => ({
   ...previous,
   enquadramento: joinCursoTexts(cursosSelecionados, "texto_enquadramento"),
@@ -336,6 +351,7 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
     window.setTimeout(() => setToastMessage(""), 2500);
   }
 
+  /** Reabre uma proposta: payload + proposta_cursos (horas e módulos personalizados). */
   async function loadPropostaExistente() {
     setIsLoadingDb(true);
     try {
@@ -680,6 +696,7 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
     }
   }
 
+  /** Fotografia do formulário gravada em payload (tipo_proposta = "formacao"). */
   function recolherDados() {
     return {
       tipo_proposta: "formacao",
@@ -700,6 +717,7 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
     };
   }
 
+  /** Próximo número SIGLA-ANO-NNN (maior existente visível + 1). */
   async function gerarNumeroProposta(sigla, ano) {
     const { data, error } = await supabase
       .from("propostas_comerciais")
@@ -717,6 +735,7 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
     return `${sigla}-${ano}-${String(proximoNumero).padStart(3, "0")}`;
   }
 
+  /** Substitui as linhas de proposta_cursos (apaga todas e volta a inserir pela ordem atual). */
   async function guardarCursosProposta(propostaDbId) {
     if (!propostaDbId) return;
 
@@ -744,6 +763,7 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
     if (insertError) throw insertError;
   }
 
+  /** Insert/update em propostas_comerciais e depois grava os cursos da proposta. */
   async function guardarPropostaEmBD({ silent = false } = {}) {
     if (!empresaConsultora.id || !cliente.id || cursosSelecionados.length === 0) {
       if (!silent) showToast("Preencha empresa consultora, cliente e pelo menos um curso.");

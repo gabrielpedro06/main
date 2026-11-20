@@ -1,3 +1,15 @@
+// =====================================================================
+// Minhas Tarefas (rota /dashboard/minhas-tarefas) — agenda pessoal.
+//
+// Mostra as tarefas não concluídas onde o utilizador é responsável ou está em
+// colaboradores_extra, em colunas por prazo: Atrasadas, Para hoje, Amanhã,
+// Depois e Sem data. O prazo é data_fim (tarefas de projeto) ou data_limite
+// (tarefas "avulsas", com atividade_id nulo, criadas aqui).
+// Arrastar entre colunas muda o prazo. Também: cronómetro (task_logs),
+// registos manuais, anexos (lista "anexos" em tarefas, ficheiros no bucket
+// "documentos"), histórico de concluídas (restaurar/apagar de vez).
+// Documentação: docs/modulos/projetos-e-tarefas.md
+// =====================================================================
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
@@ -164,6 +176,7 @@ export default function MinhasTarefas() {
       setActiveLog(data || null);
   }
 
+  /** Carrega as tarefas do utilizador, os tempos e agrupa-as por coluna de prazo. */
   async function fetchMyTasks() {
       try {
           const baseSelect = `id, titulo, estado, responsavel_id, criado_por, data_limite, data_fim, prioridade, descricao, created_at, atividades(id, titulo, projetos(id, titulo, codigo_projeto)), colaboradores_extra, anexos, arquivo_url, nome_entregavel, data_entregavel, profiles:criado_por(nome)`;
@@ -243,6 +256,7 @@ export default function MinhasTarefas() {
       setLoading(false);
   }
 
+  /** Abre o histórico de tarefas concluídas do utilizador. */
   async function openCompletedHistory() {
       const baseSelect = `id, titulo, estado, responsavel_id, criado_por, data_limite, data_fim, prioridade, descricao, created_at, data_conclusao, atividades(projetos(id, titulo, codigo_projeto)), profiles:criado_por(nome)`;
       const [
@@ -494,6 +508,7 @@ export default function MinhasTarefas() {
       return diffMins;
   }
 
+  /** Arranca cronómetro na tarefa e passa-a a "em_curso". */
   async function startTaskDirect(task) {
       const { data, error } = await supabase
           .from("task_logs")
@@ -638,6 +653,7 @@ export default function MinhasTarefas() {
       }
   }
 
+  /** Concluir/reabrir tarefa (data_conclusao preenchida ou limpa). */
   async function handleCompleteTask(task) {
       if (completingIds.has(task.id)) return;
       const novoEstado = task.estado === 'concluido' ? 'pendente' : 'concluido';
@@ -671,6 +687,7 @@ export default function MinhasTarefas() {
       } catch (err) { showToast("Erro: " + err.message, "error"); }
   }
 
+  /** Cria tarefa avulsa numa coluna; o prazo vem da coluna (hoje, amanhã, +3 dias). */
   async function handleQuickAdd(e, colId) {
       e.preventDefault();
       const text = newTasks[colId];
@@ -823,6 +840,10 @@ export default function MinhasTarefas() {
       }
   };
 
+  /**
+   * Grava o modal de edição: carrega anexos novos e grava a lista "anexos".
+   * O prazo vai para data_fim (tarefa de projeto) ou data_limite (avulsa).
+   */
   async function handleSaveModal(e) {
       e.preventDefault();
       setIsUploading(true);
@@ -886,6 +907,7 @@ export default function MinhasTarefas() {
       return null; 
   };
 
+  /** Arrastar para outra coluna = mudar o prazo ("atrasadas" = ontem, "semData" = sem prazo). */
   async function handleDrop(e, colId) {
       e.preventDefault();
       setDragOverCol(null);

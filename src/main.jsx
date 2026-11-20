@@ -1,3 +1,6 @@
+// Ponto de entrada do browser (carregado por index.html): estilos globais,
+// interceção de links para ficheiros privados e montagem de <App /> em #root.
+// Nota: App.jsx volta a envolver tudo noutro <AuthProvider>; os componentes usam o mais interior.
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'

@@ -1,3 +1,12 @@
+// =====================================================================
+// PDF geral de RH do mês (botão no painel de RH → downloadRHGeneralPDF).
+// Gera UM ficheiro por empresa interna (um colaborador em várias empresas
+// aparece em cada uma), com uma linha por colaborador: faltas justificadas e
+// injustificadas, férias, pedidos de Km's, dias ≥ 4 h, S.A. e total de horas.
+// Recebe: colaboradores, assiduidade e ausências APROVADAS do mês, feriados.
+// Regra de S.A. aqui: mínimo 4 h/dia (no ecrã dos RH são 5 h).
+// Logótipos: /logo1.png e /logos_all.png (pasta public/).
+// =====================================================================
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { isVacationType } from "../utils/feriasSaldo";

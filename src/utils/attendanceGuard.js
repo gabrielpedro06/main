@@ -1,3 +1,13 @@
+// Garante que o colaborador "picou o ponto" (assiduidade) antes de arrancar um
+// cronómetro de tarefa. Usado pelas páginas de tarefas/projetos/atividades.
+
+/**
+ * Já existe registo de assiduidade hoje (data local) para o utilizador?
+ * Em caso de erro devolve true para não bloquear o trabalho.
+ * @param {object} supabase cliente Supabase
+ * @param {string} userId
+ * @returns {Promise<boolean>}
+ */
 export async function hasAttendanceStartedToday(supabase, userId) {
   if (!supabase || !userId) return true;
 
@@ -17,6 +27,14 @@ export async function hasAttendanceStartedToday(supabase, userId) {
   return Array.isArray(data) && data.length > 0;
 }
 
+/**
+ * Cria a entrada do dia em `assiduidade` com a hora atual e dispara o evento
+ * `attendance-updated` (o WidgetAssiduidade ouve-o e atualiza o relógio).
+ * Se o insert falhar porque outro separador já picou, conta como sucesso.
+ * @param {object} supabase
+ * @param {string} userId
+ * @returns {Promise<boolean>} true se o dia ficou iniciado
+ */
 export async function startAttendanceNow(supabase, userId) {
   if (!supabase || !userId) return false;
 

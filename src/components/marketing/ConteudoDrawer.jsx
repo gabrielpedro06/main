@@ -1,3 +1,7 @@
+// Painel lateral de um conteúdo de marketing (abre por cima do Fluxo/Calendário).
+// Secções: Planeamento, Criativo, Copy, Design, Notas, Aprovação, Resultados.
+// Gravação: selects/chips/datas gravam logo (set); textos gravam no blur (commit)
+// e o que ficar por gravar é enviado ao fechar o painel (efeito de desmontagem).
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import FancySelect from "../FancySelect";
 import { MarcaLogo } from "./MarcasModal";
@@ -29,6 +33,13 @@ const CAMPOS_EDITAVEIS = ["titulo", "campanha", "variacoes", "cta_2", "notas", "
 
 /* ---------- painel ---------- */
 
+/**
+ * @param item       conteúdo (linha de marketing_conteudos); estado/aprovação/datas de
+ *                   publicação vêm sempre do item (podem mudar fora do painel)
+ * @param onPatch    grava campos (Marketing.patch)
+ * @param onAplicado só atualiza o estado local (a aprovação já gravou na BD)
+ * @param secaoInicial secção para onde fazer scroll ao abrir (ex.: "aprovacao")
+ */
 export default function ConteudoDrawer({ item, marca, perfis, userId, userNome, secaoInicial, onAplicado, sugestoesPilar = [], personas = [], frentes = [], campanhas = [], ofertas = [], turmas = [], regras = [], avisar, onPatch, onClose, onArquivar, onRestaurar, onEliminar }) {
   const [draft, setD] = useState(item);
   // Estado, aprovação e datas podem mudar fora do painel (arrastar no quadro/calendário): vêm sempre do item
@@ -169,6 +180,7 @@ export default function ConteudoDrawer({ item, marca, perfis, userId, userNome, 
     setD((p) => ({ ...p, ...patch }));
     onAplicado?.(item.id, patch);
   };
+  /** Corre uma ação do circuito de aprovação (mkAprovacao) e aplica o patch devolvido. */
   const correr = async (fn, msgOk) => {
     if (aGravarAprov) return;
     setAGravarAprov(true);

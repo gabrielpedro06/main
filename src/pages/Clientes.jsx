@@ -1,3 +1,26 @@
+// =====================================================================
+// Entidades / Clientes (rota /dashboard/clientes).
+//
+// Uma "entidade" (tabela clientes) pode ser cliente, empresa consultora
+// (eh_empresa_consultora: emite propostas), organismo/entidade financiadora
+// (eh_organismo) e/ou ter cursos próprios (tem_cursos). O NIF é único
+// (9 dígitos, índice clientes_nif_unique_idx).
+//
+// Separadores do painel da entidade: geral, funcoes (papéis acima),
+// projetos, atividade (objeto social e CAE), documentos (certidão permanente,
+// RCBE), plano, contactos (contactos_cliente; "faz_propostas" = aparece nas
+// propostas), moradas (moradas_cliente), configuracoes (entidade_configuracoes,
+// textos e assinatura das propostas; só consultoras) e acessos (acessos_cliente;
+// palavras-passe no cofre Supabase Vault via utils/cofre).
+//
+// Ao escrever um NIF com 9 dígitos: verifica duplicado, consulta o nif.pt
+// (/api/nif, com sessão) e os CAE no SICAE (/api/sicae-caes; se falhar fora de
+// localhost tenta a edge function "fetch-caes-sicae"); descrições de CAE vêm de
+// /api/cae-descriptions. CAE e morada ficam "pendentes" até gravar a entidade.
+// Códigos postais/concelhos são completados pela GeoAPI (json.geoapi.pt).
+// Também: cronómetro em projetos da entidade, exportação Excel, avatar com recorte.
+// Documentação: docs/modulos/clientes-e-comercial.md
+// =====================================================================
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import "../styles/entidades.css";
@@ -727,6 +750,10 @@ export default function Clientes() {
     return [...dedup.values()];
   };
 
+  /**
+   * CAE de uma empresa no SICAE: /api/sicae-caes; em produção, se falhar, tenta
+   * a edge function do Supabase "fetch-caes-sicae". Devolve [{ codigo, descricao }].
+   */
   async function fetchCaesFromSicae(nif) {
     const nifSanitizado = sanitizeNif(nif);
     if (nifSanitizado.length !== 9) return [];
@@ -761,6 +788,7 @@ export default function Clientes() {
     }
   }
 
+  /** Descrições oficiais (CAE rev. 4) para códigos de 5 dígitos, via /api/cae-descriptions. */
   async function fetchCatalogDescriptionsByCodes(codes) {
     const dedup = [...new Set((codes || []).map((code) => String(code || "").trim()).filter((code) => /^\d{5}$/.test(code)))];
     if (dedup.length === 0) return [];
@@ -775,6 +803,7 @@ export default function Clientes() {
     return extractCaesFromFunctionPayload(payload);
   }
 
+  /** Botão "procurar CAE pelo NIF": junta os CAE do SICAE que ainda não existem como pendentes. */
   async function handleFetchCaesByNif() {
     const nif = sanitizeNif(form.nif);
 
@@ -903,6 +932,7 @@ export default function Clientes() {
     return parts.join("\n\n").trim();
   };
 
+  /** Procura outra entidade com o mesmo NIF (evita o erro do índice único). */
   async function findExistingClienteByNif(nif) {
     if (!nif) return null;
 
@@ -916,6 +946,7 @@ export default function Clientes() {
     return data?.[0] || null;
   }
 
+  /** Lista de entidades com contactos, localidade e projetos associados (líder ou parceira). */
   async function fetchClientes() {
     setLoading(true);
     
@@ -982,6 +1013,11 @@ export default function Clientes() {
   }
 
   // --- INTEGRAÇÃO NIF.PT + SICAE ---
+  /**
+   * Preenchimento automático pelo NIF (9 dígitos): avisa se já existe, consulta
+   * SICAE e nif.pt e preenche nome, sigla, morada, contactos e CAE. Falhas de um
+   * dos serviços só geram aviso; o resto continua.
+   */
   async function handleNifChange(e) {
     const nifDigitado = e.target.value.replace(/\D/g, "");
     setForm((prev) => ({ ...prev, nif: nifDigitado }));
@@ -1163,6 +1199,7 @@ export default function Clientes() {
   }
 
 // --- PREENCHIMENTO AUTOMÁTICO DE MORADA POR CÓDIGO POSTAL ---
+  /** Completa a morada a partir do código postal (GeoAPI, com alternativa). */
   async function fetchMoradaByCodigoPostal(cp) {
       if (!cp || cp.length < 8) return; 
       
@@ -1365,6 +1402,7 @@ export default function Clientes() {
     }, 360);
   }
 
+  /** Grava os CAE pendentes (vindos do NIF/SICAE) que ainda não existem para a entidade. */
   async function persistPendingAutoCaes(clienteId) {
     if (!clienteId || pendingAutoCaes.length === 0) {
       return { inserted: 0, skipped: 0 };
@@ -1537,6 +1575,7 @@ export default function Clientes() {
     return { updated: resultados.length };
   }
 
+  /** Grava a morada pendente (vinda do nif.pt) se a entidade ainda não tiver uma igual. */
   async function persistPendingAutoMorada(clienteId) {
     if (!clienteId || !pendingAutoMorada) {
       return { inserted: 0, skipped: 0 };
@@ -1605,11 +1644,13 @@ export default function Clientes() {
       setNovoContacto(initContacto); setNovaMorada(initMorada); setNovoCae(initCae); setNovoAcesso(initAcesso);
   }
 
+  /** Hoje todos os utilizadores com sessão veem o separador Acessos (sem verificação extra). */
   async function verificarPermissaoAcessos(clienteId) {
     // Todos os users registados têm acesso aos acessos/credenciais
     setPodeVerAcessos(true);
   }
 
+  /** Carrega contactos, moradas, acessos, tipos de acesso, CAE, projetos e configurações da entidade. */
   async function fetchSubDados(clienteId) {
     const projectFields = "id, titulo, estado, data_inicio, data_fim, investimento, incentivo, codigo_projeto, cliente_id, parceiros_ids, is_parceria, tipo_projeto_id, tipos_projeto ( nome ), created_at";
 
@@ -1717,6 +1758,10 @@ export default function Clientes() {
     });
   }
 
+  /**
+   * Grava os dados gerais (insert ou update em clientes) e depois
+   * os CAE e a morada pendentes (vindos do NIF/SICAE).
+   */
   async function handleSubmitGeral(e) {
     e.preventDefault();
     if (isViewOnly) return;
@@ -1820,6 +1865,10 @@ export default function Clientes() {
     } catch (error) { showToast("Erro: " + error.message, "error"); }
   }
 
+  /**
+   * Grava um sub-registo (contacto, morada, CAE, acesso...) da entidade aberta.
+   * Exige que a entidade já esteja gravada. Nos acessos a palavra-passe vai para o cofre.
+   */
   async function saveSubItem(tabela, dados, stateSetter, listaAtual, resetState, resetValue, closeFormSetter) {
     if (isViewOnly) return;
     if (!editId) return showToast("Guarda primeiro os Dados da Entidade (Aba Geral) no fundo do ecrã.", "warning");
@@ -1916,6 +1965,7 @@ export default function Clientes() {
   };
 
   // Pede a password ao cofre (fica registado no histórico)
+  /** Pede a palavra-passe ao cofre (fica registado no histórico quem a viu). */
   async function obterPassword(acesso) {
     if (revealedPass[acesso.id] != null) return revealedPass[acesso.id];
     const valor = await revelarPalavraPasse("acessos_cliente", acesso.id);
@@ -2039,6 +2089,7 @@ export default function Clientes() {
       />
     </div>
   );
+  /** Exporta as entidades filtradas para Excel (xlsx) e regista o evento de exportação. */
   async function handleExportEntidades() {
     if (isExporting) return;
     const lista = [...processedClientes];

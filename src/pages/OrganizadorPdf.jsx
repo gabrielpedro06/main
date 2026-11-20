@@ -1,3 +1,12 @@
+// =====================================================================
+// Organizador de PDFs (/dashboard/organizador-pdf; qualquer colaborador).
+// Separa e identifica faturas/talões digitalizados, tudo no browser: texto do
+// PDF, QR fiscal da AT (utils/faturasQr.js) e OCR tesseract.js (por+eng).
+// Sessão guardada em IndexedDB ("bizin-pdf-organizer"); fornecedores aprendidos
+// em localStorage. "Pedir à IA" envia só TEXTO redigido (utils/iaRedacao.js)
+// para POST /api/organizador/ia. Exporta ZIP Ano/Categoria + resumo.csv.
+// Documentação: docs/modulos/ferramentas.md
+// =====================================================================
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -450,6 +459,11 @@ export default function OrganizadorPdf() {
   }, [busy]);
 
   // ---------------- Documentos ----------------
+  /**
+   * Documentos derivados das páginas: um documento começa em cada página com
+   * breakBefore. Metadados automáticos (buildDocMeta) + correções manuais/IA
+   * (overrides, por id da 1.ª página). Duplicados detetados pelo ATCUD.
+   */
   const docs = useMemo(() => {
     // NIF do cliente (a própria empresa): vem no campo B dos QR lidos
     const clientNifs = new Set(pages.map((p) => p.qr?.nifCliente).filter(Boolean));
@@ -521,6 +535,7 @@ export default function OrganizadorPdf() {
     filter === "rever" ? d.meta.confidence !== "alta" : filter === "duplicados" ? d.duplicate : true);
 
   // ---------------- Importação ----------------
+  /** Lê todos os PDFs escolhidos página a página (readPdfPage) e calcula as separações. */
   async function importFiles(list) {
     const selected = Array.from(list || []).filter(isPdf);
     if (!selected.length) {
@@ -654,6 +669,7 @@ export default function OrganizadorPdf() {
     if (!ok) return;
     updatePages((c) => c.map((p, i) => ({ ...p, breakBefore: i === 0 })));
   }
+  /** Volta a ler páginas que saíram em branco (descodificadores do pdf.js em falta/lentos). */
   async function rereadBlanks() {
     setMenu(false);
     const targets = pages.filter((p) => !p.excluded && needsReread(p));
@@ -852,6 +868,7 @@ export default function OrganizadorPdf() {
   }
 
   // ---------------- Exportação ----------------
+  /** Gera um PDF por documento (pdf-lib, com rotação) num ZIP Ano/Categoria + resumo.csv (;, BOM). */
   async function exportZip() {
     if (!docs.length || busy) return;
     setMenu(false);

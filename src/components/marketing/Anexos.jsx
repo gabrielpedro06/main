@@ -1,3 +1,6 @@
+// Anexos de um conteúdo (Marketing → painel → Design/Notas).
+// Nota: usa getPublicUrl no balde "documents" (criado público na migração 013);
+// quem tiver o link abre o ficheiro sem sessão.
 import { useRef, useState } from "react";
 import { supabase } from "../../services/supabase";
 import { I } from "./mkIcons";

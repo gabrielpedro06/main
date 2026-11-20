@@ -1,3 +1,11 @@
+// =====================================================================
+// PDF individual de RH (botão na ficha do colaborador → downloadIndividualPDF).
+// Resumo do mês (dias com S.A., horas, férias, faltas justificadas/injustificadas,
+// baixas, km), tabela de registos de assiduidade, de ausências e de pedidos de Km's.
+// As ausências recebidas incluem pendentes e as faltas automáticas (geradas no ecrã).
+// ATENÇÃO: as linhas de assiduidade NÃO são filtradas pelo mês aqui; o chamador
+// tem de passar só as do mês. Regra de S.A.: mínimo 4 h/dia.
+// =====================================================================
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { isVacationType } from "../utils/feriasSaldo";

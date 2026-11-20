@@ -1,3 +1,16 @@
+// =====================================================================
+// Painel de administração (rota /dashboard/admin) — só admin/administrador
+// (ProtectedRoute + verificação isAdmin aqui; a BD aplica RLS por baixo).
+// Separadores:
+//   geral      <AdminVisaoGeral/>: horas, projetos, pedidos RH pendentes, comercial, atividade recente
+//   analytics  tempo registado (task_logs) por projeto/pessoa com filtros dia/mês/intervalo,
+//              quem está online e financeiro dos projetos
+//   equipa     por colaborador: presença (assiduidade), tempo em tarefas, tarefa atual
+//   gestao     ficha de uma pessoa: tarefas abertas, horas e mudança de papel
+//              (POST /api/admin/contas acao "papel", pede a password de quem muda)
+//   seguranca  <SegurancaMFA/>: estado do 2FA, repor MFA, bloquear contas inativas
+// Carrega até 5000 task_logs e 5000 registos de assiduidade (limite fixo).
+// =====================================================================
 import React, { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../services/supabase";
@@ -8,6 +21,8 @@ import "../styles/admin.css";
 import { clicavel } from "../utils/clicavel";
 
 
+// Papéis que se podem escolher na "Tag de Perfil". O servidor aceita também
+// "marketing plus" (PAPEIS_VALIDOS em api/_lib/adminContas.js), que não está aqui.
 const PROFILE_TAG_OPTIONS = [
   { value: "colaborador", label: "Colaborador" },
   { value: "gestor", label: "Gestor" },
@@ -434,6 +449,11 @@ export default function AdminDashboard() {
   }, [activeTab, selectedUserId]);
 
   // Troca de papel feita no servidor: confirma a palavra-passe da conta de quem pede
+  /**
+   * Muda profiles.role do colaborador selecionado via /api/admin/contas (acao "papel").
+   * O servidor valida a password do admin, grava com service_role e regista em audit_log.
+   * (Pelo browser não é possível: profiles_proteger só deixa admins mudar role/tipo/ativo.)
+   */
   const handleUpdateRole = async () => {
     if (!profileTagModal.password) return setProfileTagModal(p => ({ ...p, error: "Introduza a sua palavra-passe." }));
     setProfileTagSaving(true);

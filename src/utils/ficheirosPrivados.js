@@ -11,6 +11,7 @@ import { avisar } from "./dialogo";
 //   - useUrlAssinado(url): para <img src> de ficheiros privados (ex.: chat)
 // =====================================================================
 
+/** Baldes do Storage que são privados (um balde novo privado tem de entrar aqui). */
 export const BALDES_PRIVADOS = ["rh_anexos", "documentos", "chat_ficheiros"];
 const DURACAO = 600; // 10 minutos
 const RE = /\/storage\/v1\/object\/(?:public|sign|authenticated)\/([^/?#]+)\/([^?#]+)/;
