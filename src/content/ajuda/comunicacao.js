@@ -36,10 +36,19 @@ export default {
         "No topo da conversa, carrega em **Chamada**.",
         "Na primeira vez, o browser pede acesso à câmara e ao microfone: carrega em **Permitir**.",
         "Confirma o teu nome, liga ou desliga a câmara e entra na reunião.",
-        "Os outros veem na conversa um cartão **Videochamada** e entram carregando em **Entrar**.",
-        "Para sair, usa o botão vermelho do Jitsi ou **Sair** no topo da janela. Podes **minimizar** a chamada para continuar a usar o Bizin.",
+        "A chamada toca aos outros participantes da conversa, em qualquer página do Bizin. Eles carregam em **Atender**.",
+        "Para chamar mais alguém, carrega em **Convidar** no topo da janela, procura a pessoa e carrega em **Chamar**.",
+        "Para sair, usa o botão vermelho do Jitsi ou **Sair** no topo da janela. Podes **minimizar** a chamada e continuar a usar o Bizin noutras páginas.",
       ],
-      nota: "Só entram as pessoas que fazem parte da conversa. Se saíres por engano, carrega em **Voltar a entrar** no cartão.",
+      nota: "Só entram colegas da conversa ou quem convidares. Se não atenderam a tempo, entram pelo cartão **Videochamada** no chat (**Entrar**).",
+    },
+    {
+      titulo: "Como atender ou recusar uma chamada",
+      passos: [
+        "Quando alguém te liga, aparece um aviso no topo do ecrã com o nome da pessoa e um som de toque.",
+        "Carrega em **Atender** para entrar na chamada, ou em **Recusar**. Quem ligou fica a saber.",
+        "Se não responderes em 45 segundos, a chamada fica como não atendida. Podes entrar depois pelo cartão **Videochamada** na conversa.",
+      ],
     },
     {
       titulo: "Como criar uma publicação",

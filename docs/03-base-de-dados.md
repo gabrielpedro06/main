@@ -360,6 +360,10 @@ de leitura volumosa.
   * Ficheiros novos no balde privado `chat_ficheiros/<room_id>/…`; os antigos estavam em
     `documents/chat-files/` (script `scripts/migrar-ficheiros-chat.mjs` move-os).
 * Quem usa: `Forum.jsx` (página com o chat em modal), `Sidebar.jsx` (contadores de não lidas).
+* **`chamadas_convites`** (079): convites de videochamada que "tocam". Cada convite é uma linha com `sala` (chat_rooms), `de`, `para` e `estado` (`a_tocar`/`aceite`/`recusada`/`perdida`/`cancelada`).
+  * RLS: só quem liga e quem é chamado veem a linha. Para criar um convite, `de` tem de ser o próprio, que tem de participar na conversa.
+  * O trigger `chamadas_convites_proteger` só deixa mudar o estado. Está na publicação Realtime.
+  * Quem usa: `context/ChamadasContext.jsx` e `api/_lib/reunioes.js`, que aceita convidados. Ver [modulos/comunicacao-e-dashboard.md](modulos/comunicacao-e-dashboard.md).
 
 ---
 
@@ -603,6 +607,7 @@ passos manuais; **[!]** = ficheiro com problema (ver § 19).
 | 077b | saldos_ferias_corrigir | Zera transitados inventados | [dados] pontual, correr antes de 1/dez |
 | 077c | saldos_ferias_limite_anual | Ano de admissão = limite anual | [dados] pontual |
 | 078 | catalogo_programas_bizincontrol | `bizin_programas_financiamento()` para anon | |
+| 079 | chamadas_convites | Convites de videochamada (toque, atender/recusar) + Realtime | |
 | — | modulo_ativos_ti.sql | Rascunho de modelo de Ativos TI | **não aplicado, não correr** |
 
 ---

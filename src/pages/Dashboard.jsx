@@ -7,6 +7,7 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import BrandIntro from "../components/BrandIntro";
 import ThemeDecor from "../components/ThemeDecor";
+import { ChamadasProvider } from "../context/ChamadasContext";
 import "../styles/dashboard.css";
 
 const MOBILE_QUERY = "(max-width: 900px)";
@@ -94,6 +95,7 @@ export default function Dashboard() {
     item.exact ? location.pathname === item.to : location.pathname.startsWith(item.to);
 
   return (
+    <ChamadasProvider>
     <div className={`dashboard-container ${isMobile ? "is-mobile" : ""}`}>
       <BrandIntro />
       <ThemeDecor />
@@ -156,5 +158,6 @@ export default function Dashboard() {
         )}
       </div>
     </div>
+    </ChamadasProvider>
   );
 }

@@ -118,3 +118,21 @@ Catálogo de **programas de financiamento** e dos **avisos** de candidatura (nã
 - Chat privado é encontrado por `profiles.nome`: dois colaboradores com o mesmo nome → pode abrir a conversa com a pessoa errada.
 - Feed sem paginação (carrega todos os posts, comentários contados e reações).
 - `canDelete`/`canEdit` no fórum não incluem o papel `administrador`.
+
+
+## Videochamadas (Jitsi as a Service)
+
+- **Onde:** botão **Chamada** no topo de uma conversa do chat (`Forum.jsx` → `useChamadas().ligar`). A conversa recebe a mensagem `MSG_CHAMADA` ("📹 Iniciou uma videochamada"), mostrada como cartão com **Entrar**.
+- **Gestor global:** `src/context/ChamadasContext.jsx`, montado em `pages/Dashboard.jsx`. Guarda a chamada ativa, que continua aberta ao mudar de página, e mostra a janela `components/VideoChamada.jsx`.
+- **Toque:** cada pessoa chamada é uma linha em `chamadas_convites` (migração 079), com os estados `a_tocar` → `aceite` / `recusada` / `perdida` / `cancelada`. Funciona assim:
+  - O provider ouve por Realtime as linhas com `para = eu` e mostra o aviso **Atender/Recusar** no topo, com o som `playNotifySound` a cada 2,5 s.
+  - Ao fim de 45 s sem resposta, a chamada passa a `perdida`.
+  - Quem liga recebe as respostas, também por Realtime, e vê uma mensagem como "X recusou".
+  - Ao sair da chamada, os toques pendentes passam a `cancelada`.
+- **Convidar:** o botão **Convidar** da janela abre a lista de colegas ativos. **Chamar** cria um convite, e o convidado entra mesmo sem participar na conversa (a `/api/reunioes` aceita um convite recente, de até 3 h).
+- **Segurança:**
+  - O token JaaS é gerado no servidor (`/api/reunioes`, que exige 2FA) e vale só para a sala `bizin-chat-<id>`.
+  - O "convidar por link" do Jitsi está desligado (`disableInviteFunctions`).
+  - A sala de espera é ligada ao entrar (`toggleLobby`): quem entra sem token, por exemplo com um link partilhado, espera que um moderador o aceite.
+  - O RLS de `chamadas_convites` só deixa ver os próprios convites. Só se cria um convite em nome próprio, numa conversa em que se participa. O trigger só deixa mudar o estado.
+- **Limites:** o plano gratuito tem 25 utilizadores ativos por mês. Gravação e transcrição estão desligadas no token.

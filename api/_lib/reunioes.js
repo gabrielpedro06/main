@@ -3,7 +3,7 @@
 // Videochamadas (Jitsi as a Service / JaaS da 8x8) — POST /api/reunioes
 // Entrada: { conversa: <id de chat_rooms> }
 // 1. Confirma a sessão (e exige 2FA: token aal2) e que a pessoa participa
-//    na conversa (chat_participants).
+//    na conversa (chat_participants) ou tem convite recente (chamadas_convites, 079).
 // 2. Devolve { dominio, sala, jwt, appId }: a sala é "<appId>/bizin-chat-<id>"
 //    e o JWT (RS256, 2 h) só vale para essa sala. Sem JWT não se entra.
 // Variáveis (Vercel / .env): JAAS_APP_ID, JAAS_KEY_ID, JAAS_PRIVATE_KEY
@@ -85,7 +85,21 @@ export default async function reunioes(req, res) {
       .eq("user_id", ctx.user.id)
       .maybeSingle();
     if (error) throw error;
-    if (!participa) throw new ErroHttp(403, "Não participas nesta conversa.");
+    if (!participa) {
+      // Convidado pelo botão "Convidar" (migração 079): convite recente para esta sala, a tocar ou atendido.
+      const desde = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+      const { data: convite, error: e2 } = await ctx.admin
+        .from("chamadas_convites")
+        .select("id")
+        .eq("sala", conversa)
+        .eq("para", ctx.user.id)
+        .in("estado", ["a_tocar", "aceite"])
+        .gte("criado_em", desde)
+        .limit(1)
+        .maybeSingle();
+      if (e2) throw e2;
+      if (!convite) throw new ErroHttp(403, "Não participas nesta conversa nem foste convidado para esta chamada.");
+    }
 
     const { data: perfil } = await ctx.admin.from("profiles").select("nome, avatar_url").eq("id", ctx.user.id).maybeSingle();
     const sala = `bizin-chat-${conversa}`;

@@ -23,7 +23,7 @@ import EmojiPicker from 'emoji-picker-react';
 import "../styles/forum.css";
 import ImagemPrivada from "../components/ImagemPrivada";
 import { clicavel } from "../utils/clicavel";
-import VideoChamada from "../components/VideoChamada";
+import { useChamadas } from "../context/ChamadasContext";
 
 /** Texto da mensagem que anuncia uma videochamada no chat (é mostrada como cartão com botão "Entrar"). */
 const MSG_CHAMADA = "📹 Iniciou uma videochamada";
@@ -322,7 +322,8 @@ export default function Forum() {
     const [chatModal, setChatModal] = useState({ show: false, target: null });
     const [chatRooms, setChatRooms] = useState([]);
     const [activeChatRoom, setActiveChatRoom] = useState(null);
-    const [chamada, setChamada] = useState(null); // { conversa, titulo } da videochamada aberta
+    const chamadas = useChamadas(); // videochamadas (context/ChamadasContext.jsx)
+    const chamada = chamadas?.ativa || null;
     const [chatMessages, setChatMessages] = useState([]);
     const chatMessagesRef = useRef([]);
     const activeRoomChannelRef = useRef(null);
@@ -1654,7 +1655,7 @@ async function iniciarChamada() {
       if (!activeChatRoom?.id) return;
       const conversa = activeChatRoom.id;
       const titulo = chatModal.target?.title || "Chamada";
-      setChamada({ conversa, titulo });
+      chamadas?.ligar({ conversa, titulo }); // abre a chamada e toca aos outros participantes
       const { data, error } = await supabase
           .from("chat_messages")
           .insert([{ room_id: conversa, sender_id: user.id, content: MSG_CHAMADA }])
@@ -3151,10 +3152,6 @@ async function sendChatMessage(rawContent) {
       )}
 
       {/* --- MODAL DE CHAT --- */}
-      {chamada && (
-        <VideoChamada conversa={chamada.conversa} titulo={chamada.titulo} onFechar={() => setChamada(null)} />
-      )}
-
       {chatModal.show && (
     <ModalPortal>
         <div className="fx-overlay fx-overlay-chat" style={{ zIndex: "calc(var(--z-modal-max) + 1)" }} onClick={closeInternalChatModal}>
@@ -3315,7 +3312,7 @@ async function sendChatMessage(rawContent) {
                                                 <div className="fx-bubble-call">
                                                     <span className="fx-bubble-call-ico"><Icons.Video size={16} /></span>
                                                     <span>{mine ? "Iniciaste uma videochamada" : "Videochamada"}</span>
-                                                    <button type="button" className="fx-btn fx-btn-sm fx-bubble-call-btn" disabled={Boolean(chamada)} onClick={() => setChamada({ conversa: msg.room_id, titulo: chatModal.target?.title || "Chamada" })}>
+                                                    <button type="button" className="fx-btn fx-btn-sm fx-bubble-call-btn" disabled={Boolean(chamada)} onClick={() => chamadas?.ligar({ conversa: msg.room_id, titulo: chatModal.target?.title || "Chamada", tocar: false })}>
                                                         {mine ? "Voltar a entrar" : "Entrar"}
                                                     </button>
                                                 </div>
