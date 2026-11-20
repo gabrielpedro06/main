@@ -31,6 +31,10 @@ Documentação técnica da aplicação interna da Bizin. Foi escrita para que qu
 
 [Riscos e pendentes](riscos-e-pendentes.md) junta numa lista única, por prioridade, os bugs e riscos encontrados ao documentar (20/11/2026).
 
+## Manual de utilizador
+
+O manual para quem usa a app está **dentro da app**: menu da conta → **Ajuda** (`/#/dashboard/ajuda`, página `src/pages/Ajuda.jsx`). O conteúdo fica em `src/content/ajuda/*.js`, com um ficheiro por área. Cada área e cada item podem ter `papeis: [...]` para só aparecerem a quem tem acesso. **Quando mudares um ecrã (nomes de botões, passos), atualiza o ficheiro respetivo.** Para acrescentar uma área, segue as instruções em `src/content/ajuda/index.js`.
+
 ## Comentários no código
 
 Os ficheiros principais têm um cabeçalho que explica para que servem. As funções importantes têm JSDoc com parâmetros, retorno, efeitos e tabelas Supabase. Quando mudares comportamento, atualiza o comentário e o documento correspondente.

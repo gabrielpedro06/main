@@ -51,6 +51,7 @@ import AcoesFormacao from "./pages/AcoesFormacao";
 import OrganizadorPdf from "./pages/OrganizadorPdf";
 import RegistoAtividade from "./pages/RegistoAtividade";
 import AprovarPedido from "./pages/AprovarPedido";
+import Ajuda from "./pages/Ajuda";
 
 export default function App() {
   return (
@@ -107,6 +108,7 @@ export default function App() {
             <Route path="cursos" element={<Cursos />} />
             <Route path="acoes-formacao" element={<AcoesFormacao />} />
             <Route path="organizador-pdf" element={<OrganizadorPdf />} />
+            <Route path="ajuda" element={<Ajuda />} />
             
           </Route>
 

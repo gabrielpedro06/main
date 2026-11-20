@@ -33,6 +33,7 @@ const PAGE_TITLES = [
   ["/dashboard/cursos", "Cursos"],
   ["/dashboard/acoes-formacao", "Ações de Formação"],
   ["/dashboard/organizador-pdf", "Organizador de PDFs"],
+  ["/dashboard/ajuda", "Ajuda"],
 ];
 
 const getPageTitle = (pathname) => {

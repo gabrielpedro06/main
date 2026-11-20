@@ -1,0 +1,139 @@
+/* Ajuda — manual de utilizador (src/pages/Ajuda.jsx). Usa as variáveis do tema. */
+.aj-page {
+  padding: 24px 24px 48px; width: 100%; min-width: 0;
+  color: var(--color-textPrimary, #0f172a);
+  font-family: "Manrope", "Segoe UI", system-ui, sans-serif;
+}
+
+/* Cabeçalho — mesmo estilo de adm-hero / rg-hero */
+.aj-hero {
+  position: relative; display: flex; flex-direction: column; gap: 16px; margin-bottom: 20px;
+  padding: 22px 24px; border-radius: 24px; color: #fff; overflow: hidden;
+  background: linear-gradient(125deg, var(--color-sidebarBg, #1e293b) 0%, var(--color-sidebarBgSecondary, #0f172a) 100%);
+  box-shadow: 0 24px 48px -24px var(--color-btnPrimaryShadowHover, rgba(15, 23, 42, 0.4)), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  animation: ajRise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes ajRise { from { opacity: 0; transform: translateY(10px); } }
+.aj-hero-orb { position: absolute; border-radius: 50%; filter: blur(42px); pointer-events: none; }
+.aj-hero-orb.is-a { width: 320px; height: 320px; right: -60px; top: -180px; background: rgba(255, 255, 255, 0.16); }
+.aj-hero-orb.is-b { width: 240px; height: 240px; left: 35%; bottom: -170px; background: rgba(129, 140, 248, 0.2); }
+.aj-hero-row { position: relative; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px 18px; }
+.aj-hero-main { display: flex; align-items: center; gap: 14px; min-width: 0; flex: 1 1 320px; }
+.aj-hero-icon { width: 52px; height: 52px; flex-shrink: 0; display: grid; place-items: center; border-radius: 16px; background: rgba(255, 255, 255, 0.14); border: 1px solid rgba(255, 255, 255, 0.2); }
+.aj-hero-kicker { display: block; font-size: 0.68rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255, 255, 255, 0.65); }
+.aj-hero h1 { margin: 2px 0 0; font-size: 1.55rem; font-weight: 900; letter-spacing: -0.02em; color: #fff; line-height: 1.15; }
+.aj-hero p { margin: 3px 0 0; max-width: 62ch; font-size: 0.86rem; line-height: 1.45; color: rgba(255, 255, 255, 0.74); }
+.aj-hero-side { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.aj-chip { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; color: rgba(255, 255, 255, 0.82); background: rgba(255, 255, 255, 0.12); border: 1px solid rgba(255, 255, 255, 0.16); white-space: nowrap; }
+.aj-chip strong { font-size: 0.95rem; font-weight: 900; color: #fff; font-variant-numeric: tabular-nums; }
+
+.aj-search {
+  position: relative; display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 14px;
+  border-radius: 14px; background: #fff; color: #64748b; box-shadow: 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+}
+.aj-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; font-size: 16px; color: #0f172a; }
+.aj-search input::-webkit-search-cancel-button { display: none; }
+.aj-search:focus-within { box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.45), 0 10px 24px -14px rgba(0, 0, 0, 0.5); }
+.aj-search-clear { display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 8px; background: transparent; color: #64748b; cursor: pointer; }
+.aj-search-clear:hover { background: #f1f5f9; color: #0f172a; }
+
+/* Layout: menu de áreas + conteúdo */
+.aj-layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 20px; align-items: start; }
+.aj-nav {
+  position: sticky; top: 16px; display: flex; flex-direction: column; gap: 2px; padding: 8px;
+  border-radius: 18px; background: var(--color-bgPrimary, #fff); border: 1px solid var(--color-borderColor, #e2e8f0);
+  max-height: calc(100vh - 32px); overflow-y: auto;
+}
+.aj-nav button {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 12px; border: 0; border-radius: 11px;
+  background: transparent; font: inherit; font-size: 0.86rem; font-weight: 600; text-align: left;
+  color: var(--color-textSecondary, #475569); cursor: pointer; transition: background 0.15s ease, color 0.15s ease;
+}
+.aj-nav button:hover { background: var(--color-bgSecondary, #f1f5f9); color: var(--color-textPrimary, #0f172a); }
+.aj-nav button.is-on { background: var(--color-btnPrimary, #2563eb); color: #fff; }
+.aj-nav button svg { flex-shrink: 0; }
+
+.aj-conteudo { min-width: 0; display: flex; flex-direction: column; gap: 22px; scroll-margin-top: 16px; animation: ajFade 0.25s ease both; }
+@keyframes ajFade { from { opacity: 0; transform: translateY(4px); } }
+.aj-sec-head {
+  display: flex; align-items: flex-start; gap: 14px; flex-wrap: wrap; padding: 18px 20px; border-radius: 18px;
+  background: var(--color-bgPrimary, #fff); border: 1px solid var(--color-borderColor, #e2e8f0);
+}
+.aj-sec-ico { width: 44px; height: 44px; flex-shrink: 0; display: grid; place-items: center; border-radius: 13px; color: var(--color-btnPrimary, #2563eb); background: color-mix(in srgb, var(--color-btnPrimary, #2563eb) 12%, transparent); }
+.aj-sec-txt { flex: 1 1 280px; min-width: 0; }
+.aj-sec-txt h2 { margin: 0; font-size: 1.3rem; font-weight: 900; letter-spacing: -0.01em; }
+.aj-sec-txt p { margin: 4px 0 0; font-size: 0.9rem; line-height: 1.55; color: var(--color-textSecondary, #475569); max-width: 70ch; }
+.aj-abrir {
+  display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 14px; border-radius: 999px;
+  font-size: 0.82rem; font-weight: 800; text-decoration: none; color: #fff; background: var(--color-btnPrimary, #2563eb);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.aj-abrir:hover { transform: translateY(-1px); box-shadow: 0 8px 18px -8px var(--color-btnPrimaryShadowHover, rgba(37, 99, 235, 0.5)); }
+
+.aj-bloco h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 0.78rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-textSecondary, #64748b); }
+
+/* Passo-a-passo e FAQ (details) */
+.aj-tarefas, .aj-faq { display: flex; flex-direction: column; gap: 8px; }
+.aj-tarefa, .aj-faq details {
+  border-radius: 14px; background: var(--color-bgPrimary, #fff); border: 1px solid var(--color-borderColor, #e2e8f0);
+  scroll-margin-top: 16px; transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.aj-tarefa[open], .aj-faq details[open] { border-color: color-mix(in srgb, var(--color-btnPrimary, #2563eb) 45%, transparent); box-shadow: 0 10px 24px -18px rgba(15, 23, 42, 0.35); }
+.aj-tarefa summary, .aj-faq summary {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 16px;
+  list-style: none; cursor: pointer; font-size: 0.92rem; font-weight: 700; min-height: 44px;
+}
+.aj-tarefa summary::-webkit-details-marker, .aj-faq summary::-webkit-details-marker { display: none; }
+.aj-tarefa summary:focus-visible, .aj-faq summary:focus-visible { outline: 2px solid var(--color-btnPrimary, #2563eb); outline-offset: 2px; border-radius: 14px; }
+.aj-chev { flex-shrink: 0; color: #64748b; transition: transform 0.2s ease; }
+details[open] > summary .aj-chev { transform: rotate(90deg); }
+
+.aj-tarefa ol { margin: 0; padding: 0 18px 14px 18px; list-style: none; counter-reset: passo; display: flex; flex-direction: column; gap: 8px; }
+.aj-tarefa ol li { position: relative; padding-left: 36px; font-size: 0.9rem; line-height: 1.55; counter-increment: passo; }
+.aj-tarefa ol li::before {
+  content: counter(passo); position: absolute; left: 0; top: 0; width: 24px; height: 24px; display: grid; place-items: center;
+  border-radius: 50%; font-size: 0.75rem; font-weight: 800; color: var(--color-btnPrimary, #2563eb);
+  background: color-mix(in srgb, var(--color-btnPrimary, #2563eb) 12%, transparent);
+}
+.aj-nota {
+  display: flex; gap: 8px; margin: 0 16px 14px; padding: 10px 12px; border-radius: 10px; font-size: 0.85rem; line-height: 1.5;
+  color: #92400e; background: #fffbeb; border: 1px solid #fde68a;
+}
+.aj-nota svg { flex-shrink: 0; margin-top: 2px; }
+.aj-faq p { margin: 0; padding: 0 16px 14px; font-size: 0.9rem; line-height: 1.6; color: var(--color-textSecondary, #475569); }
+
+/* Guia do ecrã */
+.aj-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.aj-card { padding: 14px 16px; border-radius: 14px; background: var(--color-bgPrimary, #fff); border: 1px solid var(--color-borderColor, #e2e8f0); scroll-margin-top: 16px; }
+.aj-card:target { border-color: var(--color-btnPrimary, #2563eb); }
+.aj-card h4 { margin: 0 0 4px; font-size: 0.9rem; font-weight: 800; }
+.aj-card p { margin: 0; font-size: 0.86rem; line-height: 1.55; color: var(--color-textSecondary, #475569); }
+
+/* Resultados da pesquisa */
+.aj-resultados h2 { margin: 0 0 10px; font-size: 0.78rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-textSecondary, #64748b); }
+.aj-resultados ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.aj-resultados button {
+  display: flex; align-items: center; gap: 12px; width: 100%; padding: 11px 14px; border-radius: 13px; text-align: left;
+  font: inherit; color: inherit; cursor: pointer; background: var(--color-bgPrimary, #fff); border: 1px solid var(--color-borderColor, #e2e8f0);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.aj-resultados button:hover { border-color: var(--color-btnPrimary, #2563eb); transform: translateX(2px); }
+.aj-res-ico { width: 32px; height: 32px; flex-shrink: 0; display: grid; place-items: center; border-radius: 9px; color: var(--color-btnPrimary, #2563eb); background: color-mix(in srgb, var(--color-btnPrimary, #2563eb) 12%, transparent); }
+.aj-res-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.aj-res-meta { font-size: 0.72rem; font-weight: 700; color: #64748b; }
+.aj-res-tit { font-size: 0.9rem; font-weight: 700; }
+.aj-vazio { color: #64748b; font-size: 0.9rem; }
+
+@media (max-width: 860px) {
+  .aj-layout { grid-template-columns: 1fr; }
+  .aj-nav { position: static; flex-direction: row; overflow-x: auto; max-height: none; scrollbar-width: none; }
+  .aj-nav button { width: auto; white-space: nowrap; }
+}
+@media (max-width: 640px) {
+  .aj-page { padding: 16px 14px 32px; }
+  .aj-hero { padding: 18px; border-radius: 20px; }
+  .aj-hero h1 { font-size: 1.3rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .aj-hero, .aj-conteudo { animation: none; }
+}
