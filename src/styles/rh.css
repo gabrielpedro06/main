@@ -639,3 +639,42 @@ select.rh-input { cursor: pointer; }
 .rh-sa-total { display: inline-flex; padding: 4px 10px; border-radius: 9px; background: #f0fdf4; color: #15803d; font-weight: 900; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .rh-sa-total.is-big { font-size: 1.05rem; padding: 6px 12px; background: #dcfce7; }
 .rh-proc-table tfoot td { padding: 12px 14px; background: #f8fafc; border-top: 1px solid var(--rh-line); font-size: 0.76rem; font-weight: 900; letter-spacing: 0.05em; color: #166534; }
+
+/* ---------- Km's por mês (components/rh/TabelaKmsMensal.jsx) ---------- */
+.rh-km-ctrl { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.rh-km-ano { display: inline-flex; align-items: center; gap: 2px; height: 34px; padding: 0 3px; border-radius: 10px; border: 1px solid var(--rh-line); background: #fff; }
+.rh-km-ano strong { min-width: 46px; text-align: center; font-size: 0.86rem; font-weight: 900; color: var(--rh-ink); font-variant-numeric: tabular-nums; }
+.rh-km-ano button { width: 28px; height: 28px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--rh-muted); cursor: pointer; }
+.rh-km-ano button:hover:not(:disabled) { background: #f1f5f9; color: var(--rh-ink); }
+.rh-km-ano button:disabled { opacity: 0.35; cursor: default; }
+.rh-km-seg { display: inline-flex; padding: 3px; border-radius: 10px; background: #f1f5f9; }
+.rh-km-seg button { height: 28px; padding: 0 11px; border: 0; border-radius: 8px; background: transparent; font: inherit; font-size: 0.78rem; font-weight: 700; color: var(--rh-muted); cursor: pointer; white-space: nowrap; }
+.rh-km-seg button.is-on { background: #fff; color: var(--rh-ink); box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12); }
+
+.rh-km-resumo { display: flex; flex-wrap: wrap; gap: 8px; }
+.rh-km-resumo span { display: inline-flex; align-items: baseline; gap: 6px; padding: 7px 12px; border-radius: 999px; font-size: 0.8rem; color: var(--rh-muted); background: #f8fafc; border: 1px solid #eef2f6; }
+.rh-km-resumo strong { font-size: 0.92rem; font-weight: 900; color: var(--rh-ink); font-variant-numeric: tabular-nums; }
+.rh-km-resumo .is-pend { background: #fffbeb; border-color: #fde68a; }
+.rh-km-resumo .is-pend strong { color: #b45309; }
+
+.rh-km-wrap { max-height: 70vh; overflow: auto; }
+.rh-km-tabela { min-width: max-content; }
+.rh-km-tabela th, .rh-km-tabela td { text-align: right; }
+.rh-km-tabela td { white-space: nowrap; font-variant-numeric: tabular-nums; vertical-align: top; }
+.rh-km-tabela td.is-zero { color: #cbd5e1; }
+.rh-km-tabela thead th.is-atual { color: var(--color-btnPrimary); }
+.rh-km-tabela .rh-km-nome { position: sticky; left: 0; z-index: 2; text-align: left; min-width: 180px; background: #fff; font-size: 0.86rem; font-weight: 800; color: var(--rh-ink); text-transform: none; letter-spacing: 0; box-shadow: 1px 0 0 #eef2f6; }
+.rh-km-tabela thead .rh-km-nome { z-index: 3; background: #f8fafc; font-size: 0.68rem; color: var(--rh-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.rh-km-tabela tbody tr:hover .rh-km-nome { background: #f8fafc; }
+.rh-km-tabela .rh-km-nome small { font-weight: 600; color: var(--rh-muted); }
+.rh-km-tabela tr.is-inativo .rh-km-nome { color: var(--rh-muted); }
+.rh-km-km, .rh-km-eur, .rh-km-pend { display: block; }
+.rh-km-km { font-weight: 800; color: var(--rh-ink); }
+.rh-km-eur { margin-top: 1px; font-size: 0.76rem; font-weight: 600; color: #15803d; }
+.rh-km-pend { margin-top: 3px; font-size: 0.7rem; font-weight: 700; color: #b45309; }
+.rh-km-tabela .rh-km-total { background: color-mix(in srgb, var(--color-btnPrimary) 5%, #fff); }
+.rh-km-tabela tfoot th, .rh-km-tabela tfoot td { position: sticky; bottom: 0; z-index: 1; padding: 11px 14px; background: #f8fafc; border-top: 1px solid var(--rh-line); }
+.rh-km-tabela tfoot .rh-km-nome { z-index: 3; text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.05em; }
+.rh-km-vazio, .rh-km-erro { margin: 0; padding: 24px; text-align: center; color: var(--rh-muted); font-size: 0.88rem; }
+.rh-km-erro { color: #b91c1c; }
+.rh-km-nota { margin: 0; font-size: 0.76rem; color: var(--rh-muted); }

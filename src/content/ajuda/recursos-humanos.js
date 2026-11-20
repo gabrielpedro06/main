@@ -56,6 +56,17 @@ export default {
   ],
   tarefas: [
     {
+      titulo: "Como ver os km pedidos por mês",
+      passos: [
+        "Em **Recursos Humanos**, abre o separador **Km's**.",
+        "Cada linha é um colaborador e cada coluna um mês, de janeiro até ao mês atual. Em cada célula vês os km e, por baixo, o valor em euros.",
+        "Por omissão contam **Todos os pedidos**, incluindo os que ainda estão pendentes (assinalados a laranja com \"pend.\"). Escolhe **Só aprovados** para ver apenas o que já foi aprovado.",
+        "Usa as setas ao lado do ano para ver anos anteriores.",
+        "Carrega em **Excel** para descarregar a tabela.",
+      ],
+      nota: "O valor em euros usa o €/km atual definido nos RH. Os pedidos rejeitados ou cancelados não contam.",
+    },
+    {
       titulo: "Como aprovar ou rejeitar um pedido no painel",
       passos: [
         "Abre o separador **Pedidos**.",

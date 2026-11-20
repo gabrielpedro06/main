@@ -12,6 +12,7 @@
 //   tolerancias   tolerâncias de ponto (linhas em `ferias` com tipo "Tolerância
 //                 de Ponto"; user_id null = global)
 //   formacoes     horas de formação por colaborador (tabela `formacoes`)
+//   kms           <TabelaKmsMensal /> km pedidos por colaborador × mês, com o valor em €
 //   medalhas      <MedalhasRH /> (tabelas medalhas / medalhas_colaboradores)
 //   inativos      colaboradores desativados (reativar via /api/admin/contas)
 //
@@ -30,6 +31,8 @@ import gerarRelatorioIndividual from "../components/pdfIndividual";
 import gerarRelatorioDeslocacoesMensais from "../components/pdfDeslocacoesMensais";
 import CalendarioColaborador from "../components/CalendarioColaborador";
 import MedalhasRH from "../components/medalhas/MedalhasRH";
+import TabelaKmsMensal from "../components/rh/TabelaKmsMensal";
+import { Car as IconCar } from "lucide-react";
 import FancySelect from "../components/FancySelect";
 import * as XLSX from "xlsx";
 import {
@@ -2973,6 +2976,7 @@ export default function RecursosHumanos() {
       { id: 'pedidos', label: 'Pedidos', icon: Icons.Inbox, badge: totalPedidos },
       { id: 'tolerancias', label: 'Tolerâncias', icon: Icons.Clock },
       { id: 'formacoes', label: 'Formação', icon: Icons.FileText },
+      { id: 'kms', label: "Km's", icon: IconCar },
       { id: 'medalhas', label: 'Medalhas', icon: Icons.Medal },
       { id: 'inativos', label: 'Colab. Inativos', icon: Icons.User },
   ];
@@ -3276,6 +3280,10 @@ export default function RecursosHumanos() {
                     )}
                 </section>
             </div>
+        )}
+
+        {activeView === 'kms' && (
+            <TabelaKmsMensal colaboradores={colaboradores} valorPorKm={parseKmRate(valorKmReembolso)} notify={showNotification} renderAvatar={(c) => renderRhAvatar(c.nome, c.id, 'sm', c.avatar_url)} />
         )}
 
         {activeView === 'medalhas' && (
