@@ -1,75 +1,64 @@
 # Bizin Manager
 
-## Environment variables
+Aplicação interna da Bizin para gerir o dia a dia da consultora. Cobre projetos e tarefas, clientes e propostas, formação, RH (férias, ausências, assiduidade, km's), marketing, comunicação interna, ativos de TI e ferramentas como o TransferGest e o Organizador de PDFs.
 
-Do not commit `.env`.
+- **Frontend:** React 19 + Vite, com HashRouter (os URLs são `/#/dashboard/...`).
+- **Backend:** Supabase (Postgres com RLS, Auth com 2FA obrigatório, Storage, pg_cron, Vault) e funções serverless em `api/` no Vercel.
+- **Serviços externos:** Brevo (emails e campanhas), Claude/Anthropic (assistente de ideias e organizador de PDFs, com dados pessoais redigidos antes de serem enviados), nif.pt e SICAE (dados de empresas).
 
-Use `.env.example` as the template for local development, then create your own `.env` on your machine with the real values.
-
-Local example:
-
-```env
-VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
-BREVO_API_KEY=your-brevo-api-key
-BREVO_SENDER_EMAIL=marketing@your-domain.pt
-BREVO_SENDER_NAME=Your Brand
-VITE_TRANSFERGEST_API_BASE=http://localhost:8787
-TRANSFERGEST_BREVO_API_KEY=your-transfergest-brevo-api-key
-TRANSFERGEST_BREVO_SENDER_EMAIL=transfergest@your-domain.pt
-TRANSFERGEST_BREVO_SENDER_NAME=TransferGest
-```
-
-## Local development
-
-Start both the frontend and the marketing API with:
+## Arranque rápido
 
 ```bash
-npm run dev:full
+npm install
+cp .env.example .env      # preencher com os valores reais (nunca fazer commit do .env)
+npm run dev:full          # Vite (http://localhost:5173) + API local (http://127.0.0.1:8787)
 ```
 
-If you only need the frontend, use:
+Com `npm run dev` arranca só o Vite, e as funcionalidades que usam `/api` (emails, IA, admin, NIF) deixam de funcionar.
 
-```bash
-npm run dev
+| Script | O que faz |
+|---|---|
+| `npm run dev:full` | Frontend e API local, o modo normal de desenvolvimento |
+| `npm run dev` / `npm run dev:server` | Só o frontend / só a API local |
+| `npm run build` | Build de produção para `dist/` |
+| `npm run lint` | ESLint |
+
+## Estrutura
+
+```
+src/pages/          páginas (uma por rota — ver src/App.jsx)
+src/components/     componentes partilhados e por área (marketing/, admin/, medalhas/)
+src/utils/          lógica reutilizável (saldos de férias, auditoria, cronómetros, PDFs…)
+src/content/ajuda/  conteúdo do manual de utilizador (página Ajuda)
+src/styles/         um CSS por área + camadas.css (z-index) e acessibilidade.css
+api/                funções serverless do Vercel (máx. 12 no plano Hobby)
+server/             servidor Express que replica a api/ em desenvolvimento
+supabase/           migrações SQL (correm-se à mão no SQL Editor, por ordem) e edge functions
+docs/               documentação técnica
 ```
 
-## Vercel deploy
+## Documentação
 
-Vercel does not read your local `.env` file automatically.
+- **Técnica:** [docs/README.md](docs/README.md). Cobre arquitetura, setup e deploy, base de dados, segurança, API, frontend e cada módulo.
+- **Problemas conhecidos:** [docs/riscos-e-pendentes.md](docs/riscos-e-pendentes.md).
+- **Manual de utilizador:** está dentro da app, no menu da conta → **Ajuda**.
 
-Add the same variables in the Vercel project settings under Environment Variables:
+## Deploy
 
-- `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_ANON_KEY`
-- `BREVO_API_KEY`
-- `BREVO_SENDER_EMAIL`
-- `BREVO_SENDER_NAME` if you use it
-- `VITE_TRANSFERGEST_API_BASE` only if TransferGest uses a dedicated external API base URL (do not set to localhost in production)
-- `TRANSFERGEST_BREVO_API_KEY`
-- `TRANSFERGEST_BREVO_SENDER_EMAIL`
-- `TRANSFERGEST_BREVO_SENDER_NAME` if you use it
+O deploy é automático no Vercel a cada push para `main`. As variáveis de ambiente configuram-se no painel do Vercel (o `.env` local não é lido lá). A lista completa, com o que cada uma faz, está em [docs/02-setup-e-deploy.md](docs/02-setup-e-deploy.md#3-variáveis-de-ambiente). As principais são:
 
-For production, `BREVO_API_KEY` must exist in Vercel because the serverless function reads it with `process.env.BREVO_API_KEY`.
-For TransferGest campaigns, `TRANSFERGEST_BREVO_API_KEY` should also exist in Vercel.
+- **Supabase:** `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+- **Emails:** `BREVO_API_KEY`, `BREVO_SENDER_EMAIL` (e as variantes `TRANSFERGEST_BREVO_*`)
+- **IA:** `ANTHROPIC_API_KEY`
+- **NIF:** `NIFPT_KEY`
+- **App:** `APP_URL`, o domínio oficial, usado nos links dos emails
+- **Alertas de segurança:** `SEGURANCA_CRON_SEGREDO`, `SUPABASE_ACCESS_TOKEN`
 
-## Supabase Edge Function (CAE por NIF)
+Para mudar de domínio é preciso atualizar o `APP_URL`, os URLs no Supabase e um segredo no Vault. O checklist está em [docs/02-setup-e-deploy.md](docs/02-setup-e-deploy.md#7-mudança-de-domínio-ou-de-projeto-vercel).
 
-Nova function criada: `fetch-caes-sicae`.
+## Regras
 
-Deploy:
-
-```bash
-supabase functions deploy fetch-caes-sicae
-```
-
-Teste rápido:
-
-```bash
-supabase functions serve fetch-caes-sicae --no-verify-jwt
-curl -X POST "http://127.0.0.1:54321/functions/v1/fetch-caes-sicae" -H "Content-Type: application/json" -d '{"nif":"509985769"}'
-```
-
-## Notes
-
-The React + Vite template text was removed from this README because this repository now has its own setup and deployment workflow.
+- Segredos só no Vercel ou no Supabase Vault, **nunca** no código, no git ou em mensagens.
+- Cada tabela nova leva RLS **e** a política restritiva `mfa_obrigatorio` (ver [docs/04-seguranca.md](docs/04-seguranca.md)).
+- As migrações são numeradas, idempotentes e correm-se à mão. Ver [docs/03-base-de-dados.md](docs/03-base-de-dados.md).
+- Quando mudares um ecrã, atualiza também o ficheiro correspondente em `src/content/ajuda/`.
