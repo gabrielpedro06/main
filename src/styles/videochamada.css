@@ -1,0 +1,43 @@
+/* Videochamada (components/VideoChamada.jsx). Fica acima dos modais (incl. o chat). */
+.vc-overlay {
+  position: fixed; inset: 0; z-index: calc(var(--z-modal-max, 3000) + 50);
+  display: grid; place-items: center; padding: 24px;
+  background: rgba(15, 23, 42, 0.55); backdrop-filter: blur(4px);
+}
+.vc-janela {
+  display: flex; flex-direction: column; width: min(1280px, 100%); height: min(820px, 100%);
+  border-radius: 20px; overflow: hidden; background: #0f172a;
+  box-shadow: 0 40px 80px -20px rgba(0, 0, 0, 0.6);
+}
+.vc-topo {
+  display: flex; align-items: center; gap: 10px; height: 52px; padding: 0 12px 0 16px; flex-shrink: 0;
+  color: #fff; background: linear-gradient(125deg, var(--color-sidebarBg, #1e293b), var(--color-sidebarBgSecondary, #0f172a));
+}
+.vc-ico { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 9px; background: rgba(255, 255, 255, 0.14); }
+.vc-titulo { font-size: 0.92rem; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.vc-estado { font-size: 0.78rem; color: rgba(255, 255, 255, 0.7); }
+.vc-acoes { display: flex; gap: 6px; margin-left: auto; }
+.vc-btn {
+  display: inline-flex; align-items: center; gap: 6px; height: 36px; min-width: 36px; padding: 0 10px; justify-content: center;
+  border: 0; border-radius: 10px; font: inherit; font-size: 0.82rem; font-weight: 700; cursor: pointer;
+  color: #fff; background: rgba(255, 255, 255, 0.12); transition: background 0.15s ease;
+}
+.vc-btn:hover { background: rgba(255, 255, 255, 0.22); }
+.vc-btn.is-sair { background: #dc2626; }
+.vc-btn.is-sair:hover { background: #b91c1c; }
+.vc-corpo { position: relative; flex: 1; min-height: 0; }
+.vc-jitsi, .vc-jitsi iframe { width: 100%; height: 100%; border: 0; display: block; }
+.vc-erro { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px; text-align: center; color: #e2e8f0; }
+.vc-erro p { margin: 0; max-width: 46ch; line-height: 1.5; }
+
+/* Minimizada: janela pequena no canto, a chamada continua */
+.vc-overlay.is-min { inset: auto 20px 20px auto; padding: 0; background: transparent; backdrop-filter: none; place-items: end; }
+.vc-overlay.is-min .vc-janela { width: 360px; height: 250px; border-radius: 16px; }
+.vc-overlay.is-min .vc-btn.is-sair span { display: none; }
+
+@media (max-width: 640px) {
+  .vc-overlay { padding: 0; }
+  .vc-janela { width: 100%; height: 100%; border-radius: 0; }
+  .vc-overlay.is-min { inset: auto 10px 80px auto; }
+  .vc-overlay.is-min .vc-janela { width: 220px; height: 160px; }
+}

@@ -1,9 +1,10 @@
 import { useEffect, useLayoutEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import ThemeSelector from "./ThemeSelector";
+import { seccaoDaRota } from "../content/ajuda";
 import { isNotifySoundEnabled, playNotifySound, setNotifySoundEnabled } from "../utils/notifySound";
 
 const Icon = {
@@ -37,6 +38,7 @@ const Icon = {
  */
 export default function AccountMenu({ open, onClose, anchorRef, placement = "up", displayName, initials, roleLabel }) {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const { user, userProfile, signOut } = useAuth();
   const { currentTheme, availableThemes } = useTheme();
   const [position, setPosition] = useState(null);
@@ -111,7 +113,7 @@ export default function AccountMenu({ open, onClose, anchorRef, placement = "up"
               <button type="button" role="menuitem" className="bz-account-item" onClick={() => go("/dashboard/pedido-km")}>
                 <Icon.Car /> Pedido de deslocação
               </button>
-              <button type="button" role="menuitem" className="bz-account-item" onClick={() => go("/dashboard/ajuda")}>
+              <button type="button" role="menuitem" className="bz-account-item" onClick={() => { const id = seccaoDaRota(pathname); go(id ? `/dashboard/ajuda?s=${id}` : "/dashboard/ajuda"); }}>
                 <Icon.Help /> Ajuda
               </button>
               <button

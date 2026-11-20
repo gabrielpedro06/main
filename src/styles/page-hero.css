@@ -1,0 +1,47 @@
+/* Cabeçalho de página partilhado (components/PageHero.jsx) — mesmo visual de adm-hero / rg-hero. */
+.page-hero {
+  position: relative; display: flex; flex-direction: column; gap: 16px; margin-bottom: 24px;
+  padding: 22px 24px; border-radius: 24px; color: #fff; overflow: hidden;
+  background: linear-gradient(125deg, var(--color-sidebarBg, #1e293b) 0%, var(--color-sidebarBgSecondary, #0f172a) 100%);
+  box-shadow: 0 24px 48px -24px var(--color-btnPrimaryShadowHover, rgba(15, 23, 42, 0.4)), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  animation: pageHeroRise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes pageHeroRise { from { opacity: 0; transform: translateY(10px); } }
+.page-hero-orb { position: absolute; border-radius: 50%; filter: blur(42px); pointer-events: none; }
+.page-hero-orb.is-a { width: 320px; height: 320px; right: -60px; top: -180px; background: rgba(255, 255, 255, 0.16); animation: pageHeroDrift 16s ease-in-out infinite alternate; }
+.page-hero-orb.is-b { width: 240px; height: 240px; left: 35%; bottom: -170px; background: rgba(129, 140, 248, 0.2); animation: pageHeroDrift 20s ease-in-out infinite alternate-reverse; }
+@keyframes pageHeroDrift { to { transform: translate(-40px, 20px); } }
+.page-hero-row { position: relative; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px 18px; }
+.page-hero-main { display: flex; align-items: center; gap: 14px; min-width: 0; flex: 1 1 320px; }
+.page-hero-icon { width: 52px; height: 52px; flex-shrink: 0; display: grid; place-items: center; border-radius: 16px; background: rgba(255, 255, 255, 0.14); border: 1px solid rgba(255, 255, 255, 0.2); }
+.page-hero-txt { min-width: 0; }
+.page-hero-kicker { display: flex; align-items: center; gap: 6px; font-size: 0.68rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255, 255, 255, 0.65); }
+.page-hero h1 { margin: 2px 0 0; font-size: 1.55rem; font-weight: 900; letter-spacing: -0.02em; color: #fff; line-height: 1.15; }
+.page-hero p { margin: 3px 0 0; max-width: 72ch; font-size: 0.86rem; line-height: 1.45; color: rgba(255, 255, 255, 0.74); }
+.page-hero p strong { color: #fff; }
+.page-hero-side { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* Peças reutilizáveis dentro do hero */
+.page-hero-chip { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; color: rgba(255, 255, 255, 0.82); background: rgba(255, 255, 255, 0.12); border: 1px solid rgba(255, 255, 255, 0.16); white-space: nowrap; }
+.page-hero-chip strong { font-size: 0.95rem; font-weight: 900; color: #fff; font-variant-numeric: tabular-nums; }
+.page-hero-btn {
+  display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 16px; border-radius: 999px;
+  border: 0; background: #fff; color: var(--color-sidebarBg, #0f172a); text-decoration: none;
+  font: inherit; font-size: 0.82rem; font-weight: 800; cursor: pointer; white-space: nowrap;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.page-hero-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 18px -8px rgba(0, 0, 0, 0.45); }
+.page-hero-crumb {
+  display: inline-flex; align-items: center; gap: 3px; padding: 0; border: 0; background: none; cursor: pointer;
+  font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit;
+}
+.page-hero-crumb:hover { color: #fff; text-decoration: underline; text-underline-offset: 3px; }
+.page-hero-crumb:focus-visible { outline: 2px solid #fff; outline-offset: 3px; border-radius: 4px; }
+
+@media (max-width: 640px) {
+  .page-hero { padding: 18px; border-radius: 20px; }
+  .page-hero h1 { font-size: 1.3rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .page-hero, .page-hero-orb { animation: none; }
+}

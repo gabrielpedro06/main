@@ -40,10 +40,11 @@ Os handlers têm a assinatura `(req, res)` estilo Vercel/Express (`req.method`, 
 `req.body` já em JSON, `req.headers`; `res.status().json()`, `res.setHeader`, `res.write`,
 `res.end`). Por isso o mesmo código corre nos dois ambientes.
 
-### Contagem de funções Vercel (10 de 12)
+### Contagem de funções Vercel (11 de 12)
 
 `absence-notifications/action`, `admin/[op]`, `cae-descriptions`, `health`, `marketing/ideias`,
-`nif`, `notificacoes/[tipo]`, `organizador/ia`, `seguranca/[op]`, `sicae-caes`.
+`nif`, `notificacoes/[tipo]`, `organizador/ia`, `reunioes`, `seguranca/[op]`, `sicae-caes`.
+**Só resta 1 função livre** — rotas novas devem entrar nas existentes (ver abaixo).
 Para acrescentar uma rota sem gastar uma função: novo `op` em `api/admin/[op].js` (mapa `ROTAS`),
 novo `tipo` em `api/_lib/notificacoes.js` (mapa `TIPOS`) ou novo `op` em
 `api/_lib/alertasSeguranca.js` (mapa `OPS`) — e registar a rota equivalente em `server/index.js`
@@ -238,7 +239,18 @@ Variáveis: `SUPABASE_SERVICE_ROLE_KEY`, `VITE_SUPABASE_URL`, `SEGURANCA_CRON_SE
 - Ficheiro: `api/cae-descriptions.js` → `server/caeCatalog.js`. **Pública**. Em dev só `GET`.
 - Saída `{ ok, total, caes: [{ codigo, descricao|null }] }`.
 
-### 3.12 Só no servidor local
+### 3.12 `POST /api/reunioes` (videochamadas JaaS)
+
+- Ficheiros: `api/reunioes.js` → `api/_lib/reunioes.js`. Usado por `src/components/VideoChamada.jsx` (botão **Chamada** no chat da Comunicação Interna).
+- Exige sessão **com 2FA** (lê `aal` do token e recusa se não for `aal2`) e que a pessoa esteja em `chat_participants` da conversa.
+- Entrada `{ conversa: <uuid de chat_rooms> }`. Saída `{ ok, dominio: "8x8.vc", appId, sala: "<appId>/bizin-chat-<uuid>", jwt }`.
+- O JWT é RS256, assinado com `JAAS_PRIVATE_KEY` (header `kid` = `JAAS_KEY_ID`), válido 2 h e **só para essa sala**; todos os internos entram como moderadores. Gravação, transcrição e streaming desligados.
+- Variáveis: `JAAS_APP_ID`, `JAAS_KEY_ID`, `JAAS_PRIVATE_KEY` (aceita quebras de linha reais ou `
+`). Sem elas responde 503.
+- O `vercel.json` (`Permissions-Policy`) delega câmara, microfone, partilha de ecrã e ecrã inteiro a `https://8x8.vc`; sem isso o iframe não acede à câmara.
+- Plano gratuito JaaS: 25 utilizadores ativos/mês (convidados externos contam).
+
+### 3.13 Só no servidor local
 
 `GET /.well-known/appspecific/com.chrome.devtools.json` → 204 (silencia um pedido do Chrome DevTools).
 

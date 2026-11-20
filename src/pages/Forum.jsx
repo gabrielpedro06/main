@@ -23,9 +23,14 @@ import EmojiPicker from 'emoji-picker-react';
 import "../styles/forum.css";
 import ImagemPrivada from "../components/ImagemPrivada";
 import { clicavel } from "../utils/clicavel";
+import VideoChamada from "../components/VideoChamada";
+
+/** Texto da mensagem que anuncia uma videochamada no chat (é mostrada como cartão com botão "Entrar"). */
+const MSG_CHAMADA = "📹 Iniciou uma videochamada";
 
 // --- ÍCONES SVG PROFISSIONAIS ---
 const Icons = {
+  Video: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5" /><rect x="2" y="6" width="14" height="12" rx="2" /></svg>,
   Message: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>,
     Paperclip: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-8.49 8.49a5 5 0 0 1-7.07-7.07l8.49-8.49a3 3 0 1 1 4.24 4.24l-8.5 8.49a1 1 0 0 1-1.41-1.41l7.79-7.78"></path></svg>,
   Plus: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>,
@@ -317,6 +322,7 @@ export default function Forum() {
     const [chatModal, setChatModal] = useState({ show: false, target: null });
     const [chatRooms, setChatRooms] = useState([]);
     const [activeChatRoom, setActiveChatRoom] = useState(null);
+    const [chamada, setChamada] = useState(null); // { conversa, titulo } da videochamada aberta
     const [chatMessages, setChatMessages] = useState([]);
     const chatMessagesRef = useRef([]);
     const activeRoomChannelRef = useRef(null);
@@ -1643,6 +1649,21 @@ async function handleChatReaction(messageId, emoji) {
  * Envia texto e/ou o ficheiro em espera (upload para chat_ficheiros/<room_id>/).
  * Devolve true se enviou (o ChatComposer limpa então o rascunho).
  */
+/** Inicia uma videochamada na conversa ativa: avisa no chat (os outros entram pelo cartão) e abre a chamada. */
+async function iniciarChamada() {
+      if (!activeChatRoom?.id) return;
+      const conversa = activeChatRoom.id;
+      const titulo = chatModal.target?.title || "Chamada";
+      setChamada({ conversa, titulo });
+      const { data, error } = await supabase
+          .from("chat_messages")
+          .insert([{ room_id: conversa, sender_id: user.id, content: MSG_CHAMADA }])
+          .select("*")
+          .single();
+      if (error) { setChatError(error.message || "Não foi possível avisar a conversa."); return; }
+      if (data) setChatMessages((prev) => (prev.some((m) => m.id === data.id) ? prev : [...prev, data]));
+  }
+
 async function sendChatMessage(rawContent) {
       const content = String(rawContent || "").trim();
       
@@ -3130,6 +3151,10 @@ async function sendChatMessage(rawContent) {
       )}
 
       {/* --- MODAL DE CHAT --- */}
+      {chamada && (
+        <VideoChamada conversa={chamada.conversa} titulo={chamada.titulo} onFechar={() => setChamada(null)} />
+      )}
+
       {chatModal.show && (
     <ModalPortal>
         <div className="fx-overlay fx-overlay-chat" style={{ zIndex: "calc(var(--z-modal-max) + 1)" }} onClick={closeInternalChatModal}>
@@ -3175,6 +3200,11 @@ async function sendChatMessage(rawContent) {
                                     : (chatModal.target?.subtitle || (activeChatRoom?.id ? 'Conversa' : 'Sem sala ativa'))}
                             </p>
                         </div>
+                        {activeChatRoom?.id && (
+                            <button type="button" onClick={iniciarChamada} disabled={Boolean(chamada)} className="fx-btn fx-btn-ghost fx-btn-sm" title="Iniciar videochamada com esta conversa">
+                                <Icons.Video size={15} /> <span className="fx-hide-sm">Chamada</span>
+                            </button>
+                        )}
                         {activeChatRoom?.is_group && (
                             <button type="button" onClick={openAddGroupMembersModal} className="fx-btn fx-btn-ghost fx-btn-sm">
                                 <Icons.Plus size={14} /> <span className="fx-hide-sm">Adicionar pessoas</span>
@@ -3281,7 +3311,15 @@ async function sendChatMessage(rawContent) {
                                         )}
 
                                         <div className="fx-bubble-line">
-                                            {msg.content && <div className="fx-bubble-text">{msg.content}</div>}
+                                            {msg.content === MSG_CHAMADA ? (
+                                                <div className="fx-bubble-call">
+                                                    <span className="fx-bubble-call-ico"><Icons.Video size={16} /></span>
+                                                    <span>{mine ? "Iniciaste uma videochamada" : "Videochamada"}</span>
+                                                    <button type="button" className="fx-btn fx-btn-sm fx-bubble-call-btn" disabled={Boolean(chamada)} onClick={() => setChamada({ conversa: msg.room_id, titulo: chatModal.target?.title || "Chamada" })}>
+                                                        {mine ? "Voltar a entrar" : "Entrar"}
+                                                    </button>
+                                                </div>
+                                            ) : msg.content && <div className="fx-bubble-text">{msg.content}</div>}
                                             <span className="fx-bubble-meta">
                                                 {timeLabel.includes(' às ') ? timeLabel.split(' às ')[1] : timeLabel}
                                                 {mine && <span className={`fx-tick ${tick === '✓✓' ? 'is-read' : ''}`}>{tick}</span>}

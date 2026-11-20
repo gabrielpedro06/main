@@ -43,6 +43,14 @@ export const SECCOES_AJUDA = [
   admin, registos,
 ];
 
+/** Grupos da página inicial da Ajuda (ids das áreas). Áreas sem grupo vão para "Outros". */
+export const GRUPOS_AJUDA = [
+  { titulo: "O meu dia", ids: ["inicio", "agenda", "comunicacao", "ausencias", "pedido-km", "perfil-conta"] },
+  { titulo: "Projetos e clientes", ids: ["projetos", "tarefas", "modelos", "entidades", "programas-avisos", "propostas", "formacao"] },
+  { titulo: "Comercial e marketing", ids: ["leads", "marketing", "transfergest"] },
+  { titulo: "Gestão e ferramentas", ids: ["recursos-humanos", "ativos-ti", "organizador-pdf", "admin", "registos"] },
+];
+
 const ICONES = {
   ArrowLeftRight, BookOpen, Briefcase, Building2, CalendarCheck, CalendarDays, Car, ClipboardList,
   FileStack, FileText, GraduationCap, History, House, ListChecks, Megaphone, MessagesSquare,
@@ -52,4 +60,17 @@ const ICONES = {
 /** Ícone de uma área do manual: <IconeAjuda nome="Rocket" size={16} /> (BookOpen se não existir). */
 export function IconeAjuda({ nome, ...props }) {
   return createElement(ICONES[nome] || BookOpen, props);
+}
+
+/**
+ * Id da área do manual que corresponde a um caminho da app (a rota mais específica).
+ * "/dashboard" (Início) só corresponde exatamente; a própria Ajuda não corresponde a nada.
+ * Ex.: seccaoDaRota("/dashboard/projetos/123") → "projetos".
+ */
+export function seccaoDaRota(pathname) {
+  const p = String(pathname || "").replace(/\/+$/, "") || "/";
+  if (p.startsWith("/dashboard/ajuda")) return null;
+  const candidatas = SECCOES_AJUDA.filter((s) => s.rota && (p === s.rota || (s.rota !== "/dashboard" && p.startsWith(s.rota + "/"))));
+  candidatas.sort((a, b) => b.rota.length - a.rota.length);
+  return candidatas[0]?.id || null;
 }

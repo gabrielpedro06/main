@@ -1312,6 +1312,16 @@
   color: var(--fx-faint);
 }
 .fx-msg-row.is-mine .fx-bubble-meta { color: rgba(255, 255, 255, 0.7); }
+
+/* Cartão de videochamada no chat (mensagem MSG_CHAMADA em Forum.jsx) */
+.fx-bubble-call { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; font-weight: 700; }
+.fx-bubble-call-ico { width: 30px; height: 30px; flex-shrink: 0; display: grid; place-items: center; border-radius: 50%; color: #fff; background: #16a34a; }
+.fx-bubble-call-btn { margin-left: 4px; color: #fff !important; background: #16a34a !important; border-color: transparent !important; }
+.fx-bubble-call-btn:hover:not(:disabled) { background: #15803d !important; }
+.fx-bubble-call-btn:disabled { opacity: 0.55; cursor: default; }
+.fx-msg-row.is-mine .fx-bubble-call-ico { background: rgba(255, 255, 255, 0.22); }
+.fx-msg-row.is-mine .fx-bubble-call-btn { background: rgba(255, 255, 255, 0.2) !important; }
+.fx-msg-row.is-mine .fx-bubble-call-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.32) !important; }
 .fx-bubble.is-media .fx-bubble-line {
   position: absolute; right: 10px; bottom: 8px;
   padding: 2px 8px; border-radius: 999px;

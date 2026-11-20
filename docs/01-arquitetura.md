@@ -315,7 +315,7 @@ flowchart LR
 
   subgraph Vercel
     STATIC[index.html + bundle Vite]
-    FN["api/* (10 funções Node)<br/>_lib/seguranca.autenticar()"]
+    FN["api/* (11 funções Node)<br/>_lib/seguranca.autenticar()"]
   end
 
   subgraph Supabase

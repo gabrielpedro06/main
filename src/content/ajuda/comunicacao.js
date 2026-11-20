@@ -30,6 +30,18 @@ export default {
   ],
   tarefas: [
     {
+      titulo: "Como fazer uma videochamada",
+      passos: [
+        "Abre a conversa (com uma pessoa ou um grupo) no chat da **Comunicação Interna**.",
+        "No topo da conversa, carrega em **Chamada**.",
+        "Na primeira vez, o browser pede acesso à câmara e ao microfone: carrega em **Permitir**.",
+        "Confirma o teu nome, liga ou desliga a câmara e entra na reunião.",
+        "Os outros veem na conversa um cartão **Videochamada** e entram carregando em **Entrar**.",
+        "Para sair, usa o botão vermelho do Jitsi ou **Sair** no topo da janela. Podes **minimizar** a chamada para continuar a usar o Bizin.",
+      ],
+      nota: "Só entram as pessoas que fazem parte da conversa. Se saíres por engano, carrega em **Voltar a entrar** no cartão.",
+    },
+    {
       titulo: "Como criar uma publicação",
       passos: [
         "Abre **Comunicação Interna** na barra lateral.",

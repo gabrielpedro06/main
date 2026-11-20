@@ -75,6 +75,8 @@ Regra de ouro: **só variáveis com prefixo `VITE_` chegam ao browser** (são em
 | `ANTHROPIC_WORKSPACE_ID` | não | idem | só se a chave não estiver ligada a um workspace |
 | `MARKETING_IA_WEB_SEARCH` | não | `api/marketing/ideias.js` | `off` desliga a pesquisa na web do assistente |
 | `NIFPT_KEY` | sim para NIF | `api/_lib/nif.js` | chave do nif.pt. O código aceita também `VITE_NIFPT_KEY` por compatibilidade — **não usar**: com prefixo `VITE_` arrisca acabar no bundle público |
+| `JAAS_APP_ID`, `JAAS_KEY_ID` | sim para videochamadas | `api/_lib/reunioes.js` | conta Jitsi as a Service (jaas.8x8.vc → API keys). Não são secretos |
+| `JAAS_PRIVATE_KEY` | sim para videochamadas | idem | chave privada RSA (conteúdo do ficheiro `.pk`, com `BEGIN/END`). **Secreta** — só no Vercel/.env. Se for exposta: revogar em jaas.8x8.vc e gerar outra |
 | `SEGURANCA_CRON_SEGREDO` | sim para alertas | `api/_lib/alertasSeguranca.js` | segredo partilhado com o pg_cron (≥ 32 caracteres; igual ao `bizin_seguranca_segredo` do Vault) |
 | `SUPABASE_ACCESS_TOKEN` | sim para alertas | idem | token pessoal da Management API do Supabase para ler logs |
 | `SUPABASE_PROJECT_REF` | não | idem | ref do projeto; por omissão extraída do URL `https://<ref>.supabase.co` |
